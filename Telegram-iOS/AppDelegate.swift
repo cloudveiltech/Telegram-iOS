@@ -10,6 +10,7 @@ import Postbox
 import PushKit
 import AsyncDisplayKit
 import CloudKit
+import CloudVeilSecurityManager
 
 private let handleVoipNotifications = false
 
@@ -862,7 +863,12 @@ private enum QueuedWakeup: Int32 {
             BITHockeyManager.shared().start()
             BITHockeyManager.shared().authenticator.authenticateInstallation()
         }
-
+        
+        //CloudVeil start
+        var settings = AutomaticMediaDownloadSettings.defaultSettings
+        settings.autoplayGifs = settings.autoplayGifs && !MainController.SecurityStaticSettings.disableAutoPlayGifs
+        //CloudVeile end
+        
         return true
     }
 

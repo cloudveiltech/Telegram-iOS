@@ -24,7 +24,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D008599B1B28189D00EAF753"
-               BuildableName = "Telegram X.app"
+               BuildableName = "CloudVeil Messenger.app"
                BlueprintName = "Telegram-iOS"
                ReferencedContainer = "container:Telegram-iOS.xcodeproj">
             </BuildableReference>
@@ -76,7 +76,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D008599B1B28189D00EAF753"
-            BuildableName = "Telegram X.app"
+            BuildableName = "CloudVeil Messenger.app"
             BlueprintName = "Telegram-iOS"
             ReferencedContainer = "container:Telegram-iOS.xcodeproj">
          </BuildableReference>
@@ -103,7 +103,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D008599B1B28189D00EAF753"
-            BuildableName = "Telegram X.app"
+            BuildableName = "CloudVeil Messenger.app"
             BlueprintName = "Telegram-iOS"
             ReferencedContainer = "container:Telegram-iOS.xcodeproj">
          </BuildableReference>
@@ -129,7 +129,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D008599B1B28189D00EAF753"
-            BuildableName = "Telegram X.app"
+            BuildableName = "CloudVeil Messenger.app"
             BlueprintName = "Telegram-iOS"
             ReferencedContainer = "container:Telegram-iOS.xcodeproj">
          </BuildableReference>

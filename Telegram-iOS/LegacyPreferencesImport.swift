@@ -6,6 +6,7 @@ import MtProtoKitDynamic
 import TelegramUI
 
 import LegacyComponents
+import CloudVeilSecurityManager
 
 @objc(TGPresentationState) private final class TGPresentationState: NSObject, NSCoding {
     let pallete: Int32
@@ -63,11 +64,12 @@ func importLegacyPreferences(account: TemporaryAccount, documentsPath: String, d
             presentationState = value
         }
         
+        
         var autoNightPreferences: TGPresentationAutoNightPreferences?
         if let value = NSKeyedUnarchiver.unarchiveObject(withFile: documentsPath + "/autonight.dat") as? TGPresentationAutoNightPreferences {
             autoNightPreferences = value
         }
-        
+                
         var wallpaperInfo: TGWallpaperInfo?
         if let data = UserDefaults.standard.object(forKey: "_currentWallpaperInfo") as? [AnyHashable: Any], let value = TGWallpaperInfo(dictionary: data) {
             wallpaperInfo = value
@@ -279,7 +281,9 @@ func importLegacyPreferences(account: TemporaryAccount, documentsPath: String, d
                 }
                 
                 if let parsedAutoplayGifs = parsedAutoplayGifs {
-                    settings.autoplayGifs = parsedAutoplayGifs
+                    //CloudVeil start
+                    settings.autoplayGifs = parsedAutoplayGifs && !MainController.SecurityStaticSettings.disableAutoPlayGifs
+                    //CloudVeile end
                 }
                 
                 return settings

@@ -1,1 +1,1 @@
-#include "../../Telegram-iOS-Shared/Config-AppStore.xcconfig"
+#include "../../Config-CloudVeil.xcconfig"
