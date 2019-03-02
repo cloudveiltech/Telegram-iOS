@@ -5,7 +5,21 @@ import TelegramUI
 import SwiftSignalKit
 import Postbox
 
-private var accountCache: (Account, AccountManager)?
+private let inForeground = ValuePromise<Bool>(false, ignoreRepeated: true)
+
+private final class SharedExtensionContext {
+    let sharedContext: SharedAccountContext
+    let wakeupManager: SharedWakeupManager
+    
+    init(sharedContext: SharedAccountContext) {
+        self.sharedContext = sharedContext
+        self.wakeupManager = SharedWakeupManager(beginBackgroundTask: { _, _ in nil }, endBackgroundTask: { _ in }, backgroundTimeRemaining: { 0.0 }, activeAccounts: sharedContext.activeAccounts |> map { ($0.0, $0.1.map { ($0.0, $0.1) }) }, liveLocationPolling: .single(nil), watchTasks: .single(nil), inForeground: inForeground.get(), hasActiveAudioSession: .single(false), notificationManager: nil, mediaManager: sharedContext.mediaManager, callManager: sharedContext.callManager, accountUserInterfaceInUse: { id in
+            return sharedContext.accountUserInterfaceInUse(id)
+        })
+    }
+}
+
+private var globalSharedExtensionContext: SharedExtensionContext?
 
 private var installedSharedLogger = false
 
@@ -51,33 +65,26 @@ class ShareRootController: UIViewController {
         self.view.isOpaque = false
         
         if #available(iOSApplicationExtension 8.2, *) {
-            self.observer1 = NotificationCenter.default.addObserver(forName: NSNotification.Name.NSExtensionHostDidBecomeActive, object: nil, queue: nil, using: { [weak self] _ in
-                if let strongSelf = self {
-                    strongSelf.shouldBeMaster.set(.single(true))
-                }
+            self.observer1 = NotificationCenter.default.addObserver(forName: NSNotification.Name.NSExtensionHostDidBecomeActive, object: nil, queue: nil, using: { _ in
+                inForeground.set(true)
             })
             
-            self.observer2 = NotificationCenter.default.addObserver(forName: NSNotification.Name.NSExtensionHostWillResignActive, object: nil, queue: nil, using: { [weak self] _ in
-                if let strongSelf = self {
-                    strongSelf.shouldBeMaster.set(.single(false))
-                }
+            self.observer2 = NotificationCenter.default.addObserver(forName: NSNotification.Name.NSExtensionHostWillResignActive, object: nil, queue: nil, using: { _ in
+                inForeground.set(false)
             })
         }
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        
-        
-        
-        self.shouldBeMaster.set(.single(true))
+        inForeground.set(true)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         
         self.disposable.dispose()
-        self.shouldBeMaster.set(.single(false))
+        inForeground.set(false)
     }
     
     override func viewDidLayoutSubviews() {
@@ -136,67 +143,71 @@ class ShareRootController: UIViewController {
             }, dismissNativeController: {
             })
             
-            let account: Signal<(Account, AccountManager), ShareAuthorizationError>
-            if let accountCache = accountCache {
-                account = .single(accountCache)
+            let sharedExtensionContext: SharedExtensionContext
+            
+            if let globalSharedExtensionContext = globalSharedExtensionContext {
+                sharedExtensionContext = globalSharedExtensionContext
             } else {
                 let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "unknown"
                 
                 initializeAccountManagement()
-                account = accountManager(basePath: rootPath + "/accounts-metadata")
-                |> take(1)
-                |> mapToSignal { accountManager -> Signal<(AccountManager, LoggingSettings), NoError> in
-                    return accountManager.transaction { transaction -> (AccountManager, LoggingSettings) in
-                        return (accountManager, transaction.getSharedData(SharedDataKeys.loggingSettings) as? LoggingSettings ?? LoggingSettings.defaultSettings)
-                    }
-                }
-                |> introduceError(ShareAuthorizationError.self)
-                |> mapToSignal { accountManager, loggingSettings -> Signal<(Account, AccountManager), ShareAuthorizationError> in
-                    Logger.shared.logToFile = loggingSettings.logToFile
-                    Logger.shared.logToConsole = loggingSettings.logToConsole
-                    
-                    Logger.shared.redactSensitiveData = loggingSettings.redactSensitiveData
-                    
-                    return currentAccount(allocateIfNotExists: false, networkArguments: NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: 0), supplementary: true, manager: accountManager, rootPath: rootPath, auxiliaryMethods: telegramAccountAuxiliaryMethods)
-                     |> introduceError(ShareAuthorizationError.self) |> mapToSignal { account -> Signal<(Account, AccountManager), ShareAuthorizationError> in
-                        if let account = account {
-                            switch account {
-                                case .upgrading:
-                                    return .complete()
-                                case let .authorized(account):
-                                    return .single((account, accountManager))
-                                case .unauthorized:
-                                    return .fail(.unauthorized)
-                            }
-                        } else {
-                            return .complete()
-                        }
-                    }
-                }
-                |> take(1)
+                let accountManager = AccountManager(basePath: rootPath + "/accounts-metadata")
+                var initialPresentationDataAndSettings: InitialPresentationDataAndSettings?
+                let semaphore = DispatchSemaphore(value: 0)
+                let _ = currentPresentationDataAndSettings(accountManager: accountManager).start(next: { value in
+                    initialPresentationDataAndSettings = value
+                    semaphore.signal()
+                })
+                semaphore.wait()
+                
+                let sharedContext = SharedAccountContext(mainWindow: nil, accountManager: accountManager, applicationBindings: applicationBindings, initialPresentationDataAndSettings: initialPresentationDataAndSettings!, networkArguments: NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: 0), rootPath: rootPath, legacyBasePath: nil, legacyCache: nil, apsNotificationToken: .never(), voipNotificationToken: .never(), setNotificationCall: { _ in }, navigateToChat: { _, _, _ in })
+                sharedExtensionContext = SharedExtensionContext(sharedContext: sharedContext)
+                globalSharedExtensionContext = sharedExtensionContext
             }
             
-            let preferencesKey: PostboxViewKey = .preferences(keys: Set<ValueBoxKey>([ApplicationSpecificPreferencesKeys.presentationPasscodeSettings]))
+            let account: Signal<(SharedAccountContext, Account, [AccountWithInfo]), ShareAuthorizationError> = sharedExtensionContext.sharedContext.accountManager.transaction { transaction -> (SharedAccountContext, LoggingSettings) in
+                return (sharedExtensionContext.sharedContext, transaction.getSharedData(SharedDataKeys.loggingSettings) as? LoggingSettings ?? LoggingSettings.defaultSettings)
+            }
+            |> introduceError(ShareAuthorizationError.self)
+            |> mapToSignal { sharedContext, loggingSettings -> Signal<(SharedAccountContext, Account, [AccountWithInfo]), ShareAuthorizationError> in
+                Logger.shared.logToFile = loggingSettings.logToFile
+                Logger.shared.logToConsole = loggingSettings.logToConsole
+                
+                Logger.shared.redactSensitiveData = loggingSettings.redactSensitiveData
+                
+                return sharedContext.activeAccountsWithInfo
+                |> introduceError(ShareAuthorizationError.self)
+                |> take(1)
+                |> mapToSignal { primary, accounts -> Signal<(SharedAccountContext, Account, [AccountWithInfo]), ShareAuthorizationError> in
+                    guard let primary = primary else {
+                        return .fail(.unauthorized)
+                    }
+                    guard let info = accounts.first(where: { $0.account.id == primary }) else {
+                        return .fail(.unauthorized)
+                    }
+                    return .single((sharedContext, info.account, Array(accounts)))
+                }
+            }
+            |> take(1)
             
-            let shouldBeMaster = self.shouldBeMaster
             let applicationInterface = account
-            |> mapToSignal { account, accountManager -> Signal<(Account, PostboxAccessChallengeData), ShareAuthorizationError> in
-                return combineLatest(currentPresentationDataAndSettings(postbox: account.postbox), account.postbox.combinedView(keys: [.accessChallengeData, preferencesKey]) |> take(1))
+            |> mapToSignal { sharedContext, account, otherAccounts -> Signal<(AccountContext, PostboxAccessChallengeData, [AccountWithInfo]), ShareAuthorizationError> in
+                let limitsConfiguration = account.postbox.transaction { transaction -> LimitsConfiguration in
+                    return transaction.getPreferencesEntry(key: PreferencesKeys.limitsConfiguration) as? LimitsConfiguration ?? LimitsConfiguration.defaultValue
+                }
+                return combineLatest(sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.presentationPasscodeSettings]), limitsConfiguration, sharedContext.accountManager.accessChallengeData())
+                |> take(1)
                 |> deliverOnMainQueue
                 |> introduceError(ShareAuthorizationError.self)
-                |> map { dataAndSettings, data -> (Account, PostboxAccessChallengeData) in
-                    accountCache = (account, accountManager)
-                    updateLegacyLocalization(strings: dataAndSettings.presentationData.strings)
-                    account.applicationContext = TelegramApplicationContext(applicationBindings: applicationBindings, accountManager: accountManager, account: account, initialPresentationDataAndSettings: dataAndSettings, postbox: account.postbox)
-                    return (account, (data.views[.accessChallengeData] as! AccessChallengeDataView).data)
+                |> map { sharedData, limitsConfiguration, data -> (AccountContext, PostboxAccessChallengeData, [AccountWithInfo]) in
+                    updateLegacyLocalization(strings: sharedContext.currentPresentationData.with({ $0 }).strings)
+                    let context = AccountContext(sharedContext: sharedContext, account: account, limitsConfiguration: limitsConfiguration)
+                    return (context, data.data, otherAccounts)
                 }
             }
-            |> afterNext { account, _ in
-                setupAccount(account)
-            }
             |> deliverOnMainQueue
-            |> afterNext { [weak self] account, accessChallengeData in
-                updateLegacyComponentsAccount(account)
+            |> afterNext { [weak self] context, accessChallengeData, otherAccounts in
+                setupLegacyComponents(context: context)
                 initializeLegacyComponents(application: nil, currentSizeClassGetter: { return .compact }, currentHorizontalClassGetter: { return .compact }, documentsPath: "", currentApplicationBounds: { return CGRect() }, canOpenUrl: { _ in return false}, openUrl: { _ in })
                 
                 let displayShare: () -> Void = {
@@ -206,7 +217,7 @@ class ShareRootController: UIViewController {
                         return Signal { [weak self] subscriber in
                             switch content[0] {
                             case let .contact(data):
-                                let controller = deviceContactInfoController(account: account, subject: .filter(peer: nil, contactId: nil, contactData: data, completion: { peer, contactData in
+                                let controller = deviceContactInfoController(context: context, subject: .filter(peer: nil, contactId: nil, contactData: data, completion: { peer, contactData in
                                     let phone = contactData.basicData.phoneNumbers[0].value
                                     if let vCardData = contactData.serializedVCard() {
                                         subscriber.putNext([.media(.media(.standalone(media: TelegramMediaContact(firstName: contactData.basicData.firstName, lastName: contactData.basicData.lastName, phoneNumber: phone, peerId: nil, vCardData: vCardData))))])
@@ -228,7 +239,7 @@ class ShareRootController: UIViewController {
                         } |> runOn(Queue.mainQueue())
                     }
                     
-                    let sentItems: ([PeerId], [PreparedShareItemContent]) -> Signal<ShareControllerExternalStatus, NoError> = { peerIds, contents in
+                    let sentItems: ([PeerId], [PreparedShareItemContent], Account) -> Signal<ShareControllerExternalStatus, NoError> = { peerIds, contents, account in
                         let sentItems = sentShareItems(account: account, to: peerIds, items: contents)
                         |> `catch` { _ -> Signal<
                             Float, NoError> in
@@ -241,7 +252,7 @@ class ShareRootController: UIViewController {
                         |> then(.single(.done))
                     }
                     
-                    let shareController = ShareController(account: account, subject: .fromExternal({ peerIds, additionalText in
+                    let shareController = ShareController(context: context, subject: .fromExternal({ peerIds, additionalText, account in
                         if let strongSelf = self, let inputItems = strongSelf.extensionContext?.inputItems, !inputItems.isEmpty, !peerIds.isEmpty {
                             let rawSignals = TGItemProviderSignals.itemSignals(forInputItems: inputItems)!
                             return preparedShareItems(account: account, to: peerIds[0], dataItems: rawSignals, additionalText: additionalText)
@@ -261,16 +272,16 @@ class ShareRootController: UIViewController {
                                     case let .userInteractionRequired(value):
                                         return requestUserInteraction(value)
                                         |> mapToSignal { contents -> Signal<ShareControllerExternalStatus, NoError> in
-                                                return sentItems(peerIds, contents)
+                                                return sentItems(peerIds, contents, account)
                                         }
                                     case let .done(contents):
-                                        return sentItems(peerIds, contents)
+                                        return sentItems(peerIds, contents, account)
                                 }
                             }
                         } else {
                             return .single(.done)
                         }
-                    }), externalShare: false)
+                    }), externalShare: false, switchableAccounts: otherAccounts)
                     shareController.presentationArguments = ViewControllerPresentationArguments(presentationAnimation: .modalSheet)
                     shareController.dismissed = { _ in
                         self?.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
@@ -288,12 +299,10 @@ class ShareRootController: UIViewController {
                         strongSelf.mainWindow?.present(shareController, on: .root)
                     }
                     
-                    account.resetStateManagement()
-                    account.network.shouldKeepConnection.set(shouldBeMaster.get()
-                    |> map({ $0 }))
+                    context.account.resetStateManagement()
                 }
                 
-                let _ = passcodeEntryController(account: account, animateIn: true, completion: { value in
+                let _ = passcodeEntryController(context: context, animateIn: true, completion: { value in
                     if value {
                         displayShare()
                     } else {
@@ -380,14 +389,13 @@ class ShareRootController: UIViewController {
                 legacyController.supportedOrientations = ViewControllerSupportedOrientations(regularSize: .portrait, compactSize: .portrait)
                 legacyController.statusBar.statusBarStyle = .White
                 */
-                
             }
             
-            self.disposable.set(applicationInterface.start(next: { _, _ in }, error: { [weak self] error in
+            self.disposable.set(applicationInterface.start(next: { _, _, _ in }, error: { [weak self] error in
                 guard let strongSelf = self else {
                     return
                 }
-                let presentationData = defaultPresentationData()
+                let presentationData = sharedExtensionContext.sharedContext.currentPresentationData.with { $0 }
                 let controller = standardTextAlertController(theme: AlertControllerTheme(presentationTheme: presentationData.theme), title: presentationData.strings.Share_AuthTitle, text: presentationData.strings.Share_AuthDescription, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {
                     self?.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
                 })])

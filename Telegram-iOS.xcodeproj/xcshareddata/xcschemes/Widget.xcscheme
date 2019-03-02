@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "1000"
+   LastUpgradeVersion = "1010"
    wasCreatedForAppExtension = "YES"
    version = "2.0">
    <BuildAction
@@ -15,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D02CF5FB215D9ABE00E0F56A"
-               BuildableName = "NotificationContent.appex"
-               BlueprintName = "NotificationContent"
+               BlueprintIdentifier = "D0B2F736204F4C9900D3BFB9"
+               BuildableName = "Widget.appex"
+               BlueprintName = "Widget"
                ReferencedContainer = "container:Telegram-iOS.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -38,7 +38,7 @@
       </BuildActionEntries>
    </BuildAction>
    <TestAction
-      buildConfiguration = "Debug Hockeyapp"
+      buildConfiguration = "DebugHockeyapp"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
@@ -47,9 +47,9 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "D02CF5FB215D9ABE00E0F56A"
-            BuildableName = "NotificationContent.appex"
-            BlueprintName = "NotificationContent"
+            BlueprintIdentifier = "D0B2F736204F4C9900D3BFB9"
+            BuildableName = "Widget.appex"
+            BlueprintName = "Widget"
             ReferencedContainer = "container:Telegram-iOS.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -67,12 +67,8 @@
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES"
       launchAutomaticallySubstyle = "2">
-      <RemoteRunnable
-         runnableDebuggingMode = "1"
-         BundleIdentifier = "com.apple.mobilesafari"
-         RemotePath = "/Applications/MobileSafari.app">
-      </RemoteRunnable>
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D008599B1B28189D00EAF753"
@@ -80,12 +76,12 @@
             BlueprintName = "Telegram-iOS"
             ReferencedContainer = "container:Telegram-iOS.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
       <AdditionalOptions>
       </AdditionalOptions>
    </LaunchAction>
    <ProfileAction
-      buildConfiguration = "Release AppStore"
+      buildConfiguration = "ReleaseAppStore"
       shouldUseLaunchSchemeArgsEnv = "YES"
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
@@ -103,10 +99,10 @@
       </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
-      buildConfiguration = "Debug Hockeyapp">
+      buildConfiguration = "DebugHockeyapp">
    </AnalyzeAction>
    <ArchiveAction
-      buildConfiguration = "Release AppStore"
+      buildConfiguration = "ReleaseAppStore"
       revealArchiveInOrganizer = "YES">
    </ArchiveAction>
 </Scheme>

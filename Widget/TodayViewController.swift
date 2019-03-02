@@ -4,8 +4,6 @@ import SwiftSignalKit
 import Postbox
 import NotificationCenter
 
-private var accountCache: Account?
-
 private var installedSharedLogger = false
 
 private func setupSharedLogger(_ path: String) {
@@ -77,39 +75,28 @@ class TodayViewController: UIViewController, NCWidgetProviding {
         setupSharedLogger(logsPath)
         
         let account: Signal<Account, NoError>
-        if let accountCache = accountCache {
-            account = .single(accountCache)
-        } else {
-            let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "unknown"
-            initializeAccountManagement()
-            account = accountManager(basePath: rootPath + "/accounts-metadata")
-            |> take(1)
-            |> mapToSignal { accountManager -> Signal<Account, NoError> in
-                return currentAccount(allocateIfNotExists: false, networkArguments: NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: 0), supplementary: true, manager: accountManager, rootPath: rootPath, auxiliaryMethods: auxiliaryMethods)
-                |> mapToSignal { account -> Signal<Account, NoError> in
-                    if let account = account {
-                        switch account {
-                        case .upgrading:
-                            return .complete()
-                        case let .authorized(account):
-                            accountCache = account
-                            return .single(account)
-                        case .unauthorized:
-                            return .complete()
-                        }
-                    } else {
+        let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "unknown"
+        initializeAccountManagement()
+        let accountManager = AccountManager(basePath: rootPath + "/accounts-metadata")
+        account = currentAccount(allocateIfNotExists: false, networkArguments: NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: 0), supplementary: true, manager: accountManager, rootPath: rootPath, auxiliaryMethods: auxiliaryMethods)
+        |> mapToSignal { account -> Signal<Account, NoError> in
+            if let account = account {
+                switch account {
+                    case .upgrading:
                         return .complete()
-                    }
+                    case let .authorized(account):
+                        return .single(account)
+                    case .unauthorized:
+                        return .complete()
                 }
+            } else {
+                return .complete()
             }
-            |> take(1)
         }
         
-        let applicationInterface = account |> afterNext { account in
-            setupAccount(account)
-        } |> deliverOnMainQueue |> afterNext { [weak self] account in
-            account.resetStateManagement()
-            
+        let applicationInterface = account
+        |> deliverOnMainQueue
+        |> afterNext { [weak self] account in
             let _ = (recentPeers(account: account)
             |> deliverOnMainQueue).start(next: { peers in
                 if let strongSelf = self {
@@ -117,11 +104,10 @@ class TodayViewController: UIViewController, NCWidgetProviding {
                         case let .peers(peers):
                             strongSelf.setPeers(account: account, peers: peers.filter { !$0.isDeleted })
                         case .disabled:
-                            break
+                            strongSelf.setPeers(account: account, peers: [])
                     }
                 }
             })
-            //account.network.shouldKeepConnection.set(shouldBeMaster.get() |> map({ $0 }))
         }
         
         self.disposable.set(applicationInterface.start())
@@ -222,9 +208,6 @@ class TodayViewController: UIViewController, NCWidgetProviding {
         if let path = self.getSnapshotPath() {
             DispatchQueue.main.async {
                 UIGraphicsBeginImageContextWithOptions(self.view.bounds.size, false, 0.0)
-                /*let context = UIGraphicsGetCurrentContext()
-                context?.setFillColor(UIColor.blue.cgColor)
-                context?.fill(CGRect(origin: CGPoint(), size: self.view.bounds.size))*/
                 self.view.drawHierarchy(in: self.view.bounds, afterScreenUpdates: false)
                 let image = UIGraphicsGetImageFromCurrentImageContext()
                 UIGraphicsEndImageContext()
