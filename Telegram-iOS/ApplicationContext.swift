@@ -6,6 +6,7 @@ import Postbox
 import TelegramCore
 import Display
 import LegacyComponents
+import CloudVeilSecurityManager
 
 func isAccessLocked(data: PostboxAccessChallengeData, at timestamp: Int32) -> Bool {
     if data.isLockable, let autolockDeadline = data.autolockDeadline, autolockDeadline <= timestamp {
@@ -423,6 +424,12 @@ final class AuthorizedApplicationContext {
                     if !notify {
                         chatIsVisible = true
                     }
+                    
+                    //CloudVeil start
+                    if !MainController.shared.isConversationAvailable(conversationId: NSInteger(firstMessage.id.peerId.id)) {
+                       return
+                    }
+                    //CloudVeil end
                     
                     if !chatIsVisible {
                         strongSelf.mainWindow.forEachViewController({ controller in

@@ -126,6 +126,7 @@ class NotificationViewController: UIViewController, UNNotificationContentExtensi
     }
     
     func didReceive(_ notification: UNNotification) {
+        print("Received Notification")
         if let accountIdValue = notification.request.content.userInfo["accountId"] as? Int64, let peerIdValue = notification.request.content.userInfo["peerId"] as? Int64, let messageIdNamespace = notification.request.content.userInfo["messageId.namespace"] as? Int32, let messageIdId = notification.request.content.userInfo["messageId.id"] as? Int32, let dict = notification.request.content.userInfo["mediaInfo"] as? [String: Any] {
             let messageId = MessageId(peerId: PeerId(peerIdValue), namespace: messageIdNamespace, id: messageIdId)
             

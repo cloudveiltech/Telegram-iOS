@@ -1633,6 +1633,13 @@ private final class SharedApplicationContext {
                 completionHandler()
                 return
             }
+            //CloudVeil start
+            if !MainController.shared.isConversationAvailable(conversationId: NSInteger(peerId.id)) {
+                completionHandler()
+                return
+            }
+            //CloudVeil end
+            
             let text = response.userText
             let signal = self.sharedContextPromise.get()
             |> take(1)
