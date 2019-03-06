@@ -1094,7 +1094,7 @@ private final class SharedApplicationContext {
 
         //CloudVeil start
         var settings = AutomaticMediaDownloadSettings.defaultSettings
-        settings.autoplayGifs = settings.autoplayGifs && !MainController.SecurityStaticSettings.disableAutoPlayGifs
+        settings.autoplayGifs = settings.autoplayGifs && !MainController.SecurityStaticSettings.disableAutoPlayGifs        
         //CloudVeile end
         return true
     }
