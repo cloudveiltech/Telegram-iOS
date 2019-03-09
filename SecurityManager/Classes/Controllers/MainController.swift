@@ -11,15 +11,24 @@ import Foundation
 import Alamofire
 
 @objc open class MainController: NSObject {
-    
-    // MARK: - Singleton
+    public struct SecurityStaticSettings {
+        public static let disableGlobalSearch = true
+        public static let disableYoutubeVideoEmbedding = true
+        public static let disableInAppBrowser = true
+        public static let disableAutoPlayGifs = true
+        public static let disablePayments = true
+        public static let disableBots = false
+    }
+
     
     @objc open static let shared = MainController()
     
     
     // MARK: - Properties
-    
+    private var blockedImageDataCache: Data?
     private var observers: [() -> ()] = []
+    internal var lastRequest: TGSettingsRequest? = nil
+    
     private let kWasFirstLoaded = "wasFirstLoaded"
     private var wasFirstLoaded: Bool {
         get { return UserDefaults.standard.bool(forKey: kWasFirstLoaded) }
@@ -48,7 +57,31 @@ import Alamofire
     @objc public var isSecretChatAvailable: Bool {
         return settings?.secretChat ?? false
     }
-    @objc public var minimumSecretLenght: NSInteger {
+    
+    @objc public var isInChatVideoRecordingEnabled: Bool {
+        return settings?.inputToggleVoiceVideo ?? false
+    }
+    
+    @objc public var blockedImageUrl: String {
+        return settings?.blockedImageResourceUrl ?? ""
+    }
+    
+    @objc public var blockedImageData: Data? {
+        if blockedImageDataCache != nil {
+            return blockedImageDataCache
+        }
+        if let url = URL(string: blockedImageUrl) {
+            if let data = try? Data(contentsOf:url) {
+                blockedImageDataCache = data
+                return data
+            }
+        }
+        return nil
+    }
+    
+   
+    
+    @objc public var secretChatMinimumLength: NSInteger {
         
         if let lenghtStr = settings?.secretChatMinimumLength {
             return Int(lenghtStr) ?? -1
@@ -58,9 +91,17 @@ import Alamofire
     }
     
     // MARK: - Actions
+    let getSettingsDebounced = Debouncer(delay: 0.5) {
+        if MainController.shared.lastRequest == nil {
+            return
+        }
+        SecurityManager.shared.getSettings(withRequest: MainController.shared.lastRequest!) { (resp) in
+            MainController.shared.saveSettings(resp)
+            let _ = MainController.shared.blockedImageData
+        }
+    }
     
-    @objc open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = []) {
-        
+    @objc open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = []) -> String {
         let request = TGSettingsRequest(JSON: [:])!
         request.id = TGUserController.shared.getUserID()
         request.userName = TGUserController.shared.getUserName() as String
@@ -69,22 +110,25 @@ import Alamofire
         request.bots = bots
         request.channels = channels
         
-        SecurityManager.shared.getSettings(withRequest: request) { (resp) in
-            
-            self.saveSettings(resp)
-        }
+        self.lastRequest = request
+        print("Settings load start\n");
+         getSettingsDebounced.call()
+      
+        
+        let json = request.toJSON()
+        print(json)
+        return "\(json)"
     }
     
     private func saveSettings(_ settings: TGSettingsResponse?) {
-        
         DataSource<TGSettingsResponse>.set(settings)
         for observer in observers {
             observer()
         }
+        observers.removeAll()
     }
     
     @objc open func isGroupAvailable(groupID: NSInteger) -> Bool {
-        
         if let dictArray = settings?.access?.groups {
             if let index = dictArray.flatMap({ $0.keys }).index(where: { $0 == "\(groupID)" }) {
                 return dictArray[index]["\(groupID)"] ?? false
@@ -95,7 +139,6 @@ import Alamofire
     }
     
     @objc open func isChannelAvailable(channelID: NSInteger) -> Bool {
-        
         if let dictArray = settings?.access?.channels {
             if let index = dictArray.flatMap({ $0.keys }).index(where: { $0 == "\(channelID)" }) {
                 return dictArray[index]["\(channelID)"] ?? false
@@ -104,20 +147,106 @@ import Alamofire
         
         return true
     }
-    
+        
     @objc open func isBotAvailable(botID: NSInteger) -> Bool {
+        if SecurityStaticSettings.disableBots {
+            return false
+        }
         
         if let dictArray = settings?.access?.bots {
             if let index = dictArray.flatMap({ $0.keys }).index(where: { $0 == "\(botID)" }) {
                 return dictArray[index]["\(botID)"] ?? false
             }
         }
+        return true
+    }
+    
+    
+    @objc open func isConversationAvailable(conversationId: NSInteger) -> Bool {
+        if !isBotAvailable(botID: conversationId) {
+            return false
+        }
+        
+        if !isChannelAvailable(channelID: -conversationId) {
+            return false
+        }
+        
+        if !isGroupAvailable(groupID: -conversationId) {
+            return false
+        }
         
         return true
     }
     
-    @objc open func firstRunPopup(at viewController: UIViewController) {
+    @objc open func isConversationCheckedOnServer(conversationId: NSInteger, channelId: NSInteger) -> Bool {
+        if let dictArray = settings?.access?.groups {
+            if isIdInDict(dictArray: dictArray, conversationId: channelId) {
+                return true
+            }
+        }
         
+        if let dictArray = settings?.access?.channels {
+            if isIdInDict(dictArray: dictArray, conversationId: channelId) {
+                return true
+            }
+        }
+        
+        if let dictArray = settings?.access?.bots {
+            if isIdInDict(dictArray: dictArray, conversationId: conversationId) {
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    private func isIdInDict(dictArray: [[String:Bool]], conversationId: NSInteger) -> Bool {
+        if let index = dictArray.flatMap({ $0.keys }).index(where: { $0 == "\(conversationId)" }) {
+            return true
+        }
+        return false
+    }
+    
+    @objc open func replayRequestWithGroup(group: TGRow) {
+        if let dictArray = lastRequest?.groups {
+            if let index = dictArray.index(where: {$0.objectID == group.objectID}) {
+                return
+            }
+        }
+        
+        lastRequest?.groups.append(group)
+        
+        print("Settings load start\n");
+        getSettingsDebounced.call()
+    }
+    
+    @objc open func replayRequestWithChannel(channel: TGRow) {
+        if let dictArray = lastRequest?.channels {
+             if let index = dictArray.index(where: {$0.objectID == channel.objectID}) {
+                return
+            }
+        }
+        
+        lastRequest?.channels.append(channel)
+        
+        print("Settings load start\n");
+        getSettingsDebounced.call()
+    }
+    
+    @objc open func replayRequestWithBot(bot: TGRow) {
+        if let dictArray = lastRequest?.bots {
+            if let index = dictArray.index(where: {$0.objectID == bot.objectID}) {
+                return
+            }
+        }
+        
+        lastRequest?.bots.append(bot)
+        
+        print("Settings load start\n");
+        getSettingsDebounced.call()
+    }
+    
+    @objc open func firstRunPopup(at viewController: UIViewController) {
         if !wasFirstLoaded {
             wasFirstLoaded = true
             

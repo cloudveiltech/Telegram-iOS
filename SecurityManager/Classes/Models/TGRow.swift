@@ -18,9 +18,8 @@ import ObjectMapper
     @objc public var title: NSString = ""
     @objc public var userName: NSString = ""
     
-    
+    public override init() {}
     // MARK: Mappable
-    
     public required init?(map: Map) { }
     
     public func mapping(map: Map) {

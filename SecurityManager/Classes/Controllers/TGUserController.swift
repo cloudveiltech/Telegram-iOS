@@ -18,26 +18,26 @@ import UIKit
     // MARK: - Actions
     
     @objc open func set(userID id: NSInteger) {
-        TGUserModel.set(userID: id)
+        TGUserModel1.set(userID: id)
     }
     
     @objc open func set(userPhoneNumber phone: NSString) {
-        TGUserModel.set(userPhoneNumber: phone)
+        TGUserModel1.set(userPhoneNumber: phone)
     }
     
     @objc open func set(userName name: NSString) {
-        TGUserModel.set(userName: name)
+        TGUserModel1.set(userName: name)
     }
     
     @objc open func getUserID() -> NSInteger {
-        return TGUserModel.id
+        return TGUserModel1.id
     }
     
     @objc open func getUserPhoneNumber() -> NSString {
-        return TGUserModel.phoneNumber
+        return TGUserModel1.phoneNumber
     }
     
     @objc open func getUserName() -> NSString {
-        return TGUserModel.userName
+        return TGUserModel1.userName
     }
 }

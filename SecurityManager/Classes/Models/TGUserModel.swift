@@ -8,7 +8,7 @@
 
 import UIKit
 
-class TGUserModel: NSObject {
+class TGUserModel1: NSObject {
     
     // MARK: - Constants
     

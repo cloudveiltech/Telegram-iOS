@@ -15,13 +15,20 @@ class DataSource<T: Mappable> {
     // MARK: - User Defaults
     
     class func value(forKey: String) -> Any? {
-        
-        return UserDefaults.standard.value(forKey: forKey)
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            if let v = userDefaults.value(forKey: forKey) {
+                return v
+            }
+            return UserDefaults.standard.value(forKey: forKey)//fallback
+        }
+        return nil
     }
     
     class func set(_ value: Any?, forKey: String) {
-        
-        UserDefaults.standard.set(value, forKey: forKey)
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            userDefaults.set(value, forKey: forKey)
+            userDefaults.synchronize()
+        }
     }
     
     

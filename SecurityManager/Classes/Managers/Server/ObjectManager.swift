@@ -15,6 +15,7 @@ typealias JSON = [String: Any]
 typealias JSONArray = [[String: Any]]
 
 class ObjectManager {
+    var sessionManager: SessionManager?
     
     func headers() -> HTTPHeaders {
         
@@ -28,11 +29,21 @@ class ObjectManager {
                  parameters: Parameters? = nil,
                  urlParameters: [String: String]? = nil,
                  encoding: ParameterEncoding = JSONEncoding.default) -> DataRequest {
+                
+        let serverTrustPolicies: [String: ServerTrustPolicy] = [
+            "manage.cloudveil.org": ServerTrustPolicy.disableEvaluation
+        ]
+        
+        if self.sessionManager == nil {
+            self.sessionManager = SessionManager(
+                serverTrustPolicyManager: ServerTrustPolicyManager(policies: serverTrustPolicies)
+            )
+        }
         
         let urlString = ServerConstant.serverAPIUrl + serverConstant.rawValue
         
         let url = urlString.replacingURLParameters(urlParameters: urlParameters)
 
-        return Alamofire.request(url, method: method, parameters: parameters, encoding: encoding, headers: headers())
+        return self.sessionManager!.request(url, method: method, parameters: parameters, encoding: encoding, headers: headers())
     }
 }

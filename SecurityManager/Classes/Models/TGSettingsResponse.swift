@@ -28,6 +28,8 @@ class TGSettingsResponse: Mappable {
     public var disableStickers: Bool?
     public var disableStickersImage: String?
     public var manageUsers: Bool?
+    public var inputToggleVoiceVideo: Bool?
+    public var blockedImageResourceUrl: String?
     
     
     // MARK: Mappable
@@ -50,6 +52,8 @@ class TGSettingsResponse: Mappable {
         disableStickers <- map["disable_stickers"]
         disableStickersImage <- map["disable_stickers_image"]
         manageUsers <- map["manage_users"]
+        inputToggleVoiceVideo <- map["input_toggle_voice_video"]
+        blockedImageResourceUrl <- map["disable_stickers_image"]
     }
 }
 
