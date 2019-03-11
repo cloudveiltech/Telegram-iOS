@@ -18,6 +18,7 @@ import Alamofire
         public static let disableAutoPlayGifs = true
         public static let disablePayments = true
         public static let disableBots = false
+        public static let disableInlineBots = true
     }
 
     
