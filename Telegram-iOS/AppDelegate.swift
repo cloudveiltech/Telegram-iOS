@@ -341,6 +341,8 @@ private final class SharedApplicationContext {
         #endif
         
         let apiId: Int32 = BuildConfig.shared().apiId
+        
+        
         let languagesCategory = "ios"
         
         let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "unknown"
@@ -367,7 +369,7 @@ private final class SharedApplicationContext {
         if isDebugConfiguration || BuildConfig.shared().isInternalBuild {
             LoggingSettings.defaultSettings = LoggingSettings(logToFile: true, logToConsole: false, redactSensitiveData: true)
         } else {
-            LoggingSettings.defaultSettings = LoggingSettings(logToFile: false, logToConsole: false, redactSensitiveData: true)
+            LoggingSettings.defaultSettings = LoggingSettings(logToFile: true, logToConsole: false, redactSensitiveData: true)
         }
         
         let rootPath = rootPathForBasePath(appGroupUrl.path)
@@ -378,6 +380,8 @@ private final class SharedApplicationContext {
         let logsPath = rootPath + "/logs"
         let _ = try? FileManager.default.createDirectory(atPath: logsPath, withIntermediateDirectories: true, attributes: nil)
         Logger.setSharedLogger(Logger(basePath: logsPath))
+        
+        Logger.shared.log("App \(self.episodeId)", "ApiId is \(apiId)")
         
         if let contents = try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: rootPath + "/accounts-metadata"), includingPropertiesForKeys: nil, options: [.skipsSubdirectoryDescendants]) {
             for url in contents {
@@ -1156,6 +1160,10 @@ private final class SharedApplicationContext {
     }
     
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        let logMsg = "push token: \(deviceToken)"
+        print(logMsg)
+        
+        Logger.shared.log("App \(self.episodeId)", logMsg)
         self.notificationTokenPromise.set(.single(deviceToken))
     }
     

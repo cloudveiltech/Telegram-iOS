@@ -1,1 +1,2 @@
-#include "../../Config-CloudVeil.xcconfig"
+#include "../Config-CloudVeil.xcconfig"
+#include "Pods/Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.debugfork.xcconfig"
