@@ -1011,6 +1011,9 @@ private final class SharedApplicationContext {
         }
         |> deliverOnMainQueue).start(next: { count in
             UIApplication.shared.applicationIconBadgeNumber = Int(count)
+            //CloudVeil start
+            self.setAppBadge(Int(count))
+            //CloudVeil end
         }))
         
         if #available(iOS 9.1, *) {
@@ -1107,6 +1110,20 @@ private final class SharedApplicationContext {
         self.isActiveValue = false
         self.isActivePromise.set(false)
         self.clearNotificationsManager?.commitNow()
+        
+        //CloudVeil start
+        self.badgeDisposable.set((self.context.get()
+            |> mapToSignal { context -> Signal<Int32, NoError> in
+                if let context = context {
+                    return context.applicationBadge
+                } else {
+                    return .single(0)
+                }
+            }
+            |> deliverOnMainQueue).start(next: { count in
+                self.setAppBadge(Int(count))
+            }))
+        //CloudVeil end
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
@@ -1146,6 +1163,21 @@ private final class SharedApplicationContext {
                 }
             }
         }
+        
+        //CloudVeil start
+        self.badgeDisposable.set((self.context.get()
+            |> mapToSignal { context -> Signal<Int32, NoError> in
+                if let context = context {
+                    return context.applicationBadge
+                } else {
+                    return .single(0)
+                }
+            }
+            |> deliverOnMainQueue).start(next: { count in
+                UIApplication.shared.applicationIconBadgeNumber = Int(count)
+                self.setAppBadge(Int(count))
+            }))
+        //CloudVeil end
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
@@ -1167,6 +1199,15 @@ private final class SharedApplicationContext {
         self.notificationTokenPromise.set(.single(deviceToken))
     }
     
+    //CloudVeil start
+    public func setAppBadge(_ newValue: Int) {
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            userDefaults.set(newValue, forKey: "app-badge")
+            userDefaults.synchronize()
+        }
+    }
+    //CloudVeil end
+    
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         let _ = (self.sharedContextPromise.get()
         |> take(1)
@@ -1186,12 +1227,14 @@ private final class SharedApplicationContext {
             }
             redactedPayload["aps"] = aps
         }
-        
+        print("remoteNotification: \(redactedPayload)")
         Logger.shared.log("App \(self.episodeId)", "remoteNotification: \(redactedPayload)")
         completionHandler(UIBackgroundFetchResult.noData)
     }
     
     func application(_ application: UIApplication, didReceive notification: UILocalNotification) {
+      
+        print("remoteNotification")
         if (application.applicationState == .inactive) {
             Logger.shared.log("App \(self.episodeId)", "tap local notification \(String(describing: notification.userInfo)), applicationState \(application.applicationState)")
         }
