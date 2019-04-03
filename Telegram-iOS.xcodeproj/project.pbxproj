@@ -2653,6 +2653,7 @@
 				D0AA1A791D568BA500152314 /* Embed App Extensions */,
 				09C56FB72172797500BDF00F /* Embed Watch Content */,
 				05229791C9A2ABFE534C32E1 /* [CP] Embed Pods Frameworks */,
+				63E4F329225331B300D5EEAD /* Integrate Fabric */,
 			);
 			buildRules = (
 			);
@@ -3154,6 +3155,24 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		63E4F329225331B300D5EEAD /* Integrate Fabric */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Integrate Fabric";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n\"${PODS_ROOT}/Fabric/run\" 4c97095717c496e2a456216afde05cc8bb101711 4225861016b621a5daf964507e2ae703f3da00ef26daa8dea6e14f9ab5adf223\n";
 		};
 		BE30E8E15BE75024446FA2FD /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;

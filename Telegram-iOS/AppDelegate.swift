@@ -11,6 +11,9 @@ import PushKit
 import AsyncDisplayKit
 import CloudKit
 import CloudVeilSecurityManager
+import Fabric
+import Crashlytics
+
 
 private let handleVoipNotifications = false
 
@@ -201,6 +204,8 @@ private final class SharedApplicationContext {
     }
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]? = nil) -> Bool {
+        Fabric.with([Crashlytics.self])
+        
         let statusBarHost = ApplicationStatusBarHost()
         let (window, hostView) = nativeWindowHostView()
         self.mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)

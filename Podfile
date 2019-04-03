@@ -11,7 +11,7 @@ target 'TelegramUI' do
   use_frameworks!
 
   # Pods for Telegram-iOS  
-  pod 'CloudVeilSecurityManager'
+  pod 'CloudVeilSecurityManager'  
 end
 
 target 'Telegram-iOS' do
@@ -23,6 +23,8 @@ project 'Telegram-iOS'
 
   # Pods for Telegram-iOS  
   pod 'CloudVeilSecurityManager'
+  pod 'Fabric' 
+  pod 'Crashlytics'
 end
 
 
