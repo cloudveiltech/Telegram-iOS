@@ -7,11 +7,15 @@
       buildImplicitDependencies = "YES">
       <BuildActionEntries>
          <BuildActionEntry
-            buildForRunning = "YES">
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D008599B1B28189D00EAF753"
-               BuildableName = "CloudVeil Messenger.app"
+               BuildableName = "Telegram X.app"
                BlueprintName = "Telegram-iOS"
                ReferencedContainer = "container:Telegram-iOS.xcodeproj">
             </BuildableReference>
@@ -39,7 +43,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D008599B1B28189D00EAF753"
-            BuildableName = "CloudVeil Messenger.app"
+            BuildableName = "Telegram X.app"
             BlueprintName = "Telegram-iOS"
             ReferencedContainer = "container:Telegram-iOS.xcodeproj">
          </BuildableReference>
@@ -62,7 +66,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D008599B1B28189D00EAF753"
-            BuildableName = "CloudVeil Messenger.app"
+            BuildableName = "Telegram X.app"
             BlueprintName = "Telegram-iOS"
             ReferencedContainer = "container:Telegram-iOS.xcodeproj">
          </BuildableReference>
@@ -80,7 +84,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D008599B1B28189D00EAF753"
-            BuildableName = "CloudVeil Messenger.app"
+            BuildableName = "Telegram X.app"
             BlueprintName = "Telegram-iOS"
             ReferencedContainer = "container:Telegram-iOS.xcodeproj">
          </BuildableReference>
