@@ -8,9 +8,10 @@
 
 import Foundation
 
+import ObjectMapper
 import Alamofire
 
-@objc open class MainController: NSObject {
+ open class MainController: NSObject {
     public struct SecurityStaticSettings {
         public static let disableGlobalSearch = true
         public static let disableYoutubeVideoEmbedding = true
@@ -22,11 +23,12 @@ import Alamofire
     }
 
     
-    @objc open static let shared = MainController()
+     open static let shared = MainController()
     
     
     // MARK: - Properties
     private var blockedImageDataCache: Data?
+    private let mapper = Mapper<TGSettingsResponse>()
     private var observers: [() -> ()] = []
     internal var lastRequest: TGSettingsRequest? = nil
     
@@ -37,37 +39,37 @@ import Alamofire
     }
     
     private var settings: TGSettingsResponse? {
-        return DataSource<TGSettingsResponse>.value()
+        return DataSource<TGSettingsResponse>.value(mapper: mapper)
     }
     
-    @objc public var disableStickers: Bool {
+     public var disableStickers: Bool {
         return settings?.disableSticker ?? false
     }
-    @objc public var disableBio: Bool {
+     public var disableBio: Bool {
         return settings?.disableBio ?? false
     }
-    @objc public var disableBioChange: Bool {
+     public var disableBioChange: Bool {
         return settings?.disableBioChange ?? false
     }
-    @objc public var disableProfilePhoto: Bool {
+     public var disableProfilePhoto: Bool {
         return settings?.disableProfilePhoto ?? false
     }
-    @objc public var disableProfilePhotoChange: Bool {
+     public var disableProfilePhotoChange: Bool {
         return settings?.disableProfilePhotoChange ?? false
     }
-    @objc public var isSecretChatAvailable: Bool {
+     public var isSecretChatAvailable: Bool {
         return settings?.secretChat ?? false
     }
     
-    @objc public var isInChatVideoRecordingEnabled: Bool {
+     public var isInChatVideoRecordingEnabled: Bool {
         return settings?.inputToggleVoiceVideo ?? false
     }
     
-    @objc public var blockedImageUrl: String {
+     public var blockedImageUrl: String {
         return settings?.blockedImageResourceUrl ?? ""
     }
     
-    @objc public var blockedImageData: Data? {
+     public var blockedImageData: Data? {
         if blockedImageDataCache != nil {
             return blockedImageDataCache
         }
@@ -82,7 +84,7 @@ import Alamofire
     
    
     
-    @objc public var secretChatMinimumLength: NSInteger {
+     public var secretChatMinimumLength: NSInteger {
         
         if let lenghtStr = settings?.secretChatMinimumLength {
             return Int(lenghtStr) ?? -1
@@ -102,7 +104,7 @@ import Alamofire
         }
     }
     
-    @objc open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = []) -> String {
+     open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = []) -> String {
         let request = TGSettingsRequest(JSON: [:])!
         request.id = TGUserController.shared.getUserID()
         request.userName = TGUserController.shared.getUserName() as String
@@ -129,7 +131,7 @@ import Alamofire
         observers.removeAll()
     }
     
-    @objc open func isGroupAvailable(groupID: NSInteger) -> Bool {
+     open func isGroupAvailable(groupID: NSInteger) -> Bool {
         if let dictArray = settings?.access?.groups {
             if let index = dictArray.flatMap({ $0.keys }).index(where: { $0 == "\(groupID)" }) {
                 return dictArray[index]["\(groupID)"] ?? false
@@ -139,7 +141,7 @@ import Alamofire
         return true
     }
     
-    @objc open func isChannelAvailable(channelID: NSInteger) -> Bool {
+     open func isChannelAvailable(channelID: NSInteger) -> Bool {
         if let dictArray = settings?.access?.channels {
             if let index = dictArray.flatMap({ $0.keys }).index(where: { $0 == "\(channelID)" }) {
                 return dictArray[index]["\(channelID)"] ?? false
@@ -149,7 +151,7 @@ import Alamofire
         return true
     }
         
-    @objc open func isBotAvailable(botID: NSInteger) -> Bool {
+     open func isBotAvailable(botID: NSInteger) -> Bool {
         if SecurityStaticSettings.disableBots {
             return false
         }
@@ -163,7 +165,7 @@ import Alamofire
     }
     
     
-    @objc open func isConversationAvailable(conversationId: NSInteger) -> Bool {
+     open func isConversationAvailable(conversationId: NSInteger) -> Bool {
         if !isBotAvailable(botID: conversationId) {
             return false
         }
@@ -179,7 +181,7 @@ import Alamofire
         return true
     }
     
-    @objc open func isConversationCheckedOnServer(conversationId: NSInteger, channelId: NSInteger) -> Bool {
+     open func isConversationCheckedOnServer(conversationId: NSInteger, channelId: NSInteger) -> Bool {
         if let dictArray = settings?.access?.groups {
             if isIdInDict(dictArray: dictArray, conversationId: channelId) {
                 return true
@@ -208,7 +210,7 @@ import Alamofire
         return false
     }
     
-    @objc open func replayRequestWithGroup(group: TGRow) {
+     open func replayRequestWithGroup(group: TGRow) {
         if let dictArray = lastRequest?.groups {
             if let index = dictArray.index(where: {$0.objectID == group.objectID}) {
                 return
@@ -221,7 +223,7 @@ import Alamofire
         getSettingsDebounced.call()
     }
     
-    @objc open func replayRequestWithChannel(channel: TGRow) {
+     open func replayRequestWithChannel(channel: TGRow) {
         if let dictArray = lastRequest?.channels {
              if let index = dictArray.index(where: {$0.objectID == channel.objectID}) {
                 return
@@ -234,7 +236,7 @@ import Alamofire
         getSettingsDebounced.call()
     }
     
-    @objc open func replayRequestWithBot(bot: TGRow) {
+     open func replayRequestWithBot(bot: TGRow) {
         if let dictArray = lastRequest?.bots {
             if let index = dictArray.index(where: {$0.objectID == bot.objectID}) {
                 return
@@ -247,7 +249,7 @@ import Alamofire
         getSettingsDebounced.call()
     }
     
-    @objc open func firstRunPopup(at viewController: UIViewController) {
+     open func firstRunPopup(at viewController: UIViewController) {
         if !wasFirstLoaded {
             wasFirstLoaded = true
             
@@ -258,7 +260,7 @@ import Alamofire
         }
     }
     
-    @objc open func appendObserver(obs: @escaping () -> ()) {
+     open func appendObserver(obs: @escaping () -> ()) {
         observers.append(obs)
     }
 }

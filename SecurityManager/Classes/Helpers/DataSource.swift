@@ -63,7 +63,6 @@ class DataSource<T: Mappable> {
     }
     
     class func array(forKey: String = String(describing: T.self), mapper: Mapper<T> = Mapper<T>()) -> [T]? {
-        
         if let jsonString = value(forKey: forKey) as? String {
             return mapper.mapArray(JSONString: jsonString)
         }
