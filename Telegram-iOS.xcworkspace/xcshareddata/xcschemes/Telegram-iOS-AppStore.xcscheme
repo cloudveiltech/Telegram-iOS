@@ -76,7 +76,7 @@
       </AdditionalOptions>
    </TestAction>
    <LaunchAction
-      buildConfiguration = "ReleaseAppStore"
+      buildConfiguration = "DebugAppStore"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
@@ -129,7 +129,7 @@
       buildConfiguration = "DebugAppStore">
    </AnalyzeAction>
    <ArchiveAction
-      buildConfiguration = "DebugAppStore"
+      buildConfiguration = "DebugFork"
       revealArchiveInOrganizer = "YES">
    </ArchiveAction>
 </Scheme>
