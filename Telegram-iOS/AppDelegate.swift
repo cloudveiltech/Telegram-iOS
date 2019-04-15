@@ -709,7 +709,13 @@ private final class SharedApplicationContext {
             })
             |> `catch` { _ -> Signal<ImportedLegacyAccountEvent, NoError> in
                 return Signal { subscriber in
-                    let alertView = UIAlertView(title: "", message: "An error occured while trying to upgrade application data. Would you like to logout?", delegate: self, cancelButtonTitle: "No", otherButtonTitles: "Yes")
+                    let statusPath = appGroupUrl.path + "/Documents/importcompleted"
+                    let _ = try? FileManager.default.createDirectory(atPath: appGroupUrl.path + "/Documents", withIntermediateDirectories: true, attributes: nil)
+                    let _ = try? Data().write(to: URL(fileURLWithPath: statusPath))
+                    subscriber.putNext(.result(nil))
+                    subscriber.putCompletion()
+                    
+                    /*let alertView = UIAlertView(title: "", message: "An error occured while trying to upgrade application data. Would you like to logout?", delegate: self, cancelButtonTitle: "No", otherButtonTitles: "Yes")
                     self.alertActions = (primary: {
                         let statusPath = appGroupUrl.path + "/Documents/importcompleted"
                         let _ = try? FileManager.default.createDirectory(atPath: appGroupUrl.path + "/Documents", withIntermediateDirectories: true, attributes: nil)
@@ -719,7 +725,7 @@ private final class SharedApplicationContext {
                     }, other: {
                         exit(0)
                     })
-                    alertView.show()
+                    alertView.show()*/
                     
                     return EmptyDisposable
                 } |> runOn(Queue.mainQueue())
