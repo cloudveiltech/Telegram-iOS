@@ -1019,9 +1019,6 @@ private final class SharedApplicationContext {
         }
         |> deliverOnMainQueue).start(next: { count in
             UIApplication.shared.applicationIconBadgeNumber = Int(count)
-            //CloudVeil start
-            self.setAppBadge(Int(count))
-            //CloudVeil end
         }))
         
         if #available(iOS 9.1, *) {
@@ -1118,20 +1115,6 @@ private final class SharedApplicationContext {
         self.isActiveValue = false
         self.isActivePromise.set(false)
         self.clearNotificationsManager?.commitNow()
-        
-        //CloudVeil start
-        self.badgeDisposable.set((self.context.get()
-            |> mapToSignal { context -> Signal<Int32, NoError> in
-                if let context = context {
-                    return context.applicationBadge
-                } else {
-                    return .single(0)
-                }
-            }
-            |> deliverOnMainQueue).start(next: { count in
-                self.setAppBadge(Int(count))
-            }))
-        //CloudVeil end
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
@@ -1171,21 +1154,6 @@ private final class SharedApplicationContext {
                 }
             }
         }
-        
-        //CloudVeil start
-        self.badgeDisposable.set((self.context.get()
-            |> mapToSignal { context -> Signal<Int32, NoError> in
-                if let context = context {
-                    return context.applicationBadge
-                } else {
-                    return .single(0)
-                }
-            }
-            |> deliverOnMainQueue).start(next: { count in
-                UIApplication.shared.applicationIconBadgeNumber = Int(count)
-                self.setAppBadge(Int(count))
-            }))
-        //CloudVeil end
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
@@ -1204,18 +1172,10 @@ private final class SharedApplicationContext {
         print(logMsg)
         
         Logger.shared.log("App \(self.episodeId)", logMsg)
-        self.notificationTokenPromise.set(.single(deviceToken))
+        //self.notificationTokenPromise.set(.single(deviceToken))
     }
     
-    //CloudVeil start
-    public func setAppBadge(_ newValue: Int) {
-        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
-            userDefaults.set(newValue, forKey: "app-badge")
-            userDefaults.synchronize()
-        }
-    }
-    //CloudVeil end
-    
+   
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         let _ = (self.sharedContextPromise.get()
         |> take(1)
@@ -1252,23 +1212,150 @@ private final class SharedApplicationContext {
         if case PKPushType.voIP = type {
             Logger.shared.log("App \(self.episodeId)", "pushRegistry credentials: \(credentials.token as NSData)")
             
+            //Cloudveil start patch notifications
+            self.notificationTokenPromise.set(.single(credentials.token))
             self.voipTokenPromise.set(.single(credentials.token))
+            //Cloudveil end
         }
     }
     
+    //CloudVeil start
+    
+    private func processPush(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for type: PKPushType) {
+        let signal = self.context.get()
+            |> take(1)
+            |> mapToSignal { context -> Signal<Void, NoError> in
+                if let context = context {
+                    context.context.account.network.mtProto.resume()
+                }
+                return .complete()
+        }
+        let _ = signal.start()
+        
+        
+        let _ = (self.sharedContextPromise.get()
+            |> take(1)
+            |> deliverOnMainQueue).start(next: { sharedApplicationContext in
+                sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 4.0)
+                
+                let s2 = self.context.get()
+                    |> take(1)
+                    |> mapToSignal { context -> Signal<Void, NoError> in
+                        if let context = context {
+                            let _ = renderedTotalUnreadCount(accountManager: sharedApplicationContext.sharedContext.accountManager, postbox: context.context.account.postbox)
+                                .start(next: { v in
+                                    let count = v.0
+                                    
+                                    Queue.mainQueue().sync{
+                                        UIApplication.shared.applicationIconBadgeNumber = Int(count)
+                                    }
+                                    context.context.account.network.mtProto.pause()
+                                    self.generateLocalNotification(payload: payload, account: context.context.account)
+                                })
+                        }
+                        return .complete()
+                }
+                
+                let _ = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false, block: { timer in
+                    let _ = s2.start()
+                })
+            })
+        
+    }
+    
+    private func generateLocalNotification(payload: PKPushPayload, account: Account) {
+        let content = UNMutableNotificationContent()
+        
+        var aps: [AnyHashable: AnyObject]
+        if let apsPayload = payload.dictionaryPayload["aps"] {
+            aps = apsPayload as! [AnyHashable: AnyObject]
+        } else {
+            return
+        }
+        
+        var alert: [AnyHashable: AnyObject]
+        if let alertPayload = aps["alert"], alertPayload is [AnyHashable: AnyObject] {
+            alert = alertPayload as! [AnyHashable: AnyObject]
+        } else {
+            return
+        }
+        
+        if let title = alert["title"] {
+            content.title = title as! String
+        }
+        if let body = alert["body"] {
+            content.body = body as! String
+        }
+        if let sound = aps["sound"] {
+            content.sound = UNNotificationSound(named: sound as! String)
+        } else {
+            return //silent ignored
+        }
+        
+        content.userInfo = ["p": payload.dictionaryPayload["p"]]
+        if var encryptedPayload = payload.dictionaryPayload["p"] as? String {
+            encryptedPayload = encryptedPayload.replacingOccurrences(of: "-", with: "+")
+            encryptedPayload = encryptedPayload.replacingOccurrences(of: "_", with: "/")
+            while encryptedPayload.count % 4 != 0 {
+                encryptedPayload.append("=")
+            }
+            if let data = Data(base64Encoded: encryptedPayload) {
+                let decryptedPayload = decryptedNotificationPayload(account: account, data: data)
+                    |> map { value -> [AnyHashable: Any]? in
+                        if let value = value, let object = try? JSONSerialization.jsonObject(with: value, options: []) {
+                            return object as? [AnyHashable: Any]
+                        }
+                        return nil
+                }
+                
+                
+                let _ = (decryptedPayload
+                    |> deliverOnMainQueue).start(next: { decryptedPayload in
+                        var categoryId = "r"
+                        var notificationId = "NewMessage"
+                        if let p = decryptedPayload, let aps = p["aps"], aps is [AnyHashable: AnyObject] {
+                            let aps = aps as! [AnyHashable: AnyObject]
+                            categoryId = aps["category"] as! String
+                            notificationId = "Msg \(p["msg_id"])"
+                            content.userInfo = p
+                            content.userInfo["p"] = payload.dictionaryPayload["p"]
+                        }
+                        content.categoryIdentifier = categoryId
+                        
+                        let request = UNNotificationRequest(identifier: notificationId, content: content, trigger: nil)
+                        
+                        let center = UNUserNotificationCenter.current()
+                        center.add(request)
+                })
+               
+            }
+        } else {
+            content.categoryIdentifier = "r"
+            
+            let request = UNNotificationRequest(identifier: "NewMessage", content: content, trigger: nil)
+            
+            let center = UNUserNotificationCenter.current()
+            center.add(request)
+        }
+    }
+    //CloudVeil end
+    
     public func pushRegistry(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for type: PKPushType) {
+        //CloudVeil start
+        self.processPush(registry, didReceiveIncomingPushWith: payload, for: type)
+        //CloudVeil end
+   
         let _ = (self.sharedContextPromise.get()
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
             sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 4.0)
-            
+           
             if case PKPushType.voIP = type {
                 Logger.shared.log("App \(self.episodeId)", "pushRegistry payload: \(payload.dictionaryPayload)")
                 sharedApplicationContext.notificationManager.addEncryptedNotification(payload.dictionaryPayload)
             }
         })
     }
-    
     /*private func processPushPayload(_ payload: [AnyHashable: Any], account: Account) {
         let decryptedPayload: Signal<[AnyHashable: Any]?, NoError>
         if let _ = payload["aps"] as? [AnyHashable: Any] {

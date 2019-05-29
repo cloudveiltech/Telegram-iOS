@@ -330,8 +330,8 @@ static MTPKCS * _Nullable checkSignature(const char *filename) {
             offset += hockeyappIdLength;
         }*/
         
-        _apiId = 150211;
-        _apiHash = @"24cc1afc4d8370058fbfde1aaa4b1ab8";
+        _apiId = 654798;
+        _apiHash = @"9168135668675f32c28bd27566555ab0";
         _hockeyAppId = nil;
         
         NSString *bundleId = [BuildConfig bundleId];

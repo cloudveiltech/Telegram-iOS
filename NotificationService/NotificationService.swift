@@ -342,13 +342,6 @@ class NotificationService: UNNotificationServiceExtension {
             let mediaBoxThumbnailImagePath = thumbnailImage.flatMap({ mediaBoxPath + "/\($0.resourceId)" })
             let mediaBoxFullSizeImagePath = fullSizeImage.flatMap({ mediaBoxPath + "/\($0.resource.resourceId)" })
             
-            
-            //CloudVeil start
-            let currentBadge = NotificationService.getAppBadge()
-            self.bestAttemptContent?.badge = (currentBadge + 1) as NSNumber
-            NotificationService.setAppBadge(currentBadge + 1)
-            //CloudVeil end
-            
             if let aps = dict["aps"] as? [AnyHashable: Any] {
                 if let alert = aps["alert"] as? String {
                     self.bestAttemptContent?.title = ""
@@ -445,22 +438,6 @@ class NotificationService: UNNotificationServiceExtension {
             }
         }
     }
-    
-    //CloudVeil start
-    public static func getAppBadge() -> Int {
-        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
-            return userDefaults.integer(forKey: "app-badge")
-        }
-        return 0
-    }
-    
-    public static func setAppBadge(_ newValue: Int) {
-        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
-            userDefaults.set(newValue, forKey: "app-badge")
-            userDefaults.synchronize()
-        }
-    }
-    //CloudVeil end
     
     override func serviceExtensionTimeWillExpire() {
         Logger.shared.log("NotificationService", "serviceExtensionTimeWillExpire")
