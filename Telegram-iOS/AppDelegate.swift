@@ -1220,7 +1220,6 @@ private final class SharedApplicationContext {
     }
     
     //CloudVeil start
-    
     private func processPush(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for type: PKPushType) {
         let signal = self.context.get()
             |> take(1)
@@ -1242,14 +1241,21 @@ private final class SharedApplicationContext {
                     |> take(1)
                     |> mapToSignal { context -> Signal<Void, NoError> in
                         if let context = context {
-                            let _ = renderedTotalUnreadCount(accountManager: sharedApplicationContext.sharedContext.accountManager, postbox: context.context.account.postbox)
+                            var disposable: Disposable? = nil
+                                disposable = renderedTotalUnreadCount(accountManager: sharedApplicationContext.sharedContext.accountManager, postbox: context.context.account.postbox)
                                 .start(next: { v in
+                                    disposable?.dispose()
+                                    if self.isInForegroundValue {
+                                        return
+                                    }
+                                    
                                     let count = v.0
                                     
                                     Queue.mainQueue().sync{
                                         UIApplication.shared.applicationIconBadgeNumber = Int(count)
                                     }
                                     context.context.account.network.mtProto.pause()
+                                    
                                     self.generateLocalNotification(payload: payload, account: context.context.account)
                                 })
                         }
@@ -1257,7 +1263,9 @@ private final class SharedApplicationContext {
                 }
                 
                 let _ = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false, block: { timer in
-                    let _ = s2.start()
+                    if !self.isInForegroundValue {
+                        s2.start()
+                    }
                 })
             })
         
