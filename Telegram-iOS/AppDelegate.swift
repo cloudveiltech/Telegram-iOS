@@ -2007,7 +2007,20 @@ private func accountIdFromNotification(_ notification: UNNotification, sharedCon
                 }
             }
         } else {
-            return .single(nil)
+            //CloudVeil start
+            return sharedContext
+                |> take(1)
+                |> mapToSignal { sharedContext -> Signal<(AccountRecordId, [AccountRecordAttribute])?, NoError> in
+                    return  sharedContext.sharedContext.accountManager.currentAccountRecord(allocateIfNotExists: false)
+                }
+                |> take(1)
+                |> mapToSignal { record -> Signal<AccountRecordId?, NoError> in
+                    if let record = record {
+                        return .single(record.0)
+                    }
+                    return .single(nil)
+                }
+            //CloudVeil end
         }
     }
 }
