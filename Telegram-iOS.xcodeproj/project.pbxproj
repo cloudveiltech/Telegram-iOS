@@ -5316,7 +5316,7 @@
 			baseConfigurationReference = D0338735223A9A99007A2CE4 /* Config-Hockeyapp-Internal.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				BUILD_NUMBER = 10004;
+				BUILD_NUMBER = 100015;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
@@ -5368,7 +5368,7 @@
 			baseConfigurationReference = D079FD021F06BBD60038FADE /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				BUILD_NUMBER = 10004;
+				BUILD_NUMBER = 100015;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
@@ -5552,7 +5552,7 @@
 			baseConfigurationReference = D021D4D8219CAEDD0064BEBA /* Config-Fork.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				BUILD_NUMBER = 10004;
+				BUILD_NUMBER = 100015;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
@@ -6638,7 +6638,7 @@
 			baseConfigurationReference = D079FD021F06BBD60038FADE /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				BUILD_NUMBER = 10004;
+				BUILD_NUMBER = 100015;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
@@ -6707,6 +6707,11 @@
 					"$(PROJECT_DIR)/third-party",
 					"$(inherited)",
 				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"COCOAPODS=1",
+				);
+				GLOBAL_CONSTANTS = "APP_CONFIG_API_ID=869100 APP_CONFIG_API_HASH=\"\\\"5df982b5c945dfdf3782ca9cc277b850\\\"\" APP_CONFIG_HOCKEYAPPID=\"\\\"e683f2bc25474272a9d987ffc3c73763\\\"\" APP_CONFIG_IS_INTERNAL_BUILD=false APP_CONFIG_IS_APPSTORE_BUILD=true APP_CONFIG_APPSTORE_ID=0  APP_SPECIFIC_URL_SCHEME=\"\\\"$(APP_SPECIFIC_URL_SCHEME)\\\"\"";
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Watch/Bridge",
@@ -6828,7 +6833,7 @@
 			baseConfigurationReference = D0338735223A9A99007A2CE4 /* Config-Hockeyapp-Internal.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				BUILD_NUMBER = 10004;
+				BUILD_NUMBER = 100015;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
@@ -7005,7 +7010,7 @@
 			baseConfigurationReference = D0ADF914212B399A00310BBC /* Config-AppStoreLLC.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				BUILD_NUMBER = 10004;
+				BUILD_NUMBER = 100015;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
@@ -7621,7 +7626,7 @@
 			baseConfigurationReference = D0ADF914212B399A00310BBC /* Config-AppStoreLLC.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				BUILD_NUMBER = 10004;
+				BUILD_NUMBER = 100015;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
