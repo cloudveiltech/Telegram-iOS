@@ -5,6 +5,7 @@ import TelegramCore
 import TelegramUI
 import UserNotifications
 import Intents
+import HockeySDK
 import Postbox
 import PushKit
 import AsyncDisplayKit
@@ -13,8 +14,9 @@ import CloudVeilSecurityManager
 import Fabric
 import Crashlytics
 
-
 private let handleVoipNotifications = false
+
+private var testIsLaunched = false
 
 private func encodeText(_ string: String, _ key: Int) -> String {
     var result = ""
@@ -123,7 +125,7 @@ private enum QueuedWakeup: Int32 {
     case backgroundLocation
 }
 
-private final class SharedApplicationContext {
+final class SharedApplicationContext {
     let sharedContext: SharedAccountContext
     let notificationManager: SharedNotificationManager
     let wakeupManager: SharedWakeupManager
@@ -137,7 +139,7 @@ private final class SharedApplicationContext {
     }
 }
 
-@objc(AppDelegate) class AppDelegate: UIResponder, UIApplicationDelegate, PKPushRegistryDelegate, UNUserNotificationCenterDelegate, UIAlertViewDelegate {
+@objc(AppDelegate) class AppDelegate: UIResponder, UIApplicationDelegate, PKPushRegistryDelegate, BITHockeyManagerDelegate, UNUserNotificationCenterDelegate, UIAlertViewDelegate {
     @objc var window: UIWindow?
     var nativeWindow: (UIWindow & WindowHost)?
     var mainWindow: Window1!
@@ -204,6 +206,10 @@ private final class SharedApplicationContext {
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]? = nil) -> Bool {
         Fabric.with([Crashlytics.self])
+        precondition(!testIsLaunched)
+        testIsLaunched = true
+        
+        let launchStartTime = CFAbsoluteTimeGetCurrent()
         
         let statusBarHost = ApplicationStatusBarHost()
         let (window, hostView) = nativeWindowHostView()
@@ -317,44 +323,18 @@ private final class SharedApplicationContext {
         })
         self.clearNotificationsManager = clearNotificationsManager
         
-        #if DEBUG
-        for argument in ProcessInfo.processInfo.arguments {
-            if argument.hasPrefix("snapshot:") {
-                GlobalExperimentalSettings.isAppStoreBuild = true
-                
-                guard let dataPath = ProcessInfo.processInfo.environment["snapshot-data-path"] else {
-                    preconditionFailure()
-                }
-                setupSnapshotData(dataPath)
-                switch String(argument[argument.index(argument.startIndex, offsetBy: "snapshot:".count)...]) {
-                    case "chat-list":
-                        snapshotChatList(application: application, mainWindow: self.window!, window: self.mainWindow, statusBarHost: statusBarHost)
-                    case "secret-chat":
-                        snapshotSecretChat(application: application, mainWindow: self.window!, window: self.mainWindow, statusBarHost: statusBarHost)
-                    case "settings":
-                        snapshotSettings(application: application, mainWindow: self.window!, window: self.mainWindow, statusBarHost: statusBarHost)
-                    case "appearance-settings":
-                        snapshotAppearanceSettings(application: application, mainWindow: self.window!, window: self.mainWindow, statusBarHost: statusBarHost)
-                    default:
-                        break
-                }
-                self.window?.makeKeyAndVisible()
-                return true
-            }
-        }
-        #endif
-        
-        let apiId: Int32 = BuildConfig.shared().apiId
-        
-        
-        let languagesCategory = "ios"
-        
         let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "unknown"
         
-        let networkArguments = NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: PresentationCallManager.voipMaxLayer, appData: BuildConfig.shared().bundleData)
-        
-        let appGroupName = "group.\(Bundle.main.bundleIdentifier!)"
+        let baseAppBundleId = Bundle.main.bundleIdentifier!
+        let appGroupName = "group.\(baseAppBundleId)"
         let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
+        
+        let buildConfig = BuildConfig(baseAppBundleId: baseAppBundleId)
+        
+        let apiId: Int32 = buildConfig.apiId
+        let languagesCategory = "ios"
+        
+        let networkArguments = NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: PresentationCallManager.voipMaxLayer, appData: buildConfig.bundleData)
         
         guard let appGroupUrl = maybeAppGroupUrl else {
             UIAlertView(title: nil, message: "Error 2", delegate: nil, cancelButtonTitle: "OK").show()
@@ -370,22 +350,23 @@ private final class SharedApplicationContext {
             isDebugConfiguration = true
         }
         
-        if isDebugConfiguration || BuildConfig.shared().isInternalBuild {
+        if isDebugConfiguration || buildConfig.isInternalBuild {
             LoggingSettings.defaultSettings = LoggingSettings(logToFile: true, logToConsole: false, redactSensitiveData: true)
         } else {
-            LoggingSettings.defaultSettings = LoggingSettings(logToFile: true, logToConsole: false, redactSensitiveData: true)
+            LoggingSettings.defaultSettings = LoggingSettings(logToFile: false, logToConsole: false, redactSensitiveData: true)
         }
         
         let rootPath = rootPathForBasePath(appGroupUrl.path)
         performAppGroupUpgrades(appGroupPath: appGroupUrl.path, rootPath: rootPath)
+        
+        let deviceSpecificEncryptionParameters = BuildConfig.deviceSpecificEncryptionParameters(rootPath, baseAppBundleId: baseAppBundleId)
+        let encryptionParameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: false, key: ValueBoxEncryptionParameters.Key(data: deviceSpecificEncryptionParameters.key)!, salt: ValueBoxEncryptionParameters.Salt(data: deviceSpecificEncryptionParameters.salt)!)
         
         TempBox.initializeShared(basePath: rootPath, processType: "app", launchSpecificId: arc4random64())
         
         let logsPath = rootPath + "/logs"
         let _ = try? FileManager.default.createDirectory(atPath: logsPath, withIntermediateDirectories: true, attributes: nil)
         Logger.setSharedLogger(Logger(basePath: logsPath))
-        
-        Logger.shared.log("App \(self.episodeId)", "ApiId is \(apiId)")
         
         if let contents = try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: rootPath + "/accounts-metadata"), includingPropertiesForKeys: nil, options: [.skipsSubdirectoryDescendants]) {
             for url in contents {
@@ -426,7 +407,7 @@ private final class SharedApplicationContext {
         
         telegramUIDeclareEncodables()
         
-        GlobalExperimentalSettings.isAppStoreBuild = BuildConfig.shared().isAppStoreBuild
+        GlobalExperimentalSettings.isAppStoreBuild = buildConfig.isAppStoreBuild
         
         GlobalExperimentalSettings.enableFeed = false
         #if DEBUG
@@ -442,7 +423,7 @@ private final class SharedApplicationContext {
         
         initializeAccountManagement()
         
-        let applicationBindings = TelegramApplicationBindings(isMainApp: true, containerPath: appGroupUrl.path, appSpecificScheme: BuildConfig.shared().appSpecificUrlScheme, openUrl: { url in
+        let applicationBindings = TelegramApplicationBindings(isMainApp: true, containerPath: appGroupUrl.path, appSpecificScheme: buildConfig.appSpecificUrlScheme, openUrl: { url in
             var parsedUrl = URL(string: url)
             if let parsed = parsedUrl {
                 if parsed.scheme == nil || parsed.scheme!.isEmpty {
@@ -535,7 +516,7 @@ private final class SharedApplicationContext {
                 UIApplication.shared.openURL(url)
             }
         }, openAppStorePage: {
-            let appStoreId = BuildConfig.shared().appStoreId
+            let appStoreId = buildConfig.appStoreId
             if let url = URL(string: "itms-apps://itunes.apple.com/app/id\(appStoreId)") {
                 UIApplication.shared.openURL(url)
             }
@@ -578,144 +559,193 @@ private final class SharedApplicationContext {
             self.window?.rootViewController?.present(controller, animated: true, completion: nil)
         }, dismissNativeController: {
             self.window?.rootViewController?.dismiss(animated: true, completion: nil)
-        })
-        
-        // Move back to signal
-        let accountManager = AccountManager(basePath: rootPath + "/accounts-metadata")
-        let upgradeSemaphore = DispatchSemaphore(value: 0)
-        let _ = upgradedAccounts(accountManager: accountManager, rootPath: rootPath).start(completed: {
-            upgradeSemaphore.signal()
-        })
-        upgradeSemaphore.wait()
-        
-        var initialPresentationDataAndSettings: InitialPresentationDataAndSettings?
-        let semaphore = DispatchSemaphore(value: 0)
-        let _ = currentPresentationDataAndSettings(accountManager: accountManager).start(next: { value in
-            initialPresentationDataAndSettings = value
-            semaphore.signal()
-        })
-        semaphore.wait()
-        
-        let legacyBasePath = appGroupUrl.path
-        let legacyCache = LegacyCache(path: legacyBasePath + "/Caches")
-        
-        var setPresentationCall: ((PresentationCall?) -> Void)?
-        let sharedContext = SharedAccountContext(mainWindow: self.mainWindow, basePath: rootPath, accountManager: accountManager, applicationBindings: applicationBindings, initialPresentationDataAndSettings: initialPresentationDataAndSettings!, networkArguments: networkArguments, rootPath: rootPath, legacyBasePath: legacyBasePath, legacyCache: legacyCache, apsNotificationToken: self.notificationTokenPromise.get() |> map(Optional.init), voipNotificationToken: self.voipTokenPromise.get() |> map(Optional.init), setNotificationCall: { call in
-            setPresentationCall?(call)
-        }, navigateToChat: { accountId, peerId, messageId in
-            self.openChatWhenReady(accountId: accountId, peerId: peerId, messageId: messageId)
-        })
-        
-        let rawAccounts = sharedContext.activeAccounts
-        |> map { _, accounts, _ -> [Account] in
-            return accounts.map({ $0.1 })
-        }
-        let _ = (sharedAccountInfos(accountManager: sharedContext.accountManager, accounts: rawAccounts)
-        |> deliverOn(Queue())).start(next: { infos in
-            storeAccountsData(rootPath: rootPath, accounts: infos)
-        })
-        
-        sharedContext.presentGlobalController = { [weak self] c, a in
-            guard let strongSelf = self else {
-                return
+        }, getAlternateIconName: {
+            if #available(iOS 10.3, *) {
+                return application.alternateIconName
+            } else {
+                return nil
             }
-            strongSelf.mainWindow.present(c, on: .root)
-        }
-        sharedContext.presentCrossfadeController = { [weak self] in
-            guard let strongSelf = self else {
-                return
+        }, requestSetAlternateIconName: { name, completion in
+            if #available(iOS 10.3, *) {
+                application.setAlternateIconName(name, completionHandler: { error in
+                    completion(error == nil)
+                })
+            } else {
+                completion(false)
             }
-            var exists = false
-            strongSelf.mainWindow.forEachViewController { controller in
-                if controller is ThemeSettingsCrossfadeController {
-                    exists = true
+        })
+        
+        let accountManagerSignal = Signal<AccountManager, NoError> { subscriber in
+            let accountManager = AccountManager(basePath: rootPath + "/accounts-metadata")
+            return (upgradedAccounts(accountManager: accountManager, rootPath: rootPath, encryptionParameters: encryptionParameters)
+            |> deliverOnMainQueue).start(next: { progress in
+                if self.dataImportSplash == nil {
+                    self.dataImportSplash = LegacyDataImportSplash(theme: nil, strings: nil)
+                    self.dataImportSplash?.serviceAction = {
+                        self.debugPressed()
+                    }
+                    self.mainWindow.coveringView = self.dataImportSplash
                 }
-                return true
-            }
-            
-            if !exists {
-                strongSelf.mainWindow.present(ThemeSettingsCrossfadeController(), on: .root)
-            }
+                self.dataImportSplash?.progress = (.generic, progress)
+            }, completed: {
+                if let dataImportSplash = self.dataImportSplash {
+                    self.dataImportSplash = nil
+                    if self.mainWindow.coveringView === dataImportSplash {
+                        self.mainWindow.coveringView = nil
+                    }
+                }
+                subscriber.putNext(accountManager)
+                subscriber.putCompletion()
+            })
         }
         
-        let notificationManager = SharedNotificationManager(episodeId: self.episodeId, application: application, clearNotificationsManager: clearNotificationsManager, inForeground: applicationBindings.applicationInForeground, accounts: sharedContext.activeAccounts |> map { primary, accounts, _ in accounts.map({ ($0.1, $0.1.id == primary?.id) }) }, pollLiveLocationOnce: { accountId in
-            let _ = (self.context.get()
-            |> filter {
-                return $0 != nil
+        let sharedContextSignal = accountManagerSignal
+        |> deliverOnMainQueue
+        |> take(1)
+        |> deliverOnMainQueue
+        |> take(1)
+        |> mapToSignal { accountManager -> Signal<(AccountManager, InitialPresentationDataAndSettings), NoError> in
+            return currentPresentationDataAndSettings(accountManager: accountManager)
+                |> map { initialPresentationDataAndSettings -> (AccountManager, InitialPresentationDataAndSettings) in
+                    return (accountManager, initialPresentationDataAndSettings)
             }
-            |> take(1)
-            |> deliverOnMainQueue).start(next: { context in
-                if let context = context, context.context.account.id == accountId {
-                    context.context.liveLocationManager?.pollOnce()
+        }
+        |> deliverOnMainQueue
+        |> mapToSignal { accountManager, initialPresentationDataAndSettings -> Signal<(SharedApplicationContext, LoggingSettings), NoError> in
+            self.window?.backgroundColor = initialPresentationDataAndSettings.presentationData.theme.chatList.backgroundColor
+            
+            let legacyBasePath = appGroupUrl.path
+            let legacyCache = LegacyCache(path: legacyBasePath + "/Caches")
+            
+            var setPresentationCall: ((PresentationCall?) -> Void)?
+            let sharedContext = SharedAccountContext(mainWindow: self.mainWindow, basePath: rootPath, encryptionParameters: encryptionParameters, accountManager: accountManager, applicationBindings: applicationBindings, initialPresentationDataAndSettings: initialPresentationDataAndSettings, networkArguments: networkArguments, rootPath: rootPath, legacyBasePath: legacyBasePath, legacyCache: legacyCache, apsNotificationToken: self.notificationTokenPromise.get() |> map(Optional.init), voipNotificationToken: self.voipTokenPromise.get() |> map(Optional.init), setNotificationCall: { call in
+                setPresentationCall?(call)
+            }, navigateToChat: { accountId, peerId, messageId in
+                self.openChatWhenReady(accountId: accountId, peerId: peerId, messageId: messageId)
+            }, displayUpgradeProgress: { progress in
+                if let progress = progress {
+                    if self.dataImportSplash == nil {
+                        self.dataImportSplash = LegacyDataImportSplash(theme: initialPresentationDataAndSettings.presentationData.theme, strings: initialPresentationDataAndSettings.presentationData.strings)
+                        self.dataImportSplash?.serviceAction = {
+                            self.debugPressed()
+                        }
+                        self.mainWindow.coveringView = self.dataImportSplash
+                    }
+                    self.dataImportSplash?.progress = (.generic, progress)
+                } else if let dataImportSplash = self.dataImportSplash {
+                    self.dataImportSplash = nil
+                    if self.mainWindow.coveringView === dataImportSplash {
+                        self.mainWindow.coveringView = nil
+                    }
                 }
             })
-        })
-        setPresentationCall = { call in
-            notificationManager.setNotificationCall(call, strings: sharedContext.currentPresentationData.with({ $0 }).strings)
-        }
-        let liveLocationPolling = self.context.get()
-        |> mapToSignal { context -> Signal<AccountRecordId?, NoError> in
-            if let context = context, let liveLocationManager = context.context.liveLocationManager {
-                let accountId = context.context.account.id
-                return liveLocationManager.isPolling
-                |> distinctUntilChanged
-                |> map { value -> AccountRecordId? in
-                    if value {
-                        return accountId
-                    } else {
-                        return nil
-                    }
+            
+            let rawAccounts = sharedContext.activeAccounts
+            |> map { _, accounts, _ -> [Account] in
+                return accounts.map({ $0.1 })
+            }
+            let _ = (sharedAccountInfos(accountManager: sharedContext.accountManager, accounts: rawAccounts)
+            |> deliverOn(Queue())).start(next: { infos in
+                storeAccountsData(rootPath: rootPath, accounts: infos)
+            })
+            
+            sharedContext.presentGlobalController = { [weak self] c, a in
+                guard let strongSelf = self else {
+                    return
                 }
-            } else {
-                return .single(nil)
+                strongSelf.mainWindow.present(c, on: .root)
+            }
+            sharedContext.presentCrossfadeController = { [weak self] in
+                guard let strongSelf = self else {
+                    return
+                }
+                var exists = false
+                strongSelf.mainWindow.forEachViewController { controller in
+                    if controller is ThemeSettingsCrossfadeController {
+                        exists = true
+                    }
+                    return true
+                }
+                
+                if !exists {
+                    strongSelf.mainWindow.present(ThemeSettingsCrossfadeController(), on: .root)
+                }
+            }
+            
+            let notificationManager = SharedNotificationManager(episodeId: self.episodeId, application: application, clearNotificationsManager: clearNotificationsManager, inForeground: applicationBindings.applicationInForeground, accounts: sharedContext.activeAccounts |> map { primary, accounts, _ in accounts.map({ ($0.1, $0.1.id == primary?.id) }) }, pollLiveLocationOnce: { accountId in
+                let _ = (self.context.get()
+                |> filter {
+                    return $0 != nil
+                }
+                |> take(1)
+                |> deliverOnMainQueue).start(next: { context in
+                    if let context = context, context.context.account.id == accountId {
+                        context.context.liveLocationManager?.pollOnce()
+                    }
+                })
+            })
+            setPresentationCall = { call in
+                notificationManager.setNotificationCall(call, strings: sharedContext.currentPresentationData.with({ $0 }).strings)
+            }
+            let liveLocationPolling = self.context.get()
+            |> mapToSignal { context -> Signal<AccountRecordId?, NoError> in
+                if let context = context, let liveLocationManager = context.context.liveLocationManager {
+                    let accountId = context.context.account.id
+                    return liveLocationManager.isPolling
+                    |> distinctUntilChanged
+                    |> map { value -> AccountRecordId? in
+                        if value {
+                            return accountId
+                        } else {
+                            return nil
+                        }
+                    }
+                } else {
+                    return .single(nil)
+                }
+            }
+            let watchTasks = self.context.get()
+            |> mapToSignal { context -> Signal<AccountRecordId?, NoError> in
+                if let context = context, let watchManager = context.context.watchManager {
+                    let accountId = context.context.account.id
+                    let runningTasks: Signal<WatchRunningTasks?, NoError> = .single(nil)
+                    |> then(watchManager.runningTasks)
+                    return runningTasks
+                    |> distinctUntilChanged
+                    |> map { value -> AccountRecordId? in
+                        if let value = value, value.running {
+                            return accountId
+                        } else {
+                            return nil
+                        }
+                    }
+                    |> distinctUntilChanged
+                } else {
+                    return .single(nil)
+                }
+            }
+            let wakeupManager = SharedWakeupManager(beginBackgroundTask: { name, expiration in application.beginBackgroundTask(withName: name, expirationHandler: expiration) }, endBackgroundTask: { id in application.endBackgroundTask(id) }, backgroundTimeRemaining: { application.backgroundTimeRemaining }, activeAccounts: sharedContext.activeAccounts |> map { ($0.0, $0.1.map { ($0.0, $0.1) }) }, liveLocationPolling: liveLocationPolling, watchTasks: watchTasks, inForeground: applicationBindings.applicationInForeground, hasActiveAudioSession: self.hasActiveAudioSession.get(), notificationManager: notificationManager, mediaManager: sharedContext.mediaManager, callManager: sharedContext.callManager, accountUserInterfaceInUse: { id in
+                return sharedContext.accountUserInterfaceInUse(id)
+            })
+            let sharedApplicationContext = SharedApplicationContext(sharedContext: sharedContext, notificationManager: notificationManager, wakeupManager: wakeupManager)
+            sharedApplicationContext.sharedContext.mediaManager.overlayMediaManager.attachOverlayMediaController(sharedApplicationContext.overlayMediaController)
+            
+            return accountManager.transaction { transaction -> (SharedApplicationContext, LoggingSettings) in
+                return (sharedApplicationContext, transaction.getSharedData(SharedDataKeys.loggingSettings) as? LoggingSettings ?? LoggingSettings.defaultSettings)
             }
         }
-        let watchTasks = self.context.get()
-        |> mapToSignal { context -> Signal<AccountRecordId?, NoError> in
-            if let context = context, let watchManager = context.context.watchManager {
-                let accountId = context.context.account.id
-                let runningTasks: Signal<WatchRunningTasks?, NoError> = .single(nil)
-                |> then(watchManager.runningTasks)
-                return runningTasks
-                |> distinctUntilChanged
-                |> map { value -> AccountRecordId? in
-                    if let value = value, value.running {
-                        return accountId
-                    } else {
-                        return nil
-                    }
-                }
-                |> distinctUntilChanged
-            } else {
-                return .single(nil)
-            }
-        }
-        let wakeupManager = SharedWakeupManager(beginBackgroundTask: { name, expiration in application.beginBackgroundTask(withName: name, expirationHandler: expiration) }, endBackgroundTask: { id in application.endBackgroundTask(id) }, backgroundTimeRemaining: { application.backgroundTimeRemaining }, activeAccounts: sharedContext.activeAccounts |> map { ($0.0, $0.1.map { ($0.0, $0.1) }) }, liveLocationPolling: liveLocationPolling, watchTasks: watchTasks, inForeground: applicationBindings.applicationInForeground, hasActiveAudioSession: hasActiveAudioSession.get(), notificationManager: notificationManager, mediaManager: sharedContext.mediaManager, callManager: sharedContext.callManager, accountUserInterfaceInUse: { id in
-            return sharedContext.accountUserInterfaceInUse(id)
-        })
-        let sharedApplicationContext = SharedApplicationContext(sharedContext: sharedContext, notificationManager: notificationManager, wakeupManager: wakeupManager)
-        sharedApplicationContext.sharedContext.mediaManager.overlayMediaManager.attachOverlayMediaController(sharedApplicationContext.overlayMediaController)
-        self.sharedContextPromise.set(
-        accountManager.transaction { transaction -> (SharedApplicationContext, LoggingSettings) in
-            return (sharedApplicationContext, transaction.getSharedData(SharedDataKeys.loggingSettings) as? LoggingSettings ?? LoggingSettings.defaultSettings)
-        }
+        self.sharedContextPromise.set(sharedContextSignal
         |> mapToSignal { sharedApplicationContext, loggingSettings -> Signal<SharedApplicationContext, NoError> in
             Logger.shared.logToFile = loggingSettings.logToFile
             Logger.shared.logToConsole = loggingSettings.logToConsole
             Logger.shared.redactSensitiveData = loggingSettings.redactSensitiveData
             
-            return importedLegacyAccount(basePath: appGroupUrl.path, accountManager: sharedApplicationContext.sharedContext.accountManager, present: { controller in
+            return importedLegacyAccount(basePath: appGroupUrl.path, accountManager: sharedApplicationContext.sharedContext.accountManager, encryptionParameters: encryptionParameters, present: { controller in
                 self.window?.rootViewController?.present(controller, animated: true, completion: nil)
             })
             |> `catch` { _ -> Signal<ImportedLegacyAccountEvent, NoError> in
                 return Signal { subscriber in
-                    let statusPath = appGroupUrl.path + "/Documents/importcompleted"
-                    let _ = try? FileManager.default.createDirectory(atPath: appGroupUrl.path + "/Documents", withIntermediateDirectories: true, attributes: nil)
-                    let _ = try? Data().write(to: URL(fileURLWithPath: statusPath))
-                    subscriber.putNext(.result(nil))
-                    subscriber.putCompletion()
-                    
-                    /*let alertView = UIAlertView(title: "", message: "An error occured while trying to upgrade application data. Would you like to logout?", delegate: self, cancelButtonTitle: "No", otherButtonTitles: "Yes")
+                    let alertView = UIAlertView(title: "", message: "An error occured while trying to upgrade application data. Would you like to logout?", delegate: self, cancelButtonTitle: "No", otherButtonTitles: "Yes")
                     self.alertActions = (primary: {
                         let statusPath = appGroupUrl.path + "/Documents/importcompleted"
                         let _ = try? FileManager.default.createDirectory(atPath: appGroupUrl.path + "/Documents", withIntermediateDirectories: true, attributes: nil)
@@ -725,7 +755,7 @@ private final class SharedApplicationContext {
                     }, other: {
                         exit(0)
                     })
-                    alertView.show()*/
+                    alertView.show()
                     
                     return EmptyDisposable
                 } |> runOn(Queue.mainQueue())
@@ -735,7 +765,7 @@ private final class SharedApplicationContext {
                     case let .progress(type, value):
                         Queue.mainQueue().async {
                             if self.dataImportSplash == nil {
-                                self.dataImportSplash = LegacyDataImportSplash()
+                                self.dataImportSplash = LegacyDataImportSplash(theme: nil, strings: nil)
                                 self.dataImportSplash?.serviceAction = {
                                     self.debugPressed()
                                 }
@@ -808,7 +838,7 @@ private final class SharedApplicationContext {
             |> map { accountAndSettings -> AuthorizedApplicationContext? in
                 return accountAndSettings.flatMap { account, limitsConfiguration, callListSettings in
                     let context = AccountContext(sharedContext: sharedApplicationContext.sharedContext, account: account, limitsConfiguration: limitsConfiguration)
-                    return AuthorizedApplicationContext(mainWindow: self.mainWindow, watchManagerArguments: watchManagerArgumentsPromise.get(), context: context, accountManager: sharedApplicationContext.sharedContext.accountManager, showCallsTab: callListSettings.showTab, reinitializedNotificationSettings: {
+                    return AuthorizedApplicationContext(sharedApplicationContext: sharedApplicationContext, mainWindow: self.mainWindow, watchManagerArguments: watchManagerArgumentsPromise.get(), context: context, accountManager: sharedApplicationContext.sharedContext.accountManager, showCallsTab: callListSettings.showTab, reinitializedNotificationSettings: {
                         let _ = (self.context.get()
                         |> take(1)
                         |> deliverOnMainQueue).start(next: { context in
@@ -884,15 +914,18 @@ private final class SharedApplicationContext {
             |> deliverOnMainQueue
             |> map { accountAndSettings -> UnauthorizedApplicationContext? in
                 return accountAndSettings.flatMap { account, limitsConfiguration, callListSettings, otherAccountPhoneNumbers in
-                    return UnauthorizedApplicationContext(sharedContext: sharedApplicationContext.sharedContext, account: account, otherAccountPhoneNumbers: otherAccountPhoneNumbers)
+                    return UnauthorizedApplicationContext(buildConfig: buildConfig, sharedContext: sharedApplicationContext.sharedContext, account: account, otherAccountPhoneNumbers: otherAccountPhoneNumbers)
                 }
             }
         })
         
         let contextReadyDisposable = MetaDisposable()
         
+        let startTime = CFAbsoluteTimeGetCurrent()
         self.contextDisposable.set((self.context.get()
         |> deliverOnMainQueue).start(next: { context in
+            print("Application: context took \(CFAbsoluteTimeGetCurrent() - startTime) to become available")
+            
             var network: Network?
             if let context = context {
                 network = context.context.account.network
@@ -914,6 +947,12 @@ private final class SharedApplicationContext {
                 |> filter { $0 }
                 |> take(1)
                 |> deliverOnMainQueue).start(next: { _ in
+                    let readyTime = CFAbsoluteTimeGetCurrent() - startTime
+                    if readyTime > 0.5 {
+                        print("Application: context took \(readyTime) to become ready")
+                    }
+                    print("Launch to ready took \((CFAbsoluteTimeGetCurrent() - launchStartTime) * 1000.0) ms")
+                    
                     self.mainWindow.viewController = context.rootController
                     if firstTime {
                         let layer = context.rootController.view.layer
@@ -947,7 +986,7 @@ private final class SharedApplicationContext {
                         }
                         return true
                     })
-                    self.mainWindow.topLevelOverlayControllers = [sharedApplicationContext.overlayMediaController, context.notificationController]
+                    self.mainWindow.topLevelOverlayControllers = [context.sharedApplicationContext.overlayMediaController, context.notificationController]
                     var authorizeNotifications = true
                     if #available(iOS 10.0, *) {
                         authorizeNotifications = false
@@ -994,7 +1033,10 @@ private final class SharedApplicationContext {
         }))
         
         self.watchCommunicationManagerPromise.set(watchCommunicationManager(context: self.context, allowBackgroundTimeExtension: { timeout in
-            wakeupManager.allowBackgroundTimeExtension(timeout: timeout)
+            let _ = (self.sharedContextPromise.get()
+            |> take(1)).start(next: { sharedContext in
+                sharedContext.wakeupManager.allowBackgroundTimeExtension(timeout: timeout)
+            })
         }))
         let _ = self.watchCommunicationManagerPromise.get().start(next: { manager in
             if let manager = manager {
@@ -1063,7 +1105,7 @@ private final class SharedApplicationContext {
             self.isActivePromise.set(true)
         }
         
-     /*   BITHockeyBaseManager.setPresentAlert({ [weak self] alert in
+        BITHockeyBaseManager.setPresentAlert({ [weak self] alert in
             if let strongSelf = self, let alert = alert {
                 var actions: [TextAlertAction] = []
                 for action in alert.actions {
@@ -1074,8 +1116,10 @@ private final class SharedApplicationContext {
                         }
                     }))
                 }
-                let presentationData = sharedContext.currentPresentationData.with { $0 }
-                strongSelf.mainWindow.present(standardTextAlertController(theme: AlertControllerTheme(presentationTheme: presentationData.theme), title: alert.title, text: alert.message ?? "", actions: actions), on: .root)
+                if let sharedContext = strongSelf.contextValue?.context.sharedContext {
+                    let presentationData = sharedContext.currentPresentationData.with { $0 }
+                    strongSelf.mainWindow.present(standardTextAlertController(theme: AlertControllerTheme(presentationTheme: presentationData.theme), title: alert.title, text: alert.message ?? "", actions: actions), on: .root)
+                }
             }
         })
         
@@ -1091,24 +1135,24 @@ private final class SharedApplicationContext {
             }
         })
         
-        if let hockeyAppId = BuildConfig.shared().hockeyAppId, !hockeyAppId.isEmpty {
+        if let hockeyAppId = buildConfig.hockeyAppId, !hockeyAppId.isEmpty {
             BITHockeyManager.shared().configure(withIdentifier: hockeyAppId, delegate: self)
             BITHockeyManager.shared().crashManager.crashManagerStatus = .alwaysAsk
             BITHockeyManager.shared().start()
             BITHockeyManager.shared().authenticator.authenticateInstallation()
         }
-        */
+        
         NotificationCenter.default.addObserver(forName: NSNotification.Name.UIWindowDidBecomeHidden, object: nil, queue: nil, using: { notification in
             if UIApplication.shared.isStatusBarHidden {
                 UIApplication.shared.setStatusBarHidden(false, with: .none)
             }
         })
-        
-        
+
         //CloudVeil start
         var settings = AutomaticMediaDownloadSettings.defaultSettings
         settings.autoplayGifs = settings.autoplayGifs && !MainController.SecurityStaticSettings.disableAutoPlayGifs
         //CloudVeil end
+        
         return true
     }
 
@@ -1116,6 +1160,27 @@ private final class SharedApplicationContext {
         self.isActiveValue = false
         self.isActivePromise.set(false)
         self.clearNotificationsManager?.commitNow()
+        
+        if let navigationController = self.mainWindow.viewController as? NavigationController {
+            for controller in navigationController.viewControllers {
+                if let controller = controller as? TabBarController {
+                    for subController in controller.controllers {
+                        subController.forEachController { controller in
+                            if let controller = controller as? UndoOverlayController {
+                                controller.dismissWithCommitAction()
+                            }
+                            return true
+                        }
+                    }
+                }
+            }
+        }
+        self.mainWindow.forEachViewController { controller in
+            if let controller = controller as? UndoOverlayController {
+                controller.dismissWithCommitAction()
+            }
+            return true
+        }
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
@@ -1169,14 +1234,9 @@ private final class SharedApplicationContext {
     }
     
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        let logMsg = "push token: \(deviceToken)"
-        
-        Logger.shared.log("App \(self.episodeId)", logMsg)
-        
         self.notificationTokenPromise.set(.single(deviceToken))
     }
     
-   
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         let _ = (self.sharedContextPromise.get()
         |> take(1)
@@ -1196,14 +1256,12 @@ private final class SharedApplicationContext {
             }
             redactedPayload["aps"] = aps
         }
-        print("remoteNotification: \(redactedPayload)")
+        
         Logger.shared.log("App \(self.episodeId)", "remoteNotification: \(redactedPayload)")
         completionHandler(UIBackgroundFetchResult.noData)
     }
     
     func application(_ application: UIApplication, didReceive notification: UILocalNotification) {
-      
-        print("remoteNotification")
         if (application.applicationState == .inactive) {
             Logger.shared.log("App \(self.episodeId)", "tap local notification \(String(describing: notification.userInfo)), applicationState \(application.applicationState)")
         }
@@ -1213,7 +1271,7 @@ private final class SharedApplicationContext {
         if case PKPushType.voIP = type {
             Logger.shared.log("App \(self.episodeId)", "pushRegistry credentials: \(credentials.token as NSData)")
             
-           self.voipTokenPromise.set(.single(credentials.token))
+            self.voipTokenPromise.set(.single(credentials.token))
         }
     }
     
@@ -1222,13 +1280,14 @@ private final class SharedApplicationContext {
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
             sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 4.0)
-           
+            
             if case PKPushType.voIP = type {
                 Logger.shared.log("App \(self.episodeId)", "pushRegistry payload: \(payload.dictionaryPayload)")
                 sharedApplicationContext.notificationManager.addEncryptedNotification(payload.dictionaryPayload)
             }
         })
     }
+    
     /*private func processPushPayload(_ payload: [AnyHashable: Any], account: Account) {
         let decryptedPayload: Signal<[AnyHashable: Any]?, NoError>
         if let _ = payload["aps"] as? [AnyHashable: Any] {
@@ -1932,7 +1991,7 @@ private final class SharedApplicationContext {
     }
     
     @objc func debugPressed() {
-        let _ = (Logger.shared.collectLogs()
+        let _ = (Logger.shared.collectShortLogFiles()
         |> deliverOnMainQueue).start(next: { logs in
             var activityItems: [Any] = []
             for (_, path) in logs {
@@ -2019,7 +2078,7 @@ private func accountIdFromNotification(_ notification: UNNotification, sharedCon
                         return .single(record.0)
                     }
                     return .single(nil)
-                }
+            }
             //CloudVeil end
         }
     }

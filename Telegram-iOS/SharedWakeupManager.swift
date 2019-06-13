@@ -161,7 +161,6 @@ final class SharedWakeupManager {
     func allowBackgroundTimeExtension(timeout: Double) {
         let shouldCheckTasks = self.allowBackgroundTimeExtensionDeadline == nil
         self.allowBackgroundTimeExtensionDeadline = CACurrentMediaTime() + timeout
-
         if shouldCheckTasks {
             self.checkTasks()
         }

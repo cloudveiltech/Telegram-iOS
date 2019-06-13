@@ -227,11 +227,81 @@ static MTPKCS * _Nullable checkSignature(const char *filename) {
     return result;
 }
 
+API_AVAILABLE(ios(10))
+@interface LocalPrivateKey : NSObject {
+    SecKeyRef _privateKey;
+    SecKeyRef _publicKey;
+}
+
+- (NSData * _Nullable)encrypt:(NSData * _Nonnull)data;
+- (NSData * _Nullable)decrypt:(NSData * _Nonnull)data;
+
+@end
+
+@implementation LocalPrivateKey
+
+- (instancetype _Nonnull)initWithPrivateKey:(SecKeyRef)privateKey publicKey:(SecKeyRef)publicKey {
+    self = [super init];
+    if (self != nil) {
+        _privateKey = (SecKeyRef)CFRetain(privateKey);
+        _publicKey = (SecKeyRef)CFRetain(publicKey);
+    }
+    return self;
+}
+
+- (void)dealloc {
+    CFRelease(_privateKey);
+    CFRelease(_publicKey);
+}
+
+- (NSData * _Nullable)encrypt:(NSData * _Nonnull)data {
+    if (data.length % 16 != 0) {
+        return nil;
+    }
+    
+    CFErrorRef error = NULL;
+    NSData *cipherText = (NSData *)CFBridgingRelease(SecKeyCreateEncryptedData(_publicKey, kSecKeyAlgorithmECIESEncryptionCofactorX963SHA256AESGCM, (__bridge CFDataRef)data, &error));
+    
+    if (!cipherText) {
+        __unused NSError *err = CFBridgingRelease(error);
+        return nil;
+    }
+    
+    return cipherText;
+}
+
+- (NSData * _Nullable)decrypt:(NSData * _Nonnull)data {
+    CFErrorRef error = NULL;
+    NSData *plainText = (NSData *)CFBridgingRelease(SecKeyCreateDecryptedData(_privateKey, kSecKeyAlgorithmECIESEncryptionCofactorX963SHA256AESGCM, (__bridge CFDataRef)data, &error));
+    
+    if (!plainText) {
+        __unused NSError *err = CFBridgingRelease(error);
+        return nil;
+    }
+    
+    return plainText;
+}
+
+@end
+
 @interface BuildConfig () {
     NSData * _Nullable _bundleData;
     int32_t _apiId;
     NSString * _Nonnull _apiHash;
     NSString * _Nullable _hockeyAppId;
+}
+
+@end
+
+@implementation DeviceSpecificEncryptionParameters
+
+- (instancetype)initWithKey:(NSData * _Nonnull)key salt:(NSData * _Nonnull)salt {
+    self = [super init];
+    if (self != nil) {
+        _key = key;
+        _salt = salt;
+    }
+    return self;
 }
 
 @end
@@ -269,78 +339,18 @@ static MTPKCS * _Nullable checkSignature(const char *filename) {
     return instance;
 }
 
-- (instancetype)init {
+- (instancetype _Nonnull)initWithBaseAppBundleId:(NSString * _Nonnull)baseAppBundleId {
     self = [super init];
     if (self != nil) {
-      /*  char buf[3];
-        buf[2] = '\0';
-        NSString *hex = @(APP_CONFIG_DATA);
-        assert(0 == [hex length] % 2);
-        unsigned char *bytes = malloc([hex length]/2);
-        unsigned char *bp = bytes;
-        for (CFIndex i = 0; i < [hex length]; i += 2) {
-            buf[0] = [hex characterAtIndex:i];
-            buf[1] = [hex characterAtIndex:i+1];
-            char *b2 = NULL;
-            *bp++ = strtol(buf, &b2, 16);
-            assert(b2 == buf + 2);
-        }
-        
-        NSMutableData *data = [NSMutableData dataWithBytesNoCopy:bytes length:[hex length]/2 freeWhenDone:YES];
-        if ([data length] == 0) {
-            assert(false);
-        }
-        
-        const char *streamCode = "Cypher";
-        int keyLength = (int)strlen(streamCode);
-        int keyOffset = 0;
-        for (NSUInteger i = 0; i < data.length; i++) {
-            ((uint8_t *)data.mutableBytes)[i] ^= ((uint8_t *)streamCode)[keyOffset % keyLength];
-            keyOffset += 1;
-        }
-        
-        int offset = 0;
-        uint32_t header = 0;
-        [data getBytes:&header range:NSMakeRange(offset, 4)];
-        offset += 4;
-        if (header != 0xabcdef01U) {
-            assert(false);
-        }
-        
-        [data getBytes:&_apiId range:NSMakeRange(offset, 4)];
-        offset += 4;
-        
-        int32_t apiHashLength = 0;
-        [data getBytes:&apiHashLength range:NSMakeRange(offset, 4)];
-        offset += 4;
-        
-        if (apiHashLength > 0) {
-            _apiHash = [[NSString alloc] initWithData:[data subdataWithRange:NSMakeRange(offset, apiHashLength)] encoding:NSUTF8StringEncoding];
-            offset += apiHashLength;
-        } else {
-            assert(false);
-        }
-        
-        int32_t hockeyappIdLength = 0;
-        [data getBytes:&hockeyappIdLength range:NSMakeRange(offset, 4)];
-        offset += 4;
-        
-        if (hockeyappIdLength > 0) {
-            _hockeyAppId = [[NSString alloc] initWithData:[data subdataWithRange:NSMakeRange(offset, hockeyappIdLength)] encoding:NSUTF8StringEncoding];
-            offset += hockeyappIdLength;
-        }*/
-        
-        _apiId = 654798;
-        _apiHash = @"9168135668675f32c28bd27566555ab0";
+        _apiId = 150211;
+        _apiHash = @"24cc1afc4d8370058fbfde1aaa4b1ab8";
         _hockeyAppId = nil;
-        
-        NSString *bundleId = [BuildConfig bundleId];
         
         MTPKCS *signature = checkSignature([[[NSBundle mainBundle] executablePath] UTF8String]);
         NSMutableDictionary *dataDict = [[NSMutableDictionary alloc] init];
         
-        if (bundleId != nil) {
-            dataDict[@"bundleId"] = bundleId;
+        if (baseAppBundleId != nil) {
+            dataDict[@"bundleId"] = baseAppBundleId;
         }
         if (signature.name != nil) {
             dataDict[@"name"] = signature.name;
@@ -371,19 +381,222 @@ static MTPKCS * _Nullable checkSignature(const char *filename) {
 }
 
 - (bool)isInternalBuild {
-    return APP_CONFIG_IS_INTERNAL_BUILD;
+    return false;
 }
 
 - (bool)isAppStoreBuild {
-    return APP_CONFIG_IS_APPSTORE_BUILD;
+    return true;
 }
 
 - (int64_t)appStoreId {
-    return APP_CONFIG_APPSTORE_ID;
+    return 0;
 }
 
 - (NSString *)appSpecificUrlScheme {
-    return @(APP_SPECIFIC_URL_SCHEME);
+    return @"tgcv";
+}
+
++ (NSString * _Nullable)bundleSeedId {
+    NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
+       (__bridge NSString *)kSecClassGenericPassword, (__bridge NSString *)kSecClass,
+       @"bundleSeedID", kSecAttrAccount,
+       @"", kSecAttrService,
+       (id)kCFBooleanTrue, kSecReturnAttributes,
+    nil];
+    CFDictionaryRef result = nil;
+    OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, (CFTypeRef *)&result);
+    if (status == errSecItemNotFound) {
+        status = SecItemAdd((__bridge CFDictionaryRef)query, (CFTypeRef *)&result);
+    }
+    if (status != errSecSuccess) {
+        return nil;
+    }
+    NSString *accessGroup = [(__bridge NSDictionary *)result objectForKey:(__bridge NSString *)kSecAttrAccessGroup];
+    NSArray *components = [accessGroup componentsSeparatedByString:@"."];
+    NSString *bundleSeedID = [[components objectEnumerator] nextObject];
+    CFRelease(result);
+    return bundleSeedID;
+}
+
++ (LocalPrivateKey * _Nullable)getLocalPrivateKey:(NSString * _Nonnull)baseAppBundleId API_AVAILABLE(ios(10)) {
+    NSString *bundleSeedId = [self bundleSeedId];
+    if (bundleSeedId == nil) {
+        return nil;
+    }
+    
+    NSString *accessGroup = [bundleSeedId stringByAppendingFormat:@".%@", baseAppBundleId];
+    
+    NSData *applicationTag = [@"telegramLocalKey" dataUsingEncoding:NSUTF8StringEncoding];
+    
+    NSDictionary *query = @{
+        (id)kSecClass: (id)kSecClassKey,
+        (id)kSecAttrApplicationTag: applicationTag,
+        (id)kSecAttrKeyType: (id)kSecAttrKeyTypeECSECPrimeRandom,
+        (id)kSecAttrAccessGroup: (id)accessGroup,
+        (id)kSecReturnRef: @YES,
+    };
+    SecKeyRef privateKey = NULL;
+    OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, (CFTypeRef *)&privateKey);
+    if (status != errSecSuccess) {
+        return nil;
+    }
+    
+    SecKeyRef publicKey = SecKeyCopyPublicKey(privateKey);
+    if (!publicKey) {
+        if (privateKey) {
+            CFRelease(privateKey);
+        }
+        return nil;
+    }
+    
+    LocalPrivateKey *result = [[LocalPrivateKey alloc] initWithPrivateKey:privateKey publicKey:publicKey];
+    
+    if (publicKey) {
+        CFRelease(publicKey);
+    }
+    if (privateKey) {
+        CFRelease(privateKey);
+    }
+    
+    return result;
+}
+
++ (bool)removeLocalPrivateKey:(NSString * _Nonnull)baseAppBundleId API_AVAILABLE(ios(10)) {
+    NSString *bundleSeedId = [self bundleSeedId];
+    if (bundleSeedId == nil) {
+        return nil;
+    }
+    
+    NSData *applicationTag = [@"telegramLocalKey" dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *accessGroup = [bundleSeedId stringByAppendingFormat:@".%@", baseAppBundleId];
+    
+    NSDictionary *query = @{
+        (id)kSecClass: (id)kSecClassKey,
+        (id)kSecAttrApplicationTag: applicationTag,
+        (id)kSecAttrKeyType: (id)kSecAttrKeyTypeECSECPrimeRandom,
+        (id)kSecAttrAccessGroup: (id)accessGroup
+    };
+    OSStatus status = SecItemDelete((__bridge CFDictionaryRef)query);
+    if (status != errSecSuccess) {
+        return false;
+    }
+    return true;
+}
+
++ (LocalPrivateKey * _Nullable)addLocalPrivateKey:(NSString * _Nonnull)baseAppBundleId API_AVAILABLE(ios(10)) {
+    NSString *bundleSeedId = [self bundleSeedId];
+    if (bundleSeedId == nil) {
+        return nil;
+    }
+    
+    NSData *applicationTag = [@"telegramLocalKey" dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *accessGroup = [bundleSeedId stringByAppendingFormat:@".%@", baseAppBundleId];
+    
+    SecAccessControlRef access = SecAccessControlCreateWithFlags(kCFAllocatorDefault, kSecAttrAccessibleAlwaysThisDeviceOnly, kSecAccessControlPrivateKeyUsage, NULL);
+    NSDictionary *attributes = @{
+        (id)kSecAttrKeyType: (id)kSecAttrKeyTypeECSECPrimeRandom,
+        (id)kSecAttrKeySizeInBits: @256,
+        (id)kSecAttrTokenID: (id)kSecAttrTokenIDSecureEnclave,
+        (id)kSecPrivateKeyAttrs: @{
+            (id)kSecAttrIsPermanent: @YES,
+            (id)kSecAttrApplicationTag: applicationTag,
+            (id)kSecAttrAccessControl: (__bridge id)access,
+            (id)kSecAttrAccessGroup: (id)accessGroup,
+        },
+    };
+    
+    CFErrorRef error = NULL;
+    SecKeyRef privateKey = SecKeyCreateRandomKey((__bridge CFDictionaryRef)attributes, &error);
+    if (!privateKey) {
+        if (access) {
+            CFRelease(access);
+        }
+        
+        __unused NSError *err = CFBridgingRelease(error);
+        return nil;
+    }
+    
+    SecKeyRef publicKey = SecKeyCopyPublicKey(privateKey);
+    if (!publicKey) {
+        if (privateKey) {
+            CFRelease(privateKey);
+        }
+        if (access) {
+            CFRelease(access);
+        }
+        
+        __unused NSError *err = CFBridgingRelease(error);
+        return nil;
+    }
+    
+    LocalPrivateKey *result = [[LocalPrivateKey alloc] initWithPrivateKey:privateKey publicKey:publicKey];
+    
+    if (publicKey) {
+        CFRelease(publicKey);
+    }
+    if (privateKey) {
+        CFRelease(privateKey);
+    }
+    if (access) {
+        CFRelease(access);
+    }
+    
+    return result;
+}
+
++ (DeviceSpecificEncryptionParameters * _Nonnull)deviceSpecificEncryptionParameters:(NSString * _Nonnull)rootPath baseAppBundleId:(NSString * _Nonnull)baseAppBundleId {
+    CFAbsoluteTime startTime = CFAbsoluteTimeGetCurrent();
+    
+    NSString *filePath = [rootPath stringByAppendingPathComponent:@".tempkey"];
+    NSString *encryptedPath = [rootPath stringByAppendingPathComponent:@".tempkeyEncrypted"];
+    
+    NSData *currentData = [NSData dataWithContentsOfFile:filePath];
+    NSData *resultData = nil;
+    if (currentData != nil && currentData.length == 32 + 16) {
+        resultData = currentData;
+    }
+    if (resultData == nil) {
+        NSMutableData *randomData = [[NSMutableData alloc] initWithLength:32 + 16];
+        int result = SecRandomCopyBytes(kSecRandomDefault, randomData.length, [randomData mutableBytes]);
+        if (currentData != nil && currentData.length == 32) { // upgrade key with salt
+            [currentData getBytes:randomData.mutableBytes length:32];
+        }
+        assert(result == 0);
+        resultData = randomData;
+        [resultData writeToFile:filePath atomically:false];
+    }
+    
+    /*if (@available(iOS 11, *)) {
+        NSData *currentEncryptedData = [NSData dataWithContentsOfFile:encryptedPath];
+        
+        LocalPrivateKey *localPrivateKey = [self getLocalPrivateKey:baseAppBundleId];
+        
+        if (localPrivateKey == nil) {
+            localPrivateKey = [self addLocalPrivateKey:baseAppBundleId];
+        }
+    
+        if (localPrivateKey != nil) {
+            if (currentEncryptedData != nil) {
+                NSData *decryptedData = [localPrivateKey decrypt:currentEncryptedData];
+                
+                if (![resultData isEqualToData:decryptedData]) {
+                    NSData *encryptedData = [localPrivateKey encrypt:resultData];
+                    [encryptedData writeToFile:encryptedPath atomically:false];
+                    //assert(false);
+                }
+            } else {
+                NSData *encryptedData = [localPrivateKey encrypt:resultData];
+                [encryptedData writeToFile:encryptedPath atomically:false];
+            }
+        }
+    }*/
+    
+    CFAbsoluteTime endTime = CFAbsoluteTimeGetCurrent();
+    NSLog(@"deviceSpecificEncryptionParameters took %f ms", (endTime - startTime) * 1000.0);
+    
+    NSData *key = [resultData subdataWithRange:NSMakeRange(0, 32)];
+    NSData *salt = [resultData subdataWithRange:NSMakeRange(32, 16)];
+    return [[DeviceSpecificEncryptionParameters alloc] initWithKey:key salt:salt];
 }
 
 @end

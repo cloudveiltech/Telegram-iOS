@@ -64,12 +64,11 @@ func importLegacyPreferences(accountManager: AccountManager, account: TemporaryA
             presentationState = value
         }
         
-        
         var autoNightPreferences: TGPresentationAutoNightPreferences?
         if let value = NSKeyedUnarchiver.unarchiveObject(withFile: documentsPath + "/autonight.dat") as? TGPresentationAutoNightPreferences {
             autoNightPreferences = value
         }
-                
+        
         var wallpaperInfo: TGWallpaperInfo?
         if let data = UserDefaults.standard.object(forKey: "_currentWallpaperInfo") as? [AnyHashable: Any], let value = TGWallpaperInfo(dictionary: data) {
             wallpaperInfo = value
@@ -222,7 +221,7 @@ func importLegacyPreferences(accountManager: AccountManager, account: TemporaryA
                     }
                     switch autoNightPreferences.mode {
                         case TGPresentationAutoNightModeSunsetSunrise:
-                            settings.automaticThemeSwitchSetting = AutomaticThemeSwitchSetting(trigger: .timeBased(setting: .automatic(latitude: Double(autoNightPreferences.latitude), longitude: Double(autoNightPreferences.longitude), sunset: autoNightPreferences.scheduleStart, sunrise: autoNightPreferences.scheduleEnd, localizedName: autoNightPreferences.cachedLocationName)), theme: nightTheme)
+                            settings.automaticThemeSwitchSetting = AutomaticThemeSwitchSetting(trigger: .timeBased(setting: .automatic(latitude: Double(autoNightPreferences.latitude), longitude: Double(autoNightPreferences.longitude), localizedName: autoNightPreferences.cachedLocationName)), theme: nightTheme)
                         case TGPresentationAutoNightModeScheduled:
                             settings.automaticThemeSwitchSetting = AutomaticThemeSwitchSetting(trigger: .timeBased(setting: .manual(fromSeconds: autoNightPreferences.scheduleStart, toSeconds: autoNightPreferences.scheduleEnd)), theme: nightTheme)
                         case TGPresentationAutoNightModeBrightness:

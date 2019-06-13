@@ -23,10 +23,12 @@ private let auxiliaryMethods = AccountAuxiliaryMethods(updatePeerChatInputState:
     return nil
 })
 
+@objc(TodayViewController)
 class TodayViewController: UIViewController, NCWidgetProviding {
     private var initializedInterface = false
     
     private let disposable = MetaDisposable()
+    private var buildConfig: BuildConfig?
     
     deinit {
         self.disposable.dispose()
@@ -53,11 +55,15 @@ class TodayViewController: UIViewController, NCWidgetProviding {
         guard let lastDotRange = appBundleIdentifier.range(of: ".", options: [.backwards]) else {
             return
         }
+        let baseAppBundleId = String(appBundleIdentifier[..<lastDotRange.lowerBound])
         
-        let apiId: Int32 = BuildConfig.shared().apiId
+        let buildConfig = BuildConfig(baseAppBundleId: baseAppBundleId)
+        self.buildConfig = buildConfig
+        
+        let apiId: Int32 = buildConfig.apiId
         let languagesCategory = "ios"
         
-        let appGroupName = "group.\(appBundleIdentifier[..<lastDotRange.lowerBound])"
+        let appGroupName = "group.\(baseAppBundleId)"
         let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
         
         guard let appGroupUrl = maybeAppGroupUrl else {
@@ -78,7 +84,11 @@ class TodayViewController: UIViewController, NCWidgetProviding {
         let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "unknown"
         initializeAccountManagement()
         let accountManager = AccountManager(basePath: rootPath + "/accounts-metadata")
-        account = currentAccount(allocateIfNotExists: false, networkArguments: NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: 0, appData: BuildConfig.shared().bundleData), supplementary: true, manager: accountManager, rootPath: rootPath, auxiliaryMethods: auxiliaryMethods)
+        
+        let deviceSpecificEncryptionParameters = BuildConfig.deviceSpecificEncryptionParameters(rootPath, baseAppBundleId: baseAppBundleId)
+        let encryptionParameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: false, key: ValueBoxEncryptionParameters.Key(data: deviceSpecificEncryptionParameters.key)!, salt: ValueBoxEncryptionParameters.Salt(data: deviceSpecificEncryptionParameters.salt)!)
+        
+        account = currentAccount(allocateIfNotExists: false, networkArguments: NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: 0, appData: buildConfig.bundleData), supplementary: true, manager: accountManager, rootPath: rootPath, auxiliaryMethods: auxiliaryMethods, encryptionParameters: encryptionParameters)
         |> mapToSignal { account -> Signal<Account, NoError> in
             if let account = account {
                 switch account {
@@ -132,8 +142,8 @@ class TodayViewController: UIViewController, NCWidgetProviding {
         self.peerViews = []
         for peer in peers {
             let peerView = PeerView(account: account, peer: peer, tapped: { [weak self] in
-                if let strongSelf = self {
-                    if let url = URL(string: "\(BuildConfig.shared().appSpecificUrlScheme)://localpeer?id=\(peer.id.toInt64())") {
+                if let strongSelf = self, let buildConfig = strongSelf.buildConfig {
+                    if let url = URL(string: "\(buildConfig.appSpecificUrlScheme)://localpeer?id=\(peer.id.toInt64())") {
                         strongSelf.extensionContext?.open(url, completionHandler: nil)
                     }
                 }

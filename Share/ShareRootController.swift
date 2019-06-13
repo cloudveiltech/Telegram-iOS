@@ -104,10 +104,14 @@ class ShareRootController: UIViewController {
                 return
             }
             
-            let apiId: Int32 = BuildConfig.shared().apiId
+            let baseAppBundleId = String(appBundleIdentifier[..<lastDotRange.lowerBound])
+            
+            let buildConfig = BuildConfig(baseAppBundleId: baseAppBundleId)
+            
+            let apiId: Int32 = buildConfig.apiId
             let languagesCategory = "ios"
             
-            let appGroupName = "group.\(appBundleIdentifier[..<lastDotRange.lowerBound])"
+            let appGroupName = "group.\(baseAppBundleId)"
             let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
             
             guard let appGroupUrl = maybeAppGroupUrl else {
@@ -124,7 +128,7 @@ class ShareRootController: UIViewController {
             
             setupSharedLogger(logsPath)
             
-            let applicationBindings = TelegramApplicationBindings(isMainApp: false, containerPath: appGroupUrl.path, appSpecificScheme: BuildConfig.shared().appSpecificUrlScheme, openUrl: { _ in
+            let applicationBindings = TelegramApplicationBindings(isMainApp: false, containerPath: appGroupUrl.path, appSpecificScheme: buildConfig.appSpecificUrlScheme, openUrl: { _ in
             }, openUniversalUrl: { _, completion in
                 completion.completion(false)
                 return
@@ -141,6 +145,10 @@ class ShareRootController: UIViewController {
                 return nil
             }, presentNativeController: { _ in
             }, dismissNativeController: {
+            }, getAlternateIconName: {
+                return nil
+            }, requestSetAlternateIconName: { _, f in
+                f(false)
             })
             
             let sharedExtensionContext: SharedExtensionContext
@@ -160,7 +168,10 @@ class ShareRootController: UIViewController {
                 })
                 semaphore.wait()
                 
-                let sharedContext = SharedAccountContext(mainWindow: nil, basePath: rootPath, accountManager: accountManager, applicationBindings: applicationBindings, initialPresentationDataAndSettings: initialPresentationDataAndSettings!, networkArguments: NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: 0, appData: BuildConfig.shared().bundleData), rootPath: rootPath, legacyBasePath: nil, legacyCache: nil, apsNotificationToken: .never(), voipNotificationToken: .never(), setNotificationCall: { _ in }, navigateToChat: { _, _, _ in })
+                let deviceSpecificEncryptionParameters = BuildConfig.deviceSpecificEncryptionParameters(rootPath, baseAppBundleId: baseAppBundleId)
+                let encryptionParameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: false, key: ValueBoxEncryptionParameters.Key(data: deviceSpecificEncryptionParameters.key)!, salt: ValueBoxEncryptionParameters.Salt(data: deviceSpecificEncryptionParameters.salt)!)
+                
+                let sharedContext = SharedAccountContext(mainWindow: nil, basePath: rootPath, encryptionParameters: encryptionParameters, accountManager: accountManager, applicationBindings: applicationBindings, initialPresentationDataAndSettings: initialPresentationDataAndSettings!, networkArguments: NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: 0, appData: buildConfig.bundleData), rootPath: rootPath, legacyBasePath: nil, legacyCache: nil, apsNotificationToken: .never(), voipNotificationToken: .never(), setNotificationCall: { _ in }, navigateToChat: { _, _, _ in })
                 sharedExtensionContext = SharedExtensionContext(sharedContext: sharedContext)
                 globalSharedExtensionContext = sharedExtensionContext
             }
@@ -321,74 +332,6 @@ class ShareRootController: UIViewController {
                     strongSelf.currentPasscodeController = controller
                     strongSelf.mainWindow?.present(controller, on: .root)
                 })
-                
-                /*var attemptData: TGPasscodeEntryAttemptData?
-                if let attempts = accessChallengeData.attempts {
-                    attemptData = TGPasscodeEntryAttemptData(numberOfInvalidAttempts: Int(attempts.count), dateOfLastInvalidAttempt: Double(attempts.timestamp))
-                }
-                let mode: TGPasscodeEntryControllerMode
-                switch accessChallengeData {
-                    case .none:
-                        displayShare()
-                        return
-                    case .numericalPassword:
-                        mode = TGPasscodeEntryControllerModeVerifySimple
-                    case .plaintextPassword:
-                        mode = TGPasscodeEntryControllerModeVerifyComplex
-                }
-                let presentationData = account.telegramApplicationContext.currentPresentationData.with { $0 }
-                
-                let legacyController = LegacyController(presentation: LegacyControllerPresentation.modal(animateIn: true), theme: presentationData.theme)
-                let controller = TGPasscodeEntryController(context: legacyController.context, style: TGPasscodeEntryControllerStyleDefault, mode: mode, cancelEnabled: true, allowTouchId: false, attemptData: attemptData, completion: { value in
-                    if value != nil {
-                        displayShare()
-                    } else {
-                        self?.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
-                    }
-                })!
-                controller.checkCurrentPasscode = { value in
-                    if let value = value {
-                        switch accessChallengeData {
-                            case .none:
-                                return true
-                            case let .numericalPassword(code, _, _):
-                                return value == code
-                            case let .plaintextPassword(code, _, _):
-                                return value == code
-                        }
-                    } else {
-                        return false
-                    }
-                }
-                controller.updateAttemptData = { attemptData in
-                    let _ = account.postbox.transaction({ transaction -> Void in
-                        var attempts: AccessChallengeAttempts?
-                        if let attemptData = attemptData {
-                            attempts = AccessChallengeAttempts(count: Int32(attemptData.numberOfInvalidAttempts), timestamp: Int32(attemptData.dateOfLastInvalidAttempt))
-                        }
-                        var data = transaction.getAccessChallengeData()
-                        switch data {
-                            case .none:
-                                break
-                            case let .numericalPassword(value, timeout, _):
-                                data = .numericalPassword(value: value, timeout: timeout, attempts: attempts)
-                            case let .plaintextPassword(value, timeout, _):
-                                data = .plaintextPassword(value: value, timeout: timeout, attempts: attempts)
-                        }
-                        transaction.setAccessChallengeData(data)
-                    }).start()
-                }
-                /*controller.touchIdCompletion = {
-                    let _ = (account.postbox.transaction { transaction -> Void in
-                        let data = transaction.getAccessChallengeData().withUpdatedAutolockDeadline(nil)
-                        transaction.setAccessChallengeData(data)
-                    }).start()
-                }*/
-                
-                legacyController.bind(controller: controller)
-                legacyController.supportedOrientations = ViewControllerSupportedOrientations(regularSize: .portrait, compactSize: .portrait)
-                legacyController.statusBar.statusBarStyle = .White
-                */
             }
             
             self.disposable.set(applicationInterface.start(next: { _, _, _ in }, error: { [weak self] error in
