@@ -1,5 +1,12 @@
 import Foundation
+#if BUCK
+import MtProtoKit
+#else
 import MtProtoKitDynamic
+#endif
+
+import BuildConfig
+import LightweightAccountData
 
 struct ImageResource {
     let datacenterId: Int

@@ -2,16 +2,18 @@
 # platform :ios, '9.0'
 workspace 'Telegram-iOS.xcworkspace'
 project 'Telegram-iOS'
-project 'submodules/TelegramUI/TelegramUI'
+project 'submodules/TelegramUI/TelegramUI_Xcode'
 
 target 'TelegramUI' do
-  project 'submodules/TelegramUI/TelegramUI'
+  project 'submodules/TelegramUI/TelegramUI_Xcode'
 
   # Comment the next line if you're not using Swift and don't want to use dynamic frameworks
   use_frameworks!
 
   # Pods for Telegram-iOS  
   pod 'CloudVeilSecurityManager'  
+  pod 'Fabric' 
+  pod 'Crashlytics'
 end
 
 target 'Telegram-iOS' do
@@ -23,8 +25,6 @@ project 'Telegram-iOS'
 
   # Pods for Telegram-iOS  
   pod 'CloudVeilSecurityManager'
-  pod 'Fabric' 
-  pod 'Crashlytics'
 end
 
 

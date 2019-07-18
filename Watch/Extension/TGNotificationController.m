@@ -1,4 +1,7 @@
 #import "TGNotificationController.h"
+
+#import <WatchCommonWatch/WatchCommonWatch.h>
+
 #import "TGWatchCommon.h"
 #import "TGStringUtils.h"
 #import "TGLocationUtils.h"
@@ -10,14 +13,7 @@
 
 #import "TGBridgeMediaSignals.h"
 #import "TGBridgeClient.h"
-#import "TGBridgeSubscriptions.h"
-#import "TGBridgeChatMessages.h"
-#import "TGBridgeMessage.h"
-#import "TGBridgeChat.h"
-#import "TGBridgeUser.h"
 #import "TGBridgeUserCache.h"
-
-#import "TGBridgePeerIdAdapter.h"
 
 #import <WatchConnectivity/WatchConnectivity.h>
 #import <UserNotifications/UserNotifications.h>
@@ -91,9 +87,7 @@
             }
         }
     }
-    if (bodyText != nil) {
-        [self processMessageWithUserInfo:remoteNotification defaultTitle:titleText defaultBody:bodyText completion:completionHandler];
-    }
+    [self processMessageWithUserInfo:remoteNotification defaultTitle:titleText defaultBody:bodyText completion:completionHandler];
 }
 
 - (void)processMessageWithUserInfo:(NSDictionary *)userInfo defaultTitle:(NSString *)defaultTitle defaultBody:(NSString *)defaultBody completion:(void (^)(WKUserNotificationInterfaceType))completionHandler
@@ -113,7 +107,7 @@
     }
     int32_t messageId = [mid intValue];
     
-    if (peerId == 0 || messageId == 0)
+    if (true || peerId == 0 || messageId == 0)
     {
         if (defaultTitle.length > 0){
             self.nameLabel.hidden = false;
