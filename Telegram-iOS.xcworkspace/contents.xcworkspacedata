@@ -80,9 +80,6 @@
       location = "group:submodules/TelegramUI/TelegramUI_Xcode.xcodeproj">
    </FileRef>
    <FileRef
-      location = "group:submodules/HockeySDK-iOS/Support/HockeySDK_Xcode.xcodeproj">
-   </FileRef>
-   <FileRef
       location = "group:Telegram-iOS.xcodeproj">
    </FileRef>
    <FileRef

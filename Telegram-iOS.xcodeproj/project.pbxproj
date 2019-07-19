@@ -201,7 +201,6 @@
 		09EC5CDA22CBBF9600292E42 /* telegram_plane1@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 09EC5CD922CBBF9600292E42 /* telegram_plane1@2x.png */; };
 		09FDAEE62140477F00BF856F /* MtProtoKitDynamic.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09FDAEE52140477F00BF856F /* MtProtoKitDynamic.framework */; };
 		639824ED22DE229700DE44C3 /* Config-AppStore.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */; };
-		A97EA93B558B0C6CE2E26C1C /* Pods_Telegram_iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 471B212E910BFAE747F341C7 /* Pods_Telegram_iOS.framework */; };
 		D000CACF21FB6E380011B15D /* NotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D000CAC821FB6E370011B15D /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D001D5AA1F878DA300DF975A /* PhoneCountries.txt in Resources */ = {isa = PBXBuildFile; fileRef = D001D5A91F878DA300DF975A /* PhoneCountries.txt */; };
 		D008185022B5797A008A895F /* BuildConfig.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D008184F22B5797A008A895F /* BuildConfig.framework */; };
@@ -288,7 +287,6 @@
 		D073E52021FF7CE900742DDD /* Crypto.m in Sources */ = {isa = PBXBuildFile; fileRef = D073E51F21FF7CE900742DDD /* Crypto.m */; };
 		D073E52222003E1E00742DDD /* Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = D073E52122003E1E00742DDD /* Data.swift */; };
 		D08410501FABDD54008FFE92 /* MtProtoKitDynamic.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D08410511FABDD54008FFE92 /* MtProtoKitDynamic.framework */; };
-		D08611B21F5711080047111E /* HockeySDK.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D01A47541F4DBED700383CC1 /* HockeySDK.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D08984FE2118B3F100918162 /* MtProtoKitDynamic.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D08984FD2118B3F100918162 /* MtProtoKitDynamic.framework */; };
 		D08985002118B3F100918162 /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D08984FF2118B3F100918162 /* Postbox.framework */; };
 		D08985022118B3F100918162 /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D08985012118B3F100918162 /* TelegramCore.framework */; };
@@ -389,6 +387,7 @@
 		D0ED634121FF4786001D4648 /* Serialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED634021FF4786001D4648 /* Serialization.swift */; };
 		D0F575132083B96B00F1C1E1 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0F575122083B96B00F1C1E1 /* CloudKit.framework */; };
 		D0FC1948201D2DA800FEDBB2 /* SFCompactRounded-Semibold.otf in Resources */ = {isa = PBXBuildFile; fileRef = D0FC1947201D2DA700FEDBB2 /* SFCompactRounded-Semibold.otf */; };
+		EF9FCE89D3304C6418EBDA2B /* Pods_Telegram_iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 471B212E910BFAE747F341C7 /* Pods_Telegram_iOS.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -479,7 +478,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				D08611B21F5711080047111E /* HockeySDK.framework in Embed Frameworks */,
 				D06706611D51185400DED3E3 /* TelegramCore.framework in Embed Frameworks */,
 				D0CD17B61CC3AE14007C5650 /* AsyncDisplayKit.framework in Embed Frameworks */,
 				D0CAD6A521C03BEB001E3055 /* FFMpeg.framework in Embed Frameworks */,
@@ -1157,7 +1155,7 @@
 				D096C2BE1CC3C021006D814E /* Display.framework in Frameworks */,
 				D055BD441B7E216400F06C0A /* MapKit.framework in Frameworks */,
 				D09A59601B5858DB00FC3724 /* SystemConfiguration.framework in Frameworks */,
-				A97EA93B558B0C6CE2E26C1C /* Pods_Telegram_iOS.framework in Frameworks */,
+				EF9FCE89D3304C6418EBDA2B /* Pods_Telegram_iOS.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2471,14 +2469,13 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = D00859BB1B28189D00EAF753 /* Build configuration list for PBXNativeTarget "Telegram-iOS" */;
 			buildPhases = (
-				1C254CB43C62615AC9EC35A9 /* [CP] Check Pods Manifest.lock */,
 				D00859981B28189D00EAF753 /* Sources */,
 				D00859991B28189D00EAF753 /* Frameworks */,
 				D008599A1B28189D00EAF753 /* Resources */,
 				D0289FA81CBFFC8700A12E82 /* Embed Frameworks */,
 				D0AA1A791D568BA500152314 /* Embed App Extensions */,
 				09C56FB72172797500BDF00F /* Embed Watch Content */,
-				C8789A196594FFE57A83E65A /* [CP] Embed Pods Frameworks */,
+				B4FF60F8366E0D557742699C /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -2956,29 +2953,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		1C254CB43C62615AC9EC35A9 /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-Telegram-iOS-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		C8789A196594FFE57A83E65A /* [CP] Embed Pods Frameworks */ = {
+		B4FF60F8366E0D557742699C /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -4241,6 +4216,11 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = (
+					"-ObjC",
+					"-l\"c++\"",
+					"-l\"z\"",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension;
 				PRODUCT_NAME = "${TARGET_NAME}";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -4386,6 +4366,11 @@
 				LIBRARY_SEARCH_PATHS = submodules/SSignalKit;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				OTHER_LDFLAGS = (
+					"-ObjC",
+					"-l\"c++\"",
+					"-l\"z\"",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension;
 				PRODUCT_NAME = "${TARGET_NAME}";
 				PROVISIONING_PROFILE_SPECIFIER = "";
