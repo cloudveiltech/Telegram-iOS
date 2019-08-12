@@ -7,6 +7,7 @@ import Postbox
 import TelegramCore
 import TelegramPresentationData
 import TelegramUIPreferences
+import CloudVeilSecurityManager
 
 private enum ContactListSearchGroup {
     case contacts
@@ -177,7 +178,9 @@ final class ContactsSearchContainerNode: SearchDisplayControllerContentNode {
                     foundLocalContacts = .single(([], [:]))
                 }
                 let foundRemoteContacts: Signal<([FoundPeer], [FoundPeer])?, NoError>
-                if categories.contains(.global) {
+                //CloudVeil start
+                if categories.contains(.global) && !MainController.SecurityStaticSettings.disableGlobalSearch {
+                //CloudVeil end
                     foundRemoteContacts = .single(nil)
                     |> then(
                         searchPeers(account: context.account, query: query)
