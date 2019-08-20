@@ -789,21 +789,21 @@ final class ChatListSearchContainerNode: SearchDisplayControllerContentNode {
                         }
                     }
                     
-                    if !foundRemotePeers.2 {
-                        index = 0
-                        for message in foundRemoteMessages.0.0 {
-                            var peer = RenderedPeer(message: message)
-                            if let group = message.peers[message.id.peerId] as? TelegramGroup, let migrationReference = group.migrationReference {
-                                if let channelPeer = message.peers[migrationReference.peerId] {
-                                    peer = RenderedPeer(peer: channelPeer)
-                                }
-                            }
-                            entries.append(.message(message, peer, foundRemoteMessages.0.1[message.id.peerId], presentationData))
-                            index += 1
-                        }
-                    }
                 }
                 //CloudVeil end
+                if !foundRemotePeers.2 {
+                    index = 0
+                    for message in foundRemoteMessages.0.0 {
+                        var peer = RenderedPeer(message: message)
+                        if let group = message.peers[message.id.peerId] as? TelegramGroup, let migrationReference = group.migrationReference {
+                            if let channelPeer = message.peers[migrationReference.peerId] {
+                                peer = RenderedPeer(peer: channelPeer)
+                            }
+                        }
+                        entries.append(.message(message, peer, foundRemoteMessages.0.1[message.id.peerId], presentationData))
+                        index += 1
+                    }
+                }
                 
                 if addContact != nil && isViablePhoneNumber(query) {
                     entries.append(.addContact(query, presentationData.theme, presentationData.strings))
