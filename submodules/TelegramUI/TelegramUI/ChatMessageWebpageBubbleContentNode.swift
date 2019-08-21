@@ -345,7 +345,6 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                         }
                     }
                 }
-                
                 if let _ = webpage.instantPage {
                     switch instantPageType(of: webpage) {
                         case .generic:

@@ -6,6 +6,7 @@ import Postbox
 import TelegramCore
 import TelegramPresentationData
 import TelegramUIPreferences
+import CloudVeilSecurityManager
 
 private func contentNodeMessagesAndClassesForItem(_ item: ChatMessageItem) -> [(Message, AnyClass)] {
     var result: [(Message, AnyClass)] = []
@@ -75,14 +76,18 @@ private func contentNodeMessagesAndClassesForItem(_ item: ChatMessageItem) -> [(
             }
         }
         
-        inner: for media in message.media {
-            if let webpage = media as? TelegramMediaWebpage {
-                if case .Loaded = webpage.content {
-                    result.append((message, ChatMessageWebpageBubbleContentNode.self))
+        //CloudVeil start
+        if !MainController.SecurityStaticSettings.disableInAppBrowser {
+            inner: for media in message.media {
+                if let webpage = media as? TelegramMediaWebpage {
+                    if case .Loaded = webpage.content {
+                        result.append((message, ChatMessageWebpageBubbleContentNode.self))
+                    }
+                    break inner
                 }
-                break inner
             }
         }
+        //CloudVeil end
         
         if isUnsupportedMedia {
             result.append((message, ChatMessageUnsupportedBubbleContentNode.self))

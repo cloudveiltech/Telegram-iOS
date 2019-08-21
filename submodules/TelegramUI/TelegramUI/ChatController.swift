@@ -4279,6 +4279,7 @@ public final class ChatController: TelegramController, GalleryHiddenMediaTarget,
                 } else if let group = self.presentationInterfaceState.renderedPeer?.peer as? TelegramGroup, group.hasBannedPermission(.banEmbedLinks) {
                     bannedEmbedLinks = true
                 }
+                
                 if bannedEmbedLinks {
                     linkPreviews = .single(false)
                 } else {
