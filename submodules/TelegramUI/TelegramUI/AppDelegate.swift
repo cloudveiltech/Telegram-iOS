@@ -1106,9 +1106,6 @@ final class SharedApplicationContext {
             }
         }
         |> deliverOnMainQueue).start(next: { count in
-            //CloudVeil start
-            AppDelegate.setAppBadge(Int(count))
-            //CloudVeil end
             UIApplication.shared.applicationIconBadgeNumber = Int(count)
         }))
         
@@ -1265,16 +1262,7 @@ final class SharedApplicationContext {
         })
         
         var redactedPayload = userInfo
-        //CloudVeil start
-        var silent = false
         if var aps = redactedPayload["aps"] as? [AnyHashable: Any] {
-            if let sound = aps["sound"] {
-                silent = false
-            } else {
-                silent = true
-            }
-            //CloudVeil end
-            
             if Logger.shared.redactSensitiveData {
                 if aps["alert"] != nil {
                     aps["alert"] = "[[redacted]]"
@@ -1288,33 +1276,8 @@ final class SharedApplicationContext {
         
         Logger.shared.log("App \(self.episodeId)", "remoteNotification: \(redactedPayload)")
         
-        //CloudVeil start
-        if !silent {
-            Queue.mainQueue().sync{
-                let badge = AppDelegate.getAppBadge() + 1
-                UIApplication.shared.applicationIconBadgeNumber = badge
-                AppDelegate.setAppBadge(badge)
-            }
-        }
-        //CloudVeil end
         completionHandler(UIBackgroundFetchResult.noData)
     }
-    
-    //CloudVeil start
-    public static func getAppBadge() -> Int {
-        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
-            return userDefaults.integer(forKey: "app-badge")
-        }
-        return 0
-    }
-    
-    public static func setAppBadge(_ newValue: Int) {
-        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
-            userDefaults.set(newValue, forKey: "app-badge")
-            userDefaults.synchronize()
-        }
-    }
-    //CloudVeil end
     
     func application(_ application: UIApplication, didReceive notification: UILocalNotification) {
         if (application.applicationState == .inactive) {

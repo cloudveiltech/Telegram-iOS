@@ -286,6 +286,8 @@ class NotificationService: UNNotificationServiceExtension {
             encryptedData = parseBase64(string: encryptedPayload)
         }
         
+        
+        
         Logger.shared.log("NotificationService", "received notification \(request), parsed encryptedData \(String(describing: encryptedData))")
         
         if let (account, dict) = encryptedData.flatMap({ decryptedNotificationPayload(accounts: accountInfos.accounts, data: $0) }) {
@@ -451,6 +453,7 @@ class NotificationService: UNNotificationServiceExtension {
             self.bestAttemptContent?.userInfo = userInfo
             
             self.cancelFetch?()
+            
             if let mediaBoxThumbnailImagePath = mediaBoxThumbnailImagePath, let tempImagePath = tempImagePath, let (datacenterId, inputFileLocation) = inputFileLocation {
                 if let data = try? Data(contentsOf: URL(fileURLWithPath: mediaBoxThumbnailImagePath)) {
                     var tempData = data
@@ -499,14 +502,14 @@ class NotificationService: UNNotificationServiceExtension {
                                 }
                             }
                             if let bestAttemptContent = strongSelf.bestAttemptContent {
-                                contentHandler(bestAttemptContent)
+                                strongSelf.fetchUnreadCount(accountInfos: accountInfos, account: account, contentHandler: contentHandler)
                             }
                         }
                     })
                 }
             } else {
                 if let bestAttemptContent = self.bestAttemptContent {
-                    contentHandler(bestAttemptContent)
+                    self.fetchUnreadCount(accountInfos: accountInfos, account: account, contentHandler: contentHandler)
                 }
             }
         } else {
@@ -517,6 +520,40 @@ class NotificationService: UNNotificationServiceExtension {
             }
         }
     }
+    
+    //CloudVeil start
+    private func fetchUnreadCount(accountInfos: StoredAccountInfos, account: StoredAccountInfo, contentHandler: @escaping (UNNotificationContent) -> Void) {
+        let appBundleIdentifier = Bundle.main.bundleIdentifier!
+        guard let lastDotRange = appBundleIdentifier.range(of: ".", options: [.backwards]) else {
+            return
+        }
+        let baseAppBundleId = String(appBundleIdentifier[..<lastDotRange.lowerBound])
+        
+        let buildConfig = BuildConfig(baseAppBundleId: baseAppBundleId)
+        
+        self.cancelFetch = fetchUnreadDataWithAcccount(buildConfig: buildConfig, proxyConnection: accountInfos.proxy, account: account, datacenterId: account.primaryId, completion: { [weak self] data in
+            DispatchQueue.main.async {
+                guard let strongSelf = self else {
+                    return
+                }
+                strongSelf.cancelFetch?()
+                strongSelf.cancelFetch = nil
+                
+                switch data {
+                case .state(_, _, _, _, let unreadCount)?:
+                    strongSelf.bestAttemptContent?.badge = unreadCount as NSNumber
+                    break
+                case .none:
+                    break
+                }
+                
+                if let bestAttemptContent = strongSelf.bestAttemptContent {
+                    contentHandler(bestAttemptContent)
+                }
+            }
+        })
+    }
+    //CloudVeil end
     
     override func serviceExtensionTimeWillExpire() {
         Logger.shared.log("NotificationService", "serviceExtensionTimeWillExpire")
