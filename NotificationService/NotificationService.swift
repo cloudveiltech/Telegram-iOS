@@ -288,6 +288,15 @@ class NotificationService: UNNotificationServiceExtension {
         
         Logger.shared.log("NotificationService", "received notification \(request), parsed encryptedData \(String(describing: encryptedData))")
         
+        let silent = self.bestAttemptContent?.sound == nil
+        //CloudVeil start
+        if !silent {
+            let badge = NotificationService.getAppBadge() + 1
+            self.bestAttemptContent?.badge = badge as NSNumber
+            NotificationService.setAppBadge(badge)
+        }
+        //CloudVeil end
+        
         if let (account, dict) = encryptedData.flatMap({ decryptedNotificationPayload(accounts: accountInfos.accounts, data: $0) }) {
             Logger.shared.log("NotificationService", "decrypted notification")
             var userInfo = self.bestAttemptContent?.userInfo ?? [:]
@@ -517,6 +526,22 @@ class NotificationService: UNNotificationServiceExtension {
             }
         }
     }
+    
+    //CloudVeil start
+    public static func getAppBadge() -> Int {
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            return userDefaults.integer(forKey: "app-badge")
+        }
+        return 0
+    }
+    
+    public static func setAppBadge(_ newValue: Int) {
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            userDefaults.set(newValue, forKey: "app-badge")
+            userDefaults.synchronize()
+        }
+    }
+    //CloudVeil end
     
     override func serviceExtensionTimeWillExpire() {
         Logger.shared.log("NotificationService", "serviceExtensionTimeWillExpire")

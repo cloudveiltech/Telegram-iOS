@@ -1196,7 +1196,7 @@ final class SharedApplicationContext {
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
-        let _ = (self.sharedContextPromise.get()
+        /*let _ = (self.sharedContextPromise.get()
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
             var extendNow = false
@@ -1223,7 +1223,7 @@ final class SharedApplicationContext {
             if let taskId = taskId {
                 UIApplication.shared.endBackgroundTask(taskId)
             }
-        })
+        })*/
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
@@ -1260,21 +1260,11 @@ final class SharedApplicationContext {
         let _ = (self.sharedContextPromise.get()
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
-                sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 4.0)
-               // self.processPush(completionHandler)
+               sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 4.0)
         })
         
         var redactedPayload = userInfo
-        //CloudVeil start
-        var silent = false
         if var aps = redactedPayload["aps"] as? [AnyHashable: Any] {
-            if let sound = aps["sound"] {
-                silent = false
-            } else {
-                silent = true
-            }
-            //CloudVeil end
-            
             if Logger.shared.redactSensitiveData {
                 if aps["alert"] != nil {
                     aps["alert"] = "[[redacted]]"
@@ -1288,15 +1278,6 @@ final class SharedApplicationContext {
         
         Logger.shared.log("App \(self.episodeId)", "remoteNotification: \(redactedPayload)")
         
-        //CloudVeil start
-        if !silent {
-            Queue.mainQueue().sync{
-                let badge = AppDelegate.getAppBadge() + 1
-                UIApplication.shared.applicationIconBadgeNumber = badge
-                AppDelegate.setAppBadge(badge)
-            }
-        }
-        //CloudVeil end
         completionHandler(UIBackgroundFetchResult.noData)
     }
     
