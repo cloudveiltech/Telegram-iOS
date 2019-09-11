@@ -17,6 +17,12 @@ import DeviceCheck
 import CloudVeilSecurityManager
 import Fabric
 import Crashlytics
+#if BUCK
+import MtProtoKit
+#else
+import MtProtoKitDynamic
+#endif
+import TelegramApi
 
 private let handleVoipNotifications = false
 
@@ -1096,7 +1102,6 @@ final class SharedApplicationContext {
         pushRegistry.desiredPushTypes = Set([.voIP])
         self.pushRegistry = pushRegistry
         pushRegistry.delegate = self
-        
         self.badgeDisposable.set((self.context.get()
         |> mapToSignal { context -> Signal<Int32, NoError> in
             if let context = context {
@@ -1258,7 +1263,23 @@ final class SharedApplicationContext {
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
                 sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 4.0)
-               // self.processPush(completionHandler)
+            //CloudVeil start
+            if !self.isActiveValue {
+                self.fetchUnreadDataWithAcccount { data in
+                        DispatchQueue.main.async {
+                            switch data {
+                            case .state(_, _, _, _, let unreadCount)?:
+                                   UIApplication.shared.applicationIconBadgeNumber = Int(unreadCount)
+                                break
+                            case .none:
+                                break
+                            }
+                        }
+                        completionHandler(UIBackgroundFetchResult.newData)
+                }
+            }
+            //CloudVeil end
+            
         })
         
         var redactedPayload = userInfo
@@ -1276,8 +1297,92 @@ final class SharedApplicationContext {
         
         Logger.shared.log("App \(self.episodeId)", "remoteNotification: \(redactedPayload)")
         
-        completionHandler(UIBackgroundFetchResult.noData)
     }
+    
+    
+    
+    //Cloudveil start
+    
+    public enum State {
+        case state(pts: Int32, qts: Int32, date: Int32, seq: Int32, unreadCount: Int32)
+        
+        static func parseState(_ reader: BufferReader) -> State? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            var _2: Int32?
+            _2 = reader.readInt32()
+            var _3: Int32?
+            _3 = reader.readInt32()
+            var _4: Int32?
+            _4 = reader.readInt32()
+            var _5: Int32?
+            _5 = reader.readInt32()
+            let _c1 = _1 != nil
+            let _c2 = _2 != nil
+            let _c3 = _3 != nil
+            let _c4 = _4 != nil
+            let _c5 = _5 != nil
+            if _c1 && _c2 && _c3 && _c4 && _c5 {
+                return State.state(pts: _1!, qts: _2!, date: _3!, seq: _4!, unreadCount: _5!)
+            }
+            else {
+                return nil
+            }
+        }
+        
+    }
+    func fetchUnreadDataWithAcccount(completion: @escaping (State?) -> Void) {
+        let signal = self.context.get()
+            |> take(1)
+            |> mapToSignal { context -> Signal<Void, NoError> in
+                if let context = context {
+                    let mtProto = context.context.account.network.mtProto
+                    let requestService = context.context.account.network.requestService
+                    let request = MTRequest()
+                    
+                    let buffer = Buffer()
+                    buffer.appendInt32(-304838614) //updates.getState
+                    
+                    request.setPayload(buffer.makeData(), metadata: "updates.getState", shortMetadata: "updates.getState", responseParser: { response in
+                        let reader = BufferReader(Buffer(data: response))
+                        
+                        reader.readInt32()
+                        return State.parseState(reader)
+                    })
+                    
+                    request.dependsOnPasswordEntry = false
+                    request.shouldContinueExecutionWithErrorContext = { errorContext in
+                        guard let _ = errorContext else {
+                            return true
+                        }
+                        return true
+                    }
+                    
+                    request.completed = { (boxedResponse, timestamp, error) -> () in
+                        if let _ = error {
+                            mtProto.pause()
+                            completion(nil)
+                        } else {
+                            if let result = boxedResponse as? State {
+                                mtProto.pause()
+                                completion(result)
+                            } else {
+                                mtProto.pause()
+                                completion(nil)
+                            }
+                        }
+                    }
+                    
+                    requestService.add(request)
+                    mtProto.resume()
+                } else {
+                    return .complete()
+                }
+                return .complete()
+        }
+        let _ = signal.start()
+    }
+    //Cloudveil end
     
     func application(_ application: UIApplication, didReceive notification: UILocalNotification) {
         if (application.applicationState == .inactive) {
@@ -1289,7 +1394,7 @@ final class SharedApplicationContext {
         if case PKPushType.voIP = type {
             Logger.shared.log("App \(self.episodeId)", "pushRegistry credentials: \(credentials.token as NSData)")
             
-            self.voipTokenPromise.set(.single(credentials.token))
+            //self.voipTokenPromise.set(.single(credentials.token))
         }
     }
     
