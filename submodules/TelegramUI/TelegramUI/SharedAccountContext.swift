@@ -741,7 +741,7 @@ public final class SharedAccountContext {
                         }
                         let encrypt: Bool
                         if #available(iOS 10.0, *) {
-                             encrypt = false //cloudveil silent fix
+                             encrypt = true
                         } else {
                             encrypt = false
                         }

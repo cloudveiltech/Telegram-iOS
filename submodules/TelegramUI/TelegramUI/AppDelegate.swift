@@ -1196,7 +1196,8 @@ final class SharedApplicationContext {
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
-        /*let _ = (self.sharedContextPromise.get()
+        /* cloudveil
+         let _ = (self.sharedContextPromise.get()
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
             var extendNow = false
