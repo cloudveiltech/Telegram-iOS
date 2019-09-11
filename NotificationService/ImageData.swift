@@ -195,7 +195,6 @@ func fetchUnreadDataWithAcccount(buildConfig: BuildConfig, proxyConnection: Acco
         }
 }
 //Cloudveil end
-
 func fetchImageWithAccount(buildConfig: BuildConfig, proxyConnection: AccountProxyConnection?, account: StoredAccountInfo, inputFileLocation: Api.InputFileLocation, datacenterId: Int32, completion: @escaping (Data?) -> Void) -> () -> Void {
     MTLogSetEnabled(true)
     MTLogSetLoggingFunction({ str, args in

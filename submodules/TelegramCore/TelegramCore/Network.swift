@@ -635,8 +635,8 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
     private let queue: Queue
     public let datacenterId: Int
     public let context: MTContext
-    public let mtProto: MTProto //CloudVeil
-    public let requestService: MTRequestMessageService //CloudVeil
+    let mtProto: MTProto 
+    let requestService: MTRequestMessageService
     let basePath: String
     private let connectionStatusDelegate: MTProtoConnectionStatusDelegate
     

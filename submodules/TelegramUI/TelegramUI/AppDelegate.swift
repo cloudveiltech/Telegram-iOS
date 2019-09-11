@@ -1266,7 +1266,7 @@ final class SharedApplicationContext {
             //CloudVeil start
             if !self.isActiveValue {
                 self.fetchUnreadDataWithAcccount { data in
-                        DispatchQueue.main.async {
+                        DispatchQueue.main.sync {
                             switch data {
                             case .state(_, _, _, _, let unreadCount)?:
                                    UIApplication.shared.applicationIconBadgeNumber = Int(unreadCount)
@@ -1277,9 +1277,10 @@ final class SharedApplicationContext {
                         }
                         completionHandler(UIBackgroundFetchResult.newData)
                 }
+            } else {
+                completionHandler(UIBackgroundFetchResult.noData)
             }
-            //CloudVeil end
-            
+            //CloudVeil end            
         })
         
         var redactedPayload = userInfo
@@ -1336,8 +1337,17 @@ final class SharedApplicationContext {
             |> take(1)
             |> mapToSignal { context -> Signal<Void, NoError> in
                 if let context = context {
-                    let mtProto = context.context.account.network.mtProto
-                    let requestService = context.context.account.network.requestService
+                    var cancel = {
+                        () -> Void in
+                    }
+                    let network = context.context.account.network
+                    let mtProto = MTProto(context: network.context, datacenterId: Int(network.datacenterId), usageCalculationInfo: nil)!
+                    mtProto.useTempAuthKeys = network.context.useTempAuthKeys
+                    mtProto.checkForProxyConnectionIssues = false
+                    
+                    let requestService = MTRequestMessageService(context: network.context)!
+                    mtProto.add(requestService)
+                    
                     let request = MTRequest()
                     
                     let buffer = Buffer()
@@ -1360,14 +1370,14 @@ final class SharedApplicationContext {
                     
                     request.completed = { (boxedResponse, timestamp, error) -> () in
                         if let _ = error {
-                            mtProto.pause()
+                            cancel()
                             completion(nil)
                         } else {
                             if let result = boxedResponse as? State {
-                                mtProto.pause()
+                                cancel()
                                 completion(result)
                             } else {
-                                mtProto.pause()
+                                cancel()
                                 completion(nil)
                             }
                         }
@@ -1375,6 +1385,13 @@ final class SharedApplicationContext {
                     
                     requestService.add(request)
                     mtProto.resume()
+                    
+                    let internalId = request.internalId
+                    cancel = {
+                        requestService.removeRequest(byInternalId: internalId)
+                        network.context.performBatchUpdates({})
+                        mtProto.stop()
+                    }
                 } else {
                     return .complete()
                 }
