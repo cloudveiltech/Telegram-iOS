@@ -34,9 +34,10 @@ final class ContactsControllerNode: ASDisplayNode {
         
         var addNearbyImpl: (() -> Void)?
         var inviteImpl: (() -> Void)?
-        let options = [ContactListAdditionalOption(title: presentationData.strings.Contacts_AddPeopleNearby, icon: .generic(UIImage(bundleImageName: "Contact List/PeopleNearbyIcon")!), action: {
+        let options = [/*CLoudVeil disabled
+             ContactListAdditionalOption(title: presentationData.strings.Contacts_AddPeopleNearby, icon: .generic(UIImage(bundleImageName: "Contact List/PeopleNearbyIcon")!), action: {
             addNearbyImpl?()
-        }), ContactListAdditionalOption(title: presentationData.strings.Contacts_InviteFriends, icon: .generic(UIImage(bundleImageName: "Contact List/AddMemberIcon")!), action: {
+        }),*/ ContactListAdditionalOption(title: presentationData.strings.Contacts_InviteFriends, icon: .generic(UIImage(bundleImageName: "Contact List/AddMemberIcon")!), action: {
             inviteImpl?()
         })]
         
@@ -78,7 +79,8 @@ final class ContactsControllerNode: ASDisplayNode {
         
         addNearbyImpl = { [weak self] in
             if let strongSelf = self {
-                strongSelf.openPeopleNearby?()
+               //CloudVeil disabled
+               // strongSelf.openPeopleNearby?()
             }
         }
         
