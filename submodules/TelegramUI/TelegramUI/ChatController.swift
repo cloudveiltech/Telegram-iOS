@@ -3901,6 +3901,8 @@ public final class ChatController: TelegramController, GalleryHiddenMediaTarget,
         
         var disposable: Disposable? = nil
         disposable = peerView.start(next: { peerView in
+            if disposable == nil { return }
+            
             disposable!.dispose()
             
             var isDialogAllowed = true
