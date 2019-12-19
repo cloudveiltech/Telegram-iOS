@@ -12,10 +12,12 @@ class Debouncer: NSObject {
     }
     
     func call() {
-        DispatchQueue.main.async {
-            self.timer?.invalidate()
-            let nextTimer = Timer.scheduledTimer(timeInterval: self.delay, target: self, selector: #selector(Debouncer.fireNow), userInfo: nil, repeats: false)
-            self.timer = nextTimer
+        DispatchQueue.main.async { [weak self] in
+            if let strongSelf = self {
+                strongSelf.timer?.invalidate()
+                let nextTimer = Timer.scheduledTimer(timeInterval: strongSelf.delay, target: strongSelf, selector: #selector(Debouncer.fireNow), userInfo: nil, repeats: false)
+                strongSelf.timer = nextTimer
+            }
         }
     }
     

@@ -28,4 +28,19 @@ import ObjectMapper
         title <- map["title"]
         userName <- map["user_name"]
     }
+    
+    static func compareArrays(lhs: [TGRow], rhs: [TGRow]) -> Bool {
+        if lhs.count == 0 && rhs.count == 0 {
+            return true
+        }
+        if lhs.count == 0 && rhs.count != 0 {
+            return false
+        }
+        if lhs.count != 0 && rhs.count == 0 {
+            return false
+        }
+        let l = lhs.sorted(by: { $0.objectID > $1.objectID })
+        let r = rhs.sorted(by: { $0.objectID > $1.objectID })
+        return l.elementsEqual(r, by: { $0.objectID == $1.objectID })
+    }
 }

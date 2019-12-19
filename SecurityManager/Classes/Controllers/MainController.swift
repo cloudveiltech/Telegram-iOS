@@ -98,13 +98,17 @@ import Alamofire
         if MainController.shared.lastRequest == nil {
             return
         }
+        
+        NSLog("Settings load start\n");
+        NSLog("\(MainController.shared.lastRequest?.toJSON())")
+        
         SecurityManager.shared.getSettings(withRequest: MainController.shared.lastRequest!) { (resp) in
             MainController.shared.saveSettings(resp)
             let _ = MainController.shared.blockedImageData
         }
     }
     
-     open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = []) -> String {
+     open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = []) {
         let request = TGSettingsRequest(JSON: [:])!
         request.id = TGUserController.shared.getUserID()
         request.userName = TGUserController.shared.getUserName() as String
@@ -113,14 +117,13 @@ import Alamofire
         request.bots = bots
         request.channels = channels
         
-        self.lastRequest = request
-        print("Settings load start\n");
-         getSettingsDebounced.call()
-      
+        if let lastReq = self.lastRequest, TGSettingsRequest.compareRequests(lhs: lastReq, rhs: request) {
+            NSLog("No changes, didn't load settings");
+            return
+        }
         
-        let json = request.toJSON()
-        print(json)
-        return "\(json)"
+        self.lastRequest = request
+        getSettingsDebounced.call()
     }
     
     private func saveSettings(_ settings: TGSettingsResponse?) {
@@ -256,7 +259,7 @@ import Alamofire
             let alert = UIAlertController(title: "CloudVeil!", message: "CloudVeil Messenger uses a server based system to control access to Bots, Channels, and Groups and other policy rules. This is used to block unacceptable content. Your Telegram id and list of channels, bots, and groups will be sent to our system to allow this to work. We do not have access to your messages themselves.", preferredStyle: .alert)
             alert.addAction(.init(title: "OK", style: .default, handler: nil))
             
-            viewController.present(alert, animated: true)
+            viewController.present(alert, animated: false)
         }
     }
     

@@ -36,4 +36,28 @@ open class TGSettingsRequest: NSObject, Mappable {
         channels <- map["channels"]
         bots <- map["bots"]
     }
+    
+    static func compareRequests(lhs: TGSettingsRequest, rhs: TGSettingsRequest) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.phoneNumber != rhs.phoneNumber {
+            return false
+        }
+        if lhs.userName != rhs.userName {
+            return false
+        }
+        
+      
+        if !TGRow.compareArrays(lhs: lhs.groups, rhs: rhs.groups) {
+            return false
+        }
+        if !TGRow.compareArrays(lhs: lhs.channels, rhs: rhs.channels) {
+            return false
+        }
+        if !TGRow.compareArrays(lhs: lhs.bots, rhs: rhs.bots) {
+            return false
+        }
+        return true
+    }
 }
