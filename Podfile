@@ -3,6 +3,43 @@
 workspace 'Telegram-iOS.xcworkspace'
 project 'Telegram-iOS'
 project 'submodules/TelegramUI/TelegramUI_Xcode'
+project 'submodules/AvatarNode/AvatarNode_Xcode'
+project 'submodules/StickerResources/StickerResources_Xcode'
+project 'submodules/TelegramCallsUI/TelegramCallsUI_Xcode'
+project 'submodules/TelegramBaseController/TelegramBaseController_Xcode'
+
+target 'TelegramBaseController' do
+	project 'submodules/TelegramBaseController/TelegramBaseController_Xcode'
+
+  use_frameworks!
+
+  pod 'CloudVeilSecurityManager'  
+end
+
+target 'TelegramCallsUI' do
+	project 'submodules/TelegramCallsUI/TelegramCallsUI_Xcode'
+
+  use_frameworks!
+
+  pod 'CloudVeilSecurityManager'  
+end
+
+target 'StickerResources' do
+  project 'submodules/StickerResources/StickerResources_Xcode'
+
+  use_frameworks!
+
+  pod 'CloudVeilSecurityManager'  
+end
+
+
+target 'AvatarNode' do
+  project 'submodules/AvatarNode/AvatarNode_Xcode'
+
+  use_frameworks!
+
+  pod 'CloudVeilSecurityManager'  
+end
 
 target 'TelegramUI' do
   project 'submodules/TelegramUI/TelegramUI_Xcode'

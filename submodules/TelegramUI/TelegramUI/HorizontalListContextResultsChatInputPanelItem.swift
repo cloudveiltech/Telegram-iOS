@@ -6,15 +6,19 @@ import TelegramCore
 import SwiftSignalKit
 import Postbox
 import AVFoundation
+import RadialStatusNode
+import StickerResources
+import PhotoResources
+import AnimationUI
 
 final class HorizontalListContextResultsChatInputPanelItem: ListViewItem {
     let account: Account
     let result: ChatContextResult
-    let resultSelected: (ChatContextResult) -> Void
+    let resultSelected: (ChatContextResult, ASDisplayNode, CGRect) -> Bool
     
     let selectable: Bool = true
     
-    public init(account: Account, result: ChatContextResult, resultSelected: @escaping (ChatContextResult) -> Void) {
+    public init(account: Account, result: ChatContextResult, resultSelected: @escaping (ChatContextResult, ASDisplayNode, CGRect) -> Bool) {
         self.account = account
         self.result = result
         self.resultSelected = resultSelected
@@ -65,10 +69,6 @@ final class HorizontalListContextResultsChatInputPanelItem: ListViewItem {
                 assertionFailure()
             }
         }
-    }
-    
-    func selected(listView: ListView) {
-        self.resultSelected(self.result)
     }
 }
 
@@ -121,19 +121,19 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
                     
                     let displayLink = CADisplayLink(target: DisplayLinkProxy(target: self), selector: #selector(DisplayLinkProxy.displayLinkEvent))
                     self.displayLink = displayLink
-                    displayLink.add(to: RunLoop.main, forMode: RunLoopMode.commonModes)
+                    displayLink.add(to: RunLoop.main, forMode: .common)
                     if #available(iOS 10.0, *) {
                         displayLink.preferredFramesPerSecond = 25
                     } else {
                         displayLink.frameInterval = 2
                     }
                     displayLink.isPaused = false
-                    CMTimebaseSetRate(self.timebase, 1.0)
+                    CMTimebaseSetRate(self.timebase, rate: 1.0)
                 } else if let displayLink = self.displayLink {
                     self.displayLink = nil
                     displayLink.isPaused = true
                     displayLink.invalidate()
-                    CMTimebaseSetRate(self.timebase, 0.0)
+                    CMTimebaseSetRate(self.timebase, rate: 0.0)
                 }
             }
         }
@@ -154,8 +154,8 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
         self.imageNode.displaysAsynchronously = false
         
         var timebase: CMTimebase?
-        CMTimebaseCreateWithMasterClock(nil, CMClockGetHostTimeClock(), &timebase)
-        CMTimebaseSetRate(timebase!, 0.0)
+        CMTimebaseCreateWithMasterClock(allocator: nil, masterClock: CMClockGetHostTimeClock(), timebaseOut: &timebase)
+        CMTimebaseSetRate(timebase!, rate: 0.0)
         self.timebase = timebase!
         
         super.init(layerBacked: false, dynamicBounce: false)
@@ -384,7 +384,9 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
                             animationNode.started = { [weak self] in
                                 self?.imageNode.alpha = 0.0
                             }
-                            animationNode.setup(account: item.account, resource: animatedStickerFile.resource, width: 160, height: 160, mode: .cached)
+                            let dimensions = animatedStickerFile.dimensions ?? CGSize(width: 512.0, height: 512.0)
+                            let fittedDimensions = dimensions.aspectFitted(CGSize(width: 160.0, height: 160.0))
+                            animationNode.setup(account: item.account, resource: .resource(animatedStickerFile.resource), width: Int(fittedDimensions.width), height: Int(fittedDimensions.height), mode: .cached)
                         }
                     }
                     
@@ -438,5 +440,12 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
                 }
             })
         }
+    }
+    
+    override func selected() {
+        guard let item = self.item else {
+            return
+        }
+        let _ = item.resultSelected(item.result, self, self.bounds)
     }
 }

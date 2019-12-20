@@ -6,6 +6,9 @@ import TelegramCore
 import SwiftSignalKit
 import Postbox
 import TelegramPresentationData
+import StickerResources
+import AnimationUI
+import ItemListStickerPackItem
 
 final class ChatMediaInputStickerPackItem: ListViewItem {
     let account: Account
@@ -67,28 +70,6 @@ private let boundingImageSize = CGSize(width: 28.0, height: 28.0)
 private let highlightSize = CGSize(width: 35.0, height: 35.0)
 private let verticalOffset: CGFloat = 3.0
 
-enum StickerPackThumbnailItem: Equatable {
-    case still(TelegramMediaImageRepresentation)
-    case animated(MediaResource)
-    
-    static func ==(lhs: StickerPackThumbnailItem, rhs: StickerPackThumbnailItem) -> Bool {
-        switch lhs {
-        case let .still(representation):
-            if case .still(representation) = rhs {
-                return true
-            } else {
-                return false
-            }
-        case let .animated(lhsResource):
-            if case let .animated(rhsResource) = rhs, lhsResource.isEqual(to: rhsResource) {
-                return true
-            } else {
-                return false
-            }
-        }
-    }
-}
-
 final class ChatMediaInputStickerPackItemNode: ListViewItemNode {
     private let imageNode: TransformImageNode
     private var animatedStickerNode: AnimatedStickerNode?
@@ -110,7 +91,8 @@ final class ChatMediaInputStickerPackItemNode: ListViewItemNode {
     private var visibilityStatus: Bool = false {
         didSet {
             if self.visibilityStatus != oldValue {
-                self.animatedStickerNode?.visibility = self.visibilityStatus
+                let loopAnimatedStickers = self.inputNodeInteraction?.stickerSettings?.loopAnimatedStickers ?? false
+                self.animatedStickerNode?.visibility = self.visibilityStatus && loopAnimatedStickers
             }
         }
     }
@@ -171,33 +153,39 @@ final class ChatMediaInputStickerPackItemNode: ListViewItemNode {
             self.currentThumbnailItem = thumbnailItem
             if let thumbnailItem = thumbnailItem {
                 switch thumbnailItem {
-                case let .still(representation):
-                    let imageSize = representation.dimensions.aspectFitted(boundingImageSize)
-                    let imageApply = self.imageNode.asyncLayout()(TransformImageArguments(corners: ImageCorners(), imageSize: imageSize, boundingSize: imageSize, intrinsicInsets: UIEdgeInsets()))
-                    imageApply()
-                    self.imageNode.setSignal(chatMessageStickerPackThumbnail(postbox: account.postbox, representation: representation))
-                   
-                    self.imageNode.frame = CGRect(origin: CGPoint(x: floor((boundingSize.width - imageSize.width) / 2.0) + verticalOffset, y: floor((boundingSize.height - imageSize.height) / 2.0)), size: imageSize)
-                case let .animated(resource):
-                    let imageSize = boundingImageSize
-                    
-                    let animatedStickerNode: AnimatedStickerNode
-                    if let current = self.animatedStickerNode {
-                        animatedStickerNode = current
-                    } else {
-                        animatedStickerNode = AnimatedStickerNode()
-                        self.animatedStickerNode = animatedStickerNode
-                        animatedStickerNode.transform = CATransform3DMakeRotation(CGFloat.pi / 2.0, 0.0, 0.0, 1.0)
-                        self.addSubnode(animatedStickerNode)
-                        animatedStickerNode.setup(account: account, resource: resource, width: 80, height: 80, mode: .cached)
-                        animatedStickerNode.visibility = self.visibilityStatus
-                    }
-                    if let animatedStickerNode = self.animatedStickerNode {
-                        animatedStickerNode.frame = CGRect(origin: CGPoint(x: floor((boundingSize.width - imageSize.width) / 2.0) + verticalOffset, y: floor((boundingSize.height - imageSize.height) / 2.0)), size: imageSize)
-                    }
+                    case let .still(representation):
+                        let imageSize = representation.dimensions.aspectFitted(boundingImageSize)
+                        let imageApply = self.imageNode.asyncLayout()(TransformImageArguments(corners: ImageCorners(), imageSize: imageSize, boundingSize: imageSize, intrinsicInsets: UIEdgeInsets()))
+                        imageApply()
+                        self.imageNode.setSignal(chatMessageStickerPackThumbnail(postbox: account.postbox, resource: representation.resource))
+                        self.imageNode.frame = CGRect(origin: CGPoint(x: floor((boundingSize.width - imageSize.width) / 2.0) + verticalOffset, y: floor((boundingSize.height - imageSize.height) / 2.0)), size: imageSize)
+                    case let .animated(resource):
+                        let imageSize = boundingImageSize
+                        let imageApply = self.imageNode.asyncLayout()(TransformImageArguments(corners: ImageCorners(), imageSize: imageSize, boundingSize: imageSize, intrinsicInsets: UIEdgeInsets()))
+                        imageApply()
+                        self.imageNode.setSignal(chatMessageStickerPackThumbnail(postbox: account.postbox, resource: resource, animated: true))
+                        self.imageNode.frame = CGRect(origin: CGPoint(x: floor((boundingSize.width - imageSize.width) / 2.0) + verticalOffset, y: floor((boundingSize.height - imageSize.height) / 2.0)), size: imageSize)
+                        
+                        let loopAnimatedStickers = self.inputNodeInteraction?.stickerSettings?.loopAnimatedStickers ?? false
+                        self.imageNode.isHidden = loopAnimatedStickers
+                        
+                        let animatedStickerNode: AnimatedStickerNode
+                        if let current = self.animatedStickerNode {
+                            animatedStickerNode = current
+                        } else {
+                            animatedStickerNode = AnimatedStickerNode()
+                            self.animatedStickerNode = animatedStickerNode
+                            animatedStickerNode.transform = CATransform3DMakeRotation(CGFloat.pi / 2.0, 0.0, 0.0, 1.0)
+                            self.addSubnode(animatedStickerNode)
+                            animatedStickerNode.setup(account: account, resource: .resource(resource), width: 80, height: 80, mode: .cached)
+                        }
+                        animatedStickerNode.visibility = self.visibilityStatus && loopAnimatedStickers
+                        if let animatedStickerNode = self.animatedStickerNode {
+                            animatedStickerNode.frame = CGRect(origin: CGPoint(x: floor((boundingSize.width - imageSize.width) / 2.0) + verticalOffset, y: floor((boundingSize.height - imageSize.height) / 2.0)), size: imageSize)
+                        }
                 }
                 if let resourceReference = resourceReference {
-                    self.stickerFetchedDisposable.set(fetchedMediaResource(postbox: account.postbox, reference: resourceReference).start())
+                    self.stickerFetchedDisposable.set(fetchedMediaResource(mediaBox: account.postbox.mediaBox, reference: resourceReference).start())
                 }
             }
             

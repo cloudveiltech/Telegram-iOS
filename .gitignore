@@ -1,6 +1,7 @@
 fastlane/README.md
 fastlane/report.xml
 fastlane/test_output/*
+fastlane/fastlanematch
 build/*
 *.pbxuser
 !default.pbxuser
@@ -23,3 +24,10 @@ DerivedData
 *.dSYM.zip
 *.ipa
 */xcuserdata/*
+buck-out/*
+.buckd/*
+AppBinary.xcworkspace/*
+Project.xcodeproj/*
+Watch/Watch.xcodeproj/*
+AppBundle.xcworkspace/*
+tools/buck

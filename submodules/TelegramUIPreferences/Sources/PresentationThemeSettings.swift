@@ -2,10 +2,11 @@ import Foundation
 import Postbox
 import TelegramCore
 import SwiftSignalKit
+import Display
 
 public enum PresentationBuiltinThemeReference: Int32 {
     case dayClassic = 0
-    case nightGrayscale = 1
+    case night = 1
     case day = 2
     case nightAccent = 3
 }
@@ -25,13 +26,102 @@ public struct WallpaperPresentationOptions: OptionSet {
     public static let blur = WallpaperPresentationOptions(rawValue: 1 << 1)
 }
 
+public struct PresentationLocalTheme: PostboxCoding, Equatable {
+    public let title: String
+    public let resource: LocalFileMediaResource
+    public let resolvedWallpaper: TelegramWallpaper?
+    
+    public init(title: String, resource: LocalFileMediaResource, resolvedWallpaper: TelegramWallpaper?) {
+        self.title = title
+        self.resource = resource
+        self.resolvedWallpaper = resolvedWallpaper
+    }
+    
+    public init(decoder: PostboxDecoder) {
+        self.title = decoder.decodeStringForKey("title", orElse: "")
+        self.resource = decoder.decodeObjectForKey("resource", decoder: { LocalFileMediaResource(decoder: $0) }) as! LocalFileMediaResource
+        self.resolvedWallpaper = decoder.decodeObjectForKey("wallpaper", decoder: { TelegramWallpaper(decoder: $0) }) as? TelegramWallpaper
+    }
+    
+    public func encode(_ encoder: PostboxEncoder) {
+        encoder.encodeString(self.title, forKey: "title")
+        encoder.encodeObject(self.resource, forKey: "resource")
+        if let resolvedWallpaper = self.resolvedWallpaper {
+            encoder.encodeObject(resolvedWallpaper, forKey: "wallpaper")
+        } else {
+            encoder.encodeNil(forKey: "wallpaper")
+        }
+    }
+    
+    public static func ==(lhs: PresentationLocalTheme, rhs: PresentationLocalTheme) -> Bool {
+        if lhs.title != rhs.title {
+            return false
+        }
+        if !lhs.resource.isEqual(to: rhs.resource) {
+            return false
+        }
+        if lhs.resolvedWallpaper != rhs.resolvedWallpaper {
+            return false
+        }
+        return true
+    }
+}
+
+public struct PresentationCloudTheme: PostboxCoding, Equatable {
+    public let theme: TelegramTheme
+    public let resolvedWallpaper: TelegramWallpaper?
+    
+    public init(theme: TelegramTheme, resolvedWallpaper: TelegramWallpaper?) {
+        self.theme = theme
+        self.resolvedWallpaper = resolvedWallpaper
+    }
+    
+    public init(decoder: PostboxDecoder) {
+        self.theme = decoder.decodeObjectForKey("theme", decoder: { TelegramTheme(decoder: $0) }) as! TelegramTheme
+        self.resolvedWallpaper = decoder.decodeObjectForKey("wallpaper", decoder: { TelegramWallpaper(decoder: $0) }) as? TelegramWallpaper
+    }
+    
+    public func encode(_ encoder: PostboxEncoder) {
+        encoder.encodeObject(self.theme, forKey: "theme")
+        if let resolvedWallpaper = self.resolvedWallpaper {
+            encoder.encodeObject(resolvedWallpaper, forKey: "wallpaper")
+        } else {
+            encoder.encodeNil(forKey: "wallpaper")
+        }
+    }
+    
+    public static func ==(lhs: PresentationCloudTheme, rhs: PresentationCloudTheme) -> Bool {
+        if lhs.theme != rhs.theme {
+            return false
+        }
+        if lhs.resolvedWallpaper != rhs.resolvedWallpaper {
+            return false
+        }
+        return true
+    }
+}
+
 public enum PresentationThemeReference: PostboxCoding, Equatable {
     case builtin(PresentationBuiltinThemeReference)
+    case local(PresentationLocalTheme)
+    case cloud(PresentationCloudTheme)
     
     public init(decoder: PostboxDecoder) {
         switch decoder.decodeInt32ForKey("v", orElse: 0) {
             case 0:
                 self = .builtin(PresentationBuiltinThemeReference(rawValue: decoder.decodeInt32ForKey("t", orElse: 0))!)
+            case 1:
+                if let localTheme = decoder.decodeObjectForKey("localTheme", decoder: { PresentationLocalTheme(decoder: $0) }) as? PresentationLocalTheme {
+                    self = .local(localTheme)
+                } else {
+                    self = .builtin(.dayClassic)
+                }
+            case 2:
+                if let cloudTheme = decoder.decodeObjectForKey("cloudTheme", decoder: { PresentationCloudTheme(decoder: $0) }) as? PresentationCloudTheme {
+                    self = .cloud(cloudTheme)
+                } else {
+                    self = .builtin(.dayClassic)
+                }
             default:
                 assertionFailure()
                 self = .builtin(.dayClassic)
@@ -43,6 +133,12 @@ public enum PresentationThemeReference: PostboxCoding, Equatable {
             case let .builtin(reference):
                 encoder.encodeInt32(0, forKey: "v")
                 encoder.encodeInt32(reference.rawValue, forKey: "t")
+            case let .local(theme):
+                encoder.encodeInt32(1, forKey: "v")
+                encoder.encodeObject(theme, forKey: "localTheme")
+            case let .cloud(theme):
+                encoder.encodeInt32(2, forKey: "v")
+                encoder.encodeObject(theme, forKey: "cloudTheme")
         }
     }
     
@@ -54,16 +150,45 @@ public enum PresentationThemeReference: PostboxCoding, Equatable {
                 } else {
                     return false
                 }
+            case let .local(lhsTheme):
+                if case let .local(rhsTheme) = rhs, lhsTheme == rhsTheme {
+                    return true
+                } else {
+                    return false
+                }
+            case let .cloud(lhsTheme):
+                if case let .cloud(rhsTheme) = rhs, lhsTheme == rhsTheme {
+                    return true
+                } else {
+                    return false
+                }
         }
     }
     
     public var index: Int64 {
         let namespace: Int32
         let id: Int32
+        
+        func themeId(for id: Int64) -> Int32 {
+            var acc: UInt32 = 0
+            let low = UInt32(UInt64(bitPattern: id) & (0xffffffff as UInt64))
+            let high = UInt32((UInt64(bitPattern: id) >> 32) & (0xffffffff as UInt64))
+            acc = (acc &* 20261) &+ high
+            acc = (acc &* 20261) &+ low
+            
+            return Int32(bitPattern: acc & UInt32(0x7FFFFFFF))
+        }
+        
         switch self {
             case let .builtin(reference):
                 namespace = 0
                 id = reference.rawValue
+            case let .local(theme):
+                namespace = 1
+                id = themeId(for: theme.resource.fileId)
+            case let .cloud(theme):
+                namespace = 2
+                id = themeId(for: theme.theme.id)
         }
         
         return (Int64(namespace) << 32) | Int64(bitPattern: UInt64(UInt32(bitPattern: id)))
@@ -102,7 +227,7 @@ public enum AutomaticThemeSwitchTimeBasedSetting: PostboxCoding, Equatable {
                 encoder.encodeInt32(0, forKey: "_t")
                 encoder.encodeInt32(fromSeconds, forKey: "fromSeconds")
                 encoder.encodeInt32(toSeconds, forKey: "toSeconds")
-        case let .automatic(latitude, longitude, localizedName):
+            case let .automatic(latitude, longitude, localizedName):
                 encoder.encodeInt32(1, forKey: "_t")
                 encoder.encodeDouble(latitude, forKey: "latitude")
                 encoder.encodeDouble(longitude, forKey: "longitude")
@@ -146,21 +271,27 @@ public enum AutomaticThemeSwitchTrigger: PostboxCoding, Equatable {
 
 public struct AutomaticThemeSwitchSetting: PostboxCoding, Equatable {
     public var trigger: AutomaticThemeSwitchTrigger
-    public var theme: PresentationBuiltinThemeReference
+    public var theme: PresentationThemeReference
     
-    public init(trigger: AutomaticThemeSwitchTrigger, theme: PresentationBuiltinThemeReference) {
+    public init(trigger: AutomaticThemeSwitchTrigger, theme: PresentationThemeReference) {
         self.trigger = trigger
         self.theme = theme
     }
     
     public init(decoder: PostboxDecoder) {
         self.trigger = decoder.decodeObjectForKey("trigger", decoder: { AutomaticThemeSwitchTrigger(decoder: $0) }) as! AutomaticThemeSwitchTrigger
-        self.theme = PresentationBuiltinThemeReference(rawValue: decoder.decodeInt32ForKey("theme", orElse: 0))!
+        if let theme = decoder.decodeObjectForKey("theme_v2", decoder: { PresentationThemeReference(decoder: $0) }) as? PresentationThemeReference {
+            self.theme = theme
+        } else if let legacyValue = decoder.decodeOptionalInt32ForKey("theme") {
+            self.theme = .builtin(PresentationBuiltinThemeReference(rawValue: legacyValue) ?? .nightAccent)
+        } else {
+            self.theme = .builtin(.nightAccent)
+        }
     }
     
     public func encode(_ encoder: PostboxEncoder) {
         encoder.encodeObject(self.trigger, forKey: "trigger")
-        encoder.encodeInt32(self.theme.rawValue, forKey: "theme")
+        encoder.encodeObject(self.theme, forKey: "theme_v2")
     }
 }
 
@@ -175,77 +306,99 @@ public enum PresentationThemeBaseColor: Int32, CaseIterable {
     case yellow
     case gray
     case black
+    case white
+    case custom
     
-    public var colorValue: Int32 {        
+    public var color: UIColor {
+        let value: UInt32
         switch self {
             case .blue:
-                return 0x007ee5
+                value = 0x007aff
             case .cyan:
-                return 0x00c2ed
+                value = 0x00c2ed
             case .green:
-                return 0x29b327
+                value = 0x29b327
             case .pink:
-                return 0xff5da2
+                value = 0xeb6ca4
             case .orange:
-                return 0xff7519
+                value = 0xf08200
             case .purple:
-                return 0x7748ff
+                value = 0x9472ee
             case .red:
-                return 0xf83b4c
+                value = 0xd33213
             case .yellow:
-                return 0xeba239
+                value = 0xedb400
             case .gray:
-                return 0x6d839e
+                value = 0x6d839e
             case .black:
-                return 0x000000
+                value = 0x000000
+            case .white:
+                value = 0xffffff
+            case .custom:
+                return .clear
         }
-        
-//        switch self {
-//            case .blue:
-//                return 0x007aff
-//            case .cyan:
-//                return 0x00c2ed
-//            case .green:
-//                return 0x70bb23
-//            case .pink:
-//                return 0xeb6ca4
-//            case .orange:
-//                return 0xf08200
-//            case .purple:
-//                return 0x9472ee
-//            case .red:
-//                return 0xd33213
-//            case .yellow:
-//                return 0xedb400
-//            case .gray:
-//                return 0x6d839e
-//            case .black:
-//                return 0x000000
-//        }
+        return UIColor(rgb: value)
+    }
+    
+    public var outgoingGradientColors: (UIColor, UIColor) {
+        switch self {
+            case .blue:
+                return (UIColor(rgb: 0x63BFFB), UIColor(rgb: 0x007AFF))
+            case .cyan:
+                return (UIColor(rgb: 0x5CE0E9), UIColor(rgb: 0x00C2ED))
+            case .green:
+                return (UIColor(rgb: 0x93D374), UIColor(rgb: 0x29B327))
+            case .pink:
+                return (UIColor(rgb: 0xE296C1), UIColor(rgb: 0xEB6CA4))
+            case .orange:
+                return (UIColor(rgb: 0xF2A451), UIColor(rgb: 0xF08200))
+            case .purple:
+                return (UIColor(rgb: 0xAC98E6), UIColor(rgb: 0x9472EE))
+            case .red:
+                return (UIColor(rgb: 0xE06D54), UIColor(rgb: 0xD33213))
+            case .yellow:
+                return (UIColor(rgb: 0xF7DA6B), UIColor(rgb: 0xEDB400))
+            case .gray:
+                return (UIColor(rgb: 0x7D8E9A), UIColor(rgb: 0x6D839E))
+            case .black:
+                return (UIColor(rgb: 0x000000), UIColor(rgb: 0x000000))
+            case .white:
+                return (UIColor(rgb: 0xffffff), UIColor(rgb: 0xffffff))
+            case .custom:
+                return (UIColor(rgb: 0x000000), UIColor(rgb: 0x000000))
+        }
     }
 }
 
 public struct PresentationThemeAccentColor: PostboxCoding, Equatable {
     public var baseColor: PresentationThemeBaseColor
-    public var value: CGFloat
+    public var value: Int32?
     
-    public init(baseColor: PresentationThemeBaseColor, value: CGFloat) {
+    public init(baseColor: PresentationThemeBaseColor, value: Int32? = nil) {
         self.baseColor = baseColor
         self.value = value
     }
     
     public init(decoder: PostboxDecoder) {
         self.baseColor = PresentationThemeBaseColor(rawValue: decoder.decodeInt32ForKey("b", orElse: 0)) ?? .blue
-        self.value = CGFloat(decoder.decodeDoubleForKey("v", orElse: 0.5))
+        self.value = decoder.decodeOptionalInt32ForKey("c")
     }
     
     public func encode(_ encoder: PostboxEncoder) {
         encoder.encodeInt32(self.baseColor.rawValue, forKey: "b")
-        encoder.encodeDouble(Double(self.value), forKey: "v")
+        if let value = self.value {
+            encoder.encodeInt32(value, forKey: "c")
+        } else {
+            encoder.encodeNil(forKey: "c")
+        }
     }
     
-    public var color: Int32 {
-        return self.baseColor.colorValue
+    public var color: UIColor {
+        if let value = self.value {
+            return UIColor(rgb: UInt32(bitPattern: value))
+        } else {
+            return self.baseColor.color
+        }
     }
 }
 
@@ -279,11 +432,24 @@ public struct PresentationThemeSettings: PreferencesEntry {
         for (_, chatWallpaper) in self.themeSpecificChatWallpapers {
             resources.append(contentsOf: wallpaperResources(chatWallpaper))
         }
+        switch self.theme {
+            case .builtin:
+                break
+            case let .local(theme):
+                resources.append(theme.resource.id)
+            case let .cloud(theme):
+                if let file = theme.theme.file {
+                    resources.append(file.resource.id)
+                }
+                if let chatWallpaper = theme.resolvedWallpaper {
+                    resources.append(contentsOf: wallpaperResources(chatWallpaper))
+                }
+        }
         return resources
     }
     
     public static var defaultSettings: PresentationThemeSettings {
-        return PresentationThemeSettings(chatWallpaper: .builtin(WallpaperSettings()), theme: .builtin(.dayClassic), themeSpecificAccentColors: [:], themeSpecificChatWallpapers: [:], fontSize: .regular, automaticThemeSwitchSetting: AutomaticThemeSwitchSetting(trigger: .none, theme: .nightAccent), largeEmoji: true, disableAnimations: true)
+        return PresentationThemeSettings(chatWallpaper: .builtin(WallpaperSettings()), theme: .builtin(.dayClassic), themeSpecificAccentColors: [:], themeSpecificChatWallpapers: [:], fontSize: .regular, automaticThemeSwitchSetting: AutomaticThemeSwitchSetting(trigger: .none, theme: .builtin(.nightAccent)), largeEmoji: true, disableAnimations: true)
     }
     
     public init(chatWallpaper: TelegramWallpaper, theme: PresentationThemeReference, themeSpecificAccentColors: [Int64: PresentationThemeAccentColor], themeSpecificChatWallpapers: [Int64: TelegramWallpaper], fontSize: PresentationFontSize, automaticThemeSwitchSetting: AutomaticThemeSwitchSetting, largeEmoji: Bool, disableAnimations: Bool) {
@@ -299,7 +465,7 @@ public struct PresentationThemeSettings: PreferencesEntry {
     
     public init(decoder: PostboxDecoder) {
         self.chatWallpaper = (decoder.decodeObjectForKey("w", decoder: { TelegramWallpaper(decoder: $0) }) as? TelegramWallpaper) ?? .builtin(WallpaperSettings())
-        self.theme = decoder.decodeObjectForKey("t", decoder: { PresentationThemeReference(decoder: $0) }) as! PresentationThemeReference
+        self.theme = decoder.decodeObjectForKey("t", decoder: { PresentationThemeReference(decoder: $0) }) as? PresentationThemeReference ?? .builtin(.dayClassic)
 
         self.themeSpecificChatWallpapers = decoder.decodeObjectDictionaryForKey("themeSpecificChatWallpapers", keyDecoder: { decoder in
             return decoder.decodeInt64ForKey("k", orElse: 0)
@@ -335,11 +501,11 @@ public struct PresentationThemeSettings: PreferencesEntry {
                 default:
                     baseColor = .blue
             }
-            self.themeSpecificAccentColors[PresentationThemeReference.builtin(.day).index] = PresentationThemeAccentColor(baseColor: baseColor, value: 0.5)
+            self.themeSpecificAccentColors[PresentationThemeReference.builtin(.day).index] = PresentationThemeAccentColor(baseColor: baseColor)
         }
         
         self.fontSize = PresentationFontSize(rawValue: decoder.decodeInt32ForKey("f", orElse: PresentationFontSize.regular.rawValue)) ?? .regular
-        self.automaticThemeSwitchSetting = (decoder.decodeObjectForKey("automaticThemeSwitchSetting", decoder: { AutomaticThemeSwitchSetting(decoder: $0) }) as? AutomaticThemeSwitchSetting) ?? AutomaticThemeSwitchSetting(trigger: .none, theme: .nightAccent)
+        self.automaticThemeSwitchSetting = (decoder.decodeObjectForKey("automaticThemeSwitchSetting", decoder: { AutomaticThemeSwitchSetting(decoder: $0) }) as? AutomaticThemeSwitchSetting) ?? AutomaticThemeSwitchSetting(trigger: .none, theme: .builtin(.nightAccent))
         self.largeEmoji = decoder.decodeBoolForKey("largeEmoji", orElse: true)
         self.disableAnimations = decoder.decodeBoolForKey("disableAnimations", orElse: true)
     }

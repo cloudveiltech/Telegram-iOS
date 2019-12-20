@@ -185,7 +185,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>5.9.1</string>
+	<string>5.11</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleURLTypes</key>
@@ -228,9 +228,7 @@
 	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<string>dbapi-3</string>
 		<string>instagram</string>
-		<string>googledrive</string>
 		<string>comgooglemaps-x-callback</string>
 		<string>foursquare</string>
 		<string>here-location</string>
@@ -257,6 +255,7 @@
 		<string>opera-https</string>
 		<string>firefox-focus</string>
 		<string>ddgQuickLink</string>
+		<string>moovit</string>
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
@@ -333,19 +332,43 @@
 	<false/>
 	<key>UIViewGroupOpacity</key>
 	<false/>
-	<key>Fabric</key>
-	<dict>
-		<key>APIKey</key>
-		<string>4c97095717c496e2a456216afde05cc8bb101711</string>
-		<key>Kits</key>
-		<array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Telegram iOS Color Theme File</string>
+			<key>UTTypeIconFiles</key>
+			<array>
+				<string>BlueIcon@3x.png</string>
+			</array>
+			<key>UTTypeIdentifier</key>
+			<string>org.telegram.Telegram-iOS.theme</string>
+			<key>UTTypeTagSpecification</key>
 			<dict>
-				<key>KitInfo</key>
-				<dict/>
-				<key>KitName</key>
-				<string>Crashlytics</string>
+				<key>public.filename-extension</key>
+				<array>
+					<string>tgios-theme</string>
+				</array>
 			</dict>
-		</array>
-	</dict>
+		</dict>
+	</array>
+    <key>Fabric</key>
+    <dict>
+        <key>APIKey</key>
+        <string>4c97095717c496e2a456216afde05cc8bb101711</string>
+        <key>Kits</key>
+        <array>
+            <dict>
+                <key>KitInfo</key>
+                <dict/>
+                <key>KitName</key>
+                <string>Crashlytics</string>
+            </dict>
+        </array>
+    </dict>
 </dict>
 </plist>

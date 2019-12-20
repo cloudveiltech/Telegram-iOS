@@ -21,7 +21,7 @@ class NavigationTransitionCoordinator {
         }
         set(value) {
             self._progress = value
-            self.updateProgress()
+            self.updateProgress(transition: .immediate)
         }
     }
     
@@ -39,8 +39,9 @@ class NavigationTransitionCoordinator {
     
     private(set) var animatingCompletion = false
     private var currentCompletion: (() -> Void)?
-    private var didUpdateProgress:((CGFloat)->Void)?
-    init(transition: NavigationTransition, container: UIView, topView: UIView, topNavigationBar: NavigationBar?, bottomView: UIView, bottomNavigationBar: NavigationBar?, didUpdateProgress: ((CGFloat) -> Void)? = nil) {
+    private var didUpdateProgress: ((CGFloat, ContainedViewLayoutTransition) -> Void)?
+    
+    init(transition: NavigationTransition, container: UIView, topView: UIView, topNavigationBar: NavigationBar?, bottomView: UIView, bottomNavigationBar: NavigationBar?, didUpdateProgress: ((CGFloat, ContainedViewLayoutTransition) -> Void)? = nil) {
         self.transition = transition
         self.container = container
         self.didUpdateProgress = didUpdateProgress
@@ -79,14 +80,14 @@ class NavigationTransitionCoordinator {
         self.viewSuperview?.insertSubview(self.shadowView, belowSubview: dimView)
         
         self.maybeCreateNavigationBarTransition()
-        self.updateProgress()
+        self.updateProgress(transition: .immediate)
     }
 
     required init(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func updateProgress() {
+    func updateProgress(transition: ContainedViewLayoutTransition) {
         let position: CGFloat
         switch self.transition {
             case .Push:
@@ -111,7 +112,7 @@ class NavigationTransitionCoordinator {
         
         self.updateNavigationBarTransition()
         
-        self.didUpdateProgress?(self.progress)
+        self.didUpdateProgress?(self.progress, transition)
     }
     
     func updateNavigationBarTransition() {
@@ -154,7 +155,7 @@ class NavigationTransitionCoordinator {
     func animateCancel(_ completion: @escaping () -> ()) {
         self.currentCompletion = completion
         
-        UIView.animate(withDuration: 0.1, delay: 0.0, options: UIViewAnimationOptions(), animations: { () -> Void in
+        UIView.animate(withDuration: 0.1, delay: 0.0, options: UIView.AnimationOptions(), animations: { () -> Void in
             self.progress = 0.0
         }) { (completed) -> Void in
             switch self.transition {
@@ -234,13 +235,13 @@ class NavigationTransitionCoordinator {
         }
         
         if abs(velocity) < CGFloat.ulpOfOne && abs(self.progress) < CGFloat.ulpOfOne {
-            UIView.animate(withDuration: 0.5, delay: 0.0, options: UIViewAnimationOptions(rawValue: 7 << 16), animations: {
+            UIView.animate(withDuration: 0.5, delay: 0.0, options: UIView.AnimationOptions(rawValue: 7 << 16), animations: {
                 self.progress = 1.0
             }, completion: { _ in
                 f()
             })
         } else {
-            UIView.animate(withDuration: Double(max(0.05, min(0.2, abs(distance / velocity)))), delay: 0.0, options: UIViewAnimationOptions(), animations: { () -> Void in
+            UIView.animate(withDuration: Double(max(0.05, min(0.2, abs(distance / velocity)))), delay: 0.0, options:UIView.AnimationOptions(), animations: { () -> Void in
                 self.progress = 1.0
             }) { (completed) -> Void in
                 f()

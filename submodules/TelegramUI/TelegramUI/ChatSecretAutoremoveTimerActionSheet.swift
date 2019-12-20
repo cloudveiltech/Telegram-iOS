@@ -7,6 +7,7 @@ import TelegramCore
 import SwiftSignalKit
 import Photos
 import TelegramPresentationData
+import AccountContext
 import CloudVeilSecurityManager
 
 final class ChatSecretAutoremoveTimerActionSheetController: ActionSheetController {
@@ -125,6 +126,7 @@ private var timeoutValues: [Int32] = [
     7 * 24 * 60 * 60
 ]
 
+
 private final class AutoremoveTimeoutSelectorItemNode: ActionSheetItemNode, UIPickerViewDelegate, UIPickerViewDataSource {
     private let theme: ActionSheetControllerTheme
     private let strings: PresentationStrings
@@ -150,9 +152,9 @@ private final class AutoremoveTimeoutSelectorItemNode: ActionSheetItemNode, UIPi
         //CloudVeil start
         timeoutValues.removeAll()
         for i in 0 ..< timeoutValuesInitial.count {
-            if timeoutValuesInitial[i] >= MainController.shared.secretChatMinimumLength {
-                timeoutValues.append(timeoutValuesInitial[i])
-            }
+           if timeoutValuesInitial[i] >= MainController.shared.secretChatMinimumLength {
+               timeoutValues.append(timeoutValuesInitial[i])
+           }
         }
         //CloudVeil end
         

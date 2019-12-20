@@ -10,6 +10,10 @@ import MtProtoKit
 import MtProtoKitDynamic
 #endif
 import TelegramPresentationData
+import AccountContext
+import UrlEscaping
+import PassportUI
+import UrlHandling
 import CloudVeilSecurityManager
 
 public struct ParsedSecureIdUrl {
@@ -25,7 +29,7 @@ public func parseProxyUrl(_ url: URL) -> ProxyServerSettings? {
     guard let proxy = parseProxyUrl(url.absoluteString) else {
         return nil
     }
-    if let secret = proxy.secret, secret.count == 16 || (secret.count == 17 && MTSocksProxySettings.secretSupportsExtendedPadding(secret)) {
+    if let secret = proxy.secret, let _ = MTProxySecret.parseData(secret) {
         return ProxyServerSettings(host: proxy.host, port: proxy.port, connection: .mtp(secret: secret))
     } else {
         return ProxyServerSettings(host: proxy.host, port: proxy.port, connection: .socks5(username: proxy.username, password: proxy.password))
@@ -135,12 +139,7 @@ func formattedConfirmationCode(_ code: Int) -> String {
     return result
 }
 
-public enum OpenURLContext {
-    case generic
-    case chat
-}
-
-public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext = .generic, url: String, forceExternal: Bool = false, presentationData: PresentationData, navigationController: NavigationController?, dismissInput: @escaping () -> Void) {
+func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, url: String, forceExternal: Bool, presentationData: PresentationData, navigationController: NavigationController?, dismissInput: @escaping () -> Void) {
     if forceExternal || url.lowercased().hasPrefix("tel:") || url.lowercased().hasPrefix("calshow:") {
         context.sharedContext.applicationBindings.openUrl(url)
         return
@@ -191,30 +190,32 @@ public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext 
             if case let .externalUrl(value) = resolved {
                 context.sharedContext.applicationBindings.openUrl(value)
             } else {
-                openResolvedUrl(resolved, context: context, navigationController: navigationController, openPeer: { peerId, navigation in
+                context.sharedContext.openResolvedUrl(resolved, context: context, urlContext: .generic, navigationController: navigationController, openPeer: { peerId, navigation in
                     switch navigation {
                         case .info:
                             let _ = (context.account.postbox.loadedPeerWithId(peerId)
                             |> deliverOnMainQueue).start(next: { peer in
-                                if let infoController = peerInfoController(context: context, peer: peer) {
+                                if let infoController = context.sharedContext.makePeerInfoController(context: context, peer: peer, mode: .generic) {
                                     context.sharedContext.applicationBindings.dismissNativeController()
                                     navigationController?.pushViewController(infoController)
                                 }
                             })
-                        case let .chat(_, messageId):
+                        case let .chat(_, subject):
                             context.sharedContext.applicationBindings.dismissNativeController()
                             if let navigationController = navigationController {
-                                navigateToChatController(navigationController: navigationController, context: context, chatLocation: .peer(peerId), messageId: messageId)
+                                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId), subject: subject))
                             }
                         case let .withBotStartPayload(payload):
                             context.sharedContext.applicationBindings.dismissNativeController()
                             if let navigationController = navigationController {
-                                navigateToChatController(navigationController: navigationController, context: context, chatLocation: .peer(peerId), botStart: payload)
+                                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId), botStart: payload))
                             }
                         default:
                             break
                     }
-                }, present: { c, a in
+                }, sendFile: nil,
+                sendSticker: nil,
+                present: { c, a in
                     context.sharedContext.applicationBindings.dismissNativeController()
                     
                     c.presentationArguments = a
@@ -227,7 +228,7 @@ public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext 
         }
         
         let handleInternalUrl: (String) -> Void = { url in
-            let _ = (resolveUrl(account: context.account, url: url)
+            let _ = (context.sharedContext.resolveUrl(account: context.account, url: url)
             |> deliverOnMainQueue).start(next: handleRevolvedUrl)
         }
         
@@ -247,7 +248,7 @@ public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext 
                     }
                     if let peerId = peerId, let navigationController = navigationController {
                         context.sharedContext.applicationBindings.dismissNativeController()
-                        navigateToChatController(navigationController: navigationController, context: context, chatLocation: .peer(peerId))
+                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId)))
                     }
                 }
             } else if parsedUrl.host == "join" {
@@ -348,6 +349,7 @@ public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext 
                     var user: String?
                     var pass: String?
                     var secret: String?
+                    var secretHost: String?
                     if let queryItems = components.queryItems {
                         for queryItem in queryItems {
                             if let value = queryItem.value {
@@ -361,6 +363,8 @@ public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext 
                                     pass = value
                                 } else if queryItem.name == "secret" {
                                     secret = value
+                                } else if queryItem.name == "host" {
+                                    secretHost = value
                                 }
                             }
                         }
@@ -376,6 +380,9 @@ public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext 
                         }
                         if let secret = secret {
                             result += "&secret=\((secret as NSString).addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryValueAllowed) ?? "")"
+                        }
+                        if let secretHost = secretHost?.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryValueAllowed) {
+                            result += "&host=\(secretHost)"
                         }
                         convertedUrl = result
                     }
@@ -469,7 +476,7 @@ public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext 
                             return transaction.getPeer(PeerId(namespace: Namespaces.Peer.CloudUser, id: idValue))
                         }
                         |> deliverOnMainQueue).start(next: { peer in
-                            if let peer = peer, let controller = peerInfoController(context: context, peer: peer) {
+                            if let peer = peer, let controller = context.sharedContext.makePeerInfoController(context: context, peer: peer, mode: .generic) {
                                 navigationController?.pushViewController(controller)
                             }
                         })
@@ -530,6 +537,22 @@ public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext 
                     }
                     if let parameter = parameter {
                         convertedUrl = "https://t.me/bg/\(parameter)\(mode)"
+                    }
+                }
+            } else if parsedUrl.host == "addtheme" {
+                if let components = URLComponents(string: "/?" + query) {
+                    var parameter: String?
+                    if let queryItems = components.queryItems {
+                        for queryItem in queryItems {
+                            if let value = queryItem.value {
+                                if queryItem.name == "slug" {
+                                    parameter = value
+                                }
+                            }
+                        }
+                    }
+                    if let parameter = parameter {
+                        convertedUrl = "https://t.me/addtheme/\(parameter)"
                     }
                 }
             }

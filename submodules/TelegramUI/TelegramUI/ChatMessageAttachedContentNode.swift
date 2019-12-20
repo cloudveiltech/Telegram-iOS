@@ -8,6 +8,10 @@ import TelegramCore
 import Postbox
 import TelegramPresentationData
 import TelegramUIPreferences
+import TextFormat
+import AccountContext
+import UrlEscaping
+import PhotoResources
 
 private let titleFont = Font.semibold(15.0)
 private let textFont = Font.regular(15.0)
@@ -15,6 +19,7 @@ private let textBoldFont = Font.semibold(15.0)
 private let textItalicFont = Font.italic(15.0)
 private let textBoldItalicFont = Font.semiboldItalic(15.0)
 private let textFixedFont = Font.regular(15.0)
+private let textBlockQuoteFont = Font.regular(15.0)
 private let buttonFont = Font.semibold(13.0)
 
 enum ChatMessageAttachedContentActionIcon {
@@ -300,22 +305,29 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
             var contentMode: InteractiveMediaNodeContentMode = preferMediaAspectFilled ? .aspectFill : .aspectFit
             
             var edited = false
-            var sentViaBot = false
             var viewCount: Int?
             for attribute in message.attributes {
-                if let _ = attribute as? EditedMessageAttribute {
-                    edited = true
+                if let attribute = attribute as? EditedMessageAttribute {
+                    edited = !attribute.isHidden
                 } else if let attribute = attribute as? ViewCountMessageAttribute {
                     viewCount = attribute.count
-                } else if let _ = attribute as? InlineBotMessageAttribute {
-                    sentViaBot = true
                 }
             }
-            if let author = message.author as? TelegramUser, author.botInfo != nil || author.flags.contains(.isSupport) {
-                sentViaBot = true
+            
+            var dateReactions: [MessageReaction] = []
+            var dateReactionCount = 0
+            if let reactionsAttribute = mergedMessageReactions(attributes: message.attributes), !reactionsAttribute.reactions.isEmpty {
+                for reaction in reactionsAttribute.reactions {
+                    if reaction.isSelected {
+                        dateReactions.insert(reaction, at: 0)
+                    } else {
+                        dateReactions.append(reaction)
+                    }
+                    dateReactionCount += Int(reaction.count)
+                }
             }
             
-            let dateText = stringForMessageTimestampStatus(accountPeerId: context.account.peerId, message: message, dateTimeFormat: presentationData.dateTimeFormat, nameDisplayOrder: presentationData.nameDisplayOrder, strings: presentationData.strings)
+            let dateText = stringForMessageTimestampStatus(accountPeerId: context.account.peerId, message: message, dateTimeFormat: presentationData.dateTimeFormat, nameDisplayOrder: presentationData.nameDisplayOrder, strings: presentationData.strings, reactionCount: dateReactionCount)
             
             var webpageGalleryMediaCount: Int?
             for media in message.media {
@@ -348,32 +360,32 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
             let string = NSMutableAttributedString()
             var notEmpty = false
             
-            let bubbleTheme = presentationData.theme.theme.chat.bubble
+            let messageTheme = incoming ? presentationData.theme.theme.chat.message.incoming : presentationData.theme.theme.chat.message.outgoing
             
             if let title = title, !title.isEmpty {
-                string.append(NSAttributedString(string: title, font: titleFont, textColor: incoming ? bubbleTheme.incomingAccentTextColor : bubbleTheme.outgoingAccentTextColor))
+                string.append(NSAttributedString(string: title, font: titleFont, textColor: messageTheme.accentTextColor))
                 notEmpty = true
             }
             
             if let subtitle = subtitle, subtitle.length > 0 {
                 if notEmpty {
-                    string.append(NSAttributedString(string: "\n", font: textFont, textColor: incoming ? bubbleTheme.incomingPrimaryTextColor : bubbleTheme.outgoingPrimaryTextColor))
+                    string.append(NSAttributedString(string: "\n", font: textFont, textColor: messageTheme.primaryTextColor))
                 }
                 let updatedSubtitle = NSMutableAttributedString()
                 updatedSubtitle.append(subtitle)
-                updatedSubtitle.addAttribute(.foregroundColor, value: incoming ? bubbleTheme.incomingPrimaryTextColor : bubbleTheme.outgoingPrimaryTextColor, range: NSMakeRange(0, subtitle.length))
+                updatedSubtitle.addAttribute(.foregroundColor, value: messageTheme.primaryTextColor, range: NSMakeRange(0, subtitle.length))
                 string.append(updatedSubtitle)
                 notEmpty = true
             }
             
             if let text = text, !text.isEmpty {
                 if notEmpty {
-                    string.append(NSAttributedString(string: "\n", font: textFont, textColor: incoming ? bubbleTheme.incomingPrimaryTextColor : bubbleTheme.outgoingPrimaryTextColor))
+                    string.append(NSAttributedString(string: "\n", font: textFont, textColor: messageTheme.primaryTextColor))
                 }
                 if let entities = entities {
-                    string.append(stringWithAppliedEntities(text, entities: entities, baseColor: incoming ? bubbleTheme.incomingPrimaryTextColor : bubbleTheme.outgoingPrimaryTextColor, linkColor: incoming ? bubbleTheme.incomingLinkTextColor : bubbleTheme.outgoingLinkTextColor, baseFont: textFont, linkFont: textFont, boldFont: textBoldFont, italicFont: textItalicFont, boldItalicFont: textBoldItalicFont, fixedFont: textFixedFont))
+                    string.append(stringWithAppliedEntities(text, entities: entities, baseColor: messageTheme.primaryTextColor, linkColor: messageTheme.linkTextColor, baseFont: textFont, linkFont: textFont, boldFont: textBoldFont, italicFont: textItalicFont, boldItalicFont: textBoldItalicFont, fixedFont: textFixedFont, blockQuoteFont: textBlockQuoteFont))
                 } else {
-                    string.append(NSAttributedString(string: text + "\n", font: textFont, textColor: incoming ? bubbleTheme.incomingPrimaryTextColor : bubbleTheme.outgoingPrimaryTextColor))
+                    string.append(NSAttributedString(string: text + "\n", font: textFont, textColor: messageTheme.primaryTextColor))
                 }
                 notEmpty = true
             }
@@ -385,9 +397,15 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
             
             var automaticPlayback = false
             
+            var skipStandardStatus = false
+            
             if let (media, flags) = mediaAndFlags {
                 if let file = media as? TelegramMediaFile {
-                    if file.isInstantVideo {
+                    if file.mimeType == "application/x-tgtheme-ios", let size = file.size, size < 16 * 1024 {
+                        let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData.theme.theme, presentationData.strings, presentationData.dateTimeFormat, message, file, .full, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode)
+                        initialWidth = initialImageWidth + horizontalInsets.left + horizontalInsets.right
+                        refineContentImageLayout = refineLayout
+                    } else if file.isInstantVideo {
                         let automaticDownload = shouldDownloadMediaAutomatically(settings: automaticDownloadSettings, peerType: associatedData.automaticDownloadPeerType, networkType: associatedData.automaticDownloadNetworkType, authorPeerId: message.author?.id, contactsPeerIds: associatedData.contactsPeerIds, media: file)
                         let (videoLayout, apply) = contentInstantVideoLayout(ChatMessageBubbleContentItem(context: context, controllerInteraction: controllerInteraction, message: message, read: messageRead, presentationData: presentationData, associatedData: associatedData), constrainedSize.width - horizontalInsets.left - horizontalInsets.right, CGSize(width: 212.0, height: 212.0), .bubble, automaticDownload)
                         initialWidth = videoLayout.contentSize.width + videoLayout.overflowLeft + videoLayout.overflowRight
@@ -439,7 +457,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                             }
                         }
                         
-                        let (_, refineLayout) = contentFileLayout(context, presentationData, message, file, automaticDownload, message.effectivelyIncoming(context.account.peerId), false, statusType, CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height))
+                        let (_, refineLayout) = contentFileLayout(context, presentationData, message, file, automaticDownload, message.effectivelyIncoming(context.account.peerId), false, associatedData.forcedResourceStatus, statusType, CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height))
                         refineContentFileLayout = refineLayout
                     }
                 } else if let image = media as? TelegramMediaImage {
@@ -464,6 +482,9 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                     let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData.theme.theme, presentationData.strings, presentationData.dateTimeFormat, message, wallpaper, .full, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode)
                     initialWidth = initialImageWidth + horizontalInsets.left + horizontalInsets.right
                     refineContentImageLayout = refineLayout
+                    if case let .file(_, _, isTheme, _) = wallpaper.content, isTheme {
+                        skipStandardStatus = true
+                    }
                 }
             }
             
@@ -497,12 +518,12 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                         let imageMode = !((refineContentImageLayout == nil && refineContentFileLayout == nil && contentInstantVideoSizeAndApply == nil) || preferMediaBeforeText)
                         statusInText = !imageMode
                         
-                        var skipStandardStatus = false
+                        
                         if let count = webpageGalleryMediaCount {
-                            additionalImageBadgeContent = .text(inset: 0.0, backgroundColor: presentationData.theme.theme.chat.bubble.mediaDateAndStatusFillColor, foregroundColor: presentationData.theme.theme.chat.bubble.mediaDateAndStatusTextColor, text: NSAttributedString(string: "1 \(presentationData.strings.Common_of) \(count)"))
+                            additionalImageBadgeContent = .text(inset: 0.0, backgroundColor: presentationData.theme.theme.chat.message.mediaDateAndStatusFillColor, foregroundColor: presentationData.theme.theme.chat.message.mediaDateAndStatusTextColor, text: NSAttributedString(string: presentationData.strings.Items_NOfM("1", "\(count)").0))
                             skipStandardStatus = imageMode
                         } else if let mediaBadge = mediaBadge {
-                            additionalImageBadgeContent = .text(inset: 0.0, backgroundColor: presentationData.theme.theme.chat.bubble.mediaDateAndStatusFillColor, foregroundColor: presentationData.theme.theme.chat.bubble.mediaDateAndStatusTextColor, text: NSAttributedString(string: mediaBadge))
+                            additionalImageBadgeContent = .text(inset: 0.0, backgroundColor: presentationData.theme.theme.chat.message.mediaDateAndStatusFillColor, foregroundColor: presentationData.theme.theme.chat.message.mediaDateAndStatusTextColor, text: NSAttributedString(string: mediaBadge))
                         }
                         
                         if !skipStandardStatus {
@@ -535,7 +556,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                                 }
                             }
                         
-                            statusSizeAndApply = statusLayout(presentationData, edited && !sentViaBot, viewCount, dateText, statusType, textConstrainedSize)
+                            statusSizeAndApply = statusLayout(context, presentationData, edited, viewCount, dateText, statusType, textConstrainedSize, dateReactions)
                         }
                     default:
                         break
@@ -584,7 +605,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                 let lineImage = incoming ? PresentationResourcesChat.chatBubbleVerticalLineIncomingImage(presentationData.theme.theme) : PresentationResourcesChat.chatBubbleVerticalLineOutgoingImage(presentationData.theme.theme)
                 
                 var boundingSize = textFrame.size
-                var lineHeight = textFrame.size.height
+                var lineHeight = textLayout.rawTextSize.height
                 if let statusFrame = statusFrame {
                     boundingSize = textFrame.union(statusFrame).size
                     if let _ = actionTitle {
@@ -624,7 +645,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                 var imageApply: (() -> Void)?
                 if let inlineImageSize = inlineImageSize, let inlineImageDimensions = inlineImageDimensions {
                     let imageCorners = ImageCorners(topLeft: .Corner(4.0), topRight: .Corner(4.0), bottomLeft: .Corner(4.0), bottomRight: .Corner(4.0))
-                    let arguments = TransformImageArguments(corners: imageCorners, imageSize: inlineImageDimensions.aspectFilled(inlineImageSize), boundingSize: inlineImageSize, intrinsicInsets: UIEdgeInsets(), emptyColor: incoming ? presentationData.theme.theme.chat.bubble.incomingMediaPlaceholderColor : presentationData.theme.theme.chat.bubble.outgoingMediaPlaceholderColor)
+                    let arguments = TransformImageArguments(corners: imageCorners, imageSize: inlineImageDimensions.aspectFilled(inlineImageSize), boundingSize: inlineImageSize, intrinsicInsets: UIEdgeInsets(), emptyColor: incoming ? presentationData.theme.theme.chat.message.incoming.mediaPlaceholderColor : presentationData.theme.theme.chat.message.outgoing.mediaPlaceholderColor)
                     imageApply = imageLayout(arguments)
                 }
                 
@@ -643,7 +664,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                             buttonIconImage = PresentationResourcesChat.chatMessageAttachedContentButtonIconInstantIncoming(presentationData.theme.theme)!
                             buttonHighlightedIconImage = PresentationResourcesChat.chatMessageAttachedContentHighlightedButtonIconInstantIncoming(presentationData.theme.theme, wallpaper: !presentationData.theme.wallpaper.isEmpty)!
                         }
-                        titleColor = presentationData.theme.theme.chat.bubble.incomingAccentTextColor
+                        titleColor = presentationData.theme.theme.chat.message.incoming.accentTextColor
                         let bubbleColor = bubbleColorComponents(theme: presentationData.theme.theme, incoming: true, wallpaper: !presentationData.theme.wallpaper.isEmpty)
                         titleHighlightedColor = bubbleColor.fill
                     } else {
@@ -653,7 +674,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                             buttonIconImage = PresentationResourcesChat.chatMessageAttachedContentButtonIconInstantOutgoing(presentationData.theme.theme)!
                             buttonHighlightedIconImage = PresentationResourcesChat.chatMessageAttachedContentHighlightedButtonIconInstantOutgoing(presentationData.theme.theme, wallpaper: !presentationData.theme.wallpaper.isEmpty)!
                         }
-                        titleColor = presentationData.theme.theme.chat.bubble.outgoingAccentTextColor
+                        titleColor = presentationData.theme.theme.chat.message.outgoing.accentTextColor
                         let bubbleColor = bubbleColorComponents(theme: presentationData.theme.theme, incoming: false, wallpaper: !presentationData.theme.wallpaper.isEmpty)
                         titleHighlightedColor = bubbleColor.fill
                     }
@@ -957,19 +978,19 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
     func tapActionAtPoint(_ point: CGPoint, gesture: TapLongTapOrDoubleTapGesture) -> ChatMessageBubbleContentTapAction {
         let textNodeFrame = self.textNode.frame
         if let (index, attributes) = self.textNode.attributesAtPoint(CGPoint(x: point.x - textNodeFrame.minX, y: point.y - textNodeFrame.minY)) {
-            if let url = attributes[NSAttributedStringKey(rawValue: TelegramTextAttributes.URL)] as? String {
+            if let url = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)] as? String {
                 var concealed = true
-                if let attributeText = self.textNode.attributeSubstring(name: TelegramTextAttributes.URL, index: index) {
-                    concealed = !doesUrlMatchText(url: url, text: attributeText)
+                if let (attributeText, fullText) = self.textNode.attributeSubstring(name: TelegramTextAttributes.URL, index: index) {
+                    concealed = !doesUrlMatchText(url: url, text: attributeText, fullText: fullText)
                 }
                 return .url(url: url, concealed: concealed)
-            } else if let peerMention = attributes[NSAttributedStringKey(rawValue: TelegramTextAttributes.PeerMention)] as? TelegramPeerMention {
+            } else if let peerMention = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.PeerMention)] as? TelegramPeerMention {
                 return .peerMention(peerMention.peerId, peerMention.mention)
-            } else if let peerName = attributes[NSAttributedStringKey(rawValue: TelegramTextAttributes.PeerTextMention)] as? String {
+            } else if let peerName = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.PeerTextMention)] as? String {
                 return .textMention(peerName)
-            } else if let botCommand = attributes[NSAttributedStringKey(rawValue: TelegramTextAttributes.BotCommand)] as? String {
+            } else if let botCommand = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.BotCommand)] as? String {
                 return .botCommand(botCommand)
-            } else if let hashtag = attributes[NSAttributedStringKey(rawValue: TelegramTextAttributes.Hashtag)] as? TelegramHashtag {
+            } else if let hashtag = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.Hashtag)] as? TelegramHashtag {
                 return .hashtag(hashtag.peerName, hashtag.hashtag)
             } else {
                 return .none
@@ -993,7 +1014,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                         TelegramTextAttributes.Hashtag
                     ]
                     for name in possibleNames {
-                        if let _ = attributes[NSAttributedStringKey(rawValue: name)] {
+                        if let _ = attributes[NSAttributedString.Key(rawValue: name)] {
                             rects = self.textNode.attributeRects(name: name, at: index)
                             break
                         }
@@ -1006,7 +1027,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                 if let current = self.linkHighlightingNode {
                     linkHighlightingNode = current
                 } else {
-                    linkHighlightingNode = LinkHighlightingNode(color: message.effectivelyIncoming(context.account.peerId) ? theme.theme.chat.bubble.incomingLinkHighlightColor : theme.theme.chat.bubble.outgoingLinkHighlightColor)
+                    linkHighlightingNode = LinkHighlightingNode(color: message.effectivelyIncoming(context.account.peerId) ? theme.theme.chat.message.incoming.linkHighlightColor : theme.theme.chat.message.outgoing.linkHighlightColor)
                     self.linkHighlightingNode = linkHighlightingNode
                     self.insertSubnode(linkHighlightingNode, belowSubnode: self.textNode)
                 }
@@ -1023,5 +1044,12 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
     
     func playMediaWithSound() -> ((Double?) -> Void, Bool, Bool, Bool, ASDisplayNode?)? {
         return self.contentImageNode?.playMediaWithSound()
+    }
+    
+    func reactionTargetNode(value: String) -> (ASImageNode, Int)? {
+        if !self.statusNode.isHidden {
+            return self.statusNode.reactionNode(value: value)
+        }
+        return nil
     }
 }

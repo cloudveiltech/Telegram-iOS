@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import TelegramCore
+import AccountContext
 import CloudVeilSecurityManager
 
 private func inputQueryResultPriority(_ result: ChatPresentationInputQueryResult) -> (Int, Bool) {
@@ -70,11 +71,11 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
     switch inputQueryResult {
         case let .stickers(results):
             //CloudVeil start
-            if MainController.shared.disableStickers {
-                return nil
-            }
+              if MainController.shared.disableStickers {
+                  return nil
+              }
             //CloudVeil end
-            
+              
             if !results.isEmpty {
                 if let currentPanel = currentPanel as? HorizontalStickersChatContextPanelNode {
                     currentPanel.updateResults(results.map({ $0.file }))

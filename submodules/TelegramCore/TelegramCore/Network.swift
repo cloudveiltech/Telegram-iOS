@@ -14,7 +14,6 @@ import Foundation
         import MtProtoKitDynamic
     #endif
 #endif
-import TelegramCorePrivateModule
 
 public enum ConnectionStatus: Equatable {
     case waitingForNetwork
@@ -635,7 +634,7 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
     private let queue: Queue
     public let datacenterId: Int
     public let context: MTContext
-    let mtProto: MTProto 
+    let mtProto: MTProto
     let requestService: MTRequestMessageService
     let basePath: String
     private let connectionStatusDelegate: MTProtoConnectionStatusDelegate
@@ -781,7 +780,7 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
     }
     
     public var globalTime: TimeInterval {
-        return context.globalTime()
+        return self.context.globalTime()
     }
     
     public var currentGlobalTime: Signal<Double, NoError> {

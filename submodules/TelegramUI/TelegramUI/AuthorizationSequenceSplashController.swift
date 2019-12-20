@@ -6,11 +6,10 @@ import Postbox
 import TelegramCore
 import SwiftSignalKit
 import TelegramPresentationData
-import TelegramUIPrivateModule
 import LegacyComponents
 
-import RMIntro
 import CloudVeilSecurityManager
+import RMIntro
 
 final class AuthorizationSequenceSplashController: ViewController {
     private var controllerNode: AuthorizationSequenceSplashControllerNode {
@@ -28,13 +27,7 @@ final class AuthorizationSequenceSplashController: ViewController {
     
     private let suggestedLocalization = Promise<SuggestedLocalizationInfo?>()
     private let activateLocalizationDisposable = MetaDisposable()
-    
-    //CloudVeil start
-    func showFirstRunPopup() {
-        MainController.shared.firstRunPopup(at: controller)
-    }
-    //CloudVeil end
-    
+   
     init(accountManager: AccountManager, postbox: Postbox, network: Network, theme: PresentationTheme) {
         self.accountManager = accountManager
         self.postbox = postbox
@@ -76,13 +69,13 @@ final class AuthorizationSequenceSplashController: ViewController {
             })
         })
         
-        self.controller = RMIntroViewController(backgroundColor: theme.list.plainBackgroundColor, primaryColor: theme.list.itemPrimaryTextColor, buttonColor: theme.auth.introStartButton, accentColor: theme.list.itemAccentColor, regularDotColor: theme.auth.introDotColor, highlightedDotColor: theme.list.itemPrimaryTextColor, suggestedLocalizationSignal: localizationSignal)
+        self.controller = RMIntroViewController(backgroundColor: theme.list.plainBackgroundColor, primaryColor: theme.list.itemPrimaryTextColor, buttonColor: theme.intro.startButtonColor, accentColor: theme.list.itemAccentColor, regularDotColor: theme.intro.dotColor, highlightedDotColor: theme.list.itemPrimaryTextColor, suggestedLocalizationSignal: localizationSignal)
         
         super.init(navigationBarPresentationData: nil)
         
         self.supportedOrientations = ViewControllerSupportedOrientations(regularSize: .all, compactSize: .portrait)
         
-        self.statusBar.statusBarStyle = theme.rootController.statusBar.style.style
+        self.statusBar.statusBarStyle = theme.intro.statusBarStyle.style
         
         self.controller.startMessaging = { [weak self] in
             self?.activateLocalization("en")
@@ -130,6 +123,15 @@ final class AuthorizationSequenceSplashController: ViewController {
         showFirstRunPopup()
         //CloudVeil end
     }
+    
+    //CloudVeil start
+    func showFirstRunPopup() {
+         let alert = UIAlertController(title: "CloudVeil!", message: "CloudVeil Messenger uses a server based system to control access to Bots, Channels, and Groups and other policy rules. This is used to block unacceptable content. Your Telegram id and list of channels, bots, and groups will be sent to our system to allow this to work. We do not have access to your messages themselves.", preferredStyle: .alert)
+         alert.addAction(.init(title: "OK", style: .default, handler: nil))
+         
+         controller.present(alert, animated: true)
+    }
+    //CloudVeil end
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)

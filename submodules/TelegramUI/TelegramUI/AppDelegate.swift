@@ -4,6 +4,7 @@ import Display
 import TelegramCore
 import UserNotifications
 import Intents
+import HockeySDK
 import Postbox
 import PushKit
 import AsyncDisplayKit
@@ -14,6 +15,14 @@ import TelegramCallsUI
 import TelegramVoip
 import BuildConfig
 import DeviceCheck
+import AccountContext
+import OverlayStatusController
+import UndoUI
+import LegacyUI
+import PassportUI
+import WatchBridge
+import LegacyDataImport
+import SettingsUI
 import CloudVeilSecurityManager
 import Fabric
 import Crashlytics
@@ -54,12 +63,21 @@ private class ApplicationStatusBarHost: StatusBarHost {
         get {
             return self.application.statusBarStyle
         } set(value) {
-            self.application.setStatusBarStyle(value, animated: false)
+            self.setStatusBarStyle(value, animated: false)
         }
     }
-    var statusBarWindow: UIView? {
-        return self.application.value(forKey: "statusBarWindow") as? UIView
+    
+    func setStatusBarStyle(_ style: UIStatusBarStyle, animated: Bool) {
+        self.application.setStatusBarStyle(style, animated: animated)
     }
+    
+    var statusBarWindow: UIView? {
+       if #available(iOS 13.0, *) {//workaround
+           return nil
+      } else {
+          return self.application.value(forKey: "statusBarWindow") as? UIView
+      }
+   }
     
     var statusBarView: UIView? {
         guard let containerView = self.statusBarWindow?.subviews.first else {
@@ -115,7 +133,7 @@ private class ApplicationStatusBarHost: StatusBarHost {
     }
     
     var handleVolumeControl: Signal<Bool, NoError> {
-        return MediaManager.globalAudioSession.isPlaybackActive()
+        return MediaManagerImpl.globalAudioSession.isPlaybackActive()
     }
 }
 
@@ -137,23 +155,24 @@ private enum QueuedWakeup: Int32 {
 }
 
 final class SharedApplicationContext {
-    let sharedContext: SharedAccountContext
+    let sharedContext: SharedAccountContextImpl
     let notificationManager: SharedNotificationManager
     let wakeupManager: SharedWakeupManager
-    let overlayMediaController: OverlayMediaController
+    let overlayMediaController: ViewController & OverlayMediaController
     
-    init(sharedContext: SharedAccountContext, notificationManager: SharedNotificationManager, wakeupManager: SharedWakeupManager) {
+    init(sharedContext: SharedAccountContextImpl, notificationManager: SharedNotificationManager, wakeupManager: SharedWakeupManager) {
         self.sharedContext = sharedContext
         self.notificationManager = notificationManager
         self.wakeupManager = wakeupManager
-        self.overlayMediaController = OverlayMediaController()
+        self.overlayMediaController = OverlayMediaControllerImpl()
     }
 }
 
-@objc(AppDelegate) class AppDelegate: UIResponder, UIApplicationDelegate, PKPushRegistryDelegate, UNUserNotificationCenterDelegate, UIAlertViewDelegate {
+@objc(AppDelegate) class AppDelegate: UIResponder, UIApplicationDelegate, PKPushRegistryDelegate, BITHockeyManagerDelegate, UNUserNotificationCenterDelegate, UIAlertViewDelegate {
     @objc var window: UIWindow?
     var nativeWindow: (UIWindow & WindowHost)?
     var mainWindow: Window1!
+    var aboveStatusbarWindow: UIWindow?
     private var dataImportSplash: LegacyDataImportSplash?
     
     let episodeId = arc4random()
@@ -217,35 +236,20 @@ final class SharedApplicationContext {
     
     private let deviceToken = Promise<Data?>(nil)
     
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]? = nil) -> Bool {
-        
-        Fabric.with([Crashlytics.self])
-        
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         precondition(!testIsLaunched)
         testIsLaunched = true
         
-        if #available(iOS 11.0, *) {
-            let curDevice = DCDevice.current
-            if curDevice.isSupported {
-                curDevice.generateToken(completionHandler: { (data, error) in
-                    if let tokenData = data {
-                        #if DEBUG
-                        print("\(tokenData.base64EncodedString())")
-                        #endif
-                        self.deviceToken.set(.single(data))
-                    } else {
-                        print("Error: \(error!.localizedDescription)")
-                    }
-                })
-            }
-        }
+        self.deviceToken.set(voipTokenPromise.get()
+        |> map(Optional.init))
         
         let launchStartTime = CFAbsoluteTimeGetCurrent()
         
         let statusBarHost = ApplicationStatusBarHost()
-        let (window, hostView) = nativeWindowHostView()
+        let (window, hostView, aboveStatusbarWindow) = nativeWindowHostView()
         self.mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
-        window.backgroundColor = UIColor.white
+        self.aboveStatusbarWindow = aboveStatusbarWindow
+        hostView.containerView.backgroundColor = UIColor.white
         self.window = window
         self.nativeWindow = window
         
@@ -365,7 +369,7 @@ final class SharedApplicationContext {
         let apiId: Int32 = buildConfig.apiId
         let languagesCategory = "ios"
         
-        let networkArguments = NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: PresentationCallManager.voipMaxLayer, appData: self.deviceToken.get() |> map { token in
+        let networkArguments = NetworkInitializationArguments(apiId: apiId, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: PresentationCallManagerImpl.voipMaxLayer, appData: self.deviceToken.get() |> map { token in
             return buildConfig.bundleData(withAppToken: token)
         })
         
@@ -450,9 +454,10 @@ final class SharedApplicationContext {
             #endif
         #endif
         
+        self.aboveStatusbarWindow?.isHidden = false
         self.window?.makeKeyAndVisible()
         
-        self.hasActiveAudioSession.set(MediaManager.globalAudioSession.isActive())
+        self.hasActiveAudioSession.set(MediaManagerImpl.globalAudioSession.isActive())
         
         initializeAccountManagement()
         
@@ -482,11 +487,11 @@ final class SharedApplicationContext {
                 }
                 
                 if let parsedUrl = parsedUrl {
-                    return UIApplication.shared.open(parsedUrl, options: [UIApplicationOpenURLOptionUniversalLinksOnly: true as NSNumber], completionHandler: { value in
+                    return UIApplication.shared.open(parsedUrl, options: [UIApplication.OpenExternalURLOptionsKey.universalLinksOnly: true as NSNumber], completionHandler: { value in
                         completion.completion(value)
                     })
                 } else if let escapedUrl = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed), let parsedUrl = URL(string: escapedUrl) {
-                    return UIApplication.shared.open(parsedUrl, options: [UIApplicationOpenURLOptionUniversalLinksOnly: true as NSNumber], completionHandler: { value in
+                    return UIApplication.shared.open(parsedUrl, options: [UIApplication.OpenExternalURLOptionsKey.universalLinksOnly: true as NSNumber], completionHandler: { value in
                         completion.completion(value)
                     })
                 } else {
@@ -545,7 +550,7 @@ final class SharedApplicationContext {
             
             return disposable
         }, openSettings: {
-            if let url = URL(string: UIApplicationOpenSettingsURLString) {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
                 UIApplication.shared.openURL(url)
             }
         }, openAppStorePage: {
@@ -596,12 +601,12 @@ final class SharedApplicationContext {
             if #available(iOS 10.3, *) {
                 var icons = [PresentationAppIcon(name: "Blue", imageName: "BlueIcon", isDefault: buildConfig.isAppStoreBuild),
                         PresentationAppIcon(name: "Black", imageName: "BlackIcon", isDefault: buildConfig.isInternalBuild),
-                        PresentationAppIcon(name: "BlueClassic", imageName: "BlueClassicIcon", isDefault: false),
-                        PresentationAppIcon(name: "BlackClassic", imageName: "BlackClassicIcon", isDefault: false),
-                        PresentationAppIcon(name: "BlueFilled", imageName: "BlueFilledIcon", isDefault: false),
-                        PresentationAppIcon(name: "BlackFilled", imageName: "BlackFilledIcon", isDefault: false)]
+                        PresentationAppIcon(name: "BlueClassic", imageName: "BlueClassicIcon"),
+                        PresentationAppIcon(name: "BlackClassic", imageName: "BlackClassicIcon"),
+                        PresentationAppIcon(name: "BlueFilled", imageName: "BlueFilledIcon"),
+                        PresentationAppIcon(name: "BlackFilled", imageName: "BlackFilledIcon")]
                 if buildConfig.isInternalBuild {
-                    icons.append(PresentationAppIcon(name: "WhiteFilled", imageName: "WhiteFilledIcon", isDefault: false))
+                    icons.append(PresentationAppIcon(name: "WhiteFilled", imageName: "WhiteFilledIcon"))
                 }
                 return icons
             } else {
@@ -663,13 +668,13 @@ final class SharedApplicationContext {
         }
         |> deliverOnMainQueue
         |> mapToSignal { accountManager, initialPresentationDataAndSettings -> Signal<(SharedApplicationContext, LoggingSettings), NoError> in
-            self.window?.backgroundColor = initialPresentationDataAndSettings.presentationData.theme.chatList.backgroundColor
+            self.mainWindow?.hostView.containerView.backgroundColor =  initialPresentationDataAndSettings.presentationData.theme.chatList.backgroundColor
             
             let legacyBasePath = appGroupUrl.path
             let legacyCache = LegacyCache(path: legacyBasePath + "/Caches")
             
             var setPresentationCall: ((PresentationCall?) -> Void)?
-            let sharedContext = SharedAccountContext(mainWindow: self.mainWindow, basePath: rootPath, encryptionParameters: encryptionParameters, accountManager: accountManager, applicationBindings: applicationBindings, initialPresentationDataAndSettings: initialPresentationDataAndSettings, networkArguments: networkArguments, rootPath: rootPath, legacyBasePath: legacyBasePath, legacyCache: legacyCache, apsNotificationToken: self.notificationTokenPromise.get() |> map(Optional.init), voipNotificationToken: self.voipTokenPromise.get() |> map(Optional.init), setNotificationCall: { call in
+            let sharedContext = SharedAccountContextImpl(mainWindow: self.mainWindow, basePath: rootPath, encryptionParameters: encryptionParameters, accountManager: accountManager, applicationBindings: applicationBindings, initialPresentationDataAndSettings: initialPresentationDataAndSettings, networkArguments: networkArguments, rootPath: rootPath, legacyBasePath: legacyBasePath, legacyCache: legacyCache, apsNotificationToken: self.notificationTokenPromise.get() |> map(Optional.init), voipNotificationToken: self.voipTokenPromise.get() |> map(Optional.init), setNotificationCall: { call in
                 setPresentationCall?(call)
             }, navigateToChat: { accountId, peerId, messageId in
                 self.openChatWhenReady(accountId: accountId, peerId: peerId, messageId: messageId)
@@ -888,7 +893,7 @@ final class SharedApplicationContext {
             |> deliverOnMainQueue
             |> map { accountAndSettings -> AuthorizedApplicationContext? in
                 return accountAndSettings.flatMap { account, limitsConfiguration, callListSettings in
-                    let context = AccountContext(sharedContext: sharedApplicationContext.sharedContext, account: account, limitsConfiguration: limitsConfiguration)
+                    let context = AccountContextImpl(sharedContext: sharedApplicationContext.sharedContext, account: account, limitsConfiguration: limitsConfiguration)
                     return AuthorizedApplicationContext(sharedApplicationContext: sharedApplicationContext, mainWindow: self.mainWindow, watchManagerArguments: watchManagerArgumentsPromise.get(), context: context, accountManager: sharedApplicationContext.sharedContext.accountManager, showCallsTab: callListSettings.showTab, reinitializedNotificationSettings: {
                         let _ = (self.context.get()
                         |> take(1)
@@ -1064,21 +1069,22 @@ final class SharedApplicationContext {
             }
             self.authContextValue = context
             if let context = context {
-                let isReady: Signal<Bool, NoError> = .single(true)
+                let presentationData = context.sharedContext.currentPresentationData.with({ $0 })
+                let statusController = OverlayStatusController(theme: presentationData.theme, strings: presentationData.strings, type: .loading(cancelled: nil))
+                self.mainWindow.present(statusController, on: .root)
+                let isReady: Signal<Bool, NoError> = context.isReady.get()
                 authContextReadyDisposable.set((isReady
                 |> filter { $0 }
                 |> take(1)
                 |> deliverOnMainQueue).start(next: { _ in
-                    self.mainWindow.present(context.rootController, on: .root)
-                    //self.mainWindow.viewController = context.rootController
-                    //self.mainWindow.topLevelOverlayControllers = context.overlayControllers
-                }))
+                    statusController.dismiss()
+                    self.mainWindow.present(context.rootController, on: .root)                }))
             } else {
                 authContextReadyDisposable.set(nil)
             }
         }))
         
-        self.watchCommunicationManagerPromise.set(watchCommunicationManager(context: self.context, allowBackgroundTimeExtension: { timeout in
+        self.watchCommunicationManagerPromise.set(watchCommunicationManager(context: self.context.get() |> flatMap { WatchCommunicationManagerContext(context: $0.context) }, allowBackgroundTimeExtension: { timeout in
             let _ = (self.sharedContextPromise.get()
             |> take(1)).start(next: { sharedContext in
                 sharedContext.wakeupManager.allowBackgroundTimeExtension(timeout: timeout)
@@ -1139,13 +1145,13 @@ final class SharedApplicationContext {
             Logger.shared.log("App \(self.episodeId)", "isActive = \(value)")
         })
         
-        /*if let url = launchOptions?[.url] {
-            if let url = url as? URL, url.scheme == "tg" {
+        if let url = launchOptions?[.url] {
+            if let url = url as? URL, url.scheme == "tg" || url.scheme == buildConfig.appSpecificUrlScheme {
                 self.openUrlWhenReady(url: url.absoluteString)
-            } else if let url = url as? String, url.lowercased().hasPrefix("tg://") {
+            } else if let url = url as? String, url.lowercased().hasPrefix("tg:") || url.lowercased().hasPrefix("\(buildConfig.appSpecificUrlScheme):") {
                 self.openUrlWhenReady(url: url)
             }
-        }*/
+        }
         
         if application.applicationState == .active {
             self.isInForegroundValue = true
@@ -1153,8 +1159,47 @@ final class SharedApplicationContext {
             self.isActiveValue = true
             self.isActivePromise.set(true)
         }
-                
-        NotificationCenter.default.addObserver(forName: NSNotification.Name.UIWindowDidBecomeHidden, object: nil, queue: nil, using: { notification in
+        
+        BITHockeyBaseManager.setPresentAlert({ [weak self] alert in
+            if let strongSelf = self, let alert = alert {
+                var actions: [TextAlertAction] = []
+                for action in alert.actions {
+                    let isDefault = action.style == .default
+                    actions.append(TextAlertAction(type: isDefault ? .defaultAction : .genericAction, title: action.title ?? "", action: {
+                        if let action = action as? BITAlertAction {
+                            action.invokeAction()
+                        }
+                    }))
+                }
+                if let sharedContext = strongSelf.contextValue?.context.sharedContext {
+                    let presentationData = sharedContext.currentPresentationData.with { $0 }
+                    strongSelf.mainWindow.present(standardTextAlertController(theme: AlertControllerTheme(presentationTheme: presentationData.theme), title: alert.title, text: alert.message ?? "", actions: actions), on: .root)
+                }
+            }
+        })
+        
+        BITHockeyBaseManager.setPresentView({ [weak self] controller in
+            if let strongSelf = self, let controller = controller {
+                let parent = LegacyController(presentation: .modal(animateIn: true), theme: nil)
+                let navigationController = UINavigationController(rootViewController: controller)
+                controller.navigation_setDismiss({ [weak parent] in
+                    parent?.dismiss()
+                }, rootController: nil)
+                parent.bind(controller: navigationController)
+                strongSelf.mainWindow.present(parent, on: .root)
+            }
+        })
+        
+        if let hockeyAppId = buildConfig.hockeyAppId, !hockeyAppId.isEmpty {
+            BITHockeyManager.shared().configure(withIdentifier: hockeyAppId, delegate: self)
+            BITHockeyManager.shared().crashManager.crashManagerStatus = .alwaysAsk
+            BITHockeyManager.shared().start()
+            #if !BUCK
+            BITHockeyManager.shared().authenticator.authenticateInstallation()
+            #endif
+        }
+        
+        NotificationCenter.default.addObserver(forName: UIWindow.didBecomeHiddenNotification, object: nil, queue: nil, using: { notification in
             if UIApplication.shared.isStatusBarHidden {
                 UIApplication.shared.setStatusBarHidden(false, with: .none)
             }
@@ -1164,10 +1209,25 @@ final class SharedApplicationContext {
         var settings = AutomaticMediaDownloadSettings.defaultSettings
         settings.autoplayGifs = settings.autoplayGifs && !MainController.SecurityStaticSettings.disableAutoPlayGifs
         //CloudVeil end
-        
         return true
     }
 
+    //CloudVeil start
+    public static func getAppBadge() -> Int {
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            return userDefaults.integer(forKey: "app-badge")
+        }
+        return 0
+    }
+    
+    public static func setAppBadge(_ newValue: Int) {
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            userDefaults.set(newValue, forKey: "app-badge")
+            userDefaults.synchronize()
+        }
+    }
+    //CloudVeil end
+    
     func applicationWillResignActive(_ application: UIApplication) {
         self.isActiveValue = false
         self.isActivePromise.set(false)
@@ -1196,8 +1256,7 @@ final class SharedApplicationContext {
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
-        /* cloudveil
-         let _ = (self.sharedContextPromise.get()
+        let _ = (self.sharedContextPromise.get()
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
             var extendNow = false
@@ -1206,6 +1265,9 @@ final class SharedApplicationContext {
                     extendNow = true
                 }
             }
+            #if DEBUG
+            extendNow = false
+            #endif
             sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 4.0, extendNow: extendNow)
         })
         
@@ -1214,7 +1276,7 @@ final class SharedApplicationContext {
         self.isActiveValue = false
         self.isActivePromise.set(false)
         
-        var taskId: Int?
+        var taskId: UIBackgroundTaskIdentifier?
         taskId = application.beginBackgroundTask(withName: "lock", expirationHandler: {
             if let taskId = taskId {
                 UIApplication.shared.endBackgroundTask(taskId)
@@ -1224,7 +1286,7 @@ final class SharedApplicationContext {
             if let taskId = taskId {
                 UIApplication.shared.endBackgroundTask(taskId)
             }
-        })*/
+        })
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
@@ -1257,11 +1319,10 @@ final class SharedApplicationContext {
     }
     
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-      
         let _ = (self.sharedContextPromise.get()
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
-               sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 4.0)
+            sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 4.0)
         })
         
         var redactedPayload = userInfo
@@ -1279,24 +1340,20 @@ final class SharedApplicationContext {
         
         Logger.shared.log("App \(self.episodeId)", "remoteNotification: \(redactedPayload)")
         
-        completionHandler(UIBackgroundFetchResult.noData)
-    }
-    
-    //CloudVeil start
-    public static func getAppBadge() -> Int {
-        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
-            return userDefaults.integer(forKey: "app-badge")
+        if userInfo["p"] == nil {
+            return
         }
-        return 0
+        
+        let _ = (self.sharedContextPromise.get()
+        |> take(1)
+        |> deliverOnMainQueue).start(next: { sharedApplicationContext in
+            
+            sharedApplicationContext.wakeupManager.replaceCurrentExtensionWithExternalTime(completion: {
+                completionHandler(.newData)
+            }, timeout: 29.0)
+            sharedApplicationContext.notificationManager.addNotification(userInfo)
+        })
     }
-    
-    public static func setAppBadge(_ newValue: Int) {
-        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
-            userDefaults.set(newValue, forKey: "app-badge")
-            userDefaults.synchronize()
-        }
-    }
-    //CloudVeil end
     
     func application(_ application: UIApplication, didReceive notification: UILocalNotification) {
         if (application.applicationState == .inactive) {
@@ -1320,260 +1377,10 @@ final class SharedApplicationContext {
             
             if case PKPushType.voIP = type {
                 Logger.shared.log("App \(self.episodeId)", "pushRegistry payload: \(payload.dictionaryPayload)")
-                sharedApplicationContext.notificationManager.addEncryptedNotification(payload.dictionaryPayload)
+                sharedApplicationContext.notificationManager.addNotification(payload.dictionaryPayload)
             }
         })
     }
-    
-    /*private func processPushPayload(_ payload: [AnyHashable: Any], account: Account) {
-        let decryptedPayload: Signal<[AnyHashable: Any]?, NoError>
-        if let _ = payload["aps"] as? [AnyHashable: Any] {
-            decryptedPayload = .single(payload)
-        } else if var encryptedPayload = payload["p"] as? String {
-            encryptedPayload = encryptedPayload.replacingOccurrences(of: "-", with: "+")
-            encryptedPayload = encryptedPayload.replacingOccurrences(of: "_", with: "/")
-            while encryptedPayload.count % 4 != 0 {
-                encryptedPayload.append("=")
-            }
-            if let data = Data(base64Encoded: encryptedPayload) {
-                decryptedPayload = decryptedNotificationPayload(account: account, data: data)
-                |> map { value -> [AnyHashable: Any]? in
-                    if let value = value, let object = try? JSONSerialization.jsonObject(with: value, options: []) {
-                        return object as? [AnyHashable: Any]
-                    }
-                    return nil
-                }
-            } else {
-                decryptedPayload = .single(nil)
-            }
-        } else {
-            decryptedPayload = .single(nil)
-        }
-        
-        let _ = (decryptedPayload
-        |> deliverOnMainQueue).start(next: { payload in
-            guard let payload = payload else {
-                return
-            }
-            
-            var redactedPayload = payload
-            if var aps = redactedPayload["aps"] as? [AnyHashable: Any] {
-                if Logger.shared.redactSensitiveData {
-                    if aps["alert"] != nil {
-                        aps["alert"] = "[[redacted]]"
-                    }
-                    if aps["body"] != nil {
-                        aps["body"] = "[[redacted]]"
-                    }
-                }
-                redactedPayload["aps"] = aps
-            }
-            Logger.shared.log("Apns \(self.episodeId)", "\(redactedPayload)")
-            
-            let aps = payload["aps"] as? [AnyHashable: Any]
-            
-            if UIApplication.shared.applicationState == .background {
-                var readMessageId: MessageId?
-                var isCall = false
-                var isAnnouncement = false
-                var isLocationPolling = false
-                var isMutePolling = false
-                var title: String = ""
-                var body: String?
-                var apnsSound: String?
-                var configurationUpdate: (Int32, String, Int32, Data?)?
-                if let aps = aps, let alert = aps["alert"] as? String {
-                    if let range = alert.range(of: ": ") {
-                        title = String(alert[..<range.lowerBound])
-                        body = String(alert[range.upperBound...])
-                    } else {
-                        body = alert
-                    }
-                } else if let aps = aps, let alert = aps["alert"] as? [AnyHashable: AnyObject] {
-                    if let alertBody = alert["body"] as? String {
-                        body = alertBody
-                        if let alertTitle = alert["title"] as? String {
-                            title = alertTitle
-                        }
-                    }
-                    if let locKey = alert["loc-key"] as? String {
-                        if locKey == "PHONE_CALL_REQUEST" {
-                            isCall = true
-                        } else if locKey == "GEO_LIVE_PENDING" {
-                            isLocationPolling = true
-                        } else if locKey == "MESSAGE_MUTED" {
-                            isMutePolling = true
-                        }
-                        let string = NSLocalizedString(locKey, comment: "")
-                        if !string.isEmpty {
-                            if let locArgs = alert["loc-args"] as? [AnyObject] {
-                                var args: [CVarArg] = []
-                                var failed = false
-                                for arg in locArgs {
-                                    if let arg = arg as? CVarArg {
-                                        args.append(arg)
-                                    } else {
-                                        failed = true
-                                        break
-                                    }
-                                }
-                                if failed {
-                                    body = "\(string)"
-                                } else {
-                                    body = String(format: string, arguments: args)
-                                }
-                            } else {
-                                body = "\(string)"
-                            }
-                        } else {
-                            body = nil
-                        }
-                    } else {
-                        body = nil
-                    }
-                }
-                
-                if let aps = aps, let address = aps["addr"] as? String, let datacenterId = aps["dc"] as? Int {
-                    var host = address
-                    var port: Int32 = 443
-                    if let range = address.range(of: ":") {
-                        host = String(address[address.startIndex ..< range.lowerBound])
-                        if let portValue = Int(String(address[range.upperBound...])) {
-                            port = Int32(portValue)
-                        }
-                    }
-                    var secret: Data?
-                    if let secretString = aps["sec"] as? String {
-                        let data = dataWithHexString(secretString)
-                        if data.count == 16 || data.count == 32 {
-                            secret = data
-                        }
-                    }
-                    configurationUpdate = (Int32(datacenterId), host, port, secret)
-                }
-                
-                if let aps = aps, let sound = aps["sound"] as? String {
-                    apnsSound = sound
-                }
-                
-                if payload["call_id"] != nil {
-                    isCall = true
-                }
-                
-                if payload["announcement"] != nil {
-                    isAnnouncement = true
-                }
-                
-                if let body = body {
-                    if isAnnouncement {
-                        self.queuedAnnouncements.append(body)
-                        self.maybeDequeueAnnouncements()
-                    } else {
-                        var peerId: PeerId?
-                        var notificationRequestId: NotificationManagedNotificationRequestId?
-                        
-                        if let fromId = payload["from_id"] {
-                            let fromIdValue = fromId as! NSString
-                            peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: Int32(fromIdValue.intValue))
-                        } else if let fromId = payload["chat_id"] {
-                            let fromIdValue = fromId as! NSString
-                            peerId = PeerId(namespace: Namespaces.Peer.CloudGroup, id: Int32(fromIdValue.intValue))
-                        } else if let fromId = payload["channel_id"] {
-                            let fromIdValue = fromId as! NSString
-                            peerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: Int32(fromIdValue.intValue))
-                        }
-                        
-                        if let msgId = payload["msg_id"] {
-                            let msgIdValue = msgId as! NSString
-                            if let peerId = peerId {
-                                notificationRequestId = .messageId(MessageId(peerId: peerId, namespace: Namespaces.Message.Cloud, id: Int32(msgIdValue.intValue)))
-                            }
-                        } else if let randomId = payload["random_id"] {
-                            let randomIdValue = randomId as! NSString
-                            var peerId: PeerId?
-                            if let encryptionIdString = payload["encryption_id"] as? String, let encryptionId = Int32(encryptionIdString) {
-                                peerId = PeerId(namespace: Namespaces.Peer.SecretChat, id: encryptionId)
-                            }
-                            notificationRequestId = .globallyUniqueId(randomIdValue.longLongValue, peerId)
-                        } else {
-                            isMutePolling = true
-                        }
-                        
-                        if let notificationRequestId = notificationRequestId {
-                            self.queuedNotificationRequests.append((title, body, apnsSound, notificationRequestId))
-                            self.maybeDequeueNotificationRequests()
-                        } else if isMutePolling {
-                            self.queuedMutePolling = true
-                            self.maybeDequeueNotificationRequests()
-                        }
-                    }
-                } else if let _ = payload["max_id"] {
-                    var peerId: PeerId?
-                    
-                    if let fromId = payload["from_id"] {
-                        let fromIdValue = fromId as! NSString
-                        peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: Int32(fromIdValue.intValue))
-                    } else if let fromId = payload["chat_id"] {
-                        let fromIdValue = fromId as! NSString
-                        peerId = PeerId(namespace: Namespaces.Peer.CloudGroup, id: Int32(fromIdValue.intValue))
-                    } else if let fromId = payload["channel_id"] {
-                        let fromIdValue = fromId as! NSString
-                        peerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: Int32(fromIdValue.intValue))
-                    }
-                    
-                    if let peerId = peerId {
-                        if let msgId = payload["max_id"] {
-                            let msgIdValue = msgId as! NSString
-                            if msgIdValue.intValue != 0 {
-                                readMessageId = MessageId(peerId: peerId, namespace: Namespaces.Message.Cloud, id: Int32(msgIdValue.intValue))
-                            }
-                        }
-                    }
-                }
-                
-                var addedWakeups = Set<QueuedWakeup>()
-                if isCall {
-                    addedWakeups.insert(.call)
-                }
-                if isLocationPolling {
-                    addedWakeups.insert(.backgroundLocation)
-                }
-                if !addedWakeups.isEmpty {
-                    self.queuedWakeups.formUnion(addedWakeups)
-                    self.maybeDequeueWakeups()
-                }
-                if let readMessageId = readMessageId {
-                    self.clearNotificationsManager?.append(readMessageId)
-                    self.clearNotificationsManager?.commitNow()
-                    
-                    let signal = self.context.get()
-                    |> take(1)
-                    |> mapToSignal { context -> Signal<Void, NoError> in
-                        if let context = context {
-                            return context.context.account.postbox.transaction (ignoreDisabled: true, { transaction -> Void in
-                                transaction.applyIncomingReadMaxId(readMessageId)
-                            })
-                        } else {
-                            return .complete()
-                        }
-                    }
-                    let _ = signal.start()
-                }
-                
-                if let (datacenterId, host, port, secret) = configurationUpdate {
-                    let signal = self.context.get()
-                    |> take(1)
-                    |> mapToSignal { context -> Signal<Void, NoError> in
-                        if let context = context {
-                            context.context.account.network.mergeBackupDatacenterAddress(datacenterId: datacenterId, host: host, port: port, secret: secret)
-                        }
-                        return .complete()
-                    }
-                    let _ = signal.start()
-                }
-            }
-        })
-    }*/
     
     public func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
         Logger.shared.log("App \(self.episodeId)", "invalidated token for \(type)")
@@ -1600,7 +1407,7 @@ final class SharedApplicationContext {
         return true
     }
     
-    func application(_ app: UIApplication, open url: URL, options: [UIApplicationOpenURLOptionsKey : Any] = [:]) -> Bool {
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
         self.openUrl(url: url)
         return true
     }
@@ -1613,11 +1420,11 @@ final class SharedApplicationContext {
     private func openUrl(url: URL) {
         let _ = (self.sharedContextPromise.get()
         |> take(1)
-        |> mapToSignal { sharedApplicationContext -> Signal<(SharedAccountContext, AuthorizedApplicationContext?, UnauthorizedApplicationContext?), NoError> in
+        |> mapToSignal { sharedApplicationContext -> Signal<(SharedAccountContextImpl, AuthorizedApplicationContext?, UnauthorizedApplicationContext?), NoError> in
             combineLatest(self.context.get(), self.authContext.get())
             |> filter { $0 != nil || $1 != nil }
             |> take(1)
-            |> map { context, authContext -> (SharedAccountContext, AuthorizedApplicationContext?, UnauthorizedApplicationContext?) in
+            |> map { context, authContext -> (SharedAccountContextImpl, AuthorizedApplicationContext?, UnauthorizedApplicationContext?) in
                 return (sharedApplicationContext.sharedContext, context, authContext)
             }
         }
@@ -1644,7 +1451,7 @@ final class SharedApplicationContext {
         })
     }
     
-    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([Any]?) -> Void) -> Bool {
+    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
         if #available(iOS 10.0, *) {
             if let startCallIntent = userActivity.interaction?.intent as? SupportedStartCallIntent {
                 if let contact = startCallIntent.contacts?.first {
@@ -1744,7 +1551,7 @@ final class SharedApplicationContext {
         |> take(1)
         |> deliverOnMainQueue).start(next: { context in
             let presentationData = context.context.sharedContext.currentPresentationData.with { $0 }
-            openExternalUrl(context: context.context, url: url, presentationData: presentationData, navigationController: context.rootController, dismissInput: {
+            context.context.sharedContext.openExternalUrl(context: context.context, urlContext: .generic, url: url, forceExternal: false, presentationData: presentationData, navigationController: context.rootController, dismissInput: {
             })
         }))
     }
@@ -1831,7 +1638,7 @@ final class SharedApplicationContext {
         })
     }
     
-    private func registerForNotifications(context: AccountContext, authorize: Bool = true, completion: @escaping (Bool) -> Void = { _ in }) {
+    private func registerForNotifications(context: AccountContextImpl, authorize: Bool = true, completion: @escaping (Bool) -> Void = { _ in }) {
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
         let _ = (context.sharedContext.accountManager.transaction { transaction -> Bool in
             let settings = transaction.getSharedData(ApplicationSpecificSharedDataKeys.inAppNotificationSettings) as? InAppNotificationSettings ?? InAppNotificationSettings.defaultSettings
@@ -1849,7 +1656,7 @@ final class SharedApplicationContext {
             notificationCenter.getNotificationSettings(completionHandler: { settings in
                 switch (settings.authorizationStatus, authorize) {
                     case (.authorized, _), (.notDetermined, true):
-                        notificationCenter.requestAuthorization(options: [.badge, .sound, .alert], completionHandler: { result, _ in
+                        notificationCenter.requestAuthorization(options: [.badge, .sound, .alert, .carPlay], completionHandler: { result, _ in
                             completion(result)
                             if result {
                                 Queue.mainQueue().async {
@@ -1863,27 +1670,33 @@ final class SharedApplicationContext {
                                     let legacyChannelMessageCategory: UNNotificationCategory
                                     let muteMessageCategory: UNNotificationCategory
                                     let muteMediaMessageCategory: UNNotificationCategory
+                                    
                                     if #available(iOS 11.0, *) {
                                         var options: UNNotificationCategoryOptions = []
                                         if includeNames {
                                             options.insert(.hiddenPreviewsShowTitle)
                                         }
                                         
+                                        var carPlayOptions = options
+                                        carPlayOptions.insert(.allowInCarPlay)
+                                        
                                         unknownMessageCategory = UNNotificationCategory(identifier: "unknown", actions: [], intentIdentifiers: [], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: options)
-                                        replyMessageCategory = UNNotificationCategory(identifier: "withReply", actions: [reply], intentIdentifiers: [], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: options)
-                                        replyLegacyMessageCategory = UNNotificationCategory(identifier: "r", actions: [reply], intentIdentifiers: [], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: options)
-                                        replyLegacyMediaMessageCategory = UNNotificationCategory(identifier: "m", actions: [reply], intentIdentifiers: [], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: options)
+                                        replyMessageCategory = UNNotificationCategory(identifier: "withReply", actions: [reply], intentIdentifiers: [INSearchForMessagesIntentIdentifier], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: carPlayOptions)
+                                        replyLegacyMessageCategory = UNNotificationCategory(identifier: "r", actions: [reply], intentIdentifiers: [INSearchForMessagesIntentIdentifier], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: carPlayOptions)
+                                        replyLegacyMediaMessageCategory = UNNotificationCategory(identifier: "m", actions: [reply], intentIdentifiers: [], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: carPlayOptions)
+                                        replyMediaMessageCategory = UNNotificationCategory(identifier: "withReplyMedia", actions: [reply], intentIdentifiers: [INSearchForMessagesIntentIdentifier], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: carPlayOptions)
                                         legacyChannelMessageCategory = UNNotificationCategory(identifier: "c", actions: [], intentIdentifiers: [], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: options)
-                                        replyMediaMessageCategory = UNNotificationCategory(identifier: "withReplyMedia", actions: [reply], intentIdentifiers: [], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: options)
                                         muteMessageCategory = UNNotificationCategory(identifier: "withMute", actions: [], intentIdentifiers: [], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: options)
                                         muteMediaMessageCategory = UNNotificationCategory(identifier: "withMuteMedia", actions: [], intentIdentifiers: [], hiddenPreviewsBodyPlaceholder: hiddenContentString, options: options)
                                     } else {
+                                        let carPlayOptions: UNNotificationCategoryOptions = [.allowInCarPlay]
+                                        
                                         unknownMessageCategory = UNNotificationCategory(identifier: "unknown", actions: [], intentIdentifiers: [], options: [])
-                                        replyMessageCategory = UNNotificationCategory(identifier: "withReply", actions: [reply], intentIdentifiers: [], options: [])
-                                        replyLegacyMessageCategory = UNNotificationCategory(identifier: "r", actions: [reply], intentIdentifiers: [], options: [])
+                                        replyMessageCategory = UNNotificationCategory(identifier: "withReply", actions: [reply], intentIdentifiers: [INSearchForMessagesIntentIdentifier], options: carPlayOptions)
+                                        replyLegacyMessageCategory = UNNotificationCategory(identifier: "r", actions: [reply], intentIdentifiers: [INSearchForMessagesIntentIdentifier], options: carPlayOptions)
                                         replyLegacyMediaMessageCategory = UNNotificationCategory(identifier: "m", actions: [reply], intentIdentifiers: [], options: [])
+                                        replyMediaMessageCategory = UNNotificationCategory(identifier: "withReplyMedia", actions: [reply], intentIdentifiers: [INSearchForMessagesIntentIdentifier], options: carPlayOptions)
                                         legacyChannelMessageCategory = UNNotificationCategory(identifier: "c", actions: [], intentIdentifiers: [], options: [])
-                                        replyMediaMessageCategory = UNNotificationCategory(identifier: "withReplyMedia", actions: [reply], intentIdentifiers: [], options: [])
                                         muteMessageCategory = UNNotificationCategory(identifier: "withMute", actions: [], intentIdentifiers: [], options: [])
                                         muteMediaMessageCategory = UNNotificationCategory(identifier: "withMuteMedia", actions: [], intentIdentifiers: [], options: [])
                                     }
@@ -1899,130 +1712,53 @@ final class SharedApplicationContext {
                 }
             })
         } else {
-            let settings = UIUserNotificationSettings(types: [.badge, .sound, .alert], categories:[])
-            UIApplication.shared.registerUserNotificationSettings(settings)
+            let reply = UIMutableUserNotificationAction()
+            reply.identifier = "reply"
+            reply.title = replyString
+            reply.isDestructive = false
+            if #available(iOS 9.0, *) {
+                reply.isAuthenticationRequired = false
+                reply.behavior = .textInput
+                reply.activationMode = .background
+            } else {
+                reply.isAuthenticationRequired = true
+                reply.activationMode = .foreground
+            }
             
+            let unknownMessageCategory = UIMutableUserNotificationCategory()
+            unknownMessageCategory.identifier = "unknown"
+            
+            let replyMessageCategory = UIMutableUserNotificationCategory()
+            replyMessageCategory.identifier = "withReply"
+            replyMessageCategory.setActions([reply], for: .default)
+            
+            let replyLegacyMessageCategory = UIMutableUserNotificationCategory()
+            replyLegacyMessageCategory.identifier = "r"
+            replyLegacyMessageCategory.setActions([reply], for: .default)
+            
+            let replyLegacyMediaMessageCategory = UIMutableUserNotificationCategory()
+            replyLegacyMediaMessageCategory.identifier = "m"
+            replyLegacyMediaMessageCategory.setActions([reply], for: .default)
+            
+            let replyMediaMessageCategory = UIMutableUserNotificationCategory()
+            replyMediaMessageCategory.identifier = "withReplyMedia"
+            replyMediaMessageCategory.setActions([reply], for: .default)
+            
+            let legacyChannelMessageCategory = UIMutableUserNotificationCategory()
+            legacyChannelMessageCategory.identifier = "c"
+            
+            let muteMessageCategory = UIMutableUserNotificationCategory()
+            muteMessageCategory.identifier = "withMute"
+           
+            let muteMediaMessageCategory = UIMutableUserNotificationCategory()
+            muteMediaMessageCategory.identifier = "withMuteMedia"
+            
+            let categories = [unknownMessageCategory, replyMessageCategory, replyLegacyMessageCategory, replyLegacyMediaMessageCategory, replyMediaMessageCategory, legacyChannelMessageCategory, muteMessageCategory, muteMediaMessageCategory]
+            let settings = UIUserNotificationSettings(types: [.badge, .sound, .alert], categories: [])
+            UIApplication.shared.registerUserNotificationSettings(settings)
             UIApplication.shared.registerForRemoteNotifications()
         }
     }
-    
-    /*private func maybeDequeueNotificationPayloads() {
-        if let context = self.contextValue, !self.queuedNotifications.isEmpty {
-            let queuedNotifications = self.queuedNotifications
-            self.queuedNotifications = []
-            for payload in queuedNotifications {
-                self.processPushPayload(payload, account: context.context.account)
-            }
-        }
-    }
-    
-    private func maybeDequeueNotificationRequests() {
-        if let context = self.contextValue {
-            let requests = self.queuedNotificationRequests
-            self.queuedNotificationRequests = []
-            let queuedMutePolling = self.queuedMutePolling
-            self.queuedMutePolling = false
-            
-            let _ = (context.context.sharedContext.accountManager.transaction(ignoreDisabled: true, { transaction -> PostboxAccessChallengeData in
-                return transaction.getAccessChallengeData()
-            })
-            |> deliverOnMainQueue).start(next: { accessChallengeData in
-                guard let context = self.contextValue else {
-                    Logger.shared.log("App \(self.episodeId)", "Couldn't process remote notification request")
-                    return
-                }
-                
-                let strings = context.context.sharedContext.currentPresentationData.with({ $0 }).strings
-                
-                for (title, body, apnsSound, requestId) in requests {
-                    if handleVoipNotifications {
-                        //context.notificationManager.enqueueRemoteNotification(title: title, text: body, apnsSound: apnsSound, requestId: requestId, strings: strings, accessChallengeData: accessChallengeData)
-                    }
-                    
-                    /*context.wakeupManager.wakeupForIncomingMessages(account: context.context.account, completion: { messageIds -> Signal<Void, NoError> in
-                        if let context = self.contextValue {
-                            if handleVoipNotifications {
-                                return context.notificationManager.commitRemoteNotification(context: context.context, originalRequestId: requestId, messageIds: messageIds)
-                            } else {
-                                return context.notificationManager.commitRemoteNotification(context: context.context, originalRequestId: nil, messageIds: [])
-                            }
-                        } else {
-                            Logger.shared.log("App \(self.episodeId)", "Couldn't process remote notifications wakeup result")
-                            return .complete()
-                        }
-                    })*/
-                }
-                if queuedMutePolling {
-                    /*context.wakeupManager.wakeupForIncomingMessages(account: context.context.account, completion: { messageIds -> Signal<Void, NoError> in
-                        if let context = self.contextValue {
-                            return .single(Void())
-                        } else {
-                            Logger.shared.log("App \(self.episodeId)", "Couldn't process remote notifications wakeup result")
-                            return .single(Void())
-                        }
-                    })*/
-                }
-            })
-        } else {
-            Logger.shared.log("App \(self.episodeId)", "maybeDequeueNotificationRequests failed, no active context")
-        }
-    }
-    
-    private func maybeDequeueAnnouncements() {
-        if let context = self.contextValue, !self.queuedAnnouncements.isEmpty {
-            let queuedAnnouncements = self.queuedAnnouncements
-            self.queuedAnnouncements = []
-            let _ = (context.context.account.postbox.transaction(ignoreDisabled: true, { transaction -> [MessageId: String] in
-                var result: [MessageId: String] = [:]
-                let timestamp = Int32(context.context.account.network.globalTime)
-                let servicePeer = TelegramUser(id: PeerId(namespace: Namespaces.Peer.CloudUser, id: 777000), accessHash: nil, firstName: "Telegram", lastName: nil, username: nil, phone: "42777", photo: [], botInfo: nil, restrictionInfo: nil, flags: [.isVerified])
-                if transaction.getPeer(servicePeer.id) == nil {
-                    transaction.updatePeersInternal([servicePeer], update: { _, updated in
-                        return updated
-                    })
-                }
-                for body in queuedAnnouncements {
-                    let globalId = arc4random64()
-                    var attributes: [MessageAttribute] = []
-                    let entities = generateTextEntities(body, enabledTypes: .all)
-                    if !entities.isEmpty {
-                        attributes.append(TextEntitiesMessageAttribute(entities: entities))
-                    }
-                    let message = StoreMessage(id: .Partial(servicePeer.id, Namespaces.Message.Local), globallyUniqueId: globalId, groupingKey: nil, timestamp: timestamp, flags: [.Incoming], tags: [], globalTags: [], localTags: [], forwardInfo: nil, authorId: servicePeer.id, text: body, attributes: attributes, media: [])
-                    let ids = transaction.addMessages([message], location: .Random)
-                    if let id = ids[globalId] {
-                        result[id] = body
-                    }
-                }
-                return result
-            }) |> deliverOnMainQueue).start(next: { result in
-                if let context = self.contextValue {
-                    for (id, text) in result {
-                        //context.notificationManager.enqueueRemoteNotification(title: "", text: text, apnsSound: nil, requestId: .messageId(id), strings: context.context.sharedContext.currentPresentationData.with({ $0 }).strings, accessChallengeData: .none)
-                    }
-                }
-            })
-        }
-    }
-    
-    private func maybeDequeueWakeups() {
-        for wakeup in self.queuedWakeups {
-            switch wakeup {
-                case .call:
-                    if let context = self.contextValue {
-                        //context.wakeupManager.wakeupForIncomingMessages(account: context.context.account)
-                    }
-                case .backgroundLocation:
-                    if UIApplication.shared.applicationState == .background {
-                        if let context = self.contextValue {
-                            context.context.liveLocationManager?.pollOnce()
-                        }
-                    }
-            }
-        }
-        
-        self.queuedWakeups.removeAll()
-    }*/
     
     @available(iOS 10.0, *)
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {

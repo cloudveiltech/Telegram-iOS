@@ -6,6 +6,8 @@ import SwiftSignalKit
 import Postbox
 import TelegramCore
 import TelegramUIPreferences
+import AccountContext
+import GridMessageSelectionNode
 import CloudVeilSecurityManager
 
 class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
@@ -82,16 +84,17 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                     }
                     
                     if !item.message.containsSecretMedia {
-                        if telegramFile.isAnimated {
+                        if telegramFile.isAnimated && item.controllerInteraction.automaticMediaDownloadSettings.autoplayGifs {
                             if case .full = automaticDownload {
-                                automaticPlayback = item.controllerInteraction.automaticMediaDownloadSettings.autoplayGifs
+                                automaticPlayback = true
                             } else {
                                 automaticPlayback = item.context.account.postbox.mediaBox.completedResourcePath(telegramFile.resource) != nil
                             }
-                            //CloudVeil start
-                            automaticPlayback = automaticPlayback && !MainController.SecurityStaticSettings.disableAutoPlayGifs
-                            //CloudVeil ends
-                        } else if telegramFile.isVideo && item.controllerInteraction.automaticMediaDownloadSettings.autoplayVideos {
+                            
+                           //CloudVeil start
+                           automaticPlayback = automaticPlayback && !MainController.SecurityStaticSettings.disableAutoPlayGifs
+                           //CloudVeil ends
+                        } else if (telegramFile.isVideo && !telegramFile.isAnimated) && item.controllerInteraction.automaticMediaDownloadSettings.autoplayVideos {
                             if case .full = automaticDownload {
                                 automaticPlayback = true
                             } else {
@@ -155,25 +158,32 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                     let (imageSize, imageApply) = finishLayout(boundingWidth - bubbleInsets.left - bubbleInsets.right)
                     
                     var edited = false
-                    var sentViaBot = false
                     var viewCount: Int?
                     for attribute in item.message.attributes {
-                        if let _ = attribute as? EditedMessageAttribute {
+                        if let attribute = attribute as? EditedMessageAttribute {
                             if case .mosaic = preparePosition {
                             } else {
-                                edited = true
+                                edited = !attribute.isHidden
                             }
                         } else if let attribute = attribute as? ViewCountMessageAttribute {
                             viewCount = attribute.count
-                        } else if let _ = attribute as? InlineBotMessageAttribute {
-                            sentViaBot = true
                         }
                     }
-                    if let author = item.message.author as? TelegramUser, author.botInfo != nil || author.flags.contains(.isSupport) {
-                        sentViaBot = true
+                    
+                    var dateReactions: [MessageReaction] = []
+                    var dateReactionCount = 0
+                    if let reactionsAttribute = mergedMessageReactions(attributes: item.message.attributes), !reactionsAttribute.reactions.isEmpty {
+                        for reaction in reactionsAttribute.reactions {
+                            if reaction.isSelected {
+                                dateReactions.insert(reaction, at: 0)
+                            } else {
+                                dateReactions.append(reaction)
+                            }
+                            dateReactionCount += Int(reaction.count)
+                        }
                     }
                     
-                    let dateText = stringForMessageTimestampStatus(accountPeerId: item.context.account.peerId, message: item.message, dateTimeFormat: item.presentationData.dateTimeFormat, nameDisplayOrder: item.presentationData.nameDisplayOrder, strings: item.presentationData.strings)
+                    let dateText = stringForMessageTimestampStatus(accountPeerId: item.context.account.peerId, message: item.message, dateTimeFormat: item.presentationData.dateTimeFormat, nameDisplayOrder: item.presentationData.nameDisplayOrder, strings: item.presentationData.strings, reactionCount: dateReactionCount)
                     
                     let statusType: ChatMessageDateAndStatusType?
                     switch position {
@@ -201,7 +211,7 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                     var statusApply: ((Bool) -> Void)?
                     
                     if let statusType = statusType {
-                        let (size, apply) = statusLayout(item.presentationData, edited && !sentViaBot, viewCount, dateText, statusType, CGSize(width: imageSize.width - 30.0, height: CGFloat.greatestFiniteMagnitude))
+                        let (size, apply) = statusLayout(item.context, item.presentationData, edited, viewCount, dateText, statusType, CGSize(width: imageSize.width - 30.0, height: CGFloat.greatestFiniteMagnitude), dateReactions)
                         statusSize = size
                         statusApply = apply
                     }
@@ -360,12 +370,19 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
             self.highlightedState = highlighted
             
             if highlighted {
-                self.interactiveImageNode.setOverlayColor(item.presentationData.theme.theme.chat.bubble.mediaHighlightOverlayColor, animated: false)
+                self.interactiveImageNode.setOverlayColor(item.presentationData.theme.theme.chat.message.mediaHighlightOverlayColor, animated: false)
             } else {
                 self.interactiveImageNode.setOverlayColor(nil, animated: animated)
             }
         }
         
         return false
+    }
+    
+    override func reactionTargetNode(value: String) -> (ASImageNode, Int)? {
+        if !self.dateAndStatusNode.isHidden {
+            return self.dateAndStatusNode.reactionNode(value: value)
+        }
+        return nil
     }
 }

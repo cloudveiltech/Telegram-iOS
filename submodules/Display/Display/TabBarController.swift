@@ -176,7 +176,22 @@ open class TabBarController: ViewController {
                     }
                 }
                 if let validLayout = strongSelf.validLayout {
-                    strongSelf.controllers[index].containerLayoutUpdated(validLayout.addedInsets(insets: UIEdgeInsets(top: 0.0, left: 0.0, bottom: 49.0, right: 0.0)), transition: .immediate)
+                    var updatedLayout = validLayout
+                    
+                    var tabBarHeight: CGFloat
+                    var options: ContainerViewLayoutInsetOptions = []
+                    if validLayout.metrics.widthClass == .regular {
+                        options.insert(.input)
+                    }
+                    let bottomInset: CGFloat = validLayout.insets(options: options).bottom
+                    if !validLayout.safeInsets.left.isZero {
+                        tabBarHeight = 34.0 + bottomInset
+                    } else {
+                        tabBarHeight = 49.0 + bottomInset
+                    }
+                    updatedLayout.intrinsicInsets.bottom = tabBarHeight
+                    
+                    strongSelf.controllers[index].containerLayoutUpdated(updatedLayout, transition: .immediate)
                 }
                 let startTime = CFAbsoluteTimeGetCurrent()
                 strongSelf.pendingControllerDisposable.set((strongSelf.controllers[index].ready.get()
@@ -217,10 +232,10 @@ open class TabBarController: ViewController {
         self.tabBarControllerNode.tabBarNode.selectedIndex = self.selectedIndex
         
         if let currentController = self.currentController {
-            currentController.willMove(toParentViewController: nil)
+            currentController.willMove(toParent: nil)
             self.tabBarControllerNode.currentControllerNode = nil
-            currentController.removeFromParentViewController()
-            currentController.didMove(toParentViewController: nil)
+            currentController.removeFromParent()
+            currentController.didMove(toParent: nil)
             
             self.currentController = nil
         }
@@ -231,11 +246,11 @@ open class TabBarController: ViewController {
         
         var displayNavigationBar = false
         if let currentController = self.currentController {
-            currentController.willMove(toParentViewController: self)
+            currentController.willMove(toParent: self)
             self.tabBarControllerNode.currentControllerNode = currentController.displayNode
             currentController.navigationBar?.isHidden = true
-            self.addChildViewController(currentController)
-            currentController.didMove(toParentViewController: self)
+            self.addChild(currentController)
+            currentController.didMove(toParent: self)
             
             currentController.navigationBar?.layoutSuspended = true
             currentController.navigationItem.setTarget(self.navigationItem)
@@ -271,7 +286,22 @@ open class TabBarController: ViewController {
         if let currentController = self.currentController {
             currentController.view.frame = CGRect(origin: CGPoint(), size: layout.size)
             
-            currentController.containerLayoutUpdated(layout.addedInsets(insets: UIEdgeInsets(top: 0.0, left: 0.0, bottom: 49.0, right: 0.0)), transition: transition)
+            var updatedLayout = layout
+            
+            var tabBarHeight: CGFloat
+            var options: ContainerViewLayoutInsetOptions = []
+            if updatedLayout.metrics.widthClass == .regular {
+                options.insert(.input)
+            }
+            let bottomInset: CGFloat = updatedLayout.insets(options: options).bottom
+            if !updatedLayout.safeInsets.left.isZero {
+                tabBarHeight = 34.0 + bottomInset
+            } else {
+                tabBarHeight = 49.0 + bottomInset
+            }
+            updatedLayout.intrinsicInsets.bottom = tabBarHeight
+            
+            currentController.containerLayoutUpdated(updatedLayout, transition: transition)
         }
     }
     
@@ -309,7 +339,7 @@ open class TabBarController: ViewController {
     public func setControllers(_ controllers: [ViewController], selectedIndex: Int?) {
         var updatedSelectedIndex: Int? = selectedIndex
         if updatedSelectedIndex == nil, let selectedIndex = self._selectedIndex, selectedIndex < self.controllers.count {
-            if let index = controllers.index(where: { $0 === self.controllers[selectedIndex] }) {
+            if let index = controllers.firstIndex(where: { $0 === self.controllers[selectedIndex] }) {
                 updatedSelectedIndex = index
             } else {
                 updatedSelectedIndex = 0

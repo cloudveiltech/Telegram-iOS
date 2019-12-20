@@ -6,6 +6,14 @@ import Postbox
 import TelegramCore
 import TelegramPresentationData
 import LegacyComponents
+import ItemListUI
+import AccountContext
+import AlertUI
+import LegacyUI
+import ItemListAvatarAndNameInfoItem
+import WebSearchUI
+import PeerInfoUI
+import MapResourceToAvatarSizes
 import CloudVeilSecurityManager
 
 private struct CreateChannelArguments {
@@ -176,7 +184,7 @@ private func CreateChannelEntries(presentationData: PresentationData, state: Cre
     
     let groupInfoState = ItemListAvatarAndNameInfoItemState(editingName: state.editingName, updatingName: nil)
     
-    let peer = TelegramGroup(id: PeerId(namespace: -1, id: 0), title: state.editingName.composedTitle, photo: [], participantCount: 0, role: .creator, membership: .Member, flags: [], defaultBannedRights: nil, migrationReference: nil, creationDate: 0, version: 0)
+    let peer = TelegramGroup(id: PeerId(namespace: -1, id: 0), title: state.editingName.composedTitle, photo: [], participantCount: 0, role: .creator(rank: nil), membership: .Member, flags: [], defaultBannedRights: nil, migrationReference: nil, creationDate: 0, version: 0)
     
     entries.append(.channelInfo(presentationData.theme, presentationData.strings, presentationData.dateTimeFormat, peer, groupInfoState, state.avatar))
     entries.append(.setProfilePhoto(presentationData.theme, presentationData.strings.Channel_UpdatePhotoItem))
@@ -301,7 +309,7 @@ public func createChannelController(context: AccountContext) -> ViewController {
             presentControllerImpl?(legacyController, nil)
             
             let completedImpl: (UIImage) -> Void = { image in
-                if let data = UIImageJPEGRepresentation(image, 0.6) {
+                if let data = image.jpegData(compressionQuality: 0.6) {
                     let resource = LocalFileMediaResource(fileId: arc4random64())
                     context.account.postbox.mediaBox.storeResourceData(resource.id, data: data)
                     let representation = TelegramMediaImageRepresentation(dimensions: CGSize(width: 640.0, height: 640.0), resource: resource)

@@ -12,6 +12,24 @@
 		090E777622A6945900CD99F5 /* BlackClassicIcon@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 090E777222A6945800CD99F5 /* BlackClassicIcon@3x.png */; };
 		090E777722A6945900CD99F5 /* BlueClassicIcon@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 090E777322A6945800CD99F5 /* BlueClassicIcon@2x.png */; };
 		092F368521542D6C001A9F49 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 092F368321542D6C001A9F49 /* Localizable.strings */; };
+		094DDF0822E7A0D3004B0256 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF0222E7A0D3004B0256 /* Localizable.strings */; };
+		094DDF0922E7A0D3004B0256 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF0422E7A0D3004B0256 /* InfoPlist.strings */; };
+		094DDF0A22E7A0D3004B0256 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF0622E7A0D3004B0256 /* AppIntentVocabulary.plist */; };
+		094DDF3222E7A61B004B0256 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF2C22E7A61B004B0256 /* Localizable.strings */; };
+		094DDF3322E7A61B004B0256 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF2E22E7A61B004B0256 /* InfoPlist.strings */; };
+		094DDF3422E7A61B004B0256 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF3022E7A61B004B0256 /* AppIntentVocabulary.plist */; };
+		094DDF3C22E7A98E004B0256 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF3622E7A98E004B0256 /* Localizable.strings */; };
+		094DDF3D22E7A98E004B0256 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF3822E7A98E004B0256 /* InfoPlist.strings */; };
+		094DDF3E22E7A98E004B0256 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF3A22E7A98E004B0256 /* AppIntentVocabulary.plist */; };
+		094DDF4622E7A9A8004B0256 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF4022E7A9A8004B0256 /* Localizable.strings */; };
+		094DDF4722E7A9A8004B0256 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF4222E7A9A8004B0256 /* InfoPlist.strings */; };
+		094DDF4822E7A9A8004B0256 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF4422E7A9A8004B0256 /* AppIntentVocabulary.plist */; };
+		094DDF5722E8C310004B0256 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF4A22E8C30F004B0256 /* Localizable.strings */; };
+		094DDF5822E8C310004B0256 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF4C22E8C30F004B0256 /* InfoPlist.strings */; };
+		094DDF5922E8C310004B0256 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF4E22E8C30F004B0256 /* AppIntentVocabulary.plist */; };
+		094DDF5A22E8C310004B0256 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF5122E8C30F004B0256 /* Localizable.strings */; };
+		094DDF5B22E8C310004B0256 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF5322E8C30F004B0256 /* InfoPlist.strings */; };
+		094DDF5C22E8C310004B0256 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 094DDF5522E8C30F004B0256 /* AppIntentVocabulary.plist */; };
 		0956AF2F217B8109008106D0 /* TGNeoUnsupportedMessageViewModel.m in Sources */ = {isa = PBXBuildFile; fileRef = 0956AF2E217B8109008106D0 /* TGNeoUnsupportedMessageViewModel.m */; };
 		0972C6E021791D950069E98A /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0972C6DF21791D950069E98A /* UserNotifications.framework */; };
 		0972C6E421792D130069E98A /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 0972C6E221792D120069E98A /* InfoPlist.strings */; };
@@ -200,7 +218,6 @@
 		09EC0DE322C6339700E7185B /* IntentMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09EC0DE222C6339700E7185B /* IntentMessages.swift */; };
 		09EC5CDA22CBBF9600292E42 /* telegram_plane1@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 09EC5CD922CBBF9600292E42 /* telegram_plane1@2x.png */; };
 		09FDAEE62140477F00BF856F /* MtProtoKitDynamic.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09FDAEE52140477F00BF856F /* MtProtoKitDynamic.framework */; };
-		639824ED22DE229700DE44C3 /* Config-AppStore.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */; };
 		D000CACF21FB6E380011B15D /* NotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D000CAC821FB6E370011B15D /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D001D5AA1F878DA300DF975A /* PhoneCountries.txt in Resources */ = {isa = PBXBuildFile; fileRef = D001D5A91F878DA300DF975A /* PhoneCountries.txt */; };
 		D008185022B5797A008A895F /* BuildConfig.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D008184F22B5797A008A895F /* BuildConfig.framework */; };
@@ -209,13 +226,10 @@
 		D008185622B579A1008A895F /* BuildConfig.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D008185522B579A1008A895F /* BuildConfig.framework */; };
 		D008185822B579AD008A895F /* BuildConfig.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D008185722B579AD008A895F /* BuildConfig.framework */; };
 		D00818A522B58CCB008A895F /* WatchCommonWatch.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00818A422B58CCB008A895F /* WatchCommonWatch.framework */; };
-		D00818CF22B595DB008A895F /* LightweightAccountData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D00818CE22B595DB008A895F /* LightweightAccountData.framework */; };
 		D00859A91B28189D00EAF753 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D00859A81B28189D00EAF753 /* Images.xcassets */; };
 		D00859AC1B28189D00EAF753 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = D00859AA1B28189D00EAF753 /* LaunchScreen.xib */; };
 		D00ED75A1FE94630001F38BD /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = D00ED7581FE94630001F38BD /* AppIntentVocabulary.plist */; };
 		D00ED75D1FE95287001F38BD /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = D00ED75B1FE95287001F38BD /* InfoPlist.strings */; };
-		D015E011225CCEB300CB9E8A /* ReadBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D015E010225CCEB300CB9E8A /* ReadBuffer.swift */; };
-		D015E01F225CDF5100CB9E8A /* Api0.swift in Sources */ = {isa = PBXBuildFile; fileRef = D015E01E225CDF5000CB9E8A /* Api0.swift */; };
 		D015E04D225D2D8F00CB9E8A /* WebP.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D015E04C225D2D8F00CB9E8A /* WebP.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		D015E050225D303F00CB9E8A /* WebP.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D015E04C225D2D8F00CB9E8A /* WebP.framework */; };
 		D015E051225D303F00CB9E8A /* WebP.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D015E04C225D2D8F00CB9E8A /* WebP.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -285,8 +299,8 @@
 		D06706611D51185400DED3E3 /* TelegramCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D06706601D51185400DED3E3 /* TelegramCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D06706621D5118F500DED3E3 /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D06706601D51185400DED3E3 /* TelegramCore.framework */; };
 		D073E52021FF7CE900742DDD /* Crypto.m in Sources */ = {isa = PBXBuildFile; fileRef = D073E51F21FF7CE900742DDD /* Crypto.m */; };
-		D073E52222003E1E00742DDD /* Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = D073E52122003E1E00742DDD /* Data.swift */; };
 		D08410501FABDD54008FFE92 /* MtProtoKitDynamic.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D08410511FABDD54008FFE92 /* MtProtoKitDynamic.framework */; };
+		D08611B21F5711080047111E /* HockeySDK.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D01A47541F4DBED700383CC1 /* HockeySDK.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D08984FE2118B3F100918162 /* MtProtoKitDynamic.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D08984FD2118B3F100918162 /* MtProtoKitDynamic.framework */; };
 		D08985002118B3F100918162 /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D08984FF2118B3F100918162 /* Postbox.framework */; };
 		D08985022118B3F100918162 /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D08985012118B3F100918162 /* TelegramCore.framework */; };
@@ -336,6 +350,12 @@
 		D0B4AF8F1EC122A700D51FF6 /* TelegramUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0400ED81D5B8F97007931CE /* TelegramUI.framework */; };
 		D0B4AF901EC122A700D51FF6 /* TelegramUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D0400ED81D5B8F97007931CE /* TelegramUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D0B844601DACF561005F29E1 /* libc++.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = D0B8445F1DACF561005F29E1 /* libc++.tbd */; };
+		D0BAAA1823100B7A00AFC473 /* Api.m in Sources */ = {isa = PBXBuildFile; fileRef = D0BAAA1623100B7A00AFC473 /* Api.m */; };
+		D0BAAA1B23100C2700AFC473 /* NotificationService.m in Sources */ = {isa = PBXBuildFile; fileRef = D0BAAA1A23100C2700AFC473 /* NotificationService.m */; };
+		D0BAAA1E2310117200AFC473 /* StoredAccountInfos.m in Sources */ = {isa = PBXBuildFile; fileRef = D0BAAA1D2310117200AFC473 /* StoredAccountInfos.m */; };
+		D0BAAA21231026BC00AFC473 /* Attachments.m in Sources */ = {isa = PBXBuildFile; fileRef = D0BAAA20231026BC00AFC473 /* Attachments.m */; };
+		D0BAAA242310302300AFC473 /* FetchImage.m in Sources */ = {isa = PBXBuildFile; fileRef = D0BAAA232310302300AFC473 /* FetchImage.m */; };
+		D0BAAA272310326200AFC473 /* Serialization.m in Sources */ = {isa = PBXBuildFile; fileRef = D0BAAA262310326200AFC473 /* Serialization.m */; };
 		D0C2DFF81CC4D1BA0044FF83 /* MobileCoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0C2DFF71CC4D1BA0044FF83 /* MobileCoreServices.framework */; };
 		D0CAD6A421C03BEB001E3055 /* FFMpeg.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0CAD6A321C03BEB001E3055 /* FFMpeg.framework */; };
 		D0CAD6A521C03BEB001E3055 /* FFMpeg.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D0CAD6A321C03BEB001E3055 /* FFMpeg.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -371,7 +391,6 @@
 		D0D17E8A1CAAD66600C4750B /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0D17E891CAAD66600C4750B /* Accelerate.framework */; };
 		D0D268791D79A70A00C422DA /* IntentHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D268781D79A70A00C422DA /* IntentHandler.swift */; };
 		D0D2688E1D79A70B00C422DA /* SiriIntents.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D0D268761D79A70A00C422DA /* SiriIntents.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		D0E2CE642227F0680084E3DD /* ManagedFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E2CE632227F0680084E3DD /* ManagedFile.swift */; };
 		D0E8B8AD2044496C00605593 /* voip_connecting.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D0E8B8A82044496B00605593 /* voip_connecting.mp3 */; };
 		D0E8B8AE2044496C00605593 /* voip_end.caf in Resources */ = {isa = PBXBuildFile; fileRef = D0E8B8A92044496C00605593 /* voip_end.caf */; };
 		D0E8B8AF2044496C00605593 /* voip_fail.caf in Resources */ = {isa = PBXBuildFile; fileRef = D0E8B8AA2044496C00605593 /* voip_fail.caf */; };
@@ -381,13 +400,9 @@
 		D0E8C2E02285EA6A009F26E8 /* BlackIcon@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D0E8C2DF2285EA6A009F26E8 /* BlackIcon@3x.png */; };
 		D0ECCB7F1FE9C38500609802 /* Telegram_iOS_UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ECCB7E1FE9C38500609802 /* Telegram_iOS_UITests.swift */; };
 		D0ECCB8A1FE9C4AC00609802 /* SnapshotHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ECCB891FE9C4AC00609802 /* SnapshotHelper.swift */; };
-		D0ED633A21FF3EDF001D4648 /* AccountData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED633921FF3EDF001D4648 /* AccountData.swift */; };
-		D0ED633D21FF4580001D4648 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0400EE41D5B912E007931CE /* NotificationService.swift */; };
-		D0ED633F21FF46E4001D4648 /* ImageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED633E21FF46E4001D4648 /* ImageData.swift */; };
-		D0ED634121FF4786001D4648 /* Serialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED634021FF4786001D4648 /* Serialization.swift */; };
 		D0F575132083B96B00F1C1E1 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0F575122083B96B00F1C1E1 /* CloudKit.framework */; };
 		D0FC1948201D2DA800FEDBB2 /* SFCompactRounded-Semibold.otf in Resources */ = {isa = PBXBuildFile; fileRef = D0FC1947201D2DA700FEDBB2 /* SFCompactRounded-Semibold.otf */; };
-		EF9FCE89D3304C6418EBDA2B /* Pods_Telegram_iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 471B212E910BFAE747F341C7 /* Pods_Telegram_iOS.framework */; };
+		DC0CE1F9EBA432EDDDDA90F3 /* Pods_Telegram_iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8367E2E3A9871842E6B0212D /* Pods_Telegram_iOS.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -478,6 +493,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
+				D08611B21F5711080047111E /* HockeySDK.framework in Embed Frameworks */,
 				D06706611D51185400DED3E3 /* TelegramCore.framework in Embed Frameworks */,
 				D0CD17B61CC3AE14007C5650 /* AsyncDisplayKit.framework in Embed Frameworks */,
 				D0CAD6A521C03BEB001E3055 /* FFMpeg.framework in Embed Frameworks */,
@@ -509,13 +525,29 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		01ABA02094C7C6B7B80946D4 /* Pods-Telegram-iOS.debugappstorellc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.debugappstorellc.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.debugappstorellc.xcconfig"; sourceTree = "<group>"; };
-		04AEF347E75F152705666D1E /* Pods-Telegram-iOS.debughockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.debughockeyapp.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.debughockeyapp.xcconfig"; sourceTree = "<group>"; };
 		090E777022A6945800CD99F5 /* BlackClassicIcon@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "BlackClassicIcon@2x.png"; sourceTree = "<group>"; };
 		090E777122A6945800CD99F5 /* BlueClassicIcon@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "BlueClassicIcon@3x.png"; sourceTree = "<group>"; };
 		090E777222A6945800CD99F5 /* BlackClassicIcon@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "BlackClassicIcon@3x.png"; sourceTree = "<group>"; };
 		090E777322A6945800CD99F5 /* BlueClassicIcon@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "BlueClassicIcon@2x.png"; sourceTree = "<group>"; };
 		092F368421542D6C001A9F49 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Share/en.lproj/Localizable.strings; sourceTree = SOURCE_ROOT; };
+		094DDF0322E7A0D3004B0256 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = Localizable.strings; sourceTree = "<group>"; };
+		094DDF0522E7A0D3004B0256 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = InfoPlist.strings; sourceTree = "<group>"; };
+		094DDF0722E7A0D3004B0256 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = fr; path = AppIntentVocabulary.plist; sourceTree = "<group>"; };
+		094DDF2D22E7A61B004B0256 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = Localizable.strings; sourceTree = "<group>"; };
+		094DDF2F22E7A61B004B0256 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = InfoPlist.strings; sourceTree = "<group>"; };
+		094DDF3122E7A61B004B0256 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = tr; path = AppIntentVocabulary.plist; sourceTree = "<group>"; };
+		094DDF3722E7A98E004B0256 /* ca */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ca; path = Localizable.strings; sourceTree = "<group>"; };
+		094DDF3922E7A98E004B0256 /* ca */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ca; path = InfoPlist.strings; sourceTree = "<group>"; };
+		094DDF3B22E7A98E004B0256 /* ca */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = ca; path = AppIntentVocabulary.plist; sourceTree = "<group>"; };
+		094DDF4122E7A9A8004B0256 /* uk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = uk; path = Localizable.strings; sourceTree = "<group>"; };
+		094DDF4322E7A9A8004B0256 /* uk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = uk; path = InfoPlist.strings; sourceTree = "<group>"; };
+		094DDF4522E7A9A8004B0256 /* uk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = uk; path = AppIntentVocabulary.plist; sourceTree = "<group>"; };
+		094DDF4B22E8C30F004B0256 /* ms */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ms; path = Localizable.strings; sourceTree = "<group>"; };
+		094DDF4D22E8C30F004B0256 /* ms */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ms; path = InfoPlist.strings; sourceTree = "<group>"; };
+		094DDF4F22E8C30F004B0256 /* ms */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = ms; path = AppIntentVocabulary.plist; sourceTree = "<group>"; };
+		094DDF5222E8C30F004B0256 /* id */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = id; path = Localizable.strings; sourceTree = "<group>"; };
+		094DDF5422E8C30F004B0256 /* id */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = id; path = InfoPlist.strings; sourceTree = "<group>"; };
+		094DDF5622E8C30F004B0256 /* id */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = id; path = AppIntentVocabulary.plist; sourceTree = "<group>"; };
 		0956AF2B217B4642008106D0 /* WatchCommunicationManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WatchCommunicationManager.swift; sourceTree = "<group>"; };
 		0956AF2D217B8109008106D0 /* TGNeoUnsupportedMessageViewModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TGNeoUnsupportedMessageViewModel.h; sourceTree = "<group>"; };
 		0956AF2E217B8109008106D0 /* TGNeoUnsupportedMessageViewModel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TGNeoUnsupportedMessageViewModel.m; sourceTree = "<group>"; };
@@ -845,14 +877,18 @@
 		09EC0DE222C6339700E7185B /* IntentMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentMessages.swift; sourceTree = "<group>"; };
 		09EC5CD922CBBF9600292E42 /* telegram_plane1@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "telegram_plane1@2x.png"; sourceTree = "<group>"; };
 		09FDAEE52140477F00BF856F /* MtProtoKitDynamic.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = MtProtoKitDynamic.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		0BD2E10F42CE6F2B81486E8D /* Pods-Telegram-iOS.debugfork.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.debugfork.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.debugfork.xcconfig"; sourceTree = "<group>"; };
-		420D30F33E610379CA91C02C /* Pods-Telegram-iOS.releasehockeyappinternal.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.releasehockeyappinternal.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.releasehockeyappinternal.xcconfig"; sourceTree = "<group>"; };
-		4250C2C5189F32DCA4A9D69E /* Pods-Telegram-iOS.releaseappstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.releaseappstore.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.releaseappstore.xcconfig"; sourceTree = "<group>"; };
-		446631B1901DA2F5EB949302 /* Pods-Telegram-iOS.releaseappstorellc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.releaseappstorellc.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.releaseappstorellc.xcconfig"; sourceTree = "<group>"; };
-		471B212E910BFAE747F341C7 /* Pods_Telegram_iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Telegram_iOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = "Config-AppStore.xcconfig"; sourceTree = "<group>"; };
-		639824EE22DE263A00DE44C3 /* NotificationService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NotificationService.entitlements; sourceTree = "<group>"; };
-		893B49CF8849EABA99F10371 /* Pods-Telegram-iOS.debugappstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.debugappstore.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.debugappstore.xcconfig"; sourceTree = "<group>"; };
+		19BA5C7FD0849D433FF599EB /* Pods-Telegram-iOS.debugappstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.debugappstore.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.debugappstore.xcconfig"; sourceTree = "<group>"; };
+		1BE124AD8B0F2D3A4869B745 /* Pods-Telegram-iOS.debugfork.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.debugfork.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.debugfork.xcconfig"; sourceTree = "<group>"; };
+		3260CEA19FCDFD4D4DEE3271 /* Pods-Telegram-iOS.releasehockeyappinternal.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.releasehockeyappinternal.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.releasehockeyappinternal.xcconfig"; sourceTree = "<group>"; };
+		575D3A6D9D489C89EB3C2536 /* Pods-Telegram-iOS.releaseappstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.releaseappstore.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.releaseappstore.xcconfig"; sourceTree = "<group>"; };
+		637BD39923A8981C00D1267E /* TelegramDebugAppStoreLLC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TelegramDebugAppStoreLLC.entitlements; sourceTree = "<group>"; };
+		637BD39A23A8993800D1267E /* ShareDebugAppStoreLLC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareDebugAppStoreLLC.entitlements; sourceTree = "<group>"; };
+		637BD39B23A89A1C00D1267E /* WidgetReleaseAppStoreLLC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WidgetReleaseAppStoreLLC.entitlements; sourceTree = "<group>"; };
+		637BD39C23A89AD300D1267E /* NotificationServiceDebugAppStoreLLC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NotificationServiceDebugAppStoreLLC.entitlements; sourceTree = "<group>"; };
+		6FDC39C051E9A1F965D8D0DA /* Pods-Telegram-iOS.debugappstorellc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.debugappstorellc.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.debugappstorellc.xcconfig"; sourceTree = "<group>"; };
+		791020297A771AF5949D7BA4 /* Pods-Telegram-iOS.releaseappstorellc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.releaseappstorellc.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.releaseappstorellc.xcconfig"; sourceTree = "<group>"; };
+		7EB834AC721D45AE8998478C /* Pods-Telegram-iOS.debughockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Telegram-iOS.debughockeyapp.xcconfig"; path = "Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS.debughockeyapp.xcconfig"; sourceTree = "<group>"; };
+		8367E2E3A9871842E6B0212D /* Pods_Telegram_iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Telegram_iOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D000CAC021FB6E160011B15D /* NotificationService-HockeyApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "NotificationService-HockeyApp.entitlements"; sourceTree = "<group>"; };
 		D000CAC121FB6E160011B15D /* NotificationService-Fork.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "NotificationService-Fork.entitlements"; sourceTree = "<group>"; };
 		D000CAC221FB6E170011B15D /* NotificationService-AppStore.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "NotificationService-AppStore.entitlements"; sourceTree = "<group>"; };
@@ -878,8 +914,6 @@
 		D00859B71B28189D00EAF753 /* Telegram_iOSTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Telegram_iOSTests.swift; sourceTree = "<group>"; };
 		D00ED7591FE94630001F38BD /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = en; path = en.lproj/AppIntentVocabulary.plist; sourceTree = "<group>"; };
 		D00ED75C1FE95287001F38BD /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-		D015E010225CCEB300CB9E8A /* ReadBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadBuffer.swift; sourceTree = "<group>"; };
-		D015E01E225CDF5000CB9E8A /* Api0.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Api0.swift; sourceTree = "<group>"; };
 		D015E04C225D2D8F00CB9E8A /* WebP.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = WebP.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D01A47521F4DBEB100383CC1 /* libHockeySDK.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libHockeySDK.a; path = "../../build/HockeySDK-iOS/Support/build/Debug-iphoneos/libHockeySDK.a"; sourceTree = "<group>"; };
 		D01A47541F4DBED700383CC1 /* HockeySDK.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = HockeySDK.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -914,7 +948,6 @@
 		D03B0E951D637A0500955575 /* AsyncDisplayKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = AsyncDisplayKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D03BCCC91C6EBD670097A291 /* ListViewTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ListViewTests.swift; sourceTree = "<group>"; };
 		D0400ED81D5B8F97007931CE /* TelegramUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = TelegramUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		D0400EE41D5B912E007931CE /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		D0400EE61D5B912E007931CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D04DCC0B1F71C80000B021D7 /* 0.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = 0.m4a; sourceTree = "<group>"; };
 		D04DCC0C1F71C80000B021D7 /* 1.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = 1.m4a; sourceTree = "<group>"; };
@@ -991,7 +1024,6 @@
 		D06706601D51185400DED3E3 /* TelegramCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D073E51E21FF7CE900742DDD /* Crypto.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Crypto.h; sourceTree = "<group>"; };
 		D073E51F21FF7CE900742DDD /* Crypto.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Crypto.m; sourceTree = "<group>"; };
-		D073E52122003E1E00742DDD /* Data.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data.swift; sourceTree = "<group>"; };
 		D079FD001F06BBD10038FADE /* Telegram-iOS-AppStore.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = "Telegram-iOS-AppStore.entitlements"; sourceTree = "<group>"; };
 		D08410471FABDC7A008FFE92 /* SSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D08410491FABDCF2008FFE92 /* LegacyComponents.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = LegacyComponents.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1034,6 +1066,18 @@
 		D0B844591DACF507005F29E1 /* HockeySDK.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HockeySDK.framework; path = "third-party/HockeySDK.framework"; sourceTree = "<group>"; };
 		D0B8445A1DACF507005F29E1 /* HockeySDKResources.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; name = HockeySDKResources.bundle; path = "third-party/HockeySDKResources.bundle"; sourceTree = "<group>"; };
 		D0B8445F1DACF561005F29E1 /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
+		D0BAAA1623100B7A00AFC473 /* Api.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Api.m; sourceTree = "<group>"; };
+		D0BAAA1723100B7A00AFC473 /* Api.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Api.h; sourceTree = "<group>"; };
+		D0BAAA1923100C2700AFC473 /* NotificationService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NotificationService.h; sourceTree = "<group>"; };
+		D0BAAA1A23100C2700AFC473 /* NotificationService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NotificationService.m; sourceTree = "<group>"; };
+		D0BAAA1C2310117200AFC473 /* StoredAccountInfos.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = StoredAccountInfos.h; sourceTree = "<group>"; };
+		D0BAAA1D2310117200AFC473 /* StoredAccountInfos.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = StoredAccountInfos.m; sourceTree = "<group>"; };
+		D0BAAA1F231026BC00AFC473 /* Attachments.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Attachments.h; sourceTree = "<group>"; };
+		D0BAAA20231026BC00AFC473 /* Attachments.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Attachments.m; sourceTree = "<group>"; };
+		D0BAAA222310302300AFC473 /* FetchImage.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FetchImage.h; sourceTree = "<group>"; };
+		D0BAAA232310302300AFC473 /* FetchImage.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FetchImage.m; sourceTree = "<group>"; };
+		D0BAAA252310326200AFC473 /* Serialization.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Serialization.h; sourceTree = "<group>"; };
+		D0BAAA262310326200AFC473 /* Serialization.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Serialization.m; sourceTree = "<group>"; };
 		D0C2DFF51CC4D1B20044FF83 /* AssetsLibrary.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AssetsLibrary.framework; path = System/Library/Frameworks/AssetsLibrary.framework; sourceTree = SDKROOT; };
 		D0C2DFF71CC4D1BA0044FF83 /* MobileCoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MobileCoreServices.framework; path = System/Library/Frameworks/MobileCoreServices.framework; sourceTree = SDKROOT; };
 		D0C2DFF91CC4D1C90044FF83 /* QuickLook.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuickLook.framework; path = System/Library/Frameworks/QuickLook.framework; sourceTree = SDKROOT; };
@@ -1079,7 +1123,6 @@
 		D0D268881D79A70A00C422DA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D0D268971D79AF1B00C422DA /* SiriIntents-AppStore.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "SiriIntents-AppStore.entitlements"; sourceTree = "<group>"; };
 		D0D268981D79AF3900C422DA /* SiriIntentsUI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SiriIntentsUI.entitlements; sourceTree = "<group>"; };
-		D0E2CE632227F0680084E3DD /* ManagedFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagedFile.swift; sourceTree = "<group>"; };
 		D0E3A7071B285B5000A402D9 /* Telegram-iOS-Hockeyapp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Telegram-iOS-Hockeyapp.entitlements"; sourceTree = "<group>"; };
 		D0E41A381D65A69C00FBFC00 /* NotificationCenter.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NotificationCenter.framework; path = System/Library/Frameworks/NotificationCenter.framework; sourceTree = SDKROOT; };
 		D0E41A3B1D65A69C00FBFC00 /* TodayViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewController.swift; sourceTree = "<group>"; };
@@ -1098,10 +1141,7 @@
 		D0ECCB7E1FE9C38500609802 /* Telegram_iOS_UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Telegram_iOS_UITests.swift; sourceTree = "<group>"; };
 		D0ECCB801FE9C38500609802 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D0ECCB891FE9C4AC00609802 /* SnapshotHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SnapshotHelper.swift; sourceTree = "<group>"; };
-		D0ED633921FF3EDF001D4648 /* AccountData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountData.swift; sourceTree = "<group>"; };
 		D0ED633C21FF3F28001D4648 /* NotificationService-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NotificationService-Bridging-Header.h"; sourceTree = "<group>"; };
-		D0ED633E21FF46E4001D4648 /* ImageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageData.swift; sourceTree = "<group>"; };
-		D0ED634021FF4786001D4648 /* Serialization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Serialization.swift; sourceTree = "<group>"; };
 		D0F575122083B96B00F1C1E1 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 		D0FC1947201D2DA700FEDBB2 /* SFCompactRounded-Semibold.otf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SFCompactRounded-Semibold.otf"; path = "Telegram-iOS/Resources/SFCompactRounded-Semibold.otf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -1118,7 +1158,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		C0A69994EFD08F64ACDA947F /* Frameworks */ = {
+		9C3345899CB3AC1C27AB375C /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1129,7 +1169,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D00818CF22B595DB008A895F /* LightweightAccountData.framework in Frameworks */,
 				D008185822B579AD008A895F /* BuildConfig.framework in Frameworks */,
 				D015E04D225D2D8F00CB9E8A /* WebP.framework in Frameworks */,
 				D0CCD61D222EFFB000EE1E08 /* MtProtoKitDynamic.framework in Frameworks */,
@@ -1155,7 +1194,7 @@
 				D096C2BE1CC3C021006D814E /* Display.framework in Frameworks */,
 				D055BD441B7E216400F06C0A /* MapKit.framework in Frameworks */,
 				D09A59601B5858DB00FC3724 /* SystemConfiguration.framework in Frameworks */,
-				EF9FCE89D3304C6418EBDA2B /* Pods_Telegram_iOS.framework in Frameworks */,
+				DC0CE1F9EBA432EDDDDA90F3 /* Pods_Telegram_iOS.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1229,6 +1268,66 @@
 				092F368321542D6C001A9F49 /* Localizable.strings */,
 			);
 			path = en.lproj;
+			sourceTree = "<group>";
+		};
+		094DDF0122E7A0D3004B0256 /* fr.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				094DDF0222E7A0D3004B0256 /* Localizable.strings */,
+				094DDF0422E7A0D3004B0256 /* InfoPlist.strings */,
+				094DDF0622E7A0D3004B0256 /* AppIntentVocabulary.plist */,
+			);
+			path = fr.lproj;
+			sourceTree = "<group>";
+		};
+		094DDF2B22E7A61B004B0256 /* tr.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				094DDF2C22E7A61B004B0256 /* Localizable.strings */,
+				094DDF2E22E7A61B004B0256 /* InfoPlist.strings */,
+				094DDF3022E7A61B004B0256 /* AppIntentVocabulary.plist */,
+			);
+			path = tr.lproj;
+			sourceTree = "<group>";
+		};
+		094DDF3522E7A98E004B0256 /* ca.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				094DDF3622E7A98E004B0256 /* Localizable.strings */,
+				094DDF3822E7A98E004B0256 /* InfoPlist.strings */,
+				094DDF3A22E7A98E004B0256 /* AppIntentVocabulary.plist */,
+			);
+			path = ca.lproj;
+			sourceTree = "<group>";
+		};
+		094DDF3F22E7A9A8004B0256 /* uk.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				094DDF4022E7A9A8004B0256 /* Localizable.strings */,
+				094DDF4222E7A9A8004B0256 /* InfoPlist.strings */,
+				094DDF4422E7A9A8004B0256 /* AppIntentVocabulary.plist */,
+			);
+			path = uk.lproj;
+			sourceTree = "<group>";
+		};
+		094DDF4922E8C30F004B0256 /* ms.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				094DDF4A22E8C30F004B0256 /* Localizable.strings */,
+				094DDF4C22E8C30F004B0256 /* InfoPlist.strings */,
+				094DDF4E22E8C30F004B0256 /* AppIntentVocabulary.plist */,
+			);
+			path = ms.lproj;
+			sourceTree = "<group>";
+		};
+		094DDF5022E8C30F004B0256 /* id.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				094DDF5122E8C30F004B0256 /* Localizable.strings */,
+				094DDF5322E8C30F004B0256 /* InfoPlist.strings */,
+				094DDF5522E8C30F004B0256 /* AppIntentVocabulary.plist */,
+			);
+			path = id.lproj;
 			sourceTree = "<group>";
 		};
 		0972C6E121792CED0069E98A /* ru.lproj */ = {
@@ -1826,16 +1925,16 @@
 			name = Model;
 			sourceTree = "<group>";
 		};
-		6A0994FDAC1A08A0154D0A63 /* Pods */ = {
+		20CF7F98FF5E4B86ABD124C0 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				04AEF347E75F152705666D1E /* Pods-Telegram-iOS.debughockeyapp.xcconfig */,
-				0BD2E10F42CE6F2B81486E8D /* Pods-Telegram-iOS.debugfork.xcconfig */,
-				893B49CF8849EABA99F10371 /* Pods-Telegram-iOS.debugappstore.xcconfig */,
-				01ABA02094C7C6B7B80946D4 /* Pods-Telegram-iOS.debugappstorellc.xcconfig */,
-				4250C2C5189F32DCA4A9D69E /* Pods-Telegram-iOS.releaseappstore.xcconfig */,
-				446631B1901DA2F5EB949302 /* Pods-Telegram-iOS.releaseappstorellc.xcconfig */,
-				420D30F33E610379CA91C02C /* Pods-Telegram-iOS.releasehockeyappinternal.xcconfig */,
+				7EB834AC721D45AE8998478C /* Pods-Telegram-iOS.debughockeyapp.xcconfig */,
+				1BE124AD8B0F2D3A4869B745 /* Pods-Telegram-iOS.debugfork.xcconfig */,
+				19BA5C7FD0849D433FF599EB /* Pods-Telegram-iOS.debugappstore.xcconfig */,
+				6FDC39C051E9A1F965D8D0DA /* Pods-Telegram-iOS.debugappstorellc.xcconfig */,
+				575D3A6D9D489C89EB3C2536 /* Pods-Telegram-iOS.releaseappstore.xcconfig */,
+				791020297A771AF5949D7BA4 /* Pods-Telegram-iOS.releaseappstorellc.xcconfig */,
+				3260CEA19FCDFD4D4DEE3271 /* Pods-Telegram-iOS.releasehockeyappinternal.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -1857,7 +1956,7 @@
 				D0ECCB7D1FE9C38500609802 /* Telegram-iOS UITests */,
 				D00859B41B28189D00EAF753 /* Telegram-iOSTests */,
 				D008599D1B28189D00EAF753 /* Products */,
-				6A0994FDAC1A08A0154D0A63 /* Pods */,
+				20CF7F98FF5E4B86ABD124C0 /* Pods */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1880,6 +1979,7 @@
 		D008599E1B28189D00EAF753 /* Telegram-iOS */ = {
 			isa = PBXGroup;
 			children = (
+				637BD39923A8981C00D1267E /* TelegramDebugAppStoreLLC.entitlements */,
 				09A218E122A14E5600DE6898 /* App Icons */,
 				D0338729223A8347007A2CE4 /* Config */,
 				09C50E7821738150009E676F /* Watch */,
@@ -1901,13 +2001,19 @@
 				D0612E481D58B478000C8F02 /* Application.swift */,
 				D09DCBB41D0C854D00F51FFE /* en.lproj */,
 				D0CE6F47213EDA4400BCD44B /* ar.lproj */,
+				094DDF3522E7A98E004B0256 /* ca.lproj */,
 				D0CE6F4E213EDA4400BCD44B /* de.lproj */,
 				D0CE6F40213EDA4400BCD44B /* es.lproj */,
+				094DDF0122E7A0D3004B0256 /* fr.lproj */,
+				094DDF5022E8C30F004B0256 /* id.lproj */,
 				D0CE6F24213EDA4300BCD44B /* it.lproj */,
 				D0CE6F2B213EDA4300BCD44B /* ko.lproj */,
+				094DDF4922E8C30F004B0256 /* ms.lproj */,
 				D0CE6F32213EDA4300BCD44B /* nl.lproj */,
 				D0CE6F1D213EDA4200BCD44B /* pt.lproj */,
 				D0CE6F39213EDA4300BCD44B /* ru.lproj */,
+				094DDF2B22E7A61B004B0256 /* tr.lproj */,
+				094DDF3F22E7A9A8004B0256 /* uk.lproj */,
 				D00859A01B28189D00EAF753 /* Info.plist */,
 				D09A59B71B5876B600FC3724 /* Telegram-Bridging-Header.h */,
 				D02E31221BD803E800CD3F01 /* main.m */,
@@ -2009,7 +2115,7 @@
 				D0AA1A691D568BA400152314 /* UserNotificationsUI.framework */,
 				D0E41A381D65A69C00FBFC00 /* NotificationCenter.framework */,
 				D0D268801D79A70A00C422DA /* IntentsUI.framework */,
-				471B212E910BFAE747F341C7 /* Pods_Telegram_iOS.framework */,
+				8367E2E3A9871842E6B0212D /* Pods_Telegram_iOS.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -2049,7 +2155,6 @@
 		D0338729223A8347007A2CE4 /* Config */ = {
 			isa = PBXGroup;
 			children = (
-				639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */,
 				D0338734223A9A7E007A2CE4 /* Hockeyapp-Internal */,
 				D033872A223A834F007A2CE4 /* AppStoreLLC */,
 			);
@@ -2075,6 +2180,7 @@
 		D03B0E791D63484500955575 /* Share */ = {
 			isa = PBXGroup;
 			children = (
+				637BD39A23A8993800D1267E /* ShareDebugAppStoreLLC.entitlements */,
 				092F368221542CF2001A9F49 /* en.lproj */,
 				D0ADF953212B3B4700310BBC /* Share-AppStoreLLC.entitlements */,
 				D0EA97981FE8537000792DD6 /* Share-AppStore.entitlements */,
@@ -2090,23 +2196,27 @@
 		D0400EE31D5B912E007931CE /* NotificationService */ = {
 			isa = PBXGroup;
 			children = (
-				639824EE22DE263A00DE44C3 /* NotificationService.entitlements */,
-				D015E01E225CDF5000CB9E8A /* Api0.swift */,
+				637BD39C23A89AD300D1267E /* NotificationServiceDebugAppStoreLLC.entitlements */,
+				D0BAAA1723100B7A00AFC473 /* Api.h */,
+				D0BAAA1623100B7A00AFC473 /* Api.m */,
+				D0BAAA1923100C2700AFC473 /* NotificationService.h */,
+				D0BAAA1A23100C2700AFC473 /* NotificationService.m */,
+				D0BAAA1C2310117200AFC473 /* StoredAccountInfos.h */,
+				D0BAAA1D2310117200AFC473 /* StoredAccountInfos.m */,
+				D0BAAA1F231026BC00AFC473 /* Attachments.h */,
+				D0BAAA20231026BC00AFC473 /* Attachments.m */,
+				D0BAAA222310302300AFC473 /* FetchImage.h */,
+				D0BAAA232310302300AFC473 /* FetchImage.m */,
+				D0BAAA252310326200AFC473 /* Serialization.h */,
+				D0BAAA262310326200AFC473 /* Serialization.m */,
 				D000CAC221FB6E170011B15D /* NotificationService-AppStore.entitlements */,
 				D000CAC321FB6E170011B15D /* NotificationService-AppStoreLLC.entitlements */,
 				D000CAC121FB6E160011B15D /* NotificationService-Fork.entitlements */,
 				D000CAC021FB6E160011B15D /* NotificationService-HockeyApp.entitlements */,
-				D0400EE41D5B912E007931CE /* NotificationService.swift */,
-				D0ED633921FF3EDF001D4648 /* AccountData.swift */,
-				D0ED633E21FF46E4001D4648 /* ImageData.swift */,
 				D0400EE61D5B912E007931CE /* Info.plist */,
 				D0ED633C21FF3F28001D4648 /* NotificationService-Bridging-Header.h */,
-				D0ED634021FF4786001D4648 /* Serialization.swift */,
 				D073E51E21FF7CE900742DDD /* Crypto.h */,
 				D073E51F21FF7CE900742DDD /* Crypto.m */,
-				D073E52122003E1E00742DDD /* Data.swift */,
-				D0E2CE632227F0680084E3DD /* ManagedFile.swift */,
-				D015E010225CCEB300CB9E8A /* ReadBuffer.swift */,
 			);
 			path = NotificationService;
 			sourceTree = "<group>";
@@ -2261,9 +2371,9 @@
 		D09DCBB41D0C854D00F51FFE /* en.lproj */ = {
 			isa = PBXGroup;
 			children = (
-				D00ED7581FE94630001F38BD /* AppIntentVocabulary.plist */,
 				D09DCBB51D0C856B00F51FFE /* Localizable.strings */,
 				D00ED75B1FE95287001F38BD /* InfoPlist.strings */,
+				D00ED7581FE94630001F38BD /* AppIntentVocabulary.plist */,
 			);
 			name = en.lproj;
 			sourceTree = "<group>";
@@ -2378,15 +2488,16 @@
 		D0E41A3A1D65A69C00FBFC00 /* Widget */ = {
 			isa = PBXGroup;
 			children = (
-				0972C6E121792CED0069E98A /* ru.lproj */,
+				637BD39B23A89A1C00D1267E /* WidgetReleaseAppStoreLLC.entitlements */,
+				D04FA1AE2145E37F0006EF45 /* en.lproj */,
 				D04FA1B62145E3800006EF45 /* ar.lproj */,
 				D04FA1B32145E37F0006EF45 /* de.lproj */,
-				D04FA1AE2145E37F0006EF45 /* en.lproj */,
 				D04FA1C52145E3810006EF45 /* es.lproj */,
 				D04FA1BF2145E3800006EF45 /* it.lproj */,
 				D04FA1BC2145E3800006EF45 /* ko.lproj */,
 				D04FA1B92145E3800006EF45 /* nl.lproj */,
 				D04FA1C22145E3810006EF45 /* pt.lproj */,
+				0972C6E121792CED0069E98A /* ru.lproj */,
 				D0ADF955212B3B6400310BBC /* Widget-AppStoreLLC.entitlements */,
 				D0B2F75A204F51E400D3BFB9 /* Widget-AppStore.entitlements */,
 				D0B2F75B204F51E500D3BFB9 /* Widget-HockeyApp.entitlements */,
@@ -2419,7 +2530,7 @@
 			buildPhases = (
 				09C56F892172797200BDF00F /* Resources */,
 				09C56FB52172797500BDF00F /* Embed App Extensions */,
-				C0A69994EFD08F64ACDA947F /* Frameworks */,
+				9C3345899CB3AC1C27AB375C /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -2469,13 +2580,14 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = D00859BB1B28189D00EAF753 /* Build configuration list for PBXNativeTarget "Telegram-iOS" */;
 			buildPhases = (
+				2D0F01BFC0E2C8F9373AB63D /* [CP] Check Pods Manifest.lock */,
 				D00859981B28189D00EAF753 /* Sources */,
 				D00859991B28189D00EAF753 /* Frameworks */,
 				D008599A1B28189D00EAF753 /* Resources */,
 				D0289FA81CBFFC8700A12E82 /* Embed Frameworks */,
 				D0AA1A791D568BA500152314 /* Embed App Extensions */,
 				09C56FB72172797500BDF00F /* Embed Watch Content */,
-				B4FF60F8366E0D557742699C /* [CP] Embed Pods Frameworks */,
+				0FD9D2568571A5FC33EF2DBE /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -2592,28 +2704,22 @@
 				TargetAttributes = {
 					09C56F8A2172797200BDF00F = {
 						CreatedOnToolsVersion = 10.0;
-						DevelopmentTeam = L95C8867HX;
-						ProvisioningStyle = Automatic;
+						DevelopmentTeam = X834Q8SBVP;
+						ProvisioningStyle = Manual;
 					};
 					09C56F962172797400BDF00F = {
 						CreatedOnToolsVersion = 10.0;
-						DevelopmentTeam = L95C8867HX;
-						ProvisioningStyle = Automatic;
+						DevelopmentTeam = X834Q8SBVP;
+						ProvisioningStyle = Manual;
 					};
 					D000CAC721FB6E370011B15D = {
 						CreatedOnToolsVersion = 10.1;
 						DevelopmentTeam = L95C8867HX;
-						ProvisioningStyle = Automatic;
-						SystemCapabilities = {
-							com.apple.ApplicationGroups.iOS = {
-								enabled = 1;
-							};
-						};
+						ProvisioningStyle = Manual;
 					};
 					D008599B1B28189D00EAF753 = {
 						CreatedOnToolsVersion = 6.3.1;
 						DevelopmentTeam = L95C8867HX;
-						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
 							com.apple.ApplicationGroups.iOS = {
 								enabled = 1;
@@ -2638,7 +2744,7 @@
 					D02CF5FB215D9ABE00E0F56A = {
 						CreatedOnToolsVersion = 10.0;
 						DevelopmentTeam = L95C8867HX;
-						ProvisioningStyle = Automatic;
+						ProvisioningStyle = Manual;
 						SystemCapabilities = {
 							com.apple.ApplicationGroups.iOS = {
 								enabled = 1;
@@ -2649,7 +2755,6 @@
 						CreatedOnToolsVersion = 8.0;
 						DevelopmentTeam = L95C8867HX;
 						LastSwiftMigration = 0910;
-						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
 							com.apple.ApplicationGroups.iOS = {
 								enabled = 1;
@@ -2662,7 +2767,7 @@
 					D0B2F736204F4C9900D3BFB9 = {
 						CreatedOnToolsVersion = 9.2;
 						DevelopmentTeam = L95C8867HX;
-						ProvisioningStyle = Automatic;
+						ProvisioningStyle = Manual;
 						SystemCapabilities = {
 							com.apple.ApplicationGroups.iOS = {
 								enabled = 1;
@@ -2672,7 +2777,6 @@
 					D0D268751D79A70A00C422DA = {
 						CreatedOnToolsVersion = 8.0;
 						DevelopmentTeam = L95C8867HX;
-						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
 							com.apple.ApplicationGroups.iOS = {
 								enabled = 1;
@@ -2681,8 +2785,7 @@
 					};
 					D0ECCB7B1FE9C38500609802 = {
 						CreatedOnToolsVersion = 9.2;
-						DevelopmentTeam = L95C8867HX;
-						ProvisioningStyle = Automatic;
+						ProvisioningStyle = Manual;
 						TestTargetID = D008599B1B28189D00EAF753;
 					};
 				};
@@ -2703,6 +2806,12 @@
 				es,
 				ar,
 				de,
+				fr,
+				tr,
+				ca,
+				uk,
+				ms,
+				id,
 			);
 			mainGroup = D00859931B28189D00EAF753;
 			productRefGroup = D008599D1B28189D00EAF753 /* Products */;
@@ -2773,6 +2882,9 @@
 				D04DCC341F71C80000B021D7 /* 7.m4a in Resources */,
 				09E9600722C23FF200B13673 /* BlackNotificationIcon@3x.png in Resources */,
 				09EBE2A522B004EA00F670AB /* BlueFilledIconIpad.png in Resources */,
+				094DDF5C22E8C310004B0256 /* AppIntentVocabulary.plist in Resources */,
+				094DDF3C22E7A98E004B0256 /* Localizable.strings in Resources */,
+				094DDF3422E7A61B004B0256 /* AppIntentVocabulary.plist in Resources */,
 				D0CE6F60213EDA4400BCD44B /* AppIntentVocabulary.plist in Resources */,
 				D0CE6F63213EDA4400BCD44B /* AppIntentVocabulary.plist in Resources */,
 				D00ED75D1FE95287001F38BD /* InfoPlist.strings in Resources */,
@@ -2792,16 +2904,21 @@
 				09E9601322C2441000B13673 /* BlackClassicNotificationIcon@2x.png in Resources */,
 				D0E8C2DE2285EA55009F26E8 /* BlackIcon@2x.png in Resources */,
 				D09DCBB71D0C856B00F51FFE /* Localizable.strings in Resources */,
+				094DDF5722E8C310004B0256 /* Localizable.strings in Resources */,
 				D0CE6F66213EDA4400BCD44B /* AppIntentVocabulary.plist in Resources */,
 				D08DB0B8213F4D1D00F2ADBF /* powerful_mask@2x.png in Resources */,
 				D08DB0B4213F4D1D00F2ADBF /* knot_down@2x.png in Resources */,
+				094DDF4822E7A9A8004B0256 /* AppIntentVocabulary.plist in Resources */,
 				09EC5CDA22CBBF9600292E42 /* telegram_plane1@2x.png in Resources */,
 				D08DB0BC213F4D1D00F2ADBF /* start_arrow@2x.png in Resources */,
 				D08DB0B6213F4D1D00F2ADBF /* powerful_infinity@2x.png in Resources */,
+				094DDF5B22E8C310004B0256 /* InfoPlist.strings in Resources */,
 				09EBE2AA22B004EA00F670AB /* BlueIconLargeIpad@2x.png in Resources */,
 				D0CE6F5B213EDA4400BCD44B /* Localizable.strings in Resources */,
 				09EBE2AF22B004EA00F670AB /* BlackIconIpad@2x.png in Resources */,
+				094DDF5922E8C310004B0256 /* AppIntentVocabulary.plist in Resources */,
 				09A4193422B7A4D500637EB4 /* BlackClassicIconIpad.png in Resources */,
+				094DDF4622E7A9A8004B0256 /* Localizable.strings in Resources */,
 				09A4193222B7A4D500637EB4 /* BlueClassicIconIpad.png in Resources */,
 				D0CE6F62213EDA4400BCD44B /* InfoPlist.strings in Resources */,
 				D08DB0A8213F4D1D00F2ADBF /* fast_arrow_shadow@2x.png in Resources */,
@@ -2812,13 +2929,17 @@
 				09E9601722C2441000B13673 /* BlackClassicNotificationIcon.png in Resources */,
 				D0CE6F64213EDA4400BCD44B /* Localizable.strings in Resources */,
 				D0CE6F6C213EDA4400BCD44B /* AppIntentVocabulary.plist in Resources */,
+				094DDF3E22E7A98E004B0256 /* AppIntentVocabulary.plist in Resources */,
+				094DDF3D22E7A98E004B0256 /* InfoPlist.strings in Resources */,
 				D04DCC231F71C80000B021D7 /* 100.m4a in Resources */,
 				09E9600A22C23FF200B13673 /* BlueNotificationIcon@2x.png in Resources */,
+				094DDF3222E7A61B004B0256 /* Localizable.strings in Resources */,
 				09A218EF22A1570A00DE6898 /* BlueIcon@2x.png in Resources */,
 				D04DCC281F71C80000B021D7 /* 105.m4a in Resources */,
 				D08DB0BB213F4D1D00F2ADBF /* private_screw@2x.png in Resources */,
 				D0CE6F5F213EDA4400BCD44B /* InfoPlist.strings in Resources */,
 				D04DCC2D1F71C80000B021D7 /* 110.m4a in Resources */,
+				094DDF5A22E8C310004B0256 /* Localizable.strings in Resources */,
 				D04DCC2B1F71C80000B021D7 /* 108.m4a in Resources */,
 				D00859AC1B28189D00EAF753 /* LaunchScreen.xib in Resources */,
 				D08DB0B5213F4D1D00F2ADBF /* knot_up1@2x.png in Resources */,
@@ -2848,6 +2969,7 @@
 				09EBE2B022B004EA00F670AB /* BlueFilledIconLargeIpad@2x.png in Resources */,
 				D0CE6F58213EDA4400BCD44B /* Localizable.strings in Resources */,
 				D08DB0AF213F4D1D00F2ADBF /* ic_pencil@2x.png in Resources */,
+				094DDF5822E8C310004B0256 /* InfoPlist.strings in Resources */,
 				09E9601822C2441000B13673 /* BlueClassicNotificationIcon@3x.png in Resources */,
 				D0CE6F67213EDA4400BCD44B /* Localizable.strings in Resources */,
 				09A4193322B7A4D500637EB4 /* BlueClassicIconLargeIpad@2x.png in Resources */,
@@ -2856,12 +2978,16 @@
 				D052974622B0073F004ABAF6 /* WhiteFilledIcon@3x.png in Resources */,
 				D08DB0B7213F4D1D00F2ADBF /* powerful_infinity_white@2x.png in Resources */,
 				D00859A91B28189D00EAF753 /* Images.xcassets in Resources */,
+				094DDF0922E7A0D3004B0256 /* InfoPlist.strings in Resources */,
 				D001D5AA1F878DA300DF975A /* PhoneCountries.txt in Resources */,
+				094DDF0822E7A0D3004B0256 /* Localizable.strings in Resources */,
+				094DDF4722E7A9A8004B0256 /* InfoPlist.strings in Resources */,
 				D0CE6F56213EDA4400BCD44B /* InfoPlist.strings in Resources */,
 				D0CE6F65213EDA4400BCD44B /* InfoPlist.strings in Resources */,
 				D0E8B8B12044496C00605593 /* voip_busy.caf in Resources */,
 				09EBE2A622B004EA00F670AB /* BlueIconIpad@2x.png in Resources */,
 				D08DB0A7213F4D1D00F2ADBF /* fast_arrow@2x.png in Resources */,
+				094DDF0A22E7A0D3004B0256 /* AppIntentVocabulary.plist in Resources */,
 				D0E8B8AF2044496C00605593 /* voip_fail.caf in Resources */,
 				D0CE6F55213EDA4400BCD44B /* Localizable.strings in Resources */,
 				D08DB0B2213F4D1D00F2ADBF /* ic_smile_eye@2x.png in Resources */,
@@ -2872,7 +2998,6 @@
 				D052974722B0073F004ABAF6 /* WhiteFilledIcon@2x.png in Resources */,
 				D0CE6F5D213EDA4400BCD44B /* AppIntentVocabulary.plist in Resources */,
 				D0CE6F61213EDA4400BCD44B /* Localizable.strings in Resources */,
-				639824ED22DE229700DE44C3 /* Config-AppStore.xcconfig in Resources */,
 				D04DCC311F71C80000B021D7 /* 4.m4a in Resources */,
 				D0FC1948201D2DA800FEDBB2 /* SFCompactRounded-Semibold.otf in Resources */,
 				D04DCC331F71C80000B021D7 /* 6.m4a in Resources */,
@@ -2880,6 +3005,7 @@
 				09EBE2A822B004EA00F670AB /* BlackFilledIconIpad@2x.png in Resources */,
 				D021D4D9219CAEDD0064BEBA /* Config-Fork.xcconfig in Resources */,
 				D08DB0AD213F4D1D00F2ADBF /* ic_cam@2x.png in Resources */,
+				094DDF3322E7A61B004B0256 /* InfoPlist.strings in Resources */,
 				090E777622A6945900CD99F5 /* BlackClassicIcon@3x.png in Resources */,
 				D0E8B8B02044496C00605593 /* voip_ringback.caf in Resources */,
 				09E9600822C23FF200B13673 /* BlackNotificationIcon.png in Resources */,
@@ -2953,12 +3079,10 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		B4FF60F8366E0D557742699C /* [CP] Embed Pods Frameworks */ = {
+		0FD9D2568571A5FC33EF2DBE /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			inputFileListPaths = (
 			);
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS-frameworks.sh",
@@ -2967,8 +3091,6 @@
 				"${BUILT_PRODUCTS_DIR}/ObjectMapper/ObjectMapper.framework",
 			);
 			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-			);
 			outputPaths = (
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Alamofire.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/CloudVeilSecurityManager.framework",
@@ -2977,6 +3099,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Telegram-iOS/Pods-Telegram-iOS-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		2D0F01BFC0E2C8F9373AB63D /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-Telegram-iOS-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -3124,15 +3268,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D073E52222003E1E00742DDD /* Data.swift in Sources */,
-				D0E2CE642227F0680084E3DD /* ManagedFile.swift in Sources */,
-				D0ED633D21FF4580001D4648 /* NotificationService.swift in Sources */,
-				D015E01F225CDF5100CB9E8A /* Api0.swift in Sources */,
-				D0ED633A21FF3EDF001D4648 /* AccountData.swift in Sources */,
-				D0ED634121FF4786001D4648 /* Serialization.swift in Sources */,
+				D0BAAA242310302300AFC473 /* FetchImage.m in Sources */,
+				D0BAAA1E2310117200AFC473 /* StoredAccountInfos.m in Sources */,
+				D0BAAA1823100B7A00AFC473 /* Api.m in Sources */,
 				D073E52021FF7CE900742DDD /* Crypto.m in Sources */,
-				D0ED633F21FF46E4001D4648 /* ImageData.swift in Sources */,
-				D015E011225CCEB300CB9E8A /* ReadBuffer.swift in Sources */,
+				D0BAAA1B23100C2700AFC473 /* NotificationService.m in Sources */,
+				D0BAAA21231026BC00AFC473 /* Attachments.m in Sources */,
+				D0BAAA272310326200AFC473 /* Serialization.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3241,6 +3383,150 @@
 				092F368421542D6C001A9F49 /* en */,
 			);
 			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		094DDF0222E7A0D3004B0256 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF0322E7A0D3004B0256 /* fr */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		094DDF0422E7A0D3004B0256 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF0522E7A0D3004B0256 /* fr */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		094DDF0622E7A0D3004B0256 /* AppIntentVocabulary.plist */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF0722E7A0D3004B0256 /* fr */,
+			);
+			name = AppIntentVocabulary.plist;
+			sourceTree = "<group>";
+		};
+		094DDF2C22E7A61B004B0256 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF2D22E7A61B004B0256 /* tr */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		094DDF2E22E7A61B004B0256 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF2F22E7A61B004B0256 /* tr */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		094DDF3022E7A61B004B0256 /* AppIntentVocabulary.plist */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF3122E7A61B004B0256 /* tr */,
+			);
+			name = AppIntentVocabulary.plist;
+			sourceTree = "<group>";
+		};
+		094DDF3622E7A98E004B0256 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF3722E7A98E004B0256 /* ca */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		094DDF3822E7A98E004B0256 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF3922E7A98E004B0256 /* ca */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		094DDF3A22E7A98E004B0256 /* AppIntentVocabulary.plist */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF3B22E7A98E004B0256 /* ca */,
+			);
+			name = AppIntentVocabulary.plist;
+			sourceTree = "<group>";
+		};
+		094DDF4022E7A9A8004B0256 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF4122E7A9A8004B0256 /* uk */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		094DDF4222E7A9A8004B0256 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF4322E7A9A8004B0256 /* uk */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		094DDF4422E7A9A8004B0256 /* AppIntentVocabulary.plist */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF4522E7A9A8004B0256 /* uk */,
+			);
+			name = AppIntentVocabulary.plist;
+			sourceTree = "<group>";
+		};
+		094DDF4A22E8C30F004B0256 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF4B22E8C30F004B0256 /* ms */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		094DDF4C22E8C30F004B0256 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF4D22E8C30F004B0256 /* ms */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		094DDF4E22E8C30F004B0256 /* AppIntentVocabulary.plist */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF4F22E8C30F004B0256 /* ms */,
+			);
+			name = AppIntentVocabulary.plist;
+			sourceTree = "<group>";
+		};
+		094DDF5122E8C30F004B0256 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF5222E8C30F004B0256 /* id */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		094DDF5322E8C30F004B0256 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF5422E8C30F004B0256 /* id */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		094DDF5522E8C30F004B0256 /* AppIntentVocabulary.plist */ = {
+			isa = PBXVariantGroup;
+			children = (
+				094DDF5622E8C30F004B0256 /* id */,
+			);
+			name = AppIntentVocabulary.plist;
 			sourceTree = "<group>";
 		};
 		0972C6E221792D120069E98A /* InfoPlist.strings */ = {
@@ -3603,10 +3889,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = X834Q8SBVP;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -3623,14 +3909,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				IBSC_MODULE = Watch_Extension;
 				INFOPLIST_FILE = Watch/App/Info.plist;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.Telegram-iOS.watchkitapp";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -3643,7 +3930,6 @@
 		};
 		09C56FA72172797500BDF00F /* DebugAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -3676,12 +3962,12 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Developer: Peter Iakovlev (88P695A564)";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer: Peter Iakovlev (88P695A564)";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = 6N38VWS5BX;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -3698,14 +3984,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				IBSC_MODULE = Watch_Extension;
 				INFOPLIST_FILE = Watch/App/Info.plist;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.TelegramHD.watchkitapp";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -3751,7 +4038,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
@@ -3773,6 +4060,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				IBSC_MODULE = Watch_Extension;
 				INFOPLIST_FILE = Watch/App/Info.plist;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -3793,7 +4081,6 @@
 		};
 		09C56FA92172797500BDF00F /* ReleaseAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -3826,12 +4113,12 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP (6N38VWS5BX)";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP (6N38VWS5BX)";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = 6N38VWS5BX;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -3842,13 +4129,14 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				IBSC_MODULE = Watch_Extension;
 				INFOPLIST_FILE = Watch/App/Info.plist;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match AppStore org.telegram.TelegramHD.watchkitapp";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
@@ -3894,8 +4182,8 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: Digital Fortress LLC (C67CF9S4VU)";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
@@ -3910,6 +4198,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				IBSC_MODULE = Watch_Extension;
 				INFOPLIST_FILE = Watch/App/Info.plist;
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -3962,12 +4251,12 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = X834Q8SBVP;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -3978,13 +4267,14 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				IBSC_MODULE = Watch_Extension;
 				INFOPLIST_FILE = Watch/App/Info.plist;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match InHouse org.telegram.Telegram-iOS.watchkitapp";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
@@ -4031,10 +4321,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = X834Q8SBVP;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -4051,16 +4341,19 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = submodules/SSignalKit;
+				HEADER_SEARCH_PATHS = (
+					submodules/SSignalKit,
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = Watch/Extension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				LIBRARY_SEARCH_PATHS = submodules/SSignalKit;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.watchkitapp.watchkitextension";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.Telegram-iOS.watchkitapp.watchkitextension";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -4073,7 +4366,6 @@
 		};
 		09C56FAE2172797500BDF00F /* DebugAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_COMPLICATION_NAME = Complication;
@@ -4107,13 +4399,12 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = 6N38VWS5BX;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -4128,21 +4419,19 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = submodules/SSignalKit;
+				HEADER_SEARCH_PATHS = (
+					submodules/SSignalKit,
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = Watch/Extension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				LIBRARY_SEARCH_PATHS = submodules/SSignalKit;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = (
-					"-ObjC",
-					"-l\"c++\"",
-					"-l\"z\"",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.watchkitapp.watchkitextension";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.TelegramHD.watchkitapp.watchkitextension";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -4188,7 +4477,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -4209,18 +4498,17 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = submodules/SSignalKit;
+				HEADER_SEARCH_PATHS = (
+					submodules/SSignalKit,
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = Watch/Extension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				LIBRARY_SEARCH_PATHS = submodules/SSignalKit;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = (
-					"-ObjC",
-					"-l\"c++\"",
-					"-l\"z\"",
-				);
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension;
 				PRODUCT_NAME = "${TARGET_NAME}";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -4236,7 +4524,6 @@
 		};
 		09C56FB02172797500BDF00F /* ReleaseAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_COMPLICATION_NAME = Complication;
@@ -4269,14 +4556,13 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = 6N38VWS5BX;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -4285,20 +4571,18 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = submodules/SSignalKit;
+				HEADER_SEARCH_PATHS = (
+					submodules/SSignalKit,
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = Watch/Extension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				LIBRARY_SEARCH_PATHS = submodules/SSignalKit;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				OTHER_LDFLAGS = (
-					"-ObjC",
-					"-l\"c++\"",
-					"-l\"z\"",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.watchkitapp.watchkitextension";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match AppStore org.telegram.TelegramHD.watchkitapp.watchkitextension";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
@@ -4344,8 +4628,8 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: Digital Fortress LLC (C67CF9S4VU)";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
@@ -4360,17 +4644,16 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = submodules/SSignalKit;
+				HEADER_SEARCH_PATHS = (
+					submodules/SSignalKit,
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = Watch/Extension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				LIBRARY_SEARCH_PATHS = submodules/SSignalKit;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				OTHER_LDFLAGS = (
-					"-ObjC",
-					"-l\"c++\"",
-					"-l\"z\"",
-				);
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension;
 				PRODUCT_NAME = "${TARGET_NAME}";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -4419,11 +4702,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = X834Q8SBVP;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -4434,15 +4716,18 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = submodules/SSignalKit;
+				HEADER_SEARCH_PATHS = (
+					submodules/SSignalKit,
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = Watch/Extension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				LIBRARY_SEARCH_PATHS = submodules/SSignalKit;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.watchkitapp.watchkitextension";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match InHouse org.telegram.Telegram-iOS.watchkitapp.watchkitextension";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
@@ -4487,10 +4772,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "NotificationService/NotificationService-Hockeyapp.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -4510,15 +4795,16 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.NotificationService;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).NotificationService";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.Telegram-iOS.NotificationService";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -4563,10 +4849,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "NotificationService/NotificationService-Fork.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -4586,13 +4872,14 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.NotificationService;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).NotificationService";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
@@ -4607,7 +4894,6 @@
 		};
 		D000CAD321FB6E380011B15D /* DebugAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUILD_NUMBER = 99999;
@@ -4639,10 +4925,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "NotificationService/NotificationService-AppStore.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -4662,13 +4948,14 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.NotificationService;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).NotificationService";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
@@ -4715,8 +5002,8 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationServiceDebugAppStoreLLC.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
@@ -4738,6 +5025,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
@@ -4759,7 +5047,6 @@
 		};
 		D000CAD521FB6E380011B15D /* ReleaseAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUILD_NUMBER = 99999;
@@ -4791,10 +5078,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "NotificationService/NotificationService-AppStore.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP (6N38VWS5BX)";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP (6N38VWS5BX)";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -4808,14 +5095,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.NotificationService;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).NotificationService";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match AppStore org.telegram.TelegramHD.NotificationService";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "NotificationService/NotificationService-Bridging-Header.h";
@@ -4860,9 +5148,9 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_ENTITLEMENTS = "NotificationService/NotificationService-AppStoreLLC.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: Digital Fortress LLC (C67CF9S4VU)";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
@@ -4877,6 +5165,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
@@ -4929,10 +5218,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "NotificationService/NotificationService-Hockeyapp.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -4946,14 +5235,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationService/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.NotificationService;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).NotificationService";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match InHouse org.telegram.Telegram-iOS.NotificationService";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "NotificationService/NotificationService-Bridging-Header.h";
@@ -4969,7 +5259,6 @@
 			baseConfigurationReference = D0338735223A9A99007A2CE4 /* Config-Hockeyapp-Internal.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				APP_NAME = "CloudVeil Messenger";
 				BUILD_NUMBER = 9999;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -5010,6 +5299,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				PROVISIONING_PROFILE = "";
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -5018,10 +5308,8 @@
 		};
 		D00859BA1B28189D00EAF753 /* ReleaseAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				APP_NAME = "CloudVeil Messenger";
 				BUILD_NUMBER = 9999;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -5072,14 +5360,12 @@
 				CODE_SIGN_ENTITLEMENTS = "Telegram-iOS/Telegram-iOS-Hockeyapp.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
 				COMMIT_ID = "";
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(BUILT_PRODUCTS_DIR)",
-					"$(PROJECT_DIR)/third-party",
 					"$(inherited)",
 				);
 				HEADER_SEARCH_PATHS = (
@@ -5089,10 +5375,7 @@
 				INFOPLIST_FILE = "Telegram-iOS/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/submodules/TelegramUI/third-party/opus/lib",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-ObjC",
@@ -5100,19 +5383,20 @@
 					"$(inherited)",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}";
 				PRODUCT_NAME = Telegram;
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OBJC_BRIDGING_HEADER = "Telegram-iOS/Telegram-Bridging-Header.h";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 5.0;
 				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = DebugHockeyapp;
 		};
 		D00859BD1B28189D00EAF753 /* ReleaseAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
+			baseConfigurationReference = 575D3A6D9D489C89EB3C2536 /* Pods-Telegram-iOS.releaseappstore.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -5120,16 +5404,14 @@
 				BUILD_NUMBER = 99999;
 				CLANG_MODULES_AUTOLINK = NO;
 				CODE_SIGN_ENTITLEMENTS = "Telegram-iOS/Telegram-iOS-AppStore.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP (6N38VWS5BX)";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP (6N38VWS5BX)";
 				COMMIT_ID = "";
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(BUILT_PRODUCTS_DIR)",
-					"$(PROJECT_DIR)/third-party",
 					"$(inherited)",
 				);
 				HEADER_SEARCH_PATHS = (
@@ -5139,22 +5421,19 @@
 				INFOPLIST_FILE = "Telegram-iOS/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/submodules/TelegramUI/third-party/opus/lib",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				OTHER_LDFLAGS = (
 					"-ObjC",
 					"-lz",
 					"$(inherited)",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}";
 				PRODUCT_NAME = Telegram;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Telegram-iOS/Telegram-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 5.0;
 				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = ReleaseAppStore;
@@ -5164,7 +5443,6 @@
 			baseConfigurationReference = D021D4D8219CAEDD0064BEBA /* Config-Fork.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				APP_NAME = "CloudVeil Messenger";
 				BUILD_NUMBER = 9999;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -5223,14 +5501,12 @@
 				CODE_SIGN_ENTITLEMENTS = "Telegram-iOS/Telegram-iOS-Fork.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
 				COMMIT_ID = "";
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(BUILT_PRODUCTS_DIR)",
-					"$(PROJECT_DIR)/third-party",
 					"$(inherited)",
 				);
 				HEADER_SEARCH_PATHS = (
@@ -5240,21 +5516,19 @@
 				INFOPLIST_FILE = "Telegram-iOS/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/submodules/TelegramUI/third-party/opus/lib",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				OTHER_LDFLAGS = (
 					"-ObjC",
 					"-lz",
 					"$(inherited)",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}";
 				PRODUCT_NAME = Telegram;
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Telegram-iOS/Telegram-Bridging-Header.h";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 5.0;
 				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = DebugFork;
@@ -5271,17 +5545,17 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Share/Share-Fork.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 667;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Share/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Share;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.Share";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -5303,15 +5577,14 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "SiriIntents/SiriIntents-Fork.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 667;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = SiriIntents/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.SiriIntents;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.SiriIntents";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -5352,10 +5625,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -5379,6 +5652,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = "org.Telegram.Telegram-iOS-UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "df24dc18-3fdc-447c-b347-5a110cecd77d";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -5423,7 +5697,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Widget/Widget-Fork.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -5443,14 +5717,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Widget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Widget;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.Telegram-iOS.Widget";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -5498,7 +5773,7 @@
 				CODE_SIGN_ENTITLEMENTS = "NotificationContent/NotificationContent-Fork.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -5518,15 +5793,16 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationContent/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.NotificationContent;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.NotificationContent";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.Telegram-iOS.NotificationContent";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -5574,10 +5850,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = X834Q8SBVP;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -5594,14 +5870,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				IBSC_MODULE = Watch_Extension;
 				INFOPLIST_FILE = Watch/App/Info.plist;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.Telegram-iOS.watchkitapp";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -5648,10 +5925,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = X834Q8SBVP;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -5668,16 +5945,19 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = submodules/SSignalKit;
+				HEADER_SEARCH_PATHS = (
+					submodules/SSignalKit,
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = Watch/Extension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				LIBRARY_SEARCH_PATHS = submodules/SSignalKit;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.watchkitapp.watchkitextension";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.Telegram-iOS.watchkitapp.watchkitextension";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -5725,7 +6005,7 @@
 				CODE_SIGN_ENTITLEMENTS = "NotificationContent/NotificationContent-HockeyApp.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -5745,15 +6025,16 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationContent/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.NotificationContent;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.NotificationContent";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.Telegram-iOS.NotificationContent";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -5766,7 +6047,6 @@
 		};
 		D02CF60A215D9ABF00E0F56A /* DebugAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUILD_NUMBER = 99999;
@@ -5799,9 +6079,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_ENTITLEMENTS = "NotificationContent/NotificationContent-AppStore.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Developer: Peter Iakovlev (88P695A564)";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer: Peter Iakovlev (88P695A564)";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -5821,15 +6101,16 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationContent/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.NotificationContent;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.NotificationContent";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.TelegramHD.NotificationContent";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -5875,7 +6156,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_ENTITLEMENTS = "NotificationContent/NotificationContent-AppStoreLLC.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
@@ -5897,6 +6178,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationContent/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
@@ -5918,7 +6200,6 @@
 		};
 		D02CF60C215D9ABF00E0F56A /* ReleaseAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUILD_NUMBER = 99999;
@@ -5951,9 +6232,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_ENTITLEMENTS = "NotificationContent/NotificationContent-AppStore.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP (6N38VWS5BX)";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP (6N38VWS5BX)";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -5967,14 +6248,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationContent/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.NotificationContent;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.NotificationContent";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match AppStore org.telegram.TelegramHD.NotificationContent";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "NotificationContent/NotificationContent-Bridging-Header.h";
@@ -6020,8 +6302,8 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_ENTITLEMENTS = "NotificationContent/NotificationContent-AppStoreLLC.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: Digital Fortress LLC (C67CF9S4VU)";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
@@ -6036,6 +6318,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationContent/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
@@ -6089,9 +6372,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_ENTITLEMENTS = "NotificationContent/NotificationContent-HockeyApp.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -6105,14 +6388,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = NotificationContent/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.NotificationContent;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.NotificationContent";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match InHouse org.telegram.Telegram-iOS.NotificationContent";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "NotificationContent/NotificationContent-Bridging-Header.h";
@@ -6135,17 +6419,17 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Share/Share-HockeyApp.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 667;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Share/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Share;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.Share";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -6158,7 +6442,6 @@
 		};
 		D03B0E851D63484500955575 /* ReleaseAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				BITCODE_GENERATION_MODE = bitcode;
 				BUILD_NUMBER = 99999;
@@ -6169,15 +6452,16 @@
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Share/Share-AppStore.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Share/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Share;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.Share";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_INSTALL_OBJC_HEADER = NO;
@@ -6189,10 +6473,8 @@
 		};
 		D079FCF91F06BBA40038FADE /* DebugAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				APP_NAME = "CloudVeil Messenger";
 				BUILD_NUMBER = 9999;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -6233,6 +6515,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				PROVISIONING_PROFILE = "";
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -6241,7 +6524,7 @@
 		};
 		D079FCFA1F06BBA40038FADE /* DebugAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
+			baseConfigurationReference = 19BA5C7FD0849D433FF599EB /* Pods-Telegram-iOS.debugappstore.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -6249,16 +6532,14 @@
 				BUILD_NUMBER = 99999;
 				CLANG_MODULES_AUTOLINK = NO;
 				CODE_SIGN_ENTITLEMENTS = "Telegram-iOS/Telegram-iOS-AppStore.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Developer: Peter Iakovlev (88P695A564)";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer: Peter Iakovlev (88P695A564)";
 				COMMIT_ID = "";
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(BUILT_PRODUCTS_DIR)",
-					"$(PROJECT_DIR)/third-party",
 					"$(inherited)",
 				);
 				HEADER_SEARCH_PATHS = (
@@ -6268,28 +6549,25 @@
 				INFOPLIST_FILE = "Telegram-iOS/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/submodules/TelegramUI/third-party/opus/lib",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				OTHER_LDFLAGS = (
 					"-ObjC",
 					"-lz",
 					"$(inherited)",
 				);
-				OTHER_SWIFT_FLAGS = "$(inherited) -D DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger;
+				OTHER_SWIFT_FLAGS = "$(inherited)";
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}";
 				PRODUCT_NAME = Telegram;
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Telegram-iOS/Telegram-Bridging-Header.h";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 5.0;
 				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = DebugAppStore;
 		};
 		D079FCFD1F06BBA40038FADE /* DebugAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				BITCODE_GENERATION_MODE = marker;
 				BUILD_NUMBER = 99999;
@@ -6299,16 +6577,16 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Share/Share-AppStore.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Developer: Peter Iakovlev (88P695A564)";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer: Peter Iakovlev (88P695A564)";
 				CURRENT_PROJECT_VERSION = 667;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Share/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Share;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.Share";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -6322,7 +6600,6 @@
 		};
 		D079FCFE1F06BBA40038FADE /* DebugAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				BITCODE_GENERATION_MODE = marker;
 				BUILD_NUMBER = 99999;
@@ -6331,15 +6608,15 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "SiriIntents/SiriIntents-AppStore.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Developer: Peter Iakovlev (88P695A564)";
 				CURRENT_PROJECT_VERSION = 667;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = SiriIntents/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.SiriIntents;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.SiriIntents";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -6354,7 +6631,6 @@
 			baseConfigurationReference = D0338735223A9A99007A2CE4 /* Config-Hockeyapp-Internal.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				APP_NAME = "CloudVeil Messenger";
 				BUILD_NUMBER = 9999;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -6387,6 +6663,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
+				PROVISIONING_PROFILE = "";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
@@ -6403,16 +6680,14 @@
 				BUILD_NUMBER = 99999;
 				CLANG_MODULES_AUTOLINK = NO;
 				CODE_SIGN_ENTITLEMENTS = "Telegram-iOS/Telegram-iOS-Hockeyapp.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP";
 				COMMIT_ID = "";
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(BUILT_PRODUCTS_DIR)",
-					"$(PROJECT_DIR)/third-party",
 					"$(inherited)",
 				);
 				HEADER_SEARCH_PATHS = (
@@ -6422,22 +6697,20 @@
 				INFOPLIST_FILE = "Telegram-iOS/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/submodules/TelegramUI/third-party/opus/lib",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				OTHER_LDFLAGS = (
 					"-ObjC",
 					"-lz",
 					"$(inherited)",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}";
 				PRODUCT_NAME = Telegram;
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Telegram-iOS/Telegram-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 5.0;
 				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = ReleaseHockeyappInternal;
@@ -6454,16 +6727,17 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Share/Share-HockeyApp.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP";
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Share/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Share;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.Share";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_INSTALL_OBJC_HEADER = NO;
@@ -6484,15 +6758,15 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "SiriIntents/SiriIntents-Hockeyapp.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP";
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = SiriIntents/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.SiriIntents;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.SiriIntents";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -6507,7 +6781,6 @@
 			baseConfigurationReference = D0ADF914212B399A00310BBC /* Config-AppStoreLLC.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				APP_NAME = "CloudVeil Messenger";
 				BUILD_NUMBER = 9999;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -6563,8 +6836,8 @@
 				BITCODE_GENERATION_MODE = marker;
 				BUILD_NUMBER = 99999;
 				CLANG_MODULES_AUTOLINK = NO;
-				CODE_SIGN_ENTITLEMENTS = "Telegram-iOS/Telegram-iOS-AppStoreLLC.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_ENTITLEMENTS = "Telegram-iOS/TelegramDebugAppStoreLLC.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMMIT_ID = "";
@@ -6573,7 +6846,6 @@
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(BUILT_PRODUCTS_DIR)",
-					"$(PROJECT_DIR)/third-party",
 					"$(inherited)",
 				);
 				HEADER_SEARCH_PATHS = (
@@ -6583,10 +6855,7 @@
 				INFOPLIST_FILE = "Telegram-iOS/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/submodules/TelegramUI/third-party/opus/lib",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				OTHER_LDFLAGS = (
 					"-ObjC",
 					"-lz",
@@ -6595,9 +6864,10 @@
 				OTHER_SWIFT_FLAGS = "$(inherited)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger;
 				PRODUCT_NAME = Telegram;
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Telegram-iOS/Telegram-Bridging-Header.h";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 5.0;
 				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = DebugAppStoreLLC;
@@ -6613,18 +6883,20 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
-				CODE_SIGN_ENTITLEMENTS = "Share/Share-AppStoreLLC.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_ENTITLEMENTS = Share/ShareDebugAppStoreLLC.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 667;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Share/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -6646,16 +6918,17 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "SiriIntents/SiriIntents-AppStoreLLC.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 667;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = SiriIntents/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.SiriIntents;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.SiriIntents";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -6696,10 +6969,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -6723,6 +6996,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = "org.Telegram.Telegram-iOS-UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "df24dc18-3fdc-447c-b347-5a110cecd77d";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -6765,7 +7039,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_ENTITLEMENTS = "Widget/Widget-AppStoreLLC.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
@@ -6787,6 +7061,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Widget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
@@ -6839,7 +7114,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Widget/Widget-HockeyApp.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -6859,14 +7134,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Widget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Widget;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.Telegram-iOS.Widget";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -6879,7 +7155,6 @@
 		};
 		D0B2F744204F4C9900D3BFB9 /* DebugAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUILD_NUMBER = 99999;
@@ -6911,7 +7186,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Widget/Widget-AppStore.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -6931,14 +7206,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Widget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Widget;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match Development org.telegram.TelegramHD.Widget";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -6951,7 +7227,6 @@
 		};
 		D0B2F745204F4C9900D3BFB9 /* ReleaseAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUILD_NUMBER = 99999;
@@ -6981,9 +7256,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_ENTITLEMENTS = "Widget/Widget-AppStore.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP (6N38VWS5BX)";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP (6N38VWS5BX)";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -6997,13 +7272,14 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Widget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Widget;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match AppStore org.telegram.TelegramHD.Widget";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Widget/Widget-Bridging-Header.h";
@@ -7046,9 +7322,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_ENTITLEMENTS = "Widget/Widget-HockeyApp.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: TELEGRAM MESSENGER LLP";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = L95C8867HX;
@@ -7062,13 +7338,14 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Widget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Widget;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "match InHouse org.telegram.Telegram-iOS.Widget";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Widget/Widget-Bridging-Header.h";
@@ -7084,7 +7361,6 @@
 			baseConfigurationReference = D0ADF914212B399A00310BBC /* Config-AppStoreLLC.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				APP_NAME = "CloudVeil Messenger";
 				BUILD_NUMBER = 9999;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -7133,8 +7409,8 @@
 				BUILD_NUMBER = 99999;
 				CLANG_MODULES_AUTOLINK = NO;
 				CODE_SIGN_ENTITLEMENTS = "Telegram-iOS/Telegram-iOS-AppStoreLLC.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: Digital Fortress LLC (C67CF9S4VU)";
 				CODE_SIGN_STYLE = Automatic;
 				COMMIT_ID = "";
 				CURRENT_PROJECT_VERSION = 667;
@@ -7142,7 +7418,6 @@
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(BUILT_PRODUCTS_DIR)",
-					"$(PROJECT_DIR)/third-party",
 					"$(inherited)",
 				);
 				HEADER_SEARCH_PATHS = (
@@ -7152,10 +7427,7 @@
 				INFOPLIST_FILE = "Telegram-iOS/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/submodules/TelegramUI/third-party/opus/lib",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				OTHER_LDFLAGS = (
 					"-ObjC",
 					"-lz",
@@ -7167,7 +7439,7 @@
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Telegram-iOS/Telegram-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 5.0;
 				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = ReleaseAppStoreLLC;
@@ -7184,17 +7456,19 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Share/Share-AppStoreLLC.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: Digital Fortress LLC (C67CF9S4VU)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
 				GCC_OPTIMIZATION_LEVEL = s;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Share/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.Share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_INSTALL_OBJC_HEADER = NO;
@@ -7215,11 +7489,12 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "SiriIntents/SiriIntents-AppStoreLLC.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: Digital Fortress LLC (C67CF9S4VU)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = SiriIntents/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
@@ -7264,10 +7539,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -7284,6 +7559,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "org.Telegram.Telegram-iOS-UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "df24dc18-3fdc-447c-b347-5a110cecd77d";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
@@ -7325,9 +7601,9 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = "Widget/Widget-AppStoreLLC.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_ENTITLEMENTS = Widget/WidgetReleaseAppStoreLLC.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: Digital Fortress LLC (C67CF9S4VU)";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
@@ -7342,6 +7618,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = Widget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
@@ -7370,15 +7647,14 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "SiriIntents/SiriIntents-Hockeyapp.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 667;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = SiriIntents/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.SiriIntents;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.SiriIntents";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -7390,7 +7666,6 @@
 		};
 		D0D268901D79A70B00C422DA /* ReleaseAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				BITCODE_GENERATION_MODE = bitcode;
 				BUILD_NUMBER = 99999;
@@ -7400,14 +7675,14 @@
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CODE_SIGN_ENTITLEMENTS = "SiriIntents/SiriIntents-AppStore.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
 				CURRENT_PROJECT_VERSION = 667;
 				DEVELOPMENT_TEAM = L95C8867HX;
+				HEADER_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = SiriIntents/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cloudveil.CloudVeilMessenger.SiriIntents;
+				PRODUCT_BUNDLE_IDENTIFIER = "${APP_BUNDLE_ID}.SiriIntents";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -7448,10 +7723,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -7475,6 +7750,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = "org.Telegram.Telegram-iOS-UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "df24dc18-3fdc-447c-b347-5a110cecd77d";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -7487,7 +7763,6 @@
 		};
 		D0ECCB841FE9C38500609802 /* DebugAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -7516,10 +7791,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -7543,6 +7818,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = "org.Telegram.Telegram-iOS-UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "df24dc18-3fdc-447c-b347-5a110cecd77d";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -7555,7 +7831,6 @@
 		};
 		D0ECCB851FE9C38500609802 /* ReleaseAppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 639824EC22DE229700DE44C3 /* Config-AppStore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -7584,10 +7859,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -7604,6 +7879,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "org.Telegram.Telegram-iOS-UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "df24dc18-3fdc-447c-b347-5a110cecd77d";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
@@ -7645,10 +7921,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = L95C8867HX;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -7665,6 +7941,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "org.Telegram.Telegram-iOS-UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "df24dc18-3fdc-447c-b347-5a110cecd77d";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
