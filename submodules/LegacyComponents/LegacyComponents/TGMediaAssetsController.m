@@ -1024,7 +1024,9 @@
         return [[UIBarButtonItem alloc] initWithCustomView:searchButton];
     }
     
-    return [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemSearch target:self action:@selector(searchButtonPressed)];
+    //CloudVeil disable web search
+    return nil;
+    //return [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemSearch target:self action:@selector(searchButtonPressed)];
 }
 
 - (void)searchButtonPressed

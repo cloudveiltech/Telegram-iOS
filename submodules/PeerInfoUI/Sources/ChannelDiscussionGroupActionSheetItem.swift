@@ -30,7 +30,7 @@ final class ChannelDiscussionGroupActionSheetItem: ActionSheetItem {
     }
 }
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 26.0)!
+private let avatarFont = UIFont.systemFont(ofSize: 26.0, weight: UIFont.Weight.semibold)
 
 private final class ChannelDiscussionGroupActionSheetItemNode: ActionSheetItemNode {
     private let theme: ActionSheetControllerTheme

@@ -7,7 +7,7 @@ import Postbox
 import TelegramPresentationData
 import AvatarNode
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 24.0)!
+private let avatarFont = UIFont.systemFont(ofSize: 24.0, weight: UIFont.Weight.semibold)
 private let avatarBackgroundImage = UIImage(bundleImageName: "Chat/Message/LocationPin")?.precomposed()
 
 private func addPulseAnimations(layer: CALayer) {

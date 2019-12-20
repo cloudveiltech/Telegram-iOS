@@ -4,8 +4,8 @@ import AsyncDisplayKit
 import Display
 import AvatarNode
 
-private let normalFont = UIFont(name: ".SFCompactRounded-Semibold", size: 16.0)!
-private let smallFont = UIFont(name: ".SFCompactRounded-Semibold", size: 12.0)!
+private let normalFont = UIFont.systemFont(ofSize: 16.0, weight: UIFont.Weight.semibold)
+private let smallFont = UIFont.systemFont(ofSize: 12.0, weight: UIFont.Weight.semibold)
 
 final class ChatAvatarNavigationNodeView: UIView, PreviewingHostView {
     var previewingDelegate: PreviewingHostViewDelegate? {

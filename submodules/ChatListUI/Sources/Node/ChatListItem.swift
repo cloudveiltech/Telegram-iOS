@@ -286,7 +286,7 @@ private final class ChatListItemAccessibilityCustomAction: UIAccessibilityCustom
 
 private let separatorHeight = 1.0 / UIScreen.main.scale
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 26.0)!
+private let avatarFont = UIFont.systemFont(ofSize: 26.0, weight: UIFont.Weight.semibold)
 
 class ChatListItemNode: ItemListRevealOptionsItemNode {
     var item: ChatListItem?

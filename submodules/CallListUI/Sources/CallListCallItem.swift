@@ -172,7 +172,7 @@ class CallListCallItem: ListViewItem {
     }
 }
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 16.0)!
+private let avatarFont = UIFont.systemFont(ofSize: 16.0, weight: UIFont.Weight.semibold)
 
 class CallListCallItemNode: ItemListRevealOptionsItemNode {
     private let backgroundNode: ASDisplayNode

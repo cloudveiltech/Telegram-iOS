@@ -7,7 +7,7 @@ import TelegramPresentationData
 import AvatarNode
 import AccountContext
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 16.0)!
+private let avatarFont = UIFont.systemFont(ofSize: 16.0, weight: UIFont.Weight.semibold)
 
 final class ChatMessageAvatarAccessoryItem: ListViewAccessoryItem {
     private let context: AccountContext

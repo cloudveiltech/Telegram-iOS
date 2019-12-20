@@ -10,7 +10,7 @@ import AvatarNode
 import PeerOnlineMarkerNode
 import LegacyComponents
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 24.0)!
+private let avatarFont = UIFont.systemFont(ofSize:24.0, weight: UIFont.Weight.semibold)
 private let textFont = Font.regular(11.0)
 
 public final class SelectablePeerNodeTheme {

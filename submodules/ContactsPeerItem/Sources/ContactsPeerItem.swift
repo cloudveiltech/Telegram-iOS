@@ -276,7 +276,7 @@ public class ContactsPeerItem: ListViewItem, ListViewItemWithHeader {
     }
 }
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 16.0)!
+private let avatarFont = UIFont.systemFont(ofSize:16.0, weight: UIFont.Weight.semibold)
 
 public class ContactsPeerItemNode: ItemListRevealOptionsItemNode {
     private let backgroundNode: ASDisplayNode

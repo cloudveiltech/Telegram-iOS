@@ -37,7 +37,7 @@ import CloudVeilSecurityManager
 
 private let maximumNumberOfAccounts = 3
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 13.0)!
+private let avatarFont = UIFont.systemFont(ofSize: 13.0, weight: UIFont.Weight.semibold)
 
 private enum SettingsEntryTag: Equatable, ItemListItemTag {
     case account(AccountRecordId)

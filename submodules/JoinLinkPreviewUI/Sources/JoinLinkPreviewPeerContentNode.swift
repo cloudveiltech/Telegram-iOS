@@ -10,7 +10,7 @@ import AccountContext
 import SelectablePeerNode
 import ShareController
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 26.0)!
+private let avatarFont = UIFont.systemFont(ofSize: 26.0, weight: UIFont.Weight.semibold)
 
 private final class MoreNode: ASDisplayNode {
     private let avatarNode = AvatarNode(font: Font.regular(24.0))

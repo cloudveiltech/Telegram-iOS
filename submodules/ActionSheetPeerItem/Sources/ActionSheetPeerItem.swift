@@ -42,7 +42,7 @@ public class ActionSheetPeerItem: ActionSheetItem {
     }
 }
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 15.0)!
+private let avatarFont = UIFont.systemFont(ofSize:15.0, weight: UIFont.Weight.semibold)
 
 public class ActionSheetPeerItemNode: ActionSheetItemNode {
     private let theme: ActionSheetControllerTheme

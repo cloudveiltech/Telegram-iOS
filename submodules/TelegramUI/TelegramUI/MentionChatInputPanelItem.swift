@@ -77,7 +77,7 @@ final class MentionChatInputPanelItem: ListViewItem {
     }
 }
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 16.0)!
+private let avatarFont = UIFont.systemFont(ofSize: 16.0, weight: UIFont.Weight.semibold)
 private let primaryFont = Font.medium(14.0)
 private let secondaryFont = Font.regular(14.0)
 

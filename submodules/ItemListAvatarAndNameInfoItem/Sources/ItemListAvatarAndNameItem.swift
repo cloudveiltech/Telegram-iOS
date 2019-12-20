@@ -215,7 +215,7 @@ public class ItemListAvatarAndNameInfoItem: ListViewItem, ItemListItem {
     }
 }
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 28.0)!
+private let avatarFont = UIFont.systemFont(ofSize:28.0, weight: UIFont.Weight.semibold)
 private let nameFont = Font.medium(19.0)
 private let statusFont = Font.regular(15.0)
 

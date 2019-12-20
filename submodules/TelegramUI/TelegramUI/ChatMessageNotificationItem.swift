@@ -56,8 +56,8 @@ public final class ChatMessageNotificationItem: NotificationItem {
     }
 }
 
-private let compactAvatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 20.0)!
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 24.0)!
+private let compactAvatarFont = UIFont.systemFont(ofSize: 20.0, weight: UIFont.Weight.semibold)
+private let avatarFont = UIFont.systemFont(ofSize: 24.0, weight: UIFont.Weight.semibold)
 
 final class ChatMessageNotificationItemNode: NotificationItemNode {
     private var item: ChatMessageNotificationItem?

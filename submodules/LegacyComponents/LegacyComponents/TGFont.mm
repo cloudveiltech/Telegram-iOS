@@ -116,7 +116,7 @@ UIFont *TGFixedSystemFontOfSize(CGFloat size)
 
 + (UIFont *)roundedFontOfSize:(CGFloat)size
 {
-    return [UIFont fontWithName:@".SFCompactRounded-Semibold" size:size];
+    return [UIFont systemFontOfSize:size weight:UIFontWeightSemibold];
 }
 
 @end

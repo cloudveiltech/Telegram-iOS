@@ -9,7 +9,7 @@ import TelegramPresentationData
 import AvatarNode
 import AccountContext
 
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 16.0)!
+private let avatarFont = UIFont.systemFont(ofSize: 16.0, weight: UIFont.Weight.semibold)
 
 private let titleFont = Font.medium(14.0)
 private let textFont = Font.regular(14.0)

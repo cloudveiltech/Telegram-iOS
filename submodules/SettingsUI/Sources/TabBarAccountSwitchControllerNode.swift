@@ -10,7 +10,7 @@ import AccountContext
 import LocalizedPeerData
 
 private let animationDurationFactor: Double = 1.0
-private let avatarFont = UIFont(name: ".SFCompactRounded-Semibold", size: 16.0)!
+private let avatarFont = UIFont.systemFont(ofSize: 16.0, weight: UIFont.Weight.semibold)
 
 private protocol AbstractSwitchAccountItemNode {
     func updateLayout(maxWidth: CGFloat) -> (CGFloat, CGFloat, (CGFloat) -> Void)
