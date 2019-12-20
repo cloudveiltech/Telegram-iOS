@@ -31,6 +31,8 @@ import Alamofire
     private let mapper = Mapper<TGSettingsResponse>()
     private var observers: [() -> ()] = []
     internal var lastRequest: TGSettingsRequest? = nil
+    private var lastRequestTime: TimeInterval = 0.0
+    private let UPADTE_INTERVAL = 10*60.0 //10min
     
     private let kWasFirstLoaded = "wasFirstLoaded"
     private var wasFirstLoaded: Bool {
@@ -118,11 +120,17 @@ import Alamofire
         request.channels = channels
         
         if let lastReq = self.lastRequest, TGSettingsRequest.compareRequests(lhs: lastReq, rhs: request) {
-            NSLog("No changes, didn't load settings");
-            return
+            let now = Date().timeIntervalSince1970
+            if now - self.lastRequestTime < self.UPADTE_INTERVAL {
+                NSLog("No changes, didn't load settings");
+                return
+            } else {
+                NSLog("It was too long since last update, running request")
+            }
         }
         
         self.lastRequest = request
+        self.lastRequestTime = Date().timeIntervalSince1970
         getSettingsDebounced.call()
     }
     
