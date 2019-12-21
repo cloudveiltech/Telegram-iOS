@@ -7,6 +7,15 @@ project 'submodules/AvatarNode/AvatarNode_Xcode'
 project 'submodules/StickerResources/StickerResources_Xcode'
 project 'submodules/TelegramCallsUI/TelegramCallsUI_Xcode'
 project 'submodules/TelegramBaseController/TelegramBaseController_Xcode'
+project 'submodules/PeerAvatarGalleryUI/PeerAvatarGalleryUI_Xcode'
+
+target 'PeerAvatarGalleryUI' do
+	project 'submodules/PeerAvatarGalleryUI/PeerAvatarGalleryUI_Xcode'
+
+  use_frameworks!
+
+  pod 'CloudVeilSecurityManager'  
+end
 
 target 'TelegramBaseController' do
 	project 'submodules/TelegramBaseController/TelegramBaseController_Xcode'

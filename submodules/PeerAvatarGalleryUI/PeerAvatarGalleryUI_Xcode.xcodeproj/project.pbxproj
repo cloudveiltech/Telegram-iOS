@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5FC8123C6C501BE808BED765 /* Pods_PeerAvatarGalleryUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 30702F1A01A6757D27A1BA3D /* Pods_PeerAvatarGalleryUI.framework */; };
 		D03E41322304D37B0049C28B /* PeerAvatarGalleryUI.h in Headers */ = {isa = PBXBuildFile; fileRef = D03E41302304D37B0049C28B /* PeerAvatarGalleryUI.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		D03E413F2304D3F60049C28B /* AvatarGalleryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03E413C2304D3F50049C28B /* AvatarGalleryController.swift */; };
 		D03E41402304D3F60049C28B /* AvatarGalleryItemFooterContentNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03E413D2304D3F60049C28B /* AvatarGalleryItemFooterContentNode.swift */; };
@@ -32,6 +33,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		127F9FDD094439187BC9255D /* Pods-PeerAvatarGalleryUI.debughockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PeerAvatarGalleryUI.debughockeyapp.xcconfig"; path = "Target Support Files/Pods-PeerAvatarGalleryUI/Pods-PeerAvatarGalleryUI.debughockeyapp.xcconfig"; sourceTree = "<group>"; };
+		30702F1A01A6757D27A1BA3D /* Pods_PeerAvatarGalleryUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_PeerAvatarGalleryUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		5C42CBE219162CD82E076E58 /* Pods-PeerAvatarGalleryUI.releasehockeyappinternal.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PeerAvatarGalleryUI.releasehockeyappinternal.xcconfig"; path = "Target Support Files/Pods-PeerAvatarGalleryUI/Pods-PeerAvatarGalleryUI.releasehockeyappinternal.xcconfig"; sourceTree = "<group>"; };
+		949DC10AB9789EEE02901D4B /* Pods-PeerAvatarGalleryUI.releaseappstorellc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PeerAvatarGalleryUI.releaseappstorellc.xcconfig"; path = "Target Support Files/Pods-PeerAvatarGalleryUI/Pods-PeerAvatarGalleryUI.releaseappstorellc.xcconfig"; sourceTree = "<group>"; };
 		D03E412D2304D37B0049C28B /* PeerAvatarGalleryUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = PeerAvatarGalleryUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D03E41302304D37B0049C28B /* PeerAvatarGalleryUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PeerAvatarGalleryUI.h; sourceTree = "<group>"; };
 		D03E41312304D37B0049C28B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -56,6 +61,7 @@
 		D03E41632304D4690049C28B /* RadialStatusNode.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = RadialStatusNode.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D03E41652304D46E0049C28B /* ShareController.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = ShareController.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D03E41692304D4F50049C28B /* FrameworkBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameworkBundle.swift; sourceTree = "<group>"; };
+		F18599908DDA52F0C13D980C /* Pods-PeerAvatarGalleryUI.debugappstorellc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PeerAvatarGalleryUI.debugappstorellc.xcconfig"; path = "Target Support Files/Pods-PeerAvatarGalleryUI/Pods-PeerAvatarGalleryUI.debugappstorellc.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -80,12 +86,25 @@
 				D03E414A2304D4140049C28B /* Display.framework in Frameworks */,
 				D03E41482304D4100049C28B /* UIKit.framework in Frameworks */,
 				D03E41462304D40E0049C28B /* Foundation.framework in Frameworks */,
+				5FC8123C6C501BE808BED765 /* Pods_PeerAvatarGalleryUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B3103A2D4760A6FCC1599682 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				F18599908DDA52F0C13D980C /* Pods-PeerAvatarGalleryUI.debugappstorellc.xcconfig */,
+				127F9FDD094439187BC9255D /* Pods-PeerAvatarGalleryUI.debughockeyapp.xcconfig */,
+				949DC10AB9789EEE02901D4B /* Pods-PeerAvatarGalleryUI.releaseappstorellc.xcconfig */,
+				5C42CBE219162CD82E076E58 /* Pods-PeerAvatarGalleryUI.releasehockeyappinternal.xcconfig */,
+			);
+			name = Pods;
+			path = ../../Pods;
+			sourceTree = "<group>";
+		};
 		D03E41232304D37B0049C28B = {
 			isa = PBXGroup;
 			children = (
@@ -93,6 +112,7 @@
 				D03E412F2304D37B0049C28B /* Sources */,
 				D03E412E2304D37B0049C28B /* Products */,
 				D03E41442304D40D0049C28B /* Frameworks */,
+				B3103A2D4760A6FCC1599682 /* Pods */,
 			);
 			sourceTree = "<group>";
 		};
@@ -136,6 +156,7 @@
 				D03E41492304D4140049C28B /* Display.framework */,
 				D03E41472304D4100049C28B /* UIKit.framework */,
 				D03E41452304D40E0049C28B /* Foundation.framework */,
+				30702F1A01A6757D27A1BA3D /* Pods_PeerAvatarGalleryUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -158,6 +179,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = D03E41352304D37B0049C28B /* Build configuration list for PBXNativeTarget "PeerAvatarGalleryUI" */;
 			buildPhases = (
+				E65CF858EC9E9C45D6E0E30D /* [CP] Check Pods Manifest.lock */,
 				D03E41282304D37B0049C28B /* Headers */,
 				D03E41292304D37B0049C28B /* Sources */,
 				D03E412A2304D37B0049C28B /* Frameworks */,
@@ -214,6 +236,31 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		E65CF858EC9E9C45D6E0E30D /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-PeerAvatarGalleryUI-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D03E41292304D37B0049C28B /* Sources */ = {
@@ -354,6 +401,7 @@
 		};
 		D03E41362304D37B0049C28B /* DebugAppStoreLLC */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F18599908DDA52F0C13D980C /* Pods-PeerAvatarGalleryUI.debugappstorellc.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
@@ -384,6 +432,7 @@
 		};
 		D03E41372304D37B0049C28B /* ReleaseAppStoreLLC */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 949DC10AB9789EEE02901D4B /* Pods-PeerAvatarGalleryUI.releaseappstorellc.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
@@ -477,6 +526,7 @@
 		};
 		D03E41392304D3AB0049C28B /* DebugHockeyapp */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 127F9FDD094439187BC9255D /* Pods-PeerAvatarGalleryUI.debughockeyapp.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
@@ -565,6 +615,7 @@
 		};
 		D03E413B2304D3B50049C28B /* ReleaseHockeyappInternal */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5C42CBE219162CD82E076E58 /* Pods-PeerAvatarGalleryUI.releasehockeyappinternal.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";

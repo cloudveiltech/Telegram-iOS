@@ -9,6 +9,7 @@ import TelegramCore
 import TelegramPresentationData
 import AccountContext
 import GalleryUI
+import CloudVeilSecurityManager
 
 public enum AvatarGalleryEntry: Equatable {
     case topImage([ImageRepresentationWithReference], GalleryItemIndexData?)
@@ -163,7 +164,10 @@ public class AvatarGalleryController: ViewController {
         self.disposable.set(entriesSignal.start(next: { [weak self] entries in
             let f: () -> Void = {
                 if let strongSelf = self {
-                    strongSelf.entries = entries
+                    //CloudVeil start
+                    let maxEntries = min(MainController.shared.profilePhotoLimit, entries.count)
+                    strongSelf.entries = Array(entries.prefix(maxEntries))
+                    //CloudVeil end
                     strongSelf.centralEntryIndex = 0
                     if strongSelf.isViewLoaded {
                         let canDelete: Bool
