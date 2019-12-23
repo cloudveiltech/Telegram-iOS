@@ -71,6 +71,16 @@ import Alamofire
         return settings?.blockedImageResourceUrl ?? ""
     }
     
+     public var profilePhotoLimit: Int {
+        var v = Int(settings?.profilePhotoLimit ?? "-1")!
+        if v < 0 {
+            return Int.max
+        } else if v == 0 {
+            v = 1
+        }
+        return v
+    }
+
      public var blockedImageData: Data? {
         if blockedImageDataCache != nil {
             return blockedImageDataCache

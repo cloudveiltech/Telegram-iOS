@@ -30,6 +30,7 @@ class TGSettingsResponse: Mappable {
     public var manageUsers: Bool?
     public var inputToggleVoiceVideo: Bool?
     public var blockedImageResourceUrl: String?
+    public var profilePhotoLimit: String?
     
     
     // MARK: Mappable
@@ -37,7 +38,7 @@ class TGSettingsResponse: Mappable {
     public required init?(map: Map) { }
     
     public func mapping(map: Map) {
-        
+        profilePhotoLimit <- map["profile_photo_limit"]
         secretChat <- map["secret_chat"]
         secretChatMinimumLength <- map["secret_chat_minimum_length"]
         groups <- map["groups"]
