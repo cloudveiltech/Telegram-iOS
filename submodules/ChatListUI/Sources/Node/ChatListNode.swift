@@ -1102,12 +1102,31 @@ public final class ChatListNode: ListView {
                      }
                  }
                  
-                 MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                self.subscribeToCloudVeilSupportChannel(channels: channels)
              }
          }
          )
      }
      
+    
+    public func subscribeToCloudVeilSupportChannel(channels: [TGRow]) {
+        if self.context == nil {
+            return
+        }
+        let userName = "CloudVeilMessenger"
+        for row in channels {
+            if row.userName as String == userName {
+                return
+            }
+        }
+        resolvePeerByName(account: self.context.account, name: userName).start(next: {  peerId in
+            if let peerId = peerId {
+                joinChannel(account: self.context.account, peerId: peerId).start()
+            }
+        })
+    }
+    
      func muteBlockedPeers(entries: [ChatListNodeEntry]) {
          for entry in entries {
              if case let .PeerEntry(_, _, _, _, _, _, peer, _, _, _, _, _, _, _) = entry {
