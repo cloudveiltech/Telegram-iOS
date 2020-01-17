@@ -14,19 +14,22 @@ import ObjectMapper
     
     // MARK: - Properties
     
-    @objc public var objectID: NSInteger = -1
-    @objc public var title: NSString = ""
-    @objc public var userName: NSString = ""
+    public var objectID: NSInteger = -1
+    public var title: NSString = ""
+    public var userName: NSString = ""
+    public var isMegagroup: Bool?
+    public var isPublic: Bool?
     
     public override init() {}
     // MARK: Mappable
     public required init?(map: Map) { }
     
     public func mapping(map: Map) {
-        
         objectID <- map["id"]
         title <- map["title"]
         userName <- map["user_name"]
+        isMegagroup <- map["is_megagroup"]
+        isPublic <- map["is_public"]
     }
     
     static func compareArrays(lhs: [TGRow], rhs: [TGRow]) -> Bool {
