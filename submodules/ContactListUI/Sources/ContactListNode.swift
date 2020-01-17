@@ -19,6 +19,7 @@ import ChatListSearchItemNode
 import ChatListSearchItemHeader
 import SearchUI
 import TelegramPermissionsUI
+import CloudVeilSecurityManager
 
 private let dropDownIcon = { () -> UIImage in
     UIGraphicsBeginImageContextWithOptions(CGSize(width: 12.0, height: 12.0), false, 0.0)
@@ -943,12 +944,19 @@ public final class ContactListNode: ASDisplayNode {
                             return (peers.map({ FoundPeer(peer: $0, subscribers: nil) }), presences)
                         }
                     }
-                    let foundRemoteContacts: Signal<([FoundPeer], [FoundPeer]), NoError> = .single(([], []))
+                    
+                    //CloudVeil start
+                    var foundRemoteContacts: Signal<([FoundPeer], [FoundPeer]), NoError> = .single(([], []))
                     |> then(
                         searchPeers(account: context.account, query: query)
                         |> map { ($0.0, $0.1) }
                         |> delay(0.2, queue: Queue.concurrentDefaultQueue())
                     )
+                    if MainController.SecurityStaticSettings.disableGlobalSearch {
+                        foundRemoteContacts = .single(([], []))
+                    }
+                    //CloudVeil end
+                    
                     let foundDeviceContacts: Signal<[DeviceContactStableId: (DeviceContactBasicData, PeerId?)], NoError>
                     if searchDeviceContacts {
                         foundDeviceContacts = context.sharedContext.contactDataManager?.search(query: query) ?? .single([:])
