@@ -1079,12 +1079,13 @@ public final class ChatListNode: ListView {
                          row.objectID = NSInteger(peer.peerId.id)
                          let groupId = -peer.peerId.id
                          row.title = title as NSString
-                         
+                        
                          var isGroup: Bool = false
                          if let peer = peer.chatMainPeer as? TelegramChannel, case .group = peer.info {
                              isGroup = true
-                             
                              row.userName = (peer.username ?? "") as NSString
+                             row.isMegagroup = true
+                             row.isPublic = peer.username != nil
                          } else if peer.peerId.namespace == Namespaces.Peer.CloudGroup {
                              isGroup = true
                          }
@@ -1094,6 +1095,7 @@ public final class ChatListNode: ListView {
                          } else if let peer = peer.chatMainPeer as? TelegramChannel, case .broadcast = peer.info {
                              row.objectID = NSInteger(groupId)
                              row.userName = (peer.username ?? "") as NSString
+                             row.isPublic = peer.username != nil
                              channels.append(row)
                          } else if let user = peer.chatMainPeer as? TelegramUser, let botInfo = user.botInfo {
                              row.userName = (user.username ?? "") as NSString
