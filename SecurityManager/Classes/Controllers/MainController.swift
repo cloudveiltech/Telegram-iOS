@@ -40,8 +40,13 @@ import Alamofire
         set { UserDefaults.standard.set(newValue, forKey: kWasFirstLoaded) }
     }
     
+    private var settingsCache: TGSettingsResponse?
     private var settings: TGSettingsResponse? {
-        return DataSource<TGSettingsResponse>.value(mapper: mapper)
+        if settingsCache != nil {
+            return settingsCache
+        }
+        settingsCache = DataSource<TGSettingsResponse>.value(mapper: mapper)
+        return settingsCache
     }
     
      public var disableStickers: Bool {
@@ -146,6 +151,7 @@ import Alamofire
     
     private func saveSettings(_ settings: TGSettingsResponse?) {
         DataSource<TGSettingsResponse>.set(settings)
+        settingsCache = settings        
         for observer in observers {
             observer()
         }
