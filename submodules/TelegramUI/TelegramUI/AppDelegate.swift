@@ -24,8 +24,8 @@ import WatchBridge
 import LegacyDataImport
 import SettingsUI
 import CloudVeilSecurityManager
-import Fabric
 import Crashlytics
+import Fabric
 
 private let handleVoipNotifications = false
 
@@ -239,6 +239,8 @@ final class SharedApplicationContext {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         precondition(!testIsLaunched)
         testIsLaunched = true
+        
+        Fabric.with([Crashlytics.self])
         
         self.deviceToken.set(voipTokenPromise.get()
         |> map(Optional.init))

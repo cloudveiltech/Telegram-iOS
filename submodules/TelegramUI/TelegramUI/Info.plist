@@ -20,5 +20,19 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSPrincipalClass</key>
 	<string></string>
+    <key>Fabric</key>
+    <dict>
+      <key>APIKey</key>
+      <string>4c97095717c496e2a456216afde05cc8bb101711</string>
+      <key>Kits</key>
+      <array>
+        <dict>
+          <key>KitInfo</key>
+          <dict/>
+          <key>KitName</key>
+          <string>Crashlytics</string>
+        </dict>
+      </array>
+    </dict>
 </dict>
 </plist>

@@ -357,18 +357,18 @@
 		</dict>
 	</array>
     <key>Fabric</key>
-    <dict>
+      <dict>
         <key>APIKey</key>
         <string>4c97095717c496e2a456216afde05cc8bb101711</string>
         <key>Kits</key>
         <array>
-            <dict>
-                <key>KitInfo</key>
-                <dict/>
-                <key>KitName</key>
-                <string>Crashlytics</string>
-            </dict>
+          <dict>
+            <key>KitInfo</key>
+            <dict/>
+            <key>KitName</key>
+            <string>Crashlytics</string>
+          </dict>
         </array>
-    </dict>
+      </dict>
 </dict>
 </plist>
