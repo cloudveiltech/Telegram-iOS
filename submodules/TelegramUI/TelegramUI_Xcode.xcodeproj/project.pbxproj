@@ -62,7 +62,6 @@
 		09FFBCD1227B7F9900C33B4B /* anim_archiveswipe.json in Resources */ = {isa = PBXBuildFile; fileRef = 09FFBCCF227B7F9000C33B4B /* anim_archiveswipe.json */; };
 		09FFBCD72281BB2D00C33B4B /* ChatTextLinkEditController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09FFBCD62281BB2D00C33B4B /* ChatTextLinkEditController.swift */; };
 		2C0B932662BFA940CB20898B /* Pods_TelegramUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9BE4029FA4509E677E5B19BA /* Pods_TelegramUI.framework */; };
-		63F1B34223E8538B00114DF6 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 63F1B34123E8538B00114DF6 /* GoogleService-Info.plist */; };
 		D000CABC21F158AD0011B15D /* PrepareSecretThumbnailData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000CABB21F158AD0011B15D /* PrepareSecretThumbnailData.swift */; };
 		D0068FA821760FA300D1B315 /* StoreDownloadedMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0068FA721760FA300D1B315 /* StoreDownloadedMedia.swift */; };
 		D007019E2029EFDD006B9E34 /* ICloudResources.swift in Sources */ = {isa = PBXBuildFile; fileRef = D007019D2029EFDD006B9E34 /* ICloudResources.swift */; };
@@ -632,7 +631,6 @@
 		3B2416E513C4C2EA66F2CC98 /* Pods-TelegramUI.debugappstorellc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TelegramUI.debugappstorellc.xcconfig"; path = "Target Support Files/Pods-TelegramUI/Pods-TelegramUI.debugappstorellc.xcconfig"; sourceTree = "<group>"; };
 		41729745D0417E3ACFD38B6A /* Pods-TelegramUI.releasehockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TelegramUI.releasehockeyapp.xcconfig"; path = "Target Support Files/Pods-TelegramUI/Pods-TelegramUI.releasehockeyapp.xcconfig"; sourceTree = "<group>"; };
 		634EED8B845749BE576B9CBF /* Pods-TelegramUI.releaseappstorellc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TelegramUI.releaseappstorellc.xcconfig"; path = "Target Support Files/Pods-TelegramUI/Pods-TelegramUI.releaseappstorellc.xcconfig"; sourceTree = "<group>"; };
-		63F1B34123E8538B00114DF6 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		95739D415E669306049B6B3F /* Pods-TelegramUI.releaseappstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TelegramUI.releaseappstore.xcconfig"; path = "Target Support Files/Pods-TelegramUI/Pods-TelegramUI.releaseappstore.xcconfig"; sourceTree = "<group>"; };
 		9BE4029FA4509E677E5B19BA /* Pods_TelegramUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_TelegramUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		9C7EB39D2907329896FFB8A1 /* Pods-TelegramUI.debughockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TelegramUI.debughockeyapp.xcconfig"; path = "Target Support Files/Pods-TelegramUI/Pods-TelegramUI.debughockeyapp.xcconfig"; sourceTree = "<group>"; };
@@ -2598,7 +2596,6 @@
 		D0FC40751D5B8E7400261D9D = {
 			isa = PBXGroup;
 			children = (
-				63F1B34123E8538B00114DF6 /* GoogleService-Info.plist */,
 				D0EB42041F3143AB00838FE6 /* LegacyComponentsResources.bundle */,
 				D0F69DB91D6B88190046BCD6 /* TelegramUI.xcconfig */,
 				D0AB0BBA1D6719B5002C78E7 /* Images.xcassets */,
@@ -2794,7 +2791,6 @@
 				D0E9BAB11F056F4C00F079A4 /* stp_card_mastercard_template@2x.png in Resources */,
 				D0E9BA9D1F056F4C00F079A4 /* stp_card_diners@2x.png in Resources */,
 				D0E9BAAF1F056F4C00F079A4 /* stp_card_mastercard@2x.png in Resources */,
-				63F1B34223E8538B00114DF6 /* GoogleService-Info.plist in Resources */,
 				D0C12A1D1F33A85600B3F66D /* ChatWallpaperBuiltin0.jpg in Resources */,
 				D0E9BAAC1F056F4C00F079A4 /* stp_card_jcb@3x.png in Resources */,
 				D0E9BA911F056F4C00F079A4 /* stp_card_amex@2x.png in Resources */,
