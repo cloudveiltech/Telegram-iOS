@@ -1262,7 +1262,7 @@ final class SharedApplicationContext {
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
             var extendNow = false
-            if #available(iOS 9.0, *) {
+           /* if #available(iOS 9.0, *) {
                 if !ProcessInfo.processInfo.isLowPowerModeEnabled {
                     extendNow = true
                 }
@@ -1270,6 +1270,7 @@ final class SharedApplicationContext {
             #if DEBUG
             extendNow = false
             #endif
+            */
             sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 4.0, extendNow: extendNow)
         })
         
