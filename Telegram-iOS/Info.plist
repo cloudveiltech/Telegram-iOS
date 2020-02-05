@@ -312,7 +312,7 @@
 	<key>UIRequiresPersistentWiFi</key>
 	<true/>
 	<key>UIStatusBarStyle</key>
-	<string>UIStatusBarStyleDefault</string>
+	<string>UIStatusBarStyleDarkContent</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -356,19 +356,19 @@
 			</dict>
 		</dict>
 	</array>
-    <key>Fabric</key>
-      <dict>
-        <key>APIKey</key>
-        <string>4c97095717c496e2a456216afde05cc8bb101711</string>
-        <key>Kits</key>
-        <array>
-          <dict>
-            <key>KitInfo</key>
-            <dict/>
-            <key>KitName</key>
-            <string>Crashlytics</string>
-          </dict>
-        </array>
-      </dict>
+	<key>Fabric</key>
+	<dict>
+		<key>APIKey</key>
+		<string>4c97095717c496e2a456216afde05cc8bb101711</string>
+		<key>Kits</key>
+		<array>
+			<dict>
+				<key>KitInfo</key>
+				<dict/>
+				<key>KitName</key>
+				<string>Crashlytics</string>
+			</dict>
+		</array>
+	</dict>
 </dict>
 </plist>
