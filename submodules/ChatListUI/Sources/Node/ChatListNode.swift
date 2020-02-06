@@ -534,8 +534,18 @@ public final class ChatListNode: ListView {
             let (rawEntries, isLoading) = chatListNodeEntriesForView(update.view, state: state, savedMessagesPeer: savedMessagesPeer, hideArchivedFolderByDefault: hideArchivedFolderByDefault, displayArchiveIntro: displayArchiveIntro, mode: mode)
             
             //CloudVeil start
-            self.cloudVeilCheckDialogsOnServer(entries: rawEntries)
-            self.muteBlockedPeers(entries: rawEntries)
+            DispatchQueue.main.sync {
+                let appState = UIApplication.shared.applicationState
+                if appState != UIApplication.State.background {
+                    let backgroundQueue = DispatchQueue(label: "cvbg.queue", qos: .background)
+                    backgroundQueue.async {
+                        self.cloudVeilCheckDialogsOnServer(entries: rawEntries)
+                        self.muteBlockedPeers(entries: rawEntries)
+                    }
+                } else {
+                    NSLog("App is in background, skip checking on cv server\n")
+                }
+            }            
             //CloudVeil end
             
             let entries = rawEntries.filter { entry in
