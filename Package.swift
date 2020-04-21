@@ -16,7 +16,7 @@ let package = Package(
     ],
     dependencies: [
          .package(url: "https://github.com/Alamofire/Alamofire.git", .upToNextMajor(from: "5.1.0")),
-         .package(url: "https://github.com/tristanhimmelman/ObjectMapper.git", .exact("3.3.0")),
+         .package(url: "https://github.com/patriciy/ObjectMapper.git", .upToNextMajor(from: "3.5.3")),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
