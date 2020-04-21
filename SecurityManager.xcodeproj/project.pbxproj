@@ -7,68 +7,56 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		154214C5206117F700467311 /* TGSettingsRequest.swift in Resources */ = {isa = PBXBuildFile; fileRef = ED96448E204A7F3A00601FA0 /* TGSettingsRequest.swift */; };
-		154214C6206117F700467311 /* TGRow.swift in Resources */ = {isa = PBXBuildFile; fileRef = ED964490204A80E800601FA0 /* TGRow.swift */; };
-		154214C7206117F700467311 /* TGSettingsResponse.swift in Resources */ = {isa = PBXBuildFile; fileRef = ED964492204A81DF00601FA0 /* TGSettingsResponse.swift */; };
-		154214C8206118B800467311 /* SecurityManager.swift in Resources */ = {isa = PBXBuildFile; fileRef = ED964494204A829200601FA0 /* SecurityManager.swift */; };
-		154214C92061191800467311 /* ObjectManager.swift in Resources */ = {isa = PBXBuildFile; fileRef = 726CE153204979BE001459E2 /* ObjectManager.swift */; };
-		154214CA2061191800467311 /* ServerConstant.swift in Resources */ = {isa = PBXBuildFile; fileRef = 726CE154204979BE001459E2 /* ServerConstant.swift */; };
-		154214CB2061191F00467311 /* Array+Ext.swift in Resources */ = {isa = PBXBuildFile; fileRef = 726CE14C204979B5001459E2 /* Array+Ext.swift */; };
-		154214CC2061191F00467311 /* DataResponse + Ext.swift in Resources */ = {isa = PBXBuildFile; fileRef = 726CE14A204979B4001459E2 /* DataResponse + Ext.swift */; };
-		154214CD2061191F00467311 /* NSAttributedString+Ext.swift in Resources */ = {isa = PBXBuildFile; fileRef = 726CE149204979B4001459E2 /* NSAttributedString+Ext.swift */; };
-		154214CE2061191F00467311 /* NSError+Ext.swift in Resources */ = {isa = PBXBuildFile; fileRef = 726CE148204979B4001459E2 /* NSError+Ext.swift */; };
-		154214CF2061191F00467311 /* String+Ext.swift in Resources */ = {isa = PBXBuildFile; fileRef = 726CE14B204979B4001459E2 /* String+Ext.swift */; };
-		15F4FF7D20725380003F4E92 /* DataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F4FF7C20725380003F4E92 /* DataSource.swift */; };
-		15F4FF7E20725402003F4E92 /* DataSource.swift in Resources */ = {isa = PBXBuildFile; fileRef = 15F4FF7C20725380003F4E92 /* DataSource.swift */; };
-		723FFF5620496F990027A9BC /* SecurityManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 723FFF4820496F980027A9BC /* SecurityManager.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		726CE14720497894001459E2 /* MainController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726CE14620497894001459E2 /* MainController.swift */; };
-		726CE14D204979B5001459E2 /* NSError+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726CE148204979B4001459E2 /* NSError+Ext.swift */; };
-		726CE14E204979B5001459E2 /* NSAttributedString+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726CE149204979B4001459E2 /* NSAttributedString+Ext.swift */; };
-		726CE14F204979B5001459E2 /* DataResponse + Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726CE14A204979B4001459E2 /* DataResponse + Ext.swift */; };
-		726CE150204979B5001459E2 /* String+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726CE14B204979B4001459E2 /* String+Ext.swift */; };
-		726CE151204979B5001459E2 /* Array+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726CE14C204979B5001459E2 /* Array+Ext.swift */; };
-		726CE155204979BE001459E2 /* ObjectManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726CE153204979BE001459E2 /* ObjectManager.swift */; };
-		726CE156204979BE001459E2 /* ServerConstant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726CE154204979BE001459E2 /* ServerConstant.swift */; };
-		72E51D41204AD110008558CF /* MainController.swift in Resources */ = {isa = PBXBuildFile; fileRef = 726CE14620497894001459E2 /* MainController.swift */; };
-		72E51D42204AD110008558CF /* TGUserController.swift in Resources */ = {isa = PBXBuildFile; fileRef = ED964498204A8B8F00601FA0 /* TGUserController.swift */; };
-		72E51D4C204AD1C0008558CF /* TGUserModel.swift in Resources */ = {isa = PBXBuildFile; fileRef = ED964496204A886800601FA0 /* TGUserModel.swift */; };
+		6362A267244EED3C00FCB5B3 /* SecurityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A251244EED3B00FCB5B3 /* SecurityManager.swift */; };
+		6362A268244EED3C00FCB5B3 /* ObjectManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A252244EED3B00FCB5B3 /* ObjectManager.swift */; };
+		6362A269244EED3C00FCB5B3 /* ServerConstant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A253244EED3B00FCB5B3 /* ServerConstant.swift */; };
+		6362A26A244EED3C00FCB5B3 /* TGSettingsRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A255244EED3B00FCB5B3 /* TGSettingsRequest.swift */; };
+		6362A26B244EED3C00FCB5B3 /* TGSettingsResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A256244EED3B00FCB5B3 /* TGSettingsResponse.swift */; };
+		6362A26C244EED3C00FCB5B3 /* TGRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A257244EED3B00FCB5B3 /* TGRow.swift */; };
+		6362A26D244EED3C00FCB5B3 /* TGUserModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A258244EED3B00FCB5B3 /* TGUserModel.swift */; };
+		6362A26E244EED3C00FCB5B3 /* NSAttributedString+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A25A244EED3B00FCB5B3 /* NSAttributedString+Ext.swift */; };
+		6362A26F244EED3C00FCB5B3 /* String+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A25B244EED3B00FCB5B3 /* String+Ext.swift */; };
+		6362A270244EED3C00FCB5B3 /* NSError+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A25C244EED3B00FCB5B3 /* NSError+Ext.swift */; };
+		6362A271244EED3C00FCB5B3 /* DataResponse + Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A25D244EED3B00FCB5B3 /* DataResponse + Ext.swift */; };
+		6362A272244EED3C00FCB5B3 /* Array+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A25E244EED3B00FCB5B3 /* Array+Ext.swift */; };
+		6362A273244EED3C00FCB5B3 /* MainController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A260244EED3B00FCB5B3 /* MainController.swift */; };
+		6362A274244EED3C00FCB5B3 /* TGUserController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A261244EED3B00FCB5B3 /* TGUserController.swift */; };
+		6362A275244EED3C00FCB5B3 /* DataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A263244EED3B00FCB5B3 /* DataSource.swift */; };
+		6362A276244EED3C00FCB5B3 /* SecurityManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 6362A264244EED3B00FCB5B3 /* SecurityManager.h */; };
+		6362A277244EED3C00FCB5B3 /* Debouncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A265244EED3B00FCB5B3 /* Debouncer.swift */; };
+		6362A278244EED3C00FCB5B3 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 6362A266244EED3C00FCB5B3 /* Info.plist */; };
 		B4A94C1D792161F888526F18 /* Pods_SecurityManager.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B68EB01B68D1B21B1C84740 /* Pods_SecurityManager.framework */; };
-		ED96448F204A7F3A00601FA0 /* TGSettingsRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED96448E204A7F3A00601FA0 /* TGSettingsRequest.swift */; };
-		ED964491204A80E800601FA0 /* TGRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED964490204A80E800601FA0 /* TGRow.swift */; };
-		ED964493204A81DF00601FA0 /* TGSettingsResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED964492204A81DF00601FA0 /* TGSettingsResponse.swift */; };
-		ED964495204A829200601FA0 /* SecurityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED964494204A829200601FA0 /* SecurityManager.swift */; };
-		ED964497204A886800601FA0 /* TGUserModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED964496204A886800601FA0 /* TGUserModel.swift */; };
-		ED964499204A8B8F00601FA0 /* TGUserController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED964498204A8B8F00601FA0 /* TGUserController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		15F4FF7C20725380003F4E92 /* DataSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSource.swift; sourceTree = "<group>"; };
 		16575CA75B1444429DC49E30 /* Pods-SecurityManager.debug appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManager.debug appstore.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManager/Pods-SecurityManager.debug appstore.xcconfig"; sourceTree = "<group>"; };
 		317D94EC9AED90E001E8E10D /* Pods-SecurityManagerTests.debug hockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManagerTests.debug hockeyapp.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManagerTests/Pods-SecurityManagerTests.debug hockeyapp.xcconfig"; sourceTree = "<group>"; };
 		31BC35FF17F02961D520FEA9 /* Pods-SecurityManager.release appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManager.release appstore.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManager/Pods-SecurityManager.release appstore.xcconfig"; sourceTree = "<group>"; };
 		3D1A0ED8924F677A9D2401CE /* Pods-SecurityManagerTests.debug appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManagerTests.debug appstore.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManagerTests/Pods-SecurityManagerTests.debug appstore.xcconfig"; sourceTree = "<group>"; };
 		5B68EB01B68D1B21B1C84740 /* Pods_SecurityManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SecurityManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6362A251244EED3B00FCB5B3 /* SecurityManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SecurityManager.swift; sourceTree = "<group>"; };
+		6362A252244EED3B00FCB5B3 /* ObjectManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ObjectManager.swift; sourceTree = "<group>"; };
+		6362A253244EED3B00FCB5B3 /* ServerConstant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ServerConstant.swift; sourceTree = "<group>"; };
+		6362A255244EED3B00FCB5B3 /* TGSettingsRequest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGSettingsRequest.swift; sourceTree = "<group>"; };
+		6362A256244EED3B00FCB5B3 /* TGSettingsResponse.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGSettingsResponse.swift; sourceTree = "<group>"; };
+		6362A257244EED3B00FCB5B3 /* TGRow.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGRow.swift; sourceTree = "<group>"; };
+		6362A258244EED3B00FCB5B3 /* TGUserModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGUserModel.swift; sourceTree = "<group>"; };
+		6362A25A244EED3B00FCB5B3 /* NSAttributedString+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSAttributedString+Ext.swift"; sourceTree = "<group>"; };
+		6362A25B244EED3B00FCB5B3 /* String+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "String+Ext.swift"; sourceTree = "<group>"; };
+		6362A25C244EED3B00FCB5B3 /* NSError+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSError+Ext.swift"; sourceTree = "<group>"; };
+		6362A25D244EED3B00FCB5B3 /* DataResponse + Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "DataResponse + Ext.swift"; sourceTree = "<group>"; };
+		6362A25E244EED3B00FCB5B3 /* Array+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Array+Ext.swift"; sourceTree = "<group>"; };
+		6362A260244EED3B00FCB5B3 /* MainController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MainController.swift; sourceTree = "<group>"; };
+		6362A261244EED3B00FCB5B3 /* TGUserController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGUserController.swift; sourceTree = "<group>"; };
+		6362A263244EED3B00FCB5B3 /* DataSource.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataSource.swift; sourceTree = "<group>"; };
+		6362A264244EED3B00FCB5B3 /* SecurityManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SecurityManager.h; sourceTree = "<group>"; };
+		6362A265244EED3B00FCB5B3 /* Debouncer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Debouncer.swift; sourceTree = "<group>"; };
+		6362A266244EED3C00FCB5B3 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		723FFF4520496F980027A9BC /* SecurityManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SecurityManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		723FFF4820496F980027A9BC /* SecurityManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SecurityManager.h; sourceTree = "<group>"; };
-		723FFF4920496F980027A9BC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		726CE14620497894001459E2 /* MainController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainController.swift; sourceTree = "<group>"; };
-		726CE148204979B4001459E2 /* NSError+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSError+Ext.swift"; sourceTree = "<group>"; };
-		726CE149204979B4001459E2 /* NSAttributedString+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSAttributedString+Ext.swift"; sourceTree = "<group>"; };
-		726CE14A204979B4001459E2 /* DataResponse + Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "DataResponse + Ext.swift"; sourceTree = "<group>"; };
-		726CE14B204979B4001459E2 /* String+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "String+Ext.swift"; sourceTree = "<group>"; };
-		726CE14C204979B5001459E2 /* Array+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Array+Ext.swift"; sourceTree = "<group>"; };
-		726CE153204979BE001459E2 /* ObjectManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ObjectManager.swift; sourceTree = "<group>"; };
-		726CE154204979BE001459E2 /* ServerConstant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ServerConstant.swift; sourceTree = "<group>"; };
 		82EF09D88AF6536AB2A82E57 /* Pods-SecurityManagerTests.release hockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManagerTests.release hockeyapp.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManagerTests/Pods-SecurityManagerTests.release hockeyapp.xcconfig"; sourceTree = "<group>"; };
 		B39EF5DF51CEDE70BD9139C5 /* Pods-SecurityManagerTests.release appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManagerTests.release appstore.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManagerTests/Pods-SecurityManagerTests.release appstore.xcconfig"; sourceTree = "<group>"; };
 		B928F8A8F3BBC57553B8B388 /* Pods-SecurityManager.release hockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManager.release hockeyapp.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManager/Pods-SecurityManager.release hockeyapp.xcconfig"; sourceTree = "<group>"; };
 		C5C15CD9988E772EE473E610 /* Pods-SecurityManager.debug hockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManager.debug hockeyapp.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManager/Pods-SecurityManager.debug hockeyapp.xcconfig"; sourceTree = "<group>"; };
-		ED96448E204A7F3A00601FA0 /* TGSettingsRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TGSettingsRequest.swift; sourceTree = "<group>"; };
-		ED964490204A80E800601FA0 /* TGRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TGRow.swift; sourceTree = "<group>"; };
-		ED964492204A81DF00601FA0 /* TGSettingsResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TGSettingsResponse.swift; sourceTree = "<group>"; };
-		ED964494204A829200601FA0 /* SecurityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityManager.swift; sourceTree = "<group>"; };
-		ED964496204A886800601FA0 /* TGUserModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TGUserModel.swift; sourceTree = "<group>"; };
-		ED964498204A8B8F00601FA0 /* TGUserController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TGUserController.swift; sourceTree = "<group>"; };
 		FCB9D5EFF6EE147561B9E127 /* Pods_SecurityManagerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SecurityManagerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -84,17 +72,99 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		15F4FF6520724122003F4E92 /* Frameworks */ = {
+		6362A24C244EED3B00FCB5B3 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				6362A24D244EED3B00FCB5B3 /* SecurityManager */,
 			);
-			path = Frameworks;
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		6362A24D244EED3B00FCB5B3 /* SecurityManager */ = {
+			isa = PBXGroup;
+			children = (
+				6362A24E244EED3B00FCB5B3 /* Classes */,
+				6362A264244EED3B00FCB5B3 /* SecurityManager.h */,
+				6362A265244EED3B00FCB5B3 /* Debouncer.swift */,
+				6362A266244EED3C00FCB5B3 /* Info.plist */,
+			);
+			path = SecurityManager;
+			sourceTree = "<group>";
+		};
+		6362A24E244EED3B00FCB5B3 /* Classes */ = {
+			isa = PBXGroup;
+			children = (
+				6362A24F244EED3B00FCB5B3 /* Managers */,
+				6362A254244EED3B00FCB5B3 /* Models */,
+				6362A259244EED3B00FCB5B3 /* Extansions */,
+				6362A25F244EED3B00FCB5B3 /* Controllers */,
+				6362A262244EED3B00FCB5B3 /* Helpers */,
+			);
+			path = Classes;
+			sourceTree = "<group>";
+		};
+		6362A24F244EED3B00FCB5B3 /* Managers */ = {
+			isa = PBXGroup;
+			children = (
+				6362A250244EED3B00FCB5B3 /* Server */,
+			);
+			path = Managers;
+			sourceTree = "<group>";
+		};
+		6362A250244EED3B00FCB5B3 /* Server */ = {
+			isa = PBXGroup;
+			children = (
+				6362A251244EED3B00FCB5B3 /* SecurityManager.swift */,
+				6362A252244EED3B00FCB5B3 /* ObjectManager.swift */,
+				6362A253244EED3B00FCB5B3 /* ServerConstant.swift */,
+			);
+			path = Server;
+			sourceTree = "<group>";
+		};
+		6362A254244EED3B00FCB5B3 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				6362A255244EED3B00FCB5B3 /* TGSettingsRequest.swift */,
+				6362A256244EED3B00FCB5B3 /* TGSettingsResponse.swift */,
+				6362A257244EED3B00FCB5B3 /* TGRow.swift */,
+				6362A258244EED3B00FCB5B3 /* TGUserModel.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		6362A259244EED3B00FCB5B3 /* Extansions */ = {
+			isa = PBXGroup;
+			children = (
+				6362A25A244EED3B00FCB5B3 /* NSAttributedString+Ext.swift */,
+				6362A25B244EED3B00FCB5B3 /* String+Ext.swift */,
+				6362A25C244EED3B00FCB5B3 /* NSError+Ext.swift */,
+				6362A25D244EED3B00FCB5B3 /* DataResponse + Ext.swift */,
+				6362A25E244EED3B00FCB5B3 /* Array+Ext.swift */,
+			);
+			path = Extansions;
+			sourceTree = "<group>";
+		};
+		6362A25F244EED3B00FCB5B3 /* Controllers */ = {
+			isa = PBXGroup;
+			children = (
+				6362A260244EED3B00FCB5B3 /* MainController.swift */,
+				6362A261244EED3B00FCB5B3 /* TGUserController.swift */,
+			);
+			path = Controllers;
+			sourceTree = "<group>";
+		};
+		6362A262244EED3B00FCB5B3 /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				6362A263244EED3B00FCB5B3 /* DataSource.swift */,
+			);
+			path = Helpers;
 			sourceTree = "<group>";
 		};
 		723FFF3B20496F980027A9BC = {
 			isa = PBXGroup;
 			children = (
-				723FFF4720496F980027A9BC /* SecurityManager */,
+				6362A24C244EED3B00FCB5B3 /* Sources */,
 				723FFF4620496F980027A9BC /* Products */,
 				AE14EE02362F230E08D48FF4 /* Pods */,
 				7A3989819C8CC789347B9768 /* Frameworks */,
@@ -107,95 +177,6 @@
 				723FFF4520496F980027A9BC /* SecurityManager.framework */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		723FFF4720496F980027A9BC /* SecurityManager */ = {
-			isa = PBXGroup;
-			children = (
-				15F4FF6520724122003F4E92 /* Frameworks */,
-				723FFF5F20496FE60027A9BC /* Classes */,
-				723FFF6020496FF60027A9BC /* Resources */,
-				723FFF4820496F980027A9BC /* SecurityManager.h */,
-				723FFF4920496F980027A9BC /* Info.plist */,
-			);
-			path = SecurityManager;
-			sourceTree = "<group>";
-		};
-		723FFF5F20496FE60027A9BC /* Classes */ = {
-			isa = PBXGroup;
-			children = (
-				723FFF612049700F0027A9BC /* Models */,
-				723FFF65204970440027A9BC /* Controllers */,
-				723FFF642049703A0027A9BC /* Managers */,
-				723FFF622049701D0027A9BC /* Extansions */,
-				723FFF63204970310027A9BC /* Helpers */,
-			);
-			path = Classes;
-			sourceTree = "<group>";
-		};
-		723FFF6020496FF60027A9BC /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		723FFF612049700F0027A9BC /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				ED96448E204A7F3A00601FA0 /* TGSettingsRequest.swift */,
-				ED964490204A80E800601FA0 /* TGRow.swift */,
-				ED964492204A81DF00601FA0 /* TGSettingsResponse.swift */,
-				ED964496204A886800601FA0 /* TGUserModel.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		723FFF622049701D0027A9BC /* Extansions */ = {
-			isa = PBXGroup;
-			children = (
-				726CE14C204979B5001459E2 /* Array+Ext.swift */,
-				726CE14A204979B4001459E2 /* DataResponse + Ext.swift */,
-				726CE149204979B4001459E2 /* NSAttributedString+Ext.swift */,
-				726CE148204979B4001459E2 /* NSError+Ext.swift */,
-				726CE14B204979B4001459E2 /* String+Ext.swift */,
-			);
-			path = Extansions;
-			sourceTree = "<group>";
-		};
-		723FFF63204970310027A9BC /* Helpers */ = {
-			isa = PBXGroup;
-			children = (
-				15F4FF7C20725380003F4E92 /* DataSource.swift */,
-			);
-			path = Helpers;
-			sourceTree = "<group>";
-		};
-		723FFF642049703A0027A9BC /* Managers */ = {
-			isa = PBXGroup;
-			children = (
-				726CE152204979BE001459E2 /* Server */,
-			);
-			path = Managers;
-			sourceTree = "<group>";
-		};
-		723FFF65204970440027A9BC /* Controllers */ = {
-			isa = PBXGroup;
-			children = (
-				726CE14620497894001459E2 /* MainController.swift */,
-				ED964498204A8B8F00601FA0 /* TGUserController.swift */,
-			);
-			path = Controllers;
-			sourceTree = "<group>";
-		};
-		726CE152204979BE001459E2 /* Server */ = {
-			isa = PBXGroup;
-			children = (
-				726CE153204979BE001459E2 /* ObjectManager.swift */,
-				726CE154204979BE001459E2 /* ServerConstant.swift */,
-				ED964494204A829200601FA0 /* SecurityManager.swift */,
-			);
-			path = Server;
 			sourceTree = "<group>";
 		};
 		7A3989819C8CC789347B9768 /* Frameworks */ = {
@@ -229,7 +210,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				723FFF5620496F990027A9BC /* SecurityManager.h in Headers */,
+				6362A276244EED3C00FCB5B3 /* SecurityManager.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -296,21 +277,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				15F4FF7E20725402003F4E92 /* DataSource.swift in Resources */,
-				154214CB2061191F00467311 /* Array+Ext.swift in Resources */,
-				154214CC2061191F00467311 /* DataResponse + Ext.swift in Resources */,
-				154214CD2061191F00467311 /* NSAttributedString+Ext.swift in Resources */,
-				154214CE2061191F00467311 /* NSError+Ext.swift in Resources */,
-				154214CF2061191F00467311 /* String+Ext.swift in Resources */,
-				154214C92061191800467311 /* ObjectManager.swift in Resources */,
-				154214CA2061191800467311 /* ServerConstant.swift in Resources */,
-				154214C8206118B800467311 /* SecurityManager.swift in Resources */,
-				154214C5206117F700467311 /* TGSettingsRequest.swift in Resources */,
-				154214C6206117F700467311 /* TGRow.swift in Resources */,
-				154214C7206117F700467311 /* TGSettingsResponse.swift in Resources */,
-				72E51D4C204AD1C0008558CF /* TGUserModel.swift in Resources */,
-				72E51D41204AD110008558CF /* MainController.swift in Resources */,
-				72E51D42204AD110008558CF /* TGUserController.swift in Resources */,
+				6362A278244EED3C00FCB5B3 /* Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -357,21 +324,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				ED96448F204A7F3A00601FA0 /* TGSettingsRequest.swift in Sources */,
-				726CE156204979BE001459E2 /* ServerConstant.swift in Sources */,
-				726CE14F204979B5001459E2 /* DataResponse + Ext.swift in Sources */,
-				ED964491204A80E800601FA0 /* TGRow.swift in Sources */,
-				726CE14E204979B5001459E2 /* NSAttributedString+Ext.swift in Sources */,
-				726CE14720497894001459E2 /* MainController.swift in Sources */,
-				726CE151204979B5001459E2 /* Array+Ext.swift in Sources */,
-				726CE150204979B5001459E2 /* String+Ext.swift in Sources */,
-				726CE155204979BE001459E2 /* ObjectManager.swift in Sources */,
-				ED964493204A81DF00601FA0 /* TGSettingsResponse.swift in Sources */,
-				15F4FF7D20725380003F4E92 /* DataSource.swift in Sources */,
-				726CE14D204979B5001459E2 /* NSError+Ext.swift in Sources */,
-				ED964499204A8B8F00601FA0 /* TGUserController.swift in Sources */,
-				ED964497204A886800601FA0 /* TGUserModel.swift in Sources */,
-				ED964495204A829200601FA0 /* SecurityManager.swift in Sources */,
+				6362A26F244EED3C00FCB5B3 /* String+Ext.swift in Sources */,
+				6362A277244EED3C00FCB5B3 /* Debouncer.swift in Sources */,
+				6362A271244EED3C00FCB5B3 /* DataResponse + Ext.swift in Sources */,
+				6362A26D244EED3C00FCB5B3 /* TGUserModel.swift in Sources */,
+				6362A275244EED3C00FCB5B3 /* DataSource.swift in Sources */,
+				6362A268244EED3C00FCB5B3 /* ObjectManager.swift in Sources */,
+				6362A269244EED3C00FCB5B3 /* ServerConstant.swift in Sources */,
+				6362A26E244EED3C00FCB5B3 /* NSAttributedString+Ext.swift in Sources */,
+				6362A267244EED3C00FCB5B3 /* SecurityManager.swift in Sources */,
+				6362A26A244EED3C00FCB5B3 /* TGSettingsRequest.swift in Sources */,
+				6362A270244EED3C00FCB5B3 /* NSError+Ext.swift in Sources */,
+				6362A272244EED3C00FCB5B3 /* Array+Ext.swift in Sources */,
+				6362A26B244EED3C00FCB5B3 /* TGSettingsResponse.swift in Sources */,
+				6362A274244EED3C00FCB5B3 /* TGUserController.swift in Sources */,
+				6362A273244EED3C00FCB5B3 /* MainController.swift in Sources */,
+				6362A26C244EED3C00FCB5B3 /* TGRow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
