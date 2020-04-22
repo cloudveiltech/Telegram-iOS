@@ -10,6 +10,7 @@ import Foundation
 
 import ObjectMapper
 import Alamofire
+import UIKit
 
  open class MainController: NSObject {
     public struct SecurityStaticSettings {
@@ -23,7 +24,7 @@ import Alamofire
     }
 
     
-     open static let shared = MainController()
+    public static let shared = MainController()
     
     
     // MARK: - Properties

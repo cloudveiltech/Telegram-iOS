@@ -23,7 +23,7 @@ extension String {
 extension String {
     
     func atributedText(characterSpace: Float) -> NSAttributedString {
-        return NSAttributedString(string: self, attributes: [NSAttributedStringKey.font: UIFont.systemFont(ofSize: 13), NSAttributedStringKey.kern: characterSpace as AnyObject])
+        return NSAttributedString(string: self, attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 13), NSAttributedString.Key.kern: characterSpace as AnyObject])
     }
     
     func replacingURLParameters(urlParameters: [String: String]?) -> String {
@@ -61,7 +61,7 @@ extension String {
     
     func width(withFont font: UIFont) -> CGFloat {
         
-        let fontAttributes = [NSAttributedStringKey.font : font]
+        let fontAttributes = [NSAttributedString.Key.font : font]
         return (self as NSString).size(withAttributes: fontAttributes).width
     }
 }

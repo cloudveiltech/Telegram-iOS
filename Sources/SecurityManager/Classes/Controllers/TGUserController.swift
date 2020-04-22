@@ -12,7 +12,7 @@ import UIKit
     
     // MARK: - Singleton
     
-    @objc open static let shared = TGUserController()
+    @objc public static let shared = TGUserController()
     
     
     // MARK: - Actions
