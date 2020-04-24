@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 import CoreMedia
 import SwiftSignalKit
-import FFMpeg
+import FFMpegBinding
 
 private func readPacketCallback(userData: UnsafeMutableRawPointer?, buffer: UnsafeMutablePointer<UInt8>?, bufferSize: Int32) -> Int32 {
     let context = Unmanaged<SoftwareVideoSource>.fromOpaque(userData!).takeUnretainedValue()
@@ -74,7 +74,7 @@ public final class SoftwareVideoSource {
         
         let ioBufferSize = 64 * 1024
         
-        let avIoContext = FFMpegAVIOContext(bufferSize: Int32(ioBufferSize), opaqueContext: Unmanaged.passUnretained(self).toOpaque(), readPacket: readPacketCallback, seek: seekCallback)
+        let avIoContext = FFMpegAVIOContext(bufferSize: Int32(ioBufferSize), opaqueContext: Unmanaged.passUnretained(self).toOpaque(), readPacket: readPacketCallback, writePacket: nil, seek: seekCallback)
         self.avIoContext = avIoContext
         
         avFormatContext.setIO(self.avIoContext!)

@@ -2,7 +2,8 @@ import Foundation
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import FFMpeg
+import SyncCore
+import FFMpegBinding
 
 private final class FramePreviewContext {
     let source: UniversalSoftwareVideoSource

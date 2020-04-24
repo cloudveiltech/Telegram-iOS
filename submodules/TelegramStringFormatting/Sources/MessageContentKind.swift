@@ -1,6 +1,7 @@
 import Foundation
 import Postbox
 import TelegramCore
+import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import PlatformRestrictionMatching
@@ -22,6 +23,7 @@ public enum MessageContentKindKey {
     case expiredVideo
     case poll
     case restricted
+    case dice
 }
 
 public enum MessageContentKind: Equatable {
@@ -41,6 +43,7 @@ public enum MessageContentKind: Equatable {
     case expiredVideo
     case poll(String)
     case restricted(String)
+    case dice
     
     public var key: MessageContentKindKey {
         switch self {
@@ -76,14 +79,16 @@ public enum MessageContentKind: Equatable {
             return .poll
         case .restricted:
             return .restricted
+        case .dice:
+            return .dice
         }
     }
 }
 
-public func messageContentKind(_ message: Message, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, accountPeerId: PeerId) -> MessageContentKind {
+public func messageContentKind(contentSettings: ContentSettings, message: Message, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, accountPeerId: PeerId) -> MessageContentKind {
     for attribute in message.attributes {
         if let attribute = attribute as? RestrictedContentMessageAttribute {
-            if let text = attribute.platformText(platform: "ios") {
+            if let text = attribute.platformText(platform: "ios", contentSettings: contentSettings) {
                 return .restricted(text)
             }
             break
@@ -164,6 +169,8 @@ public func mediaContentKind(_ media: Media, message: Message? = nil, strings: P
         }
     case let poll as TelegramMediaPoll:
         return .poll(poll.text)
+    case _ as TelegramMediaDice:
+        return .dice
     default:
         return nil
     }
@@ -211,12 +218,30 @@ public func stringForMediaKind(_ kind: MessageContentKind, strings: Presentation
         return ("📊 \(text)", false)
     case let .restricted(text):
         return (text, false)
+    case .dice:
+        return ("🎲", true)
     }
 }
 
-public func descriptionStringForMessage(_ message: Message, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, accountPeerId: PeerId) -> (String, Bool) {
+public func descriptionStringForMessage(contentSettings: ContentSettings, message: Message, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, accountPeerId: PeerId) -> (String, Bool) {
     if !message.text.isEmpty {
         return (message.text, false)
     }
-    return stringForMediaKind(messageContentKind(message, strings: strings, nameDisplayOrder: nameDisplayOrder, accountPeerId: accountPeerId), strings: strings)
+    return stringForMediaKind(messageContentKind(contentSettings: contentSettings, message: message, strings: strings, nameDisplayOrder: nameDisplayOrder, accountPeerId: accountPeerId), strings: strings)
+}
+
+public func foldLineBreaks(_ text: String) -> String {
+    let lines = text.split { $0.isNewline }
+    var result = ""
+    for line in lines {
+        if line.isEmpty {
+            continue
+        }
+        if result.isEmpty {
+            result += line
+        } else {
+            result += " " + line
+        }
+    }
+    return result
 }

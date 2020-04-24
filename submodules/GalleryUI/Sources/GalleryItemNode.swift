@@ -54,8 +54,8 @@ open class GalleryItemNode: ASDisplayNode {
         return .single(nil)
     }
     
-    open func footerContent() -> Signal<GalleryFooterContentNode?, NoError> {
-        return .single(nil)
+    open func footerContent() -> Signal<(GalleryFooterContentNode?, GalleryOverlayContentNode?), NoError> {
+        return .single((nil, nil))
     }
     
     open func navigationStyle() -> Signal<GalleryItemNodeNavigationStyle, NoError> {
@@ -80,10 +80,10 @@ open class GalleryItemNode: ASDisplayNode {
     open func visibilityUpdated(isVisible: Bool) {
     }
     
-    open func animateIn(from node: (ASDisplayNode, () -> (UIView?, UIView?)), addToTransitionSurface: (UIView) -> Void) {
+    open func animateIn(from node: (ASDisplayNode, CGRect, () -> (UIView?, UIView?)), addToTransitionSurface: (UIView) -> Void) {
     }
     
-    open func animateOut(to node: (ASDisplayNode, () -> (UIView?, UIView?)), addToTransitionSurface: (UIView) -> Void, completion: @escaping () -> Void) {
+    open func animateOut(to node: (ASDisplayNode, CGRect, () -> (UIView?, UIView?)), addToTransitionSurface: (UIView) -> Void, completion: @escaping () -> Void) {
     }
     
     open func contentSize() -> CGSize? {

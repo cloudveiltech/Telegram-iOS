@@ -1,9 +1,11 @@
 import Foundation
 import Postbox
 import TelegramCore
+import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import TelegramStringFormatting
+import LocalizedPeerData
 
 public func chatListItemStrings(strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, message: Message?, chatPeer: RenderedPeer, accountPeerId: PeerId, enableMediaEmoji: Bool = true, isPeerGroup: Bool = false) -> (peer: Peer?, hideAuthor: Bool, messageText: String) {
     let peer: Peer?
@@ -38,7 +40,9 @@ public func chatListItemStrings(strings: PresentationStrings, nameDisplayOrder: 
                                 processed = true
                                 break inner
                             case let .Audio(isVoice, _, title, performer, _):
-                                if isVoice {
+                                if !message.text.isEmpty {
+                                    messageText = "🎤 \(messageText)"
+                                } else if isVoice {
                                     if message.text.isEmpty {
                                         messageText = strings.Message_Audio
                                     } else {
@@ -156,6 +160,8 @@ public func chatListItemStrings(strings: PresentationStrings, nameDisplayOrder: 
                     }
                 case let poll as TelegramMediaPoll:
                     messageText = "📊 \(poll.text)"
+                case _ as TelegramMediaDice:
+                    messageText = "🎲"
                 default:
                     break
             }

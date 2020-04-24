@@ -1,7 +1,6 @@
 import CoreMedia
 import Accelerate
-import FFMpeg
-import Accelerate
+import FFMpegBinding
 
 private let bufferCount = 32
 
@@ -84,6 +83,10 @@ public final class FFMpegMediaVideoFrameDecoder: MediaTrackFrameDecoder {
             }
         }
         
+        return nil
+    }
+    
+    public func takeQueuedFrame() -> MediaTrackFrame? {
         return nil
     }
     

@@ -31,7 +31,7 @@ open class ZoomableContentGalleryItemNode: GalleryItemNode, UIScrollViewDelegate
         if #available(iOSApplicationExtension 11.0, iOS 11.0, *) {
             self.scrollNode.view.contentInsetAdjustmentBehavior = .never
         }
-        
+    
         super.init()
         
         self.scrollNode.view.delegate = self
@@ -41,42 +41,54 @@ open class ZoomableContentGalleryItemNode: GalleryItemNode, UIScrollViewDelegate
         self.scrollNode.view.scrollsToTop = false
         self.scrollNode.view.delaysContentTouches = false
         
+        let edgeWidth: CGFloat = 44.0
+        
         let tapRecognizer = TapLongTapOrDoubleTapGestureRecognizer(target: self, action: #selector(self.contentTap(_:)))
-        tapRecognizer.tapActionAtPoint = { _ in
+        tapRecognizer.tapActionAtPoint = { [weak self] location in
+            if let strongSelf = self {
+                let pointInNode = strongSelf.scrollNode.view.convert(location, to: strongSelf.view)
+                if pointInNode.x < edgeWidth || pointInNode.x > strongSelf.frame.width - edgeWidth {
+                    return .waitForSingleTap
+                }
+            }
             return .waitForDoubleTap
         }
         
         self.scrollNode.view.addGestureRecognizer(tapRecognizer)
-        
+
         self.addSubnode(self.scrollNode)
     }
     
     @objc open func contentTap(_ recognizer: TapLongTapOrDoubleTapGestureRecognizer) {
         if recognizer.state == .ended {
             if let (gesture, location) = recognizer.lastRecognizedGestureAndLocation {
-                switch gesture {
-                    case .tap:
-                        self.toggleControlsVisibility()
-                    case .doubleTap:
-                        if let contentView = self.zoomableContent?.1.view, self.scrollNode.view.zoomScale.isLessThanOrEqualTo(self.scrollNode.view.minimumZoomScale) {
-                            let pointInView = self.scrollNode.view.convert(location, to: contentView)
-                            
-                            let newZoomScale = self.scrollNode.view.maximumZoomScale
-                            let scrollViewSize = self.scrollNode.view.bounds.size
-                            
-                            let w = scrollViewSize.width / newZoomScale
-                            let h = scrollViewSize.height / newZoomScale
-                            let x = pointInView.x - (w / 2.0)
-                            let y = pointInView.y - (h / 2.0)
-                            
-                            let rectToZoomTo = CGRect(x: x, y: y, width: w, height: h)
-                            
-                            self.scrollNode.view.zoom(to: rectToZoomTo, animated: true)
-                        } else {
-                            self.scrollNode.view.setZoomScale(self.scrollNode.view.minimumZoomScale, animated: true)
-                        }
-                    default:
-                        break
+                let pointInNode = self.scrollNode.view.convert(location, to: self.view)
+                if pointInNode.x < 44.0 || pointInNode.x > self.frame.width - 44.0 {
+                } else {
+                    switch gesture {
+                        case .tap:
+                            self.toggleControlsVisibility()
+                        case .doubleTap:
+                            if let contentView = self.zoomableContent?.1.view, self.scrollNode.view.zoomScale.isLessThanOrEqualTo(self.scrollNode.view.minimumZoomScale) {
+                                let pointInView = self.scrollNode.view.convert(location, to: contentView)
+                                
+                                let newZoomScale = self.scrollNode.view.maximumZoomScale
+                                let scrollViewSize = self.scrollNode.view.bounds.size
+                                
+                                let w = scrollViewSize.width / newZoomScale
+                                let h = scrollViewSize.height / newZoomScale
+                                let x = pointInView.x - (w / 2.0)
+                                let y = pointInView.y - (h / 2.0)
+                                
+                                let rectToZoomTo = CGRect(x: x, y: y, width: w, height: h)
+                                
+                                self.scrollNode.view.zoom(to: rectToZoomTo, animated: true)
+                            } else {
+                                self.scrollNode.view.setZoomScale(self.scrollNode.view.minimumZoomScale, animated: true)
+                            }
+                        default:
+                            break
+                    }
                 }
             }
         }

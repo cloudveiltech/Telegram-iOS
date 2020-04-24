@@ -4,6 +4,7 @@ import Display
 import AsyncDisplayKit
 import Postbox
 import TelegramCore
+import SyncCore
 import SwiftSignalKit
 import TelegramPresentationData
 import TelegramUIPreferences
@@ -11,6 +12,7 @@ import TelegramAudio
 import AccountContext
 import LocalizedPeerData
 import PhotoResources
+import CallsEmoji
 import CloudVeilSecurityManager
 
 final class CallControllerNode: ASDisplayNode {
@@ -163,10 +165,9 @@ final class CallControllerNode: ASDisplayNode {
     func updatePeer(accountPeer: Peer, peer: Peer, hasOther: Bool) {
         if !arePeersEqual(self.peer, peer) {
             self.peer = peer
-                //CloudVeil start
-               if !MainController.shared.disableProfilePhoto,
-                   let peerReference = PeerReference(peer), !peer.profileImageRepresentations.isEmpty {
-                //CloudVeil end
+            //CloudVeil start
+            if !MainController.shared.disableProfilePhoto, let peerReference = PeerReference(peer), !peer.profileImageRepresentations.isEmpty {
+            //CloudVeil end
                 let representations: [ImageRepresentationWithReference] = peer.profileImageRepresentations.map({ ImageRepresentationWithReference(representation: $0, reference: .avatar(peer: peerReference, resource: $0.resource)) })
                 self.imageNode.setSignal(chatAvatarGalleryPhoto(account: self.account, representations: representations, autoFetchFullSize: true))
                 self.dimNode.isHidden = false
@@ -175,7 +176,7 @@ final class CallControllerNode: ASDisplayNode {
                 self.dimNode.isHidden = true
             }
             
-            self.statusNode.title = peer.displayTitle
+            self.statusNode.title = peer.displayTitle(strings: self.presentationData.strings, displayOrder: self.presentationData.nameDisplayOrder)
             if hasOther {
                 self.statusNode.subtitle = self.presentationData.strings.Call_AnsweringWithAccount(accountPeer.displayTitle(strings: self.presentationData.strings, displayOrder: self.presentationData.nameDisplayOrder)).0
                 
@@ -235,10 +236,18 @@ final class CallControllerNode: ASDisplayNode {
                     text += "\n\(self.statusNode.subtitle)"
                 }
                 statusValue = .text(text)
-            case let .active(timestamp, reception, keyVisualHash):
+            case .active(let timestamp, let reception, let keyVisualHash), .reconnecting(let timestamp, let reception, let keyVisualHash):
                 let strings = self.presentationData.strings
+                var isReconnecting = false
+                if case .reconnecting = callState {
+                    isReconnecting = true
+                }
                 statusValue = .timer({ value in
-                    return strings.Call_StatusOngoing(value).0
+                    if isReconnecting {
+                        return strings.Call_StatusConnecting
+                    } else {
+                        return strings.Call_StatusOngoing(value).0
+                    }
                 }, timestamp)
                 if self.keyTextData?.0 != keyVisualHash {
                     let text = stringForEmojiHashOfData(keyVisualHash, 4)!

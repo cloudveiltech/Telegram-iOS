@@ -12,7 +12,7 @@ final class WebSearchBadgeNode: ASDisplayNode {
     private let textNode: ASTextNode
     private let backgroundNode: ASImageNode
     
-    private let font: UIFont = UIFont.systemFont(ofSize: 17.0, weight: UIFont.Weight.semibold)
+    private let font: UIFont = Font.with(size: 17.0, design: .round, traits: [.bold])
     
     var text: String = "" {
         didSet {

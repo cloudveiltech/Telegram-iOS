@@ -2,8 +2,10 @@ import Foundation
 import UIKit
 import Postbox
 import TelegramCore
+import SyncCore
 import AsyncDisplayKit
 import TelegramPresentationData
+import TelegramUIPreferences
 import AccountContext
 
 final class InstantPageFeedbackItem: InstantPageItem {
@@ -19,7 +21,7 @@ final class InstantPageFeedbackItem: InstantPageItem {
         self.webPage = webPage
     }
     
-    func node(context: AccountContext, strings: PresentationStrings, theme: InstantPageTheme, openMedia: @escaping (InstantPageMedia) -> Void, longPressMedia: @escaping (InstantPageMedia) -> Void, openPeer: @escaping (PeerId) -> Void, openUrl: @escaping (InstantPageUrlItem) -> Void, updateWebEmbedHeight: @escaping (CGFloat) -> Void, updateDetailsExpanded: @escaping (Bool) -> Void, currentExpandedDetails: [Int : Bool]?) -> (InstantPageNode & ASDisplayNode)? {
+    func node(context: AccountContext, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, theme: InstantPageTheme, sourcePeerType: MediaAutoDownloadPeerType, openMedia: @escaping (InstantPageMedia) -> Void, longPressMedia: @escaping (InstantPageMedia) -> Void, openPeer: @escaping (PeerId) -> Void, openUrl: @escaping (InstantPageUrlItem) -> Void, updateWebEmbedHeight: @escaping (CGFloat) -> Void, updateDetailsExpanded: @escaping (Bool) -> Void, currentExpandedDetails: [Int : Bool]?) -> (InstantPageNode & ASDisplayNode)? {
         return InstantPageFeedbackNode(context: context, strings: strings, theme: theme, webPage: self.webPage, openUrl: openUrl)
     }
     
@@ -28,7 +30,7 @@ final class InstantPageFeedbackItem: InstantPageItem {
     }
     
     func matchesNode(_ node: InstantPageNode) -> Bool {
-        if node is InstantPageFeedbackNode {
+        if let node = node as? InstantPageFeedbackNode, case let .Loaded(content) = node.webPage.content, case let .Loaded(updatedContent) = self.webPage.content, content.instantPage?.views == updatedContent.instantPage?.views {
             return true
         }
         return false

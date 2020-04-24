@@ -6,6 +6,7 @@ import Postbox
 import SwiftSignalKit
 import AsyncDisplayKit
 import TelegramCore
+import SyncCore
 import TelegramPresentationData
 import AccountContext
 import GalleryUI
@@ -30,7 +31,7 @@ struct SecureIdDocumentGalleryEntry: Equatable {
     }
     
     func item(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, secureIdContext: SecureIdAccessContext, delete: @escaping (TelegramMediaResource) -> Void) -> GalleryItem {
-        return SecureIdDocumentGalleryItem(context: context, theme: theme, strings: strings, secureIdContext: secureIdContext, resource: self.resource, caption: self.error, location: self.location, delete: {
+        return SecureIdDocumentGalleryItem(context: context, theme: theme, strings: strings, secureIdContext: secureIdContext, itemId: self.index, resource: self.resource, caption: self.error, location: self.location, delete: {
             delete(self.resource)
         })
     }
@@ -44,7 +45,7 @@ final class SecureIdDocumentGalleryControllerPresentationArguments {
     }
 }
 
-class SecureIdDocumentGalleryController: ViewController {
+class SecureIdDocumentGalleryController: ViewController, StandalonePresentableController {
     private var galleryNode: GalleryControllerNode {
         return self.displayNode as! GalleryControllerNode
     }
@@ -67,7 +68,7 @@ class SecureIdDocumentGalleryController: ViewController {
     private let centralItemTitle = Promise<String>()
     private let centralItemTitleView = Promise<UIView?>()
     private let centralItemNavigationStyle = Promise<GalleryItemNodeNavigationStyle>()
-    private let centralItemFooterContentNode = Promise<GalleryFooterContentNode?>()
+    private let centralItemFooterContentNode = Promise<(GalleryFooterContentNode?, GalleryOverlayContentNode?)>()
     private let centralItemAttributesDisposable = DisposableSet();
     
     private let _hiddenMedia = Promise<SecureIdDocumentGalleryEntry?>(nil)
@@ -122,7 +123,7 @@ class SecureIdDocumentGalleryController: ViewController {
             self?.navigationItem.titleView = titleView
         }))
         
-        self.centralItemAttributesDisposable.add(self.centralItemFooterContentNode.get().start(next: { [weak self] footerContentNode in
+        self.centralItemAttributesDisposable.add(self.centralItemFooterContentNode.get().start(next: { [weak self] footerContentNode, _ in
             self?.galleryNode.updatePresentationState({
                 $0.withUpdatedFooterContentNode(footerContentNode)
             }, transition: .immediate)

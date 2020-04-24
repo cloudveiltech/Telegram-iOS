@@ -82,11 +82,16 @@ open class ItemListRevealOptionsItemNode: ListViewItemNode, UIGestureRecognizerD
         super.init(layerBacked: layerBacked, dynamicBounce: dynamicBounce, rotated: rotated, seeThrough: seeThrough)
     }
     
+    open var controlsContainer: ASDisplayNode {
+        return self
+    }
+    
     override open func didLoad() {
         super.didLoad()
         
         let recognizer = ItemListRevealOptionsGestureRecognizer(target: self, action: #selector(self.revealGesture(_:)))
         self.recognizer = recognizer
+        recognizer.delegate = self
         recognizer.allowAnyDirection = self.allowAnyDirection
         self.view.addGestureRecognizer(recognizer)
         
@@ -96,6 +101,16 @@ open class ItemListRevealOptionsItemNode: ListViewItemNode, UIGestureRecognizerD
         self.view.addGestureRecognizer(tapRecognizer)
         
         self.view.disablesInteractiveTransitionGestureRecognizer = self.allowAnyDirection
+        
+        self.view.disablesInteractiveTransitionGestureRecognizerNow = { [weak self] in
+            guard let strongSelf = self else {
+                return false
+            }
+            if !strongSelf.revealOffset.isZero {
+                return true
+            }
+            return false
+        }
     }
     
     open func setRevealOptions(_ options: (left: [ItemListRevealOption], right: [ItemListRevealOption])) {
@@ -157,6 +172,13 @@ open class ItemListRevealOptionsItemNode: ListViewItemNode, UIGestureRecognizerD
         } else {
             return false
         }
+    }
+    
+    open func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        /*if gestureRecognizer === self.recognizer && otherGestureRecognizer is InteractiveTransitionGestureRecognizer {
+            return true
+        }*/
+        return false
     }
     
     @objc private func revealTapGesture(_ recognizer: UITapGestureRecognizer) {
@@ -310,7 +332,7 @@ open class ItemListRevealOptionsItemNode: ListViewItemNode, UIGestureRecognizerD
                 revealNode.updateRevealOffset(offset: 0.0, sideInset: leftInset, transition: .immediate)
             }
             
-            self.addSubnode(revealNode)
+            self.controlsContainer.addSubnode(revealNode)
         }
     }
     
@@ -332,7 +354,7 @@ open class ItemListRevealOptionsItemNode: ListViewItemNode, UIGestureRecognizerD
                 revealNode.updateRevealOffset(offset: 0.0, sideInset: -rightInset, transition: .immediate)
             }
             
-            self.addSubnode(revealNode)
+            self.controlsContainer.addSubnode(revealNode)
         }
     }
     
@@ -491,5 +513,9 @@ open class ItemListRevealOptionsItemNode: ListViewItemNode, UIGestureRecognizerD
             self.hapticFeedback = HapticFeedback()
         }
         self.hapticFeedback?.impact(.medium)
+    }
+    
+    override open func animateFrameTransition(_ progress: CGFloat, _ currentValue: CGFloat) {
+        super.animateFrameTransition(progress, currentValue)   
     }
 }

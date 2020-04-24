@@ -5,11 +5,13 @@ import AsyncDisplayKit
 import SwiftSignalKit
 import Postbox
 import TelegramCore
+import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import DeviceAccess
 import MergeLists
 import ItemListUI
+import PresentationDataUtils
 import MediaResources
 import AccountContext
 import TelegramPermissions
@@ -19,6 +21,9 @@ import ChatListSearchItemNode
 import ChatListSearchItemHeader
 import SearchUI
 import TelegramPermissionsUI
+import AppBundle
+import ContextUI
+import PhoneNumberFormat
 import CloudVeilSecurityManager
 
 private let dropDownIcon = { () -> UIImage in
@@ -98,15 +103,17 @@ private final class ContactListNodeInteraction {
     fileprivate let authorize: () -> Void
     fileprivate let suppressWarning: () -> Void
     fileprivate let openPeer: (ContactListPeer) -> Void
+    fileprivate let contextAction: ((Peer, ASDisplayNode, ContextGesture?) -> Void)?
     
     let itemHighlighting = ContactItemHighlighting()
     
-    init(activateSearch: @escaping () -> Void, openSortMenu: @escaping () -> Void, authorize: @escaping () -> Void, suppressWarning: @escaping () -> Void, openPeer: @escaping (ContactListPeer) -> Void) {
+    init(activateSearch: @escaping () -> Void, openSortMenu: @escaping () -> Void, authorize: @escaping () -> Void, suppressWarning: @escaping () -> Void, openPeer: @escaping (ContactListPeer) -> Void, contextAction: ((Peer, ASDisplayNode, ContextGesture?) -> Void)?) {
         self.activateSearch = activateSearch
         self.openSortMenu = openSortMenu
         self.authorize = authorize
         self.suppressWarning = suppressWarning
         self.openPeer = openPeer
+        self.contextAction = contextAction
     }
 }
 
@@ -146,9 +153,7 @@ private enum ContactListNodeEntry: Comparable, Identifiable {
         }
     }
     
-    
-    
-    func item(account: Account, interaction: ContactListNodeInteraction) -> ListViewItem {
+    func item(context: AccountContext, presentationData: PresentationData, interaction: ContactListNodeInteraction, isSearch: Bool) -> ListViewItem {
         switch self {
             case let .search(theme, strings):
                 return ChatListSearchItem(theme: theme, placeholder: strings.Contacts_SearchLabel, activate: {
@@ -159,24 +164,26 @@ private enum ContactListNodeEntry: Comparable, Identifiable {
                 if case .presence = sortOrder {
                     text = strings.Contacts_SortedByPresence
                 }
-                return ContactListActionItem(theme: theme, title: text, icon: .inline(dropDownIcon, .right), highlight: .alpha, header: nil, action: {
+                return ContactListActionItem(presentationData: ItemListPresentationData(presentationData), title: text, icon: .inline(dropDownIcon, .right), highlight: .alpha, header: nil, action: {
                     interaction.openSortMenu()
             })
             case let .permissionInfo(theme, title, text, suppressed):
-                return InfoListItem(theme: theme, title: title, text: .plain(text), style: .plain, closeAction: suppressed ? nil : {
+                return InfoListItem(presentationData: ItemListPresentationData(presentationData), title: title, text: .plain(text), style: .plain, closeAction: suppressed ? nil : {
                     interaction.suppressWarning()
                 })
             case let .permissionEnable(theme, text):
-                return ContactListActionItem(theme: theme, title: text, icon: .none, header: nil, action: {
+                return ContactListActionItem(presentationData: ItemListPresentationData(presentationData), title: text, icon: .none, header: nil, action: {
                     interaction.authorize()
                 })
             case let .option(_, option, header, theme, _):
-                return ContactListActionItem(theme: theme, title: option.title, icon: option.icon, clearHighlightAutomatically: false, header: header, action: option.action)
+                return ContactListActionItem(presentationData: ItemListPresentationData(presentationData), title: option.title, icon: option.icon, clearHighlightAutomatically: false, header: header, action: option.action)
             case let .peer(_, peer, presence, header, selection, theme, strings, dateTimeFormat, nameSortOrder, nameDisplayOrder, enabled):
-                let status: ContactsPeerItemStatus
+                var status: ContactsPeerItemStatus
                 let itemPeer: ContactsPeerItemPeer
+                var isContextActionEnabled = false
                 switch peer {
                     case let .peer(peer, isGlobal, participantCount):
+                        isContextActionEnabled = true
                         if isGlobal, let _ = peer.addressName {
                             status = .addressName("")
                         } else {
@@ -185,11 +192,19 @@ private enum ContactListNodeEntry: Comparable, Identifiable {
                                 status = .presence(presence, dateTimeFormat)
                             } else if let group = peer as? TelegramGroup {
                                 status = .custom(strings.Conversation_StatusMembers(Int32(group.participantCount)))
-                            } else if let _ = peer as? TelegramChannel {
-                                if let participantCount = participantCount, participantCount != 0 {
-                                    status = .custom(strings.Conversation_StatusMembers(participantCount))
+                            } else if let channel = peer as? TelegramChannel {
+                                if case .group = channel.info {
+                                    if let participantCount = participantCount, participantCount != 0 {
+                                        status = .custom(strings.Conversation_StatusMembers(participantCount))
+                                    } else {
+                                        status = .custom(strings.Group_Status)
+                                    }
                                 } else {
-                                    status = .custom(strings.Group_Status)
+                                    if let participantCount = participantCount, participantCount != 0 {
+                                        status = .custom(strings.Conversation_StatusSubscribers(participantCount))
+                                    } else {
+                                        status = .custom(strings.Channel_Status)
+                                    }
                                 }
                             } else {
                                 status = .none
@@ -200,9 +215,25 @@ private enum ContactListNodeEntry: Comparable, Identifiable {
                         status = .none
                         itemPeer = .deviceContact(stableId: id, contact: contact)
                 }
-                return ContactsPeerItem(theme: theme, strings: strings, sortOrder: nameSortOrder, displayOrder: nameDisplayOrder, account: account, peerMode: .peer, peer: itemPeer, status: status, enabled: enabled, selection: selection, editing: ContactsPeerItemEditing(editable: false, editing: false, revealed: false), index: nil, header: header, action: { _ in
+                if isSearch {
+                    status = .none
+                }
+                var itemContextAction: ((ASDisplayNode, ContextGesture?) -> Void)?
+                if isContextActionEnabled, let contextAction = interaction.contextAction {
+                    itemContextAction = { node, gesture in
+                        switch itemPeer {
+                        case let .peer(peer, _):
+                            if let peer = peer {
+                                contextAction(peer, node, gesture)
+                            }
+                        case .deviceContact:
+                            break
+                        }
+                    }
+                }
+                return ContactsPeerItem(presentationData: ItemListPresentationData(presentationData), sortOrder: nameSortOrder, displayOrder: nameDisplayOrder, context: context, peerMode: isSearch ? .generalSearch : .peer, peer: itemPeer, status: status, enabled: enabled, selection: selection, editing: ContactsPeerItemEditing(editable: false, editing: false, revealed: false), index: nil, header: header, action: { _ in
                     interaction.openPeer(peer)
-                }, itemHighlighting: interaction.itemHighlighting)
+                }, itemHighlighting: interaction.itemHighlighting, contextAction: itemContextAction)
         }
     }
 
@@ -581,12 +612,12 @@ private func contactListNodeEntries(accountPeer: Peer?, peers: [ContactListPeer]
     return entries
 }
 
-private func preparedContactListNodeTransition(account: Account, from fromEntries: [ContactListNodeEntry], to toEntries: [ContactListNodeEntry], interaction: ContactListNodeInteraction, firstTime: Bool, isEmpty: Bool, generateIndexSections: Bool, animation: ContactListAnimation) -> ContactsListNodeTransition {
+private func preparedContactListNodeTransition(context: AccountContext, presentationData: PresentationData, from fromEntries: [ContactListNodeEntry], to toEntries: [ContactListNodeEntry], interaction: ContactListNodeInteraction, firstTime: Bool, isEmpty: Bool, generateIndexSections: Bool, animation: ContactListAnimation, isSearch: Bool) -> ContactsListNodeTransition {
     let (deleteIndices, indicesAndItems, updateIndices) = mergeListsStableWithUpdates(leftList: fromEntries, rightList: toEntries)
     
     let deletions = deleteIndices.map { ListViewDeleteItem(index: $0, directionHint: nil) }
-    let insertions = indicesAndItems.map { ListViewInsertItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(account: account, interaction: interaction), directionHint: nil) }
-    let updates = updateIndices.map { ListViewUpdateItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(account: account, interaction: interaction), directionHint: nil) }
+    let insertions = indicesAndItems.map { ListViewInsertItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(context: context, presentationData: presentationData, interaction: interaction, isSearch: isSearch), directionHint: nil) }
+    let updates = updateIndices.map { ListViewUpdateItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(context: context, presentationData: presentationData, interaction: interaction, isSearch: isSearch), directionHint: nil) }
     
     var shouldFixScroll = false
     var indexSections: [String] = []
@@ -647,7 +678,7 @@ private struct ContactsListNodeTransition {
 public enum ContactListPresentation {
     case orderedByPresence(options: [ContactListAdditionalOption])
     case natural(options: [ContactListAdditionalOption], includeChatList: Bool)
-    case search(signal: Signal<String, NoError>, searchChatList: Bool, searchDeviceContacts: Bool, searchGroups: Bool)
+    case search(signal: Signal<String, NoError>, searchChatList: Bool, searchDeviceContacts: Bool, searchGroups: Bool, searchChannels: Bool, globalSearch: Bool)
     
     public var sortOrder: ContactsSortOrder? {
         switch self {
@@ -744,21 +775,23 @@ public final class ContactListNode: ASDisplayNode {
     public var openPeer: ((ContactListPeer) -> Void)?
     public var openPrivacyPolicy: (() -> Void)?
     public var suppressPermissionWarning: (() -> Void)?
+    private let contextAction: ((Peer, ASDisplayNode, ContextGesture?) -> Void)?
     
     private let previousEntries = Atomic<[ContactListNodeEntry]?>(value: nil)
     private let disposable = MetaDisposable()
     
     private var presentationData: PresentationData
     private var presentationDataDisposable: Disposable?
-    private let themeAndStringsPromise: Promise<(PresentationTheme, PresentationStrings, PresentationDateTimeFormat, PresentationPersonNameOrder, PresentationPersonNameOrder, Bool)>
+    private let presentationDataPromise: Promise<PresentationData>
     
     private var authorizationNode: PermissionContentNode
     private let displayPermissionPlaceholder: Bool
     
-    public init(context: AccountContext, presentation: Signal<ContactListPresentation, NoError>, filters: [ContactListFilter] = [.excludeSelf], selectionState: ContactListNodeGroupSelectionState? = nil, displayPermissionPlaceholder: Bool = true, displaySortOptions: Bool = false) {
+    public init(context: AccountContext, presentation: Signal<ContactListPresentation, NoError>, filters: [ContactListFilter] = [.excludeSelf], selectionState: ContactListNodeGroupSelectionState? = nil, displayPermissionPlaceholder: Bool = true, displaySortOptions: Bool = false, contextAction: ((Peer, ASDisplayNode, ContextGesture?) -> Void)? = nil, isSearch: Bool = false) {
         self.context = context
         self.filters = filters
         self.displayPermissionPlaceholder = displayPermissionPlaceholder
+        self.contextAction = contextAction
         
         self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
         
@@ -767,7 +800,7 @@ public final class ContactListNode: ASDisplayNode {
         
         self.indexNode = CollectionIndexNode()
         
-        self.themeAndStringsPromise = Promise((self.presentationData.theme, self.presentationData.strings, self.presentationData.dateTimeFormat, self.presentationData.nameSortOrder, self.presentationData.nameDisplayOrder, self.presentationData.disableAnimations))
+        self.presentationDataPromise = Promise(self.presentationData)
         
         let contactsAuthorization = Promise<AccessType>()
         contactsAuthorization.set(.single(.allowed)
@@ -826,7 +859,7 @@ public final class ContactListNode: ASDisplayNode {
             self?.suppressPermissionWarning?()
         }, openPeer: { [weak self] peer in
             self?.openPeer?(peer)
-        })
+        }, contextAction: contextAction)
         
         self.indexNode.indexSelected = { [weak self] section in
             guard let strongSelf = self, let layout = strongSelf.validLayout, let entries = previousEntries.with({ $0 }) else {
@@ -877,7 +910,7 @@ public final class ContactListNode: ASDisplayNode {
         var firstTime: Int32 = 1
         let selectionStateSignal = self.selectionStatePromise.get()
         let transition: Signal<ContactsListNodeTransition, NoError>
-        let themeAndStringsPromise = self.themeAndStringsPromise
+        let presentationDataPromise = self.presentationDataPromise
         
         transition = presentation
         |> mapToSignal { presentation in
@@ -888,7 +921,7 @@ public final class ContactListNode: ASDisplayNode {
                 includeChatList = natural.includeChatList
             }
             
-            if case let .search(query, searchChatList, searchDeviceContacts, searchGroups) = presentation {
+            if case let .search(query, searchChatList, searchDeviceContacts, searchGroups, searchChannels, globalSearch) = presentation {
                 return query
                 |> mapToSignal { query in
                     let foundLocalContacts: Signal<([FoundPeer], [PeerId: PeerPresence]), NoError>
@@ -897,14 +930,17 @@ public final class ContactListNode: ASDisplayNode {
                         foundLocalContacts = foundChatListPeers
                         |> mapToSignal { peers -> Signal<([FoundPeer], [PeerId: PeerPresence]), NoError> in
                             var resultPeers: [FoundPeer] = []
+                            
                             for peer in peers {
-                                if searchGroups {
+                                if searchGroups || searchChannels {
                                     let mainPeer = peer.chatMainPeer
                                     if let _ = mainPeer as? TelegramUser {
                                     } else if let _ = mainPeer as? TelegramGroup {
                                     } else if let channel = mainPeer as? TelegramChannel {
                                         if case .broadcast = channel.info {
-                                            continue
+                                            if !searchChannels {
+                                                continue
+                                            }
                                         }
                                     } else {
                                         continue
@@ -944,16 +980,15 @@ public final class ContactListNode: ASDisplayNode {
                             return (peers.map({ FoundPeer(peer: $0, subscribers: nil) }), presences)
                         }
                     }
-                    
                     //CloudVeil start
                     var foundRemoteContacts: Signal<([FoundPeer], [FoundPeer]), NoError> = .single(([], []))
-                    |> then(
-                        searchPeers(account: context.account, query: query)
-                        |> map { ($0.0, $0.1) }
-                        |> delay(0.2, queue: Queue.concurrentDefaultQueue())
-                    )
-                    if MainController.SecurityStaticSettings.disableGlobalSearch {
-                        foundRemoteContacts = .single(([], []))
+                    if globalSearch && !MainController.SecurityStaticSettings.disableGlobalSearch {
+                        foundRemoteContacts = foundRemoteContacts
+                        |> then(
+                            searchPeers(account: context.account, query: query)
+                            |> map { ($0.0, $0.1) }
+                            |> delay(0.2, queue: Queue.concurrentDefaultQueue())
+                        )
                     }
                     //CloudVeil end
                     
@@ -964,16 +999,21 @@ public final class ContactListNode: ASDisplayNode {
                         foundDeviceContacts = .single([:])
                     }
                     
-                    return combineLatest(foundLocalContacts, foundRemoteContacts, foundDeviceContacts, selectionStateSignal, themeAndStringsPromise.get())
-                    |> mapToQueue { localPeersAndStatuses, remotePeers, deviceContacts, selectionState, themeAndStrings -> Signal<ContactsListNodeTransition, NoError> in
+                    let accountPeer = context.account.postbox.loadedPeerWithId(context.account.peerId)
+                    |> take(1)
+                    
+                    return combineLatest(accountPeer, foundLocalContacts, foundRemoteContacts, foundDeviceContacts, selectionStateSignal, presentationDataPromise.get())
+                    |> mapToQueue { accountPeer, localPeersAndStatuses, remotePeers, deviceContacts, selectionState, presentationData -> Signal<ContactsListNodeTransition, NoError> in
                         let signal = deferred { () -> Signal<ContactsListNodeTransition, NoError> in
                             var existingPeerIds = Set<PeerId>()
                             var disabledPeerIds = Set<PeerId>()
 
                             var existingNormalizedPhoneNumbers = Set<DeviceContactNormalizedPhoneNumber>()
+                            var excludeSelf = false
                             for filter in filters {
                                 switch filter {
                                     case .excludeSelf:
+                                        excludeSelf = true
                                         existingPeerIds.insert(context.account.peerId)
                                     case let .exclude(peerIds):
                                         existingPeerIds = existingPeerIds.union(peerIds)
@@ -983,6 +1023,15 @@ public final class ContactListNode: ASDisplayNode {
                             }
                             
                             var peers: [ContactListPeer] = []
+                            
+                            if !excludeSelf && !existingPeerIds.contains(accountPeer.id) {
+                                let lowercasedQuery = query.lowercased()
+                                if presentationData.strings.DialogList_SavedMessages.lowercased().hasPrefix(lowercasedQuery) || "saved messages".hasPrefix(lowercasedQuery) {
+                                    existingPeerIds.insert(accountPeer.id)
+                                    peers.append(.peer(peer: accountPeer, isGlobal: false, participantCount: nil))
+                                }
+                            }
+                            
                             for peer in localPeersAndStatuses.0 {
                                 if !existingPeerIds.contains(peer.peer.id) {
                                     existingPeerIds.insert(peer.peer.id)
@@ -996,14 +1045,14 @@ public final class ContactListNode: ASDisplayNode {
                                 let matches: Bool
                                 if peer.peer is TelegramUser {
                                     matches = true
-                                } else if searchGroups {
-                                    if peer.peer is TelegramGroup {
+                                } else if searchGroups || searchChannels {
+                                    if peer.peer is TelegramGroup && searchGroups {
                                         matches = true
                                     } else if let channel = peer.peer as? TelegramChannel {
                                         if case .group = channel.info {
-                                            matches = true
+                                            matches = searchGroups
                                         } else {
-                                            matches = false
+                                            matches = searchChannels
                                         }
                                     } else {
                                         matches = false
@@ -1026,14 +1075,14 @@ public final class ContactListNode: ASDisplayNode {
                                 let matches: Bool
                                 if peer.peer is TelegramUser {
                                     matches = true
-                                } else if searchGroups {
+                                } else if searchGroups || searchChannels {
                                     if peer.peer is TelegramGroup {
-                                        matches = true
+                                        matches = searchGroups
                                     } else if let channel = peer.peer as? TelegramChannel {
                                         if case .group = channel.info {
-                                            matches = true
+                                            matches = searchGroups
                                         } else {
-                                            matches = false
+                                            matches = searchChannels
                                         }
                                     } else {
                                         matches = false
@@ -1068,9 +1117,9 @@ public final class ContactListNode: ASDisplayNode {
                                 peers.append(.deviceContact(stableId, contact.0))
                             }
                             
-                            let entries = contactListNodeEntries(accountPeer: nil, peers: peers, presences: localPeersAndStatuses.1, presentation: presentation, selectionState: selectionState, theme: themeAndStrings.0, strings: themeAndStrings.1, dateTimeFormat: themeAndStrings.2, sortOrder: themeAndStrings.3, displayOrder: themeAndStrings.4, disabledPeerIds: disabledPeerIds, authorizationStatus: .allowed, warningSuppressed: (true, true), displaySortOptions: false)
+                            let entries = contactListNodeEntries(accountPeer: nil, peers: peers, presences: localPeersAndStatuses.1, presentation: presentation, selectionState: selectionState, theme: presentationData.theme, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, sortOrder: presentationData.nameSortOrder, displayOrder: presentationData.nameDisplayOrder, disabledPeerIds: disabledPeerIds, authorizationStatus: .allowed, warningSuppressed: (true, true), displaySortOptions: false)
                             let previous = previousEntries.swap(entries)
-                            return .single(preparedContactListNodeTransition(account: context.account, from: previous ?? [], to: entries, interaction: interaction, firstTime: previous == nil, isEmpty: false, generateIndexSections: generateSections, animation: .none))
+                            return .single(preparedContactListNodeTransition(context: context, presentationData: presentationData, from: previous ?? [], to: entries, interaction: interaction, firstTime: previous == nil, isEmpty: false, generateIndexSections: generateSections, animation: .none, isSearch: isSearch))
                         }
                         
                         if OSAtomicCompareAndSwap32(1, 0, &firstTime) {
@@ -1113,8 +1162,8 @@ public final class ContactListNode: ASDisplayNode {
                     chatListSignal = .single([])
                 }
                 
-                return (combineLatest(self.contactPeersViewPromise.get(), chatListSignal, selectionStateSignal, themeAndStringsPromise.get(), contactsAuthorization.get(), contactsWarningSuppressed.get())
-                |> mapToQueue { view, chatListPeers, selectionState, themeAndStrings, authorizationStatus, warningSuppressed -> Signal<ContactsListNodeTransition, NoError> in
+                return (combineLatest(self.contactPeersViewPromise.get(), chatListSignal, selectionStateSignal, presentationDataPromise.get(), contactsAuthorization.get(), contactsWarningSuppressed.get())
+                |> mapToQueue { view, chatListPeers, selectionState, presentationData, authorizationStatus, warningSuppressed -> Signal<ContactsListNodeTransition, NoError> in
                     let signal = deferred { () -> Signal<ContactsListNodeTransition, NoError> in
                         var peers = view.peers.map({ ContactListPeer.peer(peer: $0, isGlobal: false, participantCount: nil) })
                         for (peer, memberCount) in chatListPeers {
@@ -1146,7 +1195,7 @@ public final class ContactListNode: ASDisplayNode {
                         if (authorizationStatus == .notDetermined || authorizationStatus == .denied) && peers.isEmpty {
                             isEmpty = true
                         }
-                        let entries = contactListNodeEntries(accountPeer: view.accountPeer, peers: peers, presences: view.peerPresences, presentation: presentation, selectionState: selectionState, theme: themeAndStrings.0, strings: themeAndStrings.1, dateTimeFormat: themeAndStrings.2, sortOrder: themeAndStrings.3, displayOrder: themeAndStrings.4, disabledPeerIds: disabledPeerIds, authorizationStatus: authorizationStatus, warningSuppressed: warningSuppressed, displaySortOptions: displaySortOptions)
+                        let entries = contactListNodeEntries(accountPeer: view.accountPeer, peers: peers, presences: view.peerPresences, presentation: presentation, selectionState: selectionState, theme: presentationData.theme, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, sortOrder: presentationData.nameSortOrder, displayOrder: presentationData.nameDisplayOrder, disabledPeerIds: disabledPeerIds, authorizationStatus: authorizationStatus, warningSuppressed: warningSuppressed, displaySortOptions: displaySortOptions)
                         let previous = previousEntries.swap(entries)
                         
                         var hadPermissionInfo = false
@@ -1170,13 +1219,13 @@ public final class ContactListNode: ASDisplayNode {
                         if hadPermissionInfo != hasPermissionInfo {
                             animation = .insertion
                         }
-                        else if let previous = previous, !themeAndStrings.5, (entries.count - previous.count) < 20 {
+                        else if let previous = previous, !presentationData.disableAnimations, (entries.count - previous.count) < 20 {
                             animation = .default
                         } else {
                             animation = .none
                         }
                         
-                        return .single(preparedContactListNodeTransition(account: context.account, from: previous ?? [], to: entries, interaction: interaction, firstTime: previous == nil, isEmpty: isEmpty, generateIndexSections: generateSections, animation: animation))
+                        return .single(preparedContactListNodeTransition(context: context, presentationData: presentationData, from: previous ?? [], to: entries, interaction: interaction, firstTime: previous == nil, isEmpty: isEmpty, generateIndexSections: generateSections, animation: animation, isSearch: isSearch))
                     }
             
                     if OSAtomicCompareAndSwap32(1, 0, &firstTime) {
@@ -1205,7 +1254,7 @@ public final class ContactListNode: ASDisplayNode {
                 if previousTheme !== presentationData.theme || previousStrings !== presentationData.strings || previousDisableAnimations != presentationData.disableAnimations {
                     strongSelf.backgroundColor = presentationData.theme.chatList.backgroundColor
                     strongSelf.listNode.verticalScrollIndicatorColor = presentationData.theme.list.scrollIndicatorColor
-                    strongSelf.themeAndStringsPromise.set(.single((presentationData.theme, presentationData.strings, presentationData.dateTimeFormat, presentationData.nameSortOrder, presentationData.nameDisplayOrder, presentationData.disableAnimations)))
+                    strongSelf.presentationDataPromise.set(.single(presentationData))
                     
                     let authorizationPreviousHidden = strongSelf.authorizationNode.isHidden
                     strongSelf.authorizationNode.removeFromSupernode()
@@ -1311,32 +1360,10 @@ public final class ContactListNode: ASDisplayNode {
             headerInsets.top -= navigationBarSearchContentHeight
         }
         
-        self.listNode.bounds = CGRect(x: 0.0, y: 0.0, width: layout.size.width, height: layout.size.height)
-        self.listNode.position = CGPoint(x: layout.size.width / 2.0, y: layout.size.height / 2.0)
+        transition.updateFrame(node: self.listNode, frame: CGRect(x: 0.0, y: 0.0, width: layout.size.width, height: layout.size.height))
         
-        var duration: Double = 0.0
-        var curve: UInt = 0
-        switch transition {
-            case .immediate:
-                break
-            case let .animated(animationDuration, animationCurve):
-                duration = animationDuration
-                switch animationCurve {
-                    case .easeInOut, .custom:
-                        break
-                    case .spring:
-                        curve = 7
-                }
-        }
-        
-        let listViewCurve: ListViewAnimationCurve
-        if curve == 7 {
-            listViewCurve = .Spring(duration: duration)
-        } else {
-            listViewCurve = .Default(duration: duration)
-        }
-        
-        let updateSizeAndInsets = ListViewUpdateSizeAndInsets(size: layout.size, insets: insets, headerInsets: headerInsets, duration: duration, curve: listViewCurve)
+        let (duration, curve) = listViewAnimationDurationAndCurve(transition: transition)
+        let updateSizeAndInsets = ListViewUpdateSizeAndInsets(size: layout.size, insets: insets, headerInsets: headerInsets, duration: duration, curve: curve)
         
         self.listNode.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: [.Synchronous, .LowLatency], scrollToItem: nil, updateSizeAndInsets: updateSizeAndInsets, stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
         if let indexSections = self.indexSections {
@@ -1420,6 +1447,6 @@ public final class ContactListNode: ASDisplayNode {
     }
     
     public func scrollToTop() {
-        self.listNode.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: [.Synchronous, .LowLatency], scrollToItem: ListViewScrollToItem(index: 0, position: .top(0.0), animated: true, curve: .Default(duration: nil), directionHint: .Up), updateSizeAndInsets: nil, stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
+        self.listNode.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: [.Synchronous, .LowLatency], scrollToItem: ListViewScrollToItem(index: 0, position: .top(-50.0), animated: true, curve: .Default(duration: nil), directionHint: .Up), updateSizeAndInsets: nil, stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
     }
 }

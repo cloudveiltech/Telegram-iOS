@@ -2,7 +2,8 @@ import Foundation
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import FFMpeg
+import SyncCore
+import FFMpegBinding
 
 private func readPacketCallback(userData: UnsafeMutableRawPointer?, buffer: UnsafeMutablePointer<UInt8>?, bufferSize: Int32) -> Int32 {
     let context = Unmanaged<UniversalSoftwareVideoSourceImpl>.fromOpaque(userData!).takeUnretainedValue()
@@ -122,7 +123,7 @@ private final class UniversalSoftwareVideoSourceImpl {
         
         let ioBufferSize = 1 * 1024
         
-        guard let avIoContext = FFMpegAVIOContext(bufferSize: Int32(ioBufferSize), opaqueContext: Unmanaged.passUnretained(self).toOpaque(), readPacket: readPacketCallback, seek: seekCallback) else {
+        guard let avIoContext = FFMpegAVIOContext(bufferSize: Int32(ioBufferSize), opaqueContext: Unmanaged.passUnretained(self).toOpaque(), readPacket: readPacketCallback, writePacket: nil, seek: seekCallback) else {
             return nil
         }
         self.avIoContext = avIoContext

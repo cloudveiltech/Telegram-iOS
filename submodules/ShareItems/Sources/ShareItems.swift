@@ -2,17 +2,15 @@ import Foundation
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-#if BUCK
+import SyncCore
 import MtProtoKit
-#else
-import MtProtoKitDynamic
-#endif
 import Display
 import AccountContext
 import Pdf
 import LocalMediaResources
 import AVFoundation
 import LegacyComponents
+import ShareItemsImpl
 
 public enum UnpreparedShareItemContent {
     case contact(DeviceContactExtendedData)
@@ -52,9 +50,10 @@ private func scalePhotoImage(_ image: UIImage, dimensions: CGSize) -> UIImage? {
 
 private func preparedShareItem(account: Account, to peerId: PeerId, value: [String: Any]) -> Signal<PreparedShareItem, Void> {
     if let imageData = value["scaledImageData"] as? Data, let dimensions = value["scaledImageDimensions"] as? NSValue {
+        let diminsionsSize = dimensions.cgSizeValue
         return .single(.preparing)
         |> then(
-            standaloneUploadedImage(account: account, peerId: peerId, text: "", data: imageData, dimensions: dimensions.cgSizeValue)
+            standaloneUploadedImage(account: account, peerId: peerId, text: "", data: imageData, dimensions: PixelDimensions(width: Int32(diminsionsSize.width), height: Int32(diminsionsSize.height)))
             |> mapError { _ -> Void in
                 return Void()
             }
@@ -72,7 +71,7 @@ private func preparedShareItem(account: Account, to peerId: PeerId, value: [Stri
         let dimensions = nativeImageSize.fitted(CGSize(width: 1280.0, height: 1280.0))
         if let scaledImage = scalePhotoImage(image, dimensions: dimensions), let imageData = scaledImage.jpegData(compressionQuality: 0.52) {
             return .single(.preparing)
-                |> then(standaloneUploadedImage(account: account, peerId: peerId, text: "", data: imageData, dimensions: dimensions)
+                |> then(standaloneUploadedImage(account: account, peerId: peerId, text: "", data: imageData, dimensions: PixelDimensions(width: Int32(dimensions.width), height: Int32(dimensions.height)))
                 |> mapError { _ -> Void in
                     return Void()
                 }
@@ -125,7 +124,7 @@ private func preparedShareItem(account: Account, to peerId: PeerId, value: [Stri
         }
         
         let resource = LocalFileVideoMediaResource(randomId: arc4random64(), path: asset.url.path, adjustments: resourceAdjustments)
-        return standaloneUploadedFile(account: account, peerId: peerId, text: "", source: .resource(.standalone(resource: resource)), mimeType: "video/mp4", attributes: [.Video(duration: Int(finalDuration), size: finalDimensions, flags: flags)], hintFileIsLarge: finalDuration > 3.0 * 60.0)
+        return standaloneUploadedFile(account: account, peerId: peerId, text: "", source: .resource(.standalone(resource: resource)), mimeType: "video/mp4", attributes: [.Video(duration: Int(finalDuration), size: PixelDimensions(width: Int32(finalDimensions.width), height: Int32(finalDimensions.height)), flags: flags)], hintFileIsLarge: finalDuration > 3.0 * 60.0)
         |> mapError { _ -> Void in
             return Void()
         }
@@ -155,20 +154,50 @@ private func preparedShareItem(account: Account, to peerId: PeerId, value: [Stri
                 }
             }
             if isGif {
-                return standaloneUploadedFile(account: account, peerId: peerId, text: "", source: .data(data), mimeType: "animation/gif", attributes: [.ImageSize(size: image.size), .Animated, .FileName(fileName: fileName ?? "animation.gif")], hintFileIsLarge: data.count > 5 * 1024 * 1024)
-                |> mapError { _ -> Void in return Void() }
-                |> mapToSignal { event -> Signal<PreparedShareItem, Void> in
-                    switch event {
-                        case let .progress(value):
-                            return .single(.progress(value))
-                        case let .result(media):
-                            return .single(.done(.media(media)))
+                let convertedData = Signal<(Data, CGSize, Double, Bool), NoError> { subscriber in
+                    let disposable = MetaDisposable()
+                    let signalDisposable = TGGifConverter.convertGif(toMp4: data).start(next: { next in
+                        if let result = next as? NSDictionary, let path = result["path"] as? String, let convertedData = try? Data(contentsOf: URL(fileURLWithPath: path)), let duration = result["duration"] as? Double {
+                            subscriber.putNext((convertedData, image.size, duration, true))
+                            subscriber.putCompletion()
+                        }
+                    }, error: { _ in
+                        subscriber.putNext((data, image.size, 0, false))
+                        subscriber.putCompletion()
+                    }, completed: nil)
+                    disposable.set(ActionDisposable {
+                        signalDisposable?.dispose()
+                    })
+                    return disposable
+                }
+                
+                return convertedData
+                |> castError(Void.self)
+                |> mapToSignal { data, dimensions, duration, converted in
+                    var attributes: [TelegramMediaFileAttribute] = []
+                    let mimeType: String
+                    if converted {
+                        mimeType = "video/mp4"
+                        attributes = [.Video(duration: Int(duration), size: PixelDimensions(width: Int32(dimensions.width), height: Int32(dimensions.height)), flags: [.supportsStreaming]), .Animated, .FileName(fileName: "animation.mp4")]
+                    } else {
+                        mimeType = "animation/gif"
+                        attributes = [.ImageSize(size: PixelDimensions(width: Int32(dimensions.width), height: Int32(dimensions.height))), .Animated, .FileName(fileName: fileName ?? "animation.gif")]
+                    }
+                    return standaloneUploadedFile(account: account, peerId: peerId, text: "", source: .data(data), mimeType: mimeType, attributes: attributes, hintFileIsLarge: data.count > 5 * 1024 * 1024)
+                    |> mapError { _ -> Void in return Void() }
+                    |> mapToSignal { event -> Signal<PreparedShareItem, Void> in
+                        switch event {
+                            case let .progress(value):
+                                return .single(.progress(value))
+                            case let .result(media):
+                                return .single(.done(.media(media)))
+                        }
                     }
                 }
             } else {
                 let scaledImage = TGScaleImageToPixelSize(image, CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale).fitted(CGSize(width: 1280.0, height: 1280.0)))!
                 let imageData = scaledImage.jpegData(compressionQuality: 0.54)!
-                return standaloneUploadedImage(account: account, peerId: peerId, text: "", data: imageData, dimensions: scaledImage.size)
+                return standaloneUploadedImage(account: account, peerId: peerId, text: "", data: imageData, dimensions: PixelDimensions(width: Int32(scaledImage.size.width), height: Int32(scaledImage.size.height)))
                 |> mapError { _ -> Void in return Void() }
                 |> mapToSignal { event -> Signal<PreparedShareItem, Void> in
                     switch event {
@@ -272,7 +301,7 @@ public func preparedShareItems(account: Account, to peerId: PeerId, dataItems: [
         dataSignals = dataSignals
         |> then(
             wrappedSignal
-            |> introduceError(Void.self)
+            |> castError(Void.self)
             |> take(1)
         )
     }
@@ -339,11 +368,11 @@ public func sentShareItems(account: Account, to peerIds: [PeerId], items: [Prepa
     }
     
     return enqueueMessagesToMultiplePeers(account: account, peerIds: peerIds, messages: messages)
-    |> introduceError(Void.self)
+    |> castError(Void.self)
     |> mapToSignal { messageIds -> Signal<Float, Void> in
         let key: PostboxViewKey = .messages(Set(messageIds))
         return account.postbox.combinedView(keys: [key])
-        |> introduceError(Void.self)
+        |> castError(Void.self)
         |> mapToSignal { view -> Signal<Float, Void> in
             if let messagesView = view.views[key] as? MessagesView {
                 for (_, message) in messagesView.messages {

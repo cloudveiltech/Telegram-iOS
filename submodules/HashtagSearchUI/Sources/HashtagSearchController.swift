@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import Display
 import TelegramCore
+import SyncCore
 import Postbox
 import SwiftSignalKit
 import TelegramPresentationData
@@ -38,7 +39,7 @@ public final class HashtagSearchController: TelegramBaseController {
         self.title = query
         self.navigationItem.backBarButtonItem = UIBarButtonItem(title: self.presentationData.strings.Common_Back, style: .plain, target: nil, action: nil)
         
-        let chatListPresentationData = ChatListPresentationData(theme: self.presentationData.theme, strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, nameSortOrder: self.presentationData.nameSortOrder, nameDisplayOrder: self.presentationData.nameDisplayOrder, disableAnimations: self.presentationData.disableAnimations)
+        let chatListPresentationData = ChatListPresentationData(theme: self.presentationData.theme, fontSize: self.presentationData.listsFontSize, strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, nameSortOrder: self.presentationData.nameSortOrder, nameDisplayOrder: self.presentationData.nameDisplayOrder, disableAnimations: self.presentationData.disableAnimations)
         
         let location: SearchMessagesLocation = .general
         let search = searchMessages(account: context.account, location: location, query: query, state: nil)
@@ -48,7 +49,9 @@ public final class HashtagSearchController: TelegramBaseController {
         }
         let interaction = ChatListNodeInteraction(activateSearch: {
         }, peerSelected: { peer in
+        }, disabledPeerSelected: { _ in
         }, togglePeerSelected: { _ in
+        }, additionalCategorySelected: { _ in
         }, messageSelected: { [weak self] peer, message, _ in
             if let strongSelf = self {
                 strongSelf.openMessageFromSearchDisposable.set((storedMessageFromSearchPeer(account: strongSelf.context.account, peer: peer) |> deliverOnMainQueue).start(next: { actualPeerId in
@@ -67,6 +70,9 @@ public final class HashtagSearchController: TelegramBaseController {
         }, updatePeerGrouping: { _, _ in
         }, togglePeerMarkedUnread: { _, _ in
         }, toggleArchivedFolderHiddenByDefault: {
+        }, activateChatPreview: { _, _, gesture in
+            gesture?.cancel()
+        }, present: { _ in
         })
         
         let previousSearchItems = Atomic<[ChatListSearchEntry]?>(value: nil)
@@ -76,7 +82,9 @@ public final class HashtagSearchController: TelegramBaseController {
                 let previousEntries = previousSearchItems.swap(entries)
                 
                 let firstTime = previousEntries == nil
-                let transition = chatListSearchContainerPreparedTransition(from: previousEntries ?? [], to: entries, displayingResults: true, context: strongSelf.context, enableHeaders: false, filter: [], interaction: interaction)
+                let transition = chatListSearchContainerPreparedTransition(from: previousEntries ?? [], to: entries, displayingResults: true, context: strongSelf.context, presentationData: strongSelf.presentationData, enableHeaders: false, filter: [], interaction: interaction, peerContextAction: nil, toggleExpandLocalResults: {
+                }, toggleExpandGlobalResults: {
+                })
                 strongSelf.controllerNode.enqueueTransition(transition, firstTime: firstTime)
             }
         })
@@ -92,7 +100,7 @@ public final class HashtagSearchController: TelegramBaseController {
     }
     
     override public func loadDisplayNode() {
-        self.displayNode = HashtagSearchControllerNode(context: self.context, peer: self.peer, query: self.query, theme: self.presentationData.theme, strings: self.presentationData.strings)
+        self.displayNode = HashtagSearchControllerNode(context: self.context, peer: self.peer, query: self.query, theme: self.presentationData.theme, strings: self.presentationData.strings, navigationController: self.navigationController as? NavigationController)
         if let chatController = self.controllerNode.chatController {
             chatController.parentController = self
         }
