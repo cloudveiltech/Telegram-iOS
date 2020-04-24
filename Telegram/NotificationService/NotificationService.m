@@ -157,6 +157,20 @@ static void reportMemory() {
     });
 }
 
+//CloudVeil start
+- (NSInteger)getAppBadge {
+    NSUserDefaults *userDefaults = [[NSUserDefaults alloc] initWithSuiteName:@"group.com.cloudveil.CloudVeilMessenger"];
+    NSInteger badge = [userDefaults integerForKey:@"app-badge"];
+    return badge;
+ }
+ 
+
+- (void)setAppBadge:(NSInteger)newValue {
+    NSUserDefaults *userDefaults = [[NSUserDefaults alloc] initWithSuiteName:@"group.com.cloudveil.CloudVeilMessenger"];
+    [userDefaults setInteger:newValue forKey:@"app-badge"];
+}
+ //CloudVeil end
+
 - (void)didReceiveNotificationRequest:(UNNotificationRequest *)request withContentHandler:(void (^)(UNNotificationContent * _Nonnull))contentHandler {
     if (_rootPath == nil) {
         _bestAttemptContent = request.content;
@@ -174,6 +188,14 @@ static void reportMemory() {
     }
     
     StoredAccountInfos * _Nullable accountInfos = [StoredAccountInfos loadFromPath:[_rootPath stringByAppendingPathComponent:@"accounts-shared-data"]];
+    bool silent = _bestAttemptContent.sound == nil;
+    //CloudVeil start
+    if(!silent) {
+        NSInteger badge = [self getAppBadge] + 1;
+        _bestAttemptContent.badge = [NSNumber numberWithInteger:badge];
+        [self setAppBadge:badge];
+    }
+    //CloudVeil end
     
     int selectedAccountIndex = -1;
     NSDictionary *decryptedPayload = decryptedNotificationPayload(accountInfos.accounts, encryptedData, &selectedAccountIndex);
