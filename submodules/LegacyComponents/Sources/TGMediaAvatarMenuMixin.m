@@ -143,6 +143,7 @@
     }];
     [itemViews addObject:galleryItem];
     
+    /* CloudVeil disabled
     if (_hasSearchButton)
     {
         TGMenuSheetButtonItemView *viewItem = [[TGMenuSheetButtonItemView alloc] initWithTitle:TGLocalized(@"AttachmentMenu.WebSearch") type:TGMenuSheetButtonTypeDefault fontSize:20.0 action:^
@@ -161,6 +162,7 @@
         }];
         [itemViews addObject:viewItem];
     }
+    */
     
     if (_hasViewButton)
     {
