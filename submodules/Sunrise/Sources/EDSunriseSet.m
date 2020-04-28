@@ -16,7 +16,7 @@
 //  Released to the public domain by Paul Schlyter, December 1992
 //
 
-#import <Sunrise/EDSunriseSet.h>
+#import <EDSunriseSet.h>
 
 //
 // Defines from sunriset.c

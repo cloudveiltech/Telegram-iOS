@@ -2152,6 +2152,7 @@
 "Notification.GameScoreSelfSimple_0" = "scored %@";
 
 "Stickers.Install" = "ADD";
+"Stickers.Installed" = "ADDED";
 
 "MaskStickerSettings.Title" = "Masks";
 "MaskStickerSettings.Info" = "You can add masks to photos and videos you send. To do this, open the photo editor before sending a photo or video.";
@@ -5475,6 +5476,10 @@ Any member of this group will be able to see messages in the channel.";
 
 "Conversation.Dice" = "Send a 🎲 emoji to any chat to get a random number from Telegram.";
 
+"Conversation.Dice.🎲" = "Send a dice emoji to any chat to roll a die.";
+"Conversation.Dice.🎯" = "Send a dart emoji to try your luck.";
+"Conversation.SendDice" = "Send";
+
 "ForwardedDices_1" = "Forwarded dice";
 "ForwardedDices_2" = "2 forwarded dices";
 "ForwardedDices_3_10" = "%@ forwarded dices";
@@ -5484,3 +5489,8 @@ Any member of this group will be able to see messages in the channel.";
 
 "Conversation.ContextMenuDiscuss" = "Discuss";
 
+"CreatePoll.ExplanationHeader" = "EXPLANATION";
+"CreatePoll.Explanation" = "Add a Comment (Optional)";
+"CreatePoll.ExplanationInfo" = "Users will see this comment after choosing a wrong answer, good for educational purposes.";
+
+"FeaturedStickers.OtherSection" = "OTHER STICKERS";

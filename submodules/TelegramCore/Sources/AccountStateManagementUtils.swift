@@ -1544,7 +1544,7 @@ private func resolveMissingPeerChatInfos(network: Network, state: AccountMutable
                                 updatedState.resetMessageTagSummary(peer.peerId, namespace: Namespaces.Message.Cloud, count: unreadMentionsCount, range: MessageHistoryTagNamespaceCountValidityRange(maxId: topMessage))
                                 updatedState.peerChatInfos[peer.peerId] = PeerChatInfo(notificationSettings: notificationSettings)
                                 if let pts = pts {
-                                    channelStates[peer.peerId] = ChannelState(pts: pts, invalidatedPts: pts)
+                                    channelStates[peer.peerId] = ChannelState(pts: pts, invalidatedPts: pts, synchronizedUntilMessageId: nil)
                                 }
                             case .dialogFolder:
                                 assertionFailure()
@@ -1708,7 +1708,7 @@ private func resetChannels(network: Network, peers: [Peer], state: AccountMutabl
                         }
                         
                         if let apiChannelPts = apiChannelPts {
-                            channelStates[peerId] = ChannelState(pts: apiChannelPts, invalidatedPts: apiChannelPts)
+                            channelStates[peerId] = ChannelState(pts: apiChannelPts, invalidatedPts: apiChannelPts, synchronizedUntilMessageId: nil)
                         }
                         
                         notificationSettings[peerId] = TelegramPeerNotificationSettings(apiSettings: apiNotificationSettings)
@@ -1812,7 +1812,7 @@ private func pollChannel(network: Network, peer: Peer, state: AccountMutableStat
                         if let previousState = updatedState.chatStates[peer.id] as? ChannelState {
                             channelState = previousState.withUpdatedPts(pts)
                         } else {
-                            channelState = ChannelState(pts: pts, invalidatedPts: nil)
+                            channelState = ChannelState(pts: pts, invalidatedPts: nil, synchronizedUntilMessageId: nil)
                         }
                         updatedState.updateChannelState(peer.id, state: channelState)
                         
@@ -1893,7 +1893,7 @@ private func pollChannel(network: Network, peer: Peer, state: AccountMutableStat
                         if let previousState = updatedState.chatStates[peer.id] as? ChannelState {
                             channelState = previousState.withUpdatedPts(pts)
                         } else {
-                            channelState = ChannelState(pts: pts, invalidatedPts: nil)
+                            channelState = ChannelState(pts: pts, invalidatedPts: nil, synchronizedUntilMessageId: nil)
                         }
                         updatedState.updateChannelState(peer.id, state: channelState)
                     case let .channelDifferenceTooLong(_, timeout, dialog, messages, chats, users):
@@ -1911,7 +1911,7 @@ private func pollChannel(network: Network, peer: Peer, state: AccountMutableStat
                         }
                         
                         if let (peer, pts, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount) = parameters {
-                            let channelState = ChannelState(pts: pts, invalidatedPts: pts)
+                            let channelState = ChannelState(pts: pts, invalidatedPts: pts, synchronizedUntilMessageId: nil)
                             updatedState.updateChannelState(peer.peerId, state: channelState)
                             
                             updatedState.mergeChats(chats)
@@ -2363,7 +2363,7 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
                     }
                     if let apiPoll = apiPoll {
                         switch apiPoll {
-                        case let .poll(id, flags, question, answers):
+                        case let .poll(id, flags, question, answers, closePeriod, _):
                             let publicity: TelegramMediaPollPublicity
                             if (flags & (1 << 1)) != 0 {
                                 publicity = .public
@@ -2376,7 +2376,7 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
                             } else {
                                 kind = .poll(multipleAnswers: (flags & (1 << 2)) != 0)
                             }
-                            updatedPoll = TelegramMediaPoll(pollId: MediaId(namespace: Namespaces.Media.CloudPoll, id: id), publicity: publicity, kind: kind, text: question, options: answers.map(TelegramMediaPollOption.init(apiOption:)), correctAnswers: nil, results: poll.results, isClosed: (flags & (1 << 0)) != 0)
+                            updatedPoll = TelegramMediaPoll(pollId: MediaId(namespace: Namespaces.Media.CloudPoll, id: id), publicity: publicity, kind: kind, text: question, options: answers.map(TelegramMediaPollOption.init(apiOption:)), correctAnswers: nil, results: poll.results, isClosed: (flags & (1 << 0)) != 0, deadlineTimeout: closePeriod)
                         }
                     }
                     updatedPoll = updatedPoll.withUpdatedResults(TelegramMediaPollResults(apiResults: results), min: resultsMin)
@@ -2760,8 +2760,8 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
                 return false
             }
         }) {
-            addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .stickers, content: .sync)
-            addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .masks, content: .sync)
+            addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .stickers, content: .sync, noDelay: false)
+            addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .masks, content: .sync, noDelay: false)
         } else {
             var syncStickers = false
             var syncMasks = false
@@ -2865,10 +2865,10 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
                 }
             }
             if syncStickers {
-                addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .stickers, content: .sync)
+                addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .stickers, content: .sync, noDelay: false)
             }
             if syncMasks {
-                addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .masks, content: .sync)
+                addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .masks, content: .sync, noDelay: false)
             }
         }
     }

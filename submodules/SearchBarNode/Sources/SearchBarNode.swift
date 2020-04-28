@@ -252,7 +252,7 @@ public enum SearchBarStyle {
 
 public class SearchBarNode: ASDisplayNode, UITextFieldDelegate {
     public var cancel: (() -> Void)?
-    public var textUpdated: ((String) -> Void)?
+    public var textUpdated: ((String, String?) -> Void)?
     public var textReturned: ((String) -> Void)?
     public var clearPrefix: (() -> Void)?
     
@@ -338,9 +338,11 @@ public class SearchBarNode: ASDisplayNode, UITextFieldDelegate {
     private let fieldStyle: SearchBarStyle
     private var theme: SearchBarNodeTheme?
     private var strings: PresentationStrings?
+    private let cancelText: String?
     
-    public init(theme: SearchBarNodeTheme, strings: PresentationStrings, fieldStyle: SearchBarStyle = .legacy) {
+    public init(theme: SearchBarNodeTheme, strings: PresentationStrings, fieldStyle: SearchBarStyle = .legacy, cancelText: String? = nil) {
         self.fieldStyle = fieldStyle
+        self.cancelText = cancelText
         
         self.backgroundNode = ASDisplayNode()
         self.backgroundNode.isLayerBacked = true
@@ -364,13 +366,13 @@ public class SearchBarNode: ASDisplayNode, UITextFieldDelegate {
         self.textField.returnKeyType = .search
         self.textField.font = self.fieldStyle.font
         
-        self.clearButton = HighlightableButtonNode()
+        self.clearButton = HighlightableButtonNode(pointerStyle: .lift)
         self.clearButton.imageNode.displaysAsynchronously = false
         self.clearButton.imageNode.displayWithoutProcessing = true
         self.clearButton.displaysAsynchronously = false
         self.clearButton.isHidden = true
         
-        self.cancelButton = HighlightableButtonNode()
+        self.cancelButton = HighlightableButtonNode(pointerStyle: .default)
         self.cancelButton.hitTestSlop = UIEdgeInsets(top: -8.0, left: -8.0, bottom: -8.0, right: -8.0)
         self.cancelButton.displaysAsynchronously = false
         
@@ -400,7 +402,7 @@ public class SearchBarNode: ASDisplayNode, UITextFieldDelegate {
     
     public func updateThemeAndStrings(theme: SearchBarNodeTheme, strings: PresentationStrings) {
         if self.theme != theme || self.strings !== strings {
-            self.cancelButton.setAttributedTitle(NSAttributedString(string: strings.Common_Cancel, font: Font.regular(17.0), textColor: theme.accent), for: [])
+            self.cancelButton.setAttributedTitle(NSAttributedString(string: self.cancelText ?? strings.Common_Cancel, font: self.cancelText != nil ? Font.semibold(17.0) : Font.regular(17.0), textColor: theme.accent), for: [])
         }
         if self.theme != theme {
             self.backgroundNode.backgroundColor = theme.background
@@ -623,7 +625,7 @@ public class SearchBarNode: ASDisplayNode, UITextFieldDelegate {
     @objc private func textFieldDidChange(_ textField: UITextField) {
         self.updateIsEmpty()
         if let textUpdated = self.textUpdated {
-            textUpdated(textField.text ?? "")
+            textUpdated(textField.text ?? "", textField.textInputMode?.primaryLanguage)
         }
     }
     

@@ -254,6 +254,12 @@ public struct PresentationResourcesChat {
         })
     }
     
+    public static func chatInputMediaPanelAddedPackButtonImage(_ theme: PresentationTheme) -> UIImage? {
+        return theme.image(PresentationResourceKey.chatInputMediaPanelAddedPackButtonImage.rawValue, { theme in
+            return generateStretchableFilledCircleImage(diameter: 28.0, color: theme.list.itemCheckColors.fillColor.withAlphaComponent(0.08), strokeColor: nil, strokeWidth: 1.0, backgroundColor: nil)
+        })
+    }
+    
     public static func chatInputMediaPanelGridSetupImage(_ theme: PresentationTheme) -> UIImage? {
         return theme.image(PresentationResourceKey.chatInputMediaPanelGridSetupImage.rawValue, { theme in
             return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Media/GridSetupIcon"), color: theme.chat.inputMediaPanel.panelIconColor.withAlphaComponent(0.65))
@@ -953,6 +959,12 @@ public struct PresentationResourcesChat {
     public static func chatBubbleMediaCorner(_ theme: PresentationTheme, incoming: Bool, mainRadius: CGFloat, inset: CGFloat) -> UIImage? {
         return theme.image(PresentationResourceParameterKey.chatBubbleMediaCorner(incoming: incoming, mainRadius: mainRadius, inset: inset), { _ in
             return mediaBubbleCornerImage(incoming: incoming, radius: mainRadius, inset: inset)
+        })
+    }
+    
+    public static func chatBubbleLamp(_ theme: PresentationTheme, incoming: Bool) -> UIImage? {
+        return theme.image(PresentationResourceParameterKey.chatBubbleLamp(incoming: incoming), { theme in
+            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Message/Lamp"), color: incoming ? theme.chat.message.incoming.accentControlColor : theme.chat.message.outgoing.accentControlColor)
         })
     }
 }

@@ -1363,22 +1363,23 @@ public struct messages {
     
     }
     public enum FeaturedStickers: TypeConstructorDescription {
-        case featuredStickersNotModified
-        case featuredStickers(hash: Int32, sets: [Api.StickerSetCovered], unread: [Int64])
+        case featuredStickersNotModified(count: Int32)
+        case featuredStickers(hash: Int32, count: Int32, sets: [Api.StickerSetCovered], unread: [Int64])
     
     public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
     switch self {
-                case .featuredStickersNotModified:
+                case .featuredStickersNotModified(let count):
                     if boxed {
-                        buffer.appendInt32(82699215)
+                        buffer.appendInt32(-958657434)
                     }
-                    
+                    serializeInt32(count, buffer: buffer, boxed: false)
                     break
-                case .featuredStickers(let hash, let sets, let unread):
+                case .featuredStickers(let hash, let count, let sets, let unread):
                     if boxed {
-                        buffer.appendInt32(-123893531)
+                        buffer.appendInt32(-1230257343)
                     }
                     serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt32(count, buffer: buffer, boxed: false)
                     buffer.appendInt32(481674261)
                     buffer.appendInt32(Int32(sets.count))
                     for item in sets {
@@ -1395,32 +1396,43 @@ public struct messages {
     
     public func descriptionFields() -> (String, [(String, Any)]) {
         switch self {
-                case .featuredStickersNotModified:
-                return ("featuredStickersNotModified", [])
-                case .featuredStickers(let hash, let sets, let unread):
-                return ("featuredStickers", [("hash", hash), ("sets", sets), ("unread", unread)])
+                case .featuredStickersNotModified(let count):
+                return ("featuredStickersNotModified", [("count", count)])
+                case .featuredStickers(let hash, let count, let sets, let unread):
+                return ("featuredStickers", [("hash", hash), ("count", count), ("sets", sets), ("unread", unread)])
     }
     }
     
         public static func parse_featuredStickersNotModified(_ reader: BufferReader) -> FeaturedStickers? {
-            return Api.messages.FeaturedStickers.featuredStickersNotModified
+            var _1: Int32?
+            _1 = reader.readInt32()
+            let _c1 = _1 != nil
+            if _c1 {
+                return Api.messages.FeaturedStickers.featuredStickersNotModified(count: _1!)
+            }
+            else {
+                return nil
+            }
         }
         public static func parse_featuredStickers(_ reader: BufferReader) -> FeaturedStickers? {
             var _1: Int32?
             _1 = reader.readInt32()
-            var _2: [Api.StickerSetCovered]?
+            var _2: Int32?
+            _2 = reader.readInt32()
+            var _3: [Api.StickerSetCovered]?
             if let _ = reader.readInt32() {
-                _2 = Api.parseVector(reader, elementSignature: 0, elementType: Api.StickerSetCovered.self)
+                _3 = Api.parseVector(reader, elementSignature: 0, elementType: Api.StickerSetCovered.self)
             }
-            var _3: [Int64]?
+            var _4: [Int64]?
             if let _ = reader.readInt32() {
-                _3 = Api.parseVector(reader, elementSignature: 570911930, elementType: Int64.self)
+                _4 = Api.parseVector(reader, elementSignature: 570911930, elementType: Int64.self)
             }
             let _c1 = _1 != nil
             let _c2 = _2 != nil
             let _c3 = _3 != nil
-            if _c1 && _c2 && _c3 {
-                return Api.messages.FeaturedStickers.featuredStickers(hash: _1!, sets: _2!, unread: _3!)
+            let _c4 = _4 != nil
+            if _c1 && _c2 && _c3 && _c4 {
+                return Api.messages.FeaturedStickers.featuredStickers(hash: _1!, count: _2!, sets: _3!, unread: _4!)
             }
             else {
                 return nil
@@ -2028,13 +2040,13 @@ public extension Api {
     
     }
     public enum PollResults: TypeConstructorDescription {
-        case pollResults(flags: Int32, results: [Api.PollAnswerVoters]?, totalVoters: Int32?, recentVoters: [Int32]?)
+        case pollResults(flags: Int32, results: [Api.PollAnswerVoters]?, totalVoters: Int32?, recentVoters: [Int32]?, solution: String?, solutionEntities: [Api.MessageEntity]?)
     
     public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
     switch self {
-                case .pollResults(let flags, let results, let totalVoters, let recentVoters):
+                case .pollResults(let flags, let results, let totalVoters, let recentVoters, let solution, let solutionEntities):
                     if boxed {
-                        buffer.appendInt32(-932174686)
+                        buffer.appendInt32(-1159937629)
                     }
                     serializeInt32(flags, buffer: buffer, boxed: false)
                     if Int(flags) & Int(1 << 1) != 0 {buffer.appendInt32(481674261)
@@ -2048,14 +2060,20 @@ public extension Api {
                     for item in recentVoters! {
                         serializeInt32(item, buffer: buffer, boxed: false)
                     }}
+                    if Int(flags) & Int(1 << 4) != 0 {serializeString(solution!, buffer: buffer, boxed: false)}
+                    if Int(flags) & Int(1 << 4) != 0 {buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(solutionEntities!.count))
+                    for item in solutionEntities! {
+                        item.serialize(buffer, true)
+                    }}
                     break
     }
     }
     
     public func descriptionFields() -> (String, [(String, Any)]) {
         switch self {
-                case .pollResults(let flags, let results, let totalVoters, let recentVoters):
-                return ("pollResults", [("flags", flags), ("results", results), ("totalVoters", totalVoters), ("recentVoters", recentVoters)])
+                case .pollResults(let flags, let results, let totalVoters, let recentVoters, let solution, let solutionEntities):
+                return ("pollResults", [("flags", flags), ("results", results), ("totalVoters", totalVoters), ("recentVoters", recentVoters), ("solution", solution), ("solutionEntities", solutionEntities)])
     }
     }
     
@@ -2072,12 +2090,20 @@ public extension Api {
             if Int(_1!) & Int(1 << 3) != 0 {if let _ = reader.readInt32() {
                 _4 = Api.parseVector(reader, elementSignature: -1471112230, elementType: Int32.self)
             } }
+            var _5: String?
+            if Int(_1!) & Int(1 << 4) != 0 {_5 = parseString(reader) }
+            var _6: [Api.MessageEntity]?
+            if Int(_1!) & Int(1 << 4) != 0 {if let _ = reader.readInt32() {
+                _6 = Api.parseVector(reader, elementSignature: 0, elementType: Api.MessageEntity.self)
+            } }
             let _c1 = _1 != nil
             let _c2 = (Int(_1!) & Int(1 << 1) == 0) || _2 != nil
             let _c3 = (Int(_1!) & Int(1 << 2) == 0) || _3 != nil
             let _c4 = (Int(_1!) & Int(1 << 3) == 0) || _4 != nil
-            if _c1 && _c2 && _c3 && _c4 {
-                return Api.PollResults.pollResults(flags: _1!, results: _2, totalVoters: _3, recentVoters: _4)
+            let _c5 = (Int(_1!) & Int(1 << 4) == 0) || _5 != nil
+            let _c6 = (Int(_1!) & Int(1 << 4) == 0) || _6 != nil
+            if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 {
+                return Api.PollResults.pollResults(flags: _1!, results: _2, totalVoters: _3, recentVoters: _4, solution: _5, solutionEntities: _6)
             }
             else {
                 return nil
@@ -9162,13 +9188,13 @@ public extension Api {
     
     }
     public enum Poll: TypeConstructorDescription {
-        case poll(id: Int64, flags: Int32, question: String, answers: [Api.PollAnswer])
+        case poll(id: Int64, flags: Int32, question: String, answers: [Api.PollAnswer], closePeriod: Int32?, closeDate: Int32?)
     
     public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
     switch self {
-                case .poll(let id, let flags, let question, let answers):
+                case .poll(let id, let flags, let question, let answers, let closePeriod, let closeDate):
                     if boxed {
-                        buffer.appendInt32(-716006138)
+                        buffer.appendInt32(-2032041631)
                     }
                     serializeInt64(id, buffer: buffer, boxed: false)
                     serializeInt32(flags, buffer: buffer, boxed: false)
@@ -9178,14 +9204,16 @@ public extension Api {
                     for item in answers {
                         item.serialize(buffer, true)
                     }
+                    if Int(flags) & Int(1 << 4) != 0 {serializeInt32(closePeriod!, buffer: buffer, boxed: false)}
+                    if Int(flags) & Int(1 << 5) != 0 {serializeInt32(closeDate!, buffer: buffer, boxed: false)}
                     break
     }
     }
     
     public func descriptionFields() -> (String, [(String, Any)]) {
         switch self {
-                case .poll(let id, let flags, let question, let answers):
-                return ("poll", [("id", id), ("flags", flags), ("question", question), ("answers", answers)])
+                case .poll(let id, let flags, let question, let answers, let closePeriod, let closeDate):
+                return ("poll", [("id", id), ("flags", flags), ("question", question), ("answers", answers), ("closePeriod", closePeriod), ("closeDate", closeDate)])
     }
     }
     
@@ -9200,12 +9228,18 @@ public extension Api {
             if let _ = reader.readInt32() {
                 _4 = Api.parseVector(reader, elementSignature: 0, elementType: Api.PollAnswer.self)
             }
+            var _5: Int32?
+            if Int(_2!) & Int(1 << 4) != 0 {_5 = reader.readInt32() }
+            var _6: Int32?
+            if Int(_2!) & Int(1 << 5) != 0 {_6 = reader.readInt32() }
             let _c1 = _1 != nil
             let _c2 = _2 != nil
             let _c3 = _3 != nil
             let _c4 = _4 != nil
-            if _c1 && _c2 && _c3 && _c4 {
-                return Api.Poll.poll(id: _1!, flags: _2!, question: _3!, answers: _4!)
+            let _c5 = (Int(_2!) & Int(1 << 4) == 0) || _5 != nil
+            let _c6 = (Int(_2!) & Int(1 << 5) == 0) || _6 != nil
+            if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 {
+                return Api.Poll.poll(id: _1!, flags: _2!, question: _3!, answers: _4!, closePeriod: _5, closeDate: _6)
             }
             else {
                 return nil
@@ -10488,8 +10522,8 @@ public extension Api {
         case inputMediaDocumentExternal(flags: Int32, url: String, ttlSeconds: Int32?)
         case inputMediaContact(phoneNumber: String, firstName: String, lastName: String, vcard: String)
         case inputMediaGeoLive(flags: Int32, geoPoint: Api.InputGeoPoint, period: Int32?)
-        case inputMediaPoll(flags: Int32, poll: Api.Poll, correctAnswers: [Buffer]?)
-        case inputMediaDice
+        case inputMediaPoll(flags: Int32, poll: Api.Poll, correctAnswers: [Buffer]?, solution: String?, solutionEntities: [Api.MessageEntity]?)
+        case inputMediaDice(emoticon: String)
     
     public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
     switch self {
@@ -10625,9 +10659,9 @@ public extension Api {
                     geoPoint.serialize(buffer, true)
                     if Int(flags) & Int(1 << 1) != 0 {serializeInt32(period!, buffer: buffer, boxed: false)}
                     break
-                case .inputMediaPoll(let flags, let poll, let correctAnswers):
+                case .inputMediaPoll(let flags, let poll, let correctAnswers, let solution, let solutionEntities):
                     if boxed {
-                        buffer.appendInt32(-1410741723)
+                        buffer.appendInt32(261416433)
                     }
                     serializeInt32(flags, buffer: buffer, boxed: false)
                     poll.serialize(buffer, true)
@@ -10636,12 +10670,18 @@ public extension Api {
                     for item in correctAnswers! {
                         serializeBytes(item, buffer: buffer, boxed: false)
                     }}
+                    if Int(flags) & Int(1 << 1) != 0 {serializeString(solution!, buffer: buffer, boxed: false)}
+                    if Int(flags) & Int(1 << 1) != 0 {buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(solutionEntities!.count))
+                    for item in solutionEntities! {
+                        item.serialize(buffer, true)
+                    }}
                     break
-                case .inputMediaDice:
+                case .inputMediaDice(let emoticon):
                     if boxed {
-                        buffer.appendInt32(-1358977017)
+                        buffer.appendInt32(-428884101)
                     }
-                    
+                    serializeString(emoticon, buffer: buffer, boxed: false)
                     break
     }
     }
@@ -10676,10 +10716,10 @@ public extension Api {
                 return ("inputMediaContact", [("phoneNumber", phoneNumber), ("firstName", firstName), ("lastName", lastName), ("vcard", vcard)])
                 case .inputMediaGeoLive(let flags, let geoPoint, let period):
                 return ("inputMediaGeoLive", [("flags", flags), ("geoPoint", geoPoint), ("period", period)])
-                case .inputMediaPoll(let flags, let poll, let correctAnswers):
-                return ("inputMediaPoll", [("flags", flags), ("poll", poll), ("correctAnswers", correctAnswers)])
-                case .inputMediaDice:
-                return ("inputMediaDice", [])
+                case .inputMediaPoll(let flags, let poll, let correctAnswers, let solution, let solutionEntities):
+                return ("inputMediaPoll", [("flags", flags), ("poll", poll), ("correctAnswers", correctAnswers), ("solution", solution), ("solutionEntities", solutionEntities)])
+                case .inputMediaDice(let emoticon):
+                return ("inputMediaDice", [("emoticon", emoticon)])
     }
     }
     
@@ -10978,18 +11018,34 @@ public extension Api {
             if Int(_1!) & Int(1 << 0) != 0 {if let _ = reader.readInt32() {
                 _3 = Api.parseVector(reader, elementSignature: -1255641564, elementType: Buffer.self)
             } }
+            var _4: String?
+            if Int(_1!) & Int(1 << 1) != 0 {_4 = parseString(reader) }
+            var _5: [Api.MessageEntity]?
+            if Int(_1!) & Int(1 << 1) != 0 {if let _ = reader.readInt32() {
+                _5 = Api.parseVector(reader, elementSignature: 0, elementType: Api.MessageEntity.self)
+            } }
             let _c1 = _1 != nil
             let _c2 = _2 != nil
             let _c3 = (Int(_1!) & Int(1 << 0) == 0) || _3 != nil
-            if _c1 && _c2 && _c3 {
-                return Api.InputMedia.inputMediaPoll(flags: _1!, poll: _2!, correctAnswers: _3)
+            let _c4 = (Int(_1!) & Int(1 << 1) == 0) || _4 != nil
+            let _c5 = (Int(_1!) & Int(1 << 1) == 0) || _5 != nil
+            if _c1 && _c2 && _c3 && _c4 && _c5 {
+                return Api.InputMedia.inputMediaPoll(flags: _1!, poll: _2!, correctAnswers: _3, solution: _4, solutionEntities: _5)
             }
             else {
                 return nil
             }
         }
         public static func parse_inputMediaDice(_ reader: BufferReader) -> InputMedia? {
-            return Api.InputMedia.inputMediaDice
+            var _1: String?
+            _1 = parseString(reader)
+            let _c1 = _1 != nil
+            if _c1 {
+                return Api.InputMedia.inputMediaDice(emoticon: _1!)
+            }
+            else {
+                return nil
+            }
         }
     
     }
@@ -15502,7 +15558,7 @@ public extension Api {
         case messageMediaDocument(flags: Int32, document: Api.Document?, ttlSeconds: Int32?)
         case messageMediaContact(phoneNumber: String, firstName: String, lastName: String, vcard: String, userId: Int32)
         case messageMediaPoll(poll: Api.Poll, results: Api.PollResults)
-        case messageMediaDice(value: Int32)
+        case messageMediaDice(value: Int32, emoticon: String)
     
     public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
     switch self {
@@ -15600,11 +15656,12 @@ public extension Api {
                     poll.serialize(buffer, true)
                     results.serialize(buffer, true)
                     break
-                case .messageMediaDice(let value):
+                case .messageMediaDice(let value, let emoticon):
                     if boxed {
-                        buffer.appendInt32(1670374507)
+                        buffer.appendInt32(1065280907)
                     }
                     serializeInt32(value, buffer: buffer, boxed: false)
+                    serializeString(emoticon, buffer: buffer, boxed: false)
                     break
     }
     }
@@ -15635,8 +15692,8 @@ public extension Api {
                 return ("messageMediaContact", [("phoneNumber", phoneNumber), ("firstName", firstName), ("lastName", lastName), ("vcard", vcard), ("userId", userId)])
                 case .messageMediaPoll(let poll, let results):
                 return ("messageMediaPoll", [("poll", poll), ("results", results)])
-                case .messageMediaDice(let value):
-                return ("messageMediaDice", [("value", value)])
+                case .messageMediaDice(let value, let emoticon):
+                return ("messageMediaDice", [("value", value), ("emoticon", emoticon)])
     }
     }
     
@@ -15845,9 +15902,12 @@ public extension Api {
         public static func parse_messageMediaDice(_ reader: BufferReader) -> MessageMedia? {
             var _1: Int32?
             _1 = reader.readInt32()
+            var _2: String?
+            _2 = parseString(reader)
             let _c1 = _1 != nil
-            if _c1 {
-                return Api.MessageMedia.messageMediaDice(value: _1!)
+            let _c2 = _2 != nil
+            if _c1 && _c2 {
+                return Api.MessageMedia.messageMediaDice(value: _1!, emoticon: _2!)
             }
             else {
                 return nil
@@ -16324,7 +16384,7 @@ public extension Api {
         case inputStickerSetID(id: Int64, accessHash: Int64)
         case inputStickerSetShortName(shortName: String)
         case inputStickerSetAnimatedEmoji
-        case inputStickerSetDice
+        case inputStickerSetDice(emoticon: String)
     
     public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
     switch self {
@@ -16353,11 +16413,11 @@ public extension Api {
                     }
                     
                     break
-                case .inputStickerSetDice:
+                case .inputStickerSetDice(let emoticon):
                     if boxed {
-                        buffer.appendInt32(2044861011)
+                        buffer.appendInt32(-427863538)
                     }
-                    
+                    serializeString(emoticon, buffer: buffer, boxed: false)
                     break
     }
     }
@@ -16372,8 +16432,8 @@ public extension Api {
                 return ("inputStickerSetShortName", [("shortName", shortName)])
                 case .inputStickerSetAnimatedEmoji:
                 return ("inputStickerSetAnimatedEmoji", [])
-                case .inputStickerSetDice:
-                return ("inputStickerSetDice", [])
+                case .inputStickerSetDice(let emoticon):
+                return ("inputStickerSetDice", [("emoticon", emoticon)])
     }
     }
     
@@ -16409,7 +16469,15 @@ public extension Api {
             return Api.InputStickerSet.inputStickerSetAnimatedEmoji
         }
         public static func parse_inputStickerSetDice(_ reader: BufferReader) -> InputStickerSet? {
-            return Api.InputStickerSet.inputStickerSetDice
+            var _1: String?
+            _1 = parseString(reader)
+            let _c1 = _1 != nil
+            if _c1 {
+                return Api.InputStickerSet.inputStickerSetDice(emoticon: _1!)
+            }
+            else {
+                return nil
+            }
         }
     
     }

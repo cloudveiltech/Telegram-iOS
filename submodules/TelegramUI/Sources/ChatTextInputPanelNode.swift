@@ -313,6 +313,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                             break
                         }
                     }
+                    
                     //CloudVeil start
                     var isStickerPanelItem = false
                     if case .stickers(let _) = item {
@@ -320,7 +321,6 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                     }
                     
                     if !MainController.shared.disableStickers || !isStickerPanelItem {
-                        
                         if itemAndButton == nil {
                             let button = AccessoryItemIconButton(item: item, theme: currentState.theme, strings: currentState.strings)
                             button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), for: [.touchUpInside])
@@ -344,7 +344,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                 accentTextColor = presentationInterfaceState.theme.chat.inputPanel.panelControlAccentColor
                 baseFontSize = max(17.0, presentationInterfaceState.fontSize.baseDisplaySize)
             }
-            textInputNode.attributedText = textAttributedStringForStateText(state.inputText, fontSize: baseFontSize, textColor: textColor, accentTextColor: accentTextColor)
+            textInputNode.attributedText = textAttributedStringForStateText(state.inputText, fontSize: baseFontSize, textColor: textColor, accentTextColor: accentTextColor, writingDirection: nil)
             textInputNode.selectedRange = NSMakeRange(state.selectionRange.lowerBound, state.selectionRange.count)
             self.updatingInputState = false
             self.keepSendButtonEnabled = keepSendButtonEnabled
@@ -396,7 +396,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         self.textPlaceholderNode = ImmediateTextNode()
         self.textPlaceholderNode.maximumNumberOfLines = 1
         self.textPlaceholderNode.isUserInteractionEnabled = false
-        self.attachmentButton = HighlightableButtonNode()
+        self.attachmentButton = HighlightableButtonNode(pointerStyle: .circle)
         self.attachmentButton.accessibilityLabel = presentationInterfaceState.strings.VoiceOver_AttachMedia
         self.attachmentButton.isAccessibilityElement = true
         self.attachmentButtonDisabledNode = HighlightableButtonNode()
@@ -410,11 +410,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         
         self.attachmentButton.addTarget(self, action: #selector(self.attachmentButtonPressed), forControlEvents: .touchUpInside)
         self.attachmentButtonDisabledNode.addTarget(self, action: #selector(self.attachmentButtonPressed), forControlEvents: .touchUpInside)
-        self.addSubnode(self.attachmentButton)
-        self.addSubnode(self.attachmentButtonDisabledNode)
-        
-        self.addSubnode(self.actionButtons)
-        
+  
         self.actionButtons.sendButtonLongPressed = { [weak self] node, gesture in
             self?.interfaceInteraction?.displaySendMessageOptions(node, gesture)
         }
@@ -487,6 +483,11 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         self.addSubnode(self.textInputBackgroundNode)
         
         self.addSubnode(self.textPlaceholderNode)
+        
+        self.addSubnode(self.attachmentButton)
+        self.addSubnode(self.attachmentButtonDisabledNode)
+          
+        self.addSubnode(self.actionButtons)
         
         self.view.addSubview(self.searchLayoutClearButton)
         
@@ -878,7 +879,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                 }
                 //CloudVeil start
                 var isStickerPanelItem = false
-                if case .stickers(_) = item {
+                if case .stickers(let _) = item {
                     isStickerPanelItem = true
                 }
                 
@@ -890,7 +891,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                     }
                     updatedButtons.append(itemAndButton!)
                 }
-                //CloudVeil end      
+                //CloudVeil end            
             }
             for (_, button) in self.accessoryItemButtons {
                 if animatedTransition {
@@ -1590,7 +1591,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                 accentTextColor = presentationInterfaceState.theme.chat.inputPanel.panelControlAccentColor
                 baseFontSize = max(17.0, presentationInterfaceState.fontSize.baseDisplaySize)
             }
-            let cleanReplacementString = textAttributedStringForStateText(NSAttributedString(string: cleanText), fontSize: baseFontSize, textColor: textColor, accentTextColor: accentTextColor)
+            let cleanReplacementString = textAttributedStringForStateText(NSAttributedString(string: cleanText), fontSize: baseFontSize, textColor: textColor, accentTextColor: accentTextColor, writingDirection: nil)
             string.replaceCharacters(in: range, with: cleanReplacementString)
             self.textInputNode?.attributedText = string
             self.textInputNode?.selectedRange = NSMakeRange(range.lowerBound + cleanReplacementString.length, 0)

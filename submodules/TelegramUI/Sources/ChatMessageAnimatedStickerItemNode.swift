@@ -208,11 +208,9 @@ class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
             return
         }
         
-        if let _ = self.telegramDice {
-            if let diceEmojis = item.associatedData.animatedEmojiStickers["dice"] {
-                let animationNode = ManagedDiceAnimationNode(context: item.context, emojis: diceEmojis.map { $0.file })
-                self.animationNode = animationNode
-            }
+        if let telegramDice = self.telegramDice {
+            let animationNode = ManagedDiceAnimationNode(context: item.context, dice: telegramDice)
+            self.animationNode = animationNode
         } else {
             let animationNode = AnimatedStickerNode()
             animationNode.started = { [weak self] in
@@ -1010,9 +1008,9 @@ class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                     return .optionalAction({
                         let _ = item.controllerInteraction.openMessage(item.message, .default)
                     })
-                } else if let _ = self.telegramDice {
+                } else if let dice = self.telegramDice {
                     return .optionalAction({
-                        item.controllerInteraction.displayMessageTooltip(item.content.firstMessage.id,  item.presentationData.strings.Conversation_Dice, self, self.imageNode.frame.offsetBy(dx: 0.0, dy: self.imageNode.frame.height / 3.0))
+                        item.controllerInteraction.displayDiceTooltip(dice)
                     })
                 } else if let _ = self.emojiFile {
                     if let animationNode = self.animationNode as? AnimatedStickerNode {

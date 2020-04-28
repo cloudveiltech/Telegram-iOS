@@ -1,6 +1,5 @@
 OTHER_LINKER_FLAGS_KEY = 'OTHER_LDFLAGS'
 
-
 def configs_with_config(config):
     return {
         "Debug": config,
@@ -51,7 +50,6 @@ SHARED_CONFIGS = {
     "ONLY_ACTIVE_ARCH": "YES",
     "LD_RUNPATH_SEARCH_PATHS": "@executable_path/Frameworks",
     "ENABLE_BITCODE": "NO",
-"DEAD_CODE_STRIPPING": "YES",
 }
 
 # Adding `-all_load` to our binaries works around https://bugs.swift.org/browse/SR-6004.

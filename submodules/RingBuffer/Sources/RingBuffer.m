@@ -1,4 +1,4 @@
-#import <RingBuffer/RingBuffer.h>
+#import <RingBuffer.h>
 
 #include <mach/mach.h>
 #include <stdio.h>

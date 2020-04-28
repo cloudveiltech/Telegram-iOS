@@ -58,6 +58,8 @@ import PhoneNumberFormat
 import SettingsUI
 import UrlWhitelist
 import TelegramIntents
+import TooltipUI
+import StatisticsUI
 import CloudVeilSecurityManager
 
 public enum ChatControllerPeekActions {
@@ -286,6 +288,8 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     private weak var mediaRestrictedTooltipController: TooltipController?
     private var mediaRestrictedTooltipControllerMode = true
     
+    private var currentMessageTooltipScreens: [(TooltipScreen, ListViewItemNode)] = []
+    
     private weak var slowmodeTooltipController: ChatSlowmodeHintController?
     
     private weak var currentContextController: ContextController?
@@ -371,7 +375,9 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         }
         super.init(context: context, navigationBarPresentationData: navigationBarPresentationData, mediaAccessoryPanelVisibility: mediaAccessoryPanelVisibility, locationBroadcastPanelSource: locationBroadcastPanelSource)
         
+        self.automaticallyControlPresentationContextLayout = false
         self.blocksBackgroundWhenInOverlay = true
+        self.acceptsFocusWhenInOverlay = true
         
         self.navigationItem.backBarButtonItem = UIBarButtonItem(title: self.presentationData.strings.Common_Back, style: .plain, target: nil, action: nil)
         
@@ -628,6 +634,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                         }
                         let _ = updateMessageReactionsInteractively(postbox: strongSelf.context.account.postbox, messageId: message.id, reaction: value).start()
                     }
+                    strongSelf.forEachController({ controller in
+                        if let controller = controller as? TooltipScreen {
+                            controller.dismiss()
+                        }
+                        return true
+                    })
                     strongSelf.window?.presentInGlobalOverlay(controller)
                 })
             }
@@ -1517,6 +1529,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     
                     let controller = ContextController(account: strongSelf.context.account, presentationData: strongSelf.presentationData, source: .extracted(ChatMessageContextExtractedContentSource(chatNode: strongSelf.chatDisplayNode, message: message)), items: .single(actions), reactionItems: [], recognizer: nil)
                     strongSelf.currentContextController = controller
+                    strongSelf.forEachController({ controller in
+                        if let controller = controller as? TooltipScreen {
+                            controller.dismiss()
+                        }
+                        return true
+                    })
                     strongSelf.window?.presentInGlobalOverlay(controller)
                 })
             } else {
@@ -1588,6 +1606,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     
                     let controller = ContextController(account: strongSelf.context.account, presentationData: strongSelf.presentationData, source: .extracted(ChatMessageContextExtractedContentSource(chatNode: strongSelf.chatDisplayNode, message: topMessage)), items: .single(actions), reactionItems: [], recognizer: nil)
                     strongSelf.currentContextController = controller
+                    strongSelf.forEachController({ controller in
+                        if let controller = controller as? TooltipScreen {
+                            controller.dismiss()
+                        }
+                        return true
+                    })
                     strongSelf.window?.presentInGlobalOverlay(controller)
                 })
             }
@@ -1648,6 +1672,10 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     strongSelf.chatDisplayNode.animateQuizCorrectOptionSelected()
                     return;
                 }
+                if false {
+                    strongSelf.present(UndoOverlayController(presentationData: strongSelf.presentationData, content: .info(text: "controllerInteraction.pollActionState.pollMessageIdsInProgress[id] = opaqueIdentifiers"), elevatedLayout: true, action: { _ in return false }), in: .window(.root))
+                    return;
+                }
                 #endif
                 
                 controllerInteraction.pollActionState.pollMessageIdsInProgress[id] = opaqueIdentifiers
@@ -1665,7 +1693,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     guard let strongSelf = self, let resultPoll = resultPoll else {
                         return
                     }
-                    guard let message = strongSelf.chatDisplayNode.historyNode.messageInCurrentHistoryView(id) else {
+                    guard let _ = strongSelf.chatDisplayNode.historyNode.messageInCurrentHistoryView(id) else {
                         return
                     }
                     
@@ -1697,6 +1725,15 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                                 strongSelf.selectPollOptionFeedback?.error()
                                                 
                                                 itemNode.animateQuizInvalidOptionSelected()
+                                                
+                                                if let solution = resultPoll.results.solution {
+                                                    for contentNode in itemNode.contentNodes {
+                                                        if let contentNode = contentNode as? ChatMessagePollBubbleContentNode {
+                                                            let sourceNode = contentNode.solutionTipSourceNode
+                                                            strongSelf.displayPollSolution(solution: solution, sourceNode: sourceNode, isAutomatic: true)
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -1941,6 +1978,10 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                 return
             }
             strongSelf.presentPollCreation(isQuiz: isQuiz)
+        }, displayPollSolution: { [weak self] solution, sourceNode in
+            self?.displayPollSolution(solution: solution, sourceNode: sourceNode, isAutomatic: false)
+        }, displayDiceTooltip: { [weak self] dice in
+            self?.displayDiceTooltip(dice: dice)
         }, requestMessageUpdate: { [weak self] id in
             if let strongSelf = self {
                 strongSelf.chatDisplayNode.historyNode.requestMessageUpdate(id)
@@ -2005,17 +2046,37 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     }, synchronousLoad: true)
                     galleryController.setHintWillBePresentedInPreviewingContext(true)
                     
-                    let items: [ContextMenuItem] = [
-                        .action(ContextMenuActionItem(text: strongSelf.presentationData.strings.Conversation_LinkDialogOpen, icon: { _ in nil }, action: { _, f in
-                            f(.dismissWithoutContent)
-                            self?.navigationButtonAction(.openChatInfo(expandAvatar: true))
-                        })),
-                        .action(ContextMenuActionItem(text: strongSelf.presentationData.strings.Conversation_Search, icon: { _ in nil }, action: { _, f in
+                    let items: Signal<[ContextMenuItem], NoError> = context.account.postbox.transaction { transaction -> [ContextMenuItem] in
+                        var items: [ContextMenuItem] = [
+                            .action(ContextMenuActionItem(text: strongSelf.presentationData.strings.Conversation_LinkDialogOpen, icon: { theme in
+                                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Info"), color: theme.actionSheet.primaryTextColor)
+                            }, action: { _, f in
+                                f(.dismissWithoutContent)
+                                self?.navigationButtonAction(.openChatInfo(expandAvatar: true))
+                            }))
+                        ]
+                        if let cachedData = transaction.getPeerCachedData(peerId: peer.id) as? CachedChannelData, cachedData.flags.contains(.canViewStats) {
+                            items.append(.action(ContextMenuActionItem(text: strongSelf.presentationData.strings.ChannelInfo_Stats, icon: { theme in
+                                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Statistics"), color: theme.actionSheet.primaryTextColor)
+                            }, action: { _, f in
+                                f(.dismissWithoutContent)
+                                guard let strongSelf = self, let peer = strongSelf.presentationInterfaceState.renderedPeer?.chatMainPeer else {
+                                    return
+                                }
+                                strongSelf.view.endEditing(true)
+                                strongSelf.push(channelStatsController(context: context, peerId: peer.id, cachedPeerData: cachedData))
+                            })))
+                        }
+                        items.append(.action(ContextMenuActionItem(text: strongSelf.presentationData.strings.Conversation_Search, icon: { theme in
+                            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Search"), color: theme.actionSheet.primaryTextColor)
+                        }, action: { _, f in
                             f(.dismissWithoutContent)
                             self?.interfaceInteraction?.beginMessageSearch(.everything, "")
-                        }))
-                    ]
-                    let contextController = ContextController(account: strongSelf.context.account, presentationData: strongSelf.presentationData, source: .controller(ContextControllerContentSourceImpl(controller: galleryController, sourceNode: node)), items: .single(items), reactionItems: [], gesture: gesture)
+                        })))
+                        return items
+                    }
+                    
+                    let contextController = ContextController(account: strongSelf.context.account, presentationData: strongSelf.presentationData, source: .controller(ContextControllerContentSourceImpl(controller: galleryController, sourceNode: node)), items: items, reactionItems: [], gesture: gesture)
                     strongSelf.presentInGlobalOverlay(contextController)
                 }
                 chatInfoButtonItem = UIBarButtonItem(customDisplayNode: avatarNode)!
@@ -2653,6 +2714,21 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     
     override public func loadDisplayNode() {
         self.displayNode = ChatControllerNode(context: self.context, chatLocation: self.chatLocation, subject: self.subject, controllerInteraction: self.controllerInteraction!, chatPresentationInterfaceState: self.presentationInterfaceState, automaticMediaDownloadSettings: self.automaticMediaDownloadSettings, navigationBar: self.navigationBar, controller: self)
+        
+        self.chatDisplayNode.historyNode.didScrollWithOffset = { [weak self] offset, transition, itemNode in
+            guard let strongSelf = self else {
+                return
+            }
+            for (tooltipScreen, tooltipItemNode) in strongSelf.currentMessageTooltipScreens {
+                if let itemNode = itemNode {
+                    if itemNode === tooltipItemNode {
+                        tooltipScreen.addRelativeScrollingOffset(-offset, transition: transition)
+                    }
+                } else {
+                    tooltipScreen.addRelativeScrollingOffset(-offset, transition: transition)
+                }
+            }
+        }
         
         self.chatDisplayNode.peerView = self.peerView
         
@@ -4861,6 +4937,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                 controller.dismissWithCommitAction()
             }
         })
+        self.forEachController({ controller in
+            if let controller = controller as? TooltipScreen {
+                controller.dismiss()
+            }
+            return true
+        })
         
         self.sendMessageActionsController?.dismiss()
     }
@@ -4899,6 +4981,10 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                 }
             }
         })
+    }
+    
+    override public func inFocusUpdated(isInFocus: Bool) {
+        self.chatDisplayNode.inFocusUpdated(isInFocus: isInFocus)
     }
     
     override public func containerLayoutUpdated(_ layout: ContainerViewLayout, transition: ContainedViewLayoutTransition) {
@@ -5287,6 +5373,18 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         }
     }
     
+    private func updatePollTooltipMessageState(animated: Bool) {
+        self.chatDisplayNode.historyNode.forEachItemNode { itemNode in
+            if let itemNode = itemNode as? ChatMessageBubbleItemNode {
+                for contentNode in itemNode.contentNodes {
+                    if let contentNode = contentNode as? ChatMessagePollBubbleContentNode {
+                        contentNode.updatePollTooltipMessageState(animated: animated)
+                    }
+                }
+            }
+        }
+    }
+    
     private func updateItemNodesSearchTextHighlightStates() {
         var searchString: String?
         var resultsMessageIndices: [MessageIndex]?
@@ -5475,6 +5573,9 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                         } else {
                             var expandAvatar = expandAvatar
                             if peer.smallProfileImage == nil {
+                                expandAvatar = false
+                            }
+                            if let validLayout = strongSelf.validLayout, validLayout.deviceMetrics.type == .tablet {
                                 expandAvatar = false
                             }
                             if let infoController = strongSelf.context.sharedContext.makePeerInfoController(context: strongSelf.context, peer: peer, mode: .generic, avatarInitiallyExpanded: expandAvatar, fromChat: true) {
@@ -5812,6 +5913,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         
             let legacyController = LegacyController(presentation: .custom, theme: strongSelf.presentationData.theme, initialLayout: strongSelf.validLayout)
             legacyController.blocksBackgroundWhenInOverlay = true
+            legacyController.acceptsFocusWhenInOverlay = true
             legacyController.statusBar.statusBarStyle = .Ignore
             legacyController.controllerLoaded = { [weak legacyController] in
                 legacyController?.view.disablesInteractiveTransitionGestureRecognizer = true
@@ -6300,6 +6402,164 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         }))
     }
     
+    private func displayPollSolution(solution: TelegramMediaPollResults.Solution, sourceNode: ASDisplayNode, isAutomatic: Bool) {
+        var maybeFoundItemNode: ChatMessageItemView?
+        self.chatDisplayNode.historyNode.forEachItemNode { itemNode in
+            if let itemNode = itemNode as? ChatMessageItemView {
+                if sourceNode.view.isDescendant(of: itemNode.view) {
+                    maybeFoundItemNode = itemNode
+                }
+            }
+        }
+        guard let foundItemNode = maybeFoundItemNode, let item = foundItemNode.item else {
+            return
+        }
+        
+        /*
+        if let foundItemNode = foundItemNode {
+            
+            let absoluteFrame = sourceNode.view.convert(sourceNode.bounds, to: strongSelf.view).insetBy(dx: 0.0, dy: -4.0).offsetBy(dx: 0.0, dy: 0.0)
+            let tooltipScreen = TooltipScreen(text: solution.text, textEntities: solution.entities, icon: nil, location: absoluteFrame, shouldDismissOnTouch: { point in
+                return .dismiss(consume: absoluteFrame.contains(point))
+            }, openActiveTextItem: { item, action in
+                guard let strongSelf = self else {
+                    return
+                }
+                switch item {
+                case let .url(url):
+                    switch action {
+                    case .tap:
+                        strongSelf.openUrl(url, concealed: false)
+                    case .longTap:
+                        strongSelf.controllerInteraction?.longTap(.url(url), nil)
+                    }
+                case let .mention(peerId, mention):
+                    switch action {
+                    case .tap:
+                        strongSelf.controllerInteraction?.openPeer(peerId, .default, nil)
+                    case .longTap:
+                        strongSelf.controllerInteraction?.longTap(.peerMention(peerId, mention), nil)
+                    }
+                case let .textMention(mention):
+                    switch action {
+                    case .tap:
+                        strongSelf.controllerInteraction?.openPeerMention(mention)
+                    case .longTap:
+                        strongSelf.controllerInteraction?.longTap(.mention(mention), nil)
+                    }
+                case let .botCommand(command):
+                    switch action {
+                    case .tap:
+                        strongSelf.controllerInteraction?.sendBotCommand(nil, command)
+                    case .longTap:
+                        strongSelf.controllerInteraction?.longTap(.command(command), nil)
+                    }
+                case let .hashtag(hashtag):
+                    switch action {
+                    case .tap:
+                        strongSelf.controllerInteraction?.openHashtag(nil, hashtag)
+                    case .longTap:
+                        strongSelf.controllerInteraction?.longTap(.hashtag(hashtag), nil)
+                    }
+                }
+            })
+            tooltipScreen.becameDismissed = { tooltipScreen in
+                guard let strongSelf = self else {
+                    return
+                }
+                strongSelf.currentMessageTooltipScreens.removeAll(where: { $0.0 === tooltipScreen })
+            }
+            strongSelf.currentMessageTooltipScreens.append((tooltipScreen, foundItemNode))
+            strongSelf.present(tooltipScreen, in: .current)
+        }*/
+        
+        var found = false
+        self.forEachController({ controller in
+            if let controller = controller as? TooltipScreen {
+                if controller.text == solution.text && controller.textEntities == solution.entities {
+                    found = true
+                    controller.dismiss()
+                    return false
+                }
+            }
+            return true
+        })
+        if found {
+            return
+        }
+        
+        let tooltipScreen = TooltipScreen(text: solution.text, textEntities: solution.entities, icon: .info, location: .top, shouldDismissOnTouch: { point in
+            return .ignore
+        }, openActiveTextItem: { [weak self] item, action in
+            guard let strongSelf = self else {
+                return
+            }
+            switch item {
+            case let .url(url):
+                switch action {
+                case .tap:
+                    strongSelf.openUrl(url, concealed: false)
+                case .longTap:
+                    strongSelf.controllerInteraction?.longTap(.url(url), nil)
+                }
+            case let .mention(peerId, mention):
+                switch action {
+                case .tap:
+                    strongSelf.controllerInteraction?.openPeer(peerId, .default, nil)
+                case .longTap:
+                    strongSelf.controllerInteraction?.longTap(.peerMention(peerId, mention), nil)
+                }
+            case let .textMention(mention):
+                switch action {
+                case .tap:
+                    strongSelf.controllerInteraction?.openPeerMention(mention)
+                case .longTap:
+                    strongSelf.controllerInteraction?.longTap(.mention(mention), nil)
+                }
+            case let .botCommand(command):
+                switch action {
+                case .tap:
+                    strongSelf.controllerInteraction?.sendBotCommand(nil, command)
+                case .longTap:
+                    strongSelf.controllerInteraction?.longTap(.command(command), nil)
+                }
+            case let .hashtag(hashtag):
+                switch action {
+                case .tap:
+                    strongSelf.controllerInteraction?.openHashtag(nil, hashtag)
+                case .longTap:
+                    strongSelf.controllerInteraction?.longTap(.hashtag(hashtag), nil)
+                }
+            }
+        })
+        
+        let messageId = item.message.id
+        self.controllerInteraction?.currentPollMessageWithTooltip = messageId
+        self.updatePollTooltipMessageState(animated: !isAutomatic)
+        
+        tooltipScreen.willBecomeDismissed = { [weak self] tooltipScreen in
+            guard let strongSelf = self else {
+                return
+            }
+            //strongSelf.currentMessageTooltipScreens.removeAll(where: { $0.0 === tooltipScreen })
+            if strongSelf.controllerInteraction?.currentPollMessageWithTooltip == messageId {
+                strongSelf.controllerInteraction?.currentPollMessageWithTooltip = nil
+                strongSelf.updatePollTooltipMessageState(animated: true)
+            }
+        }
+        
+        //strongSelf.currentMessageTooltipScreens.append((tooltipScreen, foundItemNode))
+        
+        self.forEachController({ controller in
+            if let controller = controller as? TooltipScreen {
+                controller.dismiss()
+            }
+            return true
+        })
+        
+        self.present(tooltipScreen, in: .current)
+    }
+        
     private func presentPollCreation(isQuiz: Bool? = nil) {
         if case .peer = self.chatLocation, let peer = self.presentationInterfaceState.renderedPeer?.peer {
             self.effectiveNavigationController?.pushViewController(createPollController(context: self.context, peer: peer, isQuiz: isQuiz, completion: { [weak self] message in
@@ -6322,6 +6582,40 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     func transformEnqueueMessages(_ messages: [EnqueueMessage]) -> [EnqueueMessage] {
         let silentPosting = self.presentationInterfaceState.interfaceState.silentPosting
         return transformEnqueueMessages(messages, silentPosting: silentPosting)
+    }
+    
+    private func displayDiceTooltip(dice: TelegramMediaDice) {
+        guard let _ = dice.value else {
+            return
+        }
+        self.window?.forEachController({ controller in
+            if let controller = controller as? UndoOverlayController {
+                controller.dismissWithCommitAction()
+            }
+        })
+        let value: String?
+        if dice.emoji == "🎲" {
+            value = self.presentationData.strings.Conversation_Dice_🎲
+        } else if dice.emoji == "🎯" {
+            value = self.presentationData.strings.Conversation_Dice_🎯
+        } else {
+            let key = "Conversation.Dice.\(dice.emoji)"
+            if let string = self.presentationData.strings.primaryComponent.dict[key] {
+                value = string
+            } else if let string = self.presentationData.strings.secondaryComponent?.dict[key] {
+                value = string
+            } else {
+                value = nil
+            }
+        }
+        if let value = value {
+            self.present(UndoOverlayController(presentationData: self.presentationData, content: .dice(dice: dice, account: self.context.account, text: value, action: self.presentationData.strings.Conversation_SendDice), elevatedLayout: true, action: { [weak self] action in
+                if let strongSelf = self, action == .undo {
+                    strongSelf.sendMessages([.message(text: "", attributes: [], mediaReference: AnyMediaReference.standalone(media: TelegramMediaDice(emoji: dice.emoji)), replyToMessageId: nil, localGroupingKey: nil)])
+                }
+                return false
+            }), in: .window(.root))
+        }
     }
     
     private func transformEnqueueMessages(_ messages: [EnqueueMessage], silentPosting: Bool, scheduleTime: Int32? = nil) -> [EnqueueMessage] {
@@ -7239,6 +7533,13 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                         if let _ = fromMessage {
                                             mode = .group(selfPeerId)
                                         }
+                                        var expandAvatar = expandAvatar
+                                        if peer.smallProfileImage == nil {
+                                            expandAvatar = false
+                                        }
+                                        if let validLayout = strongSelf.validLayout, validLayout.deviceMetrics.type == .tablet {
+                                            expandAvatar = false
+                                        }
                                         if let infoController = strongSelf.context.sharedContext.makePeerInfoController(context: strongSelf.context, peer: peer, mode: mode, avatarInitiallyExpanded: expandAvatar, fromChat: false) {
                                             strongSelf.effectiveNavigationController?.pushViewController(infoController)
                                         }
@@ -7693,6 +7994,8 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     private func openUrl(_ url: String, concealed: Bool, message: Message? = nil) {
         self.commitPurposefulAction()
         
+        var concealed = concealed
+        
         let openImpl: () -> Void = { [weak self] in
             guard let strongSelf = self else {
                 return
@@ -7741,12 +8044,46 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         var parsedUrlValue: URL?
         if let parsed = URL(string: url) {
             parsedUrlValue = parsed
-        } else if let encoded = (url as NSString).addingPercentEscapes(using: String.Encoding.utf8.rawValue), let parsed = URL(string: encoded) {
+        } else if let parsed = URL(string: "https://" + url) {
+            parsedUrlValue = parsed
+        } else if let encoded = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed), let parsed = URL(string: encoded) {
             parsedUrlValue = parsed
         }
+        print("parsedUrlValue = \(parsedUrlValue)")
+        let host = parsedUrlValue?.host ?? url
         
-        if concealed, let parsedUrlValue = parsedUrlValue, (parsedUrlValue.scheme == "http" || parsedUrlValue.scheme == "https"), !isConcealedUrlWhitelisted(parsedUrlValue) {
-            var rawDisplayUrl = url
+        let rawHost = (host as NSString).removingPercentEncoding ?? host
+        var latin = CharacterSet()
+        latin.insert(charactersIn: "A"..."Z")
+        latin.insert(charactersIn: "a"..."z")
+        latin.insert(charactersIn: "0"..."9")
+        var punctuation = CharacterSet()
+        punctuation.insert(charactersIn: ".-/+")
+        var hasLatin = false
+        var hasNonLatin = false
+        for c in rawHost {
+            if c.unicodeScalars.allSatisfy(punctuation.contains) {
+            } else if c.unicodeScalars.allSatisfy(latin.contains) {
+                hasLatin = true
+            } else {
+                hasNonLatin = true
+            }
+        }
+        if hasLatin && hasNonLatin {
+            concealed = true
+        }
+        
+        if let parsedUrlValue = parsedUrlValue, isConcealedUrlWhitelisted(parsedUrlValue) {
+            concealed = false
+        }
+        
+        if concealed {
+            var rawDisplayUrl: String
+            if hasNonLatin {
+                rawDisplayUrl = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? url
+            } else {
+                rawDisplayUrl = url
+            }
             let maxLength = 180
             if rawDisplayUrl.count > maxLength {
                 rawDisplayUrl = String(rawDisplayUrl[..<rawDisplayUrl.index(rawDisplayUrl.startIndex, offsetBy: maxLength - 2)]) + "..."

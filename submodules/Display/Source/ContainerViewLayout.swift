@@ -84,12 +84,21 @@ public extension ContainerViewLayout {
     func insets(options: ContainerViewLayoutInsetOptions) -> UIEdgeInsets {
         var insets = self.intrinsicInsets
         if let statusBarHeight = self.statusBarHeight, options.contains(.statusBar) {
-            insets.top += statusBarHeight
+            insets.top = max(statusBarHeight, insets.top)
         }
         if let inputHeight = self.inputHeight, options.contains(.input) {
             insets.bottom = max(inputHeight, insets.bottom)
         }
         return insets
+    }
+    
+    var isModalOverlay: Bool {
+        if case .tablet = self.deviceMetrics.type {
+            if case .regular = self.metrics.widthClass {
+                return abs(max(self.size.width, self.size.height) - self.deviceMetrics.screenSize.height) > 1.0
+            }
+        }
+        return false
     }
     
     var isNonExclusive: Bool {

@@ -1,6 +1,7 @@
 import Foundation
 import Display
 import AsyncDisplayKit
+import Postbox
 import SyncCore
 import TelegramCore
 import SwiftSignalKit
@@ -13,16 +14,86 @@ enum ManagedDiceAnimationState: Equatable {
     case value(Int32, Bool)
 }
 
+private func animationItem(account: Account, emojis: Signal<[TelegramMediaFile], NoError>, emoji: String, value: Int32?, immediate: Bool = false, roll: Bool = false, loop: Bool = false) -> Signal<ManagedAnimationItem?, NoError> {
+    return emojis
+    |> mapToSignal { diceEmojis -> Signal<ManagedAnimationItem?, NoError> in
+        if let value = value, value >= diceEmojis.count {
+            return .complete()
+        }
+        let file = diceEmojis[Int(value ?? 0)]
+        
+        if let _ = account.postbox.mediaBox.completedResourcePath(file.resource) {
+            if immediate {
+                return .single(ManagedAnimationItem(source: .resource(account.postbox.mediaBox, file.resource), frames: .still(.end), duration: 0))
+            } else {
+                return .single(ManagedAnimationItem(source: .resource(account.postbox.mediaBox, file.resource), loop: loop))
+            }
+        } else {
+            let dimensions = file.dimensions ?? PixelDimensions(width: 512, height: 512)
+            let fittedSize = dimensions.cgSize.aspectFilled(CGSize(width: 384.0, height: 384.0))
+
+            let fetched = freeMediaFileInteractiveFetched(account: account, fileReference: .standalone(media: file))
+            let animationItem = Signal<ManagedAnimationItem?, NoError> { subscriber in
+                let fetchedDisposable = fetched.start()
+                let resourceDisposable = (chatMessageAnimationData(postbox: account.postbox, resource: file.resource, fitzModifier: nil, width: Int(fittedSize.width), height: Int(fittedSize.height), synchronousLoad: false)
+                |> filter { data in
+                    return data.complete
+                }).start(next: { next in
+                    subscriber.putNext(ManagedAnimationItem(source: .resource(account.postbox.mediaBox, file.resource), loop: loop))
+                })
+
+                return ActionDisposable {
+                    fetchedDisposable.dispose()
+                    resourceDisposable.dispose()
+                }
+            }
+            
+            if roll {
+                return rollingAnimationItem(account: account, emojis: emojis, emoji: emoji) |> then(animationItem)
+            } else {
+                return animationItem
+            }
+        }
+    }
+}
+
+private func rollingAnimationItem(account: Account, emojis: Signal<[TelegramMediaFile], NoError>, emoji: String) -> Signal<ManagedAnimationItem?, NoError> {
+    switch emoji {
+        case "🎲":
+            return .single(ManagedAnimationItem(source: .local("Dice_Rolling"), loop: true))
+        case "🎯":
+            return .single(ManagedAnimationItem(source: .local("Darts_Aiming"), loop: true))
+        default:
+            return animationItem(account: account, emojis: emojis, emoji: emoji, value: nil, loop: true)
+    }
+}
+
 final class ManagedDiceAnimationNode: ManagedAnimationNode, GenericAnimatedStickerNode {
     private let context: AccountContext
-    private let emojis: [TelegramMediaFile]
+    private let dice: TelegramMediaDice
     
     private var diceState: ManagedDiceAnimationState? = nil
     private let disposable = MetaDisposable()
     
-    init(context: AccountContext, emojis: [TelegramMediaFile]) {
+    private let emojis = Promise<[TelegramMediaFile]>()
+    
+    init(context: AccountContext, dice: TelegramMediaDice) {
         self.context = context
-        self.emojis = emojis
+        self.dice = dice
+        
+        self.emojis.set(loadedStickerPack(postbox: context.account.postbox, network: context.account.network, reference: .dice(dice.emoji), forceActualized: false)
+        |> mapToSignal { stickerPack -> Signal<[TelegramMediaFile], NoError> in
+            switch stickerPack {
+                case let .result(_, items, _):
+                    var emojiStickers: [TelegramMediaFile] = []
+                    for case let item as StickerPackItem in items {
+                        emojiStickers.append(item.file)
+                    }
+                    return .single(emojiStickers)
+                default:
+                    return .complete()
+            }
+        })
         
         super.init(size: CGSize(width: 184.0, height: 184.0))
     }
@@ -35,99 +106,41 @@ final class ManagedDiceAnimationNode: ManagedAnimationNode, GenericAnimatedStick
         let previousState = self.diceState
         self.diceState = diceState
         
+        var item: Signal<ManagedAnimationItem?, NoError>? = nil
+        
+        let context = self.context
         if let previousState = previousState {
             switch previousState {
                 case .rolling:
                     switch diceState {
                         case let .value(value, _):
-                            guard self.emojis.count == 6 else {
-                                return
-                            }
-                            let file = self.emojis[Int(value) - 1]
-                            let dimensions = file.dimensions ?? PixelDimensions(width: 512, height: 512)
-                            let fittedSize = dimensions.cgSize.aspectFilled(CGSize(width: 384.0, height: 384.0))
-                            
-                            let fetched = freeMediaFileInteractiveFetched(account: self.context.account, fileReference: .standalone(media: file))
-                            let sticker = Signal<Void, NoError> { subscriber in
-                                let fetchedDisposable = fetched.start()
-                                let resourceDisposable = (chatMessageAnimationData(postbox: self.context.account.postbox, resource: file.resource, fitzModifier: nil, width: Int(fittedSize.width), height: Int(fittedSize.height), synchronousLoad: false)
-                                |> filter { data in
-                                    return data.complete
-                                }).start(next: { next in
-                                    subscriber.putNext(Void())
-                                })
-                                    
-                                return ActionDisposable {
-                                    fetchedDisposable.dispose()
-                                    resourceDisposable.dispose()
-                                }
-                            }
-
-                            self.disposable.set((sticker |> deliverOnMainQueue).start(next: { [weak self] data in
-                                if let strongSelf = self {
-                                    strongSelf.trackTo(item: ManagedAnimationItem(source: .resource(strongSelf.context.account.postbox.mediaBox, file.resource), frames: ManagedAnimationFrameRange(startFrame: 0, endFrame: 180), duration: 3.0))
-                                }
-                            }))
+                            item = animationItem(account: context.account, emojis: self.emojis.get(), emoji: self.dice.emoji, value: value)
                         case .rolling:
                             break
                     }
-                case let .value(currentValue):
+                case .value:
                     switch diceState {
                         case .rolling:
-                            self.trackTo(item: ManagedAnimationItem(source: .local("Dice_Rolling"), frames: ManagedAnimationFrameRange(startFrame: 0, endFrame: 60), duration: 1.0, loop: true))
-                        case let .value(value):
+                            item = rollingAnimationItem(account: context.account, emojis: self.emojis.get(), emoji: self.dice.emoji)
+                        case .value:
                             break
                     }
             }
         } else {
             switch diceState {
                 case let .value(value, immediate):
-                    guard self.emojis.count == 6 else {
-                        return
-                    }
-                    let file = self.emojis[Int(value) - 1]
-                    
-                    if let _ = self.context.account.postbox.mediaBox.completedResourcePath(file.resource) {
-                        if immediate {
-                            self.trackTo(item: ManagedAnimationItem(source: .resource(self.context.account.postbox.mediaBox, file.resource), frames: ManagedAnimationFrameRange(startFrame: 180, endFrame: 180), duration: 0.0))
-                        } else {
-                            self.trackTo(item: ManagedAnimationItem(source: .resource(self.context.account.postbox.mediaBox, file.resource), frames: ManagedAnimationFrameRange(startFrame: 0, endFrame: 180), duration: 3.0))
-                        }
-                    } else {
-                        self.setState(.rolling)
-                    
-                        let dimensions = file.dimensions ?? PixelDimensions(width: 512, height: 512)
-                        let fittedSize = dimensions.cgSize.aspectFilled(CGSize(width: 384.0, height: 384.0))
-                        
-                        let fetched = freeMediaFileInteractiveFetched(account: self.context.account, fileReference: .standalone(media: file))
-                        let sticker = Signal<Void, NoError> { subscriber in
-                            let fetchedDisposable = fetched.start()
-                            let resourceDisposable = (chatMessageAnimationData(postbox: self.context.account.postbox, resource: file.resource, fitzModifier: nil, width: Int(fittedSize.width), height: Int(fittedSize.height), synchronousLoad: false)
-                                |> filter { data in
-                                    return data.complete
-                                }).start(next: { next in
-                                    subscriber.putNext(Void())
-                                })
-                            
-                            return ActionDisposable {
-                                fetchedDisposable.dispose()
-                                resourceDisposable.dispose()
-                            }
-                        }
-                        
-                        self.disposable.set((sticker |> deliverOnMainQueue).start(next: { [weak self] data in
-                            if let strongSelf = self {
-                                if immediate {
-                                    strongSelf.trackTo(item: ManagedAnimationItem(source: .resource(strongSelf.context.account.postbox.mediaBox, file.resource), frames: ManagedAnimationFrameRange(startFrame: 180, endFrame: 180), duration: 0.0))
-                                } else {
-                                    strongSelf.trackTo(item: ManagedAnimationItem(source: .resource(strongSelf.context.account.postbox.mediaBox, file.resource), frames: ManagedAnimationFrameRange(startFrame: 0, endFrame: 180), duration: 3.0))
-                                }
-                            }
-                        }))
-                    }
+                    item = animationItem(account: context.account, emojis: self.emojis.get(), emoji: self.dice.emoji, value: value, immediate: immediate, roll: true)
                 case .rolling:
-                    self.trackTo(item: ManagedAnimationItem(source: .local("Dice_Rolling"), frames: ManagedAnimationFrameRange(startFrame: 0, endFrame: 60), duration: 1.0, loop: true))
+                    item = rollingAnimationItem(account: context.account, emojis: self.emojis.get(), emoji: self.dice.emoji)
             }
+        }
+        
+        if let item = item {
+            self.disposable.set((item |> deliverOnMainQueue).start(next: { [weak self] item in
+                if let strongSelf = self, let item = item {
+                    strongSelf.trackTo(item: item)
+                }
+            }))
         }
     }
 }
