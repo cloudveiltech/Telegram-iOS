@@ -1,0 +1,239 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		634E87E5245B15F9007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87E4245B15F9007CD07F /* Display.framework */; };
+		634E87E7245B1603007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87E6245B1603007CD07F /* Postbox.framework */; };
+		634E87E9245B160A007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87E8245B160A007CD07F /* SwiftSignalKit.framework */; };
+		E7A30F0475C84BCC00000000 /* ManagedAnimationNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2975C84BCC00000000 /* ManagedAnimationNode.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E297552935F00000000 /* libManagedAnimationNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libManagedAnimationNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2975C84BCC00000000 /* ManagedAnimationNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ManagedAnimationNode.swift; path = Sources/ManagedAnimationNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29837D675800000000 /* ManagedAnimationNode-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "ManagedAnimationNode-Profile.xcconfig"; path = "../../buck-out/gen/submodules/ManagedAnimationNode/ManagedAnimationNode-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29B909F36E00000000 /* ManagedAnimationNode-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "ManagedAnimationNode-Debug.xcconfig"; path = "../../buck-out/gen/submodules/ManagedAnimationNode/ManagedAnimationNode-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DB6520C800000000 /* libPostbox.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libPostbox.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F71412BA00000000 /* ManagedAnimationNode-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "ManagedAnimationNode-Release.xcconfig"; path = "../../buck-out/gen/submodules/ManagedAnimationNode/ManagedAnimationNode-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87E4245B15F9007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87E6245B1603007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87E8245B160A007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F08A245B031D006A9391 /* DisplayFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = DisplayFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F08C245B0327006A9391 /* PostboxFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = PostboxFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F08E245B032E006A9391 /* SwiftSignalKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6360F089245B0317006A9391 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E87E9245B160A007CD07F /* SwiftSignalKit.framework in Frameworks */,
+				634E87E7245B1603007CD07F /* Postbox.framework in Frameworks */,
+				634E87E5245B15F9007CD07F /* Display.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29B909F36E00000000 /* ManagedAnimationNode-Debug.xcconfig */,
+				1DD70E29837D675800000000 /* ManagedAnimationNode-Profile.xcconfig */,
+				1DD70E29F71412BA00000000 /* ManagedAnimationNode-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				634E87E8245B160A007CD07F /* SwiftSignalKit.framework */,
+				634E87E6245B1603007CD07F /* Postbox.framework */,
+				634E87E4245B15F9007CD07F /* Display.framework */,
+				6360F08E245B032E006A9391 /* SwiftSignalKitFr.framework */,
+				6360F08C245B0327006A9391 /* PostboxFr.framework */,
+				6360F08A245B031D006A9391 /* DisplayFr.framework */,
+				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
+				1DD70E29DB6520C800000000 /* libPostbox.dylib */,
+				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979B8DACA6700000000 /* ManagedAnimationNode */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = ManagedAnimationNode;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E297552935F00000000 /* libManagedAnimationNode.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2975C84BCC00000000 /* ManagedAnimationNode.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C979B8DACA6700000000 /* ManagedAnimationNode */,
+				B401C979C806358400000000 /* Products */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04EB8DACA6700000000 /* ManagedAnimationNode */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "ManagedAnimationNode" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				6360F089245B0317006A9391 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ManagedAnimationNode;
+			productName = ManagedAnimationNode;
+			productReference = 1DD70E297552935F00000000 /* libManagedAnimationNode.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C84793B8DACA6700000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "ManagedAnimationNode" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04EB8DACA6700000000 /* ManagedAnimationNode */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F0475C84BCC00000000 /* ManagedAnimationNode.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29B909F36E00000000 /* ManagedAnimationNode-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29837D675800000000 /* ManagedAnimationNode-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29F71412BA00000000 /* ManagedAnimationNode-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "ManagedAnimationNode" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "ManagedAnimationNode" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C84793B8DACA6700000000 /* Project object */;
+}

@@ -1,0 +1,247 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		634E87F1245B1697007CD07F /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87F0245B1697007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E87F3245B169E007CD07F /* SyncCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87F2245B169E007CD07F /* SyncCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E87F5245B16A6007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87F4245B16A6007CD07F /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E87F7245B16AD007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87F6245B16AD007CD07F /* Postbox.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F048AD7D9E300000000 /* PeerPresenceStatusManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E298AD7D9E300000000 /* PeerPresenceStatusManager.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E29119CDA0700000000 /* libTelegramCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libTelegramCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2939BEF4E100000000 /* PeerPresenceStatusManager-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "PeerPresenceStatusManager-Profile.xcconfig"; path = "../../buck-out/gen/submodules/PeerPresenceStatusManager/PeerPresenceStatusManager-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E297A51CDA100000000 /* libSyncCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSyncCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E298AD7D9E300000000 /* PeerPresenceStatusManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PeerPresenceStatusManager.swift; path = Sources/PeerPresenceStatusManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2994334F3700000000 /* PeerPresenceStatusManager-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "PeerPresenceStatusManager-Debug.xcconfig"; path = "../../buck-out/gen/submodules/PeerPresenceStatusManager/PeerPresenceStatusManager-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29AD55A04300000000 /* PeerPresenceStatusManager-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "PeerPresenceStatusManager-Release.xcconfig"; path = "../../buck-out/gen/submodules/PeerPresenceStatusManager/PeerPresenceStatusManager-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29D233F68C00000000 /* libPeerPresenceStatusManager.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPeerPresenceStatusManager.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DB6520C800000000 /* libPostbox.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libPostbox.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87F0245B1697007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87F2245B169E007CD07F /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87F4245B16A6007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87F6245B16AD007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F04E245AFFB2006A9391 /* PostboxFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = PostboxFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F050245AFFB9006A9391 /* SwiftSignalKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F052245AFFC3006A9391 /* SyncCoreFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCoreFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F054245AFFCC006A9391 /* TelegramCoreFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCoreFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6360F04D245AFFAB006A9391 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E87F5245B16A6007CD07F /* SwiftSignalKit.framework in Frameworks */,
+				634E87F3245B169E007CD07F /* SyncCore.framework in Frameworks */,
+				634E87F7245B16AD007CD07F /* Postbox.framework in Frameworks */,
+				634E87F1245B1697007CD07F /* TelegramCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2994334F3700000000 /* PeerPresenceStatusManager-Debug.xcconfig */,
+				1DD70E2939BEF4E100000000 /* PeerPresenceStatusManager-Profile.xcconfig */,
+				1DD70E29AD55A04300000000 /* PeerPresenceStatusManager-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				634E87F6245B16AD007CD07F /* Postbox.framework */,
+				634E87F4245B16A6007CD07F /* SwiftSignalKit.framework */,
+				634E87F2245B169E007CD07F /* SyncCore.framework */,
+				634E87F0245B1697007CD07F /* TelegramCore.framework */,
+				6360F054245AFFCC006A9391 /* TelegramCoreFr.framework */,
+				6360F052245AFFC3006A9391 /* SyncCoreFr.framework */,
+				6360F050245AFFB9006A9391 /* SwiftSignalKitFr.framework */,
+				6360F04E245AFFB2006A9391 /* PostboxFr.framework */,
+				1DD70E29DB6520C800000000 /* libPostbox.dylib */,
+				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
+				1DD70E297A51CDA100000000 /* libSyncCore.dylib */,
+				1DD70E29119CDA0700000000 /* libTelegramCore.dylib */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29D233F68C00000000 /* libPeerPresenceStatusManager.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E298AD7D9E300000000 /* PeerPresenceStatusManager.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C979FBD875BE00000000 /* PeerPresenceStatusManager */,
+				B401C979C806358400000000 /* Products */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+		B401C979FBD875BE00000000 /* PeerPresenceStatusManager */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = PeerPresenceStatusManager;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04EFBD875BE00000000 /* PeerPresenceStatusManager */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "PeerPresenceStatusManager" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				6360F04D245AFFAB006A9391 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PeerPresenceStatusManager;
+			productName = PeerPresenceStatusManager;
+			productReference = 1DD70E29D233F68C00000000 /* libPeerPresenceStatusManager.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C84793FBD875BE00000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "PeerPresenceStatusManager" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04EFBD875BE00000000 /* PeerPresenceStatusManager */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F048AD7D9E300000000 /* PeerPresenceStatusManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E2994334F3700000000 /* PeerPresenceStatusManager-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E2939BEF4E100000000 /* PeerPresenceStatusManager-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29AD55A04300000000 /* PeerPresenceStatusManager-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "PeerPresenceStatusManager" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "PeerPresenceStatusManager" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C84793FBD875BE00000000 /* Project object */;
+}

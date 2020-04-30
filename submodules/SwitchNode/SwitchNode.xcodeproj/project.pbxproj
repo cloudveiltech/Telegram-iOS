@@ -1,0 +1,223 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		634E87C5245B14CD007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87C4245B14CD007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F040F66943400000000 /* IconSwitchNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E290F66943400000000 /* IconSwitchNode.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E290F66943400000000 /* IconSwitchNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IconSwitchNode.swift; path = Sources/IconSwitchNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2925BBFEEE00000000 /* libSwitchNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSwitchNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2948C7418B00000000 /* SwitchNode-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "SwitchNode-Release.xcconfig"; path = "../../buck-out/gen/submodules/SwitchNode/SwitchNode-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E2968ACA27F00000000 /* SwitchNode-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "SwitchNode-Debug.xcconfig"; path = "../../buck-out/gen/submodules/SwitchNode/SwitchNode-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29D530962900000000 /* SwitchNode-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "SwitchNode-Profile.xcconfig"; path = "../../buck-out/gen/submodules/SwitchNode/SwitchNode-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		6304BE9F245AF12800FA395E /* DisplayFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = DisplayFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87C4245B14CD007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6304BE9E245AF11E00FA395E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E87C5245B14CD007CD07F /* Display.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2968ACA27F00000000 /* SwitchNode-Debug.xcconfig */,
+				1DD70E29D530962900000000 /* SwitchNode-Profile.xcconfig */,
+				1DD70E2948C7418B00000000 /* SwitchNode-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C979621BFB7600000000 /* SwitchNode */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = SwitchNode;
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				634E87C4245B14CD007CD07F /* Display.framework */,
+				6304BE9F245AF12800FA395E /* DisplayFr.framework */,
+				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2925BBFEEE00000000 /* libSwitchNode.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E290F66943400000000 /* IconSwitchNode.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C979C806358400000000 /* Products */,
+				B401C979621BFB7600000000 /* SwitchNode */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04E621BFB7600000000 /* SwitchNode */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "SwitchNode" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				6304BE9E245AF11E00FA395E /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SwitchNode;
+			productName = SwitchNode;
+			productReference = 1DD70E2925BBFEEE00000000 /* libSwitchNode.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C84793621BFB7600000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "SwitchNode" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04E621BFB7600000000 /* SwitchNode */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F040F66943400000000 /* IconSwitchNode.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E2968ACA27F00000000 /* SwitchNode-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29D530962900000000 /* SwitchNode-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E2948C7418B00000000 /* SwitchNode-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "SwitchNode" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "SwitchNode" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C84793621BFB7600000000 /* Project object */;
+}

@@ -1,0 +1,34 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "Alamofire",
+        "repositoryURL": "https://github.com/Alamofire/Alamofire.git",
+        "state": {
+          "branch": null,
+          "revision": "747c8db8d57b68d5e35275f10c92d55f982adbd4",
+          "version": "4.9.1"
+        }
+      },
+      {
+        "package": "CloudVeil-securityManager-ios",
+        "repositoryURL": "https://github.com/cloudveiltech/CloudVeil-securityManager-ios.git",
+        "state": {
+          "branch": null,
+          "revision": "e9fba3595158b1b2c50c607052bf03edc3864e5f",
+          "version": "1.0.15"
+        }
+      },
+      {
+        "package": "ObjectMapper",
+        "repositoryURL": "https://github.com/patriciy/ObjectMapper.git",
+        "state": {
+          "branch": null,
+          "revision": "df814f069bdf7d8bc61adf26bc145f19fc3c29c8",
+          "version": "3.5.5"
+        }
+      }
+    ]
+  },
+  "version": 1
+}

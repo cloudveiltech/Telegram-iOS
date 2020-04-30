@@ -1,0 +1,221 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		6304BECE245AFC3900FA395E /* SwiftSignalKitFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6304BECD245AFC3900FA395E /* SwiftSignalKitFr.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F04115920F000000000 /* ScreenCaptureDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29115920F000000000 /* ScreenCaptureDetection.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E29115920F000000000 /* ScreenCaptureDetection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScreenCaptureDetection.swift; path = Sources/ScreenCaptureDetection.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2965175F1600000000 /* ScreenCaptureDetection-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "ScreenCaptureDetection-Release.xcconfig"; path = "../../buck-out/gen/submodules/ScreenCaptureDetection/ScreenCaptureDetection-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E2994ECA6CA00000000 /* ScreenCaptureDetection-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "ScreenCaptureDetection-Debug.xcconfig"; path = "../../buck-out/gen/submodules/ScreenCaptureDetection/ScreenCaptureDetection-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29CF967D4300000000 /* libScreenCaptureDetection.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libScreenCaptureDetection.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F180B3B400000000 /* ScreenCaptureDetection-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "ScreenCaptureDetection-Profile.xcconfig"; path = "../../buck-out/gen/submodules/ScreenCaptureDetection/ScreenCaptureDetection-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		6304BECD245AFC3900FA395E /* SwiftSignalKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6304BECC245AFC3200FA395E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6304BECE245AFC3900FA395E /* SwiftSignalKitFr.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2994ECA6CA00000000 /* ScreenCaptureDetection-Debug.xcconfig */,
+				1DD70E29F180B3B400000000 /* ScreenCaptureDetection-Profile.xcconfig */,
+				1DD70E2965175F1600000000 /* ScreenCaptureDetection-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C979326B4A8B00000000 /* ScreenCaptureDetection */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = ScreenCaptureDetection;
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				6304BECD245AFC3900FA395E /* SwiftSignalKitFr.framework */,
+				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29CF967D4300000000 /* libScreenCaptureDetection.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29115920F000000000 /* ScreenCaptureDetection.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C979C806358400000000 /* Products */,
+				B401C979326B4A8B00000000 /* ScreenCaptureDetection */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04E326B4A8B00000000 /* ScreenCaptureDetection */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "ScreenCaptureDetection" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				6304BECC245AFC3200FA395E /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ScreenCaptureDetection;
+			productName = ScreenCaptureDetection;
+			productReference = 1DD70E29CF967D4300000000 /* libScreenCaptureDetection.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C84793326B4A8B00000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "ScreenCaptureDetection" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04E326B4A8B00000000 /* ScreenCaptureDetection */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F04115920F000000000 /* ScreenCaptureDetection.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E2994ECA6CA00000000 /* ScreenCaptureDetection-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29F180B3B400000000 /* ScreenCaptureDetection-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E2965175F1600000000 /* ScreenCaptureDetection-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "ScreenCaptureDetection" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "ScreenCaptureDetection" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C84793326B4A8B00000000 /* Project object */;
+}

@@ -1,0 +1,279 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		634E8835245B18F8007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8834245B18F8007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8837245B18FF007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8836245B18FF007CD07F /* Postbox.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8839245B1907007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8838245B1907007CD07F /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E883B245B190E007CD07F /* SyncCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E883A245B190E007CD07F /* SyncCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E883D245B1916007CD07F /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E883C245B1916007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292395015100000000 /* libTelegramUIPreferences.a */; };
+		E7A30F043594DCC000000000 /* libStickerResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E293594DCC000000000 /* libStickerResources.a */; };
+		E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2936DE2CF900000000 /* libMediaResources.a */; };
+		E7A30F04CD296A8300000000 /* libTuples.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29CD296A8300000000 /* libTuples.a */; };
+		E7A30F04D6F14E1000000000 /* libImageBlur.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29D6F14E1000000000 /* libImageBlur.a */; };
+		E7A30F04D847F9AB00000000 /* AnimationNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29D847F9AB00000000 /* AnimationNode.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 0;
+			dstPath = "";
+			dstSubfolderSpec = 16;
+			files = (
+				E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04D6F14E1000000000 /* libImageBlur.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04CD296A8300000000 /* libTuples.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F043594DCC000000000 /* libStickerResources.a in Fake Swift Dependencies (Copy Files Phase) */,
+			);
+			name = "Fake Swift Dependencies (Copy Files Phase)";
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E29119CDA0700000000 /* libTelegramCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libTelegramCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292395015100000000 /* libTelegramUIPreferences.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramUIPreferences.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292420028600000000 /* libAnimationUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAnimationUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E293594DCC000000000 /* libStickerResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libStickerResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2936DE2CF900000000 /* libMediaResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMediaResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E294CFD2CBD00000000 /* AnimationUI-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "AnimationUI-Debug.xcconfig"; path = "../../buck-out/gen/submodules/AnimationUI/AnimationUI-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E295B1E344900000000 /* AnimationUI-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "AnimationUI-Release.xcconfig"; path = "../../buck-out/gen/submodules/AnimationUI/AnimationUI-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E297A51CDA100000000 /* libSyncCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSyncCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29CD296A8300000000 /* libTuples.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTuples.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D6F14E1000000000 /* libImageBlur.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libImageBlur.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D847F9AB00000000 /* AnimationNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AnimationNode.swift; path = Sources/AnimationNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29DB6520C800000000 /* libPostbox.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libPostbox.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29E78788E700000000 /* AnimationUI-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "AnimationUI-Profile.xcconfig"; path = "../../buck-out/gen/submodules/AnimationUI/AnimationUI-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8834245B18F8007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8836245B18FF007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8838245B1907007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E883A245B190E007CD07F /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E883C245B1916007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		634E8833245B18F1007CD07F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E883D245B1916007CD07F /* TelegramCore.framework in Frameworks */,
+				634E883B245B190E007CD07F /* SyncCore.framework in Frameworks */,
+				634E8839245B1907007CD07F /* SwiftSignalKit.framework in Frameworks */,
+				634E8837245B18FF007CD07F /* Postbox.framework in Frameworks */,
+				634E8835245B18F8007CD07F /* Display.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E294CFD2CBD00000000 /* AnimationUI-Debug.xcconfig */,
+				1DD70E29E78788E700000000 /* AnimationUI-Profile.xcconfig */,
+				1DD70E295B1E344900000000 /* AnimationUI-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				634E883C245B1916007CD07F /* TelegramCore.framework */,
+				634E883A245B190E007CD07F /* SyncCore.framework */,
+				634E8838245B1907007CD07F /* SwiftSignalKit.framework */,
+				634E8836245B18FF007CD07F /* Postbox.framework */,
+				634E8834245B18F8007CD07F /* Display.framework */,
+				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
+				1DD70E29D6F14E1000000000 /* libImageBlur.a */,
+				1DD70E2936DE2CF900000000 /* libMediaResources.a */,
+				1DD70E29DB6520C800000000 /* libPostbox.dylib */,
+				1DD70E293594DCC000000000 /* libStickerResources.a */,
+				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
+				1DD70E297A51CDA100000000 /* libSyncCore.dylib */,
+				1DD70E29119CDA0700000000 /* libTelegramCore.dylib */,
+				1DD70E292395015100000000 /* libTelegramUIPreferences.a */,
+				1DD70E29CD296A8300000000 /* libTuples.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C979A7BBFCF800000000 /* AnimationUI */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = AnimationUI;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E292420028600000000 /* libAnimationUI.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29D847F9AB00000000 /* AnimationNode.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C979A7BBFCF800000000 /* AnimationUI */,
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C979C806358400000000 /* Products */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04EA7BBFCF800000000 /* AnimationUI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "AnimationUI" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */,
+				634E8833245B18F1007CD07F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AnimationUI;
+			productName = AnimationUI;
+			productReference = 1DD70E292420028600000000 /* libAnimationUI.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C84793A7BBFCF800000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "AnimationUI" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04EA7BBFCF800000000 /* AnimationUI */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F04D847F9AB00000000 /* AnimationNode.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E294CFD2CBD00000000 /* AnimationUI-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29E78788E700000000 /* AnimationUI-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E295B1E344900000000 /* AnimationUI-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "AnimationUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "AnimationUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C84793A7BBFCF800000000 /* Project object */;
+}

@@ -1,0 +1,247 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		6360F0BF245B07E3006A9391 /* DisplayFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6360F0BE245B07E3006A9391 /* DisplayFr.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		6360F0C1245B07EA006A9391 /* SwiftSignalKitFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6360F0C0245B07EA006A9391 /* SwiftSignalKitFr.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F0408EBF46000000000 /* CameraDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2908EBF46000000000 /* CameraDevice.swift */; };
+		E7A30F04264D2E6A00000000 /* CameraInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29264D2E6A00000000 /* CameraInput.swift */; };
+		E7A30F04387802CB00000000 /* CameraOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29387802CB00000000 /* CameraOutput.swift */; };
+		E7A30F0492F8922A00000000 /* Camera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2992F8922A00000000 /* Camera.swift */; };
+		E7A30F04F10E5E1100000000 /* CameraUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29F10E5E1100000000 /* CameraUtils.swift */; };
+		E7A30F04FFA2D84A00000000 /* CameraPreviewNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29FFA2D84A00000000 /* CameraPreviewNode.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E2908EBF46000000000 /* CameraDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraDevice.swift; path = Sources/CameraDevice.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E292256C59C00000000 /* Camera-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "Camera-Release.xcconfig"; path = "../../buck-out/gen/submodules/Camera/Camera-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29264D2E6A00000000 /* CameraInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraInput.swift; path = Sources/CameraInput.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29387802CB00000000 /* CameraOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraOutput.swift; path = Sources/CameraOutput.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2939BFF6D000000000 /* Camera-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "Camera-Debug.xcconfig"; path = "../../buck-out/gen/submodules/Camera/Camera-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E2992F8922A00000000 /* Camera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Camera.swift; path = Sources/Camera.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29AEC01A3A00000000 /* Camera-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "Camera-Profile.xcconfig"; path = "../../buck-out/gen/submodules/Camera/Camera-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29BFBD457D00000000 /* libCamera.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libCamera.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F10E5E1100000000 /* CameraUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraUtils.swift; path = Sources/CameraUtils.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29FFA2D84A00000000 /* CameraPreviewNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraPreviewNode.swift; path = Sources/CameraPreviewNode.swift; sourceTree = SOURCE_ROOT; };
+		6360F0BE245B07E3006A9391 /* DisplayFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = DisplayFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F0C0245B07EA006A9391 /* SwiftSignalKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6360F0BD245B07DD006A9391 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6360F0C1245B07EA006A9391 /* SwiftSignalKitFr.framework in Frameworks */,
+				6360F0BF245B07E3006A9391 /* DisplayFr.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2939BFF6D000000000 /* Camera-Debug.xcconfig */,
+				1DD70E29AEC01A3A00000000 /* Camera-Profile.xcconfig */,
+				1DD70E292256C59C00000000 /* Camera-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				6360F0C0245B07EA006A9391 /* SwiftSignalKitFr.framework */,
+				6360F0BE245B07E3006A9391 /* DisplayFr.framework */,
+				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
+				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C97977DEAF4500000000 /* Camera */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = Camera;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29BFBD457D00000000 /* libCamera.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2992F8922A00000000 /* Camera.swift */,
+				1DD70E2908EBF46000000000 /* CameraDevice.swift */,
+				1DD70E29264D2E6A00000000 /* CameraInput.swift */,
+				1DD70E29387802CB00000000 /* CameraOutput.swift */,
+				1DD70E29FFA2D84A00000000 /* CameraPreviewNode.swift */,
+				1DD70E29F10E5E1100000000 /* CameraUtils.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C97977DEAF4500000000 /* Camera */,
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C979C806358400000000 /* Products */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04E77DEAF4500000000 /* Camera */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "Camera" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				6360F0BD245B07DD006A9391 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Camera;
+			productName = Camera;
+			productReference = 1DD70E29BFBD457D00000000 /* libCamera.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C8479377DEAF4500000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "Camera" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04E77DEAF4500000000 /* Camera */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F0492F8922A00000000 /* Camera.swift in Sources */,
+				E7A30F0408EBF46000000000 /* CameraDevice.swift in Sources */,
+				E7A30F04264D2E6A00000000 /* CameraInput.swift in Sources */,
+				E7A30F04387802CB00000000 /* CameraOutput.swift in Sources */,
+				E7A30F04FFA2D84A00000000 /* CameraPreviewNode.swift in Sources */,
+				E7A30F04F10E5E1100000000 /* CameraUtils.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E2939BFF6D000000000 /* Camera-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29AEC01A3A00000000 /* Camera-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E292256C59C00000000 /* Camera-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "Camera" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "Camera" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C8479377DEAF4500000000 /* Project object */;
+}

@@ -1,0 +1,223 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		634E87EB245B1640007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87EA245B1640007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F047CE1579600000000 /* PeerOnlineMarkerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E297CE1579600000000 /* PeerOnlineMarkerNode.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E296AA2A4B000000000 /* PeerOnlineMarkerNode-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "PeerOnlineMarkerNode-Release.xcconfig"; path = "../../buck-out/gen/submodules/PeerOnlineMarkerNode/PeerOnlineMarkerNode-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E297CE1579600000000 /* PeerOnlineMarkerNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PeerOnlineMarkerNode.swift; path = Sources/PeerOnlineMarkerNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2987E08AE400000000 /* PeerOnlineMarkerNode-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "PeerOnlineMarkerNode-Debug.xcconfig"; path = "../../buck-out/gen/submodules/PeerOnlineMarkerNode/PeerOnlineMarkerNode-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29928D142900000000 /* libPeerOnlineMarkerNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPeerOnlineMarkerNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F70BF94E00000000 /* PeerOnlineMarkerNode-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "PeerOnlineMarkerNode-Profile.xcconfig"; path = "../../buck-out/gen/submodules/PeerOnlineMarkerNode/PeerOnlineMarkerNode-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87EA245B1640007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F05D245B0075006A9391 /* DisplayFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = DisplayFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6360F05C245B006E006A9391 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E87EB245B1640007CD07F /* Display.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C9791B72F5B100000000 /* PeerOnlineMarkerNode */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = PeerOnlineMarkerNode;
+			sourceTree = "<group>";
+		};
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2987E08AE400000000 /* PeerOnlineMarkerNode-Debug.xcconfig */,
+				1DD70E29F70BF94E00000000 /* PeerOnlineMarkerNode-Profile.xcconfig */,
+				1DD70E296AA2A4B000000000 /* PeerOnlineMarkerNode-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				634E87EA245B1640007CD07F /* Display.framework */,
+				6360F05D245B0075006A9391 /* DisplayFr.framework */,
+				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29928D142900000000 /* libPeerOnlineMarkerNode.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E297CE1579600000000 /* PeerOnlineMarkerNode.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C9791B72F5B100000000 /* PeerOnlineMarkerNode */,
+				B401C979C806358400000000 /* Products */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04E1B72F5B100000000 /* PeerOnlineMarkerNode */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "PeerOnlineMarkerNode" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				6360F05C245B006E006A9391 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PeerOnlineMarkerNode;
+			productName = PeerOnlineMarkerNode;
+			productReference = 1DD70E29928D142900000000 /* libPeerOnlineMarkerNode.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C847931B72F5B100000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "PeerOnlineMarkerNode" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04E1B72F5B100000000 /* PeerOnlineMarkerNode */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F047CE1579600000000 /* PeerOnlineMarkerNode.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E2987E08AE400000000 /* PeerOnlineMarkerNode-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29F70BF94E00000000 /* PeerOnlineMarkerNode-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E296AA2A4B000000000 /* PeerOnlineMarkerNode-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "PeerOnlineMarkerNode" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "PeerOnlineMarkerNode" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C847931B72F5B100000000 /* Project object */;
+}

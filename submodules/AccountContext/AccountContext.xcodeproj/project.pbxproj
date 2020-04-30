@@ -1,0 +1,427 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		634E8814245B1834007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8813245B1834007CD07F /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8816245B183C007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8815245B183C007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8818245B1845007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8817245B1845007CD07F /* Postbox.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E881A245B184D007CD07F /* SyncCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8819245B184D007CD07F /* SyncCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E881C245B1857007CD07F /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E881B245B1857007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F0403B7281800000000 /* FetchManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2903B7281800000000 /* FetchManager.swift */; };
+		E7A30F040F1A3C6400000000 /* libPlatformRestrictionMatching.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */; };
+		E7A30F040F2FA2FD00000000 /* StoredMessageFromSearchPeer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E290F2FA2FD00000000 /* StoredMessageFromSearchPeer.swift */; };
+		E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292395015100000000 /* libTelegramUIPreferences.a */; };
+		E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2936DE2CF900000000 /* libMediaResources.a */; };
+		E7A30F0438AA732E00000000 /* MediaManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2938AA732E00000000 /* MediaManager.swift */; };
+		E7A30F044B11AACD00000000 /* ContactSelectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E294B11AACD00000000 /* ContactSelectionController.swift */; };
+		E7A30F044F46AC0700000000 /* AccountContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E294F46AC0700000000 /* AccountContext.swift */; };
+		E7A30F0451398CF200000000 /* libUniversalMediaPlayer.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2951398CF200000000 /* libUniversalMediaPlayer.a */; };
+		E7A30F04577C319700000000 /* ChatListController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29577C319700000000 /* ChatListController.swift */; };
+		E7A30F0458CFD47D00000000 /* libStringPluralization.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2958CFD47D00000000 /* libStringPluralization.a */; };
+		E7A30F045915423000000000 /* libDeviceLocationManager.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E295915423000000000 /* libDeviceLocationManager.a */; };
+		E7A30F046AFBAFB600000000 /* ChatHistoryLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E296AFBAFB600000000 /* ChatHistoryLocation.swift */; };
+		E7A30F047819F1E000000000 /* ThemeUpdateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E297819F1E000000000 /* ThemeUpdateManager.swift */; };
+		E7A30F0478658ABA00000000 /* PresentationCallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2978658ABA00000000 /* PresentationCallManager.swift */; };
+		E7A30F047A9608D900000000 /* IsMediaStreamable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E297A9608D900000000 /* IsMediaStreamable.swift */; };
+		E7A30F047E2E5F8700000000 /* libMarkdown.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E297E2E5F8700000000 /* libMarkdown.a */; };
+		E7A30F04845F1BF400000000 /* ContactMultiselectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29845F1BF400000000 /* ContactMultiselectionController.swift */; };
+		E7A30F0484A59C1D00000000 /* libTelegramPresentationData.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */; };
+		E7A30F048B16D4EE00000000 /* DownloadedMediaStoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E298B16D4EE00000000 /* DownloadedMediaStoreManager.swift */; };
+		E7A30F048CE41BAA00000000 /* OpenChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E298CE41BAA00000000 /* OpenChatMessage.swift */; };
+		E7A30F04900C6ACF00000000 /* WallpaperUploadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29900C6ACF00000000 /* WallpaperUploadManager.swift */; };
+		E7A30F04A055C05700000000 /* UniversalVideoNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29A055C05700000000 /* UniversalVideoNode.swift */; };
+		E7A30F04A1A9776800000000 /* OverlayAudioPlayerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29A1A9776800000000 /* OverlayAudioPlayerController.swift */; };
+		E7A30F04A3CAA35E00000000 /* OverlayMediaManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29A3CAA35E00000000 /* OverlayMediaManager.swift */; };
+		E7A30F04A82E88C500000000 /* SharedMediaPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29A82E88C500000000 /* SharedMediaPlayer.swift */; };
+		E7A30F04AE47D78B00000000 /* PeerSelectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29AE47D78B00000000 /* PeerSelectionController.swift */; };
+		E7A30F04B2B7F8DC00000000 /* libPhoneNumberFormat.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29B2B7F8DC00000000 /* libPhoneNumberFormat.a */; };
+		E7A30F04BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a */; };
+		E7A30F04BEA4BC8700000000 /* PresentationSurfaceLevels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29BEA4BC8700000000 /* PresentationSurfaceLevels.swift */; };
+		E7A30F04C7B1155E00000000 /* DeviceContactDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29C7B1155E00000000 /* DeviceContactDataManager.swift */; };
+		E7A30F04CC55C4D900000000 /* ChatController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29CC55C4D900000000 /* ChatController.swift */; };
+		E7A30F04CE34063500000000 /* libLocalizedPeerData.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29CE34063500000000 /* libLocalizedPeerData.a */; };
+		E7A30F04CEBFB42300000000 /* WatchManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29CEBFB42300000000 /* WatchManager.swift */; };
+		E7A30F04DD3C940F00000000 /* libTelegramStringFormatting.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29DD3C940F00000000 /* libTelegramStringFormatting.a */; };
+		E7A30F04DE00756200000000 /* PeersNearbyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29DE00756200000000 /* PeersNearbyManager.swift */; };
+		E7A30F04DF578D3100000000 /* LiveLocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29DF578D3100000000 /* LiveLocationManager.swift */; };
+		E7A30F04DFFBE54E00000000 /* OverlayMediaItemNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29DFFBE54E00000000 /* OverlayMediaItemNode.swift */; };
+		E7A30F04E2783B3900000000 /* DeviceContactData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29E2783B3900000000 /* DeviceContactData.swift */; };
+		E7A30F04F0C15F9C00000000 /* libTextFormat.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29F0C15F9C00000000 /* libTextFormat.a */; };
+		E7A30F04F12D3ACC00000000 /* FetchMediaUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29F12D3ACC00000000 /* FetchMediaUtils.swift */; };
+		E7A30F04F33FDAC300000000 /* libTelegramAudio.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29F33FDAC300000000 /* libTelegramAudio.a */; };
+		E7A30F04FA38189300000000 /* GalleryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29FA38189300000000 /* GalleryController.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 0;
+			dstPath = "";
+			dstSubfolderSpec = 16;
+			files = (
+				E7A30F045915423000000000 /* libDeviceLocationManager.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04F33FDAC300000000 /* libTelegramAudio.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0451398CF200000000 /* libUniversalMediaPlayer.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0458CFD47D00000000 /* libStringPluralization.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0484A59C1D00000000 /* libTelegramPresentationData.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04B2B7F8DC00000000 /* libPhoneNumberFormat.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04CE34063500000000 /* libLocalizedPeerData.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F047E2E5F8700000000 /* libMarkdown.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F040F1A3C6400000000 /* libPlatformRestrictionMatching.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04F0C15F9C00000000 /* libTextFormat.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04DD3C940F00000000 /* libTelegramStringFormatting.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a in Fake Swift Dependencies (Copy Files Phase) */,
+			);
+			name = "Fake Swift Dependencies (Copy Files Phase)";
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E2903B7281800000000 /* FetchManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FetchManager.swift; path = Sources/FetchManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPlatformRestrictionMatching.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E290F2FA2FD00000000 /* StoredMessageFromSearchPeer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoredMessageFromSearchPeer.swift; path = Sources/StoredMessageFromSearchPeer.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29119CDA0700000000 /* libTelegramCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libTelegramCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292395015100000000 /* libTelegramUIPreferences.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramUIPreferences.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2936DE2CF900000000 /* libMediaResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMediaResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2938AA732E00000000 /* MediaManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MediaManager.swift; path = Sources/MediaManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2946CACF9F00000000 /* AccountContext-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "AccountContext-Release.xcconfig"; path = "../../buck-out/gen/submodules/AccountContext/AccountContext-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E294B11AACD00000000 /* ContactSelectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContactSelectionController.swift; path = Sources/ContactSelectionController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E294F46AC0700000000 /* AccountContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AccountContext.swift; path = Sources/AccountContext.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2951398CF200000000 /* libUniversalMediaPlayer.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libUniversalMediaPlayer.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29577C319700000000 /* ChatListController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatListController.swift; path = Sources/ChatListController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2958CFD47D00000000 /* libStringPluralization.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libStringPluralization.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E295915423000000000 /* libDeviceLocationManager.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDeviceLocationManager.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E296AFBAFB600000000 /* ChatHistoryLocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatHistoryLocation.swift; path = Sources/ChatHistoryLocation.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E297819F1E000000000 /* ThemeUpdateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ThemeUpdateManager.swift; path = Sources/ThemeUpdateManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2978658ABA00000000 /* PresentationCallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationCallManager.swift; path = Sources/PresentationCallManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E297A51CDA100000000 /* libSyncCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSyncCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E297A9608D900000000 /* IsMediaStreamable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IsMediaStreamable.swift; path = Sources/IsMediaStreamable.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E297E2E5F8700000000 /* libMarkdown.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMarkdown.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29845F1BF400000000 /* ContactMultiselectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContactMultiselectionController.swift; path = Sources/ContactMultiselectionController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2984A4A59300000000 /* AccountContext-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "AccountContext-Debug.xcconfig"; path = "../../buck-out/gen/submodules/AccountContext/AccountContext-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramPresentationData.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E298B16D4EE00000000 /* DownloadedMediaStoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DownloadedMediaStoreManager.swift; path = Sources/DownloadedMediaStoreManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E298CE41BAA00000000 /* OpenChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OpenChatMessage.swift; path = Sources/OpenChatMessage.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29900C6ACF00000000 /* WallpaperUploadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WallpaperUploadManager.swift; path = Sources/WallpaperUploadManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E299D2580DA00000000 /* libAccountContext.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAccountContext.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29A055C05700000000 /* UniversalVideoNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UniversalVideoNode.swift; path = Sources/UniversalVideoNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29A1A9776800000000 /* OverlayAudioPlayerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OverlayAudioPlayerController.swift; path = Sources/OverlayAudioPlayerController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29A3CAA35E00000000 /* OverlayMediaManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OverlayMediaManager.swift; path = Sources/OverlayMediaManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29A82E88C500000000 /* SharedMediaPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharedMediaPlayer.swift; path = Sources/SharedMediaPlayer.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29AE47D78B00000000 /* PeerSelectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PeerSelectionController.swift; path = Sources/PeerSelectionController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29B2B7F8DC00000000 /* libPhoneNumberFormat.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPhoneNumberFormat.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTemporaryCachedPeerDataManager.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29BEA4BC8700000000 /* PresentationSurfaceLevels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationSurfaceLevels.swift; path = Sources/PresentationSurfaceLevels.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29C7B1155E00000000 /* DeviceContactDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeviceContactDataManager.swift; path = Sources/DeviceContactDataManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29CC55C4D900000000 /* ChatController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatController.swift; path = Sources/ChatController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29CE34063500000000 /* libLocalizedPeerData.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libLocalizedPeerData.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29CEBFB42300000000 /* WatchManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WatchManager.swift; path = Sources/WatchManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29D334243D00000000 /* AccountContext-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "AccountContext-Profile.xcconfig"; path = "../../buck-out/gen/submodules/AccountContext/AccountContext-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DB6520C800000000 /* libPostbox.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libPostbox.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DD3C940F00000000 /* libTelegramStringFormatting.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramStringFormatting.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DE00756200000000 /* PeersNearbyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PeersNearbyManager.swift; path = Sources/PeersNearbyManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29DF578D3100000000 /* LiveLocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LiveLocationManager.swift; path = Sources/LiveLocationManager.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29DFFBE54E00000000 /* OverlayMediaItemNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OverlayMediaItemNode.swift; path = Sources/OverlayMediaItemNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29E2783B3900000000 /* DeviceContactData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeviceContactData.swift; path = Sources/DeviceContactData.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29F0C15F9C00000000 /* libTextFormat.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTextFormat.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F12D3ACC00000000 /* FetchMediaUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FetchMediaUtils.swift; path = Sources/FetchMediaUtils.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29F33FDAC300000000 /* libTelegramAudio.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramAudio.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29FA38189300000000 /* GalleryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GalleryController.swift; path = Sources/GalleryController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8813245B1834007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8815245B183C007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8817245B1845007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8819245B184D007CD07F /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E881B245B1857007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		634E8812245B1824007CD07F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E881C245B1857007CD07F /* TelegramCore.framework in Frameworks */,
+				634E881A245B184D007CD07F /* SyncCore.framework in Frameworks */,
+				634E8818245B1845007CD07F /* Postbox.framework in Frameworks */,
+				634E8816245B183C007CD07F /* Display.framework in Frameworks */,
+				634E8814245B1834007CD07F /* SwiftSignalKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C97927C8B2E200000000 /* AccountContext */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = AccountContext;
+			sourceTree = "<group>";
+		};
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2984A4A59300000000 /* AccountContext-Debug.xcconfig */,
+				1DD70E29D334243D00000000 /* AccountContext-Profile.xcconfig */,
+				1DD70E2946CACF9F00000000 /* AccountContext-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				634E881B245B1857007CD07F /* TelegramCore.framework */,
+				634E8819245B184D007CD07F /* SyncCore.framework */,
+				634E8817245B1845007CD07F /* Postbox.framework */,
+				634E8815245B183C007CD07F /* Display.framework */,
+				634E8813245B1834007CD07F /* SwiftSignalKit.framework */,
+				1DD70E295915423000000000 /* libDeviceLocationManager.a */,
+				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
+				1DD70E29CE34063500000000 /* libLocalizedPeerData.a */,
+				1DD70E297E2E5F8700000000 /* libMarkdown.a */,
+				1DD70E2936DE2CF900000000 /* libMediaResources.a */,
+				1DD70E29B2B7F8DC00000000 /* libPhoneNumberFormat.a */,
+				1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */,
+				1DD70E29DB6520C800000000 /* libPostbox.dylib */,
+				1DD70E2958CFD47D00000000 /* libStringPluralization.a */,
+				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
+				1DD70E297A51CDA100000000 /* libSyncCore.dylib */,
+				1DD70E29F33FDAC300000000 /* libTelegramAudio.a */,
+				1DD70E29119CDA0700000000 /* libTelegramCore.dylib */,
+				1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */,
+				1DD70E29DD3C940F00000000 /* libTelegramStringFormatting.a */,
+				1DD70E292395015100000000 /* libTelegramUIPreferences.a */,
+				1DD70E29BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a */,
+				1DD70E29F0C15F9C00000000 /* libTextFormat.a */,
+				1DD70E2951398CF200000000 /* libUniversalMediaPlayer.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E299D2580DA00000000 /* libAccountContext.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E294F46AC0700000000 /* AccountContext.swift */,
+				1DD70E29CC55C4D900000000 /* ChatController.swift */,
+				1DD70E296AFBAFB600000000 /* ChatHistoryLocation.swift */,
+				1DD70E29577C319700000000 /* ChatListController.swift */,
+				1DD70E29845F1BF400000000 /* ContactMultiselectionController.swift */,
+				1DD70E294B11AACD00000000 /* ContactSelectionController.swift */,
+				1DD70E29E2783B3900000000 /* DeviceContactData.swift */,
+				1DD70E29C7B1155E00000000 /* DeviceContactDataManager.swift */,
+				1DD70E298B16D4EE00000000 /* DownloadedMediaStoreManager.swift */,
+				1DD70E2903B7281800000000 /* FetchManager.swift */,
+				1DD70E29F12D3ACC00000000 /* FetchMediaUtils.swift */,
+				1DD70E29FA38189300000000 /* GalleryController.swift */,
+				1DD70E297A9608D900000000 /* IsMediaStreamable.swift */,
+				1DD70E29DF578D3100000000 /* LiveLocationManager.swift */,
+				1DD70E2938AA732E00000000 /* MediaManager.swift */,
+				1DD70E298CE41BAA00000000 /* OpenChatMessage.swift */,
+				1DD70E29A1A9776800000000 /* OverlayAudioPlayerController.swift */,
+				1DD70E29DFFBE54E00000000 /* OverlayMediaItemNode.swift */,
+				1DD70E29A3CAA35E00000000 /* OverlayMediaManager.swift */,
+				1DD70E29AE47D78B00000000 /* PeerSelectionController.swift */,
+				1DD70E29DE00756200000000 /* PeersNearbyManager.swift */,
+				1DD70E2978658ABA00000000 /* PresentationCallManager.swift */,
+				1DD70E29BEA4BC8700000000 /* PresentationSurfaceLevels.swift */,
+				1DD70E29A82E88C500000000 /* SharedMediaPlayer.swift */,
+				1DD70E290F2FA2FD00000000 /* StoredMessageFromSearchPeer.swift */,
+				1DD70E297819F1E000000000 /* ThemeUpdateManager.swift */,
+				1DD70E29A055C05700000000 /* UniversalVideoNode.swift */,
+				1DD70E29900C6ACF00000000 /* WallpaperUploadManager.swift */,
+				1DD70E29CEBFB42300000000 /* WatchManager.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C97927C8B2E200000000 /* AccountContext */,
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C979C806358400000000 /* Products */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04E27C8B2E200000000 /* AccountContext */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "AccountContext" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */,
+				634E8812245B1824007CD07F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AccountContext;
+			productName = AccountContext;
+			productReference = 1DD70E299D2580DA00000000 /* libAccountContext.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C8479327C8B2E200000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "AccountContext" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04E27C8B2E200000000 /* AccountContext */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F044F46AC0700000000 /* AccountContext.swift in Sources */,
+				E7A30F04CC55C4D900000000 /* ChatController.swift in Sources */,
+				E7A30F046AFBAFB600000000 /* ChatHistoryLocation.swift in Sources */,
+				E7A30F04577C319700000000 /* ChatListController.swift in Sources */,
+				E7A30F04845F1BF400000000 /* ContactMultiselectionController.swift in Sources */,
+				E7A30F044B11AACD00000000 /* ContactSelectionController.swift in Sources */,
+				E7A30F04E2783B3900000000 /* DeviceContactData.swift in Sources */,
+				E7A30F04C7B1155E00000000 /* DeviceContactDataManager.swift in Sources */,
+				E7A30F048B16D4EE00000000 /* DownloadedMediaStoreManager.swift in Sources */,
+				E7A30F0403B7281800000000 /* FetchManager.swift in Sources */,
+				E7A30F04F12D3ACC00000000 /* FetchMediaUtils.swift in Sources */,
+				E7A30F04FA38189300000000 /* GalleryController.swift in Sources */,
+				E7A30F047A9608D900000000 /* IsMediaStreamable.swift in Sources */,
+				E7A30F04DF578D3100000000 /* LiveLocationManager.swift in Sources */,
+				E7A30F0438AA732E00000000 /* MediaManager.swift in Sources */,
+				E7A30F048CE41BAA00000000 /* OpenChatMessage.swift in Sources */,
+				E7A30F04A1A9776800000000 /* OverlayAudioPlayerController.swift in Sources */,
+				E7A30F04DFFBE54E00000000 /* OverlayMediaItemNode.swift in Sources */,
+				E7A30F04A3CAA35E00000000 /* OverlayMediaManager.swift in Sources */,
+				E7A30F04AE47D78B00000000 /* PeerSelectionController.swift in Sources */,
+				E7A30F04DE00756200000000 /* PeersNearbyManager.swift in Sources */,
+				E7A30F0478658ABA00000000 /* PresentationCallManager.swift in Sources */,
+				E7A30F04BEA4BC8700000000 /* PresentationSurfaceLevels.swift in Sources */,
+				E7A30F04A82E88C500000000 /* SharedMediaPlayer.swift in Sources */,
+				E7A30F040F2FA2FD00000000 /* StoredMessageFromSearchPeer.swift in Sources */,
+				E7A30F047819F1E000000000 /* ThemeUpdateManager.swift in Sources */,
+				E7A30F04A055C05700000000 /* UniversalVideoNode.swift in Sources */,
+				E7A30F04900C6ACF00000000 /* WallpaperUploadManager.swift in Sources */,
+				E7A30F04CEBFB42300000000 /* WatchManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E2984A4A59300000000 /* AccountContext-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29D334243D00000000 /* AccountContext-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E2946CACF9F00000000 /* AccountContext-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "AccountContext" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "AccountContext" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C8479327C8B2E200000000 /* Project object */;
+}

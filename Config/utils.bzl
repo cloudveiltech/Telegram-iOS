@@ -43,13 +43,14 @@ def merge_dict(a, b):
 DEVELOPMENT_LANGUAGE = "en"
 
 SHARED_CONFIGS = {
-    "IPHONEOS_DEPLOYMENT_TARGET": "9.0",
+    "IPHONEOS_DEPLOYMENT_TARGET": "10.0",
     "SDKROOT": "iphoneos",
     "GCC_OPTIMIZATION_LEVEL": "0",
     "SWIFT_WHOLE_MODULE_OPTIMIZATION": "NO",
     "ONLY_ACTIVE_ARCH": "YES",
     "LD_RUNPATH_SEARCH_PATHS": "@executable_path/Frameworks",
     "ENABLE_BITCODE": "NO",
+    "DEAD_CODE_STRIPPING": "YES",
 }
 
 # Adding `-all_load` to our binaries works around https://bugs.swift.org/browse/SR-6004.

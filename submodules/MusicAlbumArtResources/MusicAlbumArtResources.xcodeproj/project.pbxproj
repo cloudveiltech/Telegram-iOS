@@ -1,0 +1,265 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		634E87A7245B1400007CD07F /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87A6245B1400007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E87A9245B1408007CD07F /* SyncCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87A8245B1408007CD07F /* SyncCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E87AB245B1413007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87AA245B1413007CD07F /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E87AD245B141B007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E87AC245B141B007CD07F /* Postbox.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F04597BAFBB00000000 /* libUrlEscaping.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29597BAFBB00000000 /* libUrlEscaping.a */; };
+		E7A30F04D845CE9C00000000 /* ExternalMusicAlbumArtResources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29D845CE9C00000000 /* ExternalMusicAlbumArtResources.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 0;
+			dstPath = "";
+			dstSubfolderSpec = 16;
+			files = (
+				E7A30F04597BAFBB00000000 /* libUrlEscaping.a in Fake Swift Dependencies (Copy Files Phase) */,
+			);
+			name = "Fake Swift Dependencies (Copy Files Phase)";
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E29119CDA0700000000 /* libTelegramCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libTelegramCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29372A8CD300000000 /* MusicAlbumArtResources-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "MusicAlbumArtResources-Profile.xcconfig"; path = "../../buck-out/gen/submodules/MusicAlbumArtResources/MusicAlbumArtResources-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29597BAFBB00000000 /* libUrlEscaping.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libUrlEscaping.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E297A51CDA100000000 /* libSyncCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSyncCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E297B283BA900000000 /* MusicAlbumArtResources-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "MusicAlbumArtResources-Debug.xcconfig"; path = "../../buck-out/gen/submodules/MusicAlbumArtResources/MusicAlbumArtResources-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29866F6A0400000000 /* libMusicAlbumArtResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMusicAlbumArtResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29AAC1383500000000 /* MusicAlbumArtResources-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "MusicAlbumArtResources-Release.xcconfig"; path = "../../buck-out/gen/submodules/MusicAlbumArtResources/MusicAlbumArtResources-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D845CE9C00000000 /* ExternalMusicAlbumArtResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ExternalMusicAlbumArtResources.swift; path = Sources/ExternalMusicAlbumArtResources.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29DB6520C800000000 /* libPostbox.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libPostbox.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87A6245B1400007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87A8245B1408007CD07F /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87AA245B1413007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E87AC245B141B007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F060245B00C1006A9391 /* PostboxFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = PostboxFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F062245B00C8006A9391 /* SwiftSignalKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F064245B00CF006A9391 /* SyncCoreFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCoreFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6360F066245B00D8006A9391 /* TelegramCoreFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCoreFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6360F05F245B00BB006A9391 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E87AD245B141B007CD07F /* Postbox.framework in Frameworks */,
+				634E87AB245B1413007CD07F /* SwiftSignalKit.framework in Frameworks */,
+				634E87A9245B1408007CD07F /* SyncCore.framework in Frameworks */,
+				634E87A7245B1400007CD07F /* TelegramCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E297B283BA900000000 /* MusicAlbumArtResources-Debug.xcconfig */,
+				1DD70E29372A8CD300000000 /* MusicAlbumArtResources-Profile.xcconfig */,
+				1DD70E29AAC1383500000000 /* MusicAlbumArtResources-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				634E87AC245B141B007CD07F /* Postbox.framework */,
+				634E87AA245B1413007CD07F /* SwiftSignalKit.framework */,
+				634E87A8245B1408007CD07F /* SyncCore.framework */,
+				634E87A6245B1400007CD07F /* TelegramCore.framework */,
+				6360F066245B00D8006A9391 /* TelegramCoreFr.framework */,
+				6360F064245B00CF006A9391 /* SyncCoreFr.framework */,
+				6360F062245B00C8006A9391 /* SwiftSignalKitFr.framework */,
+				6360F060245B00C1006A9391 /* PostboxFr.framework */,
+				1DD70E29DB6520C800000000 /* libPostbox.dylib */,
+				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
+				1DD70E297A51CDA100000000 /* libSyncCore.dylib */,
+				1DD70E29119CDA0700000000 /* libTelegramCore.dylib */,
+				1DD70E29597BAFBB00000000 /* libUrlEscaping.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C9796C6A738C00000000 /* MusicAlbumArtResources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = MusicAlbumArtResources;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29866F6A0400000000 /* libMusicAlbumArtResources.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29D845CE9C00000000 /* ExternalMusicAlbumArtResources.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C9796C6A738C00000000 /* MusicAlbumArtResources */,
+				B401C979C806358400000000 /* Products */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04E6C6A738C00000000 /* MusicAlbumArtResources */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "MusicAlbumArtResources" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */,
+				6360F05F245B00BB006A9391 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MusicAlbumArtResources;
+			productName = MusicAlbumArtResources;
+			productReference = 1DD70E29866F6A0400000000 /* libMusicAlbumArtResources.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C847936C6A738C00000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "MusicAlbumArtResources" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04E6C6A738C00000000 /* MusicAlbumArtResources */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F04D845CE9C00000000 /* ExternalMusicAlbumArtResources.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E297B283BA900000000 /* MusicAlbumArtResources-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29372A8CD300000000 /* MusicAlbumArtResources-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29AAC1383500000000 /* MusicAlbumArtResources-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "MusicAlbumArtResources" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "MusicAlbumArtResources" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C847936C6A738C00000000 /* Project object */;
+}

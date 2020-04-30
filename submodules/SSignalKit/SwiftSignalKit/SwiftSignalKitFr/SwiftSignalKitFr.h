@@ -1,0 +1,18 @@
+//
+//  SwiftSignalKitFr.h
+//  SwiftSignalKitFr
+//
+//  Created by 1 on 30.04.2020.
+//
+
+#import <Foundation/Foundation.h>
+
+//! Project version number for SwiftSignalKitFr.
+FOUNDATION_EXPORT double SwiftSignalKitFrVersionNumber;
+
+//! Project version string for SwiftSignalKitFr.
+FOUNDATION_EXPORT const unsigned char SwiftSignalKitFrVersionString[];
+
+// In this header, you should import all the public headers of your framework using statements like #import <SwiftSignalKitFr/PublicHeader.h>
+
+
