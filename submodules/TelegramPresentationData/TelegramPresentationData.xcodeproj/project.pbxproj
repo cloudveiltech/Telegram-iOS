@@ -1,1008 +1,372 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>archiveVersion</key>
-	<string>1</string>
-	<key>classes</key>
-	<dict>
-	</dict>
-	<key>objectVersion</key>
-	<string>46</string>
-	<key>objects</key>
-	<dict>
-		<key>1DD70E297288B4F000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>TelegramPresentationData-Debug.xcconfig</string>
-			<key>path</key>
-			<string>../../buck-out/gen/submodules/TelegramPresentationData/TelegramPresentationData-Debug.xcconfig</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.xcconfig</string>
-		</dict>
-		<key>1DD70E29D851D05A00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>TelegramPresentationData-Profile.xcconfig</string>
-			<key>path</key>
-			<string>../../buck-out/gen/submodules/TelegramPresentationData/TelegramPresentationData-Profile.xcconfig</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.xcconfig</string>
-		</dict>
-		<key>1DD70E294BE87BBC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>TelegramPresentationData-Release.xcconfig</string>
-			<key>path</key>
-			<string>../../buck-out/gen/submodules/TelegramPresentationData/TelegramPresentationData-Release.xcconfig</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.xcconfig</string>
-		</dict>
-		<key>B401C9792F7F325000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Buck (Do Not Modify)</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E297288B4F000000000</string>
-				<string>1DD70E29D851D05A00000000</string>
-				<string>1DD70E294BE87BBC00000000</string>
-			</array>
-		</dict>
-		<key>B401C979B781F65D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Configurations</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>B401C9792F7F325000000000</string>
-			</array>
-		</dict>
-		<key>1DD70E29FF334B1F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libDisplay.dylib</string>
-			<key>path</key>
-			<string>libDisplay.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E2936DE2CF900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libMediaResources.a</string>
-			<key>path</key>
-			<string>libMediaResources.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29DB6520C800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPostbox.dylib</string>
-			<key>path</key>
-			<string>libPostbox.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E2958CFD47D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libStringPluralization.a</string>
-			<key>path</key>
-			<string>libStringPluralization.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29D65BA68200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSwiftSignalKit.dylib</string>
-			<key>path</key>
-			<string>libSwiftSignalKit.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E297A51CDA100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSyncCore.dylib</string>
-			<key>path</key>
-			<string>libSyncCore.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E29119CDA0700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramCore.dylib</string>
-			<key>path</key>
-			<string>libTelegramCore.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E292395015100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramUIPreferences.a</string>
-			<key>path</key>
-			<string>libTelegramUIPreferences.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>B401C97968022A5500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Frameworks</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E29FF334B1F00000000</string>
-				<string>1DD70E2936DE2CF900000000</string>
-				<string>1DD70E29DB6520C800000000</string>
-				<string>1DD70E2958CFD47D00000000</string>
-				<string>1DD70E29D65BA68200000000</string>
-				<string>1DD70E297A51CDA100000000</string>
-				<string>1DD70E29119CDA0700000000</string>
-				<string>1DD70E292395015100000000</string>
-			</array>
-		</dict>
-		<key>1DD70E2984A59C1D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramPresentationData.a</string>
-			<key>path</key>
-			<string>libTelegramPresentationData.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>B401C979C806358400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Products</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E2984A59C1D00000000</string>
-			</array>
-		</dict>
-		<key>1DD70E29001F47FB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BUCK</string>
-			<key>path</key>
-			<string>BUCK</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.script.python</string>
-		</dict>
-		<key>1DD70E2940A0D93C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationResourceKey.swift</string>
-			<key>path</key>
-			<string>Sources/Resources/PresentationResourceKey.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29E344CEAC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationResourcesCallList.swift</string>
-			<key>path</key>
-			<string>Sources/Resources/PresentationResourcesCallList.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E290003F26800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationResourcesChat.swift</string>
-			<key>path</key>
-			<string>Sources/Resources/PresentationResourcesChat.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29BB5D772600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationResourcesChatList.swift</string>
-			<key>path</key>
-			<string>Sources/Resources/PresentationResourcesChatList.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29413A312100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationResourcesItemList.swift</string>
-			<key>path</key>
-			<string>Sources/Resources/PresentationResourcesItemList.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E290FC276EE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationResourcesRootController.swift</string>
-			<key>path</key>
-			<string>Sources/Resources/PresentationResourcesRootController.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E291E13E97300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationResourcesSettings.swift</string>
-			<key>path</key>
-			<string>Sources/Resources/PresentationResourcesSettings.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>B401C979013EDE0500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Resources</string>
-			<key>path</key>
-			<string>Sources/Resources</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>children</key>
-			<array>
-				<string>1DD70E2940A0D93C00000000</string>
-				<string>1DD70E29E344CEAC00000000</string>
-				<string>1DD70E290003F26800000000</string>
-				<string>1DD70E29BB5D772600000000</string>
-				<string>1DD70E29413A312100000000</string>
-				<string>1DD70E290FC276EE00000000</string>
-				<string>1DD70E291E13E97300000000</string>
-			</array>
-		</dict>
-		<key>1DD70E293AF8C24900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>ChatControllerBackgroundNode.swift</string>
-			<key>path</key>
-			<string>Sources/ChatControllerBackgroundNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29D1D9219800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>ChatMessageBubbleImages.swift</string>
-			<key>path</key>
-			<string>Sources/ChatMessageBubbleImages.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29DBD1814500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>ComponentsThemes.swift</string>
-			<key>path</key>
-			<string>Sources/ComponentsThemes.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29E4C30AFD00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>DefaultDarkPresentationTheme.swift</string>
-			<key>path</key>
-			<string>Sources/DefaultDarkPresentationTheme.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29BC51060300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>DefaultDarkTintedPresentationTheme.swift</string>
-			<key>path</key>
-			<string>Sources/DefaultDarkTintedPresentationTheme.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29BA1E31F900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>DefaultDayPresentationTheme.swift</string>
-			<key>path</key>
-			<string>Sources/DefaultDayPresentationTheme.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29D460D78C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>DefaultPresentationStrings.swift</string>
-			<key>path</key>
-			<string>Sources/DefaultPresentationStrings.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E2975F0684600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>MakePresentationTheme.swift</string>
-			<key>path</key>
-			<string>Sources/MakePresentationTheme.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29F91318E900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>NumericFormat.swift</string>
-			<key>path</key>
-			<string>Sources/NumericFormat.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29E55B21A900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationData.swift</string>
-			<key>path</key>
-			<string>Sources/PresentationData.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E296771CE8D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationStrings.swift</string>
-			<key>path</key>
-			<string>Sources/PresentationStrings.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29D868521400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationTheme.swift</string>
-			<key>path</key>
-			<string>Sources/PresentationTheme.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E2907087D8800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationThemeCodable.swift</string>
-			<key>path</key>
-			<string>Sources/PresentationThemeCodable.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29070398DB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationThemeCoder.swift</string>
-			<key>path</key>
-			<string>Sources/PresentationThemeCoder.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E2913777C2F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationThemeEssentialGraphics.swift</string>
-			<key>path</key>
-			<string>Sources/PresentationThemeEssentialGraphics.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E295646A68000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>PresentationsResourceCache.swift</string>
-			<key>path</key>
-			<string>Sources/PresentationsResourceCache.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E298B4C8B5400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>WallpaperUtils.swift</string>
-			<key>path</key>
-			<string>Sources/WallpaperUtils.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>B401C979EAB5339800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Sources</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>B401C979013EDE0500000000</string>
-				<string>1DD70E293AF8C24900000000</string>
-				<string>1DD70E29D1D9219800000000</string>
-				<string>1DD70E29DBD1814500000000</string>
-				<string>1DD70E29E4C30AFD00000000</string>
-				<string>1DD70E29BC51060300000000</string>
-				<string>1DD70E29BA1E31F900000000</string>
-				<string>1DD70E29D460D78C00000000</string>
-				<string>1DD70E2975F0684600000000</string>
-				<string>1DD70E29F91318E900000000</string>
-				<string>1DD70E29E55B21A900000000</string>
-				<string>1DD70E296771CE8D00000000</string>
-				<string>1DD70E29D868521400000000</string>
-				<string>1DD70E2907087D8800000000</string>
-				<string>1DD70E29070398DB00000000</string>
-				<string>1DD70E2913777C2F00000000</string>
-				<string>1DD70E295646A68000000000</string>
-				<string>1DD70E298B4C8B5400000000</string>
-			</array>
-		</dict>
-		<key>B401C97977B5752500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>TelegramPresentationData</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E29001F47FB00000000</string>
-				<string>B401C979EAB5339800000000</string>
-			</array>
-		</dict>
-		<key>B401C979EFB6AC4600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>mainGroup</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>B401C979B781F65D00000000</string>
-				<string>B401C97968022A5500000000</string>
-				<string>B401C979C806358400000000</string>
-				<string>B401C97977B5752500000000</string>
-			</array>
-		</dict>
-		<key>E7A30F0440A0D93C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2940A0D93C00000000</string>
-		</dict>
-		<key>E7A30F04E344CEAC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29E344CEAC00000000</string>
-		</dict>
-		<key>E7A30F040003F26800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E290003F26800000000</string>
-		</dict>
-		<key>E7A30F04BB5D772600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29BB5D772600000000</string>
-		</dict>
-		<key>E7A30F04413A312100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29413A312100000000</string>
-		</dict>
-		<key>E7A30F040FC276EE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E290FC276EE00000000</string>
-		</dict>
-		<key>E7A30F041E13E97300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E291E13E97300000000</string>
-		</dict>
-		<key>E7A30F043AF8C24900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E293AF8C24900000000</string>
-		</dict>
-		<key>E7A30F04D1D9219800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29D1D9219800000000</string>
-		</dict>
-		<key>E7A30F04DBD1814500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29DBD1814500000000</string>
-		</dict>
-		<key>E7A30F04E4C30AFD00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29E4C30AFD00000000</string>
-		</dict>
-		<key>E7A30F04BC51060300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29BC51060300000000</string>
-		</dict>
-		<key>E7A30F04BA1E31F900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29BA1E31F900000000</string>
-		</dict>
-		<key>E7A30F04D460D78C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29D460D78C00000000</string>
-		</dict>
-		<key>E7A30F0475F0684600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2975F0684600000000</string>
-		</dict>
-		<key>E7A30F04F91318E900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29F91318E900000000</string>
-		</dict>
-		<key>E7A30F04E55B21A900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29E55B21A900000000</string>
-		</dict>
-		<key>E7A30F046771CE8D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E296771CE8D00000000</string>
-		</dict>
-		<key>E7A30F04D868521400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29D868521400000000</string>
-		</dict>
-		<key>E7A30F0407087D8800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2907087D8800000000</string>
-		</dict>
-		<key>E7A30F04070398DB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29070398DB00000000</string>
-		</dict>
-		<key>E7A30F0413777C2F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2913777C2F00000000</string>
-		</dict>
-		<key>E7A30F045646A68000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E295646A68000000000</string>
-		</dict>
-		<key>E7A30F048B4C8B5400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E298B4C8B5400000000</string>
-		</dict>
-		<key>1870857F0000000000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXSourcesBuildPhase</string>
-			<key>files</key>
-			<array>
-				<string>E7A30F0440A0D93C00000000</string>
-				<string>E7A30F04E344CEAC00000000</string>
-				<string>E7A30F040003F26800000000</string>
-				<string>E7A30F04BB5D772600000000</string>
-				<string>E7A30F04413A312100000000</string>
-				<string>E7A30F040FC276EE00000000</string>
-				<string>E7A30F041E13E97300000000</string>
-				<string>E7A30F043AF8C24900000000</string>
-				<string>E7A30F04D1D9219800000000</string>
-				<string>E7A30F04DBD1814500000000</string>
-				<string>E7A30F04E4C30AFD00000000</string>
-				<string>E7A30F04BC51060300000000</string>
-				<string>E7A30F04BA1E31F900000000</string>
-				<string>E7A30F04D460D78C00000000</string>
-				<string>E7A30F0475F0684600000000</string>
-				<string>E7A30F04F91318E900000000</string>
-				<string>E7A30F04E55B21A900000000</string>
-				<string>E7A30F046771CE8D00000000</string>
-				<string>E7A30F04D868521400000000</string>
-				<string>E7A30F0407087D8800000000</string>
-				<string>E7A30F04070398DB00000000</string>
-				<string>E7A30F0413777C2F00000000</string>
-				<string>E7A30F045646A68000000000</string>
-				<string>E7A30F048B4C8B5400000000</string>
-			</array>
-		</dict>
-		<key>E7A30F04FF334B1F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29FF334B1F00000000</string>
-		</dict>
-		<key>E7A30F04DB6520C800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29DB6520C800000000</string>
-		</dict>
-		<key>E7A30F04D65BA68200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29D65BA68200000000</string>
-		</dict>
-		<key>E7A30F047A51CDA100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E297A51CDA100000000</string>
-		</dict>
-		<key>E7A30F04119CDA0700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29119CDA0700000000</string>
-		</dict>
-		<key>E7A30F0436DE2CF900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2936DE2CF900000000</string>
-		</dict>
-		<key>E7A30F0458CFD47D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2958CFD47D00000000</string>
-		</dict>
-		<key>E7A30F042395015100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E292395015100000000</string>
-		</dict>
-		<key>FAF5FAC90000000000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXCopyFilesBuildPhase</string>
-			<key>files</key>
-			<array>
-				<string>E7A30F04FF334B1F00000000</string>
-				<string>E7A30F04DB6520C800000000</string>
-				<string>E7A30F04D65BA68200000000</string>
-				<string>E7A30F047A51CDA100000000</string>
-				<string>E7A30F04119CDA0700000000</string>
-				<string>E7A30F0436DE2CF900000000</string>
-				<string>E7A30F0458CFD47D00000000</string>
-				<string>E7A30F042395015100000000</string>
-			</array>
-			<key>name</key>
-			<string>Fake Swift Dependencies (Copy Files Phase)</string>
-			<key>runOnlyForDeploymentPostprocessing</key>
-			<integer>1</integer>
-			<key>dstSubfolderSpec</key>
-			<integer>16</integer>
-			<key>dstPath</key>
-			<string></string>
-		</dict>
-		<key>4952437303EDA63300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Debug</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-			<key>baseConfigurationReference</key>
-			<string>1DD70E297288B4F000000000</string>
-		</dict>
-		<key>4952437350C7218900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Profile</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-			<key>baseConfigurationReference</key>
-			<string>1DD70E29D851D05A00000000</string>
-		</dict>
-		<key>49524373A439BFE700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Release</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-			<key>baseConfigurationReference</key>
-			<string>1DD70E294BE87BBC00000000</string>
-		</dict>
-		<key>218C37090000000000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCConfigurationList</string>
-			<key>buildConfigurations</key>
-			<array>
-				<string>4952437303EDA63300000000</string>
-				<string>4952437350C7218900000000</string>
-				<string>49524373A439BFE700000000</string>
-			</array>
-			<key>defaultConfigurationIsVisible</key>
-			<false/>
-		</dict>
-		<key>E66DC04E77B5752500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXNativeTarget</string>
-			<key>name</key>
-			<string>TelegramPresentationData</string>
-			<key>productName</key>
-			<string>TelegramPresentationData</string>
-			<key>productReference</key>
-			<string>1DD70E2984A59C1D00000000</string>
-			<key>productType</key>
-			<string>com.apple.product-type.library.static</string>
-			<key>dependencies</key>
-			<array>
-			</array>
-			<key>buildPhases</key>
-			<array>
-				<string>1870857F0000000000000000</string>
-				<string>FAF5FAC90000000000000000</string>
-			</array>
-			<key>buildConfigurationList</key>
-			<string>218C37090000000000000000</string>
-		</dict>
-		<key>4952437303EDA63300000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Debug</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-		</dict>
-		<key>4952437350C7218900000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Profile</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-		</dict>
-		<key>49524373A439BFE700000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Release</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-		</dict>
-		<key>218C37090000000000000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCConfigurationList</string>
-			<key>buildConfigurations</key>
-			<array>
-				<string>4952437303EDA63300000001</string>
-				<string>4952437350C7218900000001</string>
-				<string>49524373A439BFE700000001</string>
-			</array>
-			<key>defaultConfigurationIsVisible</key>
-			<false/>
-		</dict>
-		<key>96C8479377B5752500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXProject</string>
-			<key>mainGroup</key>
-			<string>B401C979EFB6AC4600000000</string>
-			<key>targets</key>
-			<array>
-				<string>E66DC04E77B5752500000000</string>
-			</array>
-			<key>buildConfigurationList</key>
-			<string>218C37090000000000000001</string>
-			<key>compatibilityVersion</key>
-			<string>Xcode 3.2</string>
-			<key>attributes</key>
-			<dict>
-				<key>LastUpgradeCheck</key>
-				<string>9999</string>
-			</dict>
-		</dict>
-	</dict>
-	<key>rootObject</key>
-	<string>96C8479377B5752500000000</string>
-</dict>
-</plist>
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		634E8C08245B2A28007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8C07245B2A28007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8C0A245B2A28007CD07F /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8C09245B2A28007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8C0C245B2A28007CD07F /* SyncCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8C0B245B2A28007CD07F /* SyncCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8C0E245B2A28007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8C0D245B2A28007CD07F /* Postbox.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8C10245B2A28007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8C0F245B2A28007CD07F /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F040003F26800000000 /* PresentationResourcesChat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E290003F26800000000 /* PresentationResourcesChat.swift */; };
+		E7A30F04070398DB00000000 /* PresentationThemeCoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29070398DB00000000 /* PresentationThemeCoder.swift */; };
+		E7A30F0407087D8800000000 /* PresentationThemeCodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2907087D8800000000 /* PresentationThemeCodable.swift */; };
+		E7A30F040FC276EE00000000 /* PresentationResourcesRootController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E290FC276EE00000000 /* PresentationResourcesRootController.swift */; };
+		E7A30F0413777C2F00000000 /* PresentationThemeEssentialGraphics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2913777C2F00000000 /* PresentationThemeEssentialGraphics.swift */; };
+		E7A30F041E13E97300000000 /* PresentationResourcesSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E291E13E97300000000 /* PresentationResourcesSettings.swift */; };
+		E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292395015100000000 /* libTelegramUIPreferences.a */; };
+		E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2936DE2CF900000000 /* libMediaResources.a */; };
+		E7A30F043AF8C24900000000 /* ChatControllerBackgroundNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E293AF8C24900000000 /* ChatControllerBackgroundNode.swift */; };
+		E7A30F0440A0D93C00000000 /* PresentationResourceKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2940A0D93C00000000 /* PresentationResourceKey.swift */; };
+		E7A30F04413A312100000000 /* PresentationResourcesItemList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29413A312100000000 /* PresentationResourcesItemList.swift */; };
+		E7A30F045646A68000000000 /* PresentationsResourceCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E295646A68000000000 /* PresentationsResourceCache.swift */; };
+		E7A30F0458CFD47D00000000 /* libStringPluralization.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2958CFD47D00000000 /* libStringPluralization.a */; };
+		E7A30F046771CE8D00000000 /* PresentationStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E296771CE8D00000000 /* PresentationStrings.swift */; };
+		E7A30F0475F0684600000000 /* MakePresentationTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2975F0684600000000 /* MakePresentationTheme.swift */; };
+		E7A30F048B4C8B5400000000 /* WallpaperUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E298B4C8B5400000000 /* WallpaperUtils.swift */; };
+		E7A30F04BA1E31F900000000 /* DefaultDayPresentationTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29BA1E31F900000000 /* DefaultDayPresentationTheme.swift */; };
+		E7A30F04BB5D772600000000 /* PresentationResourcesChatList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29BB5D772600000000 /* PresentationResourcesChatList.swift */; };
+		E7A30F04BC51060300000000 /* DefaultDarkTintedPresentationTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29BC51060300000000 /* DefaultDarkTintedPresentationTheme.swift */; };
+		E7A30F04D1D9219800000000 /* ChatMessageBubbleImages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29D1D9219800000000 /* ChatMessageBubbleImages.swift */; };
+		E7A30F04D460D78C00000000 /* DefaultPresentationStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29D460D78C00000000 /* DefaultPresentationStrings.swift */; };
+		E7A30F04D868521400000000 /* PresentationTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29D868521400000000 /* PresentationTheme.swift */; };
+		E7A30F04DBD1814500000000 /* ComponentsThemes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29DBD1814500000000 /* ComponentsThemes.swift */; };
+		E7A30F04E344CEAC00000000 /* PresentationResourcesCallList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29E344CEAC00000000 /* PresentationResourcesCallList.swift */; };
+		E7A30F04E4C30AFD00000000 /* DefaultDarkPresentationTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29E4C30AFD00000000 /* DefaultDarkPresentationTheme.swift */; };
+		E7A30F04E55B21A900000000 /* PresentationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29E55B21A900000000 /* PresentationData.swift */; };
+		E7A30F04F91318E900000000 /* NumericFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29F91318E900000000 /* NumericFormat.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 0;
+			dstPath = "";
+			dstSubfolderSpec = 16;
+			files = (
+				E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0458CFD47D00000000 /* libStringPluralization.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */,
+			);
+			name = "Fake Swift Dependencies (Copy Files Phase)";
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1DD70E290003F26800000000 /* PresentationResourcesChat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationResourcesChat.swift; path = Sources/Resources/PresentationResourcesChat.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E29070398DB00000000 /* PresentationThemeCoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationThemeCoder.swift; path = Sources/PresentationThemeCoder.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2907087D8800000000 /* PresentationThemeCodable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationThemeCodable.swift; path = Sources/PresentationThemeCodable.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E290FC276EE00000000 /* PresentationResourcesRootController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationResourcesRootController.swift; path = Sources/Resources/PresentationResourcesRootController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29119CDA0700000000 /* libTelegramCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libTelegramCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2913777C2F00000000 /* PresentationThemeEssentialGraphics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationThemeEssentialGraphics.swift; path = Sources/PresentationThemeEssentialGraphics.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E291E13E97300000000 /* PresentationResourcesSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationResourcesSettings.swift; path = Sources/Resources/PresentationResourcesSettings.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E292395015100000000 /* libTelegramUIPreferences.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramUIPreferences.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2936DE2CF900000000 /* libMediaResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMediaResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E293AF8C24900000000 /* ChatControllerBackgroundNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatControllerBackgroundNode.swift; path = Sources/ChatControllerBackgroundNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2940A0D93C00000000 /* PresentationResourceKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationResourceKey.swift; path = Sources/Resources/PresentationResourceKey.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29413A312100000000 /* PresentationResourcesItemList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationResourcesItemList.swift; path = Sources/Resources/PresentationResourcesItemList.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E294BE87BBC00000000 /* TelegramPresentationData-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "TelegramPresentationData-Release.xcconfig"; path = "../../buck-out/gen/submodules/TelegramPresentationData/TelegramPresentationData-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E295646A68000000000 /* PresentationsResourceCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationsResourceCache.swift; path = Sources/PresentationsResourceCache.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2958CFD47D00000000 /* libStringPluralization.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libStringPluralization.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E296771CE8D00000000 /* PresentationStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationStrings.swift; path = Sources/PresentationStrings.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E297288B4F000000000 /* TelegramPresentationData-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "TelegramPresentationData-Debug.xcconfig"; path = "../../buck-out/gen/submodules/TelegramPresentationData/TelegramPresentationData-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E2975F0684600000000 /* MakePresentationTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MakePresentationTheme.swift; path = Sources/MakePresentationTheme.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E297A51CDA100000000 /* libSyncCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSyncCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramPresentationData.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E298B4C8B5400000000 /* WallpaperUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WallpaperUtils.swift; path = Sources/WallpaperUtils.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29BA1E31F900000000 /* DefaultDayPresentationTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DefaultDayPresentationTheme.swift; path = Sources/DefaultDayPresentationTheme.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29BB5D772600000000 /* PresentationResourcesChatList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationResourcesChatList.swift; path = Sources/Resources/PresentationResourcesChatList.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29BC51060300000000 /* DefaultDarkTintedPresentationTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DefaultDarkTintedPresentationTheme.swift; path = Sources/DefaultDarkTintedPresentationTheme.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29D1D9219800000000 /* ChatMessageBubbleImages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatMessageBubbleImages.swift; path = Sources/ChatMessageBubbleImages.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29D460D78C00000000 /* DefaultPresentationStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DefaultPresentationStrings.swift; path = Sources/DefaultPresentationStrings.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D851D05A00000000 /* TelegramPresentationData-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "TelegramPresentationData-Profile.xcconfig"; path = "../../buck-out/gen/submodules/TelegramPresentationData/TelegramPresentationData-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29D868521400000000 /* PresentationTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationTheme.swift; path = Sources/PresentationTheme.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29DB6520C800000000 /* libPostbox.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libPostbox.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DBD1814500000000 /* ComponentsThemes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ComponentsThemes.swift; path = Sources/ComponentsThemes.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29E344CEAC00000000 /* PresentationResourcesCallList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationResourcesCallList.swift; path = Sources/Resources/PresentationResourcesCallList.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29E4C30AFD00000000 /* DefaultDarkPresentationTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DefaultDarkPresentationTheme.swift; path = Sources/DefaultDarkPresentationTheme.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29E55B21A900000000 /* PresentationData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationData.swift; path = Sources/PresentationData.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29F91318E900000000 /* NumericFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NumericFormat.swift; path = Sources/NumericFormat.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8C07245B2A28007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8C09245B2A28007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8C0B245B2A28007CD07F /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8C0D245B2A28007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8C0F245B2A28007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		634E8C06245B2A23007CD07F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E8C08245B2A28007CD07F /* Display.framework in Frameworks */,
+				634E8C0A245B2A28007CD07F /* TelegramCore.framework in Frameworks */,
+				634E8C0C245B2A28007CD07F /* SyncCore.framework in Frameworks */,
+				634E8C0E245B2A28007CD07F /* Postbox.framework in Frameworks */,
+				634E8C10245B2A28007CD07F /* SwiftSignalKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C979013EDE0500000000 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2940A0D93C00000000 /* PresentationResourceKey.swift */,
+				1DD70E29E344CEAC00000000 /* PresentationResourcesCallList.swift */,
+				1DD70E290003F26800000000 /* PresentationResourcesChat.swift */,
+				1DD70E29BB5D772600000000 /* PresentationResourcesChatList.swift */,
+				1DD70E29413A312100000000 /* PresentationResourcesItemList.swift */,
+				1DD70E290FC276EE00000000 /* PresentationResourcesRootController.swift */,
+				1DD70E291E13E97300000000 /* PresentationResourcesSettings.swift */,
+			);
+			name = Resources;
+			path = Sources/Resources;
+			sourceTree = SOURCE_ROOT;
+		};
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E297288B4F000000000 /* TelegramPresentationData-Debug.xcconfig */,
+				1DD70E29D851D05A00000000 /* TelegramPresentationData-Profile.xcconfig */,
+				1DD70E294BE87BBC00000000 /* TelegramPresentationData-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				634E8C07245B2A28007CD07F /* Display.framework */,
+				634E8C09245B2A28007CD07F /* TelegramCore.framework */,
+				634E8C0B245B2A28007CD07F /* SyncCore.framework */,
+				634E8C0D245B2A28007CD07F /* Postbox.framework */,
+				634E8C0F245B2A28007CD07F /* SwiftSignalKit.framework */,
+				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
+				1DD70E2936DE2CF900000000 /* libMediaResources.a */,
+				1DD70E29DB6520C800000000 /* libPostbox.dylib */,
+				1DD70E2958CFD47D00000000 /* libStringPluralization.a */,
+				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
+				1DD70E297A51CDA100000000 /* libSyncCore.dylib */,
+				1DD70E29119CDA0700000000 /* libTelegramCore.dylib */,
+				1DD70E292395015100000000 /* libTelegramUIPreferences.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C97977B5752500000000 /* TelegramPresentationData */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = TelegramPresentationData;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				B401C979013EDE0500000000 /* Resources */,
+				1DD70E293AF8C24900000000 /* ChatControllerBackgroundNode.swift */,
+				1DD70E29D1D9219800000000 /* ChatMessageBubbleImages.swift */,
+				1DD70E29DBD1814500000000 /* ComponentsThemes.swift */,
+				1DD70E29E4C30AFD00000000 /* DefaultDarkPresentationTheme.swift */,
+				1DD70E29BC51060300000000 /* DefaultDarkTintedPresentationTheme.swift */,
+				1DD70E29BA1E31F900000000 /* DefaultDayPresentationTheme.swift */,
+				1DD70E29D460D78C00000000 /* DefaultPresentationStrings.swift */,
+				1DD70E2975F0684600000000 /* MakePresentationTheme.swift */,
+				1DD70E29F91318E900000000 /* NumericFormat.swift */,
+				1DD70E29E55B21A900000000 /* PresentationData.swift */,
+				1DD70E296771CE8D00000000 /* PresentationStrings.swift */,
+				1DD70E29D868521400000000 /* PresentationTheme.swift */,
+				1DD70E2907087D8800000000 /* PresentationThemeCodable.swift */,
+				1DD70E29070398DB00000000 /* PresentationThemeCoder.swift */,
+				1DD70E2913777C2F00000000 /* PresentationThemeEssentialGraphics.swift */,
+				1DD70E295646A68000000000 /* PresentationsResourceCache.swift */,
+				1DD70E298B4C8B5400000000 /* WallpaperUtils.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C979C806358400000000 /* Products */,
+				B401C97977B5752500000000 /* TelegramPresentationData */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04E77B5752500000000 /* TelegramPresentationData */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "TelegramPresentationData" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */,
+				634E8C06245B2A23007CD07F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TelegramPresentationData;
+			productName = TelegramPresentationData;
+			productReference = 1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C8479377B5752500000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "TelegramPresentationData" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04E77B5752500000000 /* TelegramPresentationData */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F0440A0D93C00000000 /* PresentationResourceKey.swift in Sources */,
+				E7A30F04E344CEAC00000000 /* PresentationResourcesCallList.swift in Sources */,
+				E7A30F040003F26800000000 /* PresentationResourcesChat.swift in Sources */,
+				E7A30F04BB5D772600000000 /* PresentationResourcesChatList.swift in Sources */,
+				E7A30F04413A312100000000 /* PresentationResourcesItemList.swift in Sources */,
+				E7A30F040FC276EE00000000 /* PresentationResourcesRootController.swift in Sources */,
+				E7A30F041E13E97300000000 /* PresentationResourcesSettings.swift in Sources */,
+				E7A30F043AF8C24900000000 /* ChatControllerBackgroundNode.swift in Sources */,
+				E7A30F04D1D9219800000000 /* ChatMessageBubbleImages.swift in Sources */,
+				E7A30F04DBD1814500000000 /* ComponentsThemes.swift in Sources */,
+				E7A30F04E4C30AFD00000000 /* DefaultDarkPresentationTheme.swift in Sources */,
+				E7A30F04BC51060300000000 /* DefaultDarkTintedPresentationTheme.swift in Sources */,
+				E7A30F04BA1E31F900000000 /* DefaultDayPresentationTheme.swift in Sources */,
+				E7A30F04D460D78C00000000 /* DefaultPresentationStrings.swift in Sources */,
+				E7A30F0475F0684600000000 /* MakePresentationTheme.swift in Sources */,
+				E7A30F04F91318E900000000 /* NumericFormat.swift in Sources */,
+				E7A30F04E55B21A900000000 /* PresentationData.swift in Sources */,
+				E7A30F046771CE8D00000000 /* PresentationStrings.swift in Sources */,
+				E7A30F04D868521400000000 /* PresentationTheme.swift in Sources */,
+				E7A30F0407087D8800000000 /* PresentationThemeCodable.swift in Sources */,
+				E7A30F04070398DB00000000 /* PresentationThemeCoder.swift in Sources */,
+				E7A30F0413777C2F00000000 /* PresentationThemeEssentialGraphics.swift in Sources */,
+				E7A30F045646A68000000000 /* PresentationsResourceCache.swift in Sources */,
+				E7A30F048B4C8B5400000000 /* WallpaperUtils.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E297288B4F000000000 /* TelegramPresentationData-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29D851D05A00000000 /* TelegramPresentationData-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E294BE87BBC00000000 /* TelegramPresentationData-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "TelegramPresentationData" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "TelegramPresentationData" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C8479377B5752500000000 /* Project object */;
+}

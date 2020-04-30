@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		634E8BA2245B28D8007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8BA1245B28D8007CD07F /* Postbox.framework */; };
+		634E8BA6245B28DE007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8BA5245B28DE007CD07F /* SwiftSignalKit.framework */; };
 		63D8CEEE245AEAB900DA984C /* SyncCoreFr.h in Headers */ = {isa = PBXBuildFile; fileRef = 63D8CEEC245AEAB900DA984C /* SyncCoreFr.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		63D8CEF3245AEAC700DA984C /* AccountBackupDataAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E295CEC0C8800000000 /* AccountBackupDataAttribute.swift */; };
 		63D8CEF4245AEAC700DA984C /* AccountEnvironmentAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29632B459B00000000 /* AccountEnvironmentAttribute.swift */; };
@@ -153,8 +155,6 @@
 		63D8CF81245AEAC900DA984C /* WalletCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2935B91CFC00000000 /* WalletCollection.swift */; };
 		63D8CF82245AEAC900DA984C /* WasScheduledMessageAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29F682C23E00000000 /* WasScheduledMessageAttribute.swift */; };
 		63D8CF83245AEADA00DA984C /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1DD70E29AE317AA300000000 /* Foundation.framework */; settings = {ATTRIBUTES = (Required, ); }; };
-		63D8CF85245AEAE900DA984C /* PostboxFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63D8CF84245AEAE900DA984C /* PostboxFr.framework */; };
-		63D8CF89245AEAF100DA984C /* SwiftSignalKitFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63D8CF88245AEAF100DA984C /* SwiftSignalKitFr.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -309,6 +309,8 @@
 		1DD70E29FC95B4EE00000000 /* StickerPackItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StickerPackItem.swift; path = Sources/StickerPackItem.swift; sourceTree = SOURCE_ROOT; };
 		1DD70E29FD63DAC700000000 /* TelegramMediaPoll.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TelegramMediaPoll.swift; path = Sources/TelegramMediaPoll.swift; sourceTree = SOURCE_ROOT; };
 		1DD70E29FF86CC4200000000 /* TelegramMediaContact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TelegramMediaContact.swift; path = Sources/TelegramMediaContact.swift; sourceTree = SOURCE_ROOT; };
+		634E8BA1245B28D8007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8BA5245B28DE007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		63D8CEEA245AEAB800DA984C /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		63D8CEEC245AEAB900DA984C /* SyncCoreFr.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SyncCoreFr.h; sourceTree = "<group>"; };
 		63D8CEED245AEAB900DA984C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -321,9 +323,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				63D8CF85245AEAE900DA984C /* PostboxFr.framework in Frameworks */,
-				63D8CF89245AEAF100DA984C /* SwiftSignalKitFr.framework in Frameworks */,
+				634E8BA2245B28D8007CD07F /* Postbox.framework in Frameworks */,
 				63D8CF83245AEADA00DA984C /* Foundation.framework in Frameworks */,
+				634E8BA6245B28DE007CD07F /* SwiftSignalKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -362,6 +364,8 @@
 			isa = PBXGroup;
 			children = (
 				63D8CF88245AEAF100DA984C /* SwiftSignalKitFr.framework */,
+				634E8BA5245B28DE007CD07F /* SwiftSignalKit.framework */,
+				634E8BA1245B28D8007CD07F /* Postbox.framework */,
 				63D8CF84245AEAE900DA984C /* PostboxFr.framework */,
 				1DD70E29AE317AA300000000 /* Foundation.framework */,
 				1DD70E29DB6520C800000000 /* libPostbox.dylib */,

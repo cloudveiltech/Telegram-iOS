@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6360F0A6245B0567006A9391 /* DisplayFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6360F0A5245B0567006A9391 /* DisplayFr.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8876245B1BB8007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8875245B1BB8007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		E7A30F040CAA2EAC00000000 /* PieChartComponentController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E290CAA2EAC00000000 /* PieChartComponentController.swift */; };
 		E7A30F04115FF3CB00000000 /* UIView+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29115FF3CB00000000 /* UIView+Extensions.swift */; };
 		E7A30F041961640600000000 /* TwoAxisStepBarsChartController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E291961640600000000 /* TwoAxisStepBarsChartController.swift */; };
@@ -117,6 +117,7 @@
 		1DD70E29F8DECECE00000000 /* BaseChartController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BaseChartController.swift; path = Sources/Charts/Controllers/BaseChartController.swift; sourceTree = SOURCE_ROOT; };
 		1DD70E29F9ABD0D300000000 /* StepBarsChartController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StepBarsChartController.swift; path = "Sources/Charts/Controllers/Stacked Bars/StepBarsChartController.swift"; sourceTree = SOURCE_ROOT; };
 		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8875245B1BB8007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6360F0A5245B0567006A9391 /* DisplayFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = DisplayFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -125,7 +126,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6360F0A6245B0567006A9391 /* DisplayFr.framework in Frameworks */,
+				634E8876245B1BB8007CD07F /* Display.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -165,6 +166,7 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				634E8875245B1BB8007CD07F /* Display.framework */,
 				6360F0A5245B0567006A9391 /* DisplayFr.framework */,
 				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
 			);

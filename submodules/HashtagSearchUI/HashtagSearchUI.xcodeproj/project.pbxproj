@@ -1,2071 +1,551 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>archiveVersion</key>
-	<string>1</string>
-	<key>classes</key>
-	<dict>
-	</dict>
-	<key>objectVersion</key>
-	<string>46</string>
-	<key>objects</key>
-	<dict>
-		<key>1DD70E29D27875AD00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>HashtagSearchUI-Debug.xcconfig</string>
-			<key>path</key>
-			<string>../../buck-out/gen/submodules/HashtagSearchUI/HashtagSearchUI-Debug.xcconfig</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.xcconfig</string>
-		</dict>
-		<key>1DD70E29FB5455D700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>HashtagSearchUI-Profile.xcconfig</string>
-			<key>path</key>
-			<string>../../buck-out/gen/submodules/HashtagSearchUI/HashtagSearchUI-Profile.xcconfig</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.xcconfig</string>
-		</dict>
-		<key>1DD70E296EEB013900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>HashtagSearchUI-Release.xcconfig</string>
-			<key>path</key>
-			<string>../../buck-out/gen/submodules/HashtagSearchUI/HashtagSearchUI-Release.xcconfig</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.xcconfig</string>
-		</dict>
-		<key>B401C9792F7F325000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Buck (Do Not Modify)</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E29D27875AD00000000</string>
-				<string>1DD70E29FB5455D700000000</string>
-				<string>1DD70E296EEB013900000000</string>
-			</array>
-		</dict>
-		<key>B401C979B781F65D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Configurations</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>B401C9792F7F325000000000</string>
-			</array>
-		</dict>
-		<key>1DD70E299D2580DA00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libAccountContext.a</string>
-			<key>path</key>
-			<string>libAccountContext.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E291E16CC6C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libActionSheetPeerItem.a</string>
-			<key>path</key>
-			<string>libActionSheetPeerItem.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29BF0846EE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libActivityIndicator.a</string>
-			<key>path</key>
-			<string>libActivityIndicator.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29F523B9DE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libAlertUI.a</string>
-			<key>path</key>
-			<string>libAlertUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29E3C578AA00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libAnimatedStickerNode.a</string>
-			<key>path</key>
-			<string>libAnimatedStickerNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E292420028600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libAnimationUI.a</string>
-			<key>path</key>
-			<string>libAnimationUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29A54A195300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libAvatarNode.a</string>
-			<key>path</key>
-			<string>libAvatarNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29FD72F45600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libChatListSearchItemHeader.a</string>
-			<key>path</key>
-			<string>libChatListSearchItemHeader.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2907DC840B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libChatListSearchItemNode.a</string>
-			<key>path</key>
-			<string>libChatListSearchItemNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E297AB043C800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libChatListSearchRecentPeersNode.a</string>
-			<key>path</key>
-			<string>libChatListSearchRecentPeersNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E296DFD63C200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libChatListUI.a</string>
-			<key>path</key>
-			<string>libChatListUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29B6F47D1F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libChatTitleActivityNode.a</string>
-			<key>path</key>
-			<string>libChatTitleActivityNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2997B4D6D800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libCheckNode.a</string>
-			<key>path</key>
-			<string>libCheckNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E292F91702000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libContactListUI.a</string>
-			<key>path</key>
-			<string>libContactListUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2931752C6000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libContactsPeerItem.a</string>
-			<key>path</key>
-			<string>libContactsPeerItem.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E296C9831F100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libContextUI.a</string>
-			<key>path</key>
-			<string>libContextUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29CED1620500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libDeleteChatPeerActionSheetItem.a</string>
-			<key>path</key>
-			<string>libDeleteChatPeerActionSheetItem.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E292417E0B200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libDeviceAccess.a</string>
-			<key>path</key>
-			<string>libDeviceAccess.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E295915423000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libDeviceLocationManager.a</string>
-			<key>path</key>
-			<string>libDeviceLocationManager.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29FF334B1F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libDisplay.dylib</string>
-			<key>path</key>
-			<string>libDisplay.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E2971ED41B100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libHorizontalPeerItem.a</string>
-			<key>path</key>
-			<string>libHorizontalPeerItem.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29D6F14E1000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libImageBlur.a</string>
-			<key>path</key>
-			<string>libImageBlur.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29247D9AC100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libImageTransparency.a</string>
-			<key>path</key>
-			<string>libImageTransparency.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2905A95CB400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libItemListPeerActionItem.a</string>
-			<key>path</key>
-			<string>libItemListPeerActionItem.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E299A24C4DE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libItemListPeerItem.a</string>
-			<key>path</key>
-			<string>libItemListPeerItem.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E295A26607D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libItemListUI.a</string>
-			<key>path</key>
-			<string>libItemListUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29E220F5E800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libLanguageSuggestionUI.a</string>
-			<key>path</key>
-			<string>libLanguageSuggestionUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29AC43662400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libListSectionHeaderNode.a</string>
-			<key>path</key>
-			<string>libListSectionHeaderNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E292969635400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libLiveLocationTimerNode.a</string>
-			<key>path</key>
-			<string>libLiveLocationTimerNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29CE34063500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libLocalizedPeerData.a</string>
-			<key>path</key>
-			<string>libLocalizedPeerData.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E297E2E5F8700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libMarkdown.a</string>
-			<key>path</key>
-			<string>libMarkdown.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2936DE2CF900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libMediaResources.a</string>
-			<key>path</key>
-			<string>libMediaResources.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29C37F741500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libMergeLists.a</string>
-			<key>path</key>
-			<string>libMergeLists.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29BBAF750C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libOverlayStatusController.a</string>
-			<key>path</key>
-			<string>libOverlayStatusController.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29928D142900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPeerOnlineMarkerNode.a</string>
-			<key>path</key>
-			<string>libPeerOnlineMarkerNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29D233F68C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPeerPresenceStatusManager.a</string>
-			<key>path</key>
-			<string>libPeerPresenceStatusManager.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E291631B91900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPeersNearbyIconNode.a</string>
-			<key>path</key>
-			<string>libPeersNearbyIconNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29B2B7F8DC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPhoneNumberFormat.a</string>
-			<key>path</key>
-			<string>libPhoneNumberFormat.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29490601EB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPhotoResources.a</string>
-			<key>path</key>
-			<string>libPhotoResources.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E290F1A3C6400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPlatformRestrictionMatching.a</string>
-			<key>path</key>
-			<string>libPlatformRestrictionMatching.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29DB6520C800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPostbox.dylib</string>
-			<key>path</key>
-			<string>libPostbox.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E294E24879B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPresentationDataUtils.a</string>
-			<key>path</key>
-			<string>libPresentationDataUtils.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29CBE117ED00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libProgressNavigationButtonNode.a</string>
-			<key>path</key>
-			<string>libProgressNavigationButtonNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E293E4DE92B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libRadialStatusNode.a</string>
-			<key>path</key>
-			<string>libRadialStatusNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29AD66967300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libReactionSelectionNode.a</string>
-			<key>path</key>
-			<string>libReactionSelectionNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E291D58331200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSaveToCameraRoll.a</string>
-			<key>path</key>
-			<string>libSaveToCameraRoll.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29EA9CBB5B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSearchBarNode.a</string>
-			<key>path</key>
-			<string>libSearchBarNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E291328E99400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSearchUI.a</string>
-			<key>path</key>
-			<string>libSearchUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2957B5522500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSegmentedControlNode.a</string>
-			<key>path</key>
-			<string>libSegmentedControlNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29097DBE9200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSelectablePeerNode.a</string>
-			<key>path</key>
-			<string>libSelectablePeerNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2981AE180900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libShareController.a</string>
-			<key>path</key>
-			<string>libShareController.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29524F478E00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSolidRoundedButtonNode.a</string>
-			<key>path</key>
-			<string>libSolidRoundedButtonNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E293594DCC000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libStickerResources.a</string>
-			<key>path</key>
-			<string>libStickerResources.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2958CFD47D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libStringPluralization.a</string>
-			<key>path</key>
-			<string>libStringPluralization.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29D65BA68200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSwiftSignalKit.dylib</string>
-			<key>path</key>
-			<string>libSwiftSignalKit.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E2925BBFEEE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSwitchNode.a</string>
-			<key>path</key>
-			<string>libSwitchNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E297A51CDA100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSyncCore.dylib</string>
-			<key>path</key>
-			<string>libSyncCore.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E2934FE8F2900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramAnimatedStickerNode.a</string>
-			<key>path</key>
-			<string>libTelegramAnimatedStickerNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29F33FDAC300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramAudio.a</string>
-			<key>path</key>
-			<string>libTelegramAudio.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2943136EC600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramBaseController.a</string>
-			<key>path</key>
-			<string>libTelegramBaseController.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29119CDA0700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramCore.dylib</string>
-			<key>path</key>
-			<string>libTelegramCore.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E293551C98400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramIntents.a</string>
-			<key>path</key>
-			<string>libTelegramIntents.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2988BAAFC800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramNotices.a</string>
-			<key>path</key>
-			<string>libTelegramNotices.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E290DD17C7100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramPermissions.a</string>
-			<key>path</key>
-			<string>libTelegramPermissions.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29DF758A8500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramPermissionsUI.a</string>
-			<key>path</key>
-			<string>libTelegramPermissionsUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2984A59C1D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramPresentationData.a</string>
-			<key>path</key>
-			<string>libTelegramPresentationData.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29DD3C940F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramStringFormatting.a</string>
-			<key>path</key>
-			<string>libTelegramStringFormatting.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E292395015100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramUIPreferences.a</string>
-			<key>path</key>
-			<string>libTelegramUIPreferences.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29BA06E3A600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTemporaryCachedPeerDataManager.a</string>
-			<key>path</key>
-			<string>libTemporaryCachedPeerDataManager.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29F0C15F9C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTextFormat.a</string>
-			<key>path</key>
-			<string>libTextFormat.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29F40A586F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTextSelectionNode.a</string>
-			<key>path</key>
-			<string>libTextSelectionNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29B4B05B7A00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTinyThumbnail.a</string>
-			<key>path</key>
-			<string>libTinyThumbnail.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29A4AF824500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTooltipUI.a</string>
-			<key>path</key>
-			<string>libTooltipUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29CD296A8300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTuples.a</string>
-			<key>path</key>
-			<string>libTuples.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29AE67341000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libUndoUI.a</string>
-			<key>path</key>
-			<string>libUndoUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2951398CF200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libUniversalMediaPlayer.a</string>
-			<key>path</key>
-			<string>libUniversalMediaPlayer.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29597BAFBB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libUrlEscaping.a</string>
-			<key>path</key>
-			<string>libUrlEscaping.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>B401C97968022A5500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Frameworks</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E299D2580DA00000000</string>
-				<string>1DD70E291E16CC6C00000000</string>
-				<string>1DD70E29BF0846EE00000000</string>
-				<string>1DD70E29F523B9DE00000000</string>
-				<string>1DD70E29E3C578AA00000000</string>
-				<string>1DD70E292420028600000000</string>
-				<string>1DD70E29A54A195300000000</string>
-				<string>1DD70E29FD72F45600000000</string>
-				<string>1DD70E2907DC840B00000000</string>
-				<string>1DD70E297AB043C800000000</string>
-				<string>1DD70E296DFD63C200000000</string>
-				<string>1DD70E29B6F47D1F00000000</string>
-				<string>1DD70E2997B4D6D800000000</string>
-				<string>1DD70E292F91702000000000</string>
-				<string>1DD70E2931752C6000000000</string>
-				<string>1DD70E296C9831F100000000</string>
-				<string>1DD70E29CED1620500000000</string>
-				<string>1DD70E292417E0B200000000</string>
-				<string>1DD70E295915423000000000</string>
-				<string>1DD70E29FF334B1F00000000</string>
-				<string>1DD70E2971ED41B100000000</string>
-				<string>1DD70E29D6F14E1000000000</string>
-				<string>1DD70E29247D9AC100000000</string>
-				<string>1DD70E2905A95CB400000000</string>
-				<string>1DD70E299A24C4DE00000000</string>
-				<string>1DD70E295A26607D00000000</string>
-				<string>1DD70E29E220F5E800000000</string>
-				<string>1DD70E29AC43662400000000</string>
-				<string>1DD70E292969635400000000</string>
-				<string>1DD70E29CE34063500000000</string>
-				<string>1DD70E297E2E5F8700000000</string>
-				<string>1DD70E2936DE2CF900000000</string>
-				<string>1DD70E29C37F741500000000</string>
-				<string>1DD70E29BBAF750C00000000</string>
-				<string>1DD70E29928D142900000000</string>
-				<string>1DD70E29D233F68C00000000</string>
-				<string>1DD70E291631B91900000000</string>
-				<string>1DD70E29B2B7F8DC00000000</string>
-				<string>1DD70E29490601EB00000000</string>
-				<string>1DD70E290F1A3C6400000000</string>
-				<string>1DD70E29DB6520C800000000</string>
-				<string>1DD70E294E24879B00000000</string>
-				<string>1DD70E29CBE117ED00000000</string>
-				<string>1DD70E293E4DE92B00000000</string>
-				<string>1DD70E29AD66967300000000</string>
-				<string>1DD70E291D58331200000000</string>
-				<string>1DD70E29EA9CBB5B00000000</string>
-				<string>1DD70E291328E99400000000</string>
-				<string>1DD70E2957B5522500000000</string>
-				<string>1DD70E29097DBE9200000000</string>
-				<string>1DD70E2981AE180900000000</string>
-				<string>1DD70E29524F478E00000000</string>
-				<string>1DD70E293594DCC000000000</string>
-				<string>1DD70E2958CFD47D00000000</string>
-				<string>1DD70E29D65BA68200000000</string>
-				<string>1DD70E2925BBFEEE00000000</string>
-				<string>1DD70E297A51CDA100000000</string>
-				<string>1DD70E2934FE8F2900000000</string>
-				<string>1DD70E29F33FDAC300000000</string>
-				<string>1DD70E2943136EC600000000</string>
-				<string>1DD70E29119CDA0700000000</string>
-				<string>1DD70E293551C98400000000</string>
-				<string>1DD70E2988BAAFC800000000</string>
-				<string>1DD70E290DD17C7100000000</string>
-				<string>1DD70E29DF758A8500000000</string>
-				<string>1DD70E2984A59C1D00000000</string>
-				<string>1DD70E29DD3C940F00000000</string>
-				<string>1DD70E292395015100000000</string>
-				<string>1DD70E29BA06E3A600000000</string>
-				<string>1DD70E29F0C15F9C00000000</string>
-				<string>1DD70E29F40A586F00000000</string>
-				<string>1DD70E29B4B05B7A00000000</string>
-				<string>1DD70E29A4AF824500000000</string>
-				<string>1DD70E29CD296A8300000000</string>
-				<string>1DD70E29AE67341000000000</string>
-				<string>1DD70E2951398CF200000000</string>
-				<string>1DD70E29597BAFBB00000000</string>
-			</array>
-		</dict>
-		<key>1DD70E29001F47FB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BUCK</string>
-			<key>path</key>
-			<string>BUCK</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.script.python</string>
-		</dict>
-		<key>1DD70E29EAA579D500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>HashtagSearchController.swift</string>
-			<key>path</key>
-			<string>Sources/HashtagSearchController.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E291461E27700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>HashtagSearchControllerNode.swift</string>
-			<key>path</key>
-			<string>Sources/HashtagSearchControllerNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>B401C979EAB5339800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Sources</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E29EAA579D500000000</string>
-				<string>1DD70E291461E27700000000</string>
-			</array>
-		</dict>
-		<key>B401C9790795F20800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>HashtagSearchUI</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E29001F47FB00000000</string>
-				<string>B401C979EAB5339800000000</string>
-			</array>
-		</dict>
-		<key>1DD70E29CCE2AE1600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libHashtagSearchUI.a</string>
-			<key>path</key>
-			<string>libHashtagSearchUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>B401C979C806358400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Products</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E29CCE2AE1600000000</string>
-			</array>
-		</dict>
-		<key>B401C979EFB6AC4600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>mainGroup</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>B401C979B781F65D00000000</string>
-				<string>B401C97968022A5500000000</string>
-				<string>B401C9790795F20800000000</string>
-				<string>B401C979C806358400000000</string>
-			</array>
-		</dict>
-		<key>E7A30F04EAA579D500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29EAA579D500000000</string>
-		</dict>
-		<key>E7A30F041461E27700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E291461E27700000000</string>
-		</dict>
-		<key>1870857F0000000000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXSourcesBuildPhase</string>
-			<key>files</key>
-			<array>
-				<string>E7A30F04EAA579D500000000</string>
-				<string>E7A30F041461E27700000000</string>
-			</array>
-		</dict>
-		<key>E7A30F04D65BA68200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29D65BA68200000000</string>
-		</dict>
-		<key>E7A30F045915423000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E295915423000000000</string>
-		</dict>
-		<key>E7A30F04FF334B1F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29FF334B1F00000000</string>
-		</dict>
-		<key>E7A30F04DB6520C800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29DB6520C800000000</string>
-		</dict>
-		<key>E7A30F047A51CDA100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E297A51CDA100000000</string>
-		</dict>
-		<key>E7A30F04F33FDAC300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29F33FDAC300000000</string>
-		</dict>
-		<key>E7A30F04119CDA0700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29119CDA0700000000</string>
-		</dict>
-		<key>E7A30F0451398CF200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2951398CF200000000</string>
-		</dict>
-		<key>E7A30F0436DE2CF900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2936DE2CF900000000</string>
-		</dict>
-		<key>E7A30F0458CFD47D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2958CFD47D00000000</string>
-		</dict>
-		<key>E7A30F042395015100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E292395015100000000</string>
-		</dict>
-		<key>E7A30F0484A59C1D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2984A59C1D00000000</string>
-		</dict>
-		<key>E7A30F04B2B7F8DC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29B2B7F8DC00000000</string>
-		</dict>
-		<key>E7A30F04CE34063500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29CE34063500000000</string>
-		</dict>
-		<key>E7A30F047E2E5F8700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E297E2E5F8700000000</string>
-		</dict>
-		<key>E7A30F040F1A3C6400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E290F1A3C6400000000</string>
-		</dict>
-		<key>E7A30F04F0C15F9C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29F0C15F9C00000000</string>
-		</dict>
-		<key>E7A30F04DD3C940F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29DD3C940F00000000</string>
-		</dict>
-		<key>E7A30F04BA06E3A600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29BA06E3A600000000</string>
-		</dict>
-		<key>E7A30F049D2580DA00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E299D2580DA00000000</string>
-		</dict>
-		<key>E7A30F04BF0846EE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29BF0846EE00000000</string>
-		</dict>
-		<key>E7A30F04F523B9DE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29F523B9DE00000000</string>
-		</dict>
-		<key>E7A30F04E3C578AA00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29E3C578AA00000000</string>
-		</dict>
-		<key>E7A30F04AC43662400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29AC43662400000000</string>
-		</dict>
-		<key>E7A30F04FD72F45600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29FD72F45600000000</string>
-		</dict>
-		<key>E7A30F04EA9CBB5B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29EA9CBB5B00000000</string>
-		</dict>
-		<key>E7A30F0407DC840B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2907DC840B00000000</string>
-		</dict>
-		<key>E7A30F04D6F14E1000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29D6F14E1000000000</string>
-		</dict>
-		<key>E7A30F04CD296A8300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29CD296A8300000000</string>
-		</dict>
-		<key>E7A30F043594DCC000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E293594DCC000000000</string>
-		</dict>
-		<key>E7A30F0434FE8F2900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2934FE8F2900000000</string>
-		</dict>
-		<key>E7A30F04AD66967300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29AD66967300000000</string>
-		</dict>
-		<key>E7A30F04F40A586F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29F40A586F00000000</string>
-		</dict>
-		<key>E7A30F046C9831F100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E296C9831F100000000</string>
-		</dict>
-		<key>E7A30F04928D142900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29928D142900000000</string>
-		</dict>
-		<key>E7A30F042420028600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E292420028600000000</string>
-		</dict>
-		<key>E7A30F04A54A195300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29A54A195300000000</string>
-		</dict>
-		<key>E7A30F04097DBE9200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29097DBE9200000000</string>
-		</dict>
-		<key>E7A30F0471ED41B100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2971ED41B100000000</string>
-		</dict>
-		<key>E7A30F04C37F741500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29C37F741500000000</string>
-		</dict>
-		<key>E7A30F047AB043C800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E297AB043C800000000</string>
-		</dict>
-		<key>E7A30F04B6F47D1F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29B6F47D1F00000000</string>
-		</dict>
-		<key>E7A30F0497B4D6D800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2997B4D6D800000000</string>
-		</dict>
-		<key>E7A30F04CBE117ED00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29CBE117ED00000000</string>
-		</dict>
-		<key>E7A30F0457B5522500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2957B5522500000000</string>
-		</dict>
-		<key>E7A30F0425BBFEEE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2925BBFEEE00000000</string>
-		</dict>
-		<key>E7A30F045A26607D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E295A26607D00000000</string>
-		</dict>
-		<key>E7A30F04D233F68C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29D233F68C00000000</string>
-		</dict>
-		<key>E7A30F04BBAF750C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29BBAF750C00000000</string>
-		</dict>
-		<key>E7A30F04524F478E00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29524F478E00000000</string>
-		</dict>
-		<key>E7A30F044E24879B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E294E24879B00000000</string>
-		</dict>
-		<key>E7A30F049A24C4DE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E299A24C4DE00000000</string>
-		</dict>
-		<key>E7A30F0431752C6000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2931752C6000000000</string>
-		</dict>
-		<key>E7A30F041328E99400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E291328E99400000000</string>
-		</dict>
-		<key>E7A30F041E16CC6C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E291E16CC6C00000000</string>
-		</dict>
-		<key>E7A30F043E4DE92B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E293E4DE92B00000000</string>
-		</dict>
-		<key>E7A30F042417E0B200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E292417E0B200000000</string>
-		</dict>
-		<key>E7A30F041D58331200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E291D58331200000000</string>
-		</dict>
-		<key>E7A30F043551C98400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E293551C98400000000</string>
-		</dict>
-		<key>E7A30F04597BAFBB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29597BAFBB00000000</string>
-		</dict>
-		<key>E7A30F0481AE180900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2981AE180900000000</string>
-		</dict>
-		<key>E7A30F040DD17C7100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E290DD17C7100000000</string>
-		</dict>
-		<key>E7A30F0488BAAFC800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2988BAAFC800000000</string>
-		</dict>
-		<key>E7A30F041631B91900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E291631B91900000000</string>
-		</dict>
-		<key>E7A30F04DF758A8500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29DF758A8500000000</string>
-		</dict>
-		<key>E7A30F042F91702000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E292F91702000000000</string>
-		</dict>
-		<key>E7A30F04CED1620500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29CED1620500000000</string>
-		</dict>
-		<key>E7A30F0405A95CB400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2905A95CB400000000</string>
-		</dict>
-		<key>E7A30F04E220F5E800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29E220F5E800000000</string>
-		</dict>
-		<key>E7A30F04247D9AC100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29247D9AC100000000</string>
-		</dict>
-		<key>E7A30F04B4B05B7A00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29B4B05B7A00000000</string>
-		</dict>
-		<key>E7A30F04490601EB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29490601EB00000000</string>
-		</dict>
-		<key>E7A30F042969635400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E292969635400000000</string>
-		</dict>
-		<key>E7A30F0443136EC600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2943136EC600000000</string>
-		</dict>
-		<key>E7A30F04A4AF824500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29A4AF824500000000</string>
-		</dict>
-		<key>E7A30F04AE67341000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29AE67341000000000</string>
-		</dict>
-		<key>E7A30F046DFD63C200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E296DFD63C200000000</string>
-		</dict>
-		<key>FAF5FAC90000000000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXCopyFilesBuildPhase</string>
-			<key>files</key>
-			<array>
-				<string>E7A30F04D65BA68200000000</string>
-				<string>E7A30F045915423000000000</string>
-				<string>E7A30F04FF334B1F00000000</string>
-				<string>E7A30F04DB6520C800000000</string>
-				<string>E7A30F047A51CDA100000000</string>
-				<string>E7A30F04F33FDAC300000000</string>
-				<string>E7A30F04119CDA0700000000</string>
-				<string>E7A30F0451398CF200000000</string>
-				<string>E7A30F0436DE2CF900000000</string>
-				<string>E7A30F0458CFD47D00000000</string>
-				<string>E7A30F042395015100000000</string>
-				<string>E7A30F0484A59C1D00000000</string>
-				<string>E7A30F04B2B7F8DC00000000</string>
-				<string>E7A30F04CE34063500000000</string>
-				<string>E7A30F047E2E5F8700000000</string>
-				<string>E7A30F040F1A3C6400000000</string>
-				<string>E7A30F04F0C15F9C00000000</string>
-				<string>E7A30F04DD3C940F00000000</string>
-				<string>E7A30F04BA06E3A600000000</string>
-				<string>E7A30F049D2580DA00000000</string>
-				<string>E7A30F04BF0846EE00000000</string>
-				<string>E7A30F04F523B9DE00000000</string>
-				<string>E7A30F04E3C578AA00000000</string>
-				<string>E7A30F04AC43662400000000</string>
-				<string>E7A30F04FD72F45600000000</string>
-				<string>E7A30F04EA9CBB5B00000000</string>
-				<string>E7A30F0407DC840B00000000</string>
-				<string>E7A30F04D6F14E1000000000</string>
-				<string>E7A30F04CD296A8300000000</string>
-				<string>E7A30F043594DCC000000000</string>
-				<string>E7A30F0434FE8F2900000000</string>
-				<string>E7A30F04AD66967300000000</string>
-				<string>E7A30F04F40A586F00000000</string>
-				<string>E7A30F046C9831F100000000</string>
-				<string>E7A30F04928D142900000000</string>
-				<string>E7A30F042420028600000000</string>
-				<string>E7A30F04A54A195300000000</string>
-				<string>E7A30F04097DBE9200000000</string>
-				<string>E7A30F0471ED41B100000000</string>
-				<string>E7A30F04C37F741500000000</string>
-				<string>E7A30F047AB043C800000000</string>
-				<string>E7A30F04B6F47D1F00000000</string>
-				<string>E7A30F0497B4D6D800000000</string>
-				<string>E7A30F04CBE117ED00000000</string>
-				<string>E7A30F0457B5522500000000</string>
-				<string>E7A30F0425BBFEEE00000000</string>
-				<string>E7A30F045A26607D00000000</string>
-				<string>E7A30F04D233F68C00000000</string>
-				<string>E7A30F04BBAF750C00000000</string>
-				<string>E7A30F04524F478E00000000</string>
-				<string>E7A30F044E24879B00000000</string>
-				<string>E7A30F049A24C4DE00000000</string>
-				<string>E7A30F0431752C6000000000</string>
-				<string>E7A30F041328E99400000000</string>
-				<string>E7A30F041E16CC6C00000000</string>
-				<string>E7A30F043E4DE92B00000000</string>
-				<string>E7A30F042417E0B200000000</string>
-				<string>E7A30F041D58331200000000</string>
-				<string>E7A30F043551C98400000000</string>
-				<string>E7A30F04597BAFBB00000000</string>
-				<string>E7A30F0481AE180900000000</string>
-				<string>E7A30F040DD17C7100000000</string>
-				<string>E7A30F0488BAAFC800000000</string>
-				<string>E7A30F041631B91900000000</string>
-				<string>E7A30F04DF758A8500000000</string>
-				<string>E7A30F042F91702000000000</string>
-				<string>E7A30F04CED1620500000000</string>
-				<string>E7A30F0405A95CB400000000</string>
-				<string>E7A30F04E220F5E800000000</string>
-				<string>E7A30F04247D9AC100000000</string>
-				<string>E7A30F04B4B05B7A00000000</string>
-				<string>E7A30F04490601EB00000000</string>
-				<string>E7A30F042969635400000000</string>
-				<string>E7A30F0443136EC600000000</string>
-				<string>E7A30F04A4AF824500000000</string>
-				<string>E7A30F04AE67341000000000</string>
-				<string>E7A30F046DFD63C200000000</string>
-			</array>
-			<key>name</key>
-			<string>Fake Swift Dependencies (Copy Files Phase)</string>
-			<key>runOnlyForDeploymentPostprocessing</key>
-			<integer>1</integer>
-			<key>dstSubfolderSpec</key>
-			<integer>16</integer>
-			<key>dstPath</key>
-			<string></string>
-		</dict>
-		<key>4952437303EDA63300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Debug</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-			<key>baseConfigurationReference</key>
-			<string>1DD70E29D27875AD00000000</string>
-		</dict>
-		<key>4952437350C7218900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Profile</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-			<key>baseConfigurationReference</key>
-			<string>1DD70E29FB5455D700000000</string>
-		</dict>
-		<key>49524373A439BFE700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Release</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-			<key>baseConfigurationReference</key>
-			<string>1DD70E296EEB013900000000</string>
-		</dict>
-		<key>218C37090000000000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCConfigurationList</string>
-			<key>buildConfigurations</key>
-			<array>
-				<string>4952437303EDA63300000000</string>
-				<string>4952437350C7218900000000</string>
-				<string>49524373A439BFE700000000</string>
-			</array>
-			<key>defaultConfigurationIsVisible</key>
-			<false/>
-		</dict>
-		<key>E66DC04E0795F20800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXNativeTarget</string>
-			<key>name</key>
-			<string>HashtagSearchUI</string>
-			<key>productName</key>
-			<string>HashtagSearchUI</string>
-			<key>productReference</key>
-			<string>1DD70E29CCE2AE1600000000</string>
-			<key>productType</key>
-			<string>com.apple.product-type.library.static</string>
-			<key>dependencies</key>
-			<array>
-			</array>
-			<key>buildPhases</key>
-			<array>
-				<string>1870857F0000000000000000</string>
-				<string>FAF5FAC90000000000000000</string>
-			</array>
-			<key>buildConfigurationList</key>
-			<string>218C37090000000000000000</string>
-		</dict>
-		<key>4952437303EDA63300000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Debug</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-		</dict>
-		<key>4952437350C7218900000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Profile</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-		</dict>
-		<key>49524373A439BFE700000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Release</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-		</dict>
-		<key>218C37090000000000000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCConfigurationList</string>
-			<key>buildConfigurations</key>
-			<array>
-				<string>4952437303EDA63300000001</string>
-				<string>4952437350C7218900000001</string>
-				<string>49524373A439BFE700000001</string>
-			</array>
-			<key>defaultConfigurationIsVisible</key>
-			<false/>
-		</dict>
-		<key>96C847930795F20800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXProject</string>
-			<key>mainGroup</key>
-			<string>B401C979EFB6AC4600000000</string>
-			<key>targets</key>
-			<array>
-				<string>E66DC04E0795F20800000000</string>
-			</array>
-			<key>buildConfigurationList</key>
-			<string>218C37090000000000000001</string>
-			<key>compatibilityVersion</key>
-			<string>Xcode 3.2</string>
-			<key>attributes</key>
-			<dict>
-				<key>LastUpgradeCheck</key>
-				<string>9999</string>
-			</dict>
-		</dict>
-	</dict>
-	<key>rootObject</key>
-	<string>96C847930795F20800000000</string>
-</dict>
-</plist>
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		634E894E245B2103007CD07F /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E894D245B2103007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8950245B2103007CD07F /* SyncCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E894F245B2103007CD07F /* SyncCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8952245B2103007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8951245B2103007CD07F /* Postbox.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8954245B2103007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8953245B2103007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8956245B2103007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8955245B2103007CD07F /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F0405A95CB400000000 /* libItemListPeerActionItem.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2905A95CB400000000 /* libItemListPeerActionItem.a */; };
+		E7A30F0407DC840B00000000 /* libChatListSearchItemNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2907DC840B00000000 /* libChatListSearchItemNode.a */; };
+		E7A30F04097DBE9200000000 /* libSelectablePeerNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29097DBE9200000000 /* libSelectablePeerNode.a */; };
+		E7A30F040DD17C7100000000 /* libTelegramPermissions.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E290DD17C7100000000 /* libTelegramPermissions.a */; };
+		E7A30F040F1A3C6400000000 /* libPlatformRestrictionMatching.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */; };
+		E7A30F041328E99400000000 /* libSearchUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E291328E99400000000 /* libSearchUI.a */; };
+		E7A30F041461E27700000000 /* HashtagSearchControllerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E291461E27700000000 /* HashtagSearchControllerNode.swift */; };
+		E7A30F041631B91900000000 /* libPeersNearbyIconNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E291631B91900000000 /* libPeersNearbyIconNode.a */; };
+		E7A30F041D58331200000000 /* libSaveToCameraRoll.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E291D58331200000000 /* libSaveToCameraRoll.a */; };
+		E7A30F041E16CC6C00000000 /* libActionSheetPeerItem.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E291E16CC6C00000000 /* libActionSheetPeerItem.a */; };
+		E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292395015100000000 /* libTelegramUIPreferences.a */; };
+		E7A30F042417E0B200000000 /* libDeviceAccess.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292417E0B200000000 /* libDeviceAccess.a */; };
+		E7A30F042420028600000000 /* libAnimationUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292420028600000000 /* libAnimationUI.a */; };
+		E7A30F04247D9AC100000000 /* libImageTransparency.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29247D9AC100000000 /* libImageTransparency.a */; };
+		E7A30F0425BBFEEE00000000 /* libSwitchNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2925BBFEEE00000000 /* libSwitchNode.a */; };
+		E7A30F042969635400000000 /* libLiveLocationTimerNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292969635400000000 /* libLiveLocationTimerNode.a */; };
+		E7A30F042F91702000000000 /* libContactListUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292F91702000000000 /* libContactListUI.a */; };
+		E7A30F0431752C6000000000 /* libContactsPeerItem.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2931752C6000000000 /* libContactsPeerItem.a */; };
+		E7A30F0434FE8F2900000000 /* libTelegramAnimatedStickerNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2934FE8F2900000000 /* libTelegramAnimatedStickerNode.a */; };
+		E7A30F043551C98400000000 /* libTelegramIntents.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E293551C98400000000 /* libTelegramIntents.a */; };
+		E7A30F043594DCC000000000 /* libStickerResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E293594DCC000000000 /* libStickerResources.a */; };
+		E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2936DE2CF900000000 /* libMediaResources.a */; };
+		E7A30F043E4DE92B00000000 /* libRadialStatusNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E293E4DE92B00000000 /* libRadialStatusNode.a */; };
+		E7A30F0443136EC600000000 /* libTelegramBaseController.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2943136EC600000000 /* libTelegramBaseController.a */; };
+		E7A30F04490601EB00000000 /* libPhotoResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29490601EB00000000 /* libPhotoResources.a */; };
+		E7A30F044E24879B00000000 /* libPresentationDataUtils.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E294E24879B00000000 /* libPresentationDataUtils.a */; };
+		E7A30F0451398CF200000000 /* libUniversalMediaPlayer.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2951398CF200000000 /* libUniversalMediaPlayer.a */; };
+		E7A30F04524F478E00000000 /* libSolidRoundedButtonNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29524F478E00000000 /* libSolidRoundedButtonNode.a */; };
+		E7A30F0457B5522500000000 /* libSegmentedControlNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2957B5522500000000 /* libSegmentedControlNode.a */; };
+		E7A30F0458CFD47D00000000 /* libStringPluralization.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2958CFD47D00000000 /* libStringPluralization.a */; };
+		E7A30F045915423000000000 /* libDeviceLocationManager.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E295915423000000000 /* libDeviceLocationManager.a */; };
+		E7A30F04597BAFBB00000000 /* libUrlEscaping.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29597BAFBB00000000 /* libUrlEscaping.a */; };
+		E7A30F045A26607D00000000 /* libItemListUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E295A26607D00000000 /* libItemListUI.a */; };
+		E7A30F046C9831F100000000 /* libContextUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E296C9831F100000000 /* libContextUI.a */; };
+		E7A30F046DFD63C200000000 /* libChatListUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E296DFD63C200000000 /* libChatListUI.a */; };
+		E7A30F0471ED41B100000000 /* libHorizontalPeerItem.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2971ED41B100000000 /* libHorizontalPeerItem.a */; };
+		E7A30F047AB043C800000000 /* libChatListSearchRecentPeersNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E297AB043C800000000 /* libChatListSearchRecentPeersNode.a */; };
+		E7A30F047E2E5F8700000000 /* libMarkdown.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E297E2E5F8700000000 /* libMarkdown.a */; };
+		E7A30F0481AE180900000000 /* libShareController.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2981AE180900000000 /* libShareController.a */; };
+		E7A30F0484A59C1D00000000 /* libTelegramPresentationData.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */; };
+		E7A30F0488BAAFC800000000 /* libTelegramNotices.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2988BAAFC800000000 /* libTelegramNotices.a */; };
+		E7A30F04928D142900000000 /* libPeerOnlineMarkerNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29928D142900000000 /* libPeerOnlineMarkerNode.a */; };
+		E7A30F0497B4D6D800000000 /* libCheckNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2997B4D6D800000000 /* libCheckNode.a */; };
+		E7A30F049A24C4DE00000000 /* libItemListPeerItem.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E299A24C4DE00000000 /* libItemListPeerItem.a */; };
+		E7A30F049D2580DA00000000 /* libAccountContext.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E299D2580DA00000000 /* libAccountContext.a */; };
+		E7A30F04A4AF824500000000 /* libTooltipUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29A4AF824500000000 /* libTooltipUI.a */; };
+		E7A30F04A54A195300000000 /* libAvatarNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29A54A195300000000 /* libAvatarNode.a */; };
+		E7A30F04AC43662400000000 /* libListSectionHeaderNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29AC43662400000000 /* libListSectionHeaderNode.a */; };
+		E7A30F04AD66967300000000 /* libReactionSelectionNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29AD66967300000000 /* libReactionSelectionNode.a */; };
+		E7A30F04AE67341000000000 /* libUndoUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29AE67341000000000 /* libUndoUI.a */; };
+		E7A30F04B2B7F8DC00000000 /* libPhoneNumberFormat.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29B2B7F8DC00000000 /* libPhoneNumberFormat.a */; };
+		E7A30F04B4B05B7A00000000 /* libTinyThumbnail.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29B4B05B7A00000000 /* libTinyThumbnail.a */; };
+		E7A30F04B6F47D1F00000000 /* libChatTitleActivityNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29B6F47D1F00000000 /* libChatTitleActivityNode.a */; };
+		E7A30F04BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a */; };
+		E7A30F04BBAF750C00000000 /* libOverlayStatusController.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29BBAF750C00000000 /* libOverlayStatusController.a */; };
+		E7A30F04BF0846EE00000000 /* libActivityIndicator.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29BF0846EE00000000 /* libActivityIndicator.a */; };
+		E7A30F04C37F741500000000 /* libMergeLists.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29C37F741500000000 /* libMergeLists.a */; };
+		E7A30F04CBE117ED00000000 /* libProgressNavigationButtonNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29CBE117ED00000000 /* libProgressNavigationButtonNode.a */; };
+		E7A30F04CD296A8300000000 /* libTuples.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29CD296A8300000000 /* libTuples.a */; };
+		E7A30F04CE34063500000000 /* libLocalizedPeerData.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29CE34063500000000 /* libLocalizedPeerData.a */; };
+		E7A30F04CED1620500000000 /* libDeleteChatPeerActionSheetItem.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29CED1620500000000 /* libDeleteChatPeerActionSheetItem.a */; };
+		E7A30F04D233F68C00000000 /* libPeerPresenceStatusManager.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29D233F68C00000000 /* libPeerPresenceStatusManager.a */; };
+		E7A30F04D6F14E1000000000 /* libImageBlur.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29D6F14E1000000000 /* libImageBlur.a */; };
+		E7A30F04DD3C940F00000000 /* libTelegramStringFormatting.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29DD3C940F00000000 /* libTelegramStringFormatting.a */; };
+		E7A30F04DF758A8500000000 /* libTelegramPermissionsUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29DF758A8500000000 /* libTelegramPermissionsUI.a */; };
+		E7A30F04E220F5E800000000 /* libLanguageSuggestionUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29E220F5E800000000 /* libLanguageSuggestionUI.a */; };
+		E7A30F04E3C578AA00000000 /* libAnimatedStickerNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29E3C578AA00000000 /* libAnimatedStickerNode.a */; };
+		E7A30F04EA9CBB5B00000000 /* libSearchBarNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29EA9CBB5B00000000 /* libSearchBarNode.a */; };
+		E7A30F04EAA579D500000000 /* HashtagSearchController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29EAA579D500000000 /* HashtagSearchController.swift */; };
+		E7A30F04F0C15F9C00000000 /* libTextFormat.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29F0C15F9C00000000 /* libTextFormat.a */; };
+		E7A30F04F33FDAC300000000 /* libTelegramAudio.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29F33FDAC300000000 /* libTelegramAudio.a */; };
+		E7A30F04F40A586F00000000 /* libTextSelectionNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29F40A586F00000000 /* libTextSelectionNode.a */; };
+		E7A30F04F523B9DE00000000 /* libAlertUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29F523B9DE00000000 /* libAlertUI.a */; };
+		E7A30F04FD72F45600000000 /* libChatListSearchItemHeader.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29FD72F45600000000 /* libChatListSearchItemHeader.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 0;
+			dstPath = "";
+			dstSubfolderSpec = 16;
+			files = (
+				E7A30F045915423000000000 /* libDeviceLocationManager.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04F33FDAC300000000 /* libTelegramAudio.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0451398CF200000000 /* libUniversalMediaPlayer.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0458CFD47D00000000 /* libStringPluralization.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0484A59C1D00000000 /* libTelegramPresentationData.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04B2B7F8DC00000000 /* libPhoneNumberFormat.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04CE34063500000000 /* libLocalizedPeerData.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F047E2E5F8700000000 /* libMarkdown.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F040F1A3C6400000000 /* libPlatformRestrictionMatching.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04F0C15F9C00000000 /* libTextFormat.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04DD3C940F00000000 /* libTelegramStringFormatting.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F049D2580DA00000000 /* libAccountContext.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04BF0846EE00000000 /* libActivityIndicator.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04F523B9DE00000000 /* libAlertUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04E3C578AA00000000 /* libAnimatedStickerNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04AC43662400000000 /* libListSectionHeaderNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04FD72F45600000000 /* libChatListSearchItemHeader.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04EA9CBB5B00000000 /* libSearchBarNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0407DC840B00000000 /* libChatListSearchItemNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04D6F14E1000000000 /* libImageBlur.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04CD296A8300000000 /* libTuples.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F043594DCC000000000 /* libStickerResources.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0434FE8F2900000000 /* libTelegramAnimatedStickerNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04AD66967300000000 /* libReactionSelectionNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04F40A586F00000000 /* libTextSelectionNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F046C9831F100000000 /* libContextUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04928D142900000000 /* libPeerOnlineMarkerNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042420028600000000 /* libAnimationUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04A54A195300000000 /* libAvatarNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04097DBE9200000000 /* libSelectablePeerNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0471ED41B100000000 /* libHorizontalPeerItem.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04C37F741500000000 /* libMergeLists.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F047AB043C800000000 /* libChatListSearchRecentPeersNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04B6F47D1F00000000 /* libChatTitleActivityNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0497B4D6D800000000 /* libCheckNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04CBE117ED00000000 /* libProgressNavigationButtonNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0457B5522500000000 /* libSegmentedControlNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0425BBFEEE00000000 /* libSwitchNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F045A26607D00000000 /* libItemListUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04D233F68C00000000 /* libPeerPresenceStatusManager.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04BBAF750C00000000 /* libOverlayStatusController.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04524F478E00000000 /* libSolidRoundedButtonNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F044E24879B00000000 /* libPresentationDataUtils.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F049A24C4DE00000000 /* libItemListPeerItem.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0431752C6000000000 /* libContactsPeerItem.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F041328E99400000000 /* libSearchUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F041E16CC6C00000000 /* libActionSheetPeerItem.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F043E4DE92B00000000 /* libRadialStatusNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042417E0B200000000 /* libDeviceAccess.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F041D58331200000000 /* libSaveToCameraRoll.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F043551C98400000000 /* libTelegramIntents.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04597BAFBB00000000 /* libUrlEscaping.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0481AE180900000000 /* libShareController.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F040DD17C7100000000 /* libTelegramPermissions.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0488BAAFC800000000 /* libTelegramNotices.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F041631B91900000000 /* libPeersNearbyIconNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04DF758A8500000000 /* libTelegramPermissionsUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042F91702000000000 /* libContactListUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04CED1620500000000 /* libDeleteChatPeerActionSheetItem.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0405A95CB400000000 /* libItemListPeerActionItem.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04E220F5E800000000 /* libLanguageSuggestionUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04247D9AC100000000 /* libImageTransparency.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04B4B05B7A00000000 /* libTinyThumbnail.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04490601EB00000000 /* libPhotoResources.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042969635400000000 /* libLiveLocationTimerNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0443136EC600000000 /* libTelegramBaseController.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04A4AF824500000000 /* libTooltipUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04AE67341000000000 /* libUndoUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F046DFD63C200000000 /* libChatListUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+			);
+			name = "Fake Swift Dependencies (Copy Files Phase)";
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E2905A95CB400000000 /* libItemListPeerActionItem.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libItemListPeerActionItem.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2907DC840B00000000 /* libChatListSearchItemNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libChatListSearchItemNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29097DBE9200000000 /* libSelectablePeerNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSelectablePeerNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E290DD17C7100000000 /* libTelegramPermissions.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramPermissions.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPlatformRestrictionMatching.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29119CDA0700000000 /* libTelegramCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libTelegramCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E291328E99400000000 /* libSearchUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSearchUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E291461E27700000000 /* HashtagSearchControllerNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HashtagSearchControllerNode.swift; path = Sources/HashtagSearchControllerNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E291631B91900000000 /* libPeersNearbyIconNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPeersNearbyIconNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E291D58331200000000 /* libSaveToCameraRoll.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSaveToCameraRoll.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E291E16CC6C00000000 /* libActionSheetPeerItem.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libActionSheetPeerItem.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292395015100000000 /* libTelegramUIPreferences.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramUIPreferences.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292417E0B200000000 /* libDeviceAccess.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDeviceAccess.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292420028600000000 /* libAnimationUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAnimationUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29247D9AC100000000 /* libImageTransparency.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libImageTransparency.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2925BBFEEE00000000 /* libSwitchNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSwitchNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292969635400000000 /* libLiveLocationTimerNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libLiveLocationTimerNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292F91702000000000 /* libContactListUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libContactListUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2931752C6000000000 /* libContactsPeerItem.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libContactsPeerItem.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2934FE8F2900000000 /* libTelegramAnimatedStickerNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramAnimatedStickerNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E293551C98400000000 /* libTelegramIntents.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramIntents.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E293594DCC000000000 /* libStickerResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libStickerResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2936DE2CF900000000 /* libMediaResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMediaResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E293E4DE92B00000000 /* libRadialStatusNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libRadialStatusNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2943136EC600000000 /* libTelegramBaseController.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramBaseController.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29490601EB00000000 /* libPhotoResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPhotoResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E294E24879B00000000 /* libPresentationDataUtils.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPresentationDataUtils.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2951398CF200000000 /* libUniversalMediaPlayer.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libUniversalMediaPlayer.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29524F478E00000000 /* libSolidRoundedButtonNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSolidRoundedButtonNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2957B5522500000000 /* libSegmentedControlNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSegmentedControlNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2958CFD47D00000000 /* libStringPluralization.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libStringPluralization.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E295915423000000000 /* libDeviceLocationManager.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDeviceLocationManager.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29597BAFBB00000000 /* libUrlEscaping.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libUrlEscaping.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E295A26607D00000000 /* libItemListUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libItemListUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E296C9831F100000000 /* libContextUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libContextUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E296DFD63C200000000 /* libChatListUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libChatListUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E296EEB013900000000 /* HashtagSearchUI-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "HashtagSearchUI-Release.xcconfig"; path = "../../buck-out/gen/submodules/HashtagSearchUI/HashtagSearchUI-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E2971ED41B100000000 /* libHorizontalPeerItem.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libHorizontalPeerItem.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E297A51CDA100000000 /* libSyncCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSyncCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E297AB043C800000000 /* libChatListSearchRecentPeersNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libChatListSearchRecentPeersNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E297E2E5F8700000000 /* libMarkdown.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMarkdown.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2981AE180900000000 /* libShareController.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libShareController.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramPresentationData.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2988BAAFC800000000 /* libTelegramNotices.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramNotices.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29928D142900000000 /* libPeerOnlineMarkerNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPeerOnlineMarkerNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2997B4D6D800000000 /* libCheckNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libCheckNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E299A24C4DE00000000 /* libItemListPeerItem.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libItemListPeerItem.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E299D2580DA00000000 /* libAccountContext.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAccountContext.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29A4AF824500000000 /* libTooltipUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTooltipUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29A54A195300000000 /* libAvatarNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAvatarNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29AC43662400000000 /* libListSectionHeaderNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libListSectionHeaderNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29AD66967300000000 /* libReactionSelectionNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libReactionSelectionNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29AE67341000000000 /* libUndoUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libUndoUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29B2B7F8DC00000000 /* libPhoneNumberFormat.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPhoneNumberFormat.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29B4B05B7A00000000 /* libTinyThumbnail.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTinyThumbnail.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29B6F47D1F00000000 /* libChatTitleActivityNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libChatTitleActivityNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTemporaryCachedPeerDataManager.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29BBAF750C00000000 /* libOverlayStatusController.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libOverlayStatusController.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29BF0846EE00000000 /* libActivityIndicator.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libActivityIndicator.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29C37F741500000000 /* libMergeLists.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMergeLists.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29CBE117ED00000000 /* libProgressNavigationButtonNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libProgressNavigationButtonNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29CCE2AE1600000000 /* libHashtagSearchUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libHashtagSearchUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29CD296A8300000000 /* libTuples.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTuples.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29CE34063500000000 /* libLocalizedPeerData.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libLocalizedPeerData.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29CED1620500000000 /* libDeleteChatPeerActionSheetItem.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDeleteChatPeerActionSheetItem.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D233F68C00000000 /* libPeerPresenceStatusManager.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPeerPresenceStatusManager.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D27875AD00000000 /* HashtagSearchUI-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "HashtagSearchUI-Debug.xcconfig"; path = "../../buck-out/gen/submodules/HashtagSearchUI/HashtagSearchUI-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D6F14E1000000000 /* libImageBlur.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libImageBlur.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DB6520C800000000 /* libPostbox.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libPostbox.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DD3C940F00000000 /* libTelegramStringFormatting.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramStringFormatting.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DF758A8500000000 /* libTelegramPermissionsUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramPermissionsUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29E220F5E800000000 /* libLanguageSuggestionUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libLanguageSuggestionUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29E3C578AA00000000 /* libAnimatedStickerNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAnimatedStickerNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29EA9CBB5B00000000 /* libSearchBarNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSearchBarNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29EAA579D500000000 /* HashtagSearchController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HashtagSearchController.swift; path = Sources/HashtagSearchController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29F0C15F9C00000000 /* libTextFormat.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTextFormat.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F33FDAC300000000 /* libTelegramAudio.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramAudio.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F40A586F00000000 /* libTextSelectionNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTextSelectionNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F523B9DE00000000 /* libAlertUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAlertUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29FB5455D700000000 /* HashtagSearchUI-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "HashtagSearchUI-Profile.xcconfig"; path = "../../buck-out/gen/submodules/HashtagSearchUI/HashtagSearchUI-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29FD72F45600000000 /* libChatListSearchItemHeader.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libChatListSearchItemHeader.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E894D245B2103007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E894F245B2103007CD07F /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8951245B2103007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8953245B2103007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8955245B2103007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		634E894C245B20FF007CD07F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E894E245B2103007CD07F /* TelegramCore.framework in Frameworks */,
+				634E8950245B2103007CD07F /* SyncCore.framework in Frameworks */,
+				634E8952245B2103007CD07F /* Postbox.framework in Frameworks */,
+				634E8954245B2103007CD07F /* Display.framework in Frameworks */,
+				634E8956245B2103007CD07F /* SwiftSignalKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C9790795F20800000000 /* HashtagSearchUI */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = HashtagSearchUI;
+			sourceTree = "<group>";
+		};
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29D27875AD00000000 /* HashtagSearchUI-Debug.xcconfig */,
+				1DD70E29FB5455D700000000 /* HashtagSearchUI-Profile.xcconfig */,
+				1DD70E296EEB013900000000 /* HashtagSearchUI-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				634E894D245B2103007CD07F /* TelegramCore.framework */,
+				634E894F245B2103007CD07F /* SyncCore.framework */,
+				634E8951245B2103007CD07F /* Postbox.framework */,
+				634E8953245B2103007CD07F /* Display.framework */,
+				634E8955245B2103007CD07F /* SwiftSignalKit.framework */,
+				1DD70E299D2580DA00000000 /* libAccountContext.a */,
+				1DD70E291E16CC6C00000000 /* libActionSheetPeerItem.a */,
+				1DD70E29BF0846EE00000000 /* libActivityIndicator.a */,
+				1DD70E29F523B9DE00000000 /* libAlertUI.a */,
+				1DD70E29E3C578AA00000000 /* libAnimatedStickerNode.a */,
+				1DD70E292420028600000000 /* libAnimationUI.a */,
+				1DD70E29A54A195300000000 /* libAvatarNode.a */,
+				1DD70E29FD72F45600000000 /* libChatListSearchItemHeader.a */,
+				1DD70E2907DC840B00000000 /* libChatListSearchItemNode.a */,
+				1DD70E297AB043C800000000 /* libChatListSearchRecentPeersNode.a */,
+				1DD70E296DFD63C200000000 /* libChatListUI.a */,
+				1DD70E29B6F47D1F00000000 /* libChatTitleActivityNode.a */,
+				1DD70E2997B4D6D800000000 /* libCheckNode.a */,
+				1DD70E292F91702000000000 /* libContactListUI.a */,
+				1DD70E2931752C6000000000 /* libContactsPeerItem.a */,
+				1DD70E296C9831F100000000 /* libContextUI.a */,
+				1DD70E29CED1620500000000 /* libDeleteChatPeerActionSheetItem.a */,
+				1DD70E292417E0B200000000 /* libDeviceAccess.a */,
+				1DD70E295915423000000000 /* libDeviceLocationManager.a */,
+				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
+				1DD70E2971ED41B100000000 /* libHorizontalPeerItem.a */,
+				1DD70E29D6F14E1000000000 /* libImageBlur.a */,
+				1DD70E29247D9AC100000000 /* libImageTransparency.a */,
+				1DD70E2905A95CB400000000 /* libItemListPeerActionItem.a */,
+				1DD70E299A24C4DE00000000 /* libItemListPeerItem.a */,
+				1DD70E295A26607D00000000 /* libItemListUI.a */,
+				1DD70E29E220F5E800000000 /* libLanguageSuggestionUI.a */,
+				1DD70E29AC43662400000000 /* libListSectionHeaderNode.a */,
+				1DD70E292969635400000000 /* libLiveLocationTimerNode.a */,
+				1DD70E29CE34063500000000 /* libLocalizedPeerData.a */,
+				1DD70E297E2E5F8700000000 /* libMarkdown.a */,
+				1DD70E2936DE2CF900000000 /* libMediaResources.a */,
+				1DD70E29C37F741500000000 /* libMergeLists.a */,
+				1DD70E29BBAF750C00000000 /* libOverlayStatusController.a */,
+				1DD70E29928D142900000000 /* libPeerOnlineMarkerNode.a */,
+				1DD70E29D233F68C00000000 /* libPeerPresenceStatusManager.a */,
+				1DD70E291631B91900000000 /* libPeersNearbyIconNode.a */,
+				1DD70E29B2B7F8DC00000000 /* libPhoneNumberFormat.a */,
+				1DD70E29490601EB00000000 /* libPhotoResources.a */,
+				1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */,
+				1DD70E29DB6520C800000000 /* libPostbox.dylib */,
+				1DD70E294E24879B00000000 /* libPresentationDataUtils.a */,
+				1DD70E29CBE117ED00000000 /* libProgressNavigationButtonNode.a */,
+				1DD70E293E4DE92B00000000 /* libRadialStatusNode.a */,
+				1DD70E29AD66967300000000 /* libReactionSelectionNode.a */,
+				1DD70E291D58331200000000 /* libSaveToCameraRoll.a */,
+				1DD70E29EA9CBB5B00000000 /* libSearchBarNode.a */,
+				1DD70E291328E99400000000 /* libSearchUI.a */,
+				1DD70E2957B5522500000000 /* libSegmentedControlNode.a */,
+				1DD70E29097DBE9200000000 /* libSelectablePeerNode.a */,
+				1DD70E2981AE180900000000 /* libShareController.a */,
+				1DD70E29524F478E00000000 /* libSolidRoundedButtonNode.a */,
+				1DD70E293594DCC000000000 /* libStickerResources.a */,
+				1DD70E2958CFD47D00000000 /* libStringPluralization.a */,
+				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
+				1DD70E2925BBFEEE00000000 /* libSwitchNode.a */,
+				1DD70E297A51CDA100000000 /* libSyncCore.dylib */,
+				1DD70E2934FE8F2900000000 /* libTelegramAnimatedStickerNode.a */,
+				1DD70E29F33FDAC300000000 /* libTelegramAudio.a */,
+				1DD70E2943136EC600000000 /* libTelegramBaseController.a */,
+				1DD70E29119CDA0700000000 /* libTelegramCore.dylib */,
+				1DD70E293551C98400000000 /* libTelegramIntents.a */,
+				1DD70E2988BAAFC800000000 /* libTelegramNotices.a */,
+				1DD70E290DD17C7100000000 /* libTelegramPermissions.a */,
+				1DD70E29DF758A8500000000 /* libTelegramPermissionsUI.a */,
+				1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */,
+				1DD70E29DD3C940F00000000 /* libTelegramStringFormatting.a */,
+				1DD70E292395015100000000 /* libTelegramUIPreferences.a */,
+				1DD70E29BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a */,
+				1DD70E29F0C15F9C00000000 /* libTextFormat.a */,
+				1DD70E29F40A586F00000000 /* libTextSelectionNode.a */,
+				1DD70E29B4B05B7A00000000 /* libTinyThumbnail.a */,
+				1DD70E29A4AF824500000000 /* libTooltipUI.a */,
+				1DD70E29CD296A8300000000 /* libTuples.a */,
+				1DD70E29AE67341000000000 /* libUndoUI.a */,
+				1DD70E2951398CF200000000 /* libUniversalMediaPlayer.a */,
+				1DD70E29597BAFBB00000000 /* libUrlEscaping.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29CCE2AE1600000000 /* libHashtagSearchUI.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29EAA579D500000000 /* HashtagSearchController.swift */,
+				1DD70E291461E27700000000 /* HashtagSearchControllerNode.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C9790795F20800000000 /* HashtagSearchUI */,
+				B401C979C806358400000000 /* Products */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04E0795F20800000000 /* HashtagSearchUI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "HashtagSearchUI" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */,
+				634E894C245B20FF007CD07F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HashtagSearchUI;
+			productName = HashtagSearchUI;
+			productReference = 1DD70E29CCE2AE1600000000 /* libHashtagSearchUI.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C847930795F20800000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "HashtagSearchUI" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04E0795F20800000000 /* HashtagSearchUI */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F04EAA579D500000000 /* HashtagSearchController.swift in Sources */,
+				E7A30F041461E27700000000 /* HashtagSearchControllerNode.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29D27875AD00000000 /* HashtagSearchUI-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29FB5455D700000000 /* HashtagSearchUI-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E296EEB013900000000 /* HashtagSearchUI-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "HashtagSearchUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "HashtagSearchUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C847930795F20800000000 /* Project object */;
+}

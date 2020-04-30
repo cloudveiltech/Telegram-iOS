@@ -7,16 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E7A30F04119CDA0700000000 /* libTelegramCore.dylib in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29119CDA0700000000 /* libTelegramCore.dylib */; };
+		634E8B98245B28A3007CD07F /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8B97245B28A3007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8B9A245B28A3007CD07F /* SyncCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8B99245B28A3007CD07F /* SyncCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8B9C245B28A3007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8B9B245B28A3007CD07F /* Postbox.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8B9E245B28A3007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8B9D245B28A3007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8BA0245B28A3007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8B9F245B28A3007CD07F /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292395015100000000 /* libTelegramUIPreferences.a */; };
 		E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2936DE2CF900000000 /* libMediaResources.a */; };
-		E7A30F047A51CDA100000000 /* libSyncCore.dylib in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E297A51CDA100000000 /* libSyncCore.dylib */; };
 		E7A30F04CD296A8300000000 /* libTuples.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29CD296A8300000000 /* libTuples.a */; };
-		E7A30F04D65BA68200000000 /* libSwiftSignalKit.dylib in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */; };
 		E7A30F04D6F14E1000000000 /* libImageBlur.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29D6F14E1000000000 /* libImageBlur.a */; };
-		E7A30F04DB6520C800000000 /* libPostbox.dylib in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29DB6520C800000000 /* libPostbox.dylib */; };
 		E7A30F04EB8D122D00000000 /* StickerResources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29EB8D122D00000000 /* StickerResources.swift */; };
-		E7A30F04FF334B1F00000000 /* libDisplay.dylib in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29FF334B1F00000000 /* libDisplay.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,12 +26,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
-				E7A30F04FF334B1F00000000 /* libDisplay.dylib in Fake Swift Dependencies (Copy Files Phase) */,
 				E7A30F04D6F14E1000000000 /* libImageBlur.a in Fake Swift Dependencies (Copy Files Phase) */,
-				E7A30F04DB6520C800000000 /* libPostbox.dylib in Fake Swift Dependencies (Copy Files Phase) */,
-				E7A30F04D65BA68200000000 /* libSwiftSignalKit.dylib in Fake Swift Dependencies (Copy Files Phase) */,
-				E7A30F047A51CDA100000000 /* libSyncCore.dylib in Fake Swift Dependencies (Copy Files Phase) */,
-				E7A30F04119CDA0700000000 /* libTelegramCore.dylib in Fake Swift Dependencies (Copy Files Phase) */,
 				E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */,
 				E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */,
 				E7A30F04CD296A8300000000 /* libTuples.a in Fake Swift Dependencies (Copy Files Phase) */,
@@ -57,7 +52,27 @@
 		1DD70E29DD17CA2D00000000 /* StickerResources-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "StickerResources-Debug.xcconfig"; path = "../../buck-out/gen/submodules/StickerResources/StickerResources-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
 		1DD70E29EB8D122D00000000 /* StickerResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StickerResources.swift; path = Sources/StickerResources.swift; sourceTree = SOURCE_ROOT; };
 		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8B97245B28A3007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8B99245B28A3007CD07F /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8B9B245B28A3007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8B9D245B28A3007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8B9F245B28A3007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		634E8B96245B289C007CD07F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E8B98245B28A3007CD07F /* TelegramCore.framework in Frameworks */,
+				634E8B9A245B28A3007CD07F /* SyncCore.framework in Frameworks */,
+				634E8B9C245B28A3007CD07F /* Postbox.framework in Frameworks */,
+				634E8B9E245B28A3007CD07F /* Display.framework in Frameworks */,
+				634E8BA0245B28A3007CD07F /* SwiftSignalKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
@@ -73,6 +88,11 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				634E8B97245B28A3007CD07F /* TelegramCore.framework */,
+				634E8B99245B28A3007CD07F /* SyncCore.framework */,
+				634E8B9B245B28A3007CD07F /* Postbox.framework */,
+				634E8B9D245B28A3007CD07F /* Display.framework */,
+				634E8B9F245B28A3007CD07F /* SwiftSignalKit.framework */,
 				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
 				1DD70E29D6F14E1000000000 /* libImageBlur.a */,
 				1DD70E2936DE2CF900000000 /* libMediaResources.a */,
@@ -139,6 +159,7 @@
 			buildPhases = (
 				1870857F0000000000000000 /* Sources */,
 				FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */,
+				634E8B96245B289C007CD07F /* Frameworks */,
 			);
 			buildRules = (
 			);

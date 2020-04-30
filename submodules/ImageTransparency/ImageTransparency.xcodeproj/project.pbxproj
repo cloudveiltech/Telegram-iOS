@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6360F0A0245B04E8006A9391 /* DisplayFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6360F09F245B04E8006A9391 /* DisplayFr.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8878245B1BC2007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8877245B1BC2007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		E7A30F04ABDE509800000000 /* ImageTransparency.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29ABDE509800000000 /* ImageTransparency.swift */; };
 /* End PBXBuildFile section */
 
@@ -19,6 +19,7 @@
 		1DD70E29ABDE509800000000 /* ImageTransparency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageTransparency.swift; path = Sources/ImageTransparency.swift; sourceTree = SOURCE_ROOT; };
 		1DD70E29CBFE942200000000 /* ImageTransparency-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "ImageTransparency-Debug.xcconfig"; path = "../../buck-out/gen/submodules/ImageTransparency/ImageTransparency-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
 		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8877245B1BC2007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6360F09F245B04E8006A9391 /* DisplayFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = DisplayFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -27,7 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6360F0A0245B04E8006A9391 /* DisplayFr.framework in Frameworks */,
+				634E8878245B1BC2007CD07F /* Display.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -47,6 +48,7 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				634E8877245B1BC2007CD07F /* Display.framework */,
 				6360F09F245B04E8006A9391 /* DisplayFr.framework */,
 				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
 			);

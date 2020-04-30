@@ -1,1893 +1,529 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>archiveVersion</key>
-	<string>1</string>
-	<key>classes</key>
-	<dict>
-	</dict>
-	<key>objectVersion</key>
-	<string>46</string>
-	<key>objects</key>
-	<dict>
-		<key>1DD70E29001F47FB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BUCK</string>
-			<key>path</key>
-			<string>BUCK</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.script.python</string>
-		</dict>
-		<key>1DD70E29B025A89A00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutActionButton.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutActionButton.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E297D2A136E00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutController.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutController.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29395E079000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutControllerNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutControllerNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E299040281200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutHeaderItem.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutHeaderItem.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E299061C1BC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutInfoController.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutInfoController.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E297159DEDE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutInfoControllerNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutInfoControllerNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E293B198E7F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutNativeCardEntryController.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutNativeCardEntryController.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E292E07922100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutNativeCardEntryControllerNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutNativeCardEntryControllerNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E2937196CEB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutPasswordEntryController.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutPasswordEntryController.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29C2B0BCEA00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutPaymentMethodSheet.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutPaymentMethodSheet.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29C83A70C400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutPaymentShippingOptionSheetController.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutPaymentShippingOptionSheetController.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29C1FAEDD400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutPriceItem.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutPriceItem.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29E2BA96EC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutWebInteractionController.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutWebInteractionController.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E2993E49C0E00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotCheckoutWebInteractionControllerNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotCheckoutWebInteractionControllerNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29B6A1976F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentActionItemNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotPaymentActionItemNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29E2636A7500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentCardInputItemNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotPaymentCardInputItemNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E2976694AA700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentDateItemNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotPaymentDateItemNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E293D909F6600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentDisclosureItemNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotPaymentDisclosureItemNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E293680855500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentFieldItemNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotPaymentFieldItemNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E2914F9178600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentHeaderItemNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotPaymentHeaderItemNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E299559CED900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentItemNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotPaymentItemNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29685F3BED00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentSwitchItemNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotPaymentSwitchItemNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29CC5195E600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentTextItemNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotPaymentTextItemNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29938515F200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotReceiptController.swift</string>
-			<key>path</key>
-			<string>Sources/BotReceiptController.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>1DD70E29CDAC281400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotReceiptControllerNode.swift</string>
-			<key>path</key>
-			<string>Sources/BotReceiptControllerNode.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>B401C979EAB5339800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Sources</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E29B025A89A00000000</string>
-				<string>1DD70E297D2A136E00000000</string>
-				<string>1DD70E29395E079000000000</string>
-				<string>1DD70E299040281200000000</string>
-				<string>1DD70E299061C1BC00000000</string>
-				<string>1DD70E297159DEDE00000000</string>
-				<string>1DD70E293B198E7F00000000</string>
-				<string>1DD70E292E07922100000000</string>
-				<string>1DD70E2937196CEB00000000</string>
-				<string>1DD70E29C2B0BCEA00000000</string>
-				<string>1DD70E29C83A70C400000000</string>
-				<string>1DD70E29C1FAEDD400000000</string>
-				<string>1DD70E29E2BA96EC00000000</string>
-				<string>1DD70E2993E49C0E00000000</string>
-				<string>1DD70E29B6A1976F00000000</string>
-				<string>1DD70E29E2636A7500000000</string>
-				<string>1DD70E2976694AA700000000</string>
-				<string>1DD70E293D909F6600000000</string>
-				<string>1DD70E293680855500000000</string>
-				<string>1DD70E2914F9178600000000</string>
-				<string>1DD70E299559CED900000000</string>
-				<string>1DD70E29685F3BED00000000</string>
-				<string>1DD70E29CC5195E600000000</string>
-				<string>1DD70E29938515F200000000</string>
-				<string>1DD70E29CDAC281400000000</string>
-			</array>
-		</dict>
-		<key>B401C97922643F8800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>BotPaymentsUI</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E29001F47FB00000000</string>
-				<string>B401C979EAB5339800000000</string>
-			</array>
-		</dict>
-		<key>1DD70E29AA95782D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentsUI-Debug.xcconfig</string>
-			<key>path</key>
-			<string>../../buck-out/gen/submodules/BotPaymentsUI/BotPaymentsUI-Debug.xcconfig</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.xcconfig</string>
-		</dict>
-		<key>1DD70E29403AB85700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentsUI-Profile.xcconfig</string>
-			<key>path</key>
-			<string>../../buck-out/gen/submodules/BotPaymentsUI/BotPaymentsUI-Profile.xcconfig</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.xcconfig</string>
-		</dict>
-		<key>1DD70E29B3D163B900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>BotPaymentsUI-Release.xcconfig</string>
-			<key>path</key>
-			<string>../../buck-out/gen/submodules/BotPaymentsUI/BotPaymentsUI-Release.xcconfig</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-			<key>explicitFileType</key>
-			<string>text.xcconfig</string>
-		</dict>
-		<key>B401C9792F7F325000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Buck (Do Not Modify)</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E29AA95782D00000000</string>
-				<string>1DD70E29403AB85700000000</string>
-				<string>1DD70E29B3D163B900000000</string>
-			</array>
-		</dict>
-		<key>B401C979B781F65D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Configurations</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>B401C9792F7F325000000000</string>
-			</array>
-		</dict>
-		<key>1DD70E299D2580DA00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libAccountContext.a</string>
-			<key>path</key>
-			<string>libAccountContext.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29BF0846EE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libActivityIndicator.a</string>
-			<key>path</key>
-			<string>libActivityIndicator.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29F523B9DE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libAlertUI.a</string>
-			<key>path</key>
-			<string>libAlertUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29E3C578AA00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libAnimatedStickerNode.a</string>
-			<key>path</key>
-			<string>libAnimatedStickerNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E292420028600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libAnimationUI.a</string>
-			<key>path</key>
-			<string>libAnimationUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2997B4D6D800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libCheckNode.a</string>
-			<key>path</key>
-			<string>libCheckNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29016F454200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libCountrySelectionUI.a</string>
-			<key>path</key>
-			<string>libCountrySelectionUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E292417E0B200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libDeviceAccess.a</string>
-			<key>path</key>
-			<string>libDeviceAccess.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E295915423000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libDeviceLocationManager.a</string>
-			<key>path</key>
-			<string>libDeviceLocationManager.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29FF334B1F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libDisplay.dylib</string>
-			<key>path</key>
-			<string>libDisplay.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E29D6F14E1000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libImageBlur.a</string>
-			<key>path</key>
-			<string>libImageBlur.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29247D9AC100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libImageTransparency.a</string>
-			<key>path</key>
-			<string>libImageTransparency.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E295A26607D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libItemListUI.a</string>
-			<key>path</key>
-			<string>libItemListUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29A889192100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libLocalAuth.a</string>
-			<key>path</key>
-			<string>libLocalAuth.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29CE34063500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libLocalizedPeerData.a</string>
-			<key>path</key>
-			<string>libLocalizedPeerData.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E297552935F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libManagedAnimationNode.a</string>
-			<key>path</key>
-			<string>libManagedAnimationNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E297E2E5F8700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libMarkdown.a</string>
-			<key>path</key>
-			<string>libMarkdown.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2936DE2CF900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libMediaResources.a</string>
-			<key>path</key>
-			<string>libMediaResources.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29C37F741500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libMergeLists.a</string>
-			<key>path</key>
-			<string>libMergeLists.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29BBAF750C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libOverlayStatusController.a</string>
-			<key>path</key>
-			<string>libOverlayStatusController.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E299856EB2400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPasswordSetupUI.a</string>
-			<key>path</key>
-			<string>libPasswordSetupUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29B2B7F8DC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPhoneNumberFormat.a</string>
-			<key>path</key>
-			<string>libPhoneNumberFormat.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29490601EB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPhotoResources.a</string>
-			<key>path</key>
-			<string>libPhotoResources.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E290F1A3C6400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPlatformRestrictionMatching.a</string>
-			<key>path</key>
-			<string>libPlatformRestrictionMatching.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29DB6520C800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPostbox.dylib</string>
-			<key>path</key>
-			<string>libPostbox.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E294E24879B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libPresentationDataUtils.a</string>
-			<key>path</key>
-			<string>libPresentationDataUtils.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29CBE117ED00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libProgressNavigationButtonNode.a</string>
-			<key>path</key>
-			<string>libProgressNavigationButtonNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29EA9CBB5B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSearchBarNode.a</string>
-			<key>path</key>
-			<string>libSearchBarNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2957B5522500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSegmentedControlNode.a</string>
-			<key>path</key>
-			<string>libSegmentedControlNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29524F478E00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSolidRoundedButtonNode.a</string>
-			<key>path</key>
-			<string>libSolidRoundedButtonNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E293594DCC000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libStickerResources.a</string>
-			<key>path</key>
-			<string>libStickerResources.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2958CFD47D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libStringPluralization.a</string>
-			<key>path</key>
-			<string>libStringPluralization.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29D65BA68200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSwiftSignalKit.dylib</string>
-			<key>path</key>
-			<string>libSwiftSignalKit.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E2925BBFEEE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSwitchNode.a</string>
-			<key>path</key>
-			<string>libSwitchNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E297A51CDA100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libSyncCore.dylib</string>
-			<key>path</key>
-			<string>libSyncCore.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E2934FE8F2900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramAnimatedStickerNode.a</string>
-			<key>path</key>
-			<string>libTelegramAnimatedStickerNode.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29F33FDAC300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramAudio.a</string>
-			<key>path</key>
-			<string>libTelegramAudio.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29119CDA0700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramCore.dylib</string>
-			<key>path</key>
-			<string>libTelegramCore.dylib</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>compiled.mach-o.dylib</string>
-		</dict>
-		<key>1DD70E2988BAAFC800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramNotices.a</string>
-			<key>path</key>
-			<string>libTelegramNotices.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E290DD17C7100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramPermissions.a</string>
-			<key>path</key>
-			<string>libTelegramPermissions.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2984A59C1D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramPresentationData.a</string>
-			<key>path</key>
-			<string>libTelegramPresentationData.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29DD3C940F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramStringFormatting.a</string>
-			<key>path</key>
-			<string>libTelegramStringFormatting.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E292395015100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTelegramUIPreferences.a</string>
-			<key>path</key>
-			<string>libTelegramUIPreferences.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29BA06E3A600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTemporaryCachedPeerDataManager.a</string>
-			<key>path</key>
-			<string>libTemporaryCachedPeerDataManager.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29F0C15F9C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTextFormat.a</string>
-			<key>path</key>
-			<string>libTextFormat.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29B4B05B7A00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTinyThumbnail.a</string>
-			<key>path</key>
-			<string>libTinyThumbnail.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E29CD296A8300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libTuples.a</string>
-			<key>path</key>
-			<string>libTuples.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>1DD70E2951398CF200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libUniversalMediaPlayer.a</string>
-			<key>path</key>
-			<string>libUniversalMediaPlayer.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>B401C97968022A5500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Frameworks</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E299D2580DA00000000</string>
-				<string>1DD70E29BF0846EE00000000</string>
-				<string>1DD70E29F523B9DE00000000</string>
-				<string>1DD70E29E3C578AA00000000</string>
-				<string>1DD70E292420028600000000</string>
-				<string>1DD70E2997B4D6D800000000</string>
-				<string>1DD70E29016F454200000000</string>
-				<string>1DD70E292417E0B200000000</string>
-				<string>1DD70E295915423000000000</string>
-				<string>1DD70E29FF334B1F00000000</string>
-				<string>1DD70E29D6F14E1000000000</string>
-				<string>1DD70E29247D9AC100000000</string>
-				<string>1DD70E295A26607D00000000</string>
-				<string>1DD70E29A889192100000000</string>
-				<string>1DD70E29CE34063500000000</string>
-				<string>1DD70E297552935F00000000</string>
-				<string>1DD70E297E2E5F8700000000</string>
-				<string>1DD70E2936DE2CF900000000</string>
-				<string>1DD70E29C37F741500000000</string>
-				<string>1DD70E29BBAF750C00000000</string>
-				<string>1DD70E299856EB2400000000</string>
-				<string>1DD70E29B2B7F8DC00000000</string>
-				<string>1DD70E29490601EB00000000</string>
-				<string>1DD70E290F1A3C6400000000</string>
-				<string>1DD70E29DB6520C800000000</string>
-				<string>1DD70E294E24879B00000000</string>
-				<string>1DD70E29CBE117ED00000000</string>
-				<string>1DD70E29EA9CBB5B00000000</string>
-				<string>1DD70E2957B5522500000000</string>
-				<string>1DD70E29524F478E00000000</string>
-				<string>1DD70E293594DCC000000000</string>
-				<string>1DD70E2958CFD47D00000000</string>
-				<string>1DD70E29D65BA68200000000</string>
-				<string>1DD70E2925BBFEEE00000000</string>
-				<string>1DD70E297A51CDA100000000</string>
-				<string>1DD70E2934FE8F2900000000</string>
-				<string>1DD70E29F33FDAC300000000</string>
-				<string>1DD70E29119CDA0700000000</string>
-				<string>1DD70E2988BAAFC800000000</string>
-				<string>1DD70E290DD17C7100000000</string>
-				<string>1DD70E2984A59C1D00000000</string>
-				<string>1DD70E29DD3C940F00000000</string>
-				<string>1DD70E292395015100000000</string>
-				<string>1DD70E29BA06E3A600000000</string>
-				<string>1DD70E29F0C15F9C00000000</string>
-				<string>1DD70E29B4B05B7A00000000</string>
-				<string>1DD70E29CD296A8300000000</string>
-				<string>1DD70E2951398CF200000000</string>
-			</array>
-		</dict>
-		<key>1DD70E297760E65600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>name</key>
-			<string>libBotPaymentsUI.a</string>
-			<key>path</key>
-			<string>libBotPaymentsUI.a</string>
-			<key>sourceTree</key>
-			<string>BUILT_PRODUCTS_DIR</string>
-			<key>explicitFileType</key>
-			<string>archive.ar</string>
-		</dict>
-		<key>B401C979C806358400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>Products</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>1DD70E297760E65600000000</string>
-			</array>
-		</dict>
-		<key>B401C979EFB6AC4600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXGroup</string>
-			<key>name</key>
-			<string>mainGroup</string>
-			<key>sourceTree</key>
-			<string><![CDATA[<group>]]></string>
-			<key>children</key>
-			<array>
-				<string>B401C97922643F8800000000</string>
-				<string>B401C979B781F65D00000000</string>
-				<string>B401C97968022A5500000000</string>
-				<string>B401C979C806358400000000</string>
-			</array>
-		</dict>
-		<key>E7A30F04B025A89A00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29B025A89A00000000</string>
-		</dict>
-		<key>E7A30F047D2A136E00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E297D2A136E00000000</string>
-		</dict>
-		<key>E7A30F04395E079000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29395E079000000000</string>
-		</dict>
-		<key>E7A30F049040281200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E299040281200000000</string>
-		</dict>
-		<key>E7A30F049061C1BC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E299061C1BC00000000</string>
-		</dict>
-		<key>E7A30F047159DEDE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E297159DEDE00000000</string>
-		</dict>
-		<key>E7A30F043B198E7F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E293B198E7F00000000</string>
-		</dict>
-		<key>E7A30F042E07922100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E292E07922100000000</string>
-		</dict>
-		<key>E7A30F0437196CEB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2937196CEB00000000</string>
-		</dict>
-		<key>E7A30F04C2B0BCEA00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29C2B0BCEA00000000</string>
-		</dict>
-		<key>E7A30F04C83A70C400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29C83A70C400000000</string>
-		</dict>
-		<key>E7A30F04C1FAEDD400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29C1FAEDD400000000</string>
-		</dict>
-		<key>E7A30F04E2BA96EC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29E2BA96EC00000000</string>
-		</dict>
-		<key>E7A30F0493E49C0E00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2993E49C0E00000000</string>
-		</dict>
-		<key>E7A30F04B6A1976F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29B6A1976F00000000</string>
-		</dict>
-		<key>E7A30F04E2636A7500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29E2636A7500000000</string>
-		</dict>
-		<key>E7A30F0476694AA700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2976694AA700000000</string>
-		</dict>
-		<key>E7A30F043D909F6600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E293D909F6600000000</string>
-		</dict>
-		<key>E7A30F043680855500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E293680855500000000</string>
-		</dict>
-		<key>E7A30F0414F9178600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2914F9178600000000</string>
-		</dict>
-		<key>E7A30F049559CED900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E299559CED900000000</string>
-		</dict>
-		<key>E7A30F04685F3BED00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29685F3BED00000000</string>
-		</dict>
-		<key>E7A30F04CC5195E600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29CC5195E600000000</string>
-		</dict>
-		<key>E7A30F04938515F200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29938515F200000000</string>
-		</dict>
-		<key>E7A30F04CDAC281400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29CDAC281400000000</string>
-		</dict>
-		<key>1870857F0000000000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXSourcesBuildPhase</string>
-			<key>files</key>
-			<array>
-				<string>E7A30F04B025A89A00000000</string>
-				<string>E7A30F047D2A136E00000000</string>
-				<string>E7A30F04395E079000000000</string>
-				<string>E7A30F049040281200000000</string>
-				<string>E7A30F049061C1BC00000000</string>
-				<string>E7A30F047159DEDE00000000</string>
-				<string>E7A30F043B198E7F00000000</string>
-				<string>E7A30F042E07922100000000</string>
-				<string>E7A30F0437196CEB00000000</string>
-				<string>E7A30F04C2B0BCEA00000000</string>
-				<string>E7A30F04C83A70C400000000</string>
-				<string>E7A30F04C1FAEDD400000000</string>
-				<string>E7A30F04E2BA96EC00000000</string>
-				<string>E7A30F0493E49C0E00000000</string>
-				<string>E7A30F04B6A1976F00000000</string>
-				<string>E7A30F04E2636A7500000000</string>
-				<string>E7A30F0476694AA700000000</string>
-				<string>E7A30F043D909F6600000000</string>
-				<string>E7A30F043680855500000000</string>
-				<string>E7A30F0414F9178600000000</string>
-				<string>E7A30F049559CED900000000</string>
-				<string>E7A30F04685F3BED00000000</string>
-				<string>E7A30F04CC5195E600000000</string>
-				<string>E7A30F04938515F200000000</string>
-				<string>E7A30F04CDAC281400000000</string>
-			</array>
-		</dict>
-		<key>E7A30F04D65BA68200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29D65BA68200000000</string>
-		</dict>
-		<key>E7A30F045915423000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E295915423000000000</string>
-		</dict>
-		<key>E7A30F04FF334B1F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29FF334B1F00000000</string>
-		</dict>
-		<key>E7A30F04DB6520C800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29DB6520C800000000</string>
-		</dict>
-		<key>E7A30F047A51CDA100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E297A51CDA100000000</string>
-		</dict>
-		<key>E7A30F04F33FDAC300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29F33FDAC300000000</string>
-		</dict>
-		<key>E7A30F04119CDA0700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29119CDA0700000000</string>
-		</dict>
-		<key>E7A30F0451398CF200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2951398CF200000000</string>
-		</dict>
-		<key>E7A30F0436DE2CF900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2936DE2CF900000000</string>
-		</dict>
-		<key>E7A30F0458CFD47D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2958CFD47D00000000</string>
-		</dict>
-		<key>E7A30F042395015100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E292395015100000000</string>
-		</dict>
-		<key>E7A30F0484A59C1D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2984A59C1D00000000</string>
-		</dict>
-		<key>E7A30F04B2B7F8DC00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29B2B7F8DC00000000</string>
-		</dict>
-		<key>E7A30F04CE34063500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29CE34063500000000</string>
-		</dict>
-		<key>E7A30F047E2E5F8700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E297E2E5F8700000000</string>
-		</dict>
-		<key>E7A30F040F1A3C6400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E290F1A3C6400000000</string>
-		</dict>
-		<key>E7A30F04F0C15F9C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29F0C15F9C00000000</string>
-		</dict>
-		<key>E7A30F04DD3C940F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29DD3C940F00000000</string>
-		</dict>
-		<key>E7A30F04BA06E3A600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29BA06E3A600000000</string>
-		</dict>
-		<key>E7A30F049D2580DA00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E299D2580DA00000000</string>
-		</dict>
-		<key>E7A30F04BF0846EE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29BF0846EE00000000</string>
-		</dict>
-		<key>E7A30F04EA9CBB5B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29EA9CBB5B00000000</string>
-		</dict>
-		<key>E7A30F04016F454200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29016F454200000000</string>
-		</dict>
-		<key>E7A30F04E3C578AA00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29E3C578AA00000000</string>
-		</dict>
-		<key>E7A30F04D6F14E1000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29D6F14E1000000000</string>
-		</dict>
-		<key>E7A30F04CD296A8300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29CD296A8300000000</string>
-		</dict>
-		<key>E7A30F043594DCC000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E293594DCC000000000</string>
-		</dict>
-		<key>E7A30F042420028600000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E292420028600000000</string>
-		</dict>
-		<key>E7A30F0497B4D6D800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2997B4D6D800000000</string>
-		</dict>
-		<key>E7A30F04C37F741500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29C37F741500000000</string>
-		</dict>
-		<key>E7A30F04CBE117ED00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29CBE117ED00000000</string>
-		</dict>
-		<key>E7A30F0457B5522500000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2957B5522500000000</string>
-		</dict>
-		<key>E7A30F0425BBFEEE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2925BBFEEE00000000</string>
-		</dict>
-		<key>E7A30F0434FE8F2900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2934FE8F2900000000</string>
-		</dict>
-		<key>E7A30F045A26607D00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E295A26607D00000000</string>
-		</dict>
-		<key>E7A30F04A889192100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29A889192100000000</string>
-		</dict>
-		<key>E7A30F04F523B9DE00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29F523B9DE00000000</string>
-		</dict>
-		<key>E7A30F047552935F00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E297552935F00000000</string>
-		</dict>
-		<key>E7A30F04BBAF750C00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29BBAF750C00000000</string>
-		</dict>
-		<key>E7A30F04524F478E00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29524F478E00000000</string>
-		</dict>
-		<key>E7A30F044E24879B00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E294E24879B00000000</string>
-		</dict>
-		<key>E7A30F049856EB2400000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E299856EB2400000000</string>
-		</dict>
-		<key>E7A30F04247D9AC100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29247D9AC100000000</string>
-		</dict>
-		<key>E7A30F04B4B05B7A00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29B4B05B7A00000000</string>
-		</dict>
-		<key>E7A30F04490601EB00000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E29490601EB00000000</string>
-		</dict>
-		<key>E7A30F042417E0B200000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E292417E0B200000000</string>
-		</dict>
-		<key>E7A30F040DD17C7100000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E290DD17C7100000000</string>
-		</dict>
-		<key>E7A30F0488BAAFC800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>1DD70E2988BAAFC800000000</string>
-		</dict>
-		<key>FAF5FAC90000000000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXCopyFilesBuildPhase</string>
-			<key>files</key>
-			<array>
-				<string>E7A30F04D65BA68200000000</string>
-				<string>E7A30F045915423000000000</string>
-				<string>E7A30F04FF334B1F00000000</string>
-				<string>E7A30F04DB6520C800000000</string>
-				<string>E7A30F047A51CDA100000000</string>
-				<string>E7A30F04F33FDAC300000000</string>
-				<string>E7A30F04119CDA0700000000</string>
-				<string>E7A30F0451398CF200000000</string>
-				<string>E7A30F0436DE2CF900000000</string>
-				<string>E7A30F0458CFD47D00000000</string>
-				<string>E7A30F042395015100000000</string>
-				<string>E7A30F0484A59C1D00000000</string>
-				<string>E7A30F04B2B7F8DC00000000</string>
-				<string>E7A30F04CE34063500000000</string>
-				<string>E7A30F047E2E5F8700000000</string>
-				<string>E7A30F040F1A3C6400000000</string>
-				<string>E7A30F04F0C15F9C00000000</string>
-				<string>E7A30F04DD3C940F00000000</string>
-				<string>E7A30F04BA06E3A600000000</string>
-				<string>E7A30F049D2580DA00000000</string>
-				<string>E7A30F04BF0846EE00000000</string>
-				<string>E7A30F04EA9CBB5B00000000</string>
-				<string>E7A30F04016F454200000000</string>
-				<string>E7A30F04E3C578AA00000000</string>
-				<string>E7A30F04D6F14E1000000000</string>
-				<string>E7A30F04CD296A8300000000</string>
-				<string>E7A30F043594DCC000000000</string>
-				<string>E7A30F042420028600000000</string>
-				<string>E7A30F0497B4D6D800000000</string>
-				<string>E7A30F04C37F741500000000</string>
-				<string>E7A30F04CBE117ED00000000</string>
-				<string>E7A30F0457B5522500000000</string>
-				<string>E7A30F0425BBFEEE00000000</string>
-				<string>E7A30F0434FE8F2900000000</string>
-				<string>E7A30F045A26607D00000000</string>
-				<string>E7A30F04A889192100000000</string>
-				<string>E7A30F04F523B9DE00000000</string>
-				<string>E7A30F047552935F00000000</string>
-				<string>E7A30F04BBAF750C00000000</string>
-				<string>E7A30F04524F478E00000000</string>
-				<string>E7A30F044E24879B00000000</string>
-				<string>E7A30F049856EB2400000000</string>
-				<string>E7A30F04247D9AC100000000</string>
-				<string>E7A30F04B4B05B7A00000000</string>
-				<string>E7A30F04490601EB00000000</string>
-				<string>E7A30F042417E0B200000000</string>
-				<string>E7A30F040DD17C7100000000</string>
-				<string>E7A30F0488BAAFC800000000</string>
-			</array>
-			<key>name</key>
-			<string>Fake Swift Dependencies (Copy Files Phase)</string>
-			<key>runOnlyForDeploymentPostprocessing</key>
-			<integer>1</integer>
-			<key>dstSubfolderSpec</key>
-			<integer>16</integer>
-			<key>dstPath</key>
-			<string></string>
-		</dict>
-		<key>4952437303EDA63300000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Debug</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-			<key>baseConfigurationReference</key>
-			<string>1DD70E29AA95782D00000000</string>
-		</dict>
-		<key>4952437350C7218900000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Profile</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-			<key>baseConfigurationReference</key>
-			<string>1DD70E29403AB85700000000</string>
-		</dict>
-		<key>49524373A439BFE700000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Release</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-			<key>baseConfigurationReference</key>
-			<string>1DD70E29B3D163B900000000</string>
-		</dict>
-		<key>218C37090000000000000000</key>
-		<dict>
-			<key>isa</key>
-			<string>XCConfigurationList</string>
-			<key>buildConfigurations</key>
-			<array>
-				<string>4952437303EDA63300000000</string>
-				<string>4952437350C7218900000000</string>
-				<string>49524373A439BFE700000000</string>
-			</array>
-			<key>defaultConfigurationIsVisible</key>
-			<false/>
-		</dict>
-		<key>E66DC04E22643F8800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXNativeTarget</string>
-			<key>name</key>
-			<string>BotPaymentsUI</string>
-			<key>productName</key>
-			<string>BotPaymentsUI</string>
-			<key>productReference</key>
-			<string>1DD70E297760E65600000000</string>
-			<key>productType</key>
-			<string>com.apple.product-type.library.static</string>
-			<key>dependencies</key>
-			<array>
-			</array>
-			<key>buildPhases</key>
-			<array>
-				<string>1870857F0000000000000000</string>
-				<string>FAF5FAC90000000000000000</string>
-			</array>
-			<key>buildConfigurationList</key>
-			<string>218C37090000000000000000</string>
-		</dict>
-		<key>4952437303EDA63300000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Debug</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-		</dict>
-		<key>4952437350C7218900000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Profile</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-		</dict>
-		<key>49524373A439BFE700000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCBuildConfiguration</string>
-			<key>name</key>
-			<string>Release</string>
-			<key>buildSettings</key>
-			<dict>
-			</dict>
-		</dict>
-		<key>218C37090000000000000001</key>
-		<dict>
-			<key>isa</key>
-			<string>XCConfigurationList</string>
-			<key>buildConfigurations</key>
-			<array>
-				<string>4952437303EDA63300000001</string>
-				<string>4952437350C7218900000001</string>
-				<string>49524373A439BFE700000001</string>
-			</array>
-			<key>defaultConfigurationIsVisible</key>
-			<false/>
-		</dict>
-		<key>96C8479322643F8800000000</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXProject</string>
-			<key>mainGroup</key>
-			<string>B401C979EFB6AC4600000000</string>
-			<key>targets</key>
-			<array>
-				<string>E66DC04E22643F8800000000</string>
-			</array>
-			<key>buildConfigurationList</key>
-			<string>218C37090000000000000001</string>
-			<key>compatibilityVersion</key>
-			<string>Xcode 3.2</string>
-			<key>attributes</key>
-			<dict>
-				<key>LastUpgradeCheck</key>
-				<string>9999</string>
-			</dict>
-		</dict>
-	</dict>
-	<key>rootObject</key>
-	<string>96C8479322643F8800000000</string>
-</dict>
-</plist>
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		634E887D245B1D2C007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E887C245B1D2C007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E887F245B1D33007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E887E245B1D33007CD07F /* Postbox.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8881245B1D3F007CD07F /* SyncCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8880245B1D3F007CD07F /* SyncCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8883245B1D48007CD07F /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8882245B1D48007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8885245B1D73007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8884245B1D73007CD07F /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		E7A30F04016F454200000000 /* libCountrySelectionUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29016F454200000000 /* libCountrySelectionUI.a */; };
+		E7A30F040DD17C7100000000 /* libTelegramPermissions.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E290DD17C7100000000 /* libTelegramPermissions.a */; };
+		E7A30F040F1A3C6400000000 /* libPlatformRestrictionMatching.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */; };
+		E7A30F0414F9178600000000 /* BotPaymentHeaderItemNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2914F9178600000000 /* BotPaymentHeaderItemNode.swift */; };
+		E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292395015100000000 /* libTelegramUIPreferences.a */; };
+		E7A30F042417E0B200000000 /* libDeviceAccess.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292417E0B200000000 /* libDeviceAccess.a */; };
+		E7A30F042420028600000000 /* libAnimationUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292420028600000000 /* libAnimationUI.a */; };
+		E7A30F04247D9AC100000000 /* libImageTransparency.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29247D9AC100000000 /* libImageTransparency.a */; };
+		E7A30F0425BBFEEE00000000 /* libSwitchNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2925BBFEEE00000000 /* libSwitchNode.a */; };
+		E7A30F042E07922100000000 /* BotCheckoutNativeCardEntryControllerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E292E07922100000000 /* BotCheckoutNativeCardEntryControllerNode.swift */; };
+		E7A30F0434FE8F2900000000 /* libTelegramAnimatedStickerNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2934FE8F2900000000 /* libTelegramAnimatedStickerNode.a */; };
+		E7A30F043594DCC000000000 /* libStickerResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E293594DCC000000000 /* libStickerResources.a */; };
+		E7A30F043680855500000000 /* BotPaymentFieldItemNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E293680855500000000 /* BotPaymentFieldItemNode.swift */; };
+		E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2936DE2CF900000000 /* libMediaResources.a */; };
+		E7A30F0437196CEB00000000 /* BotCheckoutPasswordEntryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2937196CEB00000000 /* BotCheckoutPasswordEntryController.swift */; };
+		E7A30F04395E079000000000 /* BotCheckoutControllerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29395E079000000000 /* BotCheckoutControllerNode.swift */; };
+		E7A30F043B198E7F00000000 /* BotCheckoutNativeCardEntryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E293B198E7F00000000 /* BotCheckoutNativeCardEntryController.swift */; };
+		E7A30F043D909F6600000000 /* BotPaymentDisclosureItemNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E293D909F6600000000 /* BotPaymentDisclosureItemNode.swift */; };
+		E7A30F04490601EB00000000 /* libPhotoResources.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29490601EB00000000 /* libPhotoResources.a */; };
+		E7A30F044E24879B00000000 /* libPresentationDataUtils.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E294E24879B00000000 /* libPresentationDataUtils.a */; };
+		E7A30F0451398CF200000000 /* libUniversalMediaPlayer.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2951398CF200000000 /* libUniversalMediaPlayer.a */; };
+		E7A30F04524F478E00000000 /* libSolidRoundedButtonNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29524F478E00000000 /* libSolidRoundedButtonNode.a */; };
+		E7A30F0457B5522500000000 /* libSegmentedControlNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2957B5522500000000 /* libSegmentedControlNode.a */; };
+		E7A30F0458CFD47D00000000 /* libStringPluralization.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2958CFD47D00000000 /* libStringPluralization.a */; };
+		E7A30F045915423000000000 /* libDeviceLocationManager.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E295915423000000000 /* libDeviceLocationManager.a */; };
+		E7A30F045A26607D00000000 /* libItemListUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E295A26607D00000000 /* libItemListUI.a */; };
+		E7A30F04685F3BED00000000 /* BotPaymentSwitchItemNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29685F3BED00000000 /* BotPaymentSwitchItemNode.swift */; };
+		E7A30F047159DEDE00000000 /* BotCheckoutInfoControllerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E297159DEDE00000000 /* BotCheckoutInfoControllerNode.swift */; };
+		E7A30F047552935F00000000 /* libManagedAnimationNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E297552935F00000000 /* libManagedAnimationNode.a */; };
+		E7A30F0476694AA700000000 /* BotPaymentDateItemNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2976694AA700000000 /* BotPaymentDateItemNode.swift */; };
+		E7A30F047D2A136E00000000 /* BotCheckoutController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E297D2A136E00000000 /* BotCheckoutController.swift */; };
+		E7A30F047E2E5F8700000000 /* libMarkdown.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E297E2E5F8700000000 /* libMarkdown.a */; };
+		E7A30F0484A59C1D00000000 /* libTelegramPresentationData.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */; };
+		E7A30F0488BAAFC800000000 /* libTelegramNotices.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2988BAAFC800000000 /* libTelegramNotices.a */; };
+		E7A30F049040281200000000 /* BotCheckoutHeaderItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E299040281200000000 /* BotCheckoutHeaderItem.swift */; };
+		E7A30F049061C1BC00000000 /* BotCheckoutInfoController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E299061C1BC00000000 /* BotCheckoutInfoController.swift */; };
+		E7A30F04938515F200000000 /* BotReceiptController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29938515F200000000 /* BotReceiptController.swift */; };
+		E7A30F0493E49C0E00000000 /* BotCheckoutWebInteractionControllerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2993E49C0E00000000 /* BotCheckoutWebInteractionControllerNode.swift */; };
+		E7A30F049559CED900000000 /* BotPaymentItemNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E299559CED900000000 /* BotPaymentItemNode.swift */; };
+		E7A30F0497B4D6D800000000 /* libCheckNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2997B4D6D800000000 /* libCheckNode.a */; };
+		E7A30F049856EB2400000000 /* libPasswordSetupUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E299856EB2400000000 /* libPasswordSetupUI.a */; };
+		E7A30F049D2580DA00000000 /* libAccountContext.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E299D2580DA00000000 /* libAccountContext.a */; };
+		E7A30F04A889192100000000 /* libLocalAuth.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29A889192100000000 /* libLocalAuth.a */; };
+		E7A30F04B025A89A00000000 /* BotCheckoutActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29B025A89A00000000 /* BotCheckoutActionButton.swift */; };
+		E7A30F04B2B7F8DC00000000 /* libPhoneNumberFormat.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29B2B7F8DC00000000 /* libPhoneNumberFormat.a */; };
+		E7A30F04B4B05B7A00000000 /* libTinyThumbnail.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29B4B05B7A00000000 /* libTinyThumbnail.a */; };
+		E7A30F04B6A1976F00000000 /* BotPaymentActionItemNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29B6A1976F00000000 /* BotPaymentActionItemNode.swift */; };
+		E7A30F04BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a */; };
+		E7A30F04BBAF750C00000000 /* libOverlayStatusController.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29BBAF750C00000000 /* libOverlayStatusController.a */; };
+		E7A30F04BF0846EE00000000 /* libActivityIndicator.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29BF0846EE00000000 /* libActivityIndicator.a */; };
+		E7A30F04C1FAEDD400000000 /* BotCheckoutPriceItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29C1FAEDD400000000 /* BotCheckoutPriceItem.swift */; };
+		E7A30F04C2B0BCEA00000000 /* BotCheckoutPaymentMethodSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29C2B0BCEA00000000 /* BotCheckoutPaymentMethodSheet.swift */; };
+		E7A30F04C37F741500000000 /* libMergeLists.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29C37F741500000000 /* libMergeLists.a */; };
+		E7A30F04C83A70C400000000 /* BotCheckoutPaymentShippingOptionSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29C83A70C400000000 /* BotCheckoutPaymentShippingOptionSheetController.swift */; };
+		E7A30F04CBE117ED00000000 /* libProgressNavigationButtonNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29CBE117ED00000000 /* libProgressNavigationButtonNode.a */; };
+		E7A30F04CC5195E600000000 /* BotPaymentTextItemNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29CC5195E600000000 /* BotPaymentTextItemNode.swift */; };
+		E7A30F04CD296A8300000000 /* libTuples.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29CD296A8300000000 /* libTuples.a */; };
+		E7A30F04CDAC281400000000 /* BotReceiptControllerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29CDAC281400000000 /* BotReceiptControllerNode.swift */; };
+		E7A30F04CE34063500000000 /* libLocalizedPeerData.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29CE34063500000000 /* libLocalizedPeerData.a */; };
+		E7A30F04D6F14E1000000000 /* libImageBlur.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29D6F14E1000000000 /* libImageBlur.a */; };
+		E7A30F04DD3C940F00000000 /* libTelegramStringFormatting.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29DD3C940F00000000 /* libTelegramStringFormatting.a */; };
+		E7A30F04E2636A7500000000 /* BotPaymentCardInputItemNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29E2636A7500000000 /* BotPaymentCardInputItemNode.swift */; };
+		E7A30F04E2BA96EC00000000 /* BotCheckoutWebInteractionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29E2BA96EC00000000 /* BotCheckoutWebInteractionController.swift */; };
+		E7A30F04E3C578AA00000000 /* libAnimatedStickerNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29E3C578AA00000000 /* libAnimatedStickerNode.a */; };
+		E7A30F04EA9CBB5B00000000 /* libSearchBarNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29EA9CBB5B00000000 /* libSearchBarNode.a */; };
+		E7A30F04F0C15F9C00000000 /* libTextFormat.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29F0C15F9C00000000 /* libTextFormat.a */; };
+		E7A30F04F33FDAC300000000 /* libTelegramAudio.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29F33FDAC300000000 /* libTelegramAudio.a */; };
+		E7A30F04F523B9DE00000000 /* libAlertUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29F523B9DE00000000 /* libAlertUI.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 0;
+			dstPath = "";
+			dstSubfolderSpec = 16;
+			files = (
+				E7A30F045915423000000000 /* libDeviceLocationManager.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04F33FDAC300000000 /* libTelegramAudio.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0451398CF200000000 /* libUniversalMediaPlayer.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0458CFD47D00000000 /* libStringPluralization.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0484A59C1D00000000 /* libTelegramPresentationData.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04B2B7F8DC00000000 /* libPhoneNumberFormat.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04CE34063500000000 /* libLocalizedPeerData.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F047E2E5F8700000000 /* libMarkdown.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F040F1A3C6400000000 /* libPlatformRestrictionMatching.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04F0C15F9C00000000 /* libTextFormat.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04DD3C940F00000000 /* libTelegramStringFormatting.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F049D2580DA00000000 /* libAccountContext.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04BF0846EE00000000 /* libActivityIndicator.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04EA9CBB5B00000000 /* libSearchBarNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04016F454200000000 /* libCountrySelectionUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04E3C578AA00000000 /* libAnimatedStickerNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04D6F14E1000000000 /* libImageBlur.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04CD296A8300000000 /* libTuples.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F043594DCC000000000 /* libStickerResources.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042420028600000000 /* libAnimationUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0497B4D6D800000000 /* libCheckNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04C37F741500000000 /* libMergeLists.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04CBE117ED00000000 /* libProgressNavigationButtonNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0457B5522500000000 /* libSegmentedControlNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0425BBFEEE00000000 /* libSwitchNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0434FE8F2900000000 /* libTelegramAnimatedStickerNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F045A26607D00000000 /* libItemListUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04A889192100000000 /* libLocalAuth.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04F523B9DE00000000 /* libAlertUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F047552935F00000000 /* libManagedAnimationNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04BBAF750C00000000 /* libOverlayStatusController.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04524F478E00000000 /* libSolidRoundedButtonNode.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F044E24879B00000000 /* libPresentationDataUtils.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F049856EB2400000000 /* libPasswordSetupUI.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04247D9AC100000000 /* libImageTransparency.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04B4B05B7A00000000 /* libTinyThumbnail.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F04490601EB00000000 /* libPhotoResources.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F042417E0B200000000 /* libDeviceAccess.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F040DD17C7100000000 /* libTelegramPermissions.a in Fake Swift Dependencies (Copy Files Phase) */,
+				E7A30F0488BAAFC800000000 /* libTelegramNotices.a in Fake Swift Dependencies (Copy Files Phase) */,
+			);
+			name = "Fake Swift Dependencies (Copy Files Phase)";
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1DD70E29001F47FB00000000 /* BUCK */ = {isa = PBXFileReference; explicitFileType = text.script.python; path = BUCK; sourceTree = SOURCE_ROOT; };
+		1DD70E29016F454200000000 /* libCountrySelectionUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libCountrySelectionUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E290DD17C7100000000 /* libTelegramPermissions.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramPermissions.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPlatformRestrictionMatching.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29119CDA0700000000 /* libTelegramCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libTelegramCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2914F9178600000000 /* BotPaymentHeaderItemNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotPaymentHeaderItemNode.swift; path = Sources/BotPaymentHeaderItemNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E292395015100000000 /* libTelegramUIPreferences.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramUIPreferences.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292417E0B200000000 /* libDeviceAccess.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDeviceAccess.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292420028600000000 /* libAnimationUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAnimationUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29247D9AC100000000 /* libImageTransparency.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libImageTransparency.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2925BBFEEE00000000 /* libSwitchNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSwitchNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E292E07922100000000 /* BotCheckoutNativeCardEntryControllerNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutNativeCardEntryControllerNode.swift; path = Sources/BotCheckoutNativeCardEntryControllerNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2934FE8F2900000000 /* libTelegramAnimatedStickerNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramAnimatedStickerNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E293594DCC000000000 /* libStickerResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libStickerResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E293680855500000000 /* BotPaymentFieldItemNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotPaymentFieldItemNode.swift; path = Sources/BotPaymentFieldItemNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2936DE2CF900000000 /* libMediaResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMediaResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2937196CEB00000000 /* BotCheckoutPasswordEntryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutPasswordEntryController.swift; path = Sources/BotCheckoutPasswordEntryController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29395E079000000000 /* BotCheckoutControllerNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutControllerNode.swift; path = Sources/BotCheckoutControllerNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E293B198E7F00000000 /* BotCheckoutNativeCardEntryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutNativeCardEntryController.swift; path = Sources/BotCheckoutNativeCardEntryController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E293D909F6600000000 /* BotPaymentDisclosureItemNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotPaymentDisclosureItemNode.swift; path = Sources/BotPaymentDisclosureItemNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29403AB85700000000 /* BotPaymentsUI-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "BotPaymentsUI-Profile.xcconfig"; path = "../../buck-out/gen/submodules/BotPaymentsUI/BotPaymentsUI-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29490601EB00000000 /* libPhotoResources.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPhotoResources.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E294E24879B00000000 /* libPresentationDataUtils.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPresentationDataUtils.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2951398CF200000000 /* libUniversalMediaPlayer.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libUniversalMediaPlayer.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29524F478E00000000 /* libSolidRoundedButtonNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSolidRoundedButtonNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2957B5522500000000 /* libSegmentedControlNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSegmentedControlNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2958CFD47D00000000 /* libStringPluralization.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libStringPluralization.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E295915423000000000 /* libDeviceLocationManager.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDeviceLocationManager.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E295A26607D00000000 /* libItemListUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libItemListUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29685F3BED00000000 /* BotPaymentSwitchItemNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotPaymentSwitchItemNode.swift; path = Sources/BotPaymentSwitchItemNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E297159DEDE00000000 /* BotCheckoutInfoControllerNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutInfoControllerNode.swift; path = Sources/BotCheckoutInfoControllerNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E297552935F00000000 /* libManagedAnimationNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libManagedAnimationNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2976694AA700000000 /* BotPaymentDateItemNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotPaymentDateItemNode.swift; path = Sources/BotPaymentDateItemNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E297760E65600000000 /* libBotPaymentsUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libBotPaymentsUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E297A51CDA100000000 /* libSyncCore.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSyncCore.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E297D2A136E00000000 /* BotCheckoutController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutController.swift; path = Sources/BotCheckoutController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E297E2E5F8700000000 /* libMarkdown.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMarkdown.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramPresentationData.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E2988BAAFC800000000 /* libTelegramNotices.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramNotices.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E299040281200000000 /* BotCheckoutHeaderItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutHeaderItem.swift; path = Sources/BotCheckoutHeaderItem.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E299061C1BC00000000 /* BotCheckoutInfoController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutInfoController.swift; path = Sources/BotCheckoutInfoController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29938515F200000000 /* BotReceiptController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotReceiptController.swift; path = Sources/BotReceiptController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2993E49C0E00000000 /* BotCheckoutWebInteractionControllerNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutWebInteractionControllerNode.swift; path = Sources/BotCheckoutWebInteractionControllerNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E299559CED900000000 /* BotPaymentItemNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotPaymentItemNode.swift; path = Sources/BotPaymentItemNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E2997B4D6D800000000 /* libCheckNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libCheckNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E299856EB2400000000 /* libPasswordSetupUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPasswordSetupUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E299D2580DA00000000 /* libAccountContext.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAccountContext.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29A889192100000000 /* libLocalAuth.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libLocalAuth.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29AA95782D00000000 /* BotPaymentsUI-Debug.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "BotPaymentsUI-Debug.xcconfig"; path = "../../buck-out/gen/submodules/BotPaymentsUI/BotPaymentsUI-Debug.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29B025A89A00000000 /* BotCheckoutActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutActionButton.swift; path = Sources/BotCheckoutActionButton.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29B2B7F8DC00000000 /* libPhoneNumberFormat.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libPhoneNumberFormat.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29B3D163B900000000 /* BotPaymentsUI-Release.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "BotPaymentsUI-Release.xcconfig"; path = "../../buck-out/gen/submodules/BotPaymentsUI/BotPaymentsUI-Release.xcconfig"; sourceTree = SOURCE_ROOT; };
+		1DD70E29B4B05B7A00000000 /* libTinyThumbnail.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTinyThumbnail.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29B6A1976F00000000 /* BotPaymentActionItemNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotPaymentActionItemNode.swift; path = Sources/BotPaymentActionItemNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTemporaryCachedPeerDataManager.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29BBAF750C00000000 /* libOverlayStatusController.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libOverlayStatusController.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29BF0846EE00000000 /* libActivityIndicator.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libActivityIndicator.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29C1FAEDD400000000 /* BotCheckoutPriceItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutPriceItem.swift; path = Sources/BotCheckoutPriceItem.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29C2B0BCEA00000000 /* BotCheckoutPaymentMethodSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutPaymentMethodSheet.swift; path = Sources/BotCheckoutPaymentMethodSheet.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29C37F741500000000 /* libMergeLists.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libMergeLists.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29C83A70C400000000 /* BotCheckoutPaymentShippingOptionSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutPaymentShippingOptionSheetController.swift; path = Sources/BotCheckoutPaymentShippingOptionSheetController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29CBE117ED00000000 /* libProgressNavigationButtonNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libProgressNavigationButtonNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29CC5195E600000000 /* BotPaymentTextItemNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotPaymentTextItemNode.swift; path = Sources/BotPaymentTextItemNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29CD296A8300000000 /* libTuples.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTuples.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29CDAC281400000000 /* BotReceiptControllerNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotReceiptControllerNode.swift; path = Sources/BotReceiptControllerNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29CE34063500000000 /* libLocalizedPeerData.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libLocalizedPeerData.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29D6F14E1000000000 /* libImageBlur.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libImageBlur.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DB6520C800000000 /* libPostbox.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libPostbox.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29DD3C940F00000000 /* libTelegramStringFormatting.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramStringFormatting.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29E2636A7500000000 /* BotPaymentCardInputItemNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotPaymentCardInputItemNode.swift; path = Sources/BotPaymentCardInputItemNode.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29E2BA96EC00000000 /* BotCheckoutWebInteractionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BotCheckoutWebInteractionController.swift; path = Sources/BotCheckoutWebInteractionController.swift; sourceTree = SOURCE_ROOT; };
+		1DD70E29E3C578AA00000000 /* libAnimatedStickerNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAnimatedStickerNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29EA9CBB5B00000000 /* libSearchBarNode.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libSearchBarNode.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F0C15F9C00000000 /* libTextFormat.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTextFormat.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F33FDAC300000000 /* libTelegramAudio.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libTelegramAudio.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29F523B9DE00000000 /* libAlertUI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAlertUI.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E887A245B1D21007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E887C245B1D2C007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E887E245B1D33007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8880245B1D3F007CD07F /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8882245B1D48007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8884245B1D73007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		634E8879245B1D18007CD07F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E8885245B1D73007CD07F /* SwiftSignalKit.framework in Frameworks */,
+				634E8883245B1D48007CD07F /* TelegramCore.framework in Frameworks */,
+				634E8881245B1D3F007CD07F /* SyncCore.framework in Frameworks */,
+				634E887F245B1D33007CD07F /* Postbox.framework in Frameworks */,
+				634E887D245B1D2C007CD07F /* Display.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B401C97922643F8800000000 /* BotPaymentsUI */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29001F47FB00000000 /* BUCK */,
+				B401C979EAB5339800000000 /* Sources */,
+			);
+			name = BotPaymentsUI;
+			sourceTree = "<group>";
+		};
+		B401C9792F7F325000000000 /* Buck (Do Not Modify) */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29AA95782D00000000 /* BotPaymentsUI-Debug.xcconfig */,
+				1DD70E29403AB85700000000 /* BotPaymentsUI-Profile.xcconfig */,
+				1DD70E29B3D163B900000000 /* BotPaymentsUI-Release.xcconfig */,
+			);
+			name = "Buck (Do Not Modify)";
+			sourceTree = "<group>";
+		};
+		B401C97968022A5500000000 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				634E8884245B1D73007CD07F /* SwiftSignalKit.framework */,
+				634E8882245B1D48007CD07F /* TelegramCore.framework */,
+				634E8880245B1D3F007CD07F /* SyncCore.framework */,
+				634E887E245B1D33007CD07F /* Postbox.framework */,
+				634E887C245B1D2C007CD07F /* Display.framework */,
+				634E887A245B1D21007CD07F /* SwiftSignalKit.framework */,
+				1DD70E299D2580DA00000000 /* libAccountContext.a */,
+				1DD70E29BF0846EE00000000 /* libActivityIndicator.a */,
+				1DD70E29F523B9DE00000000 /* libAlertUI.a */,
+				1DD70E29E3C578AA00000000 /* libAnimatedStickerNode.a */,
+				1DD70E292420028600000000 /* libAnimationUI.a */,
+				1DD70E2997B4D6D800000000 /* libCheckNode.a */,
+				1DD70E29016F454200000000 /* libCountrySelectionUI.a */,
+				1DD70E292417E0B200000000 /* libDeviceAccess.a */,
+				1DD70E295915423000000000 /* libDeviceLocationManager.a */,
+				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,
+				1DD70E29D6F14E1000000000 /* libImageBlur.a */,
+				1DD70E29247D9AC100000000 /* libImageTransparency.a */,
+				1DD70E295A26607D00000000 /* libItemListUI.a */,
+				1DD70E29A889192100000000 /* libLocalAuth.a */,
+				1DD70E29CE34063500000000 /* libLocalizedPeerData.a */,
+				1DD70E297552935F00000000 /* libManagedAnimationNode.a */,
+				1DD70E297E2E5F8700000000 /* libMarkdown.a */,
+				1DD70E2936DE2CF900000000 /* libMediaResources.a */,
+				1DD70E29C37F741500000000 /* libMergeLists.a */,
+				1DD70E29BBAF750C00000000 /* libOverlayStatusController.a */,
+				1DD70E299856EB2400000000 /* libPasswordSetupUI.a */,
+				1DD70E29B2B7F8DC00000000 /* libPhoneNumberFormat.a */,
+				1DD70E29490601EB00000000 /* libPhotoResources.a */,
+				1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */,
+				1DD70E29DB6520C800000000 /* libPostbox.dylib */,
+				1DD70E294E24879B00000000 /* libPresentationDataUtils.a */,
+				1DD70E29CBE117ED00000000 /* libProgressNavigationButtonNode.a */,
+				1DD70E29EA9CBB5B00000000 /* libSearchBarNode.a */,
+				1DD70E2957B5522500000000 /* libSegmentedControlNode.a */,
+				1DD70E29524F478E00000000 /* libSolidRoundedButtonNode.a */,
+				1DD70E293594DCC000000000 /* libStickerResources.a */,
+				1DD70E2958CFD47D00000000 /* libStringPluralization.a */,
+				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
+				1DD70E2925BBFEEE00000000 /* libSwitchNode.a */,
+				1DD70E297A51CDA100000000 /* libSyncCore.dylib */,
+				1DD70E2934FE8F2900000000 /* libTelegramAnimatedStickerNode.a */,
+				1DD70E29F33FDAC300000000 /* libTelegramAudio.a */,
+				1DD70E29119CDA0700000000 /* libTelegramCore.dylib */,
+				1DD70E2988BAAFC800000000 /* libTelegramNotices.a */,
+				1DD70E290DD17C7100000000 /* libTelegramPermissions.a */,
+				1DD70E2984A59C1D00000000 /* libTelegramPresentationData.a */,
+				1DD70E29DD3C940F00000000 /* libTelegramStringFormatting.a */,
+				1DD70E292395015100000000 /* libTelegramUIPreferences.a */,
+				1DD70E29BA06E3A600000000 /* libTemporaryCachedPeerDataManager.a */,
+				1DD70E29F0C15F9C00000000 /* libTextFormat.a */,
+				1DD70E29B4B05B7A00000000 /* libTinyThumbnail.a */,
+				1DD70E29CD296A8300000000 /* libTuples.a */,
+				1DD70E2951398CF200000000 /* libUniversalMediaPlayer.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B401C979B781F65D00000000 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				B401C9792F7F325000000000 /* Buck (Do Not Modify) */,
+			);
+			name = Configurations;
+			sourceTree = "<group>";
+		};
+		B401C979C806358400000000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E297760E65600000000 /* libBotPaymentsUI.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B401C979EAB5339800000000 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DD70E29B025A89A00000000 /* BotCheckoutActionButton.swift */,
+				1DD70E297D2A136E00000000 /* BotCheckoutController.swift */,
+				1DD70E29395E079000000000 /* BotCheckoutControllerNode.swift */,
+				1DD70E299040281200000000 /* BotCheckoutHeaderItem.swift */,
+				1DD70E299061C1BC00000000 /* BotCheckoutInfoController.swift */,
+				1DD70E297159DEDE00000000 /* BotCheckoutInfoControllerNode.swift */,
+				1DD70E293B198E7F00000000 /* BotCheckoutNativeCardEntryController.swift */,
+				1DD70E292E07922100000000 /* BotCheckoutNativeCardEntryControllerNode.swift */,
+				1DD70E2937196CEB00000000 /* BotCheckoutPasswordEntryController.swift */,
+				1DD70E29C2B0BCEA00000000 /* BotCheckoutPaymentMethodSheet.swift */,
+				1DD70E29C83A70C400000000 /* BotCheckoutPaymentShippingOptionSheetController.swift */,
+				1DD70E29C1FAEDD400000000 /* BotCheckoutPriceItem.swift */,
+				1DD70E29E2BA96EC00000000 /* BotCheckoutWebInteractionController.swift */,
+				1DD70E2993E49C0E00000000 /* BotCheckoutWebInteractionControllerNode.swift */,
+				1DD70E29B6A1976F00000000 /* BotPaymentActionItemNode.swift */,
+				1DD70E29E2636A7500000000 /* BotPaymentCardInputItemNode.swift */,
+				1DD70E2976694AA700000000 /* BotPaymentDateItemNode.swift */,
+				1DD70E293D909F6600000000 /* BotPaymentDisclosureItemNode.swift */,
+				1DD70E293680855500000000 /* BotPaymentFieldItemNode.swift */,
+				1DD70E2914F9178600000000 /* BotPaymentHeaderItemNode.swift */,
+				1DD70E299559CED900000000 /* BotPaymentItemNode.swift */,
+				1DD70E29685F3BED00000000 /* BotPaymentSwitchItemNode.swift */,
+				1DD70E29CC5195E600000000 /* BotPaymentTextItemNode.swift */,
+				1DD70E29938515F200000000 /* BotReceiptController.swift */,
+				1DD70E29CDAC281400000000 /* BotReceiptControllerNode.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		B401C979EFB6AC4600000000 /* mainGroup */ = {
+			isa = PBXGroup;
+			children = (
+				B401C97922643F8800000000 /* BotPaymentsUI */,
+				B401C979B781F65D00000000 /* Configurations */,
+				B401C97968022A5500000000 /* Frameworks */,
+				B401C979C806358400000000 /* Products */,
+			);
+			name = mainGroup;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E66DC04E22643F8800000000 /* BotPaymentsUI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218C37090000000000000000 /* Build configuration list for PBXNativeTarget "BotPaymentsUI" */;
+			buildPhases = (
+				1870857F0000000000000000 /* Sources */,
+				FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */,
+				634E8879245B1D18007CD07F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BotPaymentsUI;
+			productName = BotPaymentsUI;
+			productReference = 1DD70E297760E65600000000 /* libBotPaymentsUI.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96C8479322643F8800000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 9999;
+			};
+			buildConfigurationList = 218C37090000000000000001 /* Build configuration list for PBXProject "BotPaymentsUI" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E66DC04E22643F8800000000 /* BotPaymentsUI */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1870857F0000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 0;
+			files = (
+				E7A30F04B025A89A00000000 /* BotCheckoutActionButton.swift in Sources */,
+				E7A30F047D2A136E00000000 /* BotCheckoutController.swift in Sources */,
+				E7A30F04395E079000000000 /* BotCheckoutControllerNode.swift in Sources */,
+				E7A30F049040281200000000 /* BotCheckoutHeaderItem.swift in Sources */,
+				E7A30F049061C1BC00000000 /* BotCheckoutInfoController.swift in Sources */,
+				E7A30F047159DEDE00000000 /* BotCheckoutInfoControllerNode.swift in Sources */,
+				E7A30F043B198E7F00000000 /* BotCheckoutNativeCardEntryController.swift in Sources */,
+				E7A30F042E07922100000000 /* BotCheckoutNativeCardEntryControllerNode.swift in Sources */,
+				E7A30F0437196CEB00000000 /* BotCheckoutPasswordEntryController.swift in Sources */,
+				E7A30F04C2B0BCEA00000000 /* BotCheckoutPaymentMethodSheet.swift in Sources */,
+				E7A30F04C83A70C400000000 /* BotCheckoutPaymentShippingOptionSheetController.swift in Sources */,
+				E7A30F04C1FAEDD400000000 /* BotCheckoutPriceItem.swift in Sources */,
+				E7A30F04E2BA96EC00000000 /* BotCheckoutWebInteractionController.swift in Sources */,
+				E7A30F0493E49C0E00000000 /* BotCheckoutWebInteractionControllerNode.swift in Sources */,
+				E7A30F04B6A1976F00000000 /* BotPaymentActionItemNode.swift in Sources */,
+				E7A30F04E2636A7500000000 /* BotPaymentCardInputItemNode.swift in Sources */,
+				E7A30F0476694AA700000000 /* BotPaymentDateItemNode.swift in Sources */,
+				E7A30F043D909F6600000000 /* BotPaymentDisclosureItemNode.swift in Sources */,
+				E7A30F043680855500000000 /* BotPaymentFieldItemNode.swift in Sources */,
+				E7A30F0414F9178600000000 /* BotPaymentHeaderItemNode.swift in Sources */,
+				E7A30F049559CED900000000 /* BotPaymentItemNode.swift in Sources */,
+				E7A30F04685F3BED00000000 /* BotPaymentSwitchItemNode.swift in Sources */,
+				E7A30F04CC5195E600000000 /* BotPaymentTextItemNode.swift in Sources */,
+				E7A30F04938515F200000000 /* BotReceiptController.swift in Sources */,
+				E7A30F04CDAC281400000000 /* BotReceiptControllerNode.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4952437303EDA63300000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29AA95782D00000000 /* BotPaymentsUI-Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437303EDA63300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4952437350C7218900000000 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29403AB85700000000 /* BotPaymentsUI-Profile.xcconfig */;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		4952437350C7218900000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Profile;
+		};
+		49524373A439BFE700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29B3D163B900000000 /* BotPaymentsUI-Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		49524373A439BFE700000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		218C37090000000000000000 /* Build configuration list for PBXNativeTarget "BotPaymentsUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000000 /* Debug */,
+				4952437350C7218900000000 /* Profile */,
+				49524373A439BFE700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		218C37090000000000000001 /* Build configuration list for PBXProject "BotPaymentsUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4952437303EDA63300000001 /* Debug */,
+				4952437350C7218900000001 /* Profile */,
+				49524373A439BFE700000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96C8479322643F8800000000 /* Project object */;
+}

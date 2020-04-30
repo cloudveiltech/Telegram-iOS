@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		634E8B56245B27B7007CD07F /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8B55245B27B7007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8B58245B27B7007CD07F /* SyncCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8B57245B27B7007CD07F /* SyncCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8B5A245B27B7007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8B59245B27B7007CD07F /* Postbox.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8B5C245B27B7007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8B5B245B27B7007CD07F /* Display.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		634E8B5E245B27B7007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8B5D245B27B7007CD07F /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		E7A30F04005B963600000000 /* libPhoneInputNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29005B963600000000 /* libPhoneInputNode.a */; };
 		E7A30F04016F454200000000 /* libCountrySelectionUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29016F454200000000 /* libCountrySelectionUI.a */; };
 		E7A30F0403BC291D00000000 /* TwoStepVerificationResetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2903BC291D00000000 /* TwoStepVerificationResetController.swift */; };
@@ -19,7 +24,6 @@
 		E7A30F040CE8445000000000 /* BubbleSettingsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E290CE8445000000000 /* BubbleSettingsController.swift */; };
 		E7A30F040DD17C7100000000 /* libTelegramPermissions.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E290DD17C7100000000 /* libTelegramPermissions.a */; };
 		E7A30F040F1A3C6400000000 /* libPlatformRestrictionMatching.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */; };
-		E7A30F04119CDA0700000000 /* libTelegramCore.dylib in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29119CDA0700000000 /* libTelegramCore.dylib */; };
 		E7A30F041328E99400000000 /* libSearchUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E291328E99400000000 /* libSearchUI.a */; };
 		E7A30F0413D735D800000000 /* TwoStepVerificationUnlockController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2913D735D800000000 /* TwoStepVerificationUnlockController.swift */; };
 		E7A30F0413DCCEF500000000 /* LogoutOptionsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2913DCCEF500000000 /* LogoutOptionsController.swift */; };
@@ -117,7 +121,6 @@
 		E7A30F0479B33BEC00000000 /* WebBrowserItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2979B33BEC00000000 /* WebBrowserItem.swift */; };
 		E7A30F0479C8627B00000000 /* AutodownloadSizeLimitItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2979C8627B00000000 /* AutodownloadSizeLimitItem.swift */; };
 		E7A30F0479E58A0000000000 /* libDateSelectionUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E2979E58A0000000000 /* libDateSelectionUI.a */; };
-		E7A30F047A51CDA100000000 /* libSyncCore.dylib in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E297A51CDA100000000 /* libSyncCore.dylib */; };
 		E7A30F047AB043C800000000 /* libChatListSearchRecentPeersNode.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E297AB043C800000000 /* libChatListSearchRecentPeersNode.a */; };
 		E7A30F047BE7988100000000 /* PasscodeOptionsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E297BE7988100000000 /* PasscodeOptionsController.swift */; };
 		E7A30F047C88F99900000000 /* RecentSessionsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E297C88F99900000000 /* RecentSessionsController.swift */; };
@@ -208,13 +211,11 @@
 		E7A30F04D2CC37F000000000 /* ThemeGridController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29D2CC37F000000000 /* ThemeGridController.swift */; };
 		E7A30F04D4FFA29400000000 /* ThemeSettingsFontSizeItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29D4FFA29400000000 /* ThemeSettingsFontSizeItem.swift */; };
 		E7A30F04D53B9EF800000000 /* CalculatingCacheSizeItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29D53B9EF800000000 /* CalculatingCacheSizeItem.swift */; };
-		E7A30F04D65BA68200000000 /* libSwiftSignalKit.dylib in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */; };
 		E7A30F04D6F14E1000000000 /* libImageBlur.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29D6F14E1000000000 /* libImageBlur.a */; };
 		E7A30F04D81471E200000000 /* libUrlHandling.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29D81471E200000000 /* libUrlHandling.a */; };
 		E7A30F04DA3FBAD600000000 /* libTelegramCallsUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29DA3FBAD600000000 /* libTelegramCallsUI.a */; };
 		E7A30F04DA6D2B1600000000 /* WallpaperColorPickerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29DA6D2B1600000000 /* WallpaperColorPickerNode.swift */; };
 		E7A30F04DAB3815C00000000 /* libAccountUtils.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29DAB3815C00000000 /* libAccountUtils.a */; };
-		E7A30F04DB6520C800000000 /* libPostbox.dylib in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29DB6520C800000000 /* libPostbox.dylib */; };
 		E7A30F04DD3C940F00000000 /* libTelegramStringFormatting.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29DD3C940F00000000 /* libTelegramStringFormatting.a */; };
 		E7A30F04DE4899A300000000 /* SettingsSearchItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29DE4899A300000000 /* SettingsSearchItem.swift */; };
 		E7A30F04DF12291E00000000 /* libWebSearchUI.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29DF12291E00000000 /* libWebSearchUI.a */; };
@@ -252,7 +253,6 @@
 		E7A30F04FBBDB6C000000000 /* ThemeColorsGridController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29FBBDB6C000000000 /* ThemeColorsGridController.swift */; };
 		E7A30F04FCF079BA00000000 /* TermsOfServiceControllerNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29FCF079BA00000000 /* TermsOfServiceControllerNode.swift */; };
 		E7A30F04FD72F45600000000 /* libChatListSearchItemHeader.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29FD72F45600000000 /* libChatListSearchItemHeader.a */; };
-		E7A30F04FF334B1F00000000 /* libDisplay.dylib in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E29FF334B1F00000000 /* libDisplay.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -262,13 +262,8 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
-				E7A30F04D65BA68200000000 /* libSwiftSignalKit.dylib in Fake Swift Dependencies (Copy Files Phase) */,
 				E7A30F045915423000000000 /* libDeviceLocationManager.a in Fake Swift Dependencies (Copy Files Phase) */,
-				E7A30F04FF334B1F00000000 /* libDisplay.dylib in Fake Swift Dependencies (Copy Files Phase) */,
-				E7A30F04DB6520C800000000 /* libPostbox.dylib in Fake Swift Dependencies (Copy Files Phase) */,
-				E7A30F047A51CDA100000000 /* libSyncCore.dylib in Fake Swift Dependencies (Copy Files Phase) */,
 				E7A30F04F33FDAC300000000 /* libTelegramAudio.a in Fake Swift Dependencies (Copy Files Phase) */,
-				E7A30F04119CDA0700000000 /* libTelegramCore.dylib in Fake Swift Dependencies (Copy Files Phase) */,
 				E7A30F0451398CF200000000 /* libUniversalMediaPlayer.a in Fake Swift Dependencies (Copy Files Phase) */,
 				E7A30F0436DE2CF900000000 /* libMediaResources.a in Fake Swift Dependencies (Copy Files Phase) */,
 				E7A30F0458CFD47D00000000 /* libStringPluralization.a in Fake Swift Dependencies (Copy Files Phase) */,
@@ -651,7 +646,27 @@
 		1DD70E29FCF079BA00000000 /* TermsOfServiceControllerNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TermsOfServiceControllerNode.swift; path = "Sources/Terms of Service/TermsOfServiceControllerNode.swift"; sourceTree = SOURCE_ROOT; };
 		1DD70E29FD72F45600000000 /* libChatListSearchItemHeader.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libChatListSearchItemHeader.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		1DD70E29FF334B1F00000000 /* libDisplay.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libDisplay.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8B55245B27B7007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8B57245B27B7007CD07F /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8B59245B27B7007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8B5B245B27B7007CD07F /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		634E8B5D245B27B7007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		634E8B54245B27B4007CD07F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				634E8B56245B27B7007CD07F /* TelegramCore.framework in Frameworks */,
+				634E8B58245B27B7007CD07F /* SyncCore.framework in Frameworks */,
+				634E8B5A245B27B7007CD07F /* Postbox.framework in Frameworks */,
+				634E8B5C245B27B7007CD07F /* Display.framework in Frameworks */,
+				634E8B5E245B27B7007CD07F /* SwiftSignalKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		B401C97904F7D4AF00000000 /* Watch */ = {
@@ -728,6 +743,11 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				634E8B55245B27B7007CD07F /* TelegramCore.framework */,
+				634E8B57245B27B7007CD07F /* SyncCore.framework */,
+				634E8B59245B27B7007CD07F /* Postbox.framework */,
+				634E8B5B245B27B7007CD07F /* Display.framework */,
+				634E8B5D245B27B7007CD07F /* SwiftSignalKit.framework */,
 				1DD70E299D2580DA00000000 /* libAccountContext.a */,
 				1DD70E29DAB3815C00000000 /* libAccountUtils.a */,
 				1DD70E291E16CC6C00000000 /* libActionSheetPeerItem.a */,
@@ -1086,6 +1106,7 @@
 			buildPhases = (
 				1870857F0000000000000000 /* Sources */,
 				FAF5FAC90000000000000000 /* Fake Swift Dependencies (Copy Files Phase) */,
+				634E8B54245B27B4007CD07F /* Frameworks */,
 			);
 			buildRules = (
 			);
