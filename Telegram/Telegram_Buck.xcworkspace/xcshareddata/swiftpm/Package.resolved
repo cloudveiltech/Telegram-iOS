@@ -12,11 +12,11 @@
       },
       {
         "package": "CloudVeil-securityManager-ios",
-        "repositoryURL": "https://github.com/cloudveiltech/CloudVeil-securityManager-ios.git",
+        "repositoryURL": "https://github.com/cloudveiltech/CloudVeil-securityManager-ios",
         "state": {
           "branch": null,
-          "revision": "e9fba3595158b1b2c50c607052bf03edc3864e5f",
-          "version": "1.0.15"
+          "revision": "5a18128b5f9f4902997e3c5263dd67c52673aafe",
+          "version": "1.0.16"
         }
       },
       {

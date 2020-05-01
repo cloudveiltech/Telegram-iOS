@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6360F092245B03B5006A9391 /* SwiftSignalKitFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6360F091245B03B5006A9391 /* SwiftSignalKitFr.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		6389DF49245BE67D00450397 /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6389DF48245BE67D00450397 /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		E7A30F04424C93F800000000 /* LocalAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29424C93F800000000 /* LocalAuth.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,6 +20,7 @@
 		1DD70E29C5848BAC00000000 /* LocalAuth-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "LocalAuth-Profile.xcconfig"; path = "../../buck-out/gen/submodules/LocalAuth/LocalAuth-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
 		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		6360F091245B03B5006A9391 /* SwiftSignalKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6389DF48245BE67D00450397 /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -27,7 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6360F092245B03B5006A9391 /* SwiftSignalKitFr.framework in Frameworks */,
+				6389DF49245BE67D00450397 /* SwiftSignalKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -56,6 +57,7 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				6389DF48245BE67D00450397 /* SwiftSignalKit.framework */,
 				6360F091245B03B5006A9391 /* SwiftSignalKitFr.framework */,
 				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
 			);

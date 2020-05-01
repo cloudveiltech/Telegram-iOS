@@ -3408,6 +3408,20 @@
                ReferencedContainer = "container:Telegram.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "6389DF61245BEDAA00450397"
+               BuildableName = "CloudVeilSecurityManager.framework"
+               BlueprintName = "CloudVeilSecurityManager"
+               ReferencedContainer = "container:../submodules/CloudVeil-securityManager-ios/SecurityManager.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction

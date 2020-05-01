@@ -8,11 +8,9 @@
 #import <Foundation/Foundation.h>
 
 //! Project version number for SwiftSignalKitFr.
-FOUNDATION_EXPORT double SwiftSignalKitFrVersionNumber;
+FOUNDATION_EXPORT double SwiftSignalKitVersionNumber;
 
 //! Project version string for SwiftSignalKitFr.
-FOUNDATION_EXPORT const unsigned char SwiftSignalKitFrVersionString[];
+FOUNDATION_EXPORT const unsigned char SwiftSignalKitVersionString[];
 
 // In this header, you should import all the public headers of your framework using statements like #import <SwiftSignalKitFr/PublicHeader.h>
-
-

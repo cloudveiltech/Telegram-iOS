@@ -12,6 +12,7 @@
 		634E8870245B1ACE007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E886F245B1ACE007CD07F /* Postbox.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		634E8872245B1AD6007CD07F /* SyncCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8871245B1AD6007CD07F /* SyncCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		634E8874245B1AE0007CD07F /* TelegramCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8873245B1AE0007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		6389DF94245BF29A00450397 /* CloudVeil-securityManager-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF93245BF29A00450397 /* CloudVeil-securityManager-ios */; };
 		E7A30F040F1A3C6400000000 /* libPlatformRestrictionMatching.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E290F1A3C6400000000 /* libPlatformRestrictionMatching.a */; };
 		E7A30F04119E958000000000 /* AvatarNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29119E958000000000 /* AvatarNode.swift */; };
 		E7A30F042395015100000000 /* libTelegramUIPreferences.a in Fake Swift Dependencies (Copy Files Phase) */ = {isa = PBXBuildFile; fileRef = 1DD70E292395015100000000 /* libTelegramUIPreferences.a */; };
@@ -104,6 +105,7 @@
 		634E886F245B1ACE007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		634E8871245B1AD6007CD07F /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		634E8873245B1AE0007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6356C43E245BE32F00BFFC2B /* CloudVeilSecurityManager.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudVeilSecurityManager.framework; path = ../../Telegram/CloudVeilSecurityManager.framework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +115,7 @@
 			files = (
 				634E8874245B1AE0007CD07F /* TelegramCore.framework in Frameworks */,
 				634E8872245B1AD6007CD07F /* SyncCore.framework in Frameworks */,
+				6389DF94245BF29A00450397 /* CloudVeil-securityManager-ios in Frameworks */,
 				634E8870245B1ACE007CD07F /* Postbox.framework in Frameworks */,
 				634E886E245B1AC8007CD07F /* Display.framework in Frameworks */,
 				634E886C245B1ABE007CD07F /* SwiftSignalKit.framework in Frameworks */,
@@ -144,6 +147,7 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				6356C43E245BE32F00BFFC2B /* CloudVeilSecurityManager.framework */,
 				634E8873245B1AE0007CD07F /* TelegramCore.framework */,
 				634E8871245B1AD6007CD07F /* SyncCore.framework */,
 				634E886F245B1ACE007CD07F /* Postbox.framework */,
@@ -230,7 +234,7 @@
 			);
 			name = AvatarNode;
 			packageProductDependencies = (
-				63F372A324581789004BDEA5 /* CloudVeil-securityManager-ios */,
+				6389DF93245BF29A00450397 /* CloudVeil-securityManager-ios */,
 			);
 			productName = AvatarNode;
 			productReference = 1DD70E29A54A195300000000 /* libAvatarNode.a */;
@@ -254,7 +258,7 @@
 			);
 			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
 			packageReferences = (
-				63F372A224581789004BDEA5 /* XCRemoteSwiftPackageReference "CloudVeil-securityManager-ios" */,
+				6389DF92245BF29A00450397 /* XCRemoteSwiftPackageReference "CloudVeil-securityManager-ios" */,
 			);
 			projectDirPath = "";
 			projectRoot = "";
@@ -342,20 +346,20 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		63F372A224581789004BDEA5 /* XCRemoteSwiftPackageReference "CloudVeil-securityManager-ios" */ = {
+		6389DF92245BF29A00450397 /* XCRemoteSwiftPackageReference "CloudVeil-securityManager-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/cloudveiltech/CloudVeil-securityManager-ios.git";
+			repositoryURL = "https://github.com/cloudveiltech/CloudVeil-securityManager-ios";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.15;
+				minimumVersion = 1.0.16;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		63F372A324581789004BDEA5 /* CloudVeil-securityManager-ios */ = {
+		6389DF93245BF29A00450397 /* CloudVeil-securityManager-ios */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 63F372A224581789004BDEA5 /* XCRemoteSwiftPackageReference "CloudVeil-securityManager-ios" */;
+			package = 6389DF92245BF29A00450397 /* XCRemoteSwiftPackageReference "CloudVeil-securityManager-ios" */;
 			productName = "CloudVeil-securityManager-ios";
 		};
 /* End XCSwiftPackageProductDependency section */

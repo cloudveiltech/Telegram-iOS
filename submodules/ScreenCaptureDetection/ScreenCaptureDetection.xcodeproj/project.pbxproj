@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6304BECE245AFC3900FA395E /* SwiftSignalKitFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6304BECD245AFC3900FA395E /* SwiftSignalKitFr.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		6389DF47245BE60F00450397 /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6389DF46245BE60F00450397 /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		E7A30F04115920F000000000 /* ScreenCaptureDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29115920F000000000 /* ScreenCaptureDetection.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,6 +20,7 @@
 		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		1DD70E29F180B3B400000000 /* ScreenCaptureDetection-Profile.xcconfig */ = {isa = PBXFileReference; explicitFileType = text.xcconfig; name = "ScreenCaptureDetection-Profile.xcconfig"; path = "../../buck-out/gen/submodules/ScreenCaptureDetection/ScreenCaptureDetection-Profile.xcconfig"; sourceTree = SOURCE_ROOT; };
 		6304BECD245AFC3900FA395E /* SwiftSignalKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6389DF46245BE60F00450397 /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -27,7 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6304BECE245AFC3900FA395E /* SwiftSignalKitFr.framework in Frameworks */,
+				6389DF47245BE60F00450397 /* SwiftSignalKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -56,6 +57,7 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				6389DF46245BE60F00450397 /* SwiftSignalKit.framework */,
 				6304BECD245AFC3900FA395E /* SwiftSignalKitFr.framework */,
 				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
 			);

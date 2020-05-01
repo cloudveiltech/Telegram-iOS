@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6304BEA6245AF1B100FA395E /* SwiftSignalKitFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6304BEA5245AF1B100FA395E /* SwiftSignalKitFr.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		6389DF51245BE7E000450397 /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6389DF50245BE7E000450397 /* SwiftSignalKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		E7A30F04F3F7C1C900000000 /* LegacyBridgeAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29F3F7C1C900000000 /* LegacyBridgeAudio.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,6 +20,7 @@
 		1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libSwiftSignalKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		1DD70E29F3F7C1C900000000 /* LegacyBridgeAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LegacyBridgeAudio.swift; path = Sources/LegacyBridgeAudio.swift; sourceTree = SOURCE_ROOT; };
 		6304BEA5245AF1B100FA395E /* SwiftSignalKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6389DF50245BE7E000450397 /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -27,7 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6304BEA6245AF1B100FA395E /* SwiftSignalKitFr.framework in Frameworks */,
+				6389DF51245BE7E000450397 /* SwiftSignalKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -47,6 +48,7 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				6389DF50245BE7E000450397 /* SwiftSignalKit.framework */,
 				6304BEA5245AF1B100FA395E /* SwiftSignalKitFr.framework */,
 				1DD70E29D65BA68200000000 /* libSwiftSignalKit.dylib */,
 			);

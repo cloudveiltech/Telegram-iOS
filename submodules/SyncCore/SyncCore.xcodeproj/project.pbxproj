@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		634E8BA2245B28D8007CD07F /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8BA1245B28D8007CD07F /* Postbox.framework */; };
 		634E8BA6245B28DE007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8BA5245B28DE007CD07F /* SwiftSignalKit.framework */; };
+		63761A4F245BA2370077E35E /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63761A4E245BA2370077E35E /* Postbox.framework */; };
 		63D8CEEE245AEAB900DA984C /* SyncCoreFr.h in Headers */ = {isa = PBXBuildFile; fileRef = 63D8CEEC245AEAB900DA984C /* SyncCoreFr.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		63D8CEF3245AEAC700DA984C /* AccountBackupDataAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E295CEC0C8800000000 /* AccountBackupDataAttribute.swift */; };
 		63D8CEF4245AEAC700DA984C /* AccountEnvironmentAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29632B459B00000000 /* AccountEnvironmentAttribute.swift */; };
@@ -311,6 +311,7 @@
 		1DD70E29FF86CC4200000000 /* TelegramMediaContact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TelegramMediaContact.swift; path = Sources/TelegramMediaContact.swift; sourceTree = SOURCE_ROOT; };
 		634E8BA1245B28D8007CD07F /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		634E8BA5245B28DE007CD07F /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		63761A4E245BA2370077E35E /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		63D8CEEA245AEAB800DA984C /* SyncCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SyncCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		63D8CEEC245AEAB900DA984C /* SyncCoreFr.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SyncCoreFr.h; sourceTree = "<group>"; };
 		63D8CEED245AEAB900DA984C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -323,9 +324,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				634E8BA2245B28D8007CD07F /* Postbox.framework in Frameworks */,
 				63D8CF83245AEADA00DA984C /* Foundation.framework in Frameworks */,
 				634E8BA6245B28DE007CD07F /* SwiftSignalKit.framework in Frameworks */,
+				63761A4F245BA2370077E35E /* Postbox.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -363,6 +364,7 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				63761A4E245BA2370077E35E /* Postbox.framework */,
 				63D8CF88245AEAF100DA984C /* SwiftSignalKitFr.framework */,
 				634E8BA5245B28DE007CD07F /* SwiftSignalKit.framework */,
 				634E8BA1245B28D8007CD07F /* Postbox.framework */,
@@ -802,6 +804,7 @@
 		};
 		63D8CEEF245AEAB900DA984C /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29E1A31EE700000000 /* SyncCore#shared-Debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -845,7 +848,7 @@
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_NO_COMMON_BLOCKS = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -880,6 +883,7 @@
 		};
 		63D8CEF0245AEAB900DA984C /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29EA79989100000000 /* SyncCore#shared-Profile.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -922,7 +926,7 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_NO_COMMON_BLOCKS = NO;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -951,6 +955,7 @@
 		};
 		63D8CEF1245AEAB900DA984C /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E295E1043F300000000 /* SyncCore#shared-Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -993,7 +998,7 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_NO_COMMON_BLOCKS = NO;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;

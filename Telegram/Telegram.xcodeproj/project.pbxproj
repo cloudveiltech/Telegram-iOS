@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 46;
+	objectVersion = 52;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -35,6 +35,8 @@
 		634E879C245B1368007CD07F /* TelegramCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 634E879A245B1368007CD07F /* TelegramCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		634E879E245B136E007CD07F /* TelegramUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E879D245B136E007CD07F /* TelegramUI.framework */; };
 		634E879F245B136E007CD07F /* TelegramUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 634E879D245B136E007CD07F /* TelegramUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		6389DF90245BF27400450397 /* CloudVeil-securityManager-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF8F245BF27400450397 /* CloudVeil-securityManager-ios */; };
+		6389DF91245BF27400450397 /* CloudVeil-securityManager-ios in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF8F245BF27400450397 /* CloudVeil-securityManager-ios */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		E7A30F0400ACCBB200000000 /* stp_card_jcb_template@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 1DD70E2900ACCBB200000000 /* stp_card_jcb_template@2x.png */; };
 		E7A30F0400BF759200000000 /* anim_read.json in Resources */ = {isa = PBXBuildFile; fileRef = 1DD70E2900BF759200000000 /* anim_read.json */; };
 		E7A30F040153C97500000000 /* SavedMessagesAvatar@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 1DD70E290153C97500000000 /* SavedMessagesAvatar@2x.png */; };
@@ -582,6 +584,7 @@
 				634E8786245B1333007CD07F /* AsyncDisplayKit.framework in Embed Frameworks */,
 				634E8796245B135A007CD07F /* SyncCore.framework in Embed Frameworks */,
 				634E878A245B133A007CD07F /* Display.framework in Embed Frameworks */,
+				6389DF91245BF27400450397 /* CloudVeil-securityManager-ios in Embed Frameworks */,
 				634E879C245B1368007CD07F /* TelegramCore.framework in Embed Frameworks */,
 				634E8799245B135F007CD07F /* TelegramApi.framework in Embed Frameworks */,
 				634E878D245B1342007CD07F /* MtProtoKit.framework in Embed Frameworks */,
@@ -1457,6 +1460,7 @@
 		634E879A245B1368007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		634E879D245B136E007CD07F /* TelegramUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6360F0C2245B089C006A9391 /* MtProtoKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = MtProtoKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6389DF53245BEC5700450397 /* CloudVeilSecurityManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = CloudVeilSecurityManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		63D8CC72245AE55F00DA984C /* libAsyncDisplayKit.a */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libAsyncDisplayKit.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		63D8D495245AEEBA00DA984C /* AsynDisplayKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = AsynDisplayKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		63D8D499245AEEC000DA984C /* DisplayFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = DisplayFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1540,6 +1544,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 0;
 			files = (
+				6389DF90245BF27400450397 /* CloudVeil-securityManager-ios in Frameworks */,
 				630354C4245A931700BA1F33 /* libAppLibrary.a in Frameworks */,
 				634E878C245B1342007CD07F /* MtProtoKit.framework in Frameworks */,
 				634E878F245B134A007CD07F /* Postbox.framework in Frameworks */,
@@ -2171,6 +2176,7 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				6389DF53245BEC5700450397 /* CloudVeilSecurityManager.framework */,
 				634E879D245B136E007CD07F /* TelegramUI.framework */,
 				634E879A245B1368007CD07F /* TelegramCore.framework */,
 				634E8797245B135F007CD07F /* TelegramApi.framework */,
@@ -2670,6 +2676,9 @@
 				630354C6245A931700BA1F33 /* PBXTargetDependency */,
 			);
 			name = Telegram;
+			packageProductDependencies = (
+				6389DF8F245BF27400450397 /* CloudVeil-securityManager-ios */,
+			);
 			productName = Telegram;
 			productReference = 1DD70E29D83C37D400000000 /* CloudVeil Messenger.app */;
 			productType = "com.apple.product-type.application";
@@ -2702,6 +2711,8 @@
 			dependencies = (
 			);
 			name = AppLibrary;
+			packageProductDependencies = (
+			);
 			productName = AppLibrary;
 			productReference = 1DD70E297ADFB9F200000001 /* libAppLibrary.a */;
 			productType = "com.apple.product-type.library.static";
@@ -2819,6 +2830,9 @@
 				uk,
 			);
 			mainGroup = B401C979EFB6AC4600000000 /* mainGroup */;
+			packageReferences = (
+				6389DF8E245BF27400450397 /* XCRemoteSwiftPackageReference "CloudVeil-securityManager-ios" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -3574,7 +3588,14 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = L95C8867HX;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
 			name = Debug;
@@ -3677,7 +3698,14 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = L95C8867HX;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
 			name = Profile;
@@ -3780,7 +3808,14 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = L95C8867HX;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
 			name = Release;
@@ -3929,6 +3964,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6389DF8E245BF27400450397 /* XCRemoteSwiftPackageReference "CloudVeil-securityManager-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/cloudveiltech/CloudVeil-securityManager-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.16;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6389DF8F245BF27400450397 /* CloudVeil-securityManager-ios */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6389DF8E245BF27400450397 /* XCRemoteSwiftPackageReference "CloudVeil-securityManager-ios" */;
+			productName = "CloudVeil-securityManager-ios";
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 96C84793B2C34D2100000000 /* Project object */;
 }

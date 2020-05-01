@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6360F0BF245B07E3006A9391 /* DisplayFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6360F0BE245B07E3006A9391 /* DisplayFr.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
-		6360F0C1245B07EA006A9391 /* SwiftSignalKitFr.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6360F0C0245B07EA006A9391 /* SwiftSignalKitFr.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		6389DF4D245BE74B00450397 /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6389DF4C245BE74B00450397 /* SwiftSignalKit.framework */; };
+		6389DF4F245BE75200450397 /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6389DF4E245BE75200450397 /* Display.framework */; };
 		E7A30F0408EBF46000000000 /* CameraDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2908EBF46000000000 /* CameraDevice.swift */; };
 		E7A30F04264D2E6A00000000 /* CameraInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29264D2E6A00000000 /* CameraInput.swift */; };
 		E7A30F04387802CB00000000 /* CameraOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29387802CB00000000 /* CameraOutput.swift */; };
@@ -33,6 +33,8 @@
 		1DD70E29FFA2D84A00000000 /* CameraPreviewNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraPreviewNode.swift; path = Sources/CameraPreviewNode.swift; sourceTree = SOURCE_ROOT; };
 		6360F0BE245B07E3006A9391 /* DisplayFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = DisplayFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6360F0C0245B07EA006A9391 /* SwiftSignalKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6389DF4C245BE74B00450397 /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6389DF4E245BE75200450397 /* Display.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Display.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -40,8 +42,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6360F0C1245B07EA006A9391 /* SwiftSignalKitFr.framework in Frameworks */,
-				6360F0BF245B07E3006A9391 /* DisplayFr.framework in Frameworks */,
+				6389DF4F245BE75200450397 /* Display.framework in Frameworks */,
+				6389DF4D245BE74B00450397 /* SwiftSignalKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,6 +63,8 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				6389DF4E245BE75200450397 /* Display.framework */,
+				6389DF4C245BE74B00450397 /* SwiftSignalKit.framework */,
 				6360F0C0245B07EA006A9391 /* SwiftSignalKitFr.framework */,
 				6360F0BE245B07E3006A9391 /* DisplayFr.framework */,
 				1DD70E29FF334B1F00000000 /* libDisplay.dylib */,

@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		63D8CEBD245AEA2500DA984C /* SwiftSignalKitFr.h in Headers */ = {isa = PBXBuildFile; fileRef = 63D8CEBB245AEA2500DA984C /* SwiftSignalKitFr.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		63D8CEBD245AEA2500DA984C /* SwiftSignalKit.h in Headers */ = {isa = PBXBuildFile; fileRef = 63D8CEBB245AEA2500DA984C /* SwiftSignalKit.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		63D8CEC2245AEA3100DA984C /* Atomic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29DE26C8B000000000 /* Atomic.swift */; };
 		63D8CEC3245AEA3100DA984C /* Bag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E2933A3A08D00000000 /* Bag.swift */; };
 		63D8CEC4245AEA3100DA984C /* Disposable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29275AC42500000000 /* Disposable.swift */; };
@@ -72,7 +72,7 @@
 		63D8CEAD245AEA1600DA984C /* SwiftSignalKitF.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SwiftSignalKitF.h; sourceTree = "<group>"; };
 		63D8CEAE245AEA1600DA984C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		63D8CEB9245AEA2500DA984C /* SwiftSignalKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SwiftSignalKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		63D8CEBB245AEA2500DA984C /* SwiftSignalKitFr.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SwiftSignalKitFr.h; sourceTree = "<group>"; };
+		63D8CEBB245AEA2500DA984C /* SwiftSignalKit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SwiftSignalKit.h; sourceTree = "<group>"; };
 		63D8CEBC245AEA2500DA984C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -100,7 +100,7 @@
 		63D8CEBA245AEA2500DA984C /* SwiftSignalKitFr */ = {
 			isa = PBXGroup;
 			children = (
-				63D8CEBB245AEA2500DA984C /* SwiftSignalKitFr.h */,
+				63D8CEBB245AEA2500DA984C /* SwiftSignalKit.h */,
 				63D8CEBC245AEA2500DA984C /* Info.plist */,
 			);
 			path = SwiftSignalKitFr;
@@ -202,7 +202,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				63D8CEBD245AEA2500DA984C /* SwiftSignalKitFr.h in Headers */,
+				63D8CEBD245AEA2500DA984C /* SwiftSignalKit.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -326,6 +326,7 @@
 		};
 		63D8CEBF245AEA2500DA984C /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29FAA9BD8800000000 /* SwiftSignalKit#shared-Debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -369,7 +370,7 @@
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_NO_COMMON_BLOCKS = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -384,11 +385,10 @@
 				INFOPLIST_FILE = SwiftSignalKitFr/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = org.cloudveil.SwiftSignalKitFr;
+				PRODUCT_BUNDLE_IDENTIFIER = org.cloudveil.SwiftSignalKit;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -404,6 +404,7 @@
 		};
 		63D8CEC0245AEA2500DA984C /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E29DC5312F200000000 /* SwiftSignalKit#shared-Profile.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -446,7 +447,7 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_NO_COMMON_BLOCKS = NO;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -456,10 +457,9 @@
 				INFOPLIST_FILE = SwiftSignalKitFr/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = org.cloudveil.SwiftSignalKitFr;
+				PRODUCT_BUNDLE_IDENTIFIER = org.cloudveil.SwiftSignalKit;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -475,6 +475,7 @@
 		};
 		63D8CEC1245AEA2500DA984C /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1DD70E294FE9BE5400000000 /* SwiftSignalKit#shared-Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -517,7 +518,7 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_NO_COMMON_BLOCKS = NO;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -527,10 +528,9 @@
 				INFOPLIST_FILE = SwiftSignalKitFr/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = org.cloudveil.SwiftSignalKitFr;
+				PRODUCT_BUNDLE_IDENTIFIER = org.cloudveil.SwiftSignalKit;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
