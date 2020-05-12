@@ -16,7 +16,6 @@
 		634E8777245B12E5007CD07F /* TelegramUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8776245B12E5007CD07F /* TelegramUI.framework */; };
 		634E877B245B12F1007CD07F /* MtProtoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E877A245B12F1007CD07F /* MtProtoKit.framework */; };
 		634E877E245B12FA007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E877D245B12FA007CD07F /* SwiftSignalKit.framework */; };
-		634E8781245B1312007CD07F /* TelegramUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8780245B1312007CD07F /* TelegramUI.framework */; };
 		634E8785245B1333007CD07F /* AsyncDisplayKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8784245B1333007CD07F /* AsyncDisplayKit.framework */; };
 		634E8786245B1333007CD07F /* AsyncDisplayKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8784245B1333007CD07F /* AsyncDisplayKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		634E8789245B133A007CD07F /* Display.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8788245B133A007CD07F /* Display.framework */; };
@@ -37,6 +36,8 @@
 		634E879F245B136E007CD07F /* TelegramUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 634E879D245B136E007CD07F /* TelegramUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6389DF90245BF27400450397 /* CloudVeil-securityManager-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF8F245BF27400450397 /* CloudVeil-securityManager-ios */; };
 		6389DF91245BF27400450397 /* CloudVeil-securityManager-ios in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF8F245BF27400450397 /* CloudVeil-securityManager-ios */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		6392B73D246A759500A77DC0 /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6377223E2466E9B900CAAE41 /* Postbox.framework */; };
+		6392B740246A759700A77DC0 /* TelegramUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8780245B1312007CD07F /* TelegramUI.framework */; };
 		E7A30F0400ACCBB200000000 /* stp_card_jcb_template@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 1DD70E2900ACCBB200000000 /* stp_card_jcb_template@2x.png */; };
 		E7A30F0400BF759200000000 /* anim_read.json in Resources */ = {isa = PBXBuildFile; fileRef = 1DD70E2900BF759200000000 /* anim_read.json */; };
 		E7A30F040153C97500000000 /* SavedMessagesAvatar@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 1DD70E290153C97500000000 /* SavedMessagesAvatar@2x.png */; };
@@ -1460,6 +1461,7 @@
 		634E879A245B1368007CD07F /* TelegramCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		634E879D245B136E007CD07F /* TelegramUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = TelegramUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6360F0C2245B089C006A9391 /* MtProtoKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = MtProtoKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6377223E2466E9B900CAAE41 /* Postbox.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Postbox.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6389DF53245BEC5700450397 /* CloudVeilSecurityManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = CloudVeilSecurityManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		63D8CC72245AE55F00DA984C /* libAsyncDisplayKit.a */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libAsyncDisplayKit.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		63D8D495245AEEBA00DA984C /* AsynDisplayKitFr.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = AsynDisplayKitFr.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1534,9 +1536,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 0;
 			files = (
+				6392B73D246A759500A77DC0 /* Postbox.framework in Frameworks */,
 				E7A30F04AE317AA300000003 /* Foundation.framework in Frameworks */,
-				634E8781245B1312007CD07F /* TelegramUI.framework in Frameworks */,
 				E7A30F04C3B9C6B200000001 /* UIKit.framework in Frameworks */,
+				6392B740246A759700A77DC0 /* TelegramUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2176,6 +2179,7 @@
 		B401C97968022A5500000000 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				6377223E2466E9B900CAAE41 /* Postbox.framework */,
 				6389DF53245BEC5700450397 /* CloudVeilSecurityManager.framework */,
 				634E879D245B136E007CD07F /* TelegramUI.framework */,
 				634E879A245B1368007CD07F /* TelegramCore.framework */,
@@ -3541,8 +3545,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E291E2173E500000000 /* IntentsExtension#iphonesimulator-x86_64-Debug.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3552,8 +3558,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E29AA22434E00000000 /* NotificationContentExtension#iphonesimulator-x86_64-Debug.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3563,8 +3571,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E296EE5619200000000 /* NotificationServiceExtension#iphonesimulator-x86_64-Debug.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3574,8 +3584,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E297102085D00000000 /* ShareExtension#iphonesimulator-x86_64-Debug.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3587,14 +3599,11 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)",
-				);
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3606,8 +3615,10 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
 			};
 			name = Debug;
 		};
@@ -3617,6 +3628,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3629,6 +3641,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3637,6 +3650,7 @@
 		4952437303EDA63300000009 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BUILD_NUM = 230;
 			};
 			name = Debug;
 		};
@@ -3651,8 +3665,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E2900B6A60F00000000 /* IntentsExtension#iphonesimulator-x86_64-Profile.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3662,8 +3678,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E298FC13F3800000000 /* NotificationContentExtension#iphonesimulator-x86_64-Profile.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3673,8 +3691,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E293035DC7C00000000 /* NotificationServiceExtension#iphonesimulator-x86_64-Profile.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3684,8 +3704,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E291DC3FC8700000000 /* ShareExtension#iphonesimulator-x86_64-Profile.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3697,14 +3719,11 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)",
-				);
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3716,8 +3735,10 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
 			};
 			name = Profile;
 		};
@@ -3727,6 +3748,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3739,6 +3761,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3747,6 +3770,7 @@
 		4952437350C7218900000009 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BUILD_NUM = 230;
 			};
 			name = Profile;
 		};
@@ -3761,8 +3785,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E29744D517100000000 /* IntentsExtension#iphonesimulator-x86_64-Release.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3772,8 +3798,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E290357EA9A00000000 /* NotificationContentExtension#iphonesimulator-x86_64-Release.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3783,8 +3811,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E29A3CC87DE00000000 /* NotificationServiceExtension#iphonesimulator-x86_64-Release.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3794,8 +3824,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1DD70E29915AA7E900000000 /* ShareExtension#iphonesimulator-x86_64-Release.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3807,14 +3839,11 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)",
-				);
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3826,8 +3855,10 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
 			};
 			name = Release;
 		};
@@ -3837,6 +3868,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3849,6 +3881,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUM)";
 				DEVELOPMENT_TEAM = L95C8867HX;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
@@ -3857,6 +3890,7 @@
 		49524373A439BFE700000009 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BUILD_NUM = 230;
 			};
 			name = Release;
 		};

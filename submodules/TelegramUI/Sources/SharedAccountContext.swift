@@ -721,7 +721,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     public func updateNotificationTokensRegistration() {
         let sandbox: Bool
         #if DEBUG
-        sandbox = true
+        sandbox = false
         #else
         sandbox = false
         #endif

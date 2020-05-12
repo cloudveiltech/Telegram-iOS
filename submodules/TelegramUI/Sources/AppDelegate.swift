@@ -43,7 +43,7 @@ import CoreSpotlight
 #if canImport(BackgroundTasks)
 import BackgroundTasks
 #endif
-
+import Sentry
 import CloudVeilSecurityManager
 
 private let handleVoipNotifications = false
@@ -234,6 +234,28 @@ final class SharedApplicationContext {
     private let deviceToken = Promise<Data?>(nil)
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Create a Sentry client and start crash handler
+        SentrySDK.start(options: [
+            "dsn": "https://ccd3de565659417a9274a5447a1321fc:b2f2c494a1614b91b0817096270e3d91@sentry.cloudveil.org/18",
+            "debug": false // Helpful to see what's going on
+        ])
+        
+        self.badgeDisposable.set((self.context.get()
+        |> mapToSignal { context -> Signal<Int32, NoError> in
+            if let context = context {
+                return context.applicationBadge
+            } else {
+                return .single(0)
+            }
+        }
+        |> deliverOnMainQueue).start(next: { count in
+            //CloudVeil start
+            AppDelegate.setAppBadge(Int(count))
+            //CloudVeil end
+            UIApplication.shared.applicationIconBadgeNumber = Int(count)
+        }))
+        
+        
         precondition(!testIsLaunched)
         testIsLaunched = true
         
@@ -1278,23 +1300,9 @@ final class SharedApplicationContext {
             pushRegistry.desiredPushTypes = Set([.voIP])
         }
         self.pushRegistry = pushRegistry
-        pushRegistry.delegate = self
-        
-        self.badgeDisposable.set((self.context.get()
-        |> mapToSignal { context -> Signal<Int32, NoError> in
-            if let context = context {
-                return context.applicationBadge
-            } else {
-                return .single(0)
-            }
-        }
-        |> deliverOnMainQueue).start(next: { count in
-            //CloudVeil start
-            AppDelegate.setAppBadge(Int(count))
-            //CloudVeil end
-            UIApplication.shared.applicationIconBadgeNumber = Int(count)
-        }))
-        
+   // cloudveil disabled because of crash
+        //pushRegistry.delegate = self
+
         if #available(iOS 9.1, *) {
             self.quickActionsDisposable.set((self.context.get()
             |> mapToSignal { context -> Signal<[ApplicationShortcutItem], NoError> in
@@ -1539,8 +1547,8 @@ final class SharedApplicationContext {
         if #available(iOS 9.0, *) {
             if case PKPushType.voIP = type {
                 Logger.shared.log("App \(self.episodeId)", "pushRegistry credentials: \(credentials.token as NSData)")
-                
-                self.voipTokenPromise.set(.single(credentials.token))
+                //Cloudveil disabled
+              //  self.voipTokenPromise.set(.single(credentials.token))
             }
         }
     }

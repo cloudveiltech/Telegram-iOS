@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		634E8BA6245B28DE007CD07F /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8BA5245B28DE007CD07F /* SwiftSignalKit.framework */; };
-		63761A4F245BA2370077E35E /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63761A4E245BA2370077E35E /* Postbox.framework */; };
+		6392B74F246A75E500A77DC0 /* Postbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63761A4E245BA2370077E35E /* Postbox.framework */; };
+		6392B752246A75E700A77DC0 /* SwiftSignalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 634E8BA5245B28DE007CD07F /* SwiftSignalKit.framework */; };
 		63D8CEEE245AEAB900DA984C /* SyncCoreFr.h in Headers */ = {isa = PBXBuildFile; fileRef = 63D8CEEC245AEAB900DA984C /* SyncCoreFr.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		63D8CEF3245AEAC700DA984C /* AccountBackupDataAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E295CEC0C8800000000 /* AccountBackupDataAttribute.swift */; };
 		63D8CEF4245AEAC700DA984C /* AccountEnvironmentAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD70E29632B459B00000000 /* AccountEnvironmentAttribute.swift */; };
@@ -324,9 +324,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6392B752246A75E700A77DC0 /* SwiftSignalKit.framework in Frameworks */,
 				63D8CF83245AEADA00DA984C /* Foundation.framework in Frameworks */,
-				634E8BA6245B28DE007CD07F /* SwiftSignalKit.framework in Frameworks */,
-				63761A4F245BA2370077E35E /* Postbox.framework in Frameworks */,
+				6392B74F246A75E500A77DC0 /* Postbox.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
