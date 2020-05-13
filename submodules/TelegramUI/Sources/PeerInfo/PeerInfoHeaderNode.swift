@@ -13,6 +13,7 @@ import PhotoResources
 import PeerAvatarGalleryUI
 import TelegramStringFormatting
 import ActivityIndicator
+import CloudVeilSecurityManager
 
 enum PeerInfoHeaderButtonKey: Hashable {
     case message
@@ -532,17 +533,26 @@ final class PeerInfoAvatarListContainerNode: ASDisplayNode {
                 guard let strongSelf = self else {
                     return
                 }
+                
+                
+                //CloudVeil start
                 var items: [PeerInfoAvatarListItem] = []
-                for entry in entries {
-                    switch entry {
-                    case let .topImage(representations, _):
-                        items.append(.topImage(representations))
-                    case let .image(_, reference, representations, _, _, _, _):
-                        items.append(.image(reference, representations))
+                if !MainController.shared.disableProfilePhoto {
+                    for entry in entries {
+                        switch entry {
+                        case let .topImage(representations, _):
+                            items.append(.topImage(representations))
+                        case let .image(_, reference, representations, _, _, _, _):
+                            items.append(.image(reference, representations))
+                        }
                     }
+                    strongSelf.galleryEntries = entries
+                    strongSelf.items = items
+                } else {
+                    strongSelf.galleryEntries = []
+                    strongSelf.items = []
                 }
-                strongSelf.galleryEntries = entries
-                strongSelf.items = items
+                //CloudVeil end
                 if let size = strongSelf.validLayout {
                     strongSelf.updateItems(size: size, transition: .immediate, stripTransition: .immediate)
                 }
@@ -1555,7 +1565,14 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     
     init(context: AccountContext, avatarInitiallyExpanded: Bool, isOpenedFromChat: Bool) {
         self.context = context
+        
         self.isAvatarExpanded = avatarInitiallyExpanded
+        //CloudVeil start
+        if MainController.shared.disableProfilePhoto {
+            self.isAvatarExpanded = false
+        }
+        //CloudVeil end
+        
         self.isOpenedFromChat = isOpenedFromChat
         
         self.avatarListNode = PeerInfoAvatarListNode(context: context, readyWhenGalleryLoads: avatarInitiallyExpanded)

@@ -4213,7 +4213,9 @@ public final class PeerInfoScreen: ViewController {
     public init(context: AccountContext, peerId: PeerId, avatarInitiallyExpanded: Bool, isOpenedFromChat: Bool, nearbyPeer: Bool, callMessages: [Message], ignoreGroupInCommon: PeerId? = nil) {
         self.context = context
         self.peerId = peerId
-        self.avatarInitiallyExpanded = avatarInitiallyExpanded
+        //CloudVeil start
+        self.avatarInitiallyExpanded = avatarInitiallyExpanded && !MainController.shared.disableProfilePhoto
+        //CloudVeil end
         self.isOpenedFromChat = isOpenedFromChat
         self.nearbyPeer = nearbyPeer
         self.callMessages = callMessages
@@ -4224,7 +4226,9 @@ public final class PeerInfoScreen: ViewController {
         let baseNavigationBarPresentationData = NavigationBarPresentationData(presentationData: self.presentationData)
         super.init(navigationBarPresentationData: NavigationBarPresentationData(
             theme: NavigationBarTheme(
-                buttonColor: avatarInitiallyExpanded ? .white : baseNavigationBarPresentationData.theme.buttonColor,
+                //CloudVeil start
+                buttonColor: avatarInitiallyExpanded && !MainController.shared.disableProfilePhoto ? .white : baseNavigationBarPresentationData.theme.buttonColor,
+                //CloudVeil end
                 disabledButtonColor: baseNavigationBarPresentationData.theme.disabledButtonColor,
                 primaryTextColor: baseNavigationBarPresentationData.theme.primaryTextColor,
                 backgroundColor: .clear,
