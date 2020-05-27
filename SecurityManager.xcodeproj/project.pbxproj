@@ -3,238 +3,220 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 48;
+	objectVersion = 52;
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6362A267244EED3C00FCB5B3 /* SecurityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A251244EED3B00FCB5B3 /* SecurityManager.swift */; };
-		6362A268244EED3C00FCB5B3 /* ObjectManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A252244EED3B00FCB5B3 /* ObjectManager.swift */; };
-		6362A269244EED3C00FCB5B3 /* ServerConstant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A253244EED3B00FCB5B3 /* ServerConstant.swift */; };
-		6362A26A244EED3C00FCB5B3 /* TGSettingsRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A255244EED3B00FCB5B3 /* TGSettingsRequest.swift */; };
-		6362A26B244EED3C00FCB5B3 /* TGSettingsResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A256244EED3B00FCB5B3 /* TGSettingsResponse.swift */; };
-		6362A26C244EED3C00FCB5B3 /* TGRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A257244EED3B00FCB5B3 /* TGRow.swift */; };
-		6362A26D244EED3C00FCB5B3 /* TGUserModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A258244EED3B00FCB5B3 /* TGUserModel.swift */; };
-		6362A26E244EED3C00FCB5B3 /* NSAttributedString+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A25A244EED3B00FCB5B3 /* NSAttributedString+Ext.swift */; };
-		6362A26F244EED3C00FCB5B3 /* String+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A25B244EED3B00FCB5B3 /* String+Ext.swift */; };
-		6362A270244EED3C00FCB5B3 /* NSError+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A25C244EED3B00FCB5B3 /* NSError+Ext.swift */; };
-		6362A271244EED3C00FCB5B3 /* DataResponse + Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A25D244EED3B00FCB5B3 /* DataResponse + Ext.swift */; };
-		6362A272244EED3C00FCB5B3 /* Array+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A25E244EED3B00FCB5B3 /* Array+Ext.swift */; };
-		6362A273244EED3C00FCB5B3 /* MainController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A260244EED3B00FCB5B3 /* MainController.swift */; };
-		6362A274244EED3C00FCB5B3 /* TGUserController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A261244EED3B00FCB5B3 /* TGUserController.swift */; };
-		6362A275244EED3C00FCB5B3 /* DataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A263244EED3B00FCB5B3 /* DataSource.swift */; };
-		6362A276244EED3C00FCB5B3 /* SecurityManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 6362A264244EED3B00FCB5B3 /* SecurityManager.h */; };
-		6362A277244EED3C00FCB5B3 /* Debouncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6362A265244EED3B00FCB5B3 /* Debouncer.swift */; };
-		6362A278244EED3C00FCB5B3 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 6362A266244EED3C00FCB5B3 /* Info.plist */; };
-		B4A94C1D792161F888526F18 /* Pods_SecurityManager.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B68EB01B68D1B21B1C84740 /* Pods_SecurityManager.framework */; };
+		6389DF66245BEDAA00450397 /* CloudVeilSecurityManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 6389DF64245BEDAA00450397 /* CloudVeilSecurityManager.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		6389DF69245BEDBE00450397 /* SecurityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C403245BE11700BFFC2B /* SecurityManager.swift */; };
+		6389DF6A245BEDBE00450397 /* ObjectManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C404245BE11700BFFC2B /* ObjectManager.swift */; };
+		6389DF6B245BEDBE00450397 /* ServerConstant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C405245BE11700BFFC2B /* ServerConstant.swift */; };
+		6389DF6C245BEDBE00450397 /* TGSettingsRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C407245BE11700BFFC2B /* TGSettingsRequest.swift */; };
+		6389DF6D245BEDBE00450397 /* TGSettingsResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C408245BE11700BFFC2B /* TGSettingsResponse.swift */; };
+		6389DF6E245BEDBE00450397 /* TGRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C409245BE11700BFFC2B /* TGRow.swift */; };
+		6389DF6F245BEDBE00450397 /* TGUserModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C40A245BE11700BFFC2B /* TGUserModel.swift */; };
+		6389DF70245BEDBE00450397 /* NSAttributedString+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C40C245BE11700BFFC2B /* NSAttributedString+Ext.swift */; };
+		6389DF71245BEDBE00450397 /* String+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C40D245BE11700BFFC2B /* String+Ext.swift */; };
+		6389DF72245BEDBE00450397 /* NSError+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C40E245BE11700BFFC2B /* NSError+Ext.swift */; };
+		6389DF73245BEDBE00450397 /* DataResponse + Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C40F245BE11700BFFC2B /* DataResponse + Ext.swift */; };
+		6389DF74245BEDBE00450397 /* Array+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C410245BE11700BFFC2B /* Array+Ext.swift */; };
+		6389DF75245BEDBE00450397 /* MainController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C412245BE11700BFFC2B /* MainController.swift */; };
+		6389DF76245BEDBE00450397 /* TGUserController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C413245BE11700BFFC2B /* TGUserController.swift */; };
+		6389DF77245BEDBE00450397 /* DataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C415245BE11700BFFC2B /* DataSource.swift */; };
+		6389DF7B245BEDC700450397 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF7A245BEDC700450397 /* Alamofire */; };
+		6389DF7D245BEDC700450397 /* ObjectMapper in Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF7C245BEDC700450397 /* ObjectMapper */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		16575CA75B1444429DC49E30 /* Pods-SecurityManager.debug appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManager.debug appstore.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManager/Pods-SecurityManager.debug appstore.xcconfig"; sourceTree = "<group>"; };
-		317D94EC9AED90E001E8E10D /* Pods-SecurityManagerTests.debug hockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManagerTests.debug hockeyapp.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManagerTests/Pods-SecurityManagerTests.debug hockeyapp.xcconfig"; sourceTree = "<group>"; };
-		31BC35FF17F02961D520FEA9 /* Pods-SecurityManager.release appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManager.release appstore.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManager/Pods-SecurityManager.release appstore.xcconfig"; sourceTree = "<group>"; };
-		3D1A0ED8924F677A9D2401CE /* Pods-SecurityManagerTests.debug appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManagerTests.debug appstore.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManagerTests/Pods-SecurityManagerTests.debug appstore.xcconfig"; sourceTree = "<group>"; };
-		5B68EB01B68D1B21B1C84740 /* Pods_SecurityManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SecurityManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		6362A251244EED3B00FCB5B3 /* SecurityManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SecurityManager.swift; sourceTree = "<group>"; };
-		6362A252244EED3B00FCB5B3 /* ObjectManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ObjectManager.swift; sourceTree = "<group>"; };
-		6362A253244EED3B00FCB5B3 /* ServerConstant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ServerConstant.swift; sourceTree = "<group>"; };
-		6362A255244EED3B00FCB5B3 /* TGSettingsRequest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGSettingsRequest.swift; sourceTree = "<group>"; };
-		6362A256244EED3B00FCB5B3 /* TGSettingsResponse.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGSettingsResponse.swift; sourceTree = "<group>"; };
-		6362A257244EED3B00FCB5B3 /* TGRow.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGRow.swift; sourceTree = "<group>"; };
-		6362A258244EED3B00FCB5B3 /* TGUserModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGUserModel.swift; sourceTree = "<group>"; };
-		6362A25A244EED3B00FCB5B3 /* NSAttributedString+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSAttributedString+Ext.swift"; sourceTree = "<group>"; };
-		6362A25B244EED3B00FCB5B3 /* String+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "String+Ext.swift"; sourceTree = "<group>"; };
-		6362A25C244EED3B00FCB5B3 /* NSError+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSError+Ext.swift"; sourceTree = "<group>"; };
-		6362A25D244EED3B00FCB5B3 /* DataResponse + Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "DataResponse + Ext.swift"; sourceTree = "<group>"; };
-		6362A25E244EED3B00FCB5B3 /* Array+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Array+Ext.swift"; sourceTree = "<group>"; };
-		6362A260244EED3B00FCB5B3 /* MainController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MainController.swift; sourceTree = "<group>"; };
-		6362A261244EED3B00FCB5B3 /* TGUserController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGUserController.swift; sourceTree = "<group>"; };
-		6362A263244EED3B00FCB5B3 /* DataSource.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataSource.swift; sourceTree = "<group>"; };
-		6362A264244EED3B00FCB5B3 /* SecurityManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SecurityManager.h; sourceTree = "<group>"; };
-		6362A265244EED3B00FCB5B3 /* Debouncer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Debouncer.swift; sourceTree = "<group>"; };
-		6362A266244EED3C00FCB5B3 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		723FFF4520496F980027A9BC /* SecurityManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SecurityManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		82EF09D88AF6536AB2A82E57 /* Pods-SecurityManagerTests.release hockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManagerTests.release hockeyapp.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManagerTests/Pods-SecurityManagerTests.release hockeyapp.xcconfig"; sourceTree = "<group>"; };
-		B39EF5DF51CEDE70BD9139C5 /* Pods-SecurityManagerTests.release appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManagerTests.release appstore.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManagerTests/Pods-SecurityManagerTests.release appstore.xcconfig"; sourceTree = "<group>"; };
-		B928F8A8F3BBC57553B8B388 /* Pods-SecurityManager.release hockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManager.release hockeyapp.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManager/Pods-SecurityManager.release hockeyapp.xcconfig"; sourceTree = "<group>"; };
-		C5C15CD9988E772EE473E610 /* Pods-SecurityManager.debug hockeyapp.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecurityManager.debug hockeyapp.xcconfig"; path = "Pods/Target Support Files/Pods-SecurityManager/Pods-SecurityManager.debug hockeyapp.xcconfig"; sourceTree = "<group>"; };
-		FCB9D5EFF6EE147561B9E127 /* Pods_SecurityManagerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SecurityManagerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6356C403245BE11700BFFC2B /* SecurityManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SecurityManager.swift; sourceTree = "<group>"; };
+		6356C404245BE11700BFFC2B /* ObjectManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ObjectManager.swift; sourceTree = "<group>"; };
+		6356C405245BE11700BFFC2B /* ServerConstant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ServerConstant.swift; sourceTree = "<group>"; };
+		6356C407245BE11700BFFC2B /* TGSettingsRequest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGSettingsRequest.swift; sourceTree = "<group>"; };
+		6356C408245BE11700BFFC2B /* TGSettingsResponse.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGSettingsResponse.swift; sourceTree = "<group>"; };
+		6356C409245BE11700BFFC2B /* TGRow.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGRow.swift; sourceTree = "<group>"; };
+		6356C40A245BE11700BFFC2B /* TGUserModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGUserModel.swift; sourceTree = "<group>"; };
+		6356C40C245BE11700BFFC2B /* NSAttributedString+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSAttributedString+Ext.swift"; sourceTree = "<group>"; };
+		6356C40D245BE11700BFFC2B /* String+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "String+Ext.swift"; sourceTree = "<group>"; };
+		6356C40E245BE11700BFFC2B /* NSError+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSError+Ext.swift"; sourceTree = "<group>"; };
+		6356C40F245BE11700BFFC2B /* DataResponse + Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "DataResponse + Ext.swift"; sourceTree = "<group>"; };
+		6356C410245BE11700BFFC2B /* Array+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Array+Ext.swift"; sourceTree = "<group>"; };
+		6356C412245BE11700BFFC2B /* MainController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MainController.swift; sourceTree = "<group>"; };
+		6356C413245BE11700BFFC2B /* TGUserController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGUserController.swift; sourceTree = "<group>"; };
+		6356C415245BE11700BFFC2B /* DataSource.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataSource.swift; sourceTree = "<group>"; };
+		6356C418245BE11700BFFC2B /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6389DF62245BEDAA00450397 /* CloudVeilSecurityManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CloudVeilSecurityManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		6389DF64245BEDAA00450397 /* CloudVeilSecurityManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CloudVeilSecurityManager.h; sourceTree = "<group>"; };
+		6389DF65245BEDAA00450397 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		723FFF4120496F980027A9BC /* Frameworks */ = {
+		6389DF5F245BEDAA00450397 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B4A94C1D792161F888526F18 /* Pods_SecurityManager.framework in Frameworks */,
+				6389DF7D245BEDC700450397 /* ObjectMapper in Frameworks */,
+				6389DF7B245BEDC700450397 /* Alamofire in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		6362A24C244EED3B00FCB5B3 /* Sources */ = {
+		6356C3FF245BE11700BFFC2B /* CloudVeilSecurityManager */ = {
 			isa = PBXGroup;
 			children = (
-				6362A24D244EED3B00FCB5B3 /* SecurityManager */,
+				6356C400245BE11700BFFC2B /* Classes */,
+				6356C418245BE11700BFFC2B /* Info.plist */,
 			);
-			path = Sources;
+			path = CloudVeilSecurityManager;
 			sourceTree = "<group>";
 		};
-		6362A24D244EED3B00FCB5B3 /* SecurityManager */ = {
+		6356C400245BE11700BFFC2B /* Classes */ = {
 			isa = PBXGroup;
 			children = (
-				6362A24E244EED3B00FCB5B3 /* Classes */,
-				6362A264244EED3B00FCB5B3 /* SecurityManager.h */,
-				6362A265244EED3B00FCB5B3 /* Debouncer.swift */,
-				6362A266244EED3C00FCB5B3 /* Info.plist */,
-			);
-			path = SecurityManager;
-			sourceTree = "<group>";
-		};
-		6362A24E244EED3B00FCB5B3 /* Classes */ = {
-			isa = PBXGroup;
-			children = (
-				6362A24F244EED3B00FCB5B3 /* Managers */,
-				6362A254244EED3B00FCB5B3 /* Models */,
-				6362A259244EED3B00FCB5B3 /* Extansions */,
-				6362A25F244EED3B00FCB5B3 /* Controllers */,
-				6362A262244EED3B00FCB5B3 /* Helpers */,
+				6356C401245BE11700BFFC2B /* Managers */,
+				6356C406245BE11700BFFC2B /* Models */,
+				6356C40B245BE11700BFFC2B /* Extansions */,
+				6356C411245BE11700BFFC2B /* Controllers */,
+				6356C414245BE11700BFFC2B /* Helpers */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
 		};
-		6362A24F244EED3B00FCB5B3 /* Managers */ = {
+		6356C401245BE11700BFFC2B /* Managers */ = {
 			isa = PBXGroup;
 			children = (
-				6362A250244EED3B00FCB5B3 /* Server */,
+				6356C402245BE11700BFFC2B /* Server */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
 		};
-		6362A250244EED3B00FCB5B3 /* Server */ = {
+		6356C402245BE11700BFFC2B /* Server */ = {
 			isa = PBXGroup;
 			children = (
-				6362A251244EED3B00FCB5B3 /* SecurityManager.swift */,
-				6362A252244EED3B00FCB5B3 /* ObjectManager.swift */,
-				6362A253244EED3B00FCB5B3 /* ServerConstant.swift */,
+				6356C403245BE11700BFFC2B /* SecurityManager.swift */,
+				6356C404245BE11700BFFC2B /* ObjectManager.swift */,
+				6356C405245BE11700BFFC2B /* ServerConstant.swift */,
 			);
 			path = Server;
 			sourceTree = "<group>";
 		};
-		6362A254244EED3B00FCB5B3 /* Models */ = {
+		6356C406245BE11700BFFC2B /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				6362A255244EED3B00FCB5B3 /* TGSettingsRequest.swift */,
-				6362A256244EED3B00FCB5B3 /* TGSettingsResponse.swift */,
-				6362A257244EED3B00FCB5B3 /* TGRow.swift */,
-				6362A258244EED3B00FCB5B3 /* TGUserModel.swift */,
+				6356C407245BE11700BFFC2B /* TGSettingsRequest.swift */,
+				6356C408245BE11700BFFC2B /* TGSettingsResponse.swift */,
+				6356C409245BE11700BFFC2B /* TGRow.swift */,
+				6356C40A245BE11700BFFC2B /* TGUserModel.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
 		};
-		6362A259244EED3B00FCB5B3 /* Extansions */ = {
+		6356C40B245BE11700BFFC2B /* Extansions */ = {
 			isa = PBXGroup;
 			children = (
-				6362A25A244EED3B00FCB5B3 /* NSAttributedString+Ext.swift */,
-				6362A25B244EED3B00FCB5B3 /* String+Ext.swift */,
-				6362A25C244EED3B00FCB5B3 /* NSError+Ext.swift */,
-				6362A25D244EED3B00FCB5B3 /* DataResponse + Ext.swift */,
-				6362A25E244EED3B00FCB5B3 /* Array+Ext.swift */,
+				6356C40C245BE11700BFFC2B /* NSAttributedString+Ext.swift */,
+				6356C40D245BE11700BFFC2B /* String+Ext.swift */,
+				6356C40E245BE11700BFFC2B /* NSError+Ext.swift */,
+				6356C40F245BE11700BFFC2B /* DataResponse + Ext.swift */,
+				6356C410245BE11700BFFC2B /* Array+Ext.swift */,
 			);
 			path = Extansions;
 			sourceTree = "<group>";
 		};
-		6362A25F244EED3B00FCB5B3 /* Controllers */ = {
+		6356C411245BE11700BFFC2B /* Controllers */ = {
 			isa = PBXGroup;
 			children = (
-				6362A260244EED3B00FCB5B3 /* MainController.swift */,
-				6362A261244EED3B00FCB5B3 /* TGUserController.swift */,
+				6356C412245BE11700BFFC2B /* MainController.swift */,
+				6356C413245BE11700BFFC2B /* TGUserController.swift */,
 			);
 			path = Controllers;
 			sourceTree = "<group>";
 		};
-		6362A262244EED3B00FCB5B3 /* Helpers */ = {
+		6356C414245BE11700BFFC2B /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
-				6362A263244EED3B00FCB5B3 /* DataSource.swift */,
+				6356C415245BE11700BFFC2B /* DataSource.swift */,
 			);
 			path = Helpers;
+			sourceTree = "<group>";
+		};
+		6362A24C244EED3B00FCB5B3 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				6356C3FF245BE11700BFFC2B /* CloudVeilSecurityManager */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		6389DF63245BEDAA00450397 /* CloudVeilSecurityManager */ = {
+			isa = PBXGroup;
+			children = (
+				6389DF64245BEDAA00450397 /* CloudVeilSecurityManager.h */,
+				6389DF65245BEDAA00450397 /* Info.plist */,
+			);
+			path = CloudVeilSecurityManager;
+			sourceTree = "<group>";
+		};
+		6389DF79245BEDC700450397 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		723FFF3B20496F980027A9BC = {
 			isa = PBXGroup;
 			children = (
 				6362A24C244EED3B00FCB5B3 /* Sources */,
+				6389DF63245BEDAA00450397 /* CloudVeilSecurityManager */,
 				723FFF4620496F980027A9BC /* Products */,
-				AE14EE02362F230E08D48FF4 /* Pods */,
-				7A3989819C8CC789347B9768 /* Frameworks */,
+				6389DF79245BEDC700450397 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
 		723FFF4620496F980027A9BC /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				723FFF4520496F980027A9BC /* SecurityManager.framework */,
+				6389DF62245BEDAA00450397 /* CloudVeilSecurityManager.framework */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		7A3989819C8CC789347B9768 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				5B68EB01B68D1B21B1C84740 /* Pods_SecurityManager.framework */,
-				FCB9D5EFF6EE147561B9E127 /* Pods_SecurityManagerTests.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		AE14EE02362F230E08D48FF4 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				C5C15CD9988E772EE473E610 /* Pods-SecurityManager.debug hockeyapp.xcconfig */,
-				16575CA75B1444429DC49E30 /* Pods-SecurityManager.debug appstore.xcconfig */,
-				31BC35FF17F02961D520FEA9 /* Pods-SecurityManager.release appstore.xcconfig */,
-				B928F8A8F3BBC57553B8B388 /* Pods-SecurityManager.release hockeyapp.xcconfig */,
-				317D94EC9AED90E001E8E10D /* Pods-SecurityManagerTests.debug hockeyapp.xcconfig */,
-				3D1A0ED8924F677A9D2401CE /* Pods-SecurityManagerTests.debug appstore.xcconfig */,
-				B39EF5DF51CEDE70BD9139C5 /* Pods-SecurityManagerTests.release appstore.xcconfig */,
-				82EF09D88AF6536AB2A82E57 /* Pods-SecurityManagerTests.release hockeyapp.xcconfig */,
-			);
-			name = Pods;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
-		723FFF4220496F980027A9BC /* Headers */ = {
+		6389DF5D245BEDAA00450397 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6362A276244EED3C00FCB5B3 /* SecurityManager.h in Headers */,
+				6389DF66245BEDAA00450397 /* CloudVeilSecurityManager.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		723FFF4420496F980027A9BC /* SecurityManager */ = {
+		6389DF61245BEDAA00450397 /* CloudVeilSecurityManager */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 723FFF5920496F990027A9BC /* Build configuration list for PBXNativeTarget "SecurityManager" */;
+			buildConfigurationList = 6389DF67245BEDAA00450397 /* Build configuration list for PBXNativeTarget "CloudVeilSecurityManager" */;
 			buildPhases = (
-				19566F74A9217ADBFCE73E28 /* [CP] Check Pods Manifest.lock */,
-				723FFF4020496F980027A9BC /* Sources */,
-				723FFF4120496F980027A9BC /* Frameworks */,
-				723FFF4220496F980027A9BC /* Headers */,
-				723FFF4320496F980027A9BC /* Resources */,
-				96EE02E52942593CA6E55541 /* [CP] Copy Pods Resources */,
+				6389DF5D245BEDAA00450397 /* Headers */,
+				6389DF5E245BEDAA00450397 /* Sources */,
+				6389DF5F245BEDAA00450397 /* Frameworks */,
+				6389DF60245BEDAA00450397 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = SecurityManager;
-			productName = SecurityManager;
-			productReference = 723FFF4520496F980027A9BC /* SecurityManager.framework */;
+			name = CloudVeilSecurityManager;
+			packageProductDependencies = (
+				6389DF7A245BEDC700450397 /* Alamofire */,
+				6389DF7C245BEDC700450397 /* ObjectMapper */,
+			);
+			productName = CloudVeilSecurityManager;
+			productReference = 6389DF62245BEDAA00450397 /* CloudVeilSecurityManager.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 /* End PBXNativeTarget section */
@@ -247,10 +229,8 @@
 				LastUpgradeCheck = 0930;
 				ORGANIZATIONNAME = Requestum;
 				TargetAttributes = {
-					723FFF4420496F980027A9BC = {
-						CreatedOnToolsVersion = 9.2;
-						LastSwiftMigration = 0920;
-						ProvisioningStyle = Automatic;
+					6389DF61245BEDAA00450397 = {
+						CreatedOnToolsVersion = 11.4;
 					};
 				};
 			};
@@ -263,185 +243,55 @@
 				Base,
 			);
 			mainGroup = 723FFF3B20496F980027A9BC;
+			packageReferences = (
+				63723E35245BDFBB0098B805 /* XCRemoteSwiftPackageReference "Alamofire" */,
+				63723E38245BDFD80098B805 /* XCRemoteSwiftPackageReference "ObjectMapper" */,
+			);
 			productRefGroup = 723FFF4620496F980027A9BC /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				723FFF4420496F980027A9BC /* SecurityManager */,
+				6389DF61245BEDAA00450397 /* CloudVeilSecurityManager */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		723FFF4320496F980027A9BC /* Resources */ = {
+		6389DF60245BEDAA00450397 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6362A278244EED3C00FCB5B3 /* Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		19566F74A9217ADBFCE73E28 /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-SecurityManager-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		96EE02E52942593CA6E55541 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "[CP] Copy Pods Resources";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-SecurityManager/Pods-SecurityManager-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
-		723FFF4020496F980027A9BC /* Sources */ = {
+		6389DF5E245BEDAA00450397 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6362A26F244EED3C00FCB5B3 /* String+Ext.swift in Sources */,
-				6362A277244EED3C00FCB5B3 /* Debouncer.swift in Sources */,
-				6362A271244EED3C00FCB5B3 /* DataResponse + Ext.swift in Sources */,
-				6362A26D244EED3C00FCB5B3 /* TGUserModel.swift in Sources */,
-				6362A275244EED3C00FCB5B3 /* DataSource.swift in Sources */,
-				6362A268244EED3C00FCB5B3 /* ObjectManager.swift in Sources */,
-				6362A269244EED3C00FCB5B3 /* ServerConstant.swift in Sources */,
-				6362A26E244EED3C00FCB5B3 /* NSAttributedString+Ext.swift in Sources */,
-				6362A267244EED3C00FCB5B3 /* SecurityManager.swift in Sources */,
-				6362A26A244EED3C00FCB5B3 /* TGSettingsRequest.swift in Sources */,
-				6362A270244EED3C00FCB5B3 /* NSError+Ext.swift in Sources */,
-				6362A272244EED3C00FCB5B3 /* Array+Ext.swift in Sources */,
-				6362A26B244EED3C00FCB5B3 /* TGSettingsResponse.swift in Sources */,
-				6362A274244EED3C00FCB5B3 /* TGUserController.swift in Sources */,
-				6362A273244EED3C00FCB5B3 /* MainController.swift in Sources */,
-				6362A26C244EED3C00FCB5B3 /* TGRow.swift in Sources */,
+				6389DF69245BEDBE00450397 /* SecurityManager.swift in Sources */,
+				6389DF6A245BEDBE00450397 /* ObjectManager.swift in Sources */,
+				6389DF6B245BEDBE00450397 /* ServerConstant.swift in Sources */,
+				6389DF6C245BEDBE00450397 /* TGSettingsRequest.swift in Sources */,
+				6389DF6D245BEDBE00450397 /* TGSettingsResponse.swift in Sources */,
+				6389DF6E245BEDBE00450397 /* TGRow.swift in Sources */,
+				6389DF6F245BEDBE00450397 /* TGUserModel.swift in Sources */,
+				6389DF70245BEDBE00450397 /* NSAttributedString+Ext.swift in Sources */,
+				6389DF71245BEDBE00450397 /* String+Ext.swift in Sources */,
+				6389DF72245BEDBE00450397 /* NSError+Ext.swift in Sources */,
+				6389DF73245BEDBE00450397 /* DataResponse + Ext.swift in Sources */,
+				6389DF74245BEDBE00450397 /* Array+Ext.swift in Sources */,
+				6389DF75245BEDBE00450397 /* MainController.swift in Sources */,
+				6389DF76245BEDBE00450397 /* TGUserController.swift in Sources */,
+				6389DF77245BEDBE00450397 /* DataSource.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		1565DBA92080FC6400B5C4A3 /* Debug Hockeyapp */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				MTL_ENABLE_DEBUG_INFO = YES;
-				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				VERSIONING_SYSTEM = "apple-generic";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = "Debug Hockeyapp";
-		};
-		1565DBAA2080FC6400B5C4A3 /* Debug Hockeyapp */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = C5C15CD9988E772EE473E610 /* Pods-SecurityManager.debug hockeyapp.xcconfig */;
-			buildSettings = {
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_IDENTITY = "";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				DEFINES_MODULE = YES;
-				DEVELOPMENT_TEAM = NL53BFH4CA;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/SecurityManager/Frameworks",
-				);
-				INFOPLIST_FILE = SecurityManager/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				MARKETING_VERSION = 1.0.3;
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = com.requestum.SecurityManager;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SKIP_INSTALL = NO;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = "Debug Hockeyapp";
-		};
 		15F7194220864A180031ABD8 /* Release Hockeyapp */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -504,258 +354,134 @@
 			};
 			name = "Release Hockeyapp";
 		};
-		15F7194320864A180031ABD8 /* Release Hockeyapp */ = {
+		6389DF68245BEDAA00450397 /* Release Hockeyapp */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = B928F8A8F3BBC57553B8B388 /* Pods-SecurityManager.release hockeyapp.xcconfig */;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_IDENTITY = "";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEFINES_MODULE = YES;
-				DEVELOPMENT_TEAM = NL53BFH4CA;
+				DEVELOPMENT_TEAM = L95C8867HX;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/SecurityManager/Frameworks",
-				);
-				INFOPLIST_FILE = SecurityManager/Info.plist;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = CloudVeilSecurityManager/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				MARKETING_VERSION = 1.0.3;
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = com.requestum.SecurityManager;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = org.cloudveil.CloudVeilSecurityManager;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SKIP_INSTALL = NO;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
 			};
 			name = "Release Hockeyapp";
-		};
-		15F7194520864A1A0031ABD8 /* Release AppStore */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				MTL_ENABLE_DEBUG_INFO = YES;
-				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				VERSIONING_SYSTEM = "apple-generic";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = "Release AppStore";
-		};
-		15F7194620864A1A0031ABD8 /* Release AppStore */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 31BC35FF17F02961D520FEA9 /* Pods-SecurityManager.release appstore.xcconfig */;
-			buildSettings = {
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_IDENTITY = "";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				DEFINES_MODULE = YES;
-				DEVELOPMENT_TEAM = NL53BFH4CA;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/SecurityManager/Frameworks",
-				);
-				INFOPLIST_FILE = SecurityManager/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				MARKETING_VERSION = 1.0.3;
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = com.requestum.SecurityManager;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SKIP_INSTALL = NO;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = "Release AppStore";
-		};
-		15F7194820864A1C0031ABD8 /* Debug AppStore */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				MTL_ENABLE_DEBUG_INFO = YES;
-				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				VERSIONING_SYSTEM = "apple-generic";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = "Debug AppStore";
-		};
-		15F7194920864A1C0031ABD8 /* Debug AppStore */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 16575CA75B1444429DC49E30 /* Pods-SecurityManager.debug appstore.xcconfig */;
-			buildSettings = {
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_IDENTITY = "";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				DEFINES_MODULE = YES;
-				DEVELOPMENT_TEAM = NL53BFH4CA;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/SecurityManager/Frameworks",
-				);
-				INFOPLIST_FILE = SecurityManager/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				MARKETING_VERSION = 1.0.3;
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = com.requestum.SecurityManager;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SKIP_INSTALL = NO;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = "Debug AppStore";
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		6389DF67245BEDAA00450397 /* Build configuration list for PBXNativeTarget "CloudVeilSecurityManager" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6389DF68245BEDAA00450397 /* Release Hockeyapp */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Release Hockeyapp";
+		};
 		723FFF3F20496F980027A9BC /* Build configuration list for PBXProject "SecurityManager" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				1565DBA92080FC6400B5C4A3 /* Debug Hockeyapp */,
-				15F7194820864A1C0031ABD8 /* Debug AppStore */,
-				15F7194520864A1A0031ABD8 /* Release AppStore */,
 				15F7194220864A180031ABD8 /* Release Hockeyapp */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = "Debug Hockeyapp";
-		};
-		723FFF5920496F990027A9BC /* Build configuration list for PBXNativeTarget "SecurityManager" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				1565DBAA2080FC6400B5C4A3 /* Debug Hockeyapp */,
-				15F7194920864A1C0031ABD8 /* Debug AppStore */,
-				15F7194620864A1A0031ABD8 /* Release AppStore */,
-				15F7194320864A180031ABD8 /* Release Hockeyapp */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = "Debug Hockeyapp";
+			defaultConfigurationName = "Release Hockeyapp";
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		63723E35245BDFBB0098B805 /* XCRemoteSwiftPackageReference "Alamofire" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.9.0;
+			};
+		};
+		63723E38245BDFD80098B805 /* XCRemoteSwiftPackageReference "ObjectMapper" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/patriciy/ObjectMapper.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.5.5;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6389DF7A245BEDC700450397 /* Alamofire */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 63723E35245BDFBB0098B805 /* XCRemoteSwiftPackageReference "Alamofire" */;
+			productName = Alamofire;
+		};
+		6389DF7C245BEDC700450397 /* ObjectMapper */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 63723E38245BDFD80098B805 /* XCRemoteSwiftPackageReference "ObjectMapper" */;
+			productName = ObjectMapper;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 723FFF3C20496F980027A9BC /* Project object */;
 }

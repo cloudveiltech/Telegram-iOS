@@ -111,20 +111,6 @@ import UIKit
         return -1
     }
     
-    // MARK: - Actions
-    let getSettingsDebounced = Debouncer(delay: 0.5) {
-        if MainController.shared.lastRequest == nil {
-            return
-        }
-        
-        NSLog("Settings load start\n");
-        NSLog("\(MainController.shared.lastRequest?.toJSON())")
-        
-        SecurityManager.shared.getSettings(withRequest: MainController.shared.lastRequest!) { (resp) in
-            MainController.shared.saveSettings(resp)
-            let _ = MainController.shared.blockedImageData
-        }
-    }
     
      open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = []) {
         let request = TGSettingsRequest(JSON: [:])!
@@ -147,7 +133,10 @@ import UIKit
         
         self.lastRequest = request
         self.lastRequestTime = Date().timeIntervalSince1970
-        getSettingsDebounced.call()
+        SecurityManager.shared.getSettings(withRequest: MainController.shared.lastRequest!) { (resp) in
+            MainController.shared.saveSettings(resp)
+            let _ = MainController.shared.blockedImageData
+        }
     }
     
     private func saveSettings(_ settings: TGSettingsResponse?) {
