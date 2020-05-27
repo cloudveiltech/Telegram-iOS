@@ -111,6 +111,12 @@ import UIKit
         return -1
     }
     
+    private func sengSettingsRequest() {
+        SecurityManager.shared.getSettings(withRequest: MainController.shared.lastRequest!) { (resp) in
+            MainController.shared.saveSettings(resp)
+            let _ = MainController.shared.blockedImageData
+        }
+    }
     
      open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = []) {
         let request = TGSettingsRequest(JSON: [:])!
@@ -133,10 +139,7 @@ import UIKit
         
         self.lastRequest = request
         self.lastRequestTime = Date().timeIntervalSince1970
-        SecurityManager.shared.getSettings(withRequest: MainController.shared.lastRequest!) { (resp) in
-            MainController.shared.saveSettings(resp)
-            let _ = MainController.shared.blockedImageData
-        }
+        self.sengSettingsRequest()
     }
     
     private func saveSettings(_ settings: TGSettingsResponse?) {
@@ -236,8 +239,7 @@ import UIKit
         
         lastRequest?.groups.append(group)
         
-        print("Settings load start\n");
-        getSettingsDebounced.call()
+        self.sengSettingsRequest()
     }
     
      open func replayRequestWithChannel(channel: TGRow) {
@@ -249,8 +251,7 @@ import UIKit
         
         lastRequest?.channels.append(channel)
         
-        print("Settings load start\n");
-        getSettingsDebounced.call()
+        self.sengSettingsRequest()
     }
     
      open func replayRequestWithBot(bot: TGRow) {
@@ -262,8 +263,7 @@ import UIKit
         
         lastRequest?.bots.append(bot)
         
-        print("Settings load start\n");
-        getSettingsDebounced.call()
+        self.sengSettingsRequest()
     }
     
      open func firstRunPopup(at viewController: UIViewController) {
