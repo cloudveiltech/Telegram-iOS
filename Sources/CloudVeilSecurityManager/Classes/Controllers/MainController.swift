@@ -112,6 +112,7 @@ import UIKit
     }
     
     private func sengSettingsRequest() {
+        NSLog("Downloading settings")
         SecurityManager.shared.getSettings(withRequest: MainController.shared.lastRequest!) { (resp) in
             MainController.shared.saveSettings(resp)
             let _ = MainController.shared.blockedImageData
