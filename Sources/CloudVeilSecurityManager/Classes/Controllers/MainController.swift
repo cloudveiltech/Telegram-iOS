@@ -144,8 +144,9 @@ import UIKit
     }
     
     private func saveSettings(_ settings: TGSettingsResponse?) {
+    print("Save settings called")
         DataSource<TGSettingsResponse>.set(settings)
-        settingsCache = settings        
+        settingsCache = settings
         for observer in observers {
             observer()
         }
@@ -203,6 +204,12 @@ import UIKit
     }
     
      open func isConversationCheckedOnServer(conversationId: NSInteger, channelId: NSInteger) -> Bool {
+if settings == nil {
+print("settings is nil")
+    return true
+} else {
+print("settings is ok")
+}
         if let dictArray = settings?.access?.groups {
             if isIdInDict(dictArray: dictArray, conversationId: channelId) {
                 return true
@@ -221,6 +228,7 @@ import UIKit
             }
         }
         
+
         return false
     }
     
