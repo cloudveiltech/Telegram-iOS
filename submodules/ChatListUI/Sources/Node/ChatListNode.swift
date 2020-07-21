@@ -497,6 +497,8 @@ public final class ChatListNode: ListView {
     let preloadItems = Promise<[ChatHistoryPreloadItem]>([])
     
     var didBeginSelectingChats: (() -> Void)?
+
+    let backgroundQueue = DispatchQueue(label: "cvbg.queue", qos: .background)
     
     public init(context: AccountContext, groupId: PeerGroupId, chatListFilter: ChatListFilter? = nil, previewing: Bool, fillPreloadItems: Bool, mode: ChatListNodeMode, theme: PresentationTheme, fontSize: PresentationFontSize, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, nameSortOrder: PresentationPersonNameOrder, nameDisplayOrder: PresentationPersonNameOrder, disableAnimations: Bool) {
         self.context = context
@@ -716,8 +718,7 @@ public final class ChatListNode: ListView {
             DispatchQueue.main.sync {
                 let appState = UIApplication.shared.applicationState
                 if appState != UIApplication.State.background {
-                    let backgroundQueue = DispatchQueue(label: "cvbg.queue", qos: .background)
-                    backgroundQueue.async {
+                    self.backgroundQueue.async {
                         self.cloudVeilCheckDialogsOnServer(entries: rawEntries)
                         self.muteBlockedPeers(entries: rawEntries)
                     }

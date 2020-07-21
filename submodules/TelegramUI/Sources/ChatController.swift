@@ -330,7 +330,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         let _ = ChatControllerCount.modify { value in
             return value + 1
         }
-        
+        Thread.callStackSymbols.forEach{print($0)}
         self.context = context
         self.chatLocation = chatLocation
         self.subject = subject

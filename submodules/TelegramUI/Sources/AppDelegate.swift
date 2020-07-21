@@ -255,7 +255,7 @@ final class SharedApplicationContext {
             UIApplication.shared.applicationIconBadgeNumber = Int(count)
         }))
         
-        
+
         precondition(!testIsLaunched)
         testIsLaunched = true
         
@@ -1297,7 +1297,7 @@ final class SharedApplicationContext {
         
         let pushRegistry = PKPushRegistry(queue: .main)
         if #available(iOS 9.0, *) {
-            pushRegistry.desiredPushTypes = Set([.voIP])
+       //     pushRegistry.desiredPushTypes = Set([.voIP])
         }
         self.pushRegistry = pushRegistry
    // cloudveil disabled because of crash
@@ -1364,6 +1364,12 @@ final class SharedApplicationContext {
             UIApplication.shared.setStatusBarHidden(false, with: .none)
         }
         
+        //CloudVeil start©
+        AppDelegate.setAppBadge(0)
+        UIApplication.shared.applicationIconBadgeNumber = 0
+        //CloudVeil end
+        
+        
         /*if #available(iOS 13.0, *) {
             BGTaskScheduler.shared.register(forTaskWithIdentifier: baseAppBundleId + ".refresh", using: nil, launchHandler: { task in
                 let _ = (self.sharedContextPromise.get()
@@ -1399,7 +1405,8 @@ final class SharedApplicationContext {
         return 0
     }
     
-    public static func setAppBadge(_ newValue: Int) {
+    public static func setAppBadge(_ newValue: Int) {        
+        Logger.shared.log("App badge", "set to = \(newValue)")
         if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
             userDefaults.set(newValue, forKey: "app-badge")
             userDefaults.synchronize()

@@ -820,7 +820,9 @@ public func createPollController(context: AccountContext, peer: Peer, isQuiz: Bo
             
             var deadlineTimeout: Int32?
             #if DEBUG
-            deadlineTimeout = 65
+            //CloudVeil start
+         //   deadlineTimeout = 65
+            //CloudVeil end
             #endif
             
             dismissImpl?()

@@ -113,6 +113,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
     open var primaryNavigationHeight: CGFloat {
         return super.navigationHeight
     }
+    
     //CloudVeil start
     public static func checkPeerIsAllowed(peerId: PeerId, controller: ViewController, account: Account, presentationData: PresentationData, callback: @escaping (Bool) -> ()) {
         let checked = MainController.shared.isConversationCheckedOnServer(conversationId: NSInteger(peerId.id), channelId: -NSInteger(peerId.id))
