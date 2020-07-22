@@ -3658,8 +3658,8 @@
 		4952437303EDA63300000009 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				APP_VERSION = 6.1.1;
-				BUILD_NUM = 236;
+				APP_VERSION = 6.1.2;
+				BUILD_NUM = 238;
 			};
 			name = Debug;
 		};
@@ -3787,8 +3787,8 @@
 		4952437350C7218900000009 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				APP_VERSION = 6.1.1;
-				BUILD_NUM = 236;
+				APP_VERSION = 6.1.2;
+				BUILD_NUM = 238;
 			};
 			name = Profile;
 		};
@@ -3916,8 +3916,8 @@
 		49524373A439BFE700000009 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				APP_VERSION = 6.1.1;
-				BUILD_NUM = 236;
+				APP_VERSION = 6.1.2;
+				BUILD_NUM = 238;
 			};
 			name = Release;
 		};
