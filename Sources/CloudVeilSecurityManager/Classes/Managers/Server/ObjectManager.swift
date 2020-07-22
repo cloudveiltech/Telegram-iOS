@@ -20,7 +20,7 @@ class ObjectManager {
     func headers() -> HTTPHeaders {
         
         let headers: HTTPHeaders = [:]
-    
+        
         return headers
     }
     
@@ -29,13 +29,16 @@ class ObjectManager {
                  parameters: Parameters? = nil,
                  urlParameters: [String: String]? = nil,
                  encoding: ParameterEncoding = JSONEncoding.default) -> DataRequest {
-                
+        
         let serverTrustPolicies: [String: ServerTrustPolicy] = [
             "manage.cloudveil.org": ServerTrustPolicy.disableEvaluation
         ]
         
         if self.sessionManager == nil {
-            self.sessionManager = SessionManager(
+            let configuration = URLSessionConfiguration.default
+            configuration.timeoutIntervalForRequest = 10
+            configuration.timeoutIntervalForResource = 10
+            self.sessionManager = SessionManager(configuration: configuration,
                 serverTrustPolicyManager: ServerTrustPolicyManager(policies: serverTrustPolicies)
             )
         }
@@ -43,7 +46,7 @@ class ObjectManager {
         let urlString = ServerConstant.serverAPIUrl + serverConstant.rawValue
         
         let url = urlString.replacingURLParameters(urlParameters: urlParameters)
-
+        
         return self.sessionManager!.request(url, method: method, parameters: parameters, encoding: encoding, headers: headers())
     }
 }

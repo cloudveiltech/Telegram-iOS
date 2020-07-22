@@ -144,9 +144,12 @@ import UIKit
     }
     
     private func saveSettings(_ settings: TGSettingsResponse?) {
+
     print("Save settings called")
+if settings != nil {
         DataSource<TGSettingsResponse>.set(settings)
         settingsCache = settings
+}
         for observer in observers {
             observer()
         }

@@ -12,7 +12,7 @@ import ObjectMapper
 import Alamofire
 
 class SecurityManager: ObjectManager {
-
+    
     // MARK: - Singleton
     
     static let shared = SecurityManager()
@@ -21,14 +21,16 @@ class SecurityManager: ObjectManager {
     // MARK: - Actions
     
     func getSettings(withRequest tgRequest: TGSettingsRequest,_ completion: @escaping (TGSettingsResponse?) -> ()) {
-    
+        
         let params: Parameters = tgRequest.toJSON()
-    
+        
         request(.post, serverConstant: .settings, parameters: params).responseJSON { (response) in
             
             if let json = response.JSON() {
                 let resp = Mapper<TGSettingsResponse>().map(JSON: json)
                 completion(resp)
+            } else {
+                completion(nil)
             }
         }
     }
