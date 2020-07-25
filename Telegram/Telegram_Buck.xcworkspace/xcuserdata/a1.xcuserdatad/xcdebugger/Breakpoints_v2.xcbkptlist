@@ -30,8 +30,8 @@
             filePath = "../submodules/TelegramUI/Sources/ChatController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "4918"
-            endingLineNumber = "4918"
+            startingLineNumber = "4917"
+            endingLineNumber = "4917"
             landmarkName = "viewDidAppear(_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -46,8 +46,8 @@
             filePath = "../submodules/TelegramUI/Sources/ChatController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "7948"
-            endingLineNumber = "7948"
+            startingLineNumber = "7955"
+            endingLineNumber = "7955"
             landmarkName = "openResolved(_:message:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -62,8 +62,8 @@
             filePath = "../submodules/TelegramUI/Sources/ChatController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "7942"
-            endingLineNumber = "7942"
+            startingLineNumber = "7949"
+            endingLineNumber = "7949"
             landmarkName = "openResolved(_:message:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -94,8 +94,8 @@
             filePath = "../submodules/TelegramUI/Sources/ChatController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "2716"
-            endingLineNumber = "2716"
+            startingLineNumber = "2715"
+            endingLineNumber = "2715"
             landmarkName = "loadDisplayNode()"
             landmarkType = "7">
          </BreakpointContent>
@@ -110,8 +110,8 @@
             filePath = "../submodules/TelegramUI/Sources/ChatController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "2104"
-            endingLineNumber = "2104"
+            startingLineNumber = "2103"
+            endingLineNumber = "2103"
             landmarkName = "init(context:chatLocation:subject:botStart:mode:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -174,8 +174,8 @@
             filePath = "../submodules/TelegramUI/Sources/ChatController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "409"
-            endingLineNumber = "409"
+            startingLineNumber = "408"
+            endingLineNumber = "408"
             landmarkName = "init(context:chatLocation:subject:botStart:mode:)"
             landmarkType = "7">
          </BreakpointContent>

@@ -134,6 +134,9 @@ public final class WebSearchController: ViewController {
     private var navigationContentNode: WebSearchNavigationContentNode?
     
     public init(context: AccountContext, peer: Peer?, configuration: SearchBotsConfiguration, mode: WebSearchControllerMode) {
+		
+		Thread.callStackSymbols.forEach{print($0)}
+		
         self.context = context
         self.mode = mode
         self.peer = peer

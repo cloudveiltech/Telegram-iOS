@@ -330,7 +330,6 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         let _ = ChatControllerCount.modify { value in
             return value + 1
         }
-        Thread.callStackSymbols.forEach{print($0)}
         self.context = context
         self.chatLocation = chatLocation
         self.subject = subject
@@ -5988,7 +5987,10 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             }, openFileGallery: {
                 self?.presentFileMediaPickerOptions(editingMessage: editMediaOptions != nil)
             }, openWebSearch: {
-                self?.presentWebSearch(editingMessage : editMediaOptions != nil)
+				//CloudVeil start
+				self?.presentFileMediaPickerOptions(editingMessage: editMediaOptions != nil)
+               // self?.presentWebSearch(editingMessage : editMediaOptions != nil)
+				//CloudVeil end
             }, openMap: {
                 self?.presentLocationPicker()
             }, openContacts: {
@@ -6240,6 +6242,11 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     }
     
     private func presentWebSearch(editingMessage: Bool) {
+		//CloudVeil start
+		if MainController.SecurityStaticSettings.disableGlobalSearch {
+			return
+		}
+		//CloudVeil end
         guard let peer = self.presentationInterfaceState.renderedPeer?.peer else {
             return
         }
