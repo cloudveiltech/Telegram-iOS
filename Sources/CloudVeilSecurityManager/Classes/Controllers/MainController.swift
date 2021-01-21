@@ -292,5 +292,9 @@ open class MainController: NSObject {
 	open func appendObserver(obs: @escaping () -> ()) {
 		observers.append(obs)
 	}
+	
+	open func clearObservers() {
+		observers.removeAll()
+	}
 }
 			
