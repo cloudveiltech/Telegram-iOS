@@ -7,6 +7,9 @@ swift_library(
 		"Sources/**/*.swift",
     ]),
     deps = [
+		#CloudVeil start
+		"//Telegram:CloudVeilSecurityManager",
+		#CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
@@ -22,6 +25,9 @@ swift_library(
         "//submodules/RadialStatusNode:RadialStatusNode",
         "//submodules/ShareController:ShareController",
         "//submodules/AppBundle:AppBundle",
+        "//submodules/LegacyComponents:LegacyComponents",
+        "//submodules/LegacyMediaPickerUI:LegacyMediaPickerUI",
+        "//submodules/SaveToCameraRoll:SaveToCameraRoll",
     ],
     visibility = [
         "//visibility:public",

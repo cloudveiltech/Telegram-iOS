@@ -8,13 +8,13 @@ import SyncCore
 import TelegramPresentationData
 import TelegramStringFormatting
 import AccountContext
-import ShareController
 import SolidRoundedButtonNode
 import PresentationDataUtils
 
 class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDelegate {
     private let context: AccountContext
     private let mode: ChatScheduleTimeControllerMode
+    private let controllerStyle: ChatScheduleTimeControllerStyle
     private var presentationData: PresentationData
     private let dismissByTapOutside: Bool
     private let minimalTime: Int32?
@@ -22,11 +22,13 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
     private let dimNode: ASDisplayNode
     private let wrappingScrollNode: ASScrollNode
     private let contentContainerNode: ASDisplayNode
-    private let contentBackgroundNode: ASImageNode
+    private let effectNode: ASDisplayNode
+    private let backgroundNode: ASDisplayNode
+    private let contentBackgroundNode: ASDisplayNode
     private let titleNode: ASTextNode
     private let cancelButton: HighlightableButtonNode
     private let doneButton: SolidRoundedButtonNode
-    private let onlineButton: HighlightableButtonNode
+    private let onlineButton: SolidRoundedButtonNode
     
     private var pickerView: UIDatePicker?
     private let dateFormatter: DateFormatter
@@ -37,9 +39,10 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
     var dismiss: (() -> Void)?
     var cancel: (() -> Void)?
     
-    init(context: AccountContext, mode: ChatScheduleTimeControllerMode, currentTime: Int32?, minimalTime: Int32?, dismissByTapOutside: Bool) {
+    init(context: AccountContext, mode: ChatScheduleTimeControllerMode, style: ChatScheduleTimeControllerStyle, currentTime: Int32?, minimalTime: Int32?, dismissByTapOutside: Bool) {
         self.context = context
         self.mode = mode
+        self.controllerStyle = style
         self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
         self.dismissByTapOutside = dismissByTapOutside
         self.minimalTime = minimalTime
@@ -54,12 +57,40 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
         
         self.contentContainerNode = ASDisplayNode()
         self.contentContainerNode.isOpaque = false
-        self.contentContainerNode.clipsToBounds = true
+
+        self.backgroundNode = ASDisplayNode()
+        self.backgroundNode.clipsToBounds = true
+        self.backgroundNode.cornerRadius = 16.0
         
-        self.contentBackgroundNode = ASImageNode()
-        self.contentBackgroundNode.displaysAsynchronously = false
-        self.contentBackgroundNode.displayWithoutProcessing = true
-        self.contentBackgroundNode.image = generateStretchableFilledCircleImage(radius: 16.0, color: self.presentationData.theme.actionSheet.opaqueItemBackgroundColor)
+        let backgroundColor: UIColor
+        let textColor: UIColor
+        let accentColor: UIColor
+        let buttonColor: UIColor
+        let buttonTextColor: UIColor
+        let blurStyle: UIBlurEffect.Style
+        switch style {
+            case .default:
+                backgroundColor = self.presentationData.theme.actionSheet.itemBackgroundColor
+                textColor = self.presentationData.theme.actionSheet.primaryTextColor
+                accentColor = self.presentationData.theme.actionSheet.controlAccentColor
+                buttonColor = self.presentationData.theme.actionSheet.opaqueItemBackgroundColor
+                buttonTextColor = accentColor
+                blurStyle = self.presentationData.theme.actionSheet.backgroundType == .light ? .light : .dark
+            case .media:
+                backgroundColor = UIColor(rgb: 0x1c1c1e)
+                textColor = .white
+                accentColor = self.presentationData.theme.actionSheet.controlAccentColor
+                buttonColor = UIColor(rgb: 0x2b2b2f)
+                buttonTextColor = .white
+                blurStyle = .dark
+        }
+        
+        self.effectNode = ASDisplayNode(viewBlock: {
+            return UIVisualEffectView(effect: UIBlurEffect(style: blurStyle))
+        })
+        
+        self.contentBackgroundNode = ASDisplayNode()
+        self.contentBackgroundNode.backgroundColor = backgroundColor
         
         let title: String
         switch mode {
@@ -70,16 +101,16 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
         }
         
         self.titleNode = ASTextNode()
-        self.titleNode.attributedText = NSAttributedString(string: title, font: Font.bold(17.0), textColor: self.presentationData.theme.actionSheet.primaryTextColor)
+        self.titleNode.attributedText = NSAttributedString(string: title, font: Font.bold(17.0), textColor: textColor)
         
         self.cancelButton = HighlightableButtonNode()
-        self.cancelButton.setTitle(self.presentationData.strings.Common_Cancel, with: Font.regular(17.0), with: self.presentationData.theme.actionSheet.controlAccentColor, for: .normal)
+        self.cancelButton.setTitle(self.presentationData.strings.Common_Cancel, with: Font.regular(17.0), with: accentColor, for: .normal)
         
         self.doneButton = SolidRoundedButtonNode(theme: SolidRoundedButtonTheme(theme: self.presentationData.theme), height: 52.0, cornerRadius: 11.0, gloss: false)
         
-        self.onlineButton = HighlightableButtonNode()
-        self.onlineButton.setTitle(self.presentationData.strings.Conversation_ScheduleMessage_SendWhenOnline, with: Font.regular(17.0), with: self.presentationData.theme.actionSheet.controlAccentColor, for: .normal)
-        
+        self.onlineButton = SolidRoundedButtonNode(theme: SolidRoundedButtonTheme(backgroundColor: buttonColor, foregroundColor: buttonTextColor), font: .regular, height: 52.0, cornerRadius: 11.0, gloss: false)
+        self.onlineButton.title = self.presentationData.strings.Conversation_ScheduleMessage_SendWhenOnline
+
         self.dateFormatter = DateFormatter()
         self.dateFormatter.timeStyle = .none
         self.dateFormatter.dateStyle = .short
@@ -96,9 +127,11 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
         self.wrappingScrollNode.view.delegate = self
         self.addSubnode(self.wrappingScrollNode)
         
-        self.wrappingScrollNode.addSubnode(self.contentBackgroundNode)
+        self.wrappingScrollNode.addSubnode(self.backgroundNode)
         self.wrappingScrollNode.addSubnode(self.contentContainerNode)
         
+        self.backgroundNode.addSubnode(self.effectNode)
+        self.backgroundNode.addSubnode(self.contentBackgroundNode)
         self.contentContainerNode.addSubnode(self.titleNode)
         self.contentContainerNode.addSubnode(self.cancelButton)
         self.contentContainerNode.addSubnode(self.doneButton)
@@ -119,7 +152,12 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
                 }
             }
         }
-        self.onlineButton.addTarget(self, action: #selector(self.onlineButtonPressed), forControlEvents: .touchUpInside)
+        self.onlineButton.pressed = { [weak self] in
+            if let strongSelf = self {
+                strongSelf.onlineButton.isUserInteractionEnabled = false
+                strongSelf.completion?(scheduleWhenOnlineTimestamp)
+            }
+        }
         
         self.setupPickerView(currentTime: currentTime)
         self.updateButtonTitle()
@@ -132,9 +170,16 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
             pickerView.removeFromSuperview()
         }
         
+        let textColor: UIColor
+        switch self.controllerStyle {
+            case .default:
+                textColor = self.presentationData.theme.actionSheet.primaryTextColor
+            case .media:
+                textColor = UIColor.white
+        }
+        
         let pickerView = UIDatePicker()
         pickerView.timeZone = TimeZone(secondsFromGMT: 0)
-        pickerView.setValue(self.presentationData.theme.actionSheet.primaryTextColor, forKey: "textColor")
         pickerView.datePickerMode = .countDownTimer
         pickerView.datePickerMode = .dateAndTime
         pickerView.locale = Locale.current
@@ -142,6 +187,10 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
         pickerView.minuteInterval = 1
         self.contentContainerNode.view.addSubview(pickerView)
         pickerView.addTarget(self, action: #selector(self.datePickerUpdated), for: .valueChanged)
+        if #available(iOS 13.4, *) {
+            pickerView.preferredDatePickerStyle = .wheels
+        }
+        pickerView.setValue(textColor, forKey: "textColor")
         self.pickerView = pickerView
         
         self.updateMinimumDate(currentTime: currentTime)
@@ -154,7 +203,15 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
         let previousTheme = self.presentationData.theme
         self.presentationData = presentationData
         
-        self.contentBackgroundNode.image = generateStretchableFilledCircleImage(radius: 16.0, color: self.presentationData.theme.actionSheet.opaqueItemBackgroundColor)
+        guard case .default = self.controllerStyle else {
+            return
+        }
+        
+        if let effectView = self.effectNode.view as? UIVisualEffectView {
+            effectView.effect = UIBlurEffect(style: presentationData.theme.actionSheet.backgroundType == .light ? .light : .dark)
+        }
+        
+        self.contentBackgroundNode.backgroundColor = self.presentationData.theme.actionSheet.itemBackgroundColor
         self.titleNode.attributedText = NSAttributedString(string: self.titleNode.attributedText?.string ?? "", font: Font.bold(17.0), textColor: self.presentationData.theme.actionSheet.primaryTextColor)
         
         if previousTheme !== presentationData.theme, let (layout, navigationBarHeight) = self.containerLayout {
@@ -164,7 +221,7 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
         
         self.cancelButton.setTitle(self.presentationData.strings.Common_Cancel, with: Font.regular(17.0), with: self.presentationData.theme.actionSheet.controlAccentColor, for: .normal)
         self.doneButton.updateTheme(SolidRoundedButtonTheme(theme: self.presentationData.theme))
-        self.onlineButton.setTitle(self.presentationData.strings.Conversation_ScheduleMessage_SendWhenOnline, with: Font.regular(17.0), with: self.presentationData.theme.actionSheet.controlAccentColor, for: .normal)
+        self.onlineButton.updateTheme(SolidRoundedButtonTheme(backgroundColor: self.presentationData.theme.actionSheet.opaqueItemBackgroundColor, foregroundColor: self.presentationData.theme.actionSheet.controlAccentColor))
     }
     
     private func updateMinimumDate(currentTime: Int32? = nil) {
@@ -244,10 +301,6 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
         self.cancel?()
     }
     
-    @objc func onlineButtonPressed() {
-        self.completion?(scheduleWhenOnlineTimestamp)
-    }
-    
     @objc func dimTapGesture(_ recognizer: UITapGestureRecognizer) {
         if self.dismissByTapOutside, case .ended = recognizer.state {
             self.cancelButtonPressed()
@@ -316,7 +369,7 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
         
         var buttonOffset: CGFloat = 0.0
         if case .scheduledMessages(true) = self.mode {
-            buttonOffset += 60.0
+            buttonOffset += 64.0
         }
         
         let bottomInset: CGFloat = 10.0 + cleanInsets.bottom
@@ -335,7 +388,9 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
         if backgroundFrame.minY < contentFrame.minY {
             backgroundFrame.origin.y = contentFrame.minY
         }
-        transition.updateFrame(node: self.contentBackgroundNode, frame: backgroundFrame)
+        transition.updateFrame(node: self.backgroundNode, frame: backgroundFrame)
+        transition.updateFrame(node: self.effectNode, frame: CGRect(origin: CGPoint(), size: backgroundFrame.size))
+        transition.updateFrame(node: self.contentBackgroundNode, frame: CGRect(origin: CGPoint(), size: backgroundFrame.size))
         transition.updateFrame(node: self.wrappingScrollNode, frame: CGRect(origin: CGPoint(), size: layout.size))
         transition.updateFrame(node: self.dimNode, frame: CGRect(origin: CGPoint(), size: layout.size))
         
@@ -348,12 +403,11 @@ class ChatScheduleTimeControllerNode: ViewControllerTracingNode, UIScrollViewDel
         transition.updateFrame(node: self.cancelButton, frame: cancelFrame)
         
         let buttonInset: CGFloat = 16.0
-        let buttonHeight = self.doneButton.updateLayout(width: contentFrame.width - buttonInset * 2.0, transition: transition)
-        transition.updateFrame(node: self.doneButton, frame: CGRect(x: buttonInset, y: contentHeight - buttonHeight - insets.bottom - 10.0 - buttonOffset, width: contentFrame.width, height: buttonHeight))
+        let doneButtonHeight = self.doneButton.updateLayout(width: contentFrame.width - buttonInset * 2.0, transition: transition)
+        transition.updateFrame(node: self.doneButton, frame: CGRect(x: buttonInset, y: contentHeight - doneButtonHeight - insets.bottom - 16.0 - buttonOffset, width: contentFrame.width, height: doneButtonHeight))
         
-        let onlineSize = self.onlineButton.measure(CGSize(width: width, height: titleHeight))
-        let onlineFrame = CGRect(origin: CGPoint(x: ceil((contentFrame.width - onlineSize.width) / 2.0), y: contentHeight - 45.0 - insets.bottom), size: onlineSize)
-        transition.updateFrame(node: self.onlineButton, frame: onlineFrame)
+        let onlineButtonHeight = self.onlineButton.updateLayout(width: contentFrame.width - buttonInset * 2.0, transition: transition)
+        transition.updateFrame(node: self.onlineButton, frame: CGRect(x: buttonInset, y: contentHeight - onlineButtonHeight - insets.bottom - 16.0, width: contentFrame.width, height: onlineButtonHeight))
         
         self.pickerView?.frame = CGRect(origin: CGPoint(x: 0.0, y: 54.0), size: CGSize(width: contentFrame.width, height: pickerHeight))
         

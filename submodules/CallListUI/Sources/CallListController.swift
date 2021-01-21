@@ -11,7 +11,6 @@ import ItemListUI
 import PresentationDataUtils
 import AccountContext
 import AlertUI
-import PresentationDataUtils
 import AppBundle
 import LocalizedPeerData
 
@@ -145,9 +144,9 @@ public final class CallListController: ViewController {
     }
     
     override public func loadDisplayNode() {
-        self.displayNode = CallListControllerNode(context: self.context, mode: self.mode, presentationData: self.presentationData, call: { [weak self] peerId in
+        self.displayNode = CallListControllerNode(context: self.context, mode: self.mode, presentationData: self.presentationData, call: { [weak self] peerId, isVideo in
             if let strongSelf = self {
-                strongSelf.call(peerId)
+                strongSelf.call(peerId, isVideo: isVideo)
             }
         }, openInfo: { [weak self] peerId, messages in
             if let strongSelf = self {
@@ -201,14 +200,18 @@ public final class CallListController: ViewController {
     }
     
     @objc func callPressed() {
-        let controller = self.context.sharedContext.makeContactSelectionController(ContactSelectionControllerParams(context: self.context, title: { $0.Calls_NewCall }))
+        self.beginCallImpl()
+    }
+    
+    private func beginCallImpl() {
+        let controller = self.context.sharedContext.makeContactSelectionController(ContactSelectionControllerParams(context: self.context, title: { $0.Calls_NewCall }, displayCallIcons: true))
         controller.navigationPresentation = .modal
         self.createActionDisposable.set((controller.result
         |> take(1)
         |> deliverOnMainQueue).start(next: { [weak controller, weak self] peer in
             controller?.dismissSearch()
-            if let strongSelf = self, let contactPeer = peer, case let .peer(peer, _, _) = contactPeer {
-                strongSelf.call(peer.id, began: {
+            if let strongSelf = self, let (contactPeer, action) = peer, case let .peer(peer, _, _) = contactPeer {
+                strongSelf.call(peer.id, isVideo: action == .videoCall, began: {
                     if let strongSelf = self {
                         let _ = (strongSelf.context.sharedContext.hasOngoingCall.get()
                         |> filter { $0 }
@@ -257,7 +260,7 @@ public final class CallListController: ViewController {
         }
     }
     
-    private func call(_ peerId: PeerId, began: (() -> Void)? = nil) {
+    private func call(_ peerId: PeerId, isVideo: Bool, began: (() -> Void)? = nil) {
         self.peerViewDisposable.set((self.context.account.viewTracker.peerView(peerId)
             |> take(1)
             |> deliverOnMainQueue).start(next: { [weak self] view in
@@ -272,32 +275,10 @@ public final class CallListController: ViewController {
                     strongSelf.present(textAlertController(context: strongSelf.context, title: presentationData.strings.Call_ConnectionErrorTitle, text: presentationData.strings.Call_PrivacyErrorMessage(peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), in: .window(.root))
                     return
                 }
-            
-                let callResult = strongSelf.context.sharedContext.callManager?.requestCall(account: strongSelf.context.account, peerId: peerId, endCurrentIfAny: false)
-                if let callResult = callResult {
-                    if case let .alreadyInProgress(currentPeerId) = callResult {
-                        if currentPeerId == peerId {
-                            began?()
-                            strongSelf.context.sharedContext.navigateToCurrentCall()
-                        } else {
-                            let presentationData = strongSelf.presentationData
-                            let _ = (strongSelf.context.account.postbox.transaction { transaction -> (Peer?, Peer?) in
-                                return (transaction.getPeer(peerId), transaction.getPeer(currentPeerId))
-                                } |> deliverOnMainQueue).start(next: { [weak self] peer, current in
-                                    if let strongSelf = self, let peer = peer, let current = current {
-                                        strongSelf.present(textAlertController(context: strongSelf.context, title: presentationData.strings.Call_CallInProgressTitle, text: presentationData.strings.Call_CallInProgressMessage(current.compactDisplayTitle, peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
-                                            if let strongSelf = self {
-                                                let _ = strongSelf.context.sharedContext.callManager?.requestCall(account: strongSelf.context.account, peerId: peerId, endCurrentIfAny: true)
-                                                began?()
-                                            }
-                                        })]), in: .window(.root))
-                                    }
-                                })
-                        }
-                    } else {
-                        began?()
-                    }
-                }
+                
+                strongSelf.context.requestCall(peerId: peerId, isVideo: isVideo, completion: {
+                    began?()
+                })
             }
         }))
     }

@@ -9,6 +9,7 @@
 
 @synthesize selectionContext;
 @synthesize editingContext;
+@synthesize stickersContext;
 
 - (instancetype)initWithImage:(UIImage *)image
 {
@@ -37,7 +38,7 @@
 
 - (TGPhotoEditorTab)toolbarTabs
 {
-    return TGPhotoEditorCropTab | TGPhotoEditorToolsTab | TGPhotoEditorPaintTab | TGPhotoEditorTimerTab;
+    return TGPhotoEditorCropTab | TGPhotoEditorToolsTab | TGPhotoEditorPaintTab;
 }
 
 

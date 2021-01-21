@@ -128,8 +128,8 @@ const NSTimeInterval TGPhotoQualityPreviewDuration = 15.0f;
     CGSize dimensions = CGSizeZero;
     if ([self.item isKindOfClass:[TGMediaAsset class]])
         dimensions = ((TGMediaAsset *)self.item).dimensions;
-    else if ([self.item isKindOfClass:[TGCameraCapturedVideo class]])
-        dimensions = [((TGCameraCapturedVideo *)self.item).avAsset tracksWithMediaType:AVMediaTypeVideo].firstObject.naturalSize;
+//    else if ([self.item isKindOfClass:[TGCameraCapturedVideo class]])
+//        dimensions = [((TGCameraCapturedVideo *)self.item).avAsset tracksWithMediaType:AVMediaTypeVideo].firstObject.naturalSize;
     
     if (!CGSizeEqualToSize(dimensions, CGSizeZero))
         _quality.maximumValue = [TGMediaVideoConverter bestAvailablePresetForDimensions:dimensions] - 1;
@@ -421,7 +421,11 @@ const NSTimeInterval TGPhotoQualityPreviewDuration = 15.0f;
 {
     _appeared = true;
     
-    [transitionView removeFromSuperview];
+    if ([transitionView isKindOfClass:[TGPhotoEditorPreviewView class]]) {
+        [self.view insertSubview:transitionView atIndex:0];
+    } else {
+        [transitionView removeFromSuperview];
+    }
     
     TGPhotoEditorPreviewView *previewView = _previewView;
     previewView.hidden = false;
@@ -641,7 +645,7 @@ const NSTimeInterval TGPhotoQualityPreviewDuration = 15.0f;
     
     [self updateInfo];
     
-    SSignal *assetSignal = [self.item isKindOfClass:[TGMediaAsset class]] ? [TGMediaAssetImageSignals avAssetForVideoAsset:(TGMediaAsset *)self.item] : [SSignal single:((TGCameraCapturedVideo *)self.item).avAsset];
+    SSignal *assetSignal = [self.item isKindOfClass:[TGMediaAsset class]] ? [TGMediaAssetImageSignals avAssetForVideoAsset:(TGMediaAsset *)self.item] : ((TGCameraCapturedVideo *)self.item).avAsset;
 
     if ([self.item isKindOfClass:[TGMediaAsset class]])
         [self _updateVideoDuration:((TGMediaAsset *)self.item).videoDuration hasAudio:true];
@@ -664,7 +668,7 @@ const NSTimeInterval TGPhotoQualityPreviewDuration = 15.0f;
     {
         return [[[[[SSignal single:avAsset] delay:delay onQueue:[SQueue concurrentDefaultQueue]] mapToSignal:^SSignal *(AVAsset *avAsset)
         {
-            return [TGMediaVideoConverter convertAVAsset:avAsset adjustments:adjustments watcher:nil inhibitAudio:true];
+            return [TGMediaVideoConverter convertAVAsset:avAsset adjustments:adjustments watcher:nil inhibitAudio:true entityRenderer:nil];
         }] onError:^(__unused id error) {
             delay = 1.0;
         }] retryIf:^bool(__unused id error)

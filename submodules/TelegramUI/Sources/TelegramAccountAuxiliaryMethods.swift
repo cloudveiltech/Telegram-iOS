@@ -8,6 +8,7 @@ import OpenInExternalAppUI
 import MusicAlbumArtResources
 import LocalMediaResources
 import LocationResources
+import ChatInterfaceState
 
 public let telegramAccountAuxiliaryMethods = AccountAuxiliaryMethods(updatePeerChatInputState: { interfaceState, inputState -> PeerChatInterfaceState? in
     if interfaceState == nil {
@@ -19,9 +20,9 @@ public let telegramAccountAuxiliaryMethods = AccountAuxiliaryMethods(updatePeerC
     }
 }, fetchResource: { account, resource, ranges, _ in
     if let resource = resource as? VideoLibraryMediaResource {
-        return fetchVideoLibraryMediaResource(postbox: account.postbox, resource: resource)
+        return fetchVideoLibraryMediaResource(account: account, resource: resource)
     } else if let resource = resource as? LocalFileVideoMediaResource {
-        return fetchLocalFileVideoMediaResource(postbox: account.postbox, resource: resource)
+        return fetchLocalFileVideoMediaResource(account: account, resource: resource)
     } else if let resource = resource as? LocalFileGifMediaResource {
         return fetchLocalFileGifMediaResource(resource: resource)
     } else if let photoLibraryResource = resource as? PhotoLibraryMediaResource {

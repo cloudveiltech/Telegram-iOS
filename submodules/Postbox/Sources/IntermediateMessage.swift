@@ -6,13 +6,15 @@ struct IntermediateMessageForwardInfo {
     let sourceMessageId: MessageId?
     let date: Int32
     let authorSignature: String?
+    let psaType: String?
     
-    init(authorId: PeerId?, sourceId: PeerId?, sourceMessageId: MessageId?, date: Int32, authorSignature: String?) {
+    init(authorId: PeerId?, sourceId: PeerId?, sourceMessageId: MessageId?, date: Int32, authorSignature: String?, psaType: String?) {
         self.authorId = authorId
         self.sourceId = sourceId
         self.sourceMessageId = sourceMessageId
         self.date = date
         self.authorSignature = authorSignature
+        self.psaType = psaType
     }
     
     init(_ storeInfo: StoreMessageForwardInfo) {
@@ -21,6 +23,7 @@ struct IntermediateMessageForwardInfo {
         self.sourceMessageId = storeInfo.sourceMessageId
         self.date = storeInfo.date
         self.authorSignature = storeInfo.authorSignature
+        self.psaType = storeInfo.psaType
     }
 }
 
@@ -31,6 +34,7 @@ class IntermediateMessage {
     let globallyUniqueId: Int64?
     let groupingKey: Int64?
     let groupInfo: MessageGroupInfo?
+    let threadId: Int64?
     let timestamp: Int32
     let flags: MessageFlags
     let tags: MessageTags
@@ -47,13 +51,14 @@ class IntermediateMessage {
         return MessageIndex(id: self.id, timestamp: self.timestamp)
     }
     
-    init(stableId: UInt32, stableVersion: UInt32, id: MessageId, globallyUniqueId: Int64?, groupingKey: Int64?, groupInfo: MessageGroupInfo?, timestamp: Int32, flags: MessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: IntermediateMessageForwardInfo?, authorId: PeerId?, text: String, attributesData: ReadBuffer, embeddedMediaData: ReadBuffer, referencedMedia: [MediaId]) {
+    init(stableId: UInt32, stableVersion: UInt32, id: MessageId, globallyUniqueId: Int64?, groupingKey: Int64?, groupInfo: MessageGroupInfo?, threadId: Int64?, timestamp: Int32, flags: MessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: IntermediateMessageForwardInfo?, authorId: PeerId?, text: String, attributesData: ReadBuffer, embeddedMediaData: ReadBuffer, referencedMedia: [MediaId]) {
         self.stableId = stableId
         self.stableVersion = stableVersion
         self.id = id
         self.globallyUniqueId = globallyUniqueId
         self.groupingKey = groupingKey
         self.groupInfo = groupInfo
+        self.threadId = threadId
         self.timestamp = timestamp
         self.flags = flags
         self.tags = tags
@@ -68,18 +73,18 @@ class IntermediateMessage {
     }
     
     func withUpdatedTimestamp(_ timestamp: Int32) -> IntermediateMessage {
-        return IntermediateMessage(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, timestamp: timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributesData: self.attributesData, embeddedMediaData: self.embeddedMediaData, referencedMedia: self.referencedMedia)
+        return IntermediateMessage(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, threadId: self.threadId, timestamp: timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributesData: self.attributesData, embeddedMediaData: self.embeddedMediaData, referencedMedia: self.referencedMedia)
     }
     
     func withUpdatedGroupingKey(_ groupingKey: Int64?) -> IntermediateMessage {
-        return IntermediateMessage(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: groupingKey, groupInfo: self.groupInfo, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributesData: self.attributesData, embeddedMediaData: self.embeddedMediaData, referencedMedia: self.referencedMedia)
+        return IntermediateMessage(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: groupingKey, groupInfo: self.groupInfo, threadId: self.threadId, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributesData: self.attributesData, embeddedMediaData: self.embeddedMediaData, referencedMedia: self.referencedMedia)
     }
     
     func withUpdatedGroupInfo(_ groupInfo: MessageGroupInfo?) -> IntermediateMessage {
-        return IntermediateMessage(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: groupInfo, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributesData: self.attributesData, embeddedMediaData: self.embeddedMediaData, referencedMedia: self.referencedMedia)
+        return IntermediateMessage(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: groupInfo, threadId: self.threadId, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributesData: self.attributesData, embeddedMediaData: self.embeddedMediaData, referencedMedia: self.referencedMedia)
     }
     
     func withUpdatedEmbeddedMedia(_ embeddedMedia: ReadBuffer) -> IntermediateMessage {
-        return IntermediateMessage(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributesData: self.attributesData, embeddedMediaData: embeddedMedia, referencedMedia: self.referencedMedia)
+        return IntermediateMessage(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, threadId: self.threadId, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributesData: self.attributesData, embeddedMediaData: embeddedMedia, referencedMedia: self.referencedMedia)
     }
 }

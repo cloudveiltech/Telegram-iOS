@@ -39,13 +39,13 @@ class ChatMessageCallBubbleContentNode: ChatMessageBubbleContentNode {
         self.titleNode.isUserInteractionEnabled = false
         self.titleNode.contentMode = .topLeft
         self.titleNode.contentsScale = UIScreenScale
-        self.titleNode.displaysAsynchronously = true
+        self.titleNode.displaysAsynchronously = false
         self.addSubnode(self.titleNode)
         
         self.labelNode.isUserInteractionEnabled = false
         self.labelNode.contentMode = .topLeft
         self.labelNode.contentsScale = UIScreenScale
-        self.labelNode.displaysAsynchronously = true
+        self.labelNode.displaysAsynchronously = false
         self.addSubnode(self.labelNode)
         
         self.addSubnode(self.iconNode)
@@ -76,17 +76,35 @@ class ChatMessageCallBubbleContentNode: ChatMessageBubbleContentNode {
                 var titleString: String?
                 var callDuration: Int32?
                 var callSuccessful = true
+                var isVideo = false
                 for media in item.message.media {
-                    if let action = media as? TelegramMediaAction, case let .phoneCall(_, discardReason, duration) = action.action {
+                    if let action = media as? TelegramMediaAction, case let .phoneCall(_, discardReason, duration, isVideoValue) = action.action {
+                        isVideo = isVideoValue
                         callDuration = duration
                         if let discardReason = discardReason {
                             switch discardReason {
-                                case .busy, .disconnect:
+                                case .disconnect:
                                     callSuccessful = false
-                                    titleString = item.presentationData.strings.Notification_CallCanceled
-                                case .missed:
+                                    if isVideo {
+                                        titleString = item.presentationData.strings.Notification_VideoCallCanceled
+                                    } else {
+                                        titleString = item.presentationData.strings.Notification_CallCanceled
+                                    }
+                                case .missed, .busy:
                                     callSuccessful = false
-                                    titleString = incoming ? item.presentationData.strings.Notification_CallMissed : item.presentationData.strings.Notification_CallCanceled
+                                    if incoming {
+                                        if isVideo {
+                                            titleString = item.presentationData.strings.Notification_VideoCallMissed
+                                        } else {
+                                            titleString = item.presentationData.strings.Notification_CallMissed
+                                        }
+                                    } else {
+                                        if isVideo {
+                                            titleString = item.presentationData.strings.Notification_VideoCallCanceled
+                                        } else {
+                                            titleString = item.presentationData.strings.Notification_CallCanceled
+                                        }
+                                    }
                                 case .hangup:
                                     break
                             }
@@ -97,10 +115,18 @@ class ChatMessageCallBubbleContentNode: ChatMessageBubbleContentNode {
                 
                 if titleString == nil {
                     let baseString: String
-                    if message.flags.contains(.Incoming) {
-                        baseString = item.presentationData.strings.Notification_CallIncoming
+                    if incoming {
+                        if isVideo {
+                            baseString = item.presentationData.strings.Notification_VideoCallIncoming
+                        } else {
+                            baseString = item.presentationData.strings.Notification_CallIncoming
+                        }
                     } else {
-                        baseString = item.presentationData.strings.Notification_CallOutgoing
+                        if isVideo {
+                            baseString = item.presentationData.strings.Notification_VideoCallOutgoing
+                        } else {
+                            baseString = item.presentationData.strings.Notification_CallOutgoing
+                        }
                     }
                     
                     titleString = baseString
@@ -125,9 +151,17 @@ class ChatMessageCallBubbleContentNode: ChatMessageBubbleContentNode {
                 
                 var buttonImage: UIImage?
                 if incoming {
-                    buttonImage = PresentationResourcesChat.chatBubbleIncomingCallButtonImage(item.presentationData.theme.theme)
+                    if isVideo {
+                        buttonImage = PresentationResourcesChat.chatBubbleIncomingVideoCallButtonImage(item.presentationData.theme.theme)
+                    } else {
+                        buttonImage = PresentationResourcesChat.chatBubbleIncomingCallButtonImage(item.presentationData.theme.theme)
+                    }
                 } else {
-                    buttonImage = PresentationResourcesChat.chatBubbleOutgoingCallButtonImage(item.presentationData.theme.theme)
+                    if isVideo {
+                        buttonImage = PresentationResourcesChat.chatBubbleOutgoingVideoCallButtonImage(item.presentationData.theme.theme)
+                    } else {
+                        buttonImage = PresentationResourcesChat.chatBubbleOutgoingCallButtonImage(item.presentationData.theme.theme)
+                    }
                 }
                 
                 let dateText = stringForMessageTimestampStatus(accountPeerId: item.context.account.peerId, message: item.message, dateTimeFormat: item.presentationData.dateTimeFormat, nameDisplayOrder: item.presentationData.nameDisplayOrder, strings: item.presentationData.strings, reactionCount: 0)
@@ -203,7 +237,13 @@ class ChatMessageCallBubbleContentNode: ChatMessageBubbleContentNode {
     
     @objc func callButtonPressed() {
         if let item = self.item {
-            item.controllerInteraction.callPeer(item.message.id.peerId)
+            var isVideo = false
+            for media in item.message.media {
+                if let action = media as? TelegramMediaAction, case let .phoneCall(_, _, _, isVideoValue) = action.action {
+                    isVideo = isVideoValue
+                }
+            }
+            item.controllerInteraction.callPeer(item.message.id.peerId, isVideo)
         }
     }
     
@@ -211,13 +251,19 @@ class ChatMessageCallBubbleContentNode: ChatMessageBubbleContentNode {
         if self.buttonNode.frame.contains(point) {
             return .ignore
         } else if self.bounds.contains(point), let item = self.item {
-            return .call(item.message.id.peerId)
+            var isVideo = false
+            for media in item.message.media {
+                if let action = media as? TelegramMediaAction, case let .phoneCall(_, _, _, isVideoValue) = action.action {
+                    isVideo = isVideoValue
+                }
+            }
+            return .call(peerId: item.message.id.peerId, isVideo: isVideo)
         } else {
             return .none
         }
     }
     
-    override func reactionTargetNode(value: String) -> (ASImageNode, Int)? {
+    override func reactionTargetNode(value: String) -> (ASDisplayNode, ASDisplayNode)? {
         return nil
     }
 }

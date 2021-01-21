@@ -323,11 +323,11 @@ func networkUsageStats(basePath: String, reset: ResetNetworkUsageStats) -> Signa
         var resetAddKeys: [NSNumber: NSNumber] = [:]
         let timestamp = Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970)
         if reset.contains(.wifi) {
-            resetKeys = rawKeys.filter({ $0.connection == .wifi }).map({ $0.key as NSNumber })
+            resetKeys += rawKeys.filter({ $0.connection == .wifi }).map({ $0.key as NSNumber })
             resetAddKeys[UsageCalculationResetKey.wifi.rawValue as NSNumber] = Int64(timestamp) as NSNumber
         }
         if reset.contains(.cellular) {
-            resetKeys = rawKeys.filter({ $0.connection == .cellular }).map({ $0.key as NSNumber })
+            resetKeys += rawKeys.filter({ $0.connection == .cellular }).map({ $0.key as NSNumber })
             resetAddKeys[UsageCalculationResetKey.cellular.rawValue as NSNumber] = Int64(timestamp) as NSNumber
         }
         if !resetKeys.isEmpty {
@@ -403,12 +403,12 @@ public struct NetworkInitializationArguments {
     public let languagesCategory: String
     public let appVersion: String
     public let voipMaxLayer: Int32
-    public let voipVersions: [String]
+    public let voipVersions: [CallSessionManagerImplementationVersion]
     public let appData: Signal<Data?, NoError>
     public let autolockDeadine: Signal<Int32?, NoError>
     public let encryptionProvider: EncryptionProvider
     
-    public init(apiId: Int32, apiHash: String, languagesCategory: String, appVersion: String, voipMaxLayer: Int32, voipVersions: [String], appData: Signal<Data?, NoError>, autolockDeadine: Signal<Int32?, NoError>, encryptionProvider: EncryptionProvider) {
+    public init(apiId: Int32, apiHash: String, languagesCategory: String, appVersion: String, voipMaxLayer: Int32, voipVersions: [CallSessionManagerImplementationVersion], appData: Signal<Data?, NoError>, autolockDeadine: Signal<Int32?, NoError>, encryptionProvider: EncryptionProvider) {
         self.apiId = apiId
         self.apiHash = apiHash
         self.languagesCategory = languagesCategory
@@ -424,7 +424,17 @@ public struct NetworkInitializationArguments {
 private let cloudDataContext = Atomic<CloudDataContext?>(value: nil)
 #endif
 
-func initializedNetwork(arguments: NetworkInitializationArguments, supplementary: Bool, datacenterId: Int, keychain: Keychain, basePath: String, testingEnvironment: Bool, languageCode: String?, proxySettings: ProxySettings?, networkSettings: NetworkSettings?, phoneNumber: String?) -> Signal<Network, NoError> {
+private final class SharedContextStore {
+    struct Key: Hashable {
+        var accountId: AccountRecordId
+    }
+    
+    var contexts: [Key: MTContext] = [:]
+}
+
+private let sharedContexts = Atomic<SharedContextStore>(value: SharedContextStore())
+
+func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializationArguments, supplementary: Bool, datacenterId: Int, keychain: Keychain, basePath: String, testingEnvironment: Bool, languageCode: String?, proxySettings: ProxySettings?, networkSettings: NetworkSettings?, phoneNumber: String?) -> Signal<Network, NoError> {
     return Signal { subscriber in
         let queue = Queue()
         queue.async {
@@ -464,7 +474,33 @@ func initializedNetwork(arguments: NetworkInitializationArguments, supplementary
                 }
             }
             
-            let context = MTContext(serialization: serialization, encryptionProvider: arguments.encryptionProvider, apiEnvironment: apiEnvironment, isTestingEnvironment: testingEnvironment, useTempAuthKeys: false)!
+            let useTempAuthKeys: Bool
+            if let networkSettings = networkSettings {
+                if let userEnableTempKeys = networkSettings.userEnableTempKeys {
+                    useTempAuthKeys = userEnableTempKeys
+                } else {
+                    useTempAuthKeys = networkSettings.defaultEnableTempKeys
+                }
+            } else {
+                useTempAuthKeys = true
+            }
+            
+            var contextValue: MTContext?
+            sharedContexts.with { store in
+                let key = SharedContextStore.Key(accountId: accountId)
+                
+                let context: MTContext
+                if false, let current = store.contexts[key] {
+                    context = current
+                    context.updateApiEnvironment({ _ in return apiEnvironment})
+                } else {
+                    context = MTContext(serialization: serialization, encryptionProvider: arguments.encryptionProvider, apiEnvironment: apiEnvironment, isTestingEnvironment: testingEnvironment, useTempAuthKeys: useTempAuthKeys)!
+                    store.contexts[key] = context
+                }
+                contextValue = context
+            }
+            
+            let context = contextValue!
             
             let seedAddressList: [Int: [String]]
             
@@ -476,7 +512,7 @@ func initializedNetwork(arguments: NetworkInitializationArguments, supplementary
             } else {
                 seedAddressList = [
                     1: ["149.154.175.50", "2001:b28:f23d:f001::a"],
-                    2: ["149.154.167.50", "2001:67c:4e8:f002::a"],
+                    2: ["149.154.167.50", "95.161.76.100", "2001:67c:4e8:f002::a"],
                     3: ["149.154.175.100", "2001:b28:f23d:f003::a"],
                     4: ["149.154.167.91", "2001:67c:4e8:f004::a"],
                     5: ["149.154.171.5", "2001:b28:f23f:f005::a"]

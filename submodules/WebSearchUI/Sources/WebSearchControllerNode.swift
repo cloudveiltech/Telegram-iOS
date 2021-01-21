@@ -128,6 +128,7 @@ private func preparedWebSearchRecentTransition(from fromEntries: [WebSearchRecen
 class WebSearchControllerNode: ASDisplayNode {
     private let context: AccountContext
     private let peer: Peer?
+    private let chatLocation: ChatLocation?
     private var theme: PresentationTheme
     private var strings: PresentationStrings
     private var presentationData: PresentationData
@@ -178,13 +179,16 @@ class WebSearchControllerNode: ASDisplayNode {
     var cancel: (() -> Void)?
     var dismissInput: (() -> Void)?
     
-    init(context: AccountContext, presentationData: PresentationData, controllerInteraction: WebSearchControllerInteraction, peer: Peer?, mode: WebSearchMode) {
+    var presentStickers: ((@escaping (TelegramMediaFile, Bool, UIView, CGRect) -> Void) -> TGPhotoPaintStickersScreen?)?
+    
+    init(context: AccountContext, presentationData: PresentationData, controllerInteraction: WebSearchControllerInteraction, peer: Peer?, chatLocation: ChatLocation?, mode: WebSearchMode) {
         self.context = context
         self.theme = presentationData.theme
         self.strings = presentationData.strings
         self.presentationData = presentationData
         self.controllerInteraction = controllerInteraction
         self.peer = peer
+        self.chatLocation = chatLocation
         self.mode = mode
         
         self.webSearchInterfaceState = WebSearchInterfaceState(presentationData: context.sharedContext.currentPresentationData.with { $0 })
@@ -348,8 +352,26 @@ class WebSearchControllerNode: ASDisplayNode {
             self.segmentedControlNode.updateTheme(SegmentedControlTheme(theme: self.theme))
             self.toolbarBackgroundNode.backgroundColor = self.theme.rootController.navigationBar.backgroundColor
             self.toolbarSeparatorNode.backgroundColor = self.theme.rootController.navigationBar.separatorColor
-            
-            self.attributionNode.image = generateTintedImage(image: UIImage(bundleImageName: "Media Grid/Giphy"), color: self.theme.list.itemSecondaryTextColor)
+        }
+        
+        let gifProviderImage: UIImage?
+        if let gifProvider = self.webSearchInterfaceState.gifProvider {
+            switch gifProvider {
+                case "tenor":
+                    gifProviderImage = generateTintedImage(image: UIImage(bundleImageName: "Media Grid/Tenor"), color: self.theme.list.itemSecondaryTextColor)
+                case "giphy":
+                    gifProviderImage = generateTintedImage(image: UIImage(bundleImageName: "Media Grid/Giphy"), color: self.theme.list.itemSecondaryTextColor)
+                default:
+                    gifProviderImage = nil
+            }
+        } else {
+            gifProviderImage = nil
+        }
+        let previousGifProviderImage = self.attributionNode.image
+        self.attributionNode.image = gifProviderImage
+        
+        if previousGifProviderImage == nil, let validLayout = self.containerLayout {
+            self.containerLayoutUpdated(validLayout.0, navigationBarHeight: validLayout.1, transition: .immediate)
         }
     }
     
@@ -386,7 +408,7 @@ class WebSearchControllerNode: ASDisplayNode {
         transition.updateFrame(node: self.toolbarSeparatorNode, frame: CGRect(origin: CGPoint(x: 0.0, y: toolbarY), size: CGSize(width: layout.size.width, height: UIScreenPixel)))
         
         if let image = self.attributionNode.image {
-            transition.updateFrame(node: self.attributionNode, frame: CGRect(origin: CGPoint(x: floor((layout.size.width - image.size.width) / 2.0), y: toolbarY + floor((toolbarHeight - image.size.height) / 2.0)), size: image.size))
+            self.attributionNode.frame = CGRect(origin: CGPoint(x: floor((layout.size.width - image.size.width) / 2.0), y: toolbarY + floor((toolbarHeight - image.size.height) / 2.0)), size: image.size)
             transition.updateAlpha(node: self.attributionNode, alpha: self.webSearchInterfaceState.state?.scope == .gifs ? 1.0 : 0.0)
         }
         
@@ -456,11 +478,16 @@ class WebSearchControllerNode: ASDisplayNode {
     }
     
     func updateInterfaceState(_ interfaceState: WebSearchInterfaceState, animated: Bool) {
+        let previousGifProvider = self.webSearchInterfaceState.gifProvider
         self.webSearchInterfaceState = interfaceState
         self.webSearchInterfaceStatePromise.set(self.webSearchInterfaceState)
     
         if let state = interfaceState.state {
             self.segmentedControlNode.selectedIndex = Int(state.scope.rawValue)
+        }
+        
+        if previousGifProvider != interfaceState.gifProvider {
+            self.applyPresentationData(themeUpdated: false)
         }
         
         if let validLayout = self.containerLayout {
@@ -544,7 +571,10 @@ class WebSearchControllerNode: ASDisplayNode {
             return
         }
         self.isLoadingMore = true
-        self.loadMoreDisposable.set((requestChatContextResults(account: self.context.account, botId: currentProcessedResults.botId, peerId: currentProcessedResults.peerId, query: currentProcessedResults.query, location: .single(currentProcessedResults.geoPoint), offset: nextOffset)
+        let geoPoint = currentProcessedResults.geoPoint.flatMap { geoPoint -> (Double, Double) in
+            return (geoPoint.latitude, geoPoint.longitude)
+        }
+        self.loadMoreDisposable.set((requestChatContextResults(account: self.context.account, botId: currentProcessedResults.botId, peerId: currentProcessedResults.peerId, query: currentProcessedResults.query, location: .single(geoPoint), offset: nextOffset)
             |> deliverOnMainQueue).start(next: { [weak self] nextResults in
                 guard let strongSelf = self, let nextResults = nextResults else {
                     return
@@ -556,13 +586,13 @@ class WebSearchControllerNode: ASDisplayNode {
                     results.append(result)
                     existingIds.insert(result.id)
                 }
-                for result in nextResults.results {
+                for result in nextResults.results.results {
                     if !existingIds.contains(result.id) {
                         results.append(result)
                         existingIds.insert(result.id)
                     }
                 }
-                let mergedResults = ChatContextResultCollection(botId: currentProcessedResults.botId, peerId: currentProcessedResults.peerId, query: currentProcessedResults.query, geoPoint: currentProcessedResults.geoPoint, queryId: nextResults.queryId, nextOffset: nextResults.nextOffset, presentation: currentProcessedResults.presentation, switchPeer: currentProcessedResults.switchPeer, results: results, cacheTimeout: currentProcessedResults.cacheTimeout)
+                let mergedResults = ChatContextResultCollection(botId: currentProcessedResults.botId, peerId: currentProcessedResults.peerId, query: currentProcessedResults.query, geoPoint: currentProcessedResults.geoPoint, queryId: nextResults.results.queryId, nextOffset: nextResults.results.nextOffset, presentation: currentProcessedResults.presentation, switchPeer: currentProcessedResults.switchPeer, results: results, cacheTimeout: currentProcessedResults.cacheTimeout)
                 strongSelf.currentProcessedResults = mergedResults
                 strongSelf.results.set(mergedResults)
             }))
@@ -666,7 +696,7 @@ class WebSearchControllerNode: ASDisplayNode {
         if self.controllerInteraction.selectionState != nil {
             if let state = self.webSearchInterfaceState.state, state.scope == .images {
                 if let results = self.currentProcessedResults?.results {
-                    presentLegacyWebSearchGallery(context: self.context, peer: self.peer, presentationData: self.presentationData, results: results, current: currentResult, selectionContext: self.controllerInteraction.selectionState, editingContext: self.controllerInteraction.editingState, updateHiddenMedia: { [weak self] id in
+                    presentLegacyWebSearchGallery(context: self.context, peer: self.peer, chatLocation: self.chatLocation, presentationData: self.presentationData, results: results, current: currentResult, selectionContext: self.controllerInteraction.selectionState, editingContext: self.controllerInteraction.editingState, updateHiddenMedia: { [weak self] id in
                         self?.hiddenMediaId.set(.single(id))
                     }, initialLayout: self.containerLayout?.0, transitionHostView: { [weak self] in
                         return self?.gridNode.view
@@ -677,7 +707,7 @@ class WebSearchControllerNode: ASDisplayNode {
                             strongSelf.controllerInteraction.sendSelected(results, result)
                             strongSelf.cancel?()
                         }
-                    }, present: present)
+                    }, presentStickers: self.presentStickers, present: present)
                 }
             } else {
                 if let results = self.currentProcessedResults?.results {

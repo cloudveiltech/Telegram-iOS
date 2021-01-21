@@ -29,10 +29,8 @@ final class ChatTextInputActionButtonsNode: ASDisplayNode {
     init(theme: PresentationTheme, strings: PresentationStrings, presentController: @escaping (ViewController) -> Void) {
         self.strings = strings
         
-        self.micButton = ChatTextInputMediaRecordingButton(theme: theme, presentController: presentController)
+        self.micButton = ChatTextInputMediaRecordingButton(theme: theme, strings: strings, presentController: presentController)
         self.sendButton = HighlightTrackingButtonNode(pointerStyle: .lift)
-        //self.sendButton.adjustsImageWhenHighlighted = false
-        //self.sendButton.adjustsImageWhenDisabled = false
         
         self.expandMediaInputButton = HighlightableButtonNode(pointerStyle: .default)
         
@@ -84,12 +82,6 @@ final class ChatTextInputActionButtonsNode: ASDisplayNode {
         self.micButtonPointerInteraction = PointerInteraction(view: self.micButton, style: .circle)
     }
     
-    @objc func handleLongPress(_ gestureRecognizer: UILongPressGestureRecognizer) {
-        if !self.sendButtonHasApplyIcon && gestureRecognizer.state == .began {
-            //self.sendButtonLongPressed?()
-        }
-    }
-    
     func updateTheme(theme: PresentationTheme) {
         self.micButton.updateTheme(theme: theme)
         self.expandMediaInputButton.setImage(PresentationResourcesChat.chatInputPanelExpandButtonImage(theme), for: [])
@@ -101,7 +93,12 @@ final class ChatTextInputActionButtonsNode: ASDisplayNode {
         
         transition.updateFrame(layer: self.sendButton.layer, frame: CGRect(origin: CGPoint(), size: size))
         
-        if let slowmodeState = interfaceState.slowmodeState, !interfaceState.isScheduledMessages && interfaceState.editMessageState == nil {
+        var isScheduledMessages = false
+        if case .scheduledMessages = interfaceState.subject {
+            isScheduledMessages = true
+        }
+        
+        if let slowmodeState = interfaceState.slowmodeState, !isScheduledMessages && interfaceState.editMessageState == nil {
             let sendButtonRadialStatusNode: ChatSendButtonRadialStatusNode
             if let current = self.sendButtonRadialStatusNode {
                 sendButtonRadialStatusNode = current

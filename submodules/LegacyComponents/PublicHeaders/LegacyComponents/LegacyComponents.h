@@ -22,8 +22,6 @@
 #import <LegacyComponents/PGCamera.h>
 #import <LegacyComponents/PGCameraCaptureSession.h>
 #import <LegacyComponents/PGCameraDeviceAngleSampler.h>
-#import <LegacyComponents/PGCameraMomentSegment.h>
-#import <LegacyComponents/PGCameraMomentSession.h>
 #import <LegacyComponents/PGCameraMovieWriter.h>
 #import <LegacyComponents/PGCameraShotMetadata.h>
 #import <LegacyComponents/PGCameraVolumeButtonHandler.h>
@@ -81,7 +79,6 @@
 #import <LegacyComponents/TGCameraMainTabletView.h>
 #import <LegacyComponents/TGCameraMainView.h>
 #import <LegacyComponents/TGCameraModeControl.h>
-#import <LegacyComponents/TGCameraPhotoPreviewController.h>
 #import <LegacyComponents/TGCameraPreviewView.h>
 #import <LegacyComponents/TGCameraSegmentsView.h>
 #import <LegacyComponents/TGCameraShutterButton.h>
@@ -108,9 +105,6 @@
 #import <LegacyComponents/TGDoubleTapGestureRecognizer.h>
 #import <LegacyComponents/TGEmbedPIPButton.h>
 #import <LegacyComponents/TGEmbedPIPPullArrowView.h>
-#import <LegacyComponents/TGEmbedPlayerControls.h>
-#import <LegacyComponents/TGEmbedPlayerState.h>
-#import <LegacyComponents/TGEmbedPlayerView.h>
 #import <LegacyComponents/TGFont.h>
 #import <LegacyComponents/TGForwardedMessageMediaAttachment.h>
 #import <LegacyComponents/TGFullscreenContainerView.h>
@@ -126,7 +120,6 @@
 #import <LegacyComponents/TGImageManager.h>
 #import <LegacyComponents/TGImageManagerTask.h>
 #import <LegacyComponents/TGImageMediaAttachment.h>
-#import <LegacyComponents/TGImagePickerController.h>
 #import <LegacyComponents/TGImageUtils.h>
 #import <LegacyComponents/TGImageView.h>
 #import <LegacyComponents/TGInputTextTag.h>
@@ -138,21 +131,12 @@
 #import <LegacyComponents/TGKeyCommand.h>
 #import <LegacyComponents/TGKeyCommandController.h>
 #import <LegacyComponents/TGLabel.h>
-#import <LegacyComponents/TGLegacyCameraController.h>
 #import <LegacyComponents/TGLetteredAvatarView.h>
 #import <LegacyComponents/TGListsTableView.h>
 #import <LegacyComponents/TGLiveUploadInterface.h>
 #import <LegacyComponents/TGLocalMessageMetaMediaAttachment.h>
 #import <LegacyComponents/TGLocalization.h>
-#import <LegacyComponents/TGLocationLiveElapsedView.h>
-#import <LegacyComponents/TGLocationLiveSessionItemView.h>
-#import <LegacyComponents/TGLocationMapViewController.h>
 #import <LegacyComponents/TGLocationMediaAttachment.h>
-#import <LegacyComponents/TGLocationPickerController.h>
-#import <LegacyComponents/TGLocationPulseView.h>
-#import <LegacyComponents/TGLocationVenue.h>
-#import <LegacyComponents/TGLocationViewController.h>
-#import <LegacyComponents/TGLocationWavesView.h>
 #import <LegacyComponents/TGMediaAsset.h>
 #import <LegacyComponents/TGMediaAssetFetchResult.h>
 #import <LegacyComponents/TGMediaAssetFetchResultChange.h>
@@ -218,7 +202,6 @@
 #import <LegacyComponents/TGModernGalleryDefaultInterfaceView.h>
 #import <LegacyComponents/TGModernGalleryEditableItem.h>
 #import <LegacyComponents/TGModernGalleryEditableItemView.h>
-#import <LegacyComponents/TGModernGalleryEmbeddedStickersHeaderView.h>
 #import <LegacyComponents/TGModernGalleryImageItem.h>
 #import <LegacyComponents/TGModernGalleryImageItemContainerView.h>
 #import <LegacyComponents/TGModernGalleryImageItemImageView.h>
@@ -264,6 +247,8 @@
 #import <LegacyComponents/TGPhotoMaskPosition.h>
 #import <LegacyComponents/TGPhotoPaintEntity.h>
 #import <LegacyComponents/TGPhotoPaintStickerEntity.h>
+#import <LegacyComponents/TGPhotoPaintTextEntity.h>
+#import <LegacyComponents/TGPhotoPaintStickersContext.h>
 #import <LegacyComponents/TGPhotoToolbarView.h>
 #import <LegacyComponents/TGPhotoVideoEditor.h>
 #import <LegacyComponents/TGPluralization.h>
@@ -274,12 +259,9 @@
 #import <LegacyComponents/TGRemoteImageView.h>
 #import <LegacyComponents/TGReplyMarkupAttachment.h>
 #import <LegacyComponents/TGReplyMessageMediaAttachment.h>
-#import <LegacyComponents/TGSearchBar.h>
-#import <LegacyComponents/TGSearchDisplayMixin.h>
 #import <LegacyComponents/TGStaticBackdropAreaData.h>
 #import <LegacyComponents/TGStaticBackdropImageData.h>
 #import <LegacyComponents/TGStickerAssociation.h>
-#import <LegacyComponents/TGStickerKeyboardTabPanel.h>
 #import <LegacyComponents/TGStickerPack.h>
 #import <LegacyComponents/TGStickerPackReference.h>
 #import <LegacyComponents/TGStringUtils.h>
@@ -302,7 +284,6 @@
 #import <LegacyComponents/TGWebPageMediaAttachment.h>
 #import <LegacyComponents/UICollectionView+Utils.h>
 #import <LegacyComponents/UIControl+HitTestEdgeInsets.h>
-#import <LegacyComponents/UIDevice+PlatformInfo.h>
 #import <LegacyComponents/UIImage+TG.h>
 #import <LegacyComponents/UIImage+TGMediaEditableItem.h>
 #import <LegacyComponents/UIScrollView+TGHacks.h>

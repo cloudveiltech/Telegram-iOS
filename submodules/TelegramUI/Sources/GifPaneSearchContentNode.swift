@@ -11,83 +11,112 @@ import AccountContext
 import WebSearchUI
 import AppBundle
 
-func paneGifSearchForQuery(account: Account, query: String, updateActivity: ((Bool) -> Void)?) -> Signal<[FileMediaReference]?, NoError> {
-    let delayRequest = true
+class PaneGifSearchForQueryResult {
+    let files: [MultiplexedVideoNodeFile]
+    let nextOffset: String?
+    let isComplete: Bool
+    let isStale: Bool
     
-    let contextBot = resolvePeerByName(account: account, name: "gif")
+    init(files: [MultiplexedVideoNodeFile], nextOffset: String?, isComplete: Bool, isStale: Bool) {
+        self.files = files
+        self.nextOffset = nextOffset
+        self.isComplete = isComplete
+        self.isStale = isStale
+    }
+}
+
+func paneGifSearchForQuery(account: Account, query: String, offset: String?, incompleteResults: Bool = false, staleCachedResults: Bool = false, delayRequest: Bool = true, updateActivity: ((Bool) -> Void)?) -> Signal<PaneGifSearchForQueryResult?, NoError> {
+    let contextBot = account.postbox.transaction { transaction -> String in
+        let configuration = currentSearchBotsConfiguration(transaction: transaction)
+        return configuration.gifBotUsername ?? "gif"
+    }
+    |> mapToSignal { botName -> Signal<PeerId?, NoError> in
+        return resolvePeerByName(account: account, name: botName)
+    }
     |> mapToSignal { peerId -> Signal<Peer?, NoError> in
         if let peerId = peerId {
             return account.postbox.loadedPeerWithId(peerId)
-                |> map { peer -> Peer? in
-                    return peer
-                }
-                |> take(1)
+            |> map { peer -> Peer? in
+                return peer
+            }
+            |> take(1)
         } else {
             return .single(nil)
         }
     }
-    |> mapToSignal { peer -> Signal<(ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult?, NoError> in
+    |> mapToSignal { peer -> Signal<(ChatPresentationInputQueryResult?, Bool, Bool), NoError> in
         if let user = peer as? TelegramUser, let botInfo = user.botInfo, let _ = botInfo.inlinePlaceholder {
-            let results = requestContextResults(account: account, botId: user.id, query: query, peerId: account.peerId, limit: 15)
-            |> map { results -> (ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult? in
-                return { _ in
-                    return .contextRequestResult(user, results)
-                }
+            let results = requestContextResults(account: account, botId: user.id, query: query, peerId: account.peerId, offset: offset ?? "", incompleteResults: incompleteResults, staleCachedResults: staleCachedResults, limit: 1)
+            |> map { results -> (ChatPresentationInputQueryResult?, Bool, Bool) in
+                return (.contextRequestResult(user, results?.results), results != nil, results?.isStale ?? false)
             }
             
-            let botResult: Signal<(ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult?, NoError> = .single({ previousResult in
-                var passthroughPreviousResult: ChatContextResultCollection?
-                if let previousResult = previousResult {
-                    if case let .contextRequestResult(previousUser, previousResults) = previousResult {
-                        if previousUser?.id == user.id {
-                            passthroughPreviousResult = previousResults
-                        }
-                    }
-                }
-                return .contextRequestResult(nil, passthroughPreviousResult)
-            })
-            
-            let maybeDelayedContextResults: Signal<(ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult?, NoError>
+            let maybeDelayedContextResults: Signal<(ChatPresentationInputQueryResult?, Bool, Bool), NoError>
             if delayRequest {
                 maybeDelayedContextResults = results |> delay(0.4, queue: Queue.concurrentDefaultQueue())
             } else {
                 maybeDelayedContextResults = results
             }
             
-            return botResult |> then(maybeDelayedContextResults)
+            return maybeDelayedContextResults
         } else {
-            return .single({ _ in return nil })
+            return .single((nil, true, false))
         }
     }
     return contextBot
-    |> mapToSignal { result -> Signal<[FileMediaReference]?, NoError> in
-        if let r = result(nil), case let .contextRequestResult(_, collection) = r, let results = collection?.results {
-            var references: [FileMediaReference] = []
+    |> mapToSignal { result -> Signal<PaneGifSearchForQueryResult?, NoError> in
+        if let r = result.0, case let .contextRequestResult(_, maybeCollection) = r, let collection = maybeCollection {
+            let results = collection.results
+            var references: [MultiplexedVideoNodeFile] = []
             for result in results {
                 switch result {
-                case let .externalReference(_, _, type, _, _, _, content, thumbnail, _):
+                case let .externalReference(externalReference):
                     var imageResource: TelegramMediaResource?
+                    var thumbnailResource: TelegramMediaResource?
+                    var thumbnailIsVideo: Bool = false
                     var uniqueId: Int64?
-                    if let content = content {
+                    if let content = externalReference.content {
                         imageResource = content.resource
                         if let resource = content.resource as? WebFileReferenceMediaResource {
                             uniqueId = Int64(HashFunctions.murMurHash32(resource.url))
                         }
-                    } else if let thumbnail = thumbnail {
-                        imageResource = thumbnail.resource
+                    }
+                    if let thumbnail = externalReference.thumbnail {
+                        thumbnailResource = thumbnail.resource
+                        if thumbnail.mimeType.hasPrefix("video/") {
+                            thumbnailIsVideo = true
+                        }
                     }
                     
-                    if type == "gif", let thumbnailResource = imageResource, let content = content, let dimensions = content.dimensions {
-                        let file = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: uniqueId ?? 0), partialReference: nil, resource: content.resource, previewRepresentations: [TelegramMediaImageRepresentation(dimensions: dimensions, resource: thumbnailResource)], immediateThumbnailData: nil, mimeType: "video/mp4", size: nil, attributes: [.Animated, .Video(duration: 0, size: dimensions, flags: [])])
-                        references.append(FileMediaReference.standalone(media: file))
+                    if externalReference.type == "gif", let resource = imageResource, let content = externalReference.content, let dimensions = content.dimensions {
+                        var previews: [TelegramMediaImageRepresentation] = []
+                        var videoThumbnails: [TelegramMediaFile.VideoThumbnail] = []
+                        if let thumbnailResource = thumbnailResource {
+                            if thumbnailIsVideo {
+                                videoThumbnails.append(TelegramMediaFile.VideoThumbnail(
+                                    dimensions: dimensions,
+                                    resource: thumbnailResource
+                                ))
+                            } else {
+                                previews.append(TelegramMediaImageRepresentation(
+                                    dimensions: dimensions,
+                                    resource: thumbnailResource,
+                                    progressiveSizes: []
+                                ))
+                            }
+                        }
+                        let file = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: uniqueId ?? 0), partialReference: nil, resource: resource, previewRepresentations: previews, videoThumbnails: videoThumbnails, immediateThumbnailData: nil, mimeType: "video/mp4", size: nil, attributes: [.Animated, .Video(duration: 0, size: dimensions, flags: [])])
+                        references.append(MultiplexedVideoNodeFile(file: FileMediaReference.standalone(media: file), contextResult: (collection, result)))
                     }
-                case let .internalReference(_, _, _, _, _, _, file, _):
-                    if let file = file {
-                        references.append(FileMediaReference.standalone(media: file))
+                case let .internalReference(internalReference):
+                    if let file = internalReference.file {
+                        references.append(MultiplexedVideoNodeFile(file: FileMediaReference.standalone(media: file), contextResult: (collection, result)))
                     }
                 }
             }
-            return .single(references)
+            return .single(PaneGifSearchForQueryResult(files: references, nextOffset: collection.nextOffset, isComplete: result.1, isStale: result.2))
+        } else if incompleteResults {
+            return .single(nil)
         } else {
             return .complete()
         }
@@ -113,9 +142,12 @@ final class GifPaneSearchContentNode: ASDisplayNode & PaneSearchContentNode {
     private let notFoundNode: ASImageNode
     private let notFoundLabel: ImmediateTextNode
     
+    private var nextOffset: (String, String)?
+    private var isLoadingNextResults: Bool = false
+    
     private var validLayout: CGSize?
     
-    private let trendingPromise: Promise<[FileMediaReference]?>
+    private let trendingPromise: Promise<ChatMediaInputGifPaneTrendingState?>
     private let searchDisposable = MetaDisposable()
     
     private let _ready = Promise<Void>()
@@ -125,8 +157,12 @@ final class GifPaneSearchContentNode: ASDisplayNode & PaneSearchContentNode {
     
     var deactivateSearchBar: (() -> Void)?
     var updateActivity: ((Bool) -> Void)?
+    var requestUpdateQuery: ((String) -> Void)?
+    var openGifContextMenu: ((MultiplexedVideoNodeFile, ASDisplayNode, CGRect, ContextGesture, Bool) -> Void)?
     
-    init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, controllerInteraction: ChatControllerInteraction, inputNodeInteraction: ChatMediaInputNodeInteraction, trendingPromise: Promise<[FileMediaReference]?>) {
+    private var hasInitialText = false
+    
+    init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, controllerInteraction: ChatControllerInteraction, inputNodeInteraction: ChatMediaInputNodeInteraction, trendingPromise: Promise<ChatMediaInputGifPaneTrendingState?>) {
         self.context = context
         self.controllerInteraction = controllerInteraction
         self.inputNodeInteraction = inputNodeInteraction
@@ -161,24 +197,93 @@ final class GifPaneSearchContentNode: ASDisplayNode & PaneSearchContentNode {
     }
     
     func updateText(_ text: String, languageCode: String?) {
-        let signal: Signal<[FileMediaReference]?, NoError>
+        self.hasInitialText = true
+        self.isLoadingNextResults = true
+        
+        let signal: Signal<([MultiplexedVideoNodeFile], String?)?, NoError>
         if !text.isEmpty {
-            signal = paneGifSearchForQuery(account: self.context.account, query: text, updateActivity: self.updateActivity)
+            signal = paneGifSearchForQuery(account: self.context.account, query: text, offset: "", updateActivity: self.updateActivity)
+            |> map { result -> ([MultiplexedVideoNodeFile], String?)? in
+                if let result = result {
+                    return (result.files, result.nextOffset)
+                } else {
+                    return nil
+                }
+            }
             self.updateActivity?(true)
         } else {
             signal = self.trendingPromise.get()
+            |> map { items -> ([MultiplexedVideoNodeFile], String?)? in
+                if let items = items {
+                    return (items.files, nil)
+                } else {
+                    return nil
+                }
+            }
             self.updateActivity?(false)
         }
         
         self.searchDisposable.set((signal
         |> deliverOnMainQueue).start(next: { [weak self] result in
-            guard let strongSelf = self, let result = result else {
+            guard let strongSelf = self, let (result, nextOffset) = result else {
                 return
             }
             
-            strongSelf.multiplexedNode?.files = result
+            strongSelf.isLoadingNextResults = false
+            if let nextOffset = nextOffset {
+                strongSelf.nextOffset = (text, nextOffset)
+            } else {
+                strongSelf.nextOffset = nil
+            }
+            strongSelf.multiplexedNode?.setFiles(files: MultiplexedVideoNodeFiles(saved: [], trending: result, isSearch: true, canLoadMore: false, isStale: false), synchronous: true, resetScrollingToOffset: nil)
             strongSelf.updateActivity?(false)
             strongSelf.notFoundNode.isHidden = text.isEmpty || !result.isEmpty
+        }))
+    }
+    
+    private func loadMore() {
+        if self.isLoadingNextResults {
+            return
+        }
+        guard let (text, nextOffsetValue) = self.nextOffset else {
+            return
+        }
+        self.isLoadingNextResults = true
+        
+        let signal: Signal<([MultiplexedVideoNodeFile], String?)?, NoError>
+        signal = paneGifSearchForQuery(account: self.context.account, query: text, offset: nextOffsetValue, updateActivity: self.updateActivity)
+        |> map { result -> ([MultiplexedVideoNodeFile], String?)? in
+            if let result = result {
+                return (result.files, result.nextOffset)
+            } else {
+                return nil
+            }
+        }
+        
+        self.searchDisposable.set((signal
+        |> deliverOnMainQueue).start(next: { [weak self] result in
+            guard let strongSelf = self, let (result, nextOffset) = result else {
+                return
+            }
+            
+            var files = strongSelf.multiplexedNode?.files.trending ?? []
+            var currentIds = Set(files.map { $0.file.media.fileId })
+            for item in result {
+                if currentIds.contains(item.file.media.fileId) {
+                    continue
+                }
+                currentIds.insert(item.file.media.fileId)
+                files.append(item)
+            }
+            
+            strongSelf.isLoadingNextResults = false
+            if let nextOffset = nextOffset {
+                strongSelf.nextOffset = (text, nextOffset)
+            } else {
+                strongSelf.nextOffset = nil
+            }
+            strongSelf.multiplexedNode?.setFiles(files: MultiplexedVideoNodeFiles(saved: [], trending: files, isSearch: true, canLoadMore: false, isStale: false), synchronous: true, resetScrollingToOffset: nil)
+            strongSelf.notFoundNode.isHidden = text.isEmpty || !files.isEmpty
         }))
     }
     
@@ -217,10 +322,10 @@ final class GifPaneSearchContentNode: ASDisplayNode & PaneSearchContentNode {
             let nodeFrame = CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: size.width, height: size.height))
             
             transition.updateFrame(layer: multiplexedNode.layer, frame: nodeFrame)
-            multiplexedNode.updateLayout(size: nodeFrame.size, transition: transition)
+            multiplexedNode.updateLayout(theme: self.theme, strings: self.strings, size: nodeFrame.size, transition: transition)
         }
         
-        if firstLayout {
+        if firstLayout && !self.hasInitialText {
             self.updateText("", languageCode: nil)
         }
     }
@@ -229,7 +334,7 @@ final class GifPaneSearchContentNode: ASDisplayNode & PaneSearchContentNode {
         super.willEnterHierarchy()
         
         if self.multiplexedNode == nil {
-            let multiplexedNode = MultiplexedVideoNode(account: self.context.account)
+            let multiplexedNode = MultiplexedVideoNode(account: self.context.account, theme: self.theme, strings: self.strings)
             self.multiplexedNode = multiplexedNode
             if let layout = self.validLayout {
                 multiplexedNode.frame = CGRect(origin: CGPoint(), size: layout)
@@ -237,12 +342,32 @@ final class GifPaneSearchContentNode: ASDisplayNode & PaneSearchContentNode {
             
             self.addSubnode(multiplexedNode)
             
-            multiplexedNode.fileSelected = { [weak self] fileReference, sourceNode, sourceRect in
-                let _ = self?.controllerInteraction.sendGif(fileReference, sourceNode, sourceRect)
+            multiplexedNode.fileSelected = { [weak self] file, sourceNode, sourceRect in
+                if let (collection, result) = file.contextResult {
+                    let _ = self?.controllerInteraction.sendBotContextResultAsGif(collection, result, sourceNode, sourceRect)
+                } else {
+                    let _ = self?.controllerInteraction.sendGif(file.file, sourceNode, sourceRect)
+                }
+            }
+            
+            multiplexedNode.fileContextMenu = { [weak self] fileReference, sourceNode, sourceRect, gesture, isSaved in
+                self?.openGifContextMenu?(fileReference, sourceNode, sourceRect, gesture, isSaved)
             }
             
             multiplexedNode.didScroll = { [weak self] offset, height in
-                self?.deactivateSearchBar?()
+                guard let strongSelf = self, let multiplexedNode = strongSelf.multiplexedNode else {
+                    return
+                }
+                
+                strongSelf.deactivateSearchBar?()
+                
+                if offset >= height - multiplexedNode.bounds.height - 200.0 {
+                    strongSelf.loadMore()
+                }
+            }
+            
+            multiplexedNode.reactionSelected = { [weak self] reaction in
+                self?.requestUpdateQuery?(reaction)
             }
         }
     }

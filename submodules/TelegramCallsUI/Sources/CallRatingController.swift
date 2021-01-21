@@ -140,13 +140,7 @@ private final class CallRatingAlertContentNode: AlertContentNode {
         size.width = min(size.width , 270.0)
         
         self.validLayout = size
-        
-        var origin: CGPoint = CGPoint(x: 0.0, y: 20.0)
-        
-        let titleSize = self.titleNode.measure(CGSize(width: size.width - 32.0, height: size.height))
-        transition.updateFrame(node: self.titleNode, frame: CGRect(origin: CGPoint(x: floorToScreenPixels((size.width - titleSize.width) / 2.0), y: origin.y), size: titleSize))
-        origin.y += titleSize.height + 13.0
-        
+                
         let actionButtonHeight: CGFloat = 44.0
         var minActionsWidth: CGFloat = 0.0
         let maxActionWidth: CGFloat = floor(size.width / CGFloat(self.actionNodes.count))
@@ -154,7 +148,7 @@ private final class CallRatingAlertContentNode: AlertContentNode {
         
         var effectiveActionLayout = TextAlertContentActionLayout.horizontal
         for actionNode in self.actionNodes {
-            let actionTitleSize = actionNode.titleNode.measure(CGSize(width: maxActionWidth, height: actionButtonHeight))
+            let actionTitleSize = actionNode.titleNode.updateLayout(CGSize(width: maxActionWidth, height: actionButtonHeight))
             if case .horizontal = effectiveActionLayout, actionTitleSize.height > actionButtonHeight * 0.6667 {
                 effectiveActionLayout = .vertical
             }
@@ -168,6 +162,9 @@ private final class CallRatingAlertContentNode: AlertContentNode {
         
         let insets = UIEdgeInsets(top: 18.0, left: 18.0, bottom: 18.0, right: 18.0)
         
+        var origin: CGPoint = CGPoint(x: 0.0, y: 20.0)
+        let titleSize = self.titleNode.measure(CGSize(width: size.width - 32.0, height: size.height))
+        
         var contentWidth = max(titleSize.width, minActionsWidth)
         contentWidth = max(contentWidth, 234.0)
         
@@ -180,6 +177,9 @@ private final class CallRatingAlertContentNode: AlertContentNode {
         }
         
         let resultWidth = contentWidth + insets.left + insets.right
+        
+        transition.updateFrame(node: self.titleNode, frame: CGRect(origin: CGPoint(x: floorToScreenPixels((resultWidth - titleSize.width) / 2.0), y: origin.y), size: titleSize))
+        origin.y += titleSize.height + 13.0
         
         let starSize = CGSize(width: 42.0, height: 38.0)
         let starsOrigin = floorToScreenPixels((resultWidth - starSize.width * 5.0) / 2.0)
@@ -246,9 +246,9 @@ func rateCallAndSendLogs(account: Account, callId: CallId, starsCount: Int, comm
     let rate = rateCall(account: account, callId: callId, starsCount: Int32(starsCount), comment: comment, userInitiated: userInitiated)
     if includeLogs {
         let id = arc4random64()
-        let name = "\(callId.id)_\(callId.accessHash).log"
+        let name = "\(callId.id)_\(callId.accessHash).log.json"
         let path = callLogsPath(account: account) + "/" + name
-        let file = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: id), partialReference: nil, resource: LocalFileReferenceMediaResource(localFilePath: path, randomId: id), previewRepresentations: [], immediateThumbnailData: nil, mimeType: "application/text", size: nil, attributes: [.FileName(fileName: name)])
+        let file = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: id), partialReference: nil, resource: LocalFileReferenceMediaResource(localFilePath: path, randomId: id), previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "application/text", size: nil, attributes: [.FileName(fileName: name)])
         let message = EnqueueMessage.message(text: comment, attributes: [], mediaReference: .standalone(media: file), replyToMessageId: nil, localGroupingKey: nil)
         return rate
         |> then(enqueueMessages(account: account, peerId: peerId, messages: [message])
@@ -266,7 +266,7 @@ func rateCallAndSendLogs(account: Account, callId: CallId, starsCount: Int, comm
     }
 }
 
-public func callRatingController(sharedContext: SharedAccountContext, account: Account, callId: CallId, userInitiated: Bool, present: @escaping (ViewController, Any) -> Void, push: @escaping (ViewController) -> Void) -> AlertController {
+public func callRatingController(sharedContext: SharedAccountContext, account: Account, callId: CallId, userInitiated: Bool, isVideo: Bool, present: @escaping (ViewController, Any) -> Void, push: @escaping (ViewController) -> Void) -> AlertController {
     let presentationData = sharedContext.currentPresentationData.with { $0 }
     let theme = presentationData.theme
     let strings = presentationData.strings
@@ -282,7 +282,7 @@ public func callRatingController(sharedContext: SharedAccountContext, account: A
     }, apply: { rating in
         dismissImpl?(true)
         if rating < 4 {
-            push(callFeedbackController(sharedContext: sharedContext, account: account, callId: callId, rating: rating, userInitiated: userInitiated))
+            push(callFeedbackController(sharedContext: sharedContext, account: account, callId: callId, rating: rating, userInitiated: userInitiated, isVideo: isVideo))
         } else {
             let _ = rateCallAndSendLogs(account: account, callId: callId, starsCount: rating, comment: "", userInitiated: userInitiated, includeLogs: false).start()
         }

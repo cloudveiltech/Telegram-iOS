@@ -78,7 +78,7 @@ private enum ChatListSearchEntry: Comparable, Identifiable {
     public func item(context: AccountContext, interaction: ChatListNodeInteraction) -> ListViewItem {
         switch self {
             case let .message(message, peer, readState, presentationData):
-                return ChatListItem(presentationData: presentationData, context: context, peerGroupId: .root, filterData: nil, index: ChatListIndex(pinningIndex: nil, messageIndex: message.index), content: .peer(message: message, peer: peer, combinedReadState: readState, isRemovedFromTotalUnreadCount: false, presence: nil, summaryInfo: ChatListMessageTagSummaryInfo(), embeddedState: nil, inputActivities: nil, isAd: false, ignoreUnreadBadge: true, displayAsMessage: true, hasFailedMessages: false), editing: false, hasActiveRevealControls: false, selected: false, header: nil, enableContextActions: false, hiddenOffset: false, interaction: interaction)
+                return ChatListItem(presentationData: presentationData, context: context, peerGroupId: .root, filterData: nil, index: ChatListIndex(pinningIndex: nil, messageIndex: message.index), content: .peer(messages: [message], peer: peer, combinedReadState: readState, isRemovedFromTotalUnreadCount: false, presence: nil, summaryInfo: ChatListMessageTagSummaryInfo(), embeddedState: nil, inputActivities: nil, promoInfo: nil, ignoreUnreadBadge: true, displayAsMessage: true, hasFailedMessages: false), editing: false, hasActiveRevealControls: false, selected: false, header: nil, enableContextActions: false, hiddenOffset: false, interaction: interaction)
         }
     }
 }
@@ -160,14 +160,14 @@ class ChatSearchResultsControllerNode: ViewControllerTracingNode, UIScrollViewDe
                         peer = RenderedPeer(peer: channelPeer)
                     }
                 }
-                entries.append(.message(message, peer, nil, presentationData))
+                entries.append(.message(message, peer, searchResult.readStates[peer.peerId], presentationData))
             }
             
             return entries
         }
         
         let interaction = ChatListNodeInteraction(activateSearch: {
-        }, peerSelected: { _ in
+        }, peerSelected: { _, _ in
         }, disabledPeerSelected: { _ in
         }, togglePeerSelected: { _ in
         }, additionalCategorySelected: { _ in
@@ -183,10 +183,11 @@ class ChatSearchResultsControllerNode: ViewControllerTracingNode, UIScrollViewDe
         }, setPeerIdWithRevealedOptions: { _, _ in
         }, setItemPinned: { _, _ in
         }, setPeerMuted: { _, _ in
-        }, deletePeer: { _ in
+        }, deletePeer: { _, _ in
         }, updatePeerGrouping: { _, _ in
         }, togglePeerMarkedUnread: { _, _ in
         }, toggleArchivedFolderHiddenByDefault: {
+        }, hidePsa: { _ in
         }, activateChatPreview: { [weak self] item, node, gesture in
             guard let strongSelf = self else {
                 gesture?.cancel()
@@ -194,8 +195,8 @@ class ChatSearchResultsControllerNode: ViewControllerTracingNode, UIScrollViewDe
             }
             switch item.content {
             case let .peer(peer):
-                if let message = peer.message {
-                    let chatController = strongSelf.context.sharedContext.makeChatController(context: strongSelf.context, chatLocation: .peer(peer.peer.peerId), subject: .message(message.id), botStart: nil, mode: .standard(previewing: true))
+                if let message = peer.messages.first {
+                    let chatController = strongSelf.context.sharedContext.makeChatController(context: strongSelf.context, chatLocation: .peer(peer.peer.peerId), subject: .message(id: message.id, highlight: true), botStart: nil, mode: .standard(previewing: true))
                     chatController.canReadHistory.set(false)
                     let contextController = ContextController(account: strongSelf.context.account, presentationData: strongSelf.presentationData, source: .controller(ContextControllerContentSourceImpl(controller: chatController, sourceNode: node)), items: .single([]), reactionItems: [], gesture: gesture)
                     presentInGlobalOverlay(contextController)

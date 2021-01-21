@@ -252,7 +252,11 @@ typedef enum
     
     self.view.backgroundColor = [UIColor clearColor];
     
-    CGRect wrapperFrame = TGIsPad() ? CGRectMake(0.0f, 0.0f, self.view.frame.size.width, CGRectGetMaxY(_controlsFrame)): CGRectMake(0.0f, 0.0f, self.view.frame.size.width, CGRectGetMinY(_controlsFrame));
+    CGFloat bottomOffset = self.view.frame.size.height - CGRectGetMaxY(_controlsFrame);
+    if (bottomOffset > 44.0) {
+        bottomOffset = 0.0f;
+    }
+    CGRect wrapperFrame = TGIsPad() ? CGRectMake(0.0f, 0.0f, self.view.frame.size.width, CGRectGetMaxY(_controlsFrame) + bottomOffset): CGRectMake(0.0f, 0.0f, self.view.frame.size.width, CGRectGetMinY(_controlsFrame));
     
     _wrapperView = [[UIView alloc] initWithFrame:wrapperFrame];
     _wrapperView.clipsToBounds = true;
@@ -340,7 +344,7 @@ typedef enum
     [_circleWrapperView addSubview:_ringView];
     
     CGRect controlsFrame = _controlsFrame;
-    controlsFrame.size.width = _wrapperView.frame.size.width;
+//    controlsFrame.size.width = _wrapperView.frame.size.width;
     
     _controlsView = [[TGVideoMessageControls alloc] initWithFrame:controlsFrame assets:_assets slowmodeTimestamp:_slowmodeTimestamp slowmodeView:_slowmodeView];
     _controlsView.pallete = self.pallete;
@@ -624,7 +628,7 @@ typedef enum
     _dismissed = cancelled;
     
     if (self.onDismiss != nil)
-        self.onDismiss(_automaticDismiss);
+        self.onDismiss(_automaticDismiss, cancelled);
     
     if (_player != nil)
         [_player pause];
@@ -683,6 +687,9 @@ typedef enum
     if (!_capturePipeline.isRecording)
         return false;
     
+    if (_capturePipeline.videoDuration < 0.33)
+        return false;
+    
     if ([self.view.window isKindOfClass:[TGVideoMessageCaptureControllerWindow class]]) {
         ((TGVideoMessageCaptureControllerWindow *)self.view.window).locked = false;
     }
@@ -724,7 +731,7 @@ typedef enum
     
     bool effectiveHasSchedule = true;
     
-    TGMediaPickerSendActionSheetController *controller = [[TGMediaPickerSendActionSheetController alloc] initWithContext:_context isDark:self.pallete.isDark sendButtonFrame:[_controlsView convertRect:[_controlsView frameForSendButton] toView:nil] canSendSilently:_canSendSilently canSchedule:_canSchedule reminder:_reminder];
+    TGMediaPickerSendActionSheetController *controller = [[TGMediaPickerSendActionSheetController alloc] initWithContext:_context isDark:self.pallete.isDark sendButtonFrame:[_controlsView convertRect:[_controlsView frameForSendButton] toView:nil] canSendSilently:_canSendSilently canSchedule:_canSchedule reminder:_reminder hasTimer:false];
     __weak TGVideoMessageCaptureController *weakSelf = self;
     controller.send = ^{
         __strong TGVideoMessageCaptureController *strongSelf = weakSelf;
@@ -833,7 +840,7 @@ typedef enum
     
     _didPlayToEndObserver = [[TGObserverProxy alloc] initWithTarget:self targetSelector:@selector(playerItemDidPlayToEndTime:) name:AVPlayerItemDidPlayToEndTimeNotification object:_player.currentItem];
     
-    _videoView = [[TGModernGalleryVideoView alloc] initWithFrame:_previewView.frame player:_player];
+    _videoView = [[TGModernGalleryVideoView alloc] initWithFrame: CGRectInset(_previewView.frame, -3.0, -3.0) player:_player];
     [_previewView.superview insertSubview:_videoView belowSubview:_previewView];
     
     UITapGestureRecognizer *gestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(unmutePressed)];
@@ -950,6 +957,7 @@ typedef enum
 {
     [_capturePipeline stopRecording:completed];
     [_buttonHandler ignoreEventsFor:1.0f andDisable:true];
+    [_capturePipeline stopRunning];
 }
 
 - (void)finishWithURL:(NSURL *)url dimensions:(CGSize)dimensions duration:(NSTimeInterval)duration liveUploadData:(id )liveUploadData thumbnailImage:(UIImage *)thumbnailImage isSilent:(bool)isSilent scheduleTimestamp:(int32_t)scheduleTimestamp
@@ -979,7 +987,7 @@ typedef enum
         
         if (trimStartValue > DBL_EPSILON || trimEndValue < _duration - DBL_EPSILON)
         {
-            adjustments = [TGVideoEditAdjustments editAdjustmentsWithOriginalSize:dimensions cropRect:CGRectMake(0.0f, 0.0f, dimensions.width, dimensions.height) cropOrientation:UIImageOrientationUp cropLockedAspectRatio:1.0 cropMirrored:false trimStartValue:trimStartValue trimEndValue:trimEndValue paintingData:nil sendAsGif:false preset:TGMediaVideoConversionPresetVideoMessage];
+            adjustments = [TGVideoEditAdjustments editAdjustmentsWithOriginalSize:dimensions cropRect:CGRectMake(0.0f, 0.0f, dimensions.width, dimensions.height) cropOrientation:UIImageOrientationUp cropRotation:0.0 cropLockedAspectRatio:1.0 cropMirrored:false trimStartValue:trimStartValue trimEndValue:trimEndValue toolValues:nil paintingData:nil sendAsGif:false preset:TGMediaVideoConversionPresetVideoMessage];
             
             duration = trimEndValue - trimStartValue;
         }
@@ -1044,6 +1052,7 @@ typedef enum
 {
     [_controlsView recordingStarted];
     [_controlsView setDurationString:@"0:00,00"];
+    self.onDuration(0);
     
     _audioRecordingDurationSeconds = 0;
     _audioRecordingDurationMilliseconds = 0.0;
@@ -1077,6 +1086,7 @@ typedef enum
     }
     else
     {
+        self.onDuration(recordingDuration);
         _audioRecordingDurationSeconds = currentDurationSeconds;
         _audioRecordingDurationMilliseconds = currentDurationMilliseconds;
         [_controlsView setDurationString:[[NSString alloc] initWithFormat:@"%d:%02d,%02d", (int)_audioRecordingDurationSeconds / 60, (int)_audioRecordingDurationSeconds % 60, (int)_audioRecordingDurationMilliseconds]];

@@ -9,6 +9,7 @@ import TelegramPresentationData
 import TelegramBaseController
 import AccountContext
 import ChatListUI
+import ListMessageItem
 
 public final class HashtagSearchController: TelegramBaseController {
     private let queue = Queue()
@@ -32,7 +33,7 @@ public final class HashtagSearchController: TelegramBaseController {
         
         self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
         
-        super.init(context: context, navigationBarPresentationData: NavigationBarPresentationData(presentationData: self.presentationData), mediaAccessoryPanelVisibility: .specific(size: .compact), locationBroadcastPanelSource: .none)
+        super.init(context: context, navigationBarPresentationData: NavigationBarPresentationData(presentationData: self.presentationData), mediaAccessoryPanelVisibility: .specific(size: .compact), locationBroadcastPanelSource: .none, groupCallPanelSource: .none)
         
         self.statusBar.statusBarStyle = self.presentationData.theme.rootController.statusBarStyle.style
         
@@ -41,14 +42,14 @@ public final class HashtagSearchController: TelegramBaseController {
         
         let chatListPresentationData = ChatListPresentationData(theme: self.presentationData.theme, fontSize: self.presentationData.listsFontSize, strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, nameSortOrder: self.presentationData.nameSortOrder, nameDisplayOrder: self.presentationData.nameDisplayOrder, disableAnimations: self.presentationData.disableAnimations)
         
-        let location: SearchMessagesLocation = .general
+        let location: SearchMessagesLocation = .general(tags: nil, minDate: nil, maxDate: nil)
         let search = searchMessages(account: context.account, location: location, query: query, state: nil)
         let foundMessages: Signal<[ChatListSearchEntry], NoError> = search
         |> map { result, _ in
-            return result.messages.map({ .message($0, RenderedPeer(message: $0), result.readStates[$0.id.peerId], chatListPresentationData) })
+            return result.messages.map({ .message($0, RenderedPeer(message: $0), result.readStates[$0.id.peerId], chatListPresentationData, result.totalCount, nil, false) })
         }
         let interaction = ChatListNodeInteraction(activateSearch: {
-        }, peerSelected: { peer in
+        }, peerSelected: { _, _ in
         }, disabledPeerSelected: { _ in
         }, togglePeerSelected: { _ in
         }, additionalCategorySelected: { _ in
@@ -56,7 +57,7 @@ public final class HashtagSearchController: TelegramBaseController {
             if let strongSelf = self {
                 strongSelf.openMessageFromSearchDisposable.set((storedMessageFromSearchPeer(account: strongSelf.context.account, peer: peer) |> deliverOnMainQueue).start(next: { actualPeerId in
                     if let strongSelf = self, let navigationController = strongSelf.navigationController as? NavigationController {
-                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(actualPeerId), subject: message.id.peerId == actualPeerId ? .message(message.id) : nil, keepStack: .always))
+                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(actualPeerId), subject: message.id.peerId == actualPeerId ? .message(id: message.id, highlight: true) : nil, keepStack: .always))
                     }
                 }))
                 strongSelf.controllerNode.listNode.clearHighlightAnimated(true)
@@ -66,10 +67,11 @@ public final class HashtagSearchController: TelegramBaseController {
         }, setPeerIdWithRevealedOptions: { _, _ in
         }, setItemPinned: { _, _ in
         }, setPeerMuted: { _, _ in
-        }, deletePeer: { _ in
+        }, deletePeer: { _, _ in
         }, updatePeerGrouping: { _, _ in
         }, togglePeerMarkedUnread: { _, _ in
         }, toggleArchivedFolderHiddenByDefault: {
+        }, hidePsa: { _ in
         }, activateChatPreview: { _, _, gesture in
             gesture?.cancel()
         }, present: { _ in
@@ -81,10 +83,23 @@ public final class HashtagSearchController: TelegramBaseController {
             if let strongSelf = self {
                 let previousEntries = previousSearchItems.swap(entries)
                 
-                let firstTime = previousEntries == nil
-                let transition = chatListSearchContainerPreparedTransition(from: previousEntries ?? [], to: entries, displayingResults: true, context: strongSelf.context, presentationData: strongSelf.presentationData, enableHeaders: false, filter: [], interaction: interaction, peerContextAction: nil, toggleExpandLocalResults: {
-                }, toggleExpandGlobalResults: {
+                let listInteraction = ListMessageItemInteraction(openMessage: { message, mode -> Bool in
+                    return true
+                }, openMessageContextMenu: { message, bool, node, rect, gesture in
+                    
+                }, toggleMessagesSelection: { messageId, selected in
+                }, openUrl: { url, _, _, message in
+                }, openInstantPage: { message, data in
+                }, longTap: { action, message in 
+                }, getHiddenMedia: {
+                    return [:]
                 })
+                
+                let firstTime = previousEntries == nil
+                let transition = chatListSearchContainerPreparedTransition(from: previousEntries ?? [], to: entries, displayingResults: true, isEmpty: entries.isEmpty, isLoading: false, animated: false, context: strongSelf.context, presentationData: strongSelf.presentationData, enableHeaders: false, filter: [], tagMask: nil, interaction: interaction, listInteraction: listInteraction, peerContextAction: nil, toggleExpandLocalResults: {
+                }, toggleExpandGlobalResults: {
+                }, searchPeer: { _ in
+                }, searchQuery: "", searchOptions: nil, messageContextAction: nil)
                 strongSelf.controllerNode.enqueueTransition(transition, firstTime: firstTime)
             }
         })

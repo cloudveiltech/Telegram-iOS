@@ -7,8 +7,8 @@ import TelegramStringFormatting
 import MapKit
 
 extension TelegramMediaMap {
-    convenience init(coordinate: CLLocationCoordinate2D, liveBroadcastingTimeout: Int32? = nil) {
-        self.init(latitude: coordinate.latitude, longitude: coordinate.longitude, geoPlace: nil, venue: nil, liveBroadcastingTimeout: liveBroadcastingTimeout)
+    convenience init(coordinate: CLLocationCoordinate2D, liveBroadcastingTimeout: Int32? = nil, proximityNotificationRadius: Int32? = nil) {
+        self.init(latitude: coordinate.latitude, longitude: coordinate.longitude, heading: nil, accuracyRadius: nil, geoPlace: nil, venue: nil, liveBroadcastingTimeout: liveBroadcastingTimeout, liveProximityNotificationRadius: proximityNotificationRadius)
     }
     
     var coordinate: CLLocationCoordinate2D {
@@ -33,57 +33,46 @@ public func ==(lhs: CLLocationCoordinate2D, rhs: CLLocationCoordinate2D) -> Bool
 }
 
 public func nearbyVenues(account: Account, latitude: Double, longitude: Double, query: String? = nil) -> Signal<[TelegramMediaMap], NoError> {
-    return resolvePeerByName(account: account, name: "foursquare")
-    |> take(1)
-    |> mapToSignal { peerId -> Signal<ChatContextResultCollection?, NoError> in
-        guard let peerId = peerId else {
-            return .single(nil)
-        }
-        return requestChatContextResults(account: account, botId: peerId, peerId: account.peerId, query: query ?? "", location: .single((latitude, longitude)), offset: "")
-        |> `catch` { error -> Signal<ChatContextResultCollection?, NoError> in
-            return .single(nil)
-        }
-    }
-    |> map { contextResult -> [TelegramMediaMap] in
-        guard let contextResult = contextResult else {
-            return []
-        }
-        var list: [TelegramMediaMap] = []
-        for result in contextResult.results {
-            switch result.message {
-                case let .mapLocation(mapMedia, _):
-                    if let _ = mapMedia.venue {
-                        list.append(mapMedia)
-                    }
-                default:
-                    break
+    return account.postbox.transaction { transaction -> SearchBotsConfiguration in
+        return currentSearchBotsConfiguration(transaction: transaction)
+    } |> mapToSignal { searchBotsConfiguration in
+        return resolvePeerByName(account: account, name: searchBotsConfiguration.venueBotUsername ?? "foursquare")
+        |> take(1)
+        |> mapToSignal { peerId -> Signal<ChatContextResultCollection?, NoError> in
+            guard let peerId = peerId else {
+                return .single(nil)
+            }
+            return requestChatContextResults(account: account, botId: peerId, peerId: account.peerId, query: query ?? "", location: .single((latitude, longitude)), offset: "")
+            |> map { results -> ChatContextResultCollection? in
+                return results?.results
+            }
+            |> `catch` { error -> Signal<ChatContextResultCollection?, NoError> in
+                return .single(nil)
             }
         }
-        return list
+        |> map { contextResult -> [TelegramMediaMap] in
+            guard let contextResult = contextResult else {
+                return []
+            }
+            var list: [TelegramMediaMap] = []
+            for result in contextResult.results {
+                switch result.message {
+                    case let .mapLocation(mapMedia, _):
+                        if let _ = mapMedia.venue {
+                            list.append(mapMedia)
+                        }
+                    default:
+                        break
+                }
+            }
+            return list
+        }
     }
-}
-
-private var sharedDistanceFormatter: MKDistanceFormatter?
-func stringForDistance(strings: PresentationStrings, distance: CLLocationDistance) -> String {
-    let distanceFormatter: MKDistanceFormatter
-    if let currentDistanceFormatter = sharedDistanceFormatter {
-        distanceFormatter = currentDistanceFormatter
-    } else {
-        distanceFormatter = MKDistanceFormatter()
-        distanceFormatter.unitStyle = .full
-        sharedDistanceFormatter = distanceFormatter
-    }
-    
-    let locale = localeWithStrings(strings)
-    if distanceFormatter.locale != locale {
-        distanceFormatter.locale = locale
-    }
-    return distanceFormatter.string(fromDistance: distance)
 }
 
 func stringForEstimatedDuration(strings: PresentationStrings, eta: Double) -> String? {
     if eta > 0.0 && eta < 60.0 * 60.0 * 10.0 {
-        var eta = max(eta, 60.0)
+        let eta = max(eta, 60.0)
         let minutes = Int32(eta / 60.0) % 60
         let hours = Int32(eta / 3600.0)
         
@@ -92,7 +81,7 @@ func stringForEstimatedDuration(strings: PresentationStrings, eta: Double) -> St
             if hours == 1 && minutes == 0 {
                 string = strings.Map_ETAHours(1)
             } else {
-                string = strings.Map_ETAHours(9999).replacingOccurrences(of: "9999", with: String(format: "%d:%02d", arguments: [hours, minutes]))
+                string = strings.Map_ETAHours(10).replacingOccurrences(of: "10", with: String(format: "%d:%02d", arguments: [hours, minutes]))
             }
         } else {
             string = strings.Map_ETAMinutes(minutes)

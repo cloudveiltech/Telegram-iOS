@@ -81,7 +81,6 @@ final class StickerPaneSearchGlobalItem: GridItem {
     let listAppearance: Bool
     let info: StickerPackCollectionInfo
     let topItems: [StickerPackItem]
-    let grid: Bool
     let topSeparator: Bool
     let regularInsets: Bool
     let installed: Bool
@@ -93,7 +92,7 @@ final class StickerPaneSearchGlobalItem: GridItem {
     let itemContext: StickerPaneSearchGlobalItemContext
     
     let section: GridSection?
-    var fillsRowWithHeight: CGFloat? {
+    var fillsRowWithHeight: (CGFloat, Bool)? {
         var additionalHeight: CGFloat = 0.0
         if self.regularInsets {
             additionalHeight = 12.0 + 12.0
@@ -104,17 +103,16 @@ final class StickerPaneSearchGlobalItem: GridItem {
             }
         }
         
-        return self.grid ? nil : (128.0 + additionalHeight)
+        return (128.0 + additionalHeight, !self.listAppearance)
     }
     
-    init(account: Account, theme: PresentationTheme, strings: PresentationStrings, listAppearance: Bool, info: StickerPackCollectionInfo, topItems: [StickerPackItem], grid: Bool, topSeparator: Bool, regularInsets: Bool, installed: Bool, installing: Bool = false, unread: Bool, open: @escaping () -> Void, install: @escaping () -> Void, getItemIsPreviewed: @escaping (StickerPackItem) -> Bool, itemContext: StickerPaneSearchGlobalItemContext, sectionTitle: String? = nil) {
+    init(account: Account, theme: PresentationTheme, strings: PresentationStrings, listAppearance: Bool, info: StickerPackCollectionInfo, topItems: [StickerPackItem], topSeparator: Bool, regularInsets: Bool, installed: Bool, installing: Bool = false, unread: Bool, open: @escaping () -> Void, install: @escaping () -> Void, getItemIsPreviewed: @escaping (StickerPackItem) -> Bool, itemContext: StickerPaneSearchGlobalItemContext, sectionTitle: String? = nil) {
         self.account = account
         self.theme = theme
         self.strings = strings
         self.listAppearance = listAppearance
         self.info = info
         self.topItems = topItems
-        self.grid = grid
         self.topSeparator = topSeparator
         self.regularInsets = regularInsets
         self.installed = installed
@@ -304,6 +302,16 @@ class StickerPaneSearchGlobalItemNode: GridItemNode {
         self.view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(self.tapGesture(_:))))
     }
     
+    private var absoluteLocation: (CGRect, CGSize)?
+    override public func updateAbsoluteRect(_ rect: CGRect, within containerSize: CGSize) {
+        self.absoluteLocation = (rect, containerSize)
+        
+        for node in self.itemNodes {
+            let nodeRect = CGRect(origin: CGPoint(x: rect.minX + node.frame.minX, y: rect.minY + node.frame.minY), size: node.frame.size)
+            node.updateAbsoluteRect(nodeRect, within: containerSize)
+        }
+    }
+    
     func setup(item: StickerPaneSearchGlobalItem) {
         if item.topItems.count < Int(item.info.count) && item.topItems.count < 5 && self.item?.info.id != item.info.id {
             self.preloadDisposable.set(preloadedFeaturedStickerSet(network: item.account.network, postbox: item.account.postbox, id: item.info.id).start())
@@ -453,10 +461,16 @@ class StickerPaneSearchGlobalItemNode: GridItemNode {
             if file.fileId != node.file?.fileId {
                 node.setup(account: item.account, item: topItems[i], itemSize: itemSize, synchronousLoads: synchronousLoads)
             }
+            if item.theme !== node.theme {
+                node.update(theme: item.theme, listAppearance: item.listAppearance)
+            }
             if let dimensions = file.dimensions {
                 let imageSize = dimensions.cgSize.aspectFitted(itemSize)
                 node.frame = CGRect(origin: CGPoint(x: offset, y: 48.0 + topOffset), size: imageSize)
                 offset += itemSize.width + itemSpacing
+            }
+            if let (rect, size) = strongSelf.absoluteLocation {
+                strongSelf.updateAbsoluteRect(rect, within: size)
             }
         }
     

@@ -15,7 +15,6 @@ NSString *const TGMediaAssetsVideoCellKind = @"TGMediaAssetsVideoCellKind";
 @interface TGMediaAssetsVideoCell ()
 {
     UIImageView *_shadowView;
-    UIImageView *_iconView;
     UILabel *_durationLabel;
     
     SMetaDisposable *_adjustmentsDisposable;
@@ -64,16 +63,12 @@ NSString *const TGMediaAssetsVideoCellKind = @"TGMediaAssetsVideoCellKind";
         _shadowView = [[UIImageView alloc] initWithFrame:CGRectMake(0, frame.size.height - 20, frame.size.width, 20)];
         _shadowView.image = shadowImage;
         [self addSubview:_shadowView];
-        
-        _iconView = [[UIImageView alloc] init];
-        _iconView.contentMode = UIViewContentModeCenter;
-        [self addSubview:_iconView];
-        
+                
         _durationLabel = [[UILabel alloc] init];
         _durationLabel.textColor = [UIColor whiteColor];
         _durationLabel.backgroundColor = [UIColor clearColor];
         _durationLabel.textAlignment = NSTextAlignmentRight;
-        _durationLabel.font = TGSystemFontOfSize(12.0f);
+        _durationLabel.font = TGBoldSystemFontOfSize(13);
         [_durationLabel sizeToFit];
         [self addSubview:_durationLabel];
         
@@ -82,7 +77,6 @@ NSString *const TGMediaAssetsVideoCellKind = @"TGMediaAssetsVideoCellKind";
         if (iosMajorVersion() >= 11)
         {
             _shadowView.accessibilityIgnoresInvertColors = true;
-            _iconView.accessibilityIgnoresInvertColors = true;
             _durationLabel.accessibilityIgnoresInvertColors = true;
         }
         
@@ -104,7 +98,6 @@ NSString *const TGMediaAssetsVideoCellKind = @"TGMediaAssetsVideoCellKind";
     if (![asset isKindOfClass:[TGMediaAsset class]])
         return;
     
-    
     NSString *durationString = nil;
     int duration = (int)ceil(asset.videoDuration);
     if (duration >= 3600)
@@ -113,13 +106,9 @@ NSString *const TGMediaAssetsVideoCellKind = @"TGMediaAssetsVideoCellKind";
         durationString = [NSString stringWithFormat:@"%d:%02d", duration / 60, duration % 60];
         
     _durationLabel.text = durationString;
+    [_durationLabel sizeToFit];
     
-    if (asset.subtypes & TGMediaAssetSubtypeVideoTimelapse)
-        _iconView.image = TGComponentsImageNamed(@"ModernMediaItemTimelapseIcon");
-    else if (asset.subtypes & TGMediaAssetSubtypeVideoHighFrameRate)
-        _iconView.image = TGComponentsImageNamed(@"ModernMediaItemSloMoIcon");
-    else
-        _iconView.image = TGComponentsImageNamed(@"ModernMediaItemVideoIcon");
+    self.typeIconView.image = asset.isFavorite ? TGComponentsImageNamed(@"MediaGroupFavorites") : nil;
     
     SSignal *adjustmentsSignal = [self.editingContext adjustmentsSignalForItem:(id<TGMediaEditableItem>)self.item];
     
@@ -234,8 +223,9 @@ NSString *const TGMediaAssetsVideoCellKind = @"TGMediaAssetsVideoCellKind";
 {
     self.checkButton.frame = (CGRect){ { self.frame.size.width - self.checkButton.frame.size.width - 2, 2 }, self.checkButton.frame.size };
     _shadowView.frame = (CGRect){ { 0, self.frame.size.height - _shadowView.frame.size.height }, {self.frame.size.width, _shadowView.frame.size.height } };
-    _iconView.frame = CGRectMake(0, self.frame.size.height - 19, 19, 19);
-    _durationLabel.frame = (CGRect){ { 5, _shadowView.frame.origin.y }, {self.frame.size.width - 5 - 4, _shadowView.frame.size.height } };
+    
+    CGSize durationSize = _durationLabel.frame.size;
+    _durationLabel.frame = CGRectMake(self.frame.size.width - floor(durationSize.width) - 5.0, self.frame.size.height - floor(durationSize.height) - 4.0, durationSize.width, durationSize.height);
 }
 
 @end

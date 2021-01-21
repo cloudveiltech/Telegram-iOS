@@ -18,6 +18,8 @@ import CounterContollerTitleView
 private func peerTokenTitle(accountPeerId: PeerId, peer: Peer, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder) -> String {
     if peer.id == accountPeerId {
         return strings.DialogList_SavedMessages
+    } else if peer.id.isReplies {
+        return strings.DialogList_Replies
     } else {
         return peer.displayTitle(strings: strings, displayOrder: nameDisplayOrder)
     }
@@ -76,6 +78,7 @@ class ContactMultiselectionControllerImpl: ViewController, ContactMultiselection
     private var initialPeersDisposable: Disposable?
     private let options: [ContactListAdditionalOption]
     private let filters: [ContactListFilter]
+    private let limit: Int32?
     
     init(_ params: ContactMultiselectionControllerParams) {
         self.params = params
@@ -83,6 +86,7 @@ class ContactMultiselectionControllerImpl: ViewController, ContactMultiselection
         self.mode = params.mode
         self.options = params.options
         self.filters = params.filters
+        self.limit = params.limit
         self.presentationData = self.context.sharedContext.currentPresentationData.with { $0 }
         
         self.titleView = CounterContollerTitleView(theme: self.presentationData.theme)
@@ -125,7 +129,7 @@ class ContactMultiselectionControllerImpl: ViewController, ContactMultiselection
         })
         
         switch self.mode {
-        case let .chatSelection(_, selectedChats, additionalCategories):
+        case let .chatSelection(_, selectedChats, additionalCategories, _):
             let _ = (self.context.account.postbox.transaction { transaction -> [Peer] in
                 return selectedChats.compactMap(transaction.getPeer)
             }
@@ -226,6 +230,7 @@ class ContactMultiselectionControllerImpl: ViewController, ContactMultiselection
             self?.presentingViewController?.dismiss(animated: true, completion: nil)
         }
         
+        let limit = self.limit
         self.contactsNode.openPeer = { [weak self] peer in
             if let strongSelf = self, case let .peer(peer, _, _) = peer {
                 var updatedCount: Int?
@@ -259,8 +264,8 @@ class ContactMultiselectionControllerImpl: ViewController, ContactMultiselection
                         }
                     }
                 case let .chats(chatsNode):
-                    chatsNode.updateState { state in
-                        var state = state
+                    chatsNode.updateState { initialState in
+                        var state = initialState
                         if state.selectedPeerIds.contains(peer.id) {
                             state.selectedPeerIds.remove(peer.id)
                             removedTokenId = peer.id
@@ -269,6 +274,12 @@ class ContactMultiselectionControllerImpl: ViewController, ContactMultiselection
                             state.selectedPeerIds.insert(peer.id)
                         }
                         updatedCount = state.selectedPeerIds.count
+                        if let limit = limit, let count = updatedCount, count > limit {
+                            updatedCount = nil
+                            removedTokenId = nil
+                            addedToken = nil
+                            return initialState
+                        }
                         var updatedState = ContactListNodeGroupSelectionState()
                         for peerId in state.selectedPeerIds {
                             updatedState = updatedState.withToggledPeerId(.peer(peerId))
@@ -425,7 +436,7 @@ class ContactMultiselectionControllerImpl: ViewController, ContactMultiselection
                 break
             case let .chats(chatsNode):
                 var categoryToken: EditableTokenListToken?
-                if case let .chatSelection(_, _, additionalCategories) = strongSelf.mode {
+                if case let .chatSelection(_, _, additionalCategories, _) = strongSelf.mode {
                     if let additionalCategories = additionalCategories {
                         for i in 0 ..< additionalCategories.categories.count {
                             if additionalCategories.categories[i].id == id {

@@ -35,7 +35,7 @@
 
 @implementation TGClipboardGalleryMixin
 
-- (instancetype)initWithContext:(id<LegacyComponentsContext>)context image:(UIImage *)image images:(NSArray *)images parentController:(TGViewController *)parentController thumbnailImage:(UIImage *)thumbnailImage selectionContext:(TGMediaSelectionContext *)selectionContext editingContext:(TGMediaEditingContext *)editingContext suggestionContext:(TGSuggestionContext *)suggestionContext hasCaptions:(bool)hasCaptions hasTimer:(bool)hasTimer recipientName:(NSString *)recipientName
+- (instancetype)initWithContext:(id<LegacyComponentsContext>)context image:(UIImage *)image images:(NSArray *)images parentController:(TGViewController *)parentController thumbnailImage:(UIImage *)thumbnailImage selectionContext:(TGMediaSelectionContext *)selectionContext editingContext:(TGMediaEditingContext *)editingContext suggestionContext:(TGSuggestionContext *)suggestionContext stickersContext:(id<TGPhotoPaintStickersContext>)stickersContext hasCaptions:(bool)hasCaptions hasTimer:(bool)hasTimer recipientName:(NSString *)recipientName
 {
     self = [super init];
     if (self != nil)
@@ -61,7 +61,7 @@
             }
         }];
         
-        TGClipboardGalleryModel *model = [[TGClipboardGalleryModel alloc] initWithContext:_context images:images focusIndex:focusIndex selectionContext:selectionContext editingContext:editingContext hasCaptions:hasCaptions hasTimer:hasTimer hasSelectionPanel:false recipientName:recipientName];
+        TGClipboardGalleryModel *model = [[TGClipboardGalleryModel alloc] initWithContext:_context images:images focusIndex:focusIndex selectionContext:selectionContext editingContext:editingContext stickersContext:stickersContext hasCaptions:hasCaptions hasTimer:hasTimer hasSelectionPanel:false recipientName:recipientName];
         _galleryModel = model;
         model.controller = modernGallery;
         model.suggestionContext = suggestionContext;
@@ -100,7 +100,7 @@
         };
         
         [model.interfaceView updateSelectionInterface:selectionContext.count counterVisible:(selectionContext.count > 0) animated:false];
-        model.interfaceView.donePressed = ^(TGClipboardGalleryPhotoItem *item)
+        model.interfaceView.donePressed = ^(id<TGModernGalleryItem> item)
         {
             __strong TGClipboardGalleryMixin *strongSelf = weakSelf;
             if (strongSelf == nil)
@@ -109,18 +109,18 @@
             strongSelf->_galleryModel.dismiss(true, false);
             
             if (strongSelf.completeWithItem != nil)
-                strongSelf.completeWithItem(item);
+                strongSelf.completeWithItem((TGClipboardGalleryPhotoItem *)item);
         };
         
         modernGallery.model = model;
-        modernGallery.itemFocused = ^(TGClipboardGalleryPhotoItem *item)
+        modernGallery.itemFocused = ^(id<TGModernGalleryItem> item)
         {
             __strong TGClipboardGalleryMixin *strongSelf = weakSelf;
             if (strongSelf != nil && strongSelf.itemFocused != nil)
-                strongSelf.itemFocused(item);
+                strongSelf.itemFocused((TGClipboardGalleryPhotoItem *)item);
         };
         
-        modernGallery.beginTransitionIn = ^UIView *(TGClipboardGalleryPhotoItem *item, TGModernGalleryItemView *itemView)
+        modernGallery.beginTransitionIn = ^UIView *(id<TGModernGalleryItem> item, TGModernGalleryItemView *itemView)
         {
             __strong TGClipboardGalleryMixin *strongSelf = weakSelf;
             if (strongSelf == nil)
@@ -130,12 +130,12 @@
                 strongSelf.willTransitionIn();
             
             if (strongSelf.referenceViewForItem != nil)
-                return strongSelf.referenceViewForItem(item);
+                return strongSelf.referenceViewForItem((TGClipboardGalleryPhotoItem *)item);
             
             return nil;
         };
         
-        modernGallery.finishedTransitionIn = ^(__unused TGClipboardGalleryPhotoItem *item, __unused TGModernGalleryItemView *itemView)
+        modernGallery.finishedTransitionIn = ^(__unused id<TGModernGalleryItem> item, __unused TGModernGalleryItemView *itemView)
         {
             __strong TGClipboardGalleryMixin *strongSelf = weakSelf;
             if (strongSelf == nil)
@@ -144,7 +144,7 @@
             [strongSelf->_galleryModel.interfaceView setSelectedItemsModel:strongSelf->_galleryModel.selectedItemsModel];
         };
         
-        modernGallery.beginTransitionOut = ^UIView *(TGClipboardGalleryPhotoItem *item, TGModernGalleryItemView *itemView)
+        modernGallery.beginTransitionOut = ^UIView *(id<TGModernGalleryItem> item, TGModernGalleryItemView *itemView)
         {
             __strong TGClipboardGalleryMixin *strongSelf = weakSelf;
             if (strongSelf != nil)
@@ -153,7 +153,7 @@
                     strongSelf.willTransitionOut();
                 
                 if (strongSelf.referenceViewForItem != nil)
-                    return strongSelf.referenceViewForItem(item);
+                    return strongSelf.referenceViewForItem((TGClipboardGalleryPhotoItem *)item);
             }
             return nil;
         };

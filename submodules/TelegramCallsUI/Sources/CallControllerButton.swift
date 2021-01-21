@@ -4,235 +4,321 @@ import Display
 import AsyncDisplayKit
 import SwiftSignalKit
 import AppBundle
+import SemanticStatusNode
 
-enum CallControllerButtonType {
-    case mute
-    case end
-    case accept
-    case speaker
-    case bluetooth
-}
+private let labelFont = Font.regular(13.0)
 
-private let buttonSize = CGSize(width: 75.0, height: 75.0)
-
-private func generateEmptyButtonImage(icon: UIImage?, strokeColor: UIColor?, fillColor: UIColor, knockout: Bool = false, angle: CGFloat = 0.0) -> UIImage? {
-    return generateImage(buttonSize, contextGenerator: { size, context in
-        context.clear(CGRect(origin: CGPoint(), size: size))
-        context.setBlendMode(.copy)
-        if let strokeColor = strokeColor {
-            context.setFillColor(strokeColor.cgColor)
-            context.fillEllipse(in: CGRect(origin: CGPoint(), size: size))
-            context.setFillColor(fillColor.cgColor)
-            context.fillEllipse(in: CGRect(origin: CGPoint(x: 1.5, y: 1.5), size: CGSize(width: size.width - 3.0, height: size.height - 3.0)))
-        } else {
-            context.setFillColor(fillColor.cgColor)
-            context.fillEllipse(in: CGRect(origin: CGPoint(), size: CGSize(width: size.width, height: size.height)))
-        }
-        
-        if let icon = icon {
-            if !angle.isZero {
-                context.translateBy(x: size.width / 2.0, y: size.height / 2.0)
-                context.rotate(by: angle)
-                context.translateBy(x: -size.width / 2.0, y: -size.height / 2.0)
+final class CallControllerButtonItemNode: HighlightTrackingButtonNode {
+    struct Content: Equatable {
+        enum Appearance: Equatable {
+            enum Color: Equatable {
+                case red
+                case green
+                case custom(UInt32, CGFloat)
             }
-            let imageSize = icon.size
-            let imageRect = CGRect(origin: CGPoint(x: floor((size.width - imageSize.width) / 2.0), y: floor((size.width - imageSize.height) / 2.0)), size: imageSize)
-            if knockout {
-                context.setBlendMode(.copy)
-                context.clip(to: imageRect, mask: icon.cgImage!)
-                context.setFillColor(UIColor.clear.cgColor)
-                context.fill(imageRect)
-            } else {
-                context.setBlendMode(.normal)
-                context.draw(icon.cgImage!, in: imageRect)
+            
+            case blurred(isFilled: Bool)
+            case color(Color)
+            
+            var isFilled: Bool {
+                if case let .blurred(isFilled) = self {
+                    return isFilled
+                } else {
+                    return false
+                }
             }
         }
-    })
-}
-
-private func generateFilledButtonImage(color: UIColor, icon: UIImage?, angle: CGFloat = 0.0) -> UIImage? {
-    return generateImage(buttonSize, contextGenerator: { size, context in
-        context.clear(CGRect(origin: CGPoint(), size: size))
-        context.setBlendMode(.normal)
-        context.setFillColor(color.cgColor)
-        context.fillEllipse(in: CGRect(origin: CGPoint(), size: size))
         
-        if let icon = icon {
-            if !angle.isZero {
-                context.translateBy(x: size.width / 2.0, y: size.height / 2.0)
-                context.rotate(by: angle)
-                context.translateBy(x: -size.width / 2.0, y: -size.height / 2.0)
-            }
-            context.draw(icon.cgImage!, in: CGRect(origin: CGPoint(x: floor((size.width - icon.size.width) / 2.0), y: floor((size.height - icon.size.height) / 2.0)), size: icon.size))
+        enum Image {
+            case camera
+            case mute
+            case flipCamera
+            case bluetooth
+            case speaker
+            case airpods
+            case airpodsPro
+            case headphones
+            case accept
+            case end
         }
-    })
-}
-
-private let emptyStroke = UIColor(white: 1.0, alpha: 0.8)
-private let emptyHighlightedFill = UIColor(white: 1.0, alpha: 0.3)
-private let invertedFill = UIColor(white: 1.0, alpha: 1.0)
-
-private let labelFont = Font.regular(14.5)
-
-final class CallControllerButtonNode: HighlightTrackingButtonNode {
-    private var type: CallControllerButtonType
+        
+        var appearance: Appearance
+        var image: Image
+        var isEnabled: Bool
+        var hasProgress: Bool
+        
+        init(appearance: Appearance, image: Image, isEnabled: Bool = true, hasProgress: Bool = false) {
+            self.appearance = appearance
+            self.image = image
+            self.isEnabled = isEnabled
+            self.hasProgress = hasProgress
+        }
+    }
     
-    private var regularImage: UIImage?
-    private var highlightedImage: UIImage?
-    private var filledImage: UIImage?
+    private let contentContainer: ASDisplayNode
+    private let effectView: UIVisualEffectView
+    private let contentBackgroundNode: ASImageNode
+    private let contentNode: ASImageNode
+    private let overlayHighlightNode: ASImageNode
+    private var statusNode: SemanticStatusNode?
+    let textNode: ImmediateTextNode
     
-    private let backgroundNode: ASImageNode
-    private let labelNode: ASTextNode?
+    private let largeButtonSize: CGFloat = 72.0
     
-    init(type: CallControllerButtonType, label: String?) {
-        self.type = type
+    private(set) var currentContent: Content?
+    private(set) var currentText: String = ""
+    
+    init() {
+        self.contentContainer = ASDisplayNode()
         
-        self.backgroundNode = ASImageNode()
-        self.backgroundNode.isLayerBacked = true
-        self.backgroundNode.displayWithoutProcessing = false
-        self.backgroundNode.displaysAsynchronously = false
+        self.effectView = UIVisualEffectView()
+        self.effectView.effect = UIBlurEffect(style: .light)
+        self.effectView.layer.cornerRadius = self.largeButtonSize / 2.0
+        self.effectView.clipsToBounds = true
+        self.effectView.isUserInteractionEnabled = false
         
-        if let label = label {
-            let labelNode = ASTextNode()
-            labelNode.attributedText = NSAttributedString(string: label, font: labelFont, textColor: .white)
-            self.labelNode = labelNode
-        } else {
-            self.labelNode = nil
-        }
+        self.contentBackgroundNode = ASImageNode()
+        self.contentBackgroundNode.isUserInteractionEnabled = false
         
-        var regularImage: UIImage?
-        var highlightedImage: UIImage?
-        var filledImage: UIImage?
+        self.contentNode = ASImageNode()
+        self.contentNode.isUserInteractionEnabled = false
         
-        switch type {
-            case .mute:
-                regularImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallMuteButton"), strokeColor: emptyStroke, fillColor: .clear)
-                highlightedImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallMuteButton"), strokeColor: emptyStroke, fillColor: emptyHighlightedFill)
-                filledImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallMuteButton"), strokeColor: nil, fillColor: invertedFill, knockout: true)
-            case .accept:
-                regularImage = generateFilledButtonImage(color: UIColor(rgb: 0x74db58), icon: UIImage(bundleImageName: "Call/CallPhoneButton"), angle: CGFloat.pi * 3.0 / 4.0)
-                highlightedImage = generateFilledButtonImage(color: UIColor(rgb: 0x74db58), icon: UIImage(bundleImageName: "Call/CallPhoneButton"), angle: CGFloat.pi * 3.0 / 4.0)
-            case .end:
-                regularImage = generateFilledButtonImage(color: UIColor(rgb: 0xd92326), icon: UIImage(bundleImageName: "Call/CallPhoneButton"))
-                highlightedImage = generateFilledButtonImage(color: UIColor(rgb: 0xd92326), icon: UIImage(bundleImageName: "Call/CallPhoneButton"))
-            case .speaker:
-                regularImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallSpeakerButton"), strokeColor: emptyStroke, fillColor: .clear)
-                highlightedImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallSpeakerButton"), strokeColor: emptyStroke, fillColor: emptyHighlightedFill)
-                filledImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallSpeakerButton"), strokeColor: nil, fillColor: invertedFill, knockout: true)
-            case .bluetooth:
-                regularImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallBluetoothButton"), strokeColor: emptyStroke, fillColor: .clear)
-                highlightedImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallBluetoothButton"), strokeColor: emptyStroke, fillColor: emptyHighlightedFill)
-                filledImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallBluetoothButton"), strokeColor: nil, fillColor: invertedFill, knockout: true)
-        }
+        self.overlayHighlightNode = ASImageNode()
+        self.overlayHighlightNode.isUserInteractionEnabled = false
+        self.overlayHighlightNode.alpha = 0.0
         
-        self.regularImage = regularImage
-        self.highlightedImage = highlightedImage
-        self.filledImage = filledImage
+        self.textNode = ImmediateTextNode()
+        self.textNode.displaysAsynchronously = false
+        self.textNode.isUserInteractionEnabled = false
         
-        super.init()
+        super.init(pointerStyle: nil)
         
-        self.addSubnode(self.backgroundNode)
+        self.addSubnode(self.contentContainer)
+        self.contentContainer.frame = CGRect(origin: CGPoint(), size: CGSize(width: self.largeButtonSize, height: self.largeButtonSize))
         
-        if let labelNode = self.labelNode {
-            self.addSubnode(labelNode)
-        }
+        self.addSubnode(self.textNode)
         
-        self.backgroundNode.image = regularImage
-        self.currentImage = regularImage
+        self.contentContainer.view.addSubview(self.effectView)
+        self.contentContainer.addSubnode(self.contentBackgroundNode)
+        self.contentContainer.addSubnode(self.contentNode)
+        self.contentContainer.addSubnode(self.overlayHighlightNode)
         
         self.highligthedChanged = { [weak self] highlighted in
-            if let strongSelf = self {
-                strongSelf.internalHighlighted = highlighted
-                strongSelf.updateState(highlighted: highlighted, selected: strongSelf.isSelected)
+            guard let strongSelf = self else {
+                return
             }
-        }
-    }
-    
-    private var internalHighlighted = false
-    
-    override var isSelected: Bool {
-        didSet {
-            self.updateState(highlighted: self.internalHighlighted, selected: self.isSelected)
-        }
-    }
-    
-    private var currentImage: UIImage?
-    
-    private func updateState(highlighted: Bool, selected: Bool) {
-        let image: UIImage?
-        if selected {
-            image = self.filledImage
-        } else if highlighted {
-            image = self.highlightedImage
-        } else {
-            image = self.regularImage
-        }
-        
-        if self.currentImage !== image {
-            let currentContents = self.backgroundNode.layer.contents
-            self.backgroundNode.layer.removeAnimation(forKey: "contents")
-            if let currentContents = currentContents, let image = image {
-                self.backgroundNode.image = image
-                self.backgroundNode.layer.animate(from: currentContents as AnyObject, to: image.cgImage!, keyPath: "contents", timingFunction: CAMediaTimingFunctionName.easeInEaseOut.rawValue, duration: image === self.currentImage || image === self.filledImage ? 0.25 : 0.15)
+            if highlighted {
+                strongSelf.overlayHighlightNode.alpha = 1.0
+                let transition: ContainedViewLayoutTransition = .animated(duration: 0.3, curve: .spring)
+                transition.updateSublayerTransformScale(node: strongSelf, scale: 0.9)
             } else {
-                self.backgroundNode.image = image
+                strongSelf.overlayHighlightNode.alpha = 0.0
+                strongSelf.overlayHighlightNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2)
+                let transition: ContainedViewLayoutTransition = .animated(duration: 0.5, curve: .spring)
+                transition.updateSublayerTransformScale(node: strongSelf, scale: 1.0)
             }
-            self.currentImage = image
         }
     }
     
-    func updateType(_ type: CallControllerButtonType) {
-        if self.type == type {
-            return
+    func update(size: CGSize, content: Content, text: String, transition: ContainedViewLayoutTransition) {
+        let scaleFactor = size.width / self.largeButtonSize
+        
+        let isSmall = self.largeButtonSize > size.width
+        
+        self.effectView.frame = CGRect(origin: CGPoint(), size: CGSize(width: self.largeButtonSize, height: self.largeButtonSize))
+        self.contentBackgroundNode.frame = CGRect(origin: CGPoint(), size: CGSize(width: self.largeButtonSize, height: self.largeButtonSize))
+        self.contentNode.frame = CGRect(origin: CGPoint(), size: CGSize(width: self.largeButtonSize, height: self.largeButtonSize))
+        self.overlayHighlightNode.frame = CGRect(origin: CGPoint(), size: CGSize(width: self.largeButtonSize, height: self.largeButtonSize))
+        
+        if self.currentContent != content {
+            let previousContent = self.currentContent
+            self.currentContent = content
+            
+            if content.hasProgress {
+                let statusFrame = CGRect(origin: CGPoint(), size: CGSize(width: self.largeButtonSize, height: self.largeButtonSize))
+                if self.statusNode == nil {
+                    let statusNode = SemanticStatusNode(backgroundNodeColor: .white, foregroundNodeColor: .clear, cutout: statusFrame.insetBy(dx: 8.0, dy: 8.0))
+                    self.statusNode = statusNode
+                    self.contentContainer.insertSubnode(statusNode, belowSubnode: self.contentNode)
+                    statusNode.transitionToState(.progress(value: nil, cancelEnabled: false, appearance: SemanticStatusNodeState.ProgressAppearance(inset: 4.0, lineWidth: 3.0)), animated: false, completion: {})
+                }
+                if let statusNode = self.statusNode {
+                    statusNode.frame = statusFrame
+                    if transition.isAnimated {
+                        statusNode.layer.animateScale(from: 0.1, to: 1.0, duration: 0.2)
+                        statusNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2)
+                    }
+                }
+            } else if let statusNode = self.statusNode {
+                self.statusNode = nil
+                transition.updateAlpha(node: statusNode, alpha: 0.0, completion: { [weak statusNode] _ in
+                    statusNode?.removeFromSupernode()
+                })
+            }
+            
+            switch content.appearance {
+            case .blurred:
+                self.effectView.isHidden = false
+            case .color:
+                self.effectView.isHidden = true
+            }
+            
+            transition.updateAlpha(node: self, alpha: content.isEnabled ? 1.0 : 0.4)
+            self.isUserInteractionEnabled = content.isEnabled
+            
+            let contentBackgroundImage: UIImage? = nil
+            
+            let contentImage = generateImage(CGSize(width: self.largeButtonSize, height: self.largeButtonSize), contextGenerator: { size, context in
+                context.clear(CGRect(origin: CGPoint(), size: size))
+                
+                var ellipseRect = CGRect(origin: CGPoint(), size: size)
+                var fillColor: UIColor = .clear
+                let imageColor: UIColor = .white
+                var drawOverMask = false
+                context.setBlendMode(.normal)
+                let imageScale: CGFloat = 1.0
+                switch content.appearance {
+                case let .blurred(isFilled):
+                    if content.hasProgress {
+                        fillColor = .white
+                        drawOverMask = true
+                        context.setBlendMode(.copy)
+                        ellipseRect = ellipseRect.insetBy(dx: 7.0, dy: 7.0)
+                    } else {
+                        if isFilled {
+                            fillColor = .white
+                            drawOverMask = true
+                            context.setBlendMode(.copy)
+                        }
+                    }
+                case let .color(color):
+                    switch color {
+                    case .red:
+                        fillColor = UIColor(rgb: 0xd92326)
+                    case .green:
+                        fillColor = UIColor(rgb: 0x74db58)
+                    case let .custom(color, alpha):
+                        fillColor = UIColor(rgb: color, alpha: alpha)
+                    }
+                }
+                
+                context.setFillColor(fillColor.cgColor)
+                context.fillEllipse(in: ellipseRect)
+                
+                var image: UIImage?
+                
+                switch content.image {
+                case .camera:
+                    image = generateTintedImage(image: UIImage(bundleImageName: "Call/CallCameraButton"), color: imageColor)
+                case .mute:
+                    image = generateTintedImage(image: UIImage(bundleImageName: "Call/CallMuteButton"), color: imageColor)
+                case .flipCamera:
+                    image = generateTintedImage(image: UIImage(bundleImageName: "Call/CallSwitchCameraButton"), color: imageColor)
+                case .bluetooth:
+                    image = generateTintedImage(image: UIImage(bundleImageName: "Call/CallBluetoothButton"), color: imageColor)
+                case .speaker:
+                    image = generateTintedImage(image: UIImage(bundleImageName: "Call/CallSpeakerButton"), color: imageColor)
+                case .airpods:
+                    image = generateTintedImage(image: UIImage(bundleImageName: "Call/CallAirpodsButton"), color: imageColor)
+                case .airpodsPro:
+                    image = generateTintedImage(image: UIImage(bundleImageName: "Call/CallAirpodsProButton"), color: imageColor)
+                case .headphones:
+                    image = generateTintedImage(image: UIImage(bundleImageName: "Call/CallHeadphonesButton"), color: imageColor)
+                case .accept:
+                    image = generateTintedImage(image: UIImage(bundleImageName: "Call/CallAcceptButton"), color: imageColor)
+                case .end:
+                    image = generateTintedImage(image: UIImage(bundleImageName: "Call/CallDeclineButton"), color: imageColor)
+                }
+            
+                if let image = image {
+                    context.translateBy(x: size.width / 2.0, y: size.height / 2.0)
+                    context.scaleBy(x: imageScale, y: imageScale)
+                    context.translateBy(x: -size.width / 2.0, y: -size.height / 2.0)
+                    
+                    let imageRect = CGRect(origin: CGPoint(x: floor((size.width - image.size.width) / 2.0), y: floor((size.height - image.size.height) / 2.0)), size: image.size)
+                    if drawOverMask {
+                        context.clip(to: imageRect, mask: image.cgImage!)
+                        context.setBlendMode(.copy)
+                        context.setFillColor(UIColor.clear.cgColor)
+                        context.fill(CGRect(origin: CGPoint(), size: size))
+                    } else {
+                        context.draw(image.cgImage!, in: imageRect)
+                    }
+                }
+            })
+            
+            if transition.isAnimated, let contentBackgroundImage = contentBackgroundImage, let previousContent = self.contentBackgroundNode.image {
+                self.contentBackgroundNode.image = contentBackgroundImage
+                self.contentBackgroundNode.layer.animate(from: previousContent.cgImage!, to: contentBackgroundImage.cgImage!, keyPath: "contents", timingFunction: CAMediaTimingFunctionName.easeInEaseOut.rawValue, duration: 0.2)
+            } else {
+                self.contentBackgroundNode.image = contentBackgroundImage
+            }
+            
+            if transition.isAnimated, let previousContent = previousContent, previousContent.image == .accept && content.image == .end {
+                let rotation = CGFloat.pi / 4.0 * 3.0
+                
+                if let snapshotView = self.contentNode.view.snapshotContentTree() {
+                    snapshotView.frame = self.contentNode.view.frame
+                    self.contentContainer.view.addSubview(snapshotView)
+                    
+                    snapshotView.layer.animateRotation(from: 0.0, to: rotation, duration: 0.5, timingFunction: kCAMediaTimingFunctionSpring)
+                    snapshotView.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.4, removeOnCompletion: false, completion: { [weak snapshotView] _ in
+                        snapshotView?.removeFromSuperview()
+                    })
+                }
+                self.contentNode.image = contentImage
+                self.contentNode.layer.animateRotation(from: -rotation, to: 0.0, duration: 0.5, timingFunction: kCAMediaTimingFunctionSpring)
+            } else if transition.isAnimated, let contentImage = contentImage, let previousContent = self.contentNode.image {
+                self.contentNode.image = contentImage
+                self.contentNode.layer.animate(from: previousContent.cgImage!, to: contentImage.cgImage!, keyPath: "contents", timingFunction: CAMediaTimingFunctionName.easeInEaseOut.rawValue, duration: 0.2)
+            } else {
+                self.contentNode.image = contentImage
+            }
+            
+            self.overlayHighlightNode.image = generateImage(CGSize(width: self.largeButtonSize, height: self.largeButtonSize), contextGenerator: { size, context in
+                context.clear(CGRect(origin: CGPoint(), size: size))
+                
+                let fillColor: UIColor
+                context.setBlendMode(.normal)
+                switch content.appearance {
+                case let .blurred(isFilled):
+                    if isFilled {
+                        fillColor = UIColor(white: 0.0, alpha: 0.1)
+                    } else {
+                        fillColor = UIColor(white: 1.0, alpha: 0.2)
+                    }
+                case let .color(color):
+                    switch color {
+                    case .red:
+                        fillColor = UIColor(rgb: 0xd92326).withMultipliedBrightnessBy(0.2).withAlphaComponent(0.2)
+                    case .green:
+                        fillColor = UIColor(rgb: 0x74db58).withMultipliedBrightnessBy(0.2).withAlphaComponent(0.2)
+                    case let .custom(color, alpha):
+                        fillColor = UIColor(rgb: color).withMultipliedBrightnessBy(0.2).withAlphaComponent(0.2)
+                    }
+                }
+                
+                context.setFillColor(fillColor.cgColor)
+                context.fillEllipse(in: CGRect(origin: CGPoint(), size: size))
+            })
         }
-        self.type = type
-        var regularImage: UIImage?
-        var highlightedImage: UIImage?
-        var filledImage: UIImage?
         
-        switch type {
-            case .mute:
-                regularImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallMuteButton"), strokeColor: emptyStroke, fillColor: .clear)
-                highlightedImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallMuteButton"), strokeColor: emptyStroke, fillColor: emptyHighlightedFill)
-                filledImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallMuteButton"), strokeColor: nil, fillColor: invertedFill, knockout: true)
-            case .accept:
-                regularImage = generateFilledButtonImage(color: UIColor(rgb: 0x74db58), icon: UIImage(bundleImageName: "Call/CallPhoneButton"), angle: CGFloat.pi * 3.0 / 4.0)
-                highlightedImage = generateFilledButtonImage(color: UIColor(rgb: 0x74db58), icon: UIImage(bundleImageName: "Call/CallPhoneButton"), angle: CGFloat.pi * 3.0 / 4.0)
-            case .end:
-                regularImage = generateFilledButtonImage(color: UIColor(rgb: 0xd92326), icon: UIImage(bundleImageName: "Call/CallPhoneButton"))
-                highlightedImage = generateFilledButtonImage(color: UIColor(rgb: 0xd92326), icon: UIImage(bundleImageName: "Call/CallPhoneButton"))
-            case .speaker:
-                regularImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallSpeakerButton"), strokeColor: emptyStroke, fillColor: .clear)
-                highlightedImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallSpeakerButton"), strokeColor: emptyStroke, fillColor: emptyHighlightedFill)
-                filledImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallSpeakerButton"), strokeColor: nil, fillColor: invertedFill, knockout: true)
-            case .bluetooth:
-                regularImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallBluetoothButton"), strokeColor: emptyStroke, fillColor: .clear)
-                highlightedImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallBluetoothButton"), strokeColor: emptyStroke, fillColor: emptyHighlightedFill)
-                filledImage = generateEmptyButtonImage(icon: UIImage(bundleImageName: "Call/CallBluetoothButton"), strokeColor: nil, fillColor: invertedFill, knockout: true)
+        transition.updatePosition(node: self.contentContainer, position: CGPoint(x: size.width / 2.0, y: size.height / 2.0))
+        transition.updateSublayerTransformScale(node: self.contentContainer, scale: scaleFactor)
+        
+        if self.currentText != text {
+            self.textNode.attributedText = NSAttributedString(string: text, font: labelFont, textColor: .white)
         }
-        
-        self.regularImage = regularImage
-        self.highlightedImage = highlightedImage
-        self.filledImage = filledImage
-        
-        self.updateState(highlighted: self.isHighlighted, selected: self.isSelected)
-    }
-    
-    func animateRollTransition() {
-        self.backgroundNode.layer.animate(from: 0.0 as NSNumber, to: (-CGFloat.pi * 5 / 4) as NSNumber, keyPath: "transform.rotation.z", timingFunction: kCAMediaTimingFunctionSpring, duration: 0.3, removeOnCompletion: false)
-        self.labelNode?.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.25, removeOnCompletion: false)
-    }
-    
-    override func layout() {
-        super.layout()
-        
-        let size = self.bounds.size
-        
-        self.backgroundNode.frame = CGRect(origin: CGPoint(), size: CGSize(width: size.width, height: size.width))
-        
-        if let labelNode = self.labelNode {
-            let labelSize = labelNode.measure(CGSize(width: 200.0, height: 100.0))
-            labelNode.frame = CGRect(origin: CGPoint(x: floor((size.width - labelSize.width) / 2.0), y: 81.0), size: labelSize)
+        let textSize = self.textNode.updateLayout(CGSize(width: 150.0, height: 100.0))
+        let textFrame = CGRect(origin: CGPoint(x: floor((size.width - textSize.width) / 2.0), y: size.height + (isSmall ? 5.0 : 8.0)), size: textSize)
+        if self.currentText.isEmpty {
+            self.textNode.frame = textFrame
+            if transition.isAnimated {
+                self.textNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.15)
+            }
+        } else {
+            transition.updateFrameAdditiveToCenter(node: self.textNode, frame: textFrame)
         }
+        self.currentText = text
     }
 }

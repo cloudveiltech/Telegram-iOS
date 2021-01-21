@@ -4,12 +4,11 @@
 @interface GPUImageFramebuffer()
 {
     GLuint framebuffer;
-#if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
+
     CVPixelBufferRef renderTarget;
     CVOpenGLESTextureRef renderTexture;
     NSUInteger readLockCount;
-#else
-#endif
+
     NSUInteger framebufferReferenceCount;
     BOOL referenceCountingDisabled;
 }
@@ -28,13 +27,18 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
 #pragma mark -
 #pragma mark Initialization and teardown
 
+static BOOL mark = false;
++ (void)setMark:(BOOL)mark_ {
+    mark = mark_;
+}
+
 - (id)initWithSize:(CGSize)framebufferSize textureOptions:(GPUTextureOptions)fboTextureOptions onlyTexture:(BOOL)onlyGenerateTexture
 {
     if (!(self = [super init]))
     {
 		return nil;
     }
-    
+    _mark = mark;
     _textureOptions = fboTextureOptions;
     _size = framebufferSize;
     framebufferReferenceCount = 0;
@@ -62,7 +66,7 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
     {
 		return nil;
     }
-
+    _mark = mark;
     GPUTextureOptions defaultTextureOptions;
     defaultTextureOptions.minFilter = GL_LINEAR;
     defaultTextureOptions.magFilter = GL_LINEAR;
@@ -82,8 +86,36 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
     return self;
 }
 
+- (id)initWithSize:(CGSize)framebufferSize overridenFramebuffer:(GLuint)overridenFramebuffer overriddenTexture:(GLuint)inputTexture
+{
+    if (!(self = [super init]))
+    {
+        return nil;
+    }
+    _mark = mark;
+    GPUTextureOptions defaultTextureOptions;
+    defaultTextureOptions.minFilter = GL_LINEAR;
+    defaultTextureOptions.magFilter = GL_LINEAR;
+    defaultTextureOptions.wrapS = GL_CLAMP_TO_EDGE;
+    defaultTextureOptions.wrapT = GL_CLAMP_TO_EDGE;
+    defaultTextureOptions.internalFormat = GL_RGBA;
+    defaultTextureOptions.format = GL_BGRA;
+    defaultTextureOptions.type = GL_UNSIGNED_BYTE;
+
+    _textureOptions = defaultTextureOptions;
+    _size = framebufferSize;
+    framebufferReferenceCount = 0;
+    referenceCountingDisabled = YES;
+    
+    framebuffer = overridenFramebuffer;
+    _texture = inputTexture;
+    
+    return self;
+}
+
 - (id)initWithSize:(CGSize)framebufferSize
 {
+    _mark = mark;
     GPUTextureOptions defaultTextureOptions;
     defaultTextureOptions.minFilter = GL_LINEAR;
     defaultTextureOptions.magFilter = GL_LINEAR;
@@ -131,10 +163,8 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
         glGenFramebuffers(1, &framebuffer);
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         
-        // By default, all framebuffers on iOS 5.0+ devices are backed by texture caches, using one shared cache
         if ([GPUImageContext supportsFastTextureUpload])
         {
-#if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
             CVOpenGLESTextureCacheRef coreVideoTextureCache = [[GPUImageContext sharedImageProcessingContext] coreVideoTextureCache];
             // Code originally sourced from http://allmybrain.com/2011/12/08/rendering-to-a-texture-with-ios-5-texture-cache-api/
             
@@ -175,7 +205,6 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, _textureOptions.wrapT);
             
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, CVOpenGLESTextureGetName(renderTexture), 0);
-#endif
         }
         else
         {
@@ -235,6 +264,11 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
 #pragma mark -
 #pragma mark Usage
 
+- (void)useFramebuffer
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+}
+
 - (void)activateFramebuffer
 {
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
@@ -263,6 +297,7 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
 
     NSAssert(framebufferReferenceCount > 0, @"Tried to overrelease a framebuffer, did you forget to call -useNextFrameForImageCapture before using -imageFromCurrentFramebuffer?");
     framebufferReferenceCount--;
+    
     if (framebufferReferenceCount < 1)
     {
         [[GPUImageContext sharedFramebufferCache] returnFramebufferToCache:self];
@@ -320,7 +355,6 @@ void dataProviderUnlockCallback (void *info, __unused const void *data, __unused
         CGDataProviderRef dataProvider = NULL;
         if ([GPUImageContext supportsFastTextureUpload])
         {
-#if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
             NSUInteger paddedWidthOfImage = (NSUInteger)(CVPixelBufferGetBytesPerRow(renderTarget) / 4.0);
             NSUInteger paddedBytesForImage = paddedWidthOfImage * (int)_size.height * 4;
             
@@ -330,8 +364,6 @@ void dataProviderUnlockCallback (void *info, __unused const void *data, __unused
             rawImagePixels = (GLubyte *)CVPixelBufferGetBaseAddress(renderTarget);
             dataProvider = CGDataProviderCreateWithData((__bridge_retained void*)self, rawImagePixels, paddedBytesForImage, dataProviderUnlockCallback);
             [[GPUImageContext sharedFramebufferCache] addFramebufferToActiveImageCaptureList:self]; // In case the framebuffer is swapped out on the filter, need to have a strong reference to it somewhere for it to hang on while the image is in existence
-#else
-#endif
         }
         else
         {
@@ -346,10 +378,7 @@ void dataProviderUnlockCallback (void *info, __unused const void *data, __unused
         
         if ([GPUImageContext supportsFastTextureUpload])
         {
-#if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
             cgImageFromBytes = CGImageCreate((int)_size.width, (int)_size.height, 8, 32, CVPixelBufferGetBytesPerRow(renderTarget), defaultRGBColorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst, dataProvider, NULL, NO, kCGRenderingIntentDefault);
-#else
-#endif
         }
         else
         {
@@ -365,13 +394,42 @@ void dataProviderUnlockCallback (void *info, __unused const void *data, __unused
     return cgImageFromBytes;
 }
 
+- (void)newCIImageFromFramebufferContents:(void (^)(CIImage *image, void(^unlock)(void)))completion
+{
+    // a CGImage can only be created from a 'normal' color texture
+    NSAssert(self.textureOptions.internalFormat == GL_RGBA, @"For conversion to a CGImage the output texture format for this filter must be GL_RGBA.");
+    NSAssert(self.textureOptions.type == GL_UNSIGNED_BYTE, @"For conversion to a CGImage the type of the output texture of this filter must be GL_UNSIGNED_BYTE.");
+        
+    __block CIImage *ciImage;
+    
+    runSynchronouslyOnVideoProcessingQueue(^{
+        [GPUImageContext useImageProcessingContext];
+        
+        if ([GPUImageContext supportsFastTextureUpload])
+        {
+            glFinish();
+            CFRetain(renderTarget);
+            [self lockForReading];
+            
+            [[GPUImageContext sharedFramebufferCache] addFramebufferToActiveImageCaptureList:self];
+            
+            ciImage = [[CIImage alloc] initWithCVPixelBuffer:renderTarget options:nil];
+        }
+    });
+    
+    completion(ciImage, ^{
+        runSynchronouslyOnVideoProcessingQueue(^{
+            [self restoreRenderTarget];
+            [self unlock];
+            [[GPUImageContext sharedFramebufferCache] removeFramebufferFromActiveImageCaptureList:self];
+        });
+    });
+}
+
 - (void)restoreRenderTarget
 {
-#if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
     [self unlockAfterReading];
     CFRelease(renderTarget);
-#else
-#endif
 }
 
 #pragma mark -

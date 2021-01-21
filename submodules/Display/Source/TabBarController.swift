@@ -82,7 +82,7 @@ open class TabBarController: ViewController {
     }
     
     open override func updateNavigationCustomData(_ data: Any?, progress: CGFloat, transition: ContainedViewLayoutTransition) {
-        for controller in controllers {
+        for controller in self.controllers {
             controller.updateNavigationCustomData(data, progress: progress, transition: transition)
         }
     }
@@ -183,6 +183,13 @@ open class TabBarController: ViewController {
     
     public func updateIsTabBarEnabled(_ value: Bool, transition: ContainedViewLayoutTransition) {
         self.tabBarControllerNode.updateIsTabBarEnabled(value, transition: transition)
+    }
+    
+    public func updateIsTabBarHidden(_ value: Bool, transition: ContainedViewLayoutTransition) {
+        self.tabBarControllerNode.tabBarHidden = value
+        if let layout = self.validLayout {
+            self.containerLayoutUpdated(layout, transition: .animated(duration: 0.4, curve: .slide))
+        }
     }
     
     override open func loadDisplayNode() {
@@ -311,6 +318,9 @@ open class TabBarController: ViewController {
             self.navigationBar?.setSecondaryContentNode(currentController.navigationBar?.secondaryContentNode)
             currentController.displayNode.recursivelyEnsureDisplaySynchronously(true)
             self.statusBar.statusBarStyle = currentController.statusBar.statusBarStyle
+            if let navigationBarPresentationData = currentController.navigationBar?.presentationData {
+                self.navigationBar?.updatePresentationData(navigationBarPresentationData)
+            }
         } else {
             self.navigationItem.title = nil
             self.navigationItem.leftBarButtonItem = nil
@@ -330,9 +340,9 @@ open class TabBarController: ViewController {
         }
     }
     
-    public func updateLayout() {
+    public func updateLayout(transition: ContainedViewLayoutTransition = .immediate) {
         if let layout = self.validLayout {
-            self.containerLayoutUpdated(layout, transition: .immediate)
+            self.containerLayoutUpdated(layout, transition: transition)
         }
     }
     

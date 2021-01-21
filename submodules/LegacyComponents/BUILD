@@ -2,10 +2,17 @@
 filegroup(
     name = "LegacyComponentsResources",
     srcs = glob([
-        "LegacyComponentsResources.bundle/**/*",
+        "Resources/LegacyComponentsResources.bundle/**/*",
     ], exclude = ["Resources/LegacyComponentsResources.bundle/**/.*"]),
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "LegacyComponentsAssets",
+    srcs = glob(["LegacyImages.xcassets/**"]),
+    visibility = ["//visibility:public"],
+)
+
 
 objc_library(
     name = "LegacyComponents",

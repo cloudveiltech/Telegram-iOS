@@ -132,6 +132,14 @@ public enum ResourceDataRequestOption {
     case incremental(waitUntilFetchStatus: Bool)
 }
 
+private final class MediaBoxKeepResourceContext {
+    let subscribers = Bag<Void>()
+    
+    var isEmpty: Bool {
+        return self.subscribers.isEmpty
+    }
+}
+
 public final class MediaBox {
     public let basePath: String
     
@@ -145,6 +153,7 @@ public final class MediaBox {
     private var cachedRepresentationContexts: [CachedMediaResourceRepresentationKey: CachedMediaResourceRepresentationContext] = [:]
     
     private var fileContexts: [WrappedMediaResourceId: MediaBoxFileContext] = [:]
+    private var keepResourceContexts: [WrappedMediaResourceId: MediaBoxKeepResourceContext] = [:]
     
     private var wrappedFetchResource = Promise<(MediaResource, Signal<[(Range<Int>, MediaBoxFetchPriority)], NoError>, MediaResourceFetchParameters?) -> Signal<MediaResourceDataFetchResult, MediaResourceDataFetchError>>()
     public var preFetchedResourcePath: (MediaResource) -> String? = { _ in return nil }
@@ -188,8 +197,8 @@ public final class MediaBox {
         let _ = self.ensureDirectoryCreated
     }
     
-    public func setMaxStoreTimes(general: Int32, shortLived: Int32) {
-        self.timeBasedCleanup.setMaxStoreTimes(general: general, shortLived: shortLived)
+    public func setMaxStoreTimes(general: Int32, shortLived: Int32, gigabytesLimit: Int32) {
+        self.timeBasedCleanup.setMaxStoreTimes(general: general, shortLived: shortLived, gigabytesLimit: gigabytesLimit)
     }
     
     private func fileNameForId(_ id: MediaResourceId) -> String {
@@ -202,6 +211,10 @@ public final class MediaBox {
     
     private func storePathsForId(_ id: MediaResourceId) -> ResourceStorePaths {
         return ResourceStorePaths(partial: "\(self.basePath)/\(fileNameForId(id))_partial", complete: "\(self.basePath)/\(fileNameForId(id))")
+    }
+    
+    private func fileNamesForId(_ id: MediaResourceId) -> ResourceStorePaths {
+        return ResourceStorePaths(partial: "\(fileNameForId(id))_partial", complete: "\(fileNameForId(id))")
     }
     
     private func cachedRepresentationPathsForId(_ id: MediaResourceId, representation: CachedMediaResourceRepresentation) -> ResourceStorePaths {
@@ -224,6 +237,11 @@ public final class MediaBox {
             cacheString = "short-cache"
         }
         return "\(self.basePath)/\(cacheString)/\(fileNameForId(id)):\(representation.uniqueId)"
+    }
+    
+    public func shortLivedResourceCachePathPrefix(_ id: MediaResourceId) -> String {
+        let cacheString = "short-cache"
+        return "\(self.basePath)/\(cacheString)/\(fileNameForId(id))"
     }
     
     public func storeResourceData(_ id: MediaResourceId, data: Data, synchronous: Bool = false) {
@@ -263,6 +281,23 @@ public final class MediaBox {
             link(pathsFrom.complete, pathsTo.complete)
             unlink(pathsFrom.partial)
             unlink(pathsFrom.complete)
+        }
+    }
+    
+    public func copyResourceData(from: MediaResourceId, to: MediaResourceId, synchronous: Bool = false) {
+        if from.isEqual(to: to) {
+            return
+        }
+        let begin = {
+            let pathsFrom = self.storePathsForId(from)
+            let pathsTo = self.storePathsForId(to)
+            let _ = try? FileManager.default.copyItem(atPath: pathsFrom.partial, toPath: pathsTo.partial)
+            let _ = try? FileManager.default.copyItem(atPath: pathsFrom.complete, toPath: pathsTo.complete)
+        }
+        if synchronous {
+            begin()
+        } else {
+            self.dataQueue.async(begin)
         }
     }
     
@@ -535,6 +570,11 @@ public final class MediaBox {
                     return
                 }
                 
+                var range = range
+                if let parameters = parameters, !parameters.isRandomAccessAllowed {
+                    range = 0 ..< range.upperBound
+                }
+                
                 let fetchResource = self.wrappedFetchResource.get()
                 let fetchedDisposable = fileContext.fetched(range: Int32(range.lowerBound) ..< Int32(range.upperBound), priority: priority, fetch: { intervals in
                     return fetchResource
@@ -558,9 +598,39 @@ public final class MediaBox {
         }
     }
     
-    public func resourceData(_ resource: MediaResource, size: Int, in range: Range<Int>, mode: ResourceDataRangeMode = .complete) -> Signal<Data, NoError> {
+    public func resourceData(_ resource: MediaResource, size: Int, in range: Range<Int>, mode: ResourceDataRangeMode = .complete, notifyAboutIncomplete: Bool = false, attemptSynchronously: Bool = false) -> Signal<(Data, Bool), NoError> {
         return Signal { subscriber in
             let disposable = MetaDisposable()
+            
+            if attemptSynchronously {
+                let paths = self.storePathsForId(resource.id)
+                
+                if let completeSize = fileSize(paths.complete) {
+                    self.timeBasedCleanup.touch(paths: [
+                        paths.complete
+                    ])
+                    
+                    if let file = ManagedFile(queue: nil, path: paths.complete, mode: .read) {
+                        let clippedLowerBound = min(completeSize, max(0, range.lowerBound))
+                        let clippedUpperBound = min(completeSize, max(0, range.upperBound))
+                        if clippedLowerBound < clippedUpperBound {
+                            file.seek(position: Int64(clippedLowerBound))
+                            let data = file.readData(count: clippedUpperBound)
+                            subscriber.putNext((data, true))
+                        } else {
+                            subscriber.putNext((Data(), isComplete: true))
+                        }
+                        subscriber.putCompletion()
+                        return EmptyDisposable
+                    } else {
+                        if let data = MediaBoxPartialFile.extractPartialData(path: paths.partial, metaPath: paths.partial + ".meta", range: Int32(range.lowerBound) ..< Int32(range.upperBound)) {
+                            subscriber.putNext((data, true))
+                            subscriber.putCompletion()
+                            return EmptyDisposable
+                        }
+                    }
+                }
+            }
             
             self.dataQueue.async {
                 guard let (fileContext, releaseContext) = self.fileContext(for: resource) else {
@@ -573,26 +643,27 @@ public final class MediaBox {
                 let dataDisposable = fileContext.data(range: range, waitUntilAfterInitialFetch: false, next: { result in
                     if let file = ManagedFile(queue: self.dataQueue, path: result.path, mode: .read), let fileSize = file.getSize() {
                         if result.complete {
-                            if result.offset + result.size <= fileSize {
-                                if fileSize >= result.offset + result.size {
-                                    file.seek(position: Int64(result.offset))
-                                    let resultData = file.readData(count: result.size)
-                                    subscriber.putNext(resultData)
-                                    subscriber.putCompletion()
-                                } else {
-                                    assertionFailure("data.count >= result.offset + result.size")
-                                }
+                            let clippedLowerBound = min(result.offset, fileSize)
+                            let clippedUpperBound = min(result.offset + result.size, fileSize)
+                            if clippedUpperBound == clippedLowerBound {
+                                subscriber.putNext((Data(), true))
+                                subscriber.putCompletion()
+                            } else if clippedUpperBound <= fileSize {
+                                file.seek(position: Int64(clippedLowerBound))
+                                let resultData = file.readData(count: clippedUpperBound - clippedLowerBound)
+                                subscriber.putNext((resultData, true))
+                                subscriber.putCompletion()
                             } else {
                                 assertionFailure()
                             }
                         } else {
                             switch mode {
-                                case .complete:
-                                    break
-                                case .incremental:
-                                    break
+                                case .complete, .incremental:
+                                    if notifyAboutIncomplete {
+                                        subscriber.putNext((Data(), false))
+                                    }
                                 case .partial:
-                                    subscriber.putNext(Data())
+                                    subscriber.putNext((Data(), false))
                             }
                         }
                     }
@@ -669,6 +740,38 @@ public final class MediaBox {
                         })
                     }
                 }
+            }
+            
+            return disposable
+        }
+    }
+    
+    public func keepResource(id: MediaResourceId) -> Signal<Never, NoError> {
+        return Signal { subscriber in
+            let disposable = MetaDisposable()
+            
+            let dataQueue = self.dataQueue
+            self.dataQueue.async {
+                let context: MediaBoxKeepResourceContext
+                if let current = self.keepResourceContexts[WrappedMediaResourceId(id)] {
+                    context = current
+                } else {
+                    context = MediaBoxKeepResourceContext()
+                    self.keepResourceContexts[WrappedMediaResourceId(id)] = context
+                }
+                let index = context.subscribers.add(Void())
+                
+                disposable.set(ActionDisposable { [weak self, weak context] in
+                    dataQueue.async {
+                        guard let strongSelf = self, let context = context, let currentContext = strongSelf.keepResourceContexts[WrappedMediaResourceId(id)], currentContext === context else {
+                            return
+                        }
+                        currentContext.subscribers.remove(index)
+                        if currentContext.isEmpty {
+                            strongSelf.keepResourceContexts.removeValue(forKey: WrappedMediaResourceId(id))
+                        }
+                    }
+                })
             }
             
             return disposable
@@ -969,7 +1072,20 @@ public final class MediaBox {
     public func removeOtherCachedResources(paths: [String]) -> Signal<Void, NoError> {
         return Signal { subscriber in
             self.dataQueue.async {
-                for path in paths {
+                var keepPrefixes: [String] = []
+                for id in self.keepResourceContexts.keys {
+                    let resourcePaths = self.fileNamesForId(id.id)
+                    keepPrefixes.append(resourcePaths.partial)
+                    keepPrefixes.append(resourcePaths.complete)
+                }
+                
+                outer: for path in paths {
+                    for prefix in keepPrefixes {
+                        if path.starts(with: prefix) {
+                            continue outer
+                        }
+                    }
+                    
                     unlink(self.basePath + "/" + path)
                 }
                 subscriber.putCompletion()
@@ -983,6 +1099,9 @@ public final class MediaBox {
             self.dataQueue.async {
                 for id in ids {
                     if self.fileContexts[id] != nil {
+                        continue
+                    }
+                    if self.keepResourceContexts[id] != nil {
                         continue
                     }
                     let paths = self.storePathsForId(id.id)
@@ -1023,23 +1142,9 @@ public final class MediaBox {
         }
     }
     
-    public func clearFileContexts() -> Signal<Void, NoError> {
-        return Signal { subscriber in
-            self.dataQueue.async {
-                for (id, _) in self.fileContexts {
-                    let paths = self.storePathsForId(id.id)
-                    unlink(paths.complete)
-                    unlink(paths.partial)
-                    unlink(paths.partial + ".meta")
-                }
-                self.fileContexts.removeAll()
-                subscriber.putCompletion()
-            }
-            return EmptyDisposable
-        }
-    }
+
     
-    public func fileConxtets() -> Signal<[(partial: String, complete: String)], NoError> {
+    public func allFileContexts() -> Signal<[(partial: String, complete: String)], NoError> {
         return Signal { subscriber in
             self.dataQueue.async {
                 var result: [(partial: String, complete: String)] = []
@@ -1053,4 +1158,5 @@ public final class MediaBox {
             return EmptyDisposable
         }
     }
+
 }

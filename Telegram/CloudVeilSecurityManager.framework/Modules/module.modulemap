@@ -1,0 +1,11 @@
+framework module CloudVeilSecurityManager {
+  umbrella header "CloudVeilSecurityManager.h"
+
+  export *
+  module * { export * }
+}
+
+module CloudVeilSecurityManager.Swift {
+    header "CloudVeilSecurityManager-Swift.h"
+    requires objc
+}

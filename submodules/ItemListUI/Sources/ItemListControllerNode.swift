@@ -138,7 +138,7 @@ public final class ItemListNodeVisibleEntries: Sequence {
     }
 }
 
-public final class ItemListControllerNodeView: UITracingLayerView, PreviewingHostView {
+public final class ItemListControllerNodeView: UITracingLayerView {
     var onLayout: (() -> Void)?
     
     init(controller: ItemListController?) {
@@ -169,14 +169,6 @@ public final class ItemListControllerNodeView: UITracingLayerView, PreviewingHos
             self.inHitTest = false
             return result
         }
-    }
-    
-    public var previewingDelegate: PreviewingHostViewDelegate? {
-        return PreviewingHostViewDelegate(controllerForLocation: { [weak self] sourceView, point in
-            return self?.controller?.previewingController(from: sourceView, for: point)
-        }, commitController: { [weak self] controller in
-            self?.controller?.previewingCommit(controller)
-        })
     }
     
     weak var controller: ItemListController?
@@ -238,7 +230,9 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
         
         self.listNode = ListView()
         self.leftOverlayNode = ASDisplayNode()
+        self.leftOverlayNode.isUserInteractionEnabled = false
         self.rightOverlayNode = ASDisplayNode()
+        self.rightOverlayNode.isUserInteractionEnabled = false
         
         super.init()
         
@@ -300,6 +294,14 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
         self.listNode.didEndScrolling = { [weak self] in
             if let strongSelf = self {
                 let _ = strongSelf.contentScrollingEnded?(strongSelf.listNode)
+            }
+        }
+        
+        self.listNode.itemNodeHitTest = { [weak self] point in
+            if let strongSelf = self {
+                return point.x > strongSelf.leftOverlayNode.frame.maxX && point.x < strongSelf.rightOverlayNode.frame.minX
+            } else {
+                return true
             }
         }
     

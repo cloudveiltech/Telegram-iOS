@@ -88,7 +88,7 @@ final class TrendingPanePackEntry: Identifiable, Comparable {
     
     func item(account: Account, interaction: TrendingPaneInteraction, grid: Bool) -> GridItem {
         let info = self.info
-        return StickerPaneSearchGlobalItem(account: account, theme: self.theme, strings: self.strings, listAppearance: false, info: self.info, topItems: self.topItems, grid: grid, topSeparator: self.topSeparator, regularInsets: false, installed: self.installed, unread: self.unread, open: {
+        return StickerPaneSearchGlobalItem(account: account, theme: self.theme, strings: self.strings, listAppearance: false, info: self.info, topItems: self.topItems, topSeparator: self.topSeparator, regularInsets: false, installed: self.installed, unread: self.unread, open: {
             interaction.openPack(info)
         }, install: {
             interaction.installPack(info)
@@ -329,7 +329,7 @@ final class ChatMediaInputTrendingPane: ChatMediaInputPane {
                 let packReference: StickerPackReference = .id(id: info.id.id, accessHash: info.accessHash)
                 let controller = StickerPackScreen(context: strongSelf.context, mainStickerPack: packReference, stickerPacks: [packReference], parentNavigationController: strongSelf.controllerInteraction.navigationController(), sendSticker: { fileReference, sourceNode, sourceRect in
                     if let strongSelf = self {
-                        return strongSelf.controllerInteraction.sendSticker(fileReference, false, sourceNode, sourceRect)
+                        return strongSelf.controllerInteraction.sendSticker(fileReference, nil, false, sourceNode, sourceRect)
                     } else {
                         return false
                     }
@@ -338,7 +338,7 @@ final class ChatMediaInputTrendingPane: ChatMediaInputPane {
             }
         }, getItemIsPreviewed: self.getItemIsPreviewed,
         openSearch: { [weak self] in
-            self?.inputNodeInteraction?.toggleSearch(true, .trending)
+            self?.inputNodeInteraction?.toggleSearch(true, .trending, "")
         })
         
         let isPane = self.isPane

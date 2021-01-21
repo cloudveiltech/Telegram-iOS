@@ -1,17 +1,12 @@
 #import <Foundation/Foundation.h>
 
-#if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
 #import <OpenGLES/EAGL.h>
 #import <OpenGLES/ES2/gl.h>
 #import <OpenGLES/ES2/glext.h>
-#else
-#import <OpenGL/OpenGL.h>
-#import <OpenGL/gl.h>
-#endif
 
 #import <QuartzCore/QuartzCore.h>
 #import <CoreMedia/CoreMedia.h>
-
+#import <CoreImage/CoreImage.h>
 
 typedef struct GPUTextureOptions {
     GLenum minFilter;
@@ -30,12 +25,16 @@ typedef struct GPUTextureOptions {
 @property (nonatomic, readonly) GLuint texture;
 @property (nonatomic, readonly) BOOL missingFramebuffer;
 
+@property (nonatomic, assign) BOOL mark;
+
 // Initialization and teardown
 - (id)initWithSize:(CGSize)framebufferSize;
 - (id)initWithSize:(CGSize)framebufferSize textureOptions:(GPUTextureOptions)fboTextureOptions onlyTexture:(BOOL)onlyGenerateTexture;
 - (id)initWithSize:(CGSize)framebufferSize overriddenTexture:(GLuint)inputTexture;
+- (id)initWithSize:(CGSize)framebufferSize overridenFramebuffer:(GLuint)overridenFramebuffer overriddenTexture:(GLuint)inputTexture;
 
 // Usage
+- (void)useFramebuffer;
 - (void)activateFramebuffer;
 
 // Reference counting
@@ -47,6 +46,7 @@ typedef struct GPUTextureOptions {
 
 // Image capture
 - (CGImageRef)newCGImageFromFramebufferContents;
+- (void)newCIImageFromFramebufferContents:(void (^)(CIImage *image, void(^unlock)(void)))completion;
 - (void)restoreRenderTarget;
 
 // Raw data bytes
@@ -54,5 +54,7 @@ typedef struct GPUTextureOptions {
 - (void)unlockAfterReading;
 - (NSUInteger)bytesPerRow;
 - (GLubyte *)byteBuffer;
+
++ (void)setMark:(BOOL)mark;
 
 @end

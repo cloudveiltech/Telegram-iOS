@@ -94,21 +94,21 @@ final class WebSearchItemNode: GridItemNode {
             var immediateThumbnailData: Data?
             
             switch item.result {
-                case let .externalReference(_, _, type, _, _, _, content, thumbnail, _):
-                    if let content = content, type != "gif" {
+                case let .externalReference(externalReference):
+                    if let content = externalReference.content, externalReference.type != "gif" {
                         imageResource = content.resource
-                    } else if let thumbnail = thumbnail {
+                    } else if let thumbnail = externalReference.thumbnail {
                         imageResource = thumbnail.resource
                     }
-                    imageDimensions = content?.dimensions?.cgSize
-                case let .internalReference(_, _, _, _, _, image, file, _):
-                    if let image = image {
+                    imageDimensions = externalReference.content?.dimensions?.cgSize
+                case let .internalReference(internalReference):
+                    if let image = internalReference.image {
                         immediateThumbnailData = image.immediateThumbnailData
                         if let largestRepresentation = largestImageRepresentation(image.representations) {
                             imageDimensions = largestRepresentation.dimensions.cgSize
                         }
                         imageResource = imageRepresentationLargerThan(image.representations, size: PixelDimensions(width: 200, height: 100))?.resource
-                        if let file = file {
+                        if let file = internalReference.file {
                             if let thumbnailRepresentation = smallestImageRepresentation(file.previewRepresentations) {
                                 thumbnailDimensions = thumbnailRepresentation.dimensions.cgSize
                                 thumbnailResource = thumbnailRepresentation.resource
@@ -119,7 +119,7 @@ final class WebSearchItemNode: GridItemNode {
                                 thumbnailResource = thumbnailRepresentation.resource
                             }
                         }
-                    } else if let file = file {
+                    } else if let file = internalReference.file {
                         immediateThumbnailData = file.immediateThumbnailData
                         if let dimensions = file.dimensions {
                             imageDimensions = dimensions.cgSize
@@ -132,10 +132,10 @@ final class WebSearchItemNode: GridItemNode {
             
             var representations: [TelegramMediaImageRepresentation] = []
             if let thumbnailResource = thumbnailResource, let thumbnailDimensions = thumbnailDimensions {
-                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(thumbnailDimensions), resource: thumbnailResource))
+                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(thumbnailDimensions), resource: thumbnailResource, progressiveSizes: []))
             }
             if let imageResource = imageResource, let imageDimensions = imageDimensions {
-                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(imageDimensions), resource: imageResource))
+                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(imageDimensions), resource: imageResource, progressiveSizes: []))
             }
             if !representations.isEmpty {
                 let tmpImage = TelegramMediaImage(imageId: MediaId(namespace: 0, id: 0), representations: representations, immediateThumbnailData: immediateThumbnailData, reference: nil, partialReference: nil, flags: [])

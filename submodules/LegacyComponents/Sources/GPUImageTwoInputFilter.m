@@ -122,10 +122,9 @@ NSString *const kGPUImageTwoInputTextureVertexShaderString = SHADER_STRING
 
     [firstInputFramebuffer unlock];
     [secondInputFramebuffer unlock];
+    
     if (usingNextFrameForImageCapture)
-    {
         dispatch_semaphore_signal(imageCaptureSemaphore);
-    }
 }
 
 #pragma mark -
@@ -177,7 +176,7 @@ NSString *const kGPUImageTwoInputTextureVertexShaderString = SHADER_STRING
     {
         inputRotation = newInputRotation;
     }
-    else
+    else if (textureIndex == 1 && !_rotateOnlyFirstTexture)
     {
         inputRotation2 = newInputRotation;
     }

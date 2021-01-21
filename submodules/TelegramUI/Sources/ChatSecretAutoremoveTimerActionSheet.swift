@@ -80,27 +80,27 @@ private final class AutoremoveTimeoutSelectorItem: ActionSheetItem {
 
 //CloudVeil start
 private let timeoutValuesInitial: [Int32] = [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    30,
-    1 * 60,
-    1 * 60 * 60,
-    24 * 60 * 60,
-    7 * 24 * 60 * 60
+	0,
+	1,
+	2,
+	3,
+	4,
+	5,
+	6,
+	7,
+	8,
+	9,
+	10,
+	11,
+	12,
+	13,
+	14,
+	15,
+	30,
+	1 * 60,
+	1 * 60 * 60,
+	24 * 60 * 60,
+	7 * 24 * 60 * 60
 ]
 
 private var timeoutValues: [Int32] = [
@@ -149,16 +149,15 @@ private final class AutoremoveTimeoutSelectorItemNode: ActionSheetItemNode, UIPi
         self.view.addSubview(self.pickerView)
         
         self.pickerView.reloadAllComponents()
-        
-        //CloudVeil start
-        timeoutValues.removeAll()
-        for i in 0 ..< timeoutValuesInitial.count {
-            if timeoutValuesInitial[i] >= MainController.shared.secretChatMinimumLength {
-                timeoutValues.append(timeoutValuesInitial[i])
-            }
-        }
-        //CloudVeil end
-        
+		//CloudVeil start
+		timeoutValues.removeAll()
+		for i in 0 ..< timeoutValuesInitial.count {
+			if timeoutValuesInitial[i] >= MainController.shared.secretChatMinimumLength {
+				timeoutValues.append(timeoutValuesInitial[i])
+			}
+		}
+		//CloudVeil end
+		
         var index: Int = 0
         for i in 0 ..< timeoutValues.count {
             if currentValue <= timeoutValues[i] {

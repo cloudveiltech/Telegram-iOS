@@ -7,12 +7,16 @@ swift_library(
         "Sources/**/*.swift",
     ]),
     deps = [
+		#CloudVeil start
+		"//Telegram:CloudVeilSecurityManager",
+		#CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
         "//submodules/YuvConversion:YuvConversion",
         "//submodules/GZip:GZip",
         "//submodules/rlottie:RLottieBinding",
+        "//submodules/MediaResources:MediaResources",
     ],
     visibility = [
         "//visibility:public",

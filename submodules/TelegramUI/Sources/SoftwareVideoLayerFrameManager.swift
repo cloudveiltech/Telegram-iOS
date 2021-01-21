@@ -8,7 +8,7 @@ import CoreMedia
 import UniversalMediaPlayer
 
 private let applyQueue = Queue()
-private let workers = ThreadPool(threadCount: 2, threadPriority: 0.09)
+private let workers = ThreadPool(threadCount: 3, threadPriority: 0.2)
 private var nextWorker = 0
 
 final class SoftwareVideoLayerFrameManager {
@@ -23,6 +23,7 @@ final class SoftwareVideoLayerFrameManager {
     
     private let account: Account
     private let resource: MediaResource
+    private let secondaryResource: MediaResource?
     private let queue: ThreadPoolQueue
     private let layerHolder: SampleBufferLayer
     
@@ -31,10 +32,22 @@ final class SoftwareVideoLayerFrameManager {
     
     private var layerRotationAngleAndAspect: (CGFloat, CGFloat)?
     
-    init(account: Account, fileReference: FileMediaReference, resource: MediaResource, layerHolder: SampleBufferLayer) {
+    init(account: Account, fileReference: FileMediaReference, layerHolder: SampleBufferLayer) {
+        var resource = fileReference.media.resource
+        var secondaryResource: MediaResource?
+        for attribute in fileReference.media.attributes {
+            if case .Video = attribute {
+                if let thumbnail = fileReference.media.videoThumbnails.first {
+                    resource = thumbnail.resource
+                    secondaryResource = fileReference.media.resource
+                }
+            }
+        }
+        
         nextWorker += 1
         self.account = account
         self.resource = resource
+        self.secondaryResource = secondaryResource
         self.queue = ThreadPoolQueue(threadPool: workers)
         self.layerHolder = layerHolder
         layerHolder.layer.videoGravity = .resizeAspectFill
@@ -48,9 +61,55 @@ final class SoftwareVideoLayerFrameManager {
     }
     
     func start() {
-        self.dataDisposable.set((self.account.postbox.mediaBox.resourceData(self.resource, option: .complete(waitUntilFetchStatus: false)) |> deliverOn(applyQueue)).start(next: { [weak self] data in
-            if let strongSelf = self, data.complete {
-                let _ = strongSelf.source.swap(SoftwareVideoSource(path: data.path))
+        func stringForResource(_ resource: MediaResource?) -> String {
+            guard let resource = resource else {
+                return "<none>"
+            }
+            if let resource = resource as? WebFileReferenceMediaResource {
+                return resource.url
+            } else {
+                return resource.id.uniqueId
+            }
+        }
+        Logger.shared.log("SoftwareVideo", "load video from \(stringForResource(self.resource)) or \(stringForResource(self.secondaryResource))")
+        let secondarySignal: Signal<(String, MediaResource)?, NoError>
+        if let secondaryResource = self.secondaryResource {
+            secondarySignal = self.account.postbox.mediaBox.resourceData(secondaryResource, option: .complete(waitUntilFetchStatus: false))
+            |> map { data -> (String, MediaResource)? in
+                if data.complete {
+                    return (data.path, secondaryResource)
+                } else {
+                    return nil
+                }
+            }
+        } else {
+            secondarySignal = .single(nil)
+        }
+        
+        let firstResource = self.resource
+        
+        let firstReady: Signal<(String, MediaResource), NoError> = combineLatest(
+            self.account.postbox.mediaBox.resourceData(self.resource, option: .complete(waitUntilFetchStatus: false)),
+            secondarySignal
+        )
+        |> mapToSignal { first, second -> Signal<(String, MediaResource), NoError> in
+            if first.complete {
+                return .single((first.path, firstResource))
+            } else if let second = second {
+                return .single(second)
+            } else {
+                return .complete()
+            }
+        }
+        |> take(1)
+        
+        self.dataDisposable.set((firstReady
+        |> deliverOn(applyQueue)).start(next: { [weak self] path, resource in
+            if let strongSelf = self {
+                let size = fileSize(path)
+                Logger.shared.log("SoftwareVideo", "loaded video from \(stringForResource(resource)) (file size: \(String(describing: size))")
+                
+                let _ = strongSelf.source.swap(SoftwareVideoSource(path: path))
             }
         }))
     }
@@ -67,6 +126,7 @@ final class SoftwareVideoLayerFrameManager {
                 while index < self.frames.count {
                     if baseTimestamp + self.frames[index].position.seconds + self.frames[index].duration.seconds <= timestamp {
                         latestFrameIndex = index
+                        //print("latestFrameIndex = \(index)")
                     }
                     index += 1
                 }
@@ -97,15 +157,36 @@ final class SoftwareVideoLayerFrameManager {
     private var polling = false
     
     private func poll() {
-        if self.frames.count < 3 && !self.polling {
+        if self.frames.count < 2 && !self.polling {
             self.polling = true
+            let minPts = self.minPts
             let maxPts = self.maxPts
             self.queue.addTask(ThreadPoolTask { [weak self] state in
                 if state.cancelled.with({ $0 }) {
                     return
                 }
                 if let strongSelf = self {
-                    let frameAndLoop = (strongSelf.source.with { $0 })?.readFrame(maxPts: maxPts)
+                    var frameAndLoop: (MediaTrackFrame?, CGFloat, CGFloat, Bool)?
+                        
+                    var hadLoop = false
+                    for _ in 0 ..< 1 {
+                        frameAndLoop = (strongSelf.source.with { $0 })?.readFrame(maxPts: maxPts)
+                        if let frameAndLoop = frameAndLoop {
+                            if frameAndLoop.0 != nil || minPts != nil {
+                                break
+                            } else {
+                                if frameAndLoop.3 {
+                                    hadLoop = true
+                                }
+                                //print("skip nil frame loop: \(frameAndLoop.3)")
+                            }
+                        } else {
+                            break
+                        }
+                    }
+                    if let loop = frameAndLoop?.3, loop {
+                        hadLoop = true
+                    }
                     
                     applyQueue.async {
                         if let strongSelf = self {
@@ -116,13 +197,30 @@ final class SoftwareVideoLayerFrameManager {
                             }
                             if let frame = frameAndLoop?.0 {
                                 if strongSelf.minPts == nil || CMTimeCompare(strongSelf.minPts!, frame.position) < 0 {
-                                    strongSelf.minPts = frame.position
+                                    var position = CMTimeAdd(frame.position, frame.duration)
+                                    for _ in 0 ..< 1 {
+                                        position = CMTimeAdd(position, frame.duration)
+                                    }
+                                    strongSelf.minPts = position
                                 }
                                 strongSelf.frames.append(frame)
+                                strongSelf.frames.sort(by: { lhs, rhs in
+                                    if CMTimeCompare(lhs.position, rhs.position) < 0 {
+                                        return true
+                                    } else {
+                                        return false
+                                    }
+                                })
+                                //print("add frame at \(CMTimeGetSeconds(frame.position))")
+                                //let positions = strongSelf.frames.map { CMTimeGetSeconds($0.position) }
+                                //print("frames: \(positions)")
+                            } else {
+                                //print("not adding frames")
                             }
-                            if let loop = frameAndLoop?.3, loop {
+                            if hadLoop {
                                 strongSelf.maxPts = strongSelf.minPts
                                 strongSelf.minPts = nil
+                                //print("loop at \(strongSelf.minPts)")
                             }
                             strongSelf.poll()
                         }

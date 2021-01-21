@@ -17,8 +17,12 @@ public struct WrappedMediaResourceId: Hashable {
         return lhs.id.isEqual(to: rhs.id)
     }
     
-    public var hashValue: Int {
-        return self.id.hashValue
+//    public var hashValue: Int {
+//        return self.id.hashValue
+//    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id.hashValue)
     }
 }
 
@@ -64,9 +68,11 @@ public protocol MediaResourceFetchInfo {
 public struct MediaResourceFetchParameters {
     public let tag: MediaResourceFetchTag?
     public let info: MediaResourceFetchInfo?
+    public let isRandomAccessAllowed: Bool
     
-    public init(tag: MediaResourceFetchTag?, info: MediaResourceFetchInfo?) {
+    public init(tag: MediaResourceFetchTag?, info: MediaResourceFetchInfo?, isRandomAccessAllowed: Bool) {
         self.tag = tag
         self.info = info
+        self.isRandomAccessAllowed = isRandomAccessAllowed
     }
 }

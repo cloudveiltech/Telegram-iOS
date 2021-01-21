@@ -46,6 +46,11 @@ private final class UpdatedPeersNearbySubscriberContext {
     let subscribers = Bag<([PeerNearby]) -> Void>()
 }
 
+public enum DeletedMessageId: Hashable {
+    case global(Int32)
+    case messageId(MessageId)
+}
+
 public final class AccountStateManager {
     private let queue = Queue()
     private let accountPeerId: PeerId
@@ -136,6 +141,21 @@ public final class AccountStateManager {
     private let authorizationListUpdatesPipe = ValuePipe<Void>()
     var authorizationListUpdates: Signal<Void, NoError> {
         return self.authorizationListUpdatesPipe.signal()
+    }
+    
+    private let threadReadStateUpdatesPipe = ValuePipe<(incoming: [MessageId: MessageId.Id], outgoing: [MessageId: MessageId.Id])>()
+    var threadReadStateUpdates: Signal<(incoming: [MessageId: MessageId.Id], outgoing: [MessageId: MessageId.Id]), NoError> {
+        return self.threadReadStateUpdatesPipe.signal()
+    }
+    
+    private let groupCallParticipantUpdatesPipe = ValuePipe<[(Int64, GroupCallParticipantsContext.Update)]>()
+    public var groupCallParticipantUpdates: Signal<[(Int64, GroupCallParticipantsContext.Update)], NoError> {
+        return self.groupCallParticipantUpdatesPipe.signal()
+    }
+    
+    private let deletedMessagesPipe = ValuePipe<[DeletedMessageId]>()
+    public var deletedMessages: Signal<[DeletedMessageId], NoError> {
+        return self.deletedMessagesPipe.signal()
     }
     
     private var updatedWebpageContexts: [MediaId: UpdatedWebpageSubscriberContext] = [:]
@@ -296,6 +316,7 @@ public final class AccountStateManager {
         var collectedPollCompletionSubscribers: [(Int32, ([MessageId]) -> Void)] = []
         var collectedReplayAsynchronouslyBuiltFinalState: [(AccountFinalState, () -> Void)] = []
         var processEvents: [(Int32, AccountFinalStateEvents)] = []
+        var customOperations: [(Int32, Signal<Void, NoError>)] = []
         
         var replacedOperations: [AccountStateManagerOperation] = []
         
@@ -313,6 +334,8 @@ public final class AccountStateManager {
                         collectedReplayAsynchronouslyBuiltFinalState.append((finalState, completion))
                     case let .processEvents(operationId, events):
                         processEvents.append((operationId, events))
+                    case let .custom(operationId, customSignal):
+                        customOperations.append((operationId, customSignal))
                     default:
                         break
                 }
@@ -333,6 +356,10 @@ public final class AccountStateManager {
         
         for (operationId, events) in processEvents {
             replacedOperations.append(AccountStateManagerOperation(content: .processEvents(operationId, events)))
+        }
+        
+        for (operationId, customSignal) in customOperations {
+            replacedOperations.append(AccountStateManagerOperation(content: .custom(operationId, customSignal)))
         }
         
         self.operations.removeAll()
@@ -646,6 +673,17 @@ public final class AccountStateManager {
                                     strongSelf.callSessionManager.updateSession(call, completion: { _ in })
                                 }
                             }
+                            if !events.addedCallSignalingData.isEmpty {
+                                for (id, data) in events.addedCallSignalingData {
+                                    strongSelf.callSessionManager.addCallSignalingData(id: id, data: data)
+                                }
+                            }
+                            if !events.updatedGroupCallParticipants.isEmpty {
+                                strongSelf.groupCallParticipantUpdatesPipe.putNext(events.updatedGroupCallParticipants)
+                            }
+                            if !events.updatedIncomingThreadReadStates.isEmpty || !events.updatedOutgoingThreadReadStates.isEmpty {
+                                strongSelf.threadReadStateUpdatesPipe.putNext((events.updatedIncomingThreadReadStates, events.updatedOutgoingThreadReadStates))
+                            }
                             if !events.isContactUpdates.isEmpty {
                                 strongSelf.addIsContactUpdates(events.isContactUpdates)
                             }
@@ -719,6 +757,10 @@ public final class AccountStateManager {
             
                 if events.authorizationListUpdated {
                     self.authorizationListUpdatesPipe.putNext(Void())
+                }
+                
+                if !events.deletedMessageIds.isEmpty {
+                    self.deletedMessagesPipe.putNext(events.deletedMessageIds)
                 }
             case let .pollCompletion(pollId, preMessageIds, preSubscribers):
                 if self.operations.count > 1 {
@@ -996,6 +1038,10 @@ public final class AccountStateManager {
         for subscriber in self.updatedPeersNearbyContext.subscribers.copyItems() {
             subscriber(updatedPeersNearby)
         }
+    }
+    
+    func notifyDeletedMessages(messageIds: [MessageId]) {
+        self.deletedMessagesPipe.putNext(messageIds.map { .messageId($0) })
     }
     
     public func processIncomingCallUpdate(data: Data, completion: @escaping ((CallSessionRingingState, CallSession)?) -> Void) {

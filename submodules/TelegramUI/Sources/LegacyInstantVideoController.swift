@@ -14,28 +14,32 @@ import LegacyUI
 import ImageCompression
 import LocalMediaResources
 import AppBundle
+import LegacyMediaPickerUI
 
 final class InstantVideoControllerRecordingStatus {
     let micLevel: Signal<Float, NoError>
+    let duration: Signal<TimeInterval, NoError>
     
-    init(micLevel: Signal<Float, NoError>) {
+    init(micLevel: Signal<Float, NoError>, duration: Signal<TimeInterval, NoError>) {
         self.micLevel = micLevel
+        self.duration = duration
     }
 }
 
 final class InstantVideoController: LegacyController, StandalonePresentableController {
     private var captureController: TGVideoMessageCaptureController?
     
-    var onDismiss: (() -> Void)?
+    var onDismiss: ((Bool) -> Void)?
     var onStop: (() -> Void)?
     
     private let micLevelValue = ValuePromise<Float>(0.0)
+    private let durationValue = ValuePromise<TimeInterval>(0.0)
     let audioStatus: InstantVideoControllerRecordingStatus
     
     private var dismissedVideo = false
     
     override init(presentation: LegacyControllerPresentation, theme: PresentationTheme?, strings: PresentationStrings? = nil, initialLayout: ContainerViewLayout? = nil) {
-        self.audioStatus = InstantVideoControllerRecordingStatus(micLevel: self.micLevelValue.get())
+        self.audioStatus = InstantVideoControllerRecordingStatus(micLevel: self.micLevelValue.get(), duration: self.durationValue.get())
         
         super.init(presentation: presentation, theme: theme, initialLayout: initialLayout)
         
@@ -52,8 +56,15 @@ final class InstantVideoController: LegacyController, StandalonePresentableContr
             captureController.micLevel = { [weak self] (level: CGFloat) -> Void in
                 self?.micLevelValue.set(Float(level))
             }
-            captureController.onDismiss = { [weak self] _ in
-                self?.onDismiss?()
+            captureController.onDuration = { [weak self] duration in
+                self?.durationValue.set(duration)
+            }
+            captureController.onDismiss = { [weak self] _, isCancelled in
+                guard let strongSelf = self else { return }
+                if !strongSelf.dismissedVideo {
+                    self?.dismissedVideo = true
+                    self?.onDismiss?(isCancelled)
+                }
             }
             captureController.onStop = { [weak self] in
                 self?.onStop?()
@@ -151,7 +162,7 @@ func legacyInstantVideoController(theme: PresentationTheme, panelFrame: CGRect, 
                     let thumbnailImage = TGScaleImageToPixelSize(previewImage, thumbnailSize)!
                     if let thumbnailData = thumbnailImage.jpegData(compressionQuality: 0.4) {
                         context.account.postbox.mediaBox.storeResourceData(resource.id, data: thumbnailData)
-                        previewRepresentations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(thumbnailSize), resource: resource))
+                        previewRepresentations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(thumbnailSize), resource: resource, progressiveSizes: []))
                     }
                 }
                 
@@ -175,7 +186,7 @@ func legacyInstantVideoController(theme: PresentationTheme, panelFrame: CGRect, 
                 let resource: TelegramMediaResource
                 if let liveUploadData = liveUploadData as? LegacyLiveUploadInterfaceResult, resourceAdjustments == nil, let data = try? Data(contentsOf: videoUrl) {
                     resource = LocalFileMediaResource(fileId: liveUploadData.id)
-                    context.account.postbox.mediaBox.storeResourceData(resource.id, data: data)
+                    context.account.postbox.mediaBox.storeResourceData(resource.id, data: data, synchronous: true)
                 } else {
                     resource = LocalFileVideoMediaResource(randomId: arc4random64(), path: videoUrl.path, adjustments: resourceAdjustments)
                 }
@@ -186,7 +197,7 @@ func legacyInstantVideoController(theme: PresentationTheme, panelFrame: CGRect, 
                     }
                 }
                 
-                let media = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: arc4random64()), partialReference: nil, resource: resource, previewRepresentations: previewRepresentations, immediateThumbnailData: nil, mimeType: "video/mp4", size: nil, attributes: [.FileName(fileName: "video.mp4"), .Video(duration: Int(finalDuration), size: PixelDimensions(finalDimensions), flags: [.instantRoundVideo])])
+                let media = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: arc4random64()), partialReference: nil, resource: resource, previewRepresentations: previewRepresentations, videoThumbnails: [], immediateThumbnailData: nil, mimeType: "video/mp4", size: nil, attributes: [.FileName(fileName: "video.mp4"), .Video(duration: Int(finalDuration), size: PixelDimensions(finalDimensions), flags: [.instantRoundVideo])])
                 var message: EnqueueMessage = .message(text: "", attributes: [], mediaReference: .standalone(media: media), replyToMessageId: nil, localGroupingKey: nil)
                 
                 let scheduleTime: Int32? = scheduleTimestamp > 0 ? scheduleTimestamp : nil
@@ -204,7 +215,7 @@ func legacyInstantVideoController(theme: PresentationTheme, panelFrame: CGRect, 
                         attributes.append(NotificationInfoMessageAttribute(flags: .muted))
                     }
                     if let scheduleTime = scheduleTime {
-                         attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: scheduleTime))
+                        attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: scheduleTime))
                     }
                     return attributes
                 }

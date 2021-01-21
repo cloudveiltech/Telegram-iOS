@@ -82,7 +82,7 @@ func extractVimeoVideoIdAndTimestamp(url: String) -> (String, Int)? {
 }
 
 final class VimeoEmbedImplementation: WebEmbedImplementation {
-    private var evalImpl: ((String) -> Void)?
+    private var evalImpl: ((String, ((Any?) -> Void)?) -> Void)?
     private var updateStatus: ((MediaPlayerStatus) -> Void)?
     private var onPlaybackStarted: (() -> Void)?
     
@@ -97,10 +97,10 @@ final class VimeoEmbedImplementation: WebEmbedImplementation {
     init(videoId: String, timestamp: Int = 0) {
         self.videoId = videoId
         self.timestamp = timestamp
-        self.status = MediaPlayerStatus(generationTimestamp: 0.0, duration: 0.0, dimensions: CGSize(), timestamp: Double(timestamp), baseRate: 1.0, seekId: 0, status: .buffering(initial: true, whilePlaying: true), soundEnabled: true)
+        self.status = MediaPlayerStatus(generationTimestamp: 0.0, duration: 0.0, dimensions: CGSize(), timestamp: Double(timestamp), baseRate: 1.0, seekId: 0, status: .buffering(initial: true, whilePlaying: true, progress: 0.0, display: true), soundEnabled: true)
     }
     
-    func setup(_ webView: WKWebView, userContentController: WKUserContentController, evaluateJavaScript: @escaping (String) -> Void, updateStatus: @escaping (MediaPlayerStatus) -> Void, onPlaybackStarted: @escaping () -> Void) {
+    func setup(_ webView: WKWebView, userContentController: WKUserContentController, evaluateJavaScript: @escaping (String, ((Any?) -> Void)?) -> Void, updateStatus: @escaping (MediaPlayerStatus) -> Void, onPlaybackStarted: @escaping () -> Void) {
         let bundle = getAppBundle()
         guard let userScriptPath = bundle.path(forResource: "VimeoUserScript", ofType: "js") else {
             return
@@ -135,7 +135,7 @@ final class VimeoEmbedImplementation: WebEmbedImplementation {
     
     func play() {
         if let eval = self.evalImpl {
-            eval("play();")
+            eval("play();", nil)
         }
         
         ignorePosition = 2
@@ -143,7 +143,7 @@ final class VimeoEmbedImplementation: WebEmbedImplementation {
     
     func pause() {
         if let eval = self.evalImpl {
-            eval("pause();")
+            eval("pause();", nil)
         }
     }
     
@@ -157,7 +157,7 @@ final class VimeoEmbedImplementation: WebEmbedImplementation {
     
     func seek(timestamp: Double) {
         if let eval = self.evalImpl {
-            eval("seek(\(timestamp));")
+            eval("seek(\(timestamp));", nil)
         }
         
         self.status = MediaPlayerStatus(generationTimestamp: self.status.generationTimestamp, duration: self.status.duration, dimensions: self.status.dimensions, timestamp: timestamp, baseRate: 1.0, seekId: self.status.seekId + 1, status: self.status.status, soundEnabled: self.status.soundEnabled)
@@ -221,7 +221,12 @@ final class VimeoEmbedImplementation: WebEmbedImplementation {
                         playbackStatus = .paused
                         newTimestamp = 0.0
                     default:
-                        playbackStatus = .buffering(initial: true, whilePlaying: false)
+                        playbackStatus = .buffering(initial: true, whilePlaying: false, progress: 0.0, display: true)
+                    }
+                    
+                    if case .playing = playbackStatus, !self.started {
+                        self.started = true
+                        self.onPlaybackStarted?()
                     }
                     
                     self.status = MediaPlayerStatus(generationTimestamp: self.status.generationTimestamp, duration: Double(duration), dimensions: self.status.dimensions, timestamp: newTimestamp, baseRate: 1.0, seekId: self.status.seekId, status: playbackStatus, soundEnabled: true)

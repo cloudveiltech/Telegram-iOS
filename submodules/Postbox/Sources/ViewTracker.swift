@@ -29,6 +29,9 @@ final class ViewTracker {
     private let messageHistoryHolesView = MutableMessageHistoryHolesView()
     private let messageHistoryHolesViewSubscribers = Bag<ValuePipe<MessageHistoryHolesView>>()
     
+    private let externalMessageHistoryHolesView = MutableMessageHistoryExternalHolesView()
+    private let externalMessageHistoryHolesViewSubscribers = Bag<ValuePipe<MessageHistoryExternalHolesView>>()
+    
     private let chatListHolesView = MutableChatListHolesView()
     private let chatListHolesViewSubscribers = Bag<ValuePipe<ChatListHolesView>>()
     
@@ -309,7 +312,7 @@ final class ViewTracker {
                 case .associated:
                     var ids = Set<PeerId>()
                     switch mutableView.peerIds {
-                        case .single:
+                        case .single, .external:
                             assertionFailure()
                         case let .associated(mainPeerId, associatedId):
                             ids.insert(mainPeerId)
@@ -326,6 +329,8 @@ final class ViewTracker {
                             }
                         }
                     }
+                case .external:
+                    break
             }
             
             mutableView.updatePeerIds(transaction: transaction)
@@ -546,6 +551,7 @@ final class ViewTracker {
         return Signal { subscriber in
             let disposable = MetaDisposable()
             self.queue.async {
+                postboxLog("unsentMessageIdsViewSignal started with \(self.unsentMessageView.ids)")
                 subscriber.putNext(UnsentMessageIdsView(self.unsentMessageView.ids))
                 
                 let pipe = ValuePipe<UnsentMessageIdsView>()

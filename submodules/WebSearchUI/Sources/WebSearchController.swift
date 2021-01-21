@@ -10,12 +10,14 @@ import LegacyComponents
 import TelegramUIPreferences
 import AccountContext
 
-public func requestContextResults(account: Account, botId: PeerId, query: String, peerId: PeerId, offset: String = "", existingResults: ChatContextResultCollection? = nil, limit: Int = 60) -> Signal<ChatContextResultCollection?, NoError> {
-    return requestChatContextResults(account: account, botId: botId, peerId: peerId, query: query, offset: offset)
-    |> `catch` { error -> Signal<ChatContextResultCollection?, NoError> in
+public func requestContextResults(account: Account, botId: PeerId, query: String, peerId: PeerId, offset: String = "", existingResults: ChatContextResultCollection? = nil, incompleteResults: Bool = false, staleCachedResults: Bool = false, limit: Int = 60) -> Signal<RequestChatContextResultsResult?, NoError> {
+    return requestChatContextResults(account: account, botId: botId, peerId: peerId, query: query, offset: offset, incompleteResults: incompleteResults, staleCachedResults: staleCachedResults)
+    |> `catch` { error -> Signal<RequestChatContextResultsResult?, NoError> in
         return .single(nil)
     }
-    |> mapToSignal { results -> Signal<ChatContextResultCollection?, NoError> in
+    |> mapToSignal { resultsStruct -> Signal<RequestChatContextResultsResult?, NoError> in
+        let results = resultsStruct?.results
+        
         var collection = existingResults
         var updated: Bool = false
         if let existingResults = existingResults, let results = results {
@@ -40,13 +42,15 @@ public func requestContextResults(account: Account, botId: PeerId, query: String
         if let collection = collection, collection.results.count < limit, let nextOffset = collection.nextOffset, updated {
             let nextResults = requestContextResults(account: account, botId: botId, query: query, peerId: peerId, offset: nextOffset, existingResults: collection, limit: limit)
             if collection.results.count > 10 {
-                return .single(collection)
+                return .single(RequestChatContextResultsResult(results: collection, isStale: resultsStruct?.isStale ?? false))
                 |> then(nextResults)
             } else {
                 return nextResults
             }
+        } else if let collection = collection {
+            return .single(RequestChatContextResultsResult(results: collection, isStale: resultsStruct?.isStale ?? false))
         } else {
-            return .single(collection)
+            return .single(nil)
         }
     }
 }
@@ -104,12 +108,25 @@ private func selectionChangedSignal(selectionState: TGMediaSelectionContext) -> 
     }
 }
 
+public struct WebSearchConfiguration: Equatable {
+    public let gifProvider: String?
+    
+    public init(appConfiguration: AppConfiguration) {
+        var gifProvider: String? = nil
+        if let data = appConfiguration.data, let value = data["gif_search_branding"] as? String {
+            gifProvider = value
+        }
+        self.gifProvider = gifProvider
+    }
+}
+
 public final class WebSearchController: ViewController {
     private var validLayout: ContainerViewLayout?
     
     private let context: AccountContext
     private let mode: WebSearchControllerMode
     private let peer: Peer?
+    private let chatLocation: ChatLocation?
     private let configuration: SearchBotsConfiguration
     
     private var controllerNode: WebSearchControllerNode {
@@ -133,13 +150,17 @@ public final class WebSearchController: ViewController {
     
     private var navigationContentNode: WebSearchNavigationContentNode?
     
-    public init(context: AccountContext, peer: Peer?, configuration: SearchBotsConfiguration, mode: WebSearchControllerMode) {
-		
-		Thread.callStackSymbols.forEach{print($0)}
-		
+    var presentStickers: ((@escaping (TelegramMediaFile, Bool, UIView, CGRect) -> Void) -> TGPhotoPaintStickersScreen?)? {
+        didSet {
+            self.controllerNode.presentStickers = self.presentStickers
+        }
+    }
+    
+    public init(context: AccountContext, peer: Peer?, chatLocation: ChatLocation?, configuration: SearchBotsConfiguration, mode: WebSearchControllerMode) {
         self.context = context
         self.mode = mode
         self.peer = peer
+        self.chatLocation = chatLocation
         self.configuration = configuration
         
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
@@ -168,9 +189,19 @@ public final class WebSearchController: ViewController {
                 return WebSearchSettings.defaultSettings
             }
         }
+        
+        let gifProvider = self.context.account.postbox.preferencesView(keys: [PreferencesKeys.appConfiguration])
+        |> map { view -> String? in
+            guard let appConfiguration = view.values[PreferencesKeys.appConfiguration] as? AppConfiguration else {
+                return nil
+            }
+            let configuration = WebSearchConfiguration(appConfiguration: appConfiguration)
+            return configuration.gifProvider
+        }
+        |> distinctUntilChanged
 
-        self.disposable = ((combineLatest(settings, context.sharedContext.presentationData))
-        |> deliverOnMainQueue).start(next: { [weak self] settings, presentationData in
+        self.disposable = ((combineLatest(settings, context.sharedContext.presentationData, gifProvider))
+        |> deliverOnMainQueue).start(next: { [weak self] settings, presentationData, gifProvider in
             guard let strongSelf = self else {
                 return
             }
@@ -181,6 +212,9 @@ public final class WebSearchController: ViewController {
                 }
                 if current.presentationData !== presentationData {
                     updated = updated.withUpdatedPresentationData(presentationData)
+                }
+                if current.gifProvider != gifProvider {
+                    updated = updated.withUpdatedGifProvider(gifProvider)
                 }
                 return updated
             }
@@ -287,7 +321,7 @@ public final class WebSearchController: ViewController {
     }
     
     override public func loadDisplayNode() {
-        self.displayNode = WebSearchControllerNode(context: self.context, presentationData: self.interfaceState.presentationData, controllerInteraction: self.controllerInteraction!, peer: self.peer, mode: self.mode.mode)
+        self.displayNode = WebSearchControllerNode(context: self.context, presentationData: self.interfaceState.presentationData, controllerInteraction: self.controllerInteraction!, peer: self.peer, chatLocation: self.chatLocation, mode: self.mode.mode)
         self.controllerNode.requestUpdateInterfaceState = { [weak self] animated, f in
             if let strongSelf = self {
                 strongSelf.updateInterfaceState(f)
@@ -313,13 +347,14 @@ public final class WebSearchController: ViewController {
         let previousInterfaceState = self.interfaceState
         let previousTheme = self.interfaceState.presentationData.theme
         let previousStrings = self.interfaceState.presentationData.theme
+        let previousGifProvider = self.interfaceState.gifProvider
         
         let updatedInterfaceState = f(self.interfaceState)
         self.interfaceState = updatedInterfaceState
         self.interfaceStatePromise.set(updatedInterfaceState)
         
         if self.isNodeLoaded {
-            if previousTheme !== updatedInterfaceState.presentationData.theme || previousStrings !== updatedInterfaceState.presentationData.strings {
+            if previousTheme !== updatedInterfaceState.presentationData.theme || previousStrings !== updatedInterfaceState.presentationData.strings || previousGifProvider != updatedInterfaceState.gifProvider {
                 self.controllerNode.updatePresentationData(theme: updatedInterfaceState.presentationData.theme, strings: updatedInterfaceState.presentationData.strings)
             }
             if previousInterfaceState != self.interfaceState {
@@ -427,7 +462,7 @@ public final class WebSearchController: ViewController {
                 let results = requestContextResults(account: account, botId: user.id, query: query, peerId: peerId, limit: 64)
                 |> map { results -> (ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult? in
                     return { _ in
-                        return .contextRequestResult(user, results)
+                        return .contextRequestResult(user, results?.results)
                     }
                 }
             

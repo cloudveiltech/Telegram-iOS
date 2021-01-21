@@ -208,6 +208,7 @@ public final class SecretMediaPreviewController: ViewController {
         }, dismissController: { [weak self] in
             self?.dismiss(forceAway: true)
         }, replaceRootController: { _, _ in
+        }, editMedia: { _ in
         })
         self.displayNode = SecretMediaPreviewControllerNode(controllerInteraction: controllerInteraction)
         self.displayNodeDidLoad()
@@ -359,7 +360,7 @@ public final class SecretMediaPreviewController: ViewController {
                     centralItemNode.activateAsInitial()
                     
                     if presentationArguments.animated {
-                        centralItemNode.animateIn(from: transitionArguments.transitionNode, addToTransitionSurface: transitionArguments.addToTransitionSurface)
+                        centralItemNode.animateIn(from: transitionArguments.transitionNode, addToTransitionSurface: transitionArguments.addToTransitionSurface, completion: {})
                     }
                     
                     self._hiddenMedia.set(.single((message.id, media)))
@@ -433,7 +434,7 @@ public final class SecretMediaPreviewController: ViewController {
                 
                 guard let item = galleryItemForEntry(context: self.context, presentationData: self.presentationData, entry: MessageHistoryEntry(message: message, isRead: false, location: nil, monthLocation: nil, attributes: MutableMessageHistoryEntryAttributes(authorIsContact: false)), streamVideos: false, hideControls: true, tempFilePath: tempFilePath, playbackCompleted: { [weak self] in
                     self?.dismiss(forceAway: false)
-                    }) else {
+                }, present: { _, _ in }) else {
                     self._ready.set(.single(true))
                     return
                 }

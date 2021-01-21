@@ -296,11 +296,13 @@ public class ItemListAvatarAndNameInfoItemNode: ListViewItemNode, ItemListItemNo
         self.avatarNode = AvatarNode(font: avatarFont)
         
         self.updatingAvatarOverlay = ASImageNode()
+        self.updatingAvatarOverlay.isUserInteractionEnabled = false
         self.updatingAvatarOverlay.displayWithoutProcessing = true
         self.updatingAvatarOverlay.displaysAsynchronously = false
         
         self.activityIndicator = ActivityIndicator(type: .custom(.white, 22.0, 1.0, false))
         self.activityIndicator.isHidden = true
+        self.activityIndicator.isUserInteractionEnabled = false
         
         self.nameNode = TextNode()
         self.nameNode.isUserInteractionEnabled = false
@@ -423,6 +425,9 @@ public class ItemListAvatarAndNameInfoItemNode: ListViewItemNode, ItemListItemNo
                         } else if peer.flags.contains(.isSupport), !servicePeer {
                             statusText = item.presentationData.strings.Bot_GenericSupportStatus
                             statusColor = item.presentationData.theme.list.itemSecondaryTextColor
+                        } else if peer.id.isReplies {
+                            statusText = ""
+                            statusColor = item.presentationData.theme.list.itemPrimaryTextColor
                         } else if let _ = peer.botInfo {
                             statusText = item.presentationData.strings.Bot_GenericBotStatus
                             statusColor = item.presentationData.theme.list.itemSecondaryTextColor
@@ -563,8 +568,8 @@ public class ItemListAvatarAndNameInfoItemNode: ListViewItemNode, ItemListItemNo
                         if strongSelf.updatingAvatarOverlay.supernode == nil {
                             strongSelf.insertSubnode(strongSelf.updatingAvatarOverlay, aboveSubnode: strongSelf.avatarNode)
                         }
-                        if let updatingImage = item.updatingImage, case .image(_, true) = updatingImage {
-                            strongSelf.activityIndicator.isHidden = false
+                        if let updatingImage = item.updatingImage, case let .image(_, loading) = updatingImage {
+                            strongSelf.activityIndicator.isHidden = !loading
                         }
                     } else if strongSelf.updatingAvatarOverlay.supernode != nil {
                         if animated {

@@ -194,7 +194,7 @@ private enum ChannelMembersEntry: ItemListNodeEntry {
             case let .peerItem(_, theme, strings, dateTimeFormat, nameDisplayOrder, participant, editing, enabled):
                 let text: ItemListPeerItemText
                 if let user = participant.peer as? TelegramUser, let _ = user.botInfo {
-                    text = .text(strings.Bot_GenericBotStatus)
+                    text = .text(strings.Bot_GenericBotStatus, .secondary)
                 } else {
                     text = .presence
                 }
@@ -396,6 +396,8 @@ public func channelMembersController(context: AccountContext, peerId: PeerId) ->
                         text = presentationData.strings.Login_UnknownError
                     case .restricted:
                         text = presentationData.strings.Channel_ErrorAddBlocked
+                    case .notMutualContact:
+                        text = presentationData.strings.GroupInfo_AddUserLeftError
                     case let .bot(memberId):
                         let _ = (context.account.postbox.transaction { transaction in
                             return transaction.getPeer(peerId)

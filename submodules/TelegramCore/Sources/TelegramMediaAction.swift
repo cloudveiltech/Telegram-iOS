@@ -32,12 +32,13 @@ func telegramMediaActionFromApiAction(_ action: Api.MessageAction) -> TelegramMe
             return TelegramMediaAction(action: .pinnedMessageUpdated)
         case let .messageActionGameScore(gameId, score):
             return TelegramMediaAction(action: .gameScore(gameId: gameId, score: score))
-        case let .messageActionPhoneCall(_, callId, reason, duration):
+        case let .messageActionPhoneCall(flags, callId, reason, duration):
             var discardReason: PhoneCallDiscardReason?
             if let reason = reason {
                 discardReason = PhoneCallDiscardReason(apiReason: reason)
             }
-            return TelegramMediaAction(action: .phoneCall(callId: callId, discardReason: discardReason, duration: duration))
+            let isVideo = (flags & (1 << 2)) != 0
+            return TelegramMediaAction(action: .phoneCall(callId: callId, discardReason: discardReason, duration: duration, isVideo: isVideo))
         case .messageActionEmpty:
             return nil
         case let .messageActionPaymentSent(currency, totalAmount):
@@ -56,6 +57,20 @@ func telegramMediaActionFromApiAction(_ action: Api.MessageAction) -> TelegramMe
             return TelegramMediaAction(action: .botSentSecureValues(types: types.map(SentSecureValueType.init)))
         case .messageActionContactSignUp:
             return TelegramMediaAction(action: .peerJoined)
+        case let .messageActionGeoProximityReached(fromId, toId, distance):
+            return TelegramMediaAction(action: .geoProximityReached(from: fromId.peerId, to: toId.peerId, distance: distance))
+        case let .messageActionGroupCall(_, call, duration):
+            switch call {
+            case let .inputGroupCall(id, accessHash):
+                return TelegramMediaAction(action: .groupPhoneCall(callId: id, accessHash: accessHash, duration: duration))
+            }
+        case let .messageActionInviteToGroupCall(call, userIds):
+            switch call {
+            case let .inputGroupCall(id, accessHash):
+                return TelegramMediaAction(action: .inviteToGroupPhoneCall(callId: id, accessHash: accessHash, peerIds: userIds.map { userId in
+                    PeerId(namespace: Namespaces.Peer.CloudUser, id: userId)
+                }))
+            }
     }
 }
 

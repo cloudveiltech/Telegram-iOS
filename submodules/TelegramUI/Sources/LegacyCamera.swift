@@ -11,7 +11,7 @@ import ShareController
 import LegacyUI
 import LegacyMediaPickerUI
 
-func presentedLegacyCamera(context: AccountContext, peer: Peer, cameraView: TGAttachmentCameraView?, menuController: TGMenuSheetController?, parentController: ViewController, editingMedia: Bool, saveCapturedPhotos: Bool, mediaGrouping: Bool, initialCaption: String, hasSchedule: Bool, sendMessagesWithSignals: @escaping ([Any]?, Bool, Int32) -> Void, recognizedQRCode: @escaping (String) -> Void = { _ in }, presentSchedulePicker: @escaping (@escaping (Int32) -> Void) -> Void) {
+func presentedLegacyCamera(context: AccountContext, peer: Peer, chatLocation: ChatLocation, cameraView: TGAttachmentCameraView?, menuController: TGMenuSheetController?, parentController: ViewController, editingMedia: Bool, saveCapturedPhotos: Bool, mediaGrouping: Bool, initialCaption: String, hasSchedule: Bool, photoOnly: Bool, sendMessagesWithSignals: @escaping ([Any]?, Bool, Int32) -> Void, recognizedQRCode: @escaping (String) -> Void = { _ in }, presentSchedulePicker: @escaping (@escaping (Int32) -> Void) -> Void, presentTimerPicker: @escaping (@escaping (Int32) -> Void) -> Void, presentStickers: @escaping (@escaping (TelegramMediaFile, Bool, UIView, CGRect) -> Void) -> TGPhotoPaintStickersScreen?) {
     let presentationData = context.sharedContext.currentPresentationData.with { $0 }
     let legacyController = LegacyController(presentation: .custom, theme: presentationData.theme)
     legacyController.supportedOrientations = ViewControllerSupportedOrientations(regularSize: .portrait, compactSize: .portrait)
@@ -23,7 +23,7 @@ func presentedLegacyCamera(context: AccountContext, peer: Peer, cameraView: TGAt
 
     let controller: TGCameraController
     if let cameraView = cameraView, let previewView = cameraView.previewView() {
-        controller = TGCameraController(context: legacyController.context, saveEditedPhotos: saveCapturedPhotos && !isSecretChat, saveCapturedMedia: saveCapturedPhotos && !isSecretChat, camera: previewView.camera, previewView: previewView, intent: TGCameraControllerGenericIntent)
+        controller = TGCameraController(context: legacyController.context, saveEditedPhotos: saveCapturedPhotos && !isSecretChat, saveCapturedMedia: saveCapturedPhotos && !isSecretChat, camera: previewView.camera, previewView: previewView, intent: photoOnly ? TGCameraControllerGenericPhotoOnlyIntent : TGCameraControllerGenericIntent)
         controller.inhibitMultipleCapture = editingMedia
     } else {
         controller = TGCameraController()
@@ -31,6 +31,11 @@ func presentedLegacyCamera(context: AccountContext, peer: Peer, cameraView: TGAt
     
     controller.presentScheduleController = { done in
         presentSchedulePicker { time in
+            done?(time)
+        }
+    }
+    controller.presentTimerController = { done in
+        presentTimerPicker { time in
             done?(time)
         }
     }
@@ -58,19 +63,29 @@ func presentedLegacyCamera(context: AccountContext, peer: Peer, cameraView: TGAt
         }
     }
     
+    let paintStickersContext = LegacyPaintStickersContext(context: context)
+    paintStickersContext.presentStickersController = { completion in
+        return presentStickers({ file, animated, view, rect in
+            let coder = PostboxEncoder()
+            coder.encodeRootObject(file)
+            completion?(coder.makeData(), animated, view, rect)
+        })
+    }
+    
+    controller.stickersContext = paintStickersContext
     controller.isImportant = true
     controller.shouldStoreCapturedAssets = saveCapturedPhotos && !isSecretChat
     controller.allowCaptions = true
     controller.allowCaptionEntities = true
     controller.allowGrouping = mediaGrouping
     controller.inhibitDocumentCaptions = false
-    controller.suggestionContext = legacySuggestionContext(context: context, peerId: peer.id)
+    controller.suggestionContext = legacySuggestionContext(context: context, peerId: peer.id, chatLocation: chatLocation)
     controller.recipientName = peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
     if peer.id != context.account.peerId {
         if peer is TelegramUser {
             controller.hasTimer = hasSchedule
         }
-        controller.hasSilentPosting = !isSecretChat
+        controller.hasSilentPosting = true
     }
     controller.hasSchedule = hasSchedule
     controller.reminder = peer.id == context.account.peerId

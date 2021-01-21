@@ -29,77 +29,21 @@
     return self;
 }
 
-- (instancetype)initWithALAsset:(ALAsset *)asset
-{
-    self = [super init];
-    if (self != nil)
-    {
-        _backingLegacyAsset = asset;
-    }
-    return self;
-}
-
 - (NSString *)identifier
 {
     if (_cachedUniqueId == nil)
     {
         if (self.backingAsset != nil)
             _cachedUniqueId = self.backingAsset.localIdentifier;
-        else
-            _cachedUniqueId = self.url.absoluteString;
     }
     
     return _cachedUniqueId;
 }
 
-- (NSURL *)url
-{
-    if (self.backingLegacyAsset != nil)
-    {
-        if (!_cachedLegacyAssetUrl)
-            _cachedLegacyAssetUrl = [self.backingLegacyAsset defaultRepresentation].url;
-        
-        return _cachedLegacyAssetUrl;
-    }
-    
-    return nil;
-}
-
 - (CGSize)dimensions
 {
     if (self.backingAsset != nil)
-    {
         return CGSizeMake(self.backingAsset.pixelWidth, self.backingAsset.pixelHeight);
-    }
-    else if (self.backingLegacyAsset != nil)
-    {
-        CGSize dimensions = self.backingLegacyAsset.defaultRepresentation.dimensions;
-        
-        if (self.isVideo)
-        {
-            bool videoRotated = false;
-            if (_cachedLegacyVideoRotated == nil)
-            {
-                CGImageRef thumbnailImage = self.backingLegacyAsset.aspectRatioThumbnail;
-                CGSize thumbnailSize = CGSizeMake(CGImageGetWidth(thumbnailImage), CGImageGetHeight(thumbnailImage));
-                bool thumbnailIsWide = (thumbnailSize.width > thumbnailSize.height);
-                bool videoIsWide = (dimensions.width > dimensions.height);
-                
-                videoRotated = (thumbnailIsWide != videoIsWide);
-                _cachedLegacyVideoRotated = @(videoRotated);
-            }
-            else
-            {
-                videoRotated = _cachedLegacyVideoRotated.boolValue;
-            }
-            
-            if (videoRotated)
-                dimensions = CGSizeMake(dimensions.height, dimensions.width);
-        }
-        
-        return dimensions;
-    }
-    
     return CGSizeZero;
 }
 
@@ -107,9 +51,6 @@
 {
     if (self.backingAsset != nil)
         return self.backingAsset.creationDate;
-    else if (self.backingLegacyAsset != nil)
-        return [self.backingLegacyAsset valueForProperty:ALAssetPropertyDate];
-    
     return nil;
 }
 
@@ -123,13 +64,20 @@
     return self.backingAsset.representsBurst;
 }
 
+- (NSInteger)fileSize {
+    if (self.backingAsset != nil) {
+        PHAssetResource *resource = [PHAssetResource assetResourcesForAsset:self.backingAsset].firstObject;
+        if (resource != nil) {
+            return [[resource valueForKey:@"fileSize"] integerValue];
+        }
+    }
+    return 0;
+}
+
 - (NSString *)uniformTypeIdentifier
 {
     if (self.backingAsset != nil)
         return [self.backingAsset valueForKey:@"uniformTypeIdentifier"];
-    else if (self.backingLegacyAsset != nil)
-        return self.backingLegacyAsset.defaultRepresentation.UTI;
-    
     return nil;
 }
 
@@ -145,8 +93,6 @@
             }
         }
         return fileName;
-    } else if (self.backingLegacyAsset != nil) {
-        return self.backingLegacyAsset.defaultRepresentation.filename;
     }
     return nil;
 }
@@ -154,6 +100,11 @@
 - (bool)_isGif
 {
     return [self.uniformTypeIdentifier isEqualToString:(NSString *)kUTTypeGIF];
+}
+
+- (bool)isFavorite
+{
+    return _backingAsset.isFavorite;
 }
 
 - (TGMediaAssetType)type
@@ -166,15 +117,6 @@
                 _cachedType = @(TGMediaAssetGifType);
             else
                 _cachedType = @([TGMediaAsset assetTypeForPHAssetMediaType:self.backingAsset.mediaType]);
-        }
-        else if (self.backingLegacyAsset != nil)
-        {
-            if ([[self.backingLegacyAsset valueForProperty:ALAssetPropertyType] isEqualToString:ALAssetTypeVideo])
-                _cachedType = @(TGMediaAssetVideoType);
-            else if ([self _isGif])
-                _cachedType = @(TGMediaAssetGifType);
-            else
-                _cachedType = @(TGMediaAssetPhotoType);
         }
     }
     
@@ -195,9 +137,6 @@
 {
     if (self.backingAsset != nil)
         return self.backingAsset.duration;
-    else if (self.backingLegacyAsset != nil)
-        return [[self.backingLegacyAsset valueForProperty:ALAssetPropertyDuration] doubleValue];
-    
     return 0;
 }
 

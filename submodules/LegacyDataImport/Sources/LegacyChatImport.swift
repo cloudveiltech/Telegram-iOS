@@ -405,7 +405,7 @@ private func loadLegacyMessages(account: TemporaryAccount, basePath: String, acc
                                 if let resourcePath = resourcePath, let image = UIImage(contentsOfFile: resourcePath) {
                                     dimensions = image.size
                                 }
-                                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(dimensions), resource: resource))
+                                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(dimensions), resource: resource, progressiveSizes: []))
                             }
                         }
                         
@@ -414,7 +414,7 @@ private func loadLegacyMessages(account: TemporaryAccount, basePath: String, acc
                             if let image = UIImage(contentsOfFile: fullSizePath) {
                                 let resource: TelegramMediaResource = LocalFileMediaResource(fileId: arc4random64())
                                 copyLocalFiles.append((resource, fullSizePath))
-                                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(image.size), resource: resource))
+                                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(image.size), resource: resource, progressiveSizes: []))
                             }
                         }
                         
@@ -431,7 +431,7 @@ private func loadLegacyMessages(account: TemporaryAccount, basePath: String, acc
                                 } else if imageUrl.hasPrefix("file://"), let path = URL(string: imageUrl)?.path {
                                     copyLocalFiles.append((resource, path))
                                 }
-                                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(sizeValue.cgSizeValue), resource: resource))
+                                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(sizeValue.cgSizeValue), resource: resource, progressiveSizes: []))
                             }
                         }
                         
@@ -451,7 +451,7 @@ private func loadLegacyMessages(account: TemporaryAccount, basePath: String, acc
                                 copyLocalFiles.append((resource, path))
                             }
                         }
-                        parsedMedia.append(TelegramMediaFile(fileId: mediaId, partialReference: nil, resource: resource, previewRepresentations: representations, immediateThumbnailData: nil, mimeType: "video/mp4", size: size == 0 ? nil : Int(size), attributes: attributes))
+                        parsedMedia.append(TelegramMediaFile(fileId: mediaId, partialReference: nil, resource: resource, previewRepresentations: representations, videoThumbnails: [], immediateThumbnailData: nil, mimeType: "video/mp4", size: size == 0 ? nil : Int(size), attributes: attributes))
                     } else if let item = item as? TGAudioMediaAttachment {
                         let mediaId = MediaId(namespace: Namespaces.Media.LocalImage, id: arc4random64())
                         let representations: [TelegramMediaImageRepresentation] = []
@@ -472,7 +472,7 @@ private func loadLegacyMessages(account: TemporaryAccount, basePath: String, acc
                         } else if audioUrl.hasPrefix("file://"), let path = URL(string: audioUrl)?.path {
                             copyLocalFiles.append((resource, path))
                         }
-                        parsedMedia.append(TelegramMediaFile(fileId: mediaId, partialReference: nil, resource: resource, previewRepresentations: representations, immediateThumbnailData: nil, mimeType: "audio/ogg", size: size == 0 ? nil : Int(size), attributes: attributes))
+                        parsedMedia.append(TelegramMediaFile(fileId: mediaId, partialReference: nil, resource: resource, previewRepresentations: representations, videoThumbnails: [], immediateThumbnailData: nil, mimeType: "audio/ogg", size: size == 0 ? nil : Int(size), attributes: attributes))
                     } else if let item = item as? TGDocumentMediaAttachment {
                         let mediaId = MediaId(namespace: Namespaces.Media.LocalImage, id: arc4random64())
                         var representations: [TelegramMediaImageRepresentation] = []
@@ -488,7 +488,7 @@ private func loadLegacyMessages(account: TemporaryAccount, basePath: String, acc
                                     resource = updatedResource
                                     copyLocalFiles.append((resource, pathFromLegacyImageUrl(basePath: basePath, url: imageUrl)))
                                 }
-                                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(sizeValue.cgSizeValue), resource: resource))
+                                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(sizeValue.cgSizeValue), resource: resource, progressiveSizes: []))
                             }
                         }
                         
@@ -540,7 +540,7 @@ private func loadLegacyMessages(account: TemporaryAccount, basePath: String, acc
                         } else if item.documentId != 0 {
                             copyLocalFiles.append((resource, pathFromLegacyFile(basePath: basePath, fileId: item.documentId, isLocal: false, fileName: TGDocumentMediaAttachment.safeFileName(forFileName: fileName) ?? "")))
                         }
-                        parsedMedia.append(TelegramMediaFile(fileId: mediaId, partialReference: nil, resource: resource, previewRepresentations: representations, immediateThumbnailData: nil, mimeType: item.mimeType ?? "application/octet-stream", size: size == 0 ? nil : Int(size), attributes: attributes))
+                        parsedMedia.append(TelegramMediaFile(fileId: mediaId, partialReference: nil, resource: resource, previewRepresentations: representations, videoThumbnails: [], immediateThumbnailData: nil, mimeType: item.mimeType ?? "application/octet-stream", size: size == 0 ? nil : Int(size), attributes: attributes))
                     } else if let item = item as? TGActionMediaAttachment {
                         if item.actionType == TGMessageActionEncryptedChatMessageLifetime, let actionData = item.actionData, let timeout = actionData["messageLifetime"] as? Int32 {
                             
@@ -553,7 +553,7 @@ private func loadLegacyMessages(account: TemporaryAccount, basePath: String, acc
                         if let v = item.venue {
                             venue = MapVenue(title: v.title ?? "", address: v.address ?? "", provider: v.provider == "" ? nil : v.provider, id: v.venueId == "" ? nil : v.venueId, type: v.type == "" ? nil : v.type)
                         }
-                        parsedMedia.append(TelegramMediaMap(latitude: item.latitude, longitude: item.longitude, geoPlace: nil, venue: venue, liveBroadcastingTimeout: nil))
+                        parsedMedia.append(TelegramMediaMap(latitude: item.latitude, longitude: item.longitude, heading: nil, accuracyRadius: nil, geoPlace: nil, venue: venue, liveBroadcastingTimeout: nil, liveProximityNotificationRadius: nil))
                     }
                 }
             }
@@ -569,8 +569,8 @@ private func loadLegacyMessages(account: TemporaryAccount, basePath: String, acc
                 parsedAttributes.append(AutoremoveTimeoutMessageAttribute(timeout: autoremoveTimeout, countdownBeginTime: countdownBeginTime))
             }
             
-            let (parsedTags, parsedGlobalTags) = tagsForStoreMessage(incoming: parsedFlags.contains(.Incoming), attributes: parsedAttributes, media: parsedMedia, textEntities: nil)
-            messages.append(StoreMessage(id: parsedId, globallyUniqueId: globallyUniqueId, groupingKey: parsedGroupingKey, timestamp: timestamp, flags: parsedFlags, tags: parsedTags, globalTags: parsedGlobalTags, localTags: [], forwardInfo: nil, authorId: parsedAuthorId, text: text, attributes: parsedAttributes, media: parsedMedia))
+            let (parsedTags, parsedGlobalTags) = tagsForStoreMessage(incoming: parsedFlags.contains(.Incoming), attributes: parsedAttributes, media: parsedMedia, textEntities: nil, isPinned: false)
+            messages.append(StoreMessage(id: parsedId, globallyUniqueId: globallyUniqueId, groupingKey: parsedGroupingKey, threadId: nil, timestamp: timestamp, flags: parsedFlags, tags: parsedTags, globalTags: parsedGlobalTags, localTags: [], forwardInfo: nil, authorId: parsedAuthorId, text: text, attributes: parsedAttributes, media: parsedMedia))
             
             //Logger.shared.log("loadLegacyMessages", "message \(messageId) completed")
             

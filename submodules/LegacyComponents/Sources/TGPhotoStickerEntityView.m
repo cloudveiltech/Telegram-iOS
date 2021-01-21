@@ -4,13 +4,12 @@
 
 #import <LegacyComponents/TGPaintUtils.h>
 #import <LegacyComponents/TGPhotoEditorUtils.h>
+#import <LegacyComponents/TGPhotoPaintStickersContext.h>
 
 #import "TGDocumentMediaAttachment.h"
 #import "TGStringUtils.h"
 #import "TGImageUtils.h"
 #import "TGColor.h"
-
-#import "TGImageView.h"
 
 const CGFloat TGPhotoStickerSelectionViewHandleSide = 30.0f;
 
@@ -33,9 +32,10 @@ const CGFloat TGPhotoStickerSelectionViewHandleSide = 30.0f;
 
 @interface TGPhotoStickerEntityView ()
 {
-    TGImageView *_imageView;
-    
-    TGDocumentMediaAttachment *_document;
+    UIView<TGPhotoPaintStickerRenderView> *_stickerView;
+
+    id _document;
+    bool _animated;
     bool _mirrored;
     
     CGSize _baseSize;
@@ -45,7 +45,7 @@ const CGFloat TGPhotoStickerSelectionViewHandleSide = 30.0f;
 
 @implementation TGPhotoStickerEntityView
 
-- (instancetype)initWithEntity:(TGPhotoPaintStickerEntity *)entity
+- (instancetype)initWithEntity:(TGPhotoPaintStickerEntity *)entity context:(id<TGPhotoPaintStickersContext>)context
 {
     self = [super initWithFrame:CGRectMake(0.0f, 0.0f, entity.baseSize.width, entity.baseSize.height)];
     if (self != nil)
@@ -54,58 +54,31 @@ const CGFloat TGPhotoStickerSelectionViewHandleSide = 30.0f;
         _baseSize = entity.baseSize;
         _mirrored = entity.isMirrored;
         
-        _imageView = [[TGImageView alloc] init];
-        _imageView.contentMode = UIViewContentModeScaleAspectFit;
-        _imageView.expectExtendedEdges = true;
-        [self addSubview:_imageView];
+        _stickerView = [context stickerViewForDocument:entity.document];
         
-        TGDocumentMediaAttachment *sticker = entity.document;
-        _document = sticker;
+        __weak TGPhotoStickerEntityView *weakSelf = self;
+        _stickerView.started = ^(double duration) {
+            __strong TGPhotoStickerEntityView *strongSelf = weakSelf;
+            if (strongSelf != nil && strongSelf.started != nil)
+                strongSelf.started(duration);
+        };
+        [self addSubview:_stickerView];
         
-        CGSize imageSize = CGSizeZero;
-        bool isSticker = false;
-        for (id attribute in sticker.attributes)
-        {
-            if ([attribute isKindOfClass:[TGDocumentAttributeImageSize class]])
-                imageSize = ((TGDocumentAttributeImageSize *)attribute).size;
-            else if ([attribute isKindOfClass:[TGDocumentAttributeSticker class]])
-                isSticker = true;
-        }
+        _document = entity.document;
+        _animated = entity.animated;
+        
+        CGSize imageSize = CGSizeMake(512.0f, 512.0f);
         
         CGSize displaySize = [self fittedSizeForSize:imageSize maxSize:CGSizeMake(512.0f, 512.0f)];
-        
-        NSMutableString *imageUri = [[NSMutableString alloc] init];
-        [imageUri appendString:@"sticker://?"];
-        if (sticker.documentId != 0)
-        {
-            [imageUri appendFormat:@"&documentId=%" PRId64, sticker.documentId];
-            
-            TGMediaOriginInfo *originInfo = sticker.originInfo ?: [TGMediaOriginInfo mediaOriginInfoForDocumentAttachment:sticker];
-            if (originInfo != nil)
-                [imageUri appendFormat:@"&origin_info=%@", [originInfo stringRepresentation]];
-        }
-        else
-        {
-            [imageUri appendFormat:@"&localDocumentId=%" PRId64, sticker.localDocumentId];
-        }
-        [imageUri appendFormat:@"&accessHash=%" PRId64, sticker.accessHash];
-        [imageUri appendFormat:@"&datacenterId=%d", (int)sticker.datacenterId];
-        [imageUri appendFormat:@"&fileName=%@", [TGStringUtils stringByEscapingForURL:sticker.fileName]];
-        [imageUri appendFormat:@"&size=%d", (int)sticker.size];
-        [imageUri appendFormat:@"&width=%d&height=%d", (int)displaySize.width, (int)displaySize.height];
-        [imageUri appendFormat:@"&mime-type=%@", [TGStringUtils stringByEscapingForURL:sticker.mimeType]];
-        [imageUri appendString:@"&inhibitBlur=1"];
-        
-        _imageView.frame = CGRectMake(CGFloor((self.frame.size.width - displaySize.width) / 2.0f), CGFloor((self.frame.size.height - displaySize.height) / 2.0f), displaySize.width, displaySize.height);
+    
+        _stickerView.frame = CGRectMake(CGFloor((self.frame.size.width - displaySize.width) / 2.0f), CGFloor((self.frame.size.height - displaySize.height) / 2.0f), displaySize.width, displaySize.height);
         
         CGFloat scale = displaySize.width > displaySize.height ? self.frame.size.width / displaySize.width : self.frame.size.height / displaySize.height;
         _defaultTransform = CATransform3DMakeScale(scale, scale, 1.0f);
-        _imageView.layer.transform = _defaultTransform;
+        _stickerView.layer.transform = _defaultTransform;
         
         if (_mirrored)
-            _imageView.layer.transform = CATransform3DRotate(_defaultTransform, M_PI, 0, 1, 0);
-        
-        [_imageView loadUri:imageUri withOptions:@{}];
+            _stickerView.layer.transform = CATransform3DRotate(_defaultTransform, M_PI, 0, 1, 0);
     }
     return self;
 }
@@ -113,7 +86,7 @@ const CGFloat TGPhotoStickerSelectionViewHandleSide = 30.0f;
 
 - (TGPhotoPaintStickerEntity *)entity
 {
-    TGPhotoPaintStickerEntity *entity = [[TGPhotoPaintStickerEntity alloc] initWithDocument:_document baseSize:_baseSize];
+    TGPhotoPaintStickerEntity *entity = [[TGPhotoPaintStickerEntity alloc] initWithDocument:_document baseSize:_baseSize animated:_animated];
     entity.uuid = _entityUUID;
     entity.position = self.center;
     entity.scale = self.scale;
@@ -154,11 +127,11 @@ const CGFloat TGPhotoStickerSelectionViewHandleSide = 30.0f;
 
 - (bool)precisePointInside:(CGPoint)point
 {
-    CGPoint imagePoint = [_imageView convertPoint:point fromView:self];
-    if (![_imageView pointInside:[_imageView convertPoint:point fromView:self] withEvent:nil])
+    CGPoint imagePoint = [_stickerView convertPoint:point fromView:self];
+    if (![_stickerView pointInside:[_stickerView convertPoint:point fromView:self] withEvent:nil])
         return false;
     
-    return [_imageView isOpaqueAtPoint:imagePoint];
+    return [_stickerView isOpaqueAtPoint:imagePoint];
 }
 
 - (void)mirror
@@ -170,29 +143,29 @@ const CGFloat TGPhotoStickerSelectionViewHandleSide = 30.0f;
         CATransform3D startTransform = _defaultTransform;
         if (!_mirrored)
         {
-            startTransform = _imageView.layer.transform;
+            startTransform = _stickerView.layer.transform;
         }
         CATransform3D targetTransform = CATransform3DRotate(_defaultTransform, 0, 0, 1, 0);
         if (_mirrored)
         {
             targetTransform = CATransform3DRotate(_defaultTransform, M_PI, 0, 1, 0);
-            targetTransform.m34 = -1.0f / _imageView.frame.size.width;
+            targetTransform.m34 = -1.0f / _stickerView.frame.size.width;
         }
         
         [UIView animateWithDuration:0.25 animations:^
         {
-            _imageView.layer.transform = targetTransform;
+            _stickerView.layer.transform = targetTransform;
         }];
     }
     else
     {
-        _imageView.layer.transform = CATransform3DRotate(_defaultTransform, _mirrored ? M_PI : 0, 0, 1, 0);
+        _stickerView.layer.transform = CATransform3DRotate(_defaultTransform, _mirrored ? M_PI : 0, 0, 1, 0);
     }
 }
 
 - (UIImage *)image
 {
-    return _imageView.currentImage;
+    return [_stickerView image];
 }
 
 - (TGPhotoPaintEntitySelectionView *)createSelectionView
@@ -206,6 +179,26 @@ const CGFloat TGPhotoStickerSelectionViewHandleSide = 30.0f;
 {
     CGFloat side = self.bounds.size.width / sin(M_PI_4) * self.scale;
     return CGRectMake((self.bounds.size.width - side) / 2.0f, (self.bounds.size.height - side) / 2.0f, side, side);
+}
+
+- (void)updateVisibility:(bool)visible {
+    [_stickerView setIsVisible:visible];
+}
+
+- (void)seekTo:(double)timestamp {
+    [_stickerView seekTo:timestamp];
+}
+
+- (void)play {
+    [_stickerView play];
+}
+
+- (void)pause {
+    [_stickerView pause];
+}
+
+- (void)resetToStart {
+    [_stickerView resetToStart];
 }
 
 @end
@@ -312,11 +305,12 @@ const CGFloat TGPhotoStickerSelectionViewHandleSide = 30.0f;
 {
     CGContextRef context = UIGraphicsGetCurrentContext();
     
-    CGFloat thickness = 1;
+    CGFloat thickness = 1.5f;
     CGFloat radius = rect.size.width / 2.0f - 5.5f;
     
-    CGContextSetFillColorWithColor(context, [UIColor whiteColor].CGColor);
-    CGContextSetShadowWithColor(context, CGSizeZero, 2.5f, [UIColor colorWithWhite:0.0f alpha:0.3f].CGColor);
+    UIColor *color = UIColorRGBA(0xeaeaea, 0.8);
+    
+    CGContextSetFillColorWithColor(context, color.CGColor);
     
     CGFloat radSpace = TGDegreesToRadians(4.0f);
     CGFloat radLen = TGDegreesToRadians(4.0f);
@@ -339,19 +333,29 @@ const CGFloat TGPhotoStickerSelectionViewHandleSide = 30.0f;
 
     CGContextFillPath(context);
     
-    CGContextSetFillColorWithColor(context, TGAccentColor().CGColor);
-    CGContextSetStrokeColorWithColor(context, [UIColor whiteColor].CGColor);
+    CGContextSetStrokeColorWithColor(context, color.CGColor);
     CGContextSetLineWidth(context, thickness);
     
-    void (^drawEllipse)(CGPoint) = ^(CGPoint center)
+    void (^drawEllipse)(CGPoint, bool) = ^(CGPoint center, bool clear)
     {
-        CGContextSetShadowWithColor(context, CGSizeZero, 2.5f, [UIColor clearColor].CGColor);
-        CGContextFillEllipseInRect(context, CGRectMake(center.x - 4.5f, center.y - 4.5f, 9.0f, 9.0f));
-        CGContextStrokeEllipseInRect(context, CGRectMake(center.x - 4.5f, center.y - 4.5f, 9.0f, 9.0f));
+        CGRect rect = CGRectMake(center.x - 4.5f, center.y - 4.5f, 9.0f, 9.0f);
+        if (clear) {
+            rect = CGRectInset(rect, -thickness, -thickness);
+            CGContextFillEllipseInRect(context, rect);
+        } else {
+            CGContextStrokeEllipseInRect(context, rect);
+        }
     };
+
+    CGContextSetBlendMode(context, kCGBlendModeClear);
     
-    drawEllipse(CGPointMake(5.5f, centerPoint.y));
-    drawEllipse(CGPointMake(rect.size.width - 5.5f, centerPoint.y));
+    drawEllipse(CGPointMake(5.5f, centerPoint.y), true);
+    drawEllipse(CGPointMake(rect.size.width - 5.5f, centerPoint.y), true);
+    
+    CGContextSetBlendMode(context, kCGBlendModeNormal);
+    
+    drawEllipse(CGPointMake(5.5f, centerPoint.y), false);
+    drawEllipse(CGPointMake(rect.size.width - 5.5f, centerPoint.y), false);
 }
 
 - (void)layoutSubviews

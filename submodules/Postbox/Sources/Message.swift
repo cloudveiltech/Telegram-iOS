@@ -1,6 +1,6 @@
 import Foundation
 
-public struct MessageId: Hashable, Comparable, CustomStringConvertible {
+public struct MessageId: Hashable, Comparable, CustomStringConvertible, PostboxCoding {
     public typealias Namespace = Int32
     public typealias Id = Int32
     
@@ -35,6 +35,18 @@ public struct MessageId: Hashable, Comparable, CustomStringConvertible {
         self.id = idValue
         
         buffer.offset += 16
+    }
+    
+    public init(decoder: PostboxDecoder) {
+        self.peerId = PeerId(decoder.decodeInt64ForKey("p", orElse: 0))
+        self.namespace = decoder.decodeInt32ForKey("n", orElse: 0)
+        self.id = decoder.decodeInt32ForKey("i", orElse: 0)
+    }
+    
+    public func encode(_ encoder: PostboxEncoder) {
+        encoder.encodeInt64(self.peerId.toInt64(), forKey: "p")
+        encoder.encodeInt32(self.namespace, forKey: "n")
+        encoder.encodeInt32(self.id, forKey: "i")
     }
     
     public func encodeToBuffer(_ buffer: WriteBuffer) {
@@ -107,10 +119,6 @@ public struct MessageIndex: Comparable, Hashable {
         return MessageIndex(id: MessageId(peerId: self.id.peerId, namespace: self.id.namespace, id: self.id.id == Int32.max ? self.id.id : (self.id.id + 1)), timestamp: self.timestamp)
     }
     
-    public var hashValue: Int {
-        return self.id.hashValue
-    }
-    
     public static func absoluteUpperBound() -> MessageIndex {
         return MessageIndex(id: MessageId(peerId: PeerId(namespace: Int32(Int8.max), id: Int32.max), namespace: Int32(Int8.max), id: Int32.max), timestamp: Int32.max)
     }
@@ -156,7 +164,11 @@ public struct MessageIndex: Comparable, Hashable {
             return lhs.id.namespace < rhs.id.namespace
         }
         
-        return lhs.id.id < rhs.id.id
+        if lhs.id.id != rhs.id.id {
+            return lhs.id.id < rhs.id.id
+        }
+        
+        return lhs.id.peerId.toInt64() < rhs.id.peerId.toInt64()
     }
 }
 
@@ -400,17 +412,19 @@ public struct StoreMessageForwardInfo {
     public let sourceMessageId: MessageId?
     public let date: Int32
     public let authorSignature: String?
+    public let psaType: String?
     
-    public init(authorId: PeerId?, sourceId: PeerId?, sourceMessageId: MessageId?, date: Int32, authorSignature: String?) {
+    public init(authorId: PeerId?, sourceId: PeerId?, sourceMessageId: MessageId?, date: Int32, authorSignature: String?, psaType: String?) {
         self.authorId = authorId
         self.sourceId = sourceId
         self.sourceMessageId = sourceMessageId
         self.date = date
         self.authorSignature = authorSignature
+        self.psaType = psaType
     }
     
     public init(_ info: MessageForwardInfo) {
-        self.init(authorId: info.author?.id, sourceId: info.source?.id, sourceMessageId: info.sourceMessageId, date: info.date, authorSignature: info.authorSignature)
+        self.init(authorId: info.author?.id, sourceId: info.source?.id, sourceMessageId: info.sourceMessageId, date: info.date, authorSignature: info.authorSignature, psaType: info.psaType)
     }
 }
 
@@ -420,13 +434,15 @@ public struct MessageForwardInfo: Equatable {
     public let sourceMessageId: MessageId?
     public let date: Int32
     public let authorSignature: String?
+    public let psaType: String?
     
-    public init(author: Peer?, source: Peer?, sourceMessageId: MessageId?, date: Int32, authorSignature: String?) {
+    public init(author: Peer?, source: Peer?, sourceMessageId: MessageId?, date: Int32, authorSignature: String?, psaType: String?) {
         self.author = author
         self.source = source
         self.sourceMessageId = sourceMessageId
         self.date = date
         self.authorSignature = authorSignature
+        self.psaType = psaType
     }
 
     public static func ==(lhs: MessageForwardInfo, rhs: MessageForwardInfo) -> Bool {
@@ -447,6 +463,9 @@ public struct MessageForwardInfo: Equatable {
             return false
         }
         if lhs.authorSignature != rhs.authorSignature {
+            return false
+        }
+        if lhs.psaType != rhs.psaType {
             return false
         }
         
@@ -481,6 +500,7 @@ public final class Message {
     public let globallyUniqueId: Int64?
     public let groupingKey: Int64?
     public let groupInfo: MessageGroupInfo?
+    public let threadId: Int64?
     public let timestamp: Int32
     public let flags: MessageFlags
     public let tags: MessageTags
@@ -499,13 +519,14 @@ public final class Message {
         return MessageIndex(id: self.id, timestamp: self.timestamp)
     }
     
-    public init(stableId: UInt32, stableVersion: UInt32, id: MessageId, globallyUniqueId: Int64?, groupingKey: Int64?, groupInfo: MessageGroupInfo?, timestamp: Int32, flags: MessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: MessageForwardInfo?, author: Peer?, text: String, attributes: [MessageAttribute], media: [Media], peers: SimpleDictionary<PeerId, Peer>, associatedMessages: SimpleDictionary<MessageId, Message>, associatedMessageIds: [MessageId]) {
+    public init(stableId: UInt32, stableVersion: UInt32, id: MessageId, globallyUniqueId: Int64?, groupingKey: Int64?, groupInfo: MessageGroupInfo?, threadId: Int64?, timestamp: Int32, flags: MessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: MessageForwardInfo?, author: Peer?, text: String, attributes: [MessageAttribute], media: [Media], peers: SimpleDictionary<PeerId, Peer>, associatedMessages: SimpleDictionary<MessageId, Message>, associatedMessageIds: [MessageId]) {
         self.stableId = stableId
         self.stableVersion = stableVersion
         self.id = id
         self.globallyUniqueId = globallyUniqueId
         self.groupingKey = groupingKey
         self.groupInfo = groupInfo
+        self.threadId = threadId
         self.timestamp = timestamp
         self.flags = flags
         self.tags = tags
@@ -522,23 +543,27 @@ public final class Message {
     }
     
     public func withUpdatedMedia(_ media: [Media]) -> Message {
-        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: self.attributes, media: media, peers: self.peers, associatedMessages: self.associatedMessages, associatedMessageIds: self.associatedMessageIds)
+        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, threadId: self.threadId, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: self.attributes, media: media, peers: self.peers, associatedMessages: self.associatedMessages, associatedMessageIds: self.associatedMessageIds)
     }
     
     public func withUpdatedPeers(_ peers: SimpleDictionary<PeerId, Peer>) -> Message {
-        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: self.attributes, media: self.media, peers: peers, associatedMessages: self.associatedMessages, associatedMessageIds: self.associatedMessageIds)
+        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, threadId: self.threadId, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: self.attributes, media: self.media, peers: peers, associatedMessages: self.associatedMessages, associatedMessageIds: self.associatedMessageIds)
     }
     
     public func withUpdatedFlags(_ flags: MessageFlags) -> Message {
-        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, timestamp: self.timestamp, flags: flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: self.attributes, media: self.media, peers: self.peers, associatedMessages: self.associatedMessages, associatedMessageIds: self.associatedMessageIds)
+        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, threadId: self.threadId, timestamp: self.timestamp, flags: flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: self.attributes, media: self.media, peers: self.peers, associatedMessages: self.associatedMessages, associatedMessageIds: self.associatedMessageIds)
     }
     
     func withUpdatedGroupInfo(_ groupInfo: MessageGroupInfo?) -> Message {
-        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: groupInfo, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: self.attributes, media: self.media, peers: self.peers, associatedMessages: self.associatedMessages, associatedMessageIds: self.associatedMessageIds)
+        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: groupInfo, threadId: self.threadId, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: self.attributes, media: self.media, peers: self.peers, associatedMessages: self.associatedMessages, associatedMessageIds: self.associatedMessageIds)
+    }
+    
+    public func withUpdatedAttributes(_ attributes: [MessageAttribute]) -> Message {
+        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, threadId: self.threadId, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: attributes, media: self.media, peers: self.peers, associatedMessages: self.associatedMessages, associatedMessageIds: self.associatedMessageIds)
     }
     
     func withUpdatedAssociatedMessages(_ associatedMessages: SimpleDictionary<MessageId, Message>) -> Message {
-        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: self.attributes, media: self.media, peers: self.peers, associatedMessages: associatedMessages, associatedMessageIds: self.associatedMessageIds)
+        return Message(stableId: self.stableId, stableVersion: self.stableVersion, id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, groupInfo: self.groupInfo, threadId: self.threadId, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, author: self.author, text: self.text, attributes: self.attributes, media: self.media, peers: self.peers, associatedMessages: associatedMessages, associatedMessageIds: self.associatedMessageIds)
     }
 }
 
@@ -626,11 +651,22 @@ public enum StoreMessageId {
     }
 }
 
+public func makeMessageThreadId(_ messageId: MessageId) -> Int64 {
+    return (Int64(messageId.namespace) << 32) | Int64(bitPattern: UInt64(UInt32(bitPattern: messageId.id)))
+}
+
+public func makeThreadIdMessageId(peerId: PeerId, threadId: Int64) -> MessageId {
+    let namespace = Int32((threadId >> 32) & 0x7fffffff)
+    let id = Int32(bitPattern: UInt32(threadId & 0xffffffff))
+    return MessageId(peerId: peerId, namespace: namespace, id: id)
+}
+
 public final class StoreMessage {
     public let id: StoreMessageId
     public let timestamp: Int32
     public let globallyUniqueId: Int64?
     public let groupingKey: Int64?
+    public let threadId: Int64?
     public let flags: StoreMessageFlags
     public let tags: MessageTags
     public let globalTags: GlobalMessageTags
@@ -641,10 +677,11 @@ public final class StoreMessage {
     public let attributes: [MessageAttribute]
     public let media: [Media]
     
-    public init(id: MessageId, globallyUniqueId: Int64?, groupingKey: Int64?, timestamp: Int32, flags: StoreMessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: StoreMessageForwardInfo?, authorId: PeerId?, text: String, attributes: [MessageAttribute], media: [Media]) {
+    public init(id: MessageId, globallyUniqueId: Int64?, groupingKey: Int64?, threadId: Int64?, timestamp: Int32, flags: StoreMessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: StoreMessageForwardInfo?, authorId: PeerId?, text: String, attributes: [MessageAttribute], media: [Media]) {
         self.id = .Id(id)
         self.globallyUniqueId = globallyUniqueId
         self.groupingKey = groupingKey
+        self.threadId = threadId
         self.timestamp = timestamp
         self.flags = flags
         self.tags = tags
@@ -657,11 +694,12 @@ public final class StoreMessage {
         self.media = media
     }
     
-    public init(peerId: PeerId, namespace: MessageId.Namespace, globallyUniqueId: Int64?, groupingKey: Int64?, timestamp: Int32, flags: StoreMessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: StoreMessageForwardInfo?, authorId: PeerId?, text: String, attributes: [MessageAttribute], media: [Media]) {
+    public init(peerId: PeerId, namespace: MessageId.Namespace, globallyUniqueId: Int64?, groupingKey: Int64?, threadId: Int64?, timestamp: Int32, flags: StoreMessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: StoreMessageForwardInfo?, authorId: PeerId?, text: String, attributes: [MessageAttribute], media: [Media]) {
         self.id = .Partial(peerId, namespace)
         self.timestamp = timestamp
         self.globallyUniqueId = globallyUniqueId
         self.groupingKey = groupingKey
+        self.threadId = threadId
         self.flags = flags
         self.tags = tags
         self.globalTags = globalTags
@@ -673,11 +711,12 @@ public final class StoreMessage {
         self.media = media
     }
     
-    public init(id: StoreMessageId, globallyUniqueId: Int64?, groupingKey: Int64?, timestamp: Int32, flags: StoreMessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: StoreMessageForwardInfo?, authorId: PeerId?, text: String, attributes: [MessageAttribute], media: [Media]) {
+    public init(id: StoreMessageId, globallyUniqueId: Int64?, groupingKey: Int64?, threadId: Int64?, timestamp: Int32, flags: StoreMessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: StoreMessageForwardInfo?, authorId: PeerId?, text: String, attributes: [MessageAttribute], media: [Media]) {
         self.id = id
         self.timestamp = timestamp
         self.globallyUniqueId = globallyUniqueId
         self.groupingKey = groupingKey
+        self.threadId = threadId
         self.flags = flags
         self.tags = tags
         self.globalTags = globalTags
@@ -701,19 +740,19 @@ public final class StoreMessage {
         if flags == self.flags {
             return self
         } else {
-            return StoreMessage(id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, timestamp: self.timestamp, flags: flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributes: attributes, media: self.media)
+            return StoreMessage(id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, threadId: self.threadId, timestamp: self.timestamp, flags: flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributes: attributes, media: self.media)
         }
     }
     
     public func withUpdatedAttributes(_ attributes: [MessageAttribute]) -> StoreMessage {
-        return StoreMessage(id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributes: attributes, media: self.media)
+        return StoreMessage(id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, threadId: self.threadId, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: self.localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributes: attributes, media: self.media)
     }
     
     public func withUpdatedLocalTags(_ localTags: LocalMessageTags) -> StoreMessage {
         if localTags == self.localTags {
             return self
         } else {
-            return StoreMessage(id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributes: self.attributes, media: self.media)
+            return StoreMessage(id: self.id, globallyUniqueId: self.globallyUniqueId, groupingKey: self.groupingKey, threadId: self.threadId, timestamp: self.timestamp, flags: self.flags, tags: self.tags, globalTags: self.globalTags, localTags: localTags, forwardInfo: self.forwardInfo, authorId: self.authorId, text: self.text, attributes: self.attributes, media: self.media)
         }
     }
 }
@@ -723,6 +762,7 @@ final class InternalStoreMessage {
     let timestamp: Int32
     let globallyUniqueId: Int64?
     let groupingKey: Int64?
+    let threadId: Int64?
     let flags: StoreMessageFlags
     let tags: MessageTags
     let globalTags: GlobalMessageTags
@@ -737,11 +777,12 @@ final class InternalStoreMessage {
         return MessageIndex(id: self.id, timestamp: self.timestamp)
     }
     
-    init(id: MessageId, timestamp: Int32, globallyUniqueId: Int64?, groupingKey: Int64?, flags: StoreMessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: StoreMessageForwardInfo?, authorId: PeerId?, text: String, attributes: [MessageAttribute], media: [Media]) {
+    init(id: MessageId, timestamp: Int32, globallyUniqueId: Int64?, groupingKey: Int64?, threadId: Int64?, flags: StoreMessageFlags, tags: MessageTags, globalTags: GlobalMessageTags, localTags: LocalMessageTags, forwardInfo: StoreMessageForwardInfo?, authorId: PeerId?, text: String, attributes: [MessageAttribute], media: [Media]) {
         self.id = id
         self.timestamp = timestamp
         self.globallyUniqueId = globallyUniqueId
         self.groupingKey = groupingKey
+        self.threadId = threadId
         self.flags = flags
         self.tags = tags
         self.globalTags = globalTags

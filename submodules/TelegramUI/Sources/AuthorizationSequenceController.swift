@@ -15,6 +15,10 @@ import AccountContext
 import CountrySelectionUI
 import SettingsUI
 import PhoneNumberFormat
+import LegacyComponents
+import LegacyMediaPickerUI
+import CloudVeilSecurityManager
+import RMIntro
 
 private enum InnerState: Equatable {
     case state(UnauthorizedAccountStateContents)
@@ -324,7 +328,7 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
                                                     }).start()
                                                 })]), on: .root, blockInteraction: false, completion: {})
                                             })
-                                        ], actionLayout: .vertical)
+                                        ], actionLayout: .vertical, dismissOnOutsideTap: true)
                                         contentNode.textAttributeAction = (NSAttributedString.Key(rawValue: TelegramTextAttributes.URL), { value in
                                             if let value = value as? String {
                                                 strongSelf.openUrl(value)
@@ -684,11 +688,64 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
                     transaction.setState(UnauthorizedAccountState(isTestingEnvironment: strongSelf.account.testingEnvironment, masterDatacenterId: strongSelf.account.masterDatacenterId, contents: .phoneEntry(countryCode: countryCode, number: "")))
                 }).start()
             }, displayCancel: displayCancel)
-            controller.signUpWithName = { [weak self, weak controller] firstName, lastName, avatarData in
+            controller.signUpWithName = { [weak self, weak controller] firstName, lastName, avatarData, avatarAsset, avatarAdjustments in
                 if let strongSelf = self {
                     controller?.inProgress = true
                     
-                    strongSelf.actionDisposable.set((signUpWithName(accountManager: strongSelf.sharedContext.accountManager, account: strongSelf.account, firstName: firstName, lastName: lastName, avatarData: avatarData)
+                    var videoStartTimestamp: Double? = nil
+                    if let adjustments = avatarAdjustments, adjustments.videoStartValue > 0.0 {
+                        videoStartTimestamp = adjustments.videoStartValue - adjustments.trimStartValue
+                    }
+                    
+                    let avatarVideo: Signal<UploadedPeerPhotoData?, NoError>?
+                    if let avatarAsset = avatarAsset as? AVAsset {
+                        let account = strongSelf.account
+                        avatarVideo = Signal<TelegramMediaResource?, NoError> { subscriber in
+                            let entityRenderer: LegacyPaintEntityRenderer? = avatarAdjustments.flatMap { adjustments in
+                                if let paintingData = adjustments.paintingData, paintingData.hasAnimation {
+                                    return LegacyPaintEntityRenderer(account: nil, adjustments: adjustments)
+                                } else {
+                                    return nil
+                                }
+                            }
+                            
+                            let signal = TGMediaVideoConverter.convert(avatarAsset, adjustments: avatarAdjustments, watcher: nil, entityRenderer: entityRenderer)!
+                            
+                            let signalDisposable = signal.start(next: { next in
+                                if let result = next as? TGMediaVideoConversionResult {
+                                    var value = stat()
+                                    if stat(result.fileURL.path, &value) == 0 {
+                                        if let data = try? Data(contentsOf: result.fileURL) {
+                                            let resource = LocalFileMediaResource(fileId: arc4random64())
+                                            account.postbox.mediaBox.storeResourceData(resource.id, data: data, synchronous: true)
+                                            subscriber.putNext(resource)
+                                        }
+                                    }
+                                    subscriber.putCompletion()
+                                }
+                            }, error: { _ in
+                            }, completed: nil)
+                            
+                            let disposable = ActionDisposable {
+                                signalDisposable?.dispose()
+                            }
+                            
+                            return ActionDisposable {
+                                disposable.dispose()
+                            }
+                        }
+                        |> mapToSignal { resource -> Signal<UploadedPeerPhotoData?, NoError> in
+                            if let resource = resource {
+                                return uploadedPeerVideo(postbox: account.postbox, network: account.network, messageMediaPreuploadManager: nil, resource: resource) |> map(Optional.init)
+                            } else {
+                                return .single(nil)
+                            }
+                        }
+                    } else {
+                        avatarVideo = nil
+                    }
+                    
+                    strongSelf.actionDisposable.set((signUpWithName(accountManager: strongSelf.sharedContext.accountManager, account: strongSelf.account, firstName: firstName, lastName: lastName, avatarData: avatarData, avatarVideo: avatarVideo, videoStartTimestamp: videoStartTimestamp)
                     |> deliverOnMainQueue).start(error: { error in
                         Queue.mainQueue().async {
                             if let strongSelf = self, let controller = controller {
@@ -834,12 +891,26 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
     
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
+		
+		//CloudVeil start
+		showFirstRunPopup()
+		//CloudVeil end
+		
         if !self.didPlayPresentationAnimation {
             self.didPlayPresentationAnimation = true
             self.animateIn()
         }
     }
+	
+	//CloudVeil start
+	func showFirstRunPopup() {
+		let alert = UIAlertController(title: "CloudVeil!", message: "CloudVeil Messenger uses a server based system to control access to Bots, Channels, and Groups and other policy rules. This is used to block unacceptable content. Your Telegram id and list of channels, bots, and groups will be sent to our system to allow this to work. We do not have access to your messages themselves.", preferredStyle: .alert)
+		alert.addAction(.init(title: "OK", style: .default, handler: nil))
+		if let controller = self.viewControllers.last {
+			controller.present(alert, animated: true)
+		}
+	}
+	//CloudVeil end
     
     public func dismiss() {
         self.animateOut(completion: { [weak self] in

@@ -106,11 +106,13 @@ private func preparedShareItem(account: Account, to peerId: PeerId, value: [Stri
                     cropRect = CGRect(x: (size.width - shortestSide) / 2.0, y: (size.height - shortestSide) / 2.0, width: shortestSide, height: shortestSide)
                 }
 
-                adjustments = TGVideoEditAdjustments(originalSize: size, cropRect: cropRect, cropOrientation: .up, cropLockedAspectRatio: 1.0, cropMirrored: false, trimStartValue: 0.0, trimEndValue: 0.0, paintingData: nil, sendAsGif: false, preset: TGMediaVideoConversionPresetVideoMessage)
+                adjustments = TGVideoEditAdjustments(originalSize: size, cropRect: cropRect, cropOrientation: .up, cropRotation: 0.0, cropLockedAspectRatio: 1.0, cropMirrored: false, trimStartValue: 0.0, trimEndValue: 0.0, toolValues: nil, paintingData: nil, sendAsGif: false, preset: TGMediaVideoConversionPresetVideoMessage)
             }
         }
         var finalDuration: Double = CMTimeGetSeconds(asset.duration)
-        let finalDimensions = TGMediaVideoConverter.dimensions(for: asset.originalSize, adjustments: adjustments, preset: adjustments?.preset ?? TGMediaVideoConversionPresetCompressedMedium)
+        
+        let preset = adjustments?.preset ?? TGMediaVideoConversionPresetCompressedMedium
+        let finalDimensions = TGMediaVideoConverter.dimensions(for: asset.originalSize, adjustments: adjustments, preset: preset)
         
         var resourceAdjustments: VideoMediaResourceAdjustments?
         if let adjustments = adjustments {
@@ -123,8 +125,10 @@ private func preparedShareItem(account: Account, to peerId: PeerId, value: [Stri
             resourceAdjustments = VideoMediaResourceAdjustments(data: adjustmentsData, digest: digest)
         }
         
+        let estimatedSize = TGMediaVideoConverter.estimatedSize(for: preset, duration: finalDuration, hasAudio: true)
+        
         let resource = LocalFileVideoMediaResource(randomId: arc4random64(), path: asset.url.path, adjustments: resourceAdjustments)
-        return standaloneUploadedFile(account: account, peerId: peerId, text: "", source: .resource(.standalone(resource: resource)), mimeType: "video/mp4", attributes: [.Video(duration: Int(finalDuration), size: PixelDimensions(width: Int32(finalDimensions.width), height: Int32(finalDimensions.height)), flags: flags)], hintFileIsLarge: finalDuration > 3.0 * 60.0)
+        return standaloneUploadedFile(account: account, peerId: peerId, text: "", source: .resource(.standalone(resource: resource)), mimeType: "video/mp4", attributes: [.Video(duration: Int(finalDuration), size: PixelDimensions(width: Int32(finalDimensions.width), height: Int32(finalDimensions.height)), flags: flags)], hintFileIsLarge: estimatedSize > 5 * 1024 * 1024)
         |> mapError { _ -> Void in
             return Void()
         }
@@ -229,7 +233,7 @@ private func preparedShareItem(account: Account, to peerId: PeerId, value: [Stri
         if let audioData = try? Data(contentsOf: url, options: [.mappedIfSafe]) {
             let fileName = url.lastPathComponent
             let duration = (value["duration"] as? NSNumber)?.doubleValue ?? 0.0
-            let isVoice = ((value["isVoice"] as? NSNumber)?.boolValue ?? false) || (duration.isZero && duration < 30.0)
+            let isVoice = ((value["isVoice"] as? NSNumber)?.boolValue ?? false)
             let title = value["title"] as? String
             let artist = value["artist"] as? String
             
@@ -260,9 +264,9 @@ private func preparedShareItem(account: Account, to peerId: PeerId, value: [Stri
                 let disposable = TGShareLocationSignals.locationMessageContent(for: url).start(next: { value in
                     if let value = value as? TGShareLocationResult {
                         if let title = value.title {
-                            subscriber.putNext(.done(.media(.media(.standalone(media: TelegramMediaMap(latitude: value.latitude, longitude: value.longitude, geoPlace: nil, venue: MapVenue(title: title, address: value.address, provider: value.provider, id: value.venueId, type: value.venueType), liveBroadcastingTimeout: nil))))))
+                            subscriber.putNext(.done(.media(.media(.standalone(media: TelegramMediaMap(latitude: value.latitude, longitude: value.longitude, heading: nil, accuracyRadius: nil, geoPlace: nil, venue: MapVenue(title: title, address: value.address, provider: value.provider, id: value.venueId, type: value.venueType), liveBroadcastingTimeout: nil, liveProximityNotificationRadius: nil))))))
                         } else {
-                            subscriber.putNext(.done(.media(.media(.standalone(media: TelegramMediaMap(latitude: value.latitude, longitude: value.longitude, geoPlace: nil, venue: nil, liveBroadcastingTimeout: nil))))))
+                            subscriber.putNext(.done(.media(.media(.standalone(media: TelegramMediaMap(latitude: value.latitude, longitude: value.longitude, heading: nil, accuracyRadius: nil, geoPlace: nil, venue: nil, liveBroadcastingTimeout: nil, liveProximityNotificationRadius: nil))))))
                         }
                         subscriber.putCompletion()
                     } else if let value = value as? String {
@@ -355,6 +359,36 @@ public func preparedShareItems(account: Account, to peerId: PeerId, dataItems: [
 
 public func sentShareItems(account: Account, to peerIds: [PeerId], items: [PreparedShareItemContent]) -> Signal<Float, Void> {
     var messages: [EnqueueMessage] = []
+    var groupingKey: Int64?
+    var mediaTypes: (photo: Bool, video: Bool, music: Bool, other: Bool) = (false, false, false, false)
+    if items.count > 1 {
+        for item in items {
+            if case let .media(result) = item, case let .media(media) = result {
+                if media.media is TelegramMediaImage {
+                    mediaTypes.photo = true
+                } else if let media = media.media as? TelegramMediaFile {
+                    if media.isVideo {
+                        mediaTypes.video = true
+                    } else if let fileName = media.fileName, fileName.hasPrefix("mp3") || fileName.hasPrefix("m4a") {
+                        mediaTypes.music = true
+                    } else {
+                        mediaTypes.other = true
+                    }
+                } else {
+                    mediaTypes = (false, false, false, false)
+                    break
+                }
+            }
+        }
+    }
+    
+    if (mediaTypes.photo || mediaTypes.video) && !(mediaTypes.music || mediaTypes.other) {
+        groupingKey = arc4random64()
+    } else if !(mediaTypes.photo || mediaTypes.video) && (mediaTypes.music != mediaTypes.other) {
+        groupingKey = arc4random64()
+    }
+    
+    var mediaMessages: [EnqueueMessage] = []
     for item in items {
         switch item {
             case let .text(text):
@@ -362,7 +396,13 @@ public func sentShareItems(account: Account, to peerIds: [PeerId], items: [Prepa
             case let .media(media):
                 switch media {
                     case let .media(reference):
-                        messages.append(.message(text: "", attributes: [], mediaReference: reference, replyToMessageId: nil, localGroupingKey: nil))
+                        let message: EnqueueMessage = .message(text: "", attributes: [], mediaReference: reference, replyToMessageId: nil, localGroupingKey: groupingKey)
+                        messages.append(message)
+                        mediaMessages.append(message)
+                        
+                }
+                if let _ = groupingKey, mediaMessages.count % 10 == 0 {
+                    groupingKey = arc4random64()
                 }
         }
     }

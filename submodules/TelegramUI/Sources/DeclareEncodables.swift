@@ -9,7 +9,9 @@ import WebSearchUI
 import InstantPageCache
 import SettingsUI
 import WallpaperResources
+import MediaResources
 import LocationUI
+import ChatInterfaceState
 
 private var telegramUIDeclaredEncodables: Void = {
     declareEncodable(InAppNotificationSettings.self, f: { InAppNotificationSettings(decoder: $0) })
@@ -55,6 +57,7 @@ private var telegramUIDeclaredEncodables: Void = {
     declareEncodable(IntentsSettings.self, f: { IntentsSettings(decoder: $0) })
     declareEncodable(CachedGeocode.self, f: { CachedGeocode(decoder: $0) })
     declareEncodable(ChatListFilterSettings.self, f: { ChatListFilterSettings(decoder: $0) })
+    declareEncodable(WidgetSettings.self, f: { WidgetSettings(decoder: $0) })
     return
 }()
 

@@ -2,6 +2,7 @@
 
 #import "LegacyComponentsInternal.h"
 #import "TGImageUtils.h"
+#import "TGStringUtils.h"
 
 #import <Photos/Photos.h>
 #import <LegacyComponents/UIImage+TG.h>
@@ -299,9 +300,9 @@
                     fileName = asset.fileName;
                 }
                 
-                if (iosMajorVersion() >= 10 && [dataUTI rangeOfString:@"heic"].location != NSNotFound)
+                if (iosMajorVersion() >= 10 && [asset.uniformTypeIdentifier rangeOfString:@"heic"].location != NSNotFound)
                 {
-#if !DEBUG
+//#if !DEBUG
                     CIContext *context = [[CIContext alloc] init];
                     CIImage *image = [[CIImage alloc] initWithData:imageData];
                     NSURL *tmpURL = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:[[NSString alloc] initWithFormat:@"%x.jpg", (int)arc4random()]]];
@@ -317,7 +318,7 @@
                         if (range.location != NSNotFound)
                             fileName = [fileName stringByReplacingCharactersInRange:range withString:@".JPG"];
                     }
-#endif
+//#endif
                 }
                 
                 TGMediaAssetImageData *data = [[TGMediaAssetImageData alloc] init];
@@ -408,23 +409,17 @@
 {
     SSignal *attributesSignal = [[SSignal alloc] initWithGenerator:^id<SDisposable>(SSubscriber *subscriber)
     {
-        PHImageRequestID token = [[PHImageManager defaultManager] requestImageDataForAsset:asset.backingAsset options:nil resultHandler:^(NSData *data, NSString *dataUTI, __unused UIImageOrientation orientation, NSDictionary *info)
-        {
-            NSURL *fileUrl = info[@"PHImageFileURLKey"];
-            
-            TGMediaAssetImageFileAttributes *attributes = [[TGMediaAssetImageFileAttributes alloc] init];
-            attributes.fileName = fileUrl.absoluteString.lastPathComponent;
-            attributes.fileUTI = dataUTI;
-            attributes.dimensions = asset.dimensions;
-            attributes.fileSize = data.length;
-            
-            [subscriber putNext:attributes];
-            [subscriber putCompletion];
-        }];
+        TGMediaAssetImageFileAttributes *attributes = [[TGMediaAssetImageFileAttributes alloc] init];
+        attributes.fileName = asset.fileName;
+        attributes.fileUTI = asset.uniformTypeIdentifier;
+        attributes.dimensions = asset.dimensions;
+        attributes.fileSize = asset.fileSize;
         
+        [subscriber putNext:attributes];
+        [subscriber putCompletion];
+
         return [[SBlockDisposable alloc] initWithBlock:^
         {
-            [[PHImageManager defaultManager] cancelImageRequest:token];
         }];
     }];
     
@@ -770,21 +765,27 @@
                     
                     if (videoResource != nil)
                     {
-                        NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.mov", [NSString stringWithFormat:@"%.0f", [[NSDate date] timeIntervalSince1970]]]];
-                        NSURL *fileUrl = [NSURL fileURLWithPath:filePath];
+                        NSURL *convertedLivePhotosUrl = [NSURL fileURLWithPath:[[[LegacyComponentsGlobals provider] dataStoragePath] stringByAppendingPathComponent:@"convertedLivePhotos"]];
+                        [[NSFileManager defaultManager] createDirectoryAtPath:convertedLivePhotosUrl.path withIntermediateDirectories:true attributes:nil error:nil];
+                        NSURL *fileUrl = [convertedLivePhotosUrl URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.mp4", [TGStringUtils md5:asset.identifier]]];
                         
-                        [[PHAssetResourceManager defaultManager] writeDataForAssetResource:videoResource toFile:fileUrl options:nil completionHandler:^(NSError * _Nullable error)
-                        {
-                            if (error == nil)
-                            {
-                                [subscriber putNext:[[AVPlayerItem alloc] initWithURL:fileUrl]];
-                                [subscriber putCompletion];
-                            }
-                            else
-                            {
-                                [subscriber putError:nil];
-                            }
-                        }];
+                        if ([[NSFileManager defaultManager] fileExistsAtPath:fileUrl.path isDirectory:nil]) {
+                            [subscriber putNext:[[AVPlayerItem alloc] initWithURL:fileUrl]];
+                            [subscriber putCompletion];
+                        } else {
+                            [[PHAssetResourceManager defaultManager] writeDataForAssetResource:videoResource toFile:fileUrl options:nil completionHandler:^(NSError * _Nullable error)
+                             {
+                                if (error == nil)
+                                {
+                                    [subscriber putNext:[[AVPlayerItem alloc] initWithURL:fileUrl]];
+                                    [subscriber putCompletion];
+                                }
+                                else
+                                {
+                                    [subscriber putError:nil];
+                                }
+                            }];
+                        }
                     }
                     else
                     {
@@ -850,9 +851,11 @@
             
             if (processLive)
             {
-                NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.mov", asset.identifier]];
-                NSURL *fileUrl = [NSURL fileURLWithPath:filePath];
-                if ([[NSFileManager defaultManager] fileExistsAtPath:filePath])
+                NSURL *convertedLivePhotosUrl = [NSURL fileURLWithPath:[[[LegacyComponentsGlobals provider] dataStoragePath] stringByAppendingPathComponent:@"convertedLivePhotos"]];
+                [[NSFileManager defaultManager] createDirectoryAtPath:convertedLivePhotosUrl.path withIntermediateDirectories:true attributes:nil error:nil];
+                NSURL *fileUrl = [convertedLivePhotosUrl URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.mp4", [TGStringUtils md5:asset.identifier]]];
+                
+                if ([[NSFileManager defaultManager] fileExistsAtPath:fileUrl.path])
                 {
                     [subscriber putNext:[[AVURLAsset alloc] initWithURL:fileUrl options:nil]];
                     [subscriber putCompletion];

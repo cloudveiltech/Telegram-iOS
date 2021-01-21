@@ -343,7 +343,7 @@ private enum ChannelVisibilityEntry: ItemListNodeEntry {
                 if let addressName = peer.addressName {
                     label = "t.me/" + addressName
                 }
-                return ItemListPeerItem(presentationData: presentationData, dateTimeFormat: dateTimeFormat, nameDisplayOrder: nameDisplayOrder, context: arguments.context, peer: peer, presence: nil, text: .text(label), label: .none, editing: editing, switchValue: nil, enabled: enabled, selectable: true, sectionId: self.section, action: nil, setPeerIdWithRevealedOptions: { previousId, id in
+                return ItemListPeerItem(presentationData: presentationData, dateTimeFormat: dateTimeFormat, nameDisplayOrder: nameDisplayOrder, context: arguments.context, peer: peer, presence: nil, text: .text(label, .secondary), label: .none, editing: editing, switchValue: nil, enabled: enabled, selectable: true, sectionId: self.section, action: nil, setPeerIdWithRevealedOptions: { previousId, id in
                     arguments.setPeerIdWithRevealedOptions(previousId, id)
                 }, removePeer: { peerId in
                     arguments.revokePeerId(peerId)
@@ -615,7 +615,7 @@ private func channelVisibilityControllerEntries(presentationData: PresentationDa
         }
     } else if let _ = view.peers[view.peerId] as? TelegramGroup {
         switch mode {
-            case .privateLink:
+        case .privateLink:
                 let link = (view.cachedData as? CachedGroupData)?.exportedInvitation?.link
                 let text: String
                 if let link = link {
@@ -640,7 +640,7 @@ private func channelVisibilityControllerEntries(presentationData: PresentationDa
                 if let current = state.selectedType {
                     selectedType = current
                 } else {
-                    selectedType = .publicChannel
+                    selectedType = .privateChannel
                 }
                 
                 let currentAddressName: String

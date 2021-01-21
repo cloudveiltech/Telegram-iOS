@@ -14,7 +14,7 @@ import ShareController
 import GalleryUI
 import AppBundle
 
-private let actionImage = generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Accessory Panels/MessageSelectionAction"), color: .white)
+private let actionImage = generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Accessory Panels/MessageSelectionForward"), color: .white)
 
 private let textFont = Font.regular(16.0)
 
@@ -55,12 +55,12 @@ final class InstantPageGalleryFooterContentNode: GalleryFooterContentNode {
                 return nil
             }
         }
-        self.textNode.tapAttributeAction = { [weak self] attributes in
+        self.textNode.tapAttributeAction = { [weak self] attributes, _ in
             if let strongSelf = self, let url = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)] as? InstantPageUrlItem {
                 strongSelf.openUrl?(url)
             }
         }
-        self.textNode.longTapAttributeAction = { [weak self] attributes in
+        self.textNode.longTapAttributeAction = { [weak self] attributes, _ in
             if let strongSelf = self, let url = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)] as? InstantPageUrlItem {
                 strongSelf.openUrlOptions?(url)
             }

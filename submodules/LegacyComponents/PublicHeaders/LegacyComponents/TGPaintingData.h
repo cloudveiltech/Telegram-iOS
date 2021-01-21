@@ -16,9 +16,17 @@
 @property (nonatomic, readonly) NSData *data;
 @property (nonatomic, readonly) UIImage *image;
 
-+ (instancetype)dataWithPaintingData:(NSData *)data image:(UIImage *)image entities:(NSArray *)entities undoManager:(TGPaintUndoManager *)undoManager;
+@property (nonatomic, readonly) UIImage *stillImage;
+
+@property (nonatomic, readonly) bool hasAnimation;
+
++ (instancetype)dataWithPaintingData:(NSData *)data image:(UIImage *)image stillImage:(UIImage *)stillImage entities:(NSArray *)entities undoManager:(TGPaintUndoManager *)undoManager;
+
++ (instancetype)dataWithPaintingImagePath:(NSString *)imagePath entities:(NSArray *)entities;
 
 + (instancetype)dataWithPaintingImagePath:(NSString *)imagePath;
+
+- (instancetype)dataForAnimation;
 
 + (void)storePaintingData:(TGPaintingData *)data inContext:(TGMediaEditingContext *)context forItem:(id<TGMediaEditableItem>)item forVideo:(bool)video;
 + (void)facilitatePaintingData:(TGPaintingData *)data;

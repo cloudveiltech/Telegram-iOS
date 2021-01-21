@@ -236,7 +236,7 @@ private enum ChannelAdminsEntry: ItemListNodeEntry {
                         arguments.openAdmin(participant.participant)
                     }
                 }
-                return ItemListPeerItem(presentationData: presentationData, dateTimeFormat: dateTimeFormat, nameDisplayOrder: nameDisplayOrder, context: arguments.context, peer: participant.peer, presence: nil, text: .text(peerText), label: .none, editing: editing, switchValue: nil, enabled: enabled, selectable: true, sectionId: self.section, action: action, setPeerIdWithRevealedOptions: { previousId, id in
+                return ItemListPeerItem(presentationData: presentationData, dateTimeFormat: dateTimeFormat, nameDisplayOrder: nameDisplayOrder, context: arguments.context, peer: participant.peer, presence: nil, text: .text(peerText, .secondary), label: .none, editing: editing, switchValue: nil, enabled: enabled, selectable: true, sectionId: self.section, action: action, setPeerIdWithRevealedOptions: { previousId, id in
                     arguments.setPeerIdWithRevealedOptions(previousId, id)
                 }, removePeer: { peerId in
                     arguments.removeAdmin(peerId)
@@ -555,7 +555,7 @@ public func channelAdminsController(context: AccountContext, peerId initialPeerI
             |> deliverOnMainQueue).start(next: { peer in
                 if peer is TelegramGroup {
                 } else {
-                    pushControllerImpl?(context.sharedContext.makeChatRecentActionsController(context: context, peer: peer))
+                    pushControllerImpl?(context.sharedContext.makeChatRecentActionsController(context: context, peer: peer, adminPeerId: nil))
                 }
             })
         })
@@ -696,7 +696,7 @@ public func channelAdminsController(context: AccountContext, peerId initialPeerI
                     if let peer = peerView.peers[participant.peerId] {
                         switch participant {
                             case .creator:
-                                result.append(RenderedChannelParticipant(participant: .creator(id: peer.id, rank: nil), peer: peer))
+                                result.append(RenderedChannelParticipant(participant: .creator(id: peer.id, adminInfo: nil, rank: nil), peer: peer))
                             case .admin:
                                 var peers: [PeerId: Peer] = [:]
                                 peers[creator.id] = creator
@@ -846,13 +846,15 @@ public func channelAdminsController(context: AccountContext, peerId initialPeerI
     return controller
 }
 
-func rebuildControllerStackAfterSupergroupUpgrade(controller: ViewController, navigationController: NavigationController, replace: ((UIViewController) -> UIViewController)? = nil) {
+public func rebuildControllerStackAfterSupergroupUpgrade(controller: ViewController, navigationController: NavigationController, replace: ((UIViewController) -> UIViewController)? = nil) {
     var controllers = navigationController.viewControllers
     for i in 0 ..< controllers.count {
         if controllers[i] === controller {
             for j in 0 ..< i {
                 if controllers[j] is ChatController {
-                    controllers.removeSubrange(j + 1 ... i - 1)
+                    if j + 1 <= i - 1 {
+                        controllers.removeSubrange(j + 1 ... i - 1)
+                    }
                     break
                 }
             }

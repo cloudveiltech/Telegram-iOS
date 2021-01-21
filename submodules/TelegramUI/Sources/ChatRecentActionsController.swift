@@ -18,6 +18,7 @@ final class ChatRecentActionsController: TelegramBaseController {
     
     private let context: AccountContext
     private let peer: Peer
+    private let initialAdminPeerId: PeerId?
     private var presentationData: PresentationData
     private var presentationDataDisposable: Disposable?
     
@@ -26,15 +27,16 @@ final class ChatRecentActionsController: TelegramBaseController {
     
     private let titleView: ChatRecentActionsTitleView
     
-    init(context: AccountContext, peer: Peer) {
+    init(context: AccountContext, peer: Peer, adminPeerId: PeerId?) {
         self.context = context
         self.peer = peer
+        self.initialAdminPeerId = adminPeerId
         
         self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
         
         self.titleView = ChatRecentActionsTitleView(color: self.presentationData.theme.rootController.navigationBar.primaryTextColor)
         
-        super.init(context: context, navigationBarPresentationData: NavigationBarPresentationData(presentationData: self.presentationData), mediaAccessoryPanelVisibility: .specific(size: .compact), locationBroadcastPanelSource: .none)
+        super.init(context: context, navigationBarPresentationData: NavigationBarPresentationData(presentationData: self.presentationData), mediaAccessoryPanelVisibility: .specific(size: .compact), locationBroadcastPanelSource: .none, groupCallPanelSource: .none)
         
         self.statusBar.statusBarStyle = self.presentationData.theme.rootController.statusBarStyle.style
         
@@ -56,6 +58,7 @@ final class ChatRecentActionsController: TelegramBaseController {
         }, deleteSelectedMessages: {
         }, reportSelectedMessages: {
         }, reportMessages: { _, _ in
+        }, blockMessageAuthor: { _, _ in
         }, deleteMessages: { _, _, f in
             f(.default)
         }, forwardSelectedMessages: {
@@ -73,8 +76,9 @@ final class ChatRecentActionsController: TelegramBaseController {
         }, navigateMessageSearch: { _ in
         }, openCalendarSearch: {
         }, toggleMembersSearch: { _ in
-        }, navigateToMessage: { _ in
+        }, navigateToMessage: { _, _, _, _ in
         }, navigateToChat: { _ in
+        }, navigateToProfile: { _ in
         }, openPeerInfo: {
         }, togglePeerNotifications: {
         }, sendContextResult: { _, _, _, _ in
@@ -87,7 +91,7 @@ final class ChatRecentActionsController: TelegramBaseController {
         }, stopMediaRecording: {
         }, lockMediaRecording: {
         }, deleteRecordedMedia: {
-        }, sendRecordedMedia: {
+        }, sendRecordedMedia: { _ in
         }, displayRestrictedInfo: { _, _ in
         }, displayVideoUnmuteTip: { _ in
         }, switchMediaRecordingMode: {
@@ -95,14 +99,16 @@ final class ChatRecentActionsController: TelegramBaseController {
         }, sendSticker: { _, _, _ in
             return false
         }, unblockPeer: {
-        }, pinMessage: { _ in
-        }, unpinMessage: {
+        }, pinMessage: { _, _ in
+        }, unpinMessage: { _, _, _ in
+        }, unpinAllMessages: {
+        }, openPinnedList: { _ in
         }, shareAccountContact: {
         }, reportPeer: {
         }, presentPeerContact: {
         }, dismissReportPeer: {
         }, deleteChat: {
-        }, beginCall: {
+        }, beginCall: { _ in
         }, toggleMessageStickerStarred: { _ in
         }, presentController: { _, _ in
         }, getNavigationController: {
@@ -120,7 +126,14 @@ final class ChatRecentActionsController: TelegramBaseController {
         }, displaySlowmodeTooltip: { _, _ in
         }, displaySendMessageOptions: { _, _ in
         }, openScheduledMessages: {
+        }, openPeersNearby: {
         }, displaySearchResultsTooltip: { _, _ in
+        }, unarchivePeer: {
+        }, scrollToTop: {
+        }, viewReplies: { _, _ in
+        }, activatePinnedListPreview: { _, _ in
+        }, joinGroupCall: { _ in
+        }, editMessageMedia: { _, _ in
         }, statuses: nil)
         
         self.navigationItem.titleView = self.titleView
@@ -171,6 +184,11 @@ final class ChatRecentActionsController: TelegramBaseController {
         }, getNavigationController: { [weak self] in
             return self?.navigationController as? NavigationController
         })
+        
+        if let adminPeerId = self.initialAdminPeerId {
+            self.controllerNode.updateFilter(events: .all, adminPeerIds: [adminPeerId])
+            self.updateTitle()
+        }
         
         self.displayNodeDidLoad()
     }

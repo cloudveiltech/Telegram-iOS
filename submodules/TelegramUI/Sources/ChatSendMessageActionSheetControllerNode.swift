@@ -241,9 +241,11 @@ final class ChatSendMessageActionSheetControllerNode: ViewControllerTracingNode,
                 sendSilently?()
             }))
         }
-        contentNodes.append(ActionSheetItemNode(theme: self.presentationData.theme, title: reminders ? self.presentationData.strings.Conversation_SendMessage_SetReminder: self.presentationData.strings.Conversation_SendMessage_ScheduleMessage, icon: .schedule, hasSeparator: false, action: {
-            schedule?()
-        }))
+        if let _ = schedule {
+            contentNodes.append(ActionSheetItemNode(theme: self.presentationData.theme, title: reminders ? self.presentationData.strings.Conversation_SendMessage_SetReminder: self.presentationData.strings.Conversation_SendMessage_ScheduleMessage, icon: .schedule, hasSeparator: false, action: {
+                schedule?()
+            }))
+        }
         self.contentNodes = contentNodes
         
         super.init()
@@ -393,7 +395,7 @@ final class ChatSendMessageActionSheetControllerNode: ViewControllerTracingNode,
         
         UIView.animate(withDuration: 0.2, animations: {
             if #available(iOS 9.0, *) {
-                self.effectView.effect = makeCustomZoomBlurEffect()
+                self.effectView.effect = makeCustomZoomBlurEffect(isLight: !self.presentationData.theme.overallDarkAppearance)
             } else {
                 self.effectView.alpha = 1.0
             }

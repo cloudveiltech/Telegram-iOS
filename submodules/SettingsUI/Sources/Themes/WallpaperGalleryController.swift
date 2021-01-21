@@ -301,7 +301,7 @@ public class WallpaperGalleryController: ViewController {
             updateItems.append(item)
             i += 1
         }
-        return GalleryPagerTransaction(deleteItems: [], insertItems: [], updateItems: updateItems, focusOnItem: self.galleryNode.pager.centralItemNode()?.index)
+        return GalleryPagerTransaction(deleteItems: [], insertItems: [], updateItems: updateItems, focusOnItem: self.galleryNode.pager.centralItemNode()?.index, synchronous: false)
     }
     
     override public func loadDisplayNode() {
@@ -312,6 +312,7 @@ public class WallpaperGalleryController: ViewController {
         }, dismissController: { [weak self] in
                 self?.dismiss(forceAway: true)
         }, replaceRootController: { controller, ready in
+        }, editMedia: { _ in
         })
         self.displayNode = WallpaperGalleryControllerNode(controllerInteraction: controllerInteraction, pageGap: 0.0)
         self.displayNodeDidLoad()

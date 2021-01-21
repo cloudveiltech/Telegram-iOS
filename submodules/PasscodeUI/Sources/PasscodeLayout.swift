@@ -67,7 +67,7 @@ struct PasscodeKeyboardLayout {
                 self.topOffset = 226.0
                 self.biometricsOffset = 30.0
                 self.deleteOffset = 20.0
-            case .iPhoneX:
+            case .iPhoneX, .iPhone12Mini, .iPhone12:
                 self.buttonSize = 75.0
                 self.horizontalSecond = 103.0
                 self.horizontalThird = 206.0
@@ -78,7 +78,7 @@ struct PasscodeKeyboardLayout {
                 self.topOffset = 294.0
                 self.biometricsOffset = 30.0
                 self.deleteOffset = 20.0
-            case .iPhoneXSMax:
+            case .iPhoneXSMax, .iPhoneXr, .iPhone12ProMax:
                 self.buttonSize = 85.0
                 self.horizontalSecond = 115.0
                 self.horizontalThird = 230.0
@@ -89,7 +89,7 @@ struct PasscodeKeyboardLayout {
                 self.topOffset = 329.0
                 self.biometricsOffset = 30.0
                 self.deleteOffset = 20.0
-            case .iPad, .iPadPro10Inch, .iPadPro11Inch, .iPadPro, .iPadPro3rdGen:
+            case .iPad, .iPad102Inch, .iPadPro10Inch, .iPadPro11Inch, .iPadPro, .iPadPro3rdGen:
                 self.buttonSize = 81.0
                 self.horizontalSecond = 106.0
                 self.horizontalThird = 212.0
@@ -151,15 +151,15 @@ public struct PasscodeLayout {
                 self.titleOffset = 112.0
                 self.subtitleOffset = -6.0
                 self.inputFieldOffset = 156.0
-            case .iPhoneX:
+            case .iPhoneX, .iPhone12Mini, .iPhone12:
                 self.titleOffset = 162.0
                 self.subtitleOffset = 0.0
                 self.inputFieldOffset = 206.0
-            case .iPhoneXSMax:
+            case .iPhoneXSMax, .iPhoneXr, .iPhone12ProMax:
                 self.titleOffset = 180.0
                 self.subtitleOffset = 0.0
                 self.inputFieldOffset = 226.0
-            case .iPad, .iPadPro10Inch, .iPadPro11Inch, .iPadPro, .iPadPro3rdGen:
+            case .iPad, .iPad102Inch, .iPadPro10Inch, .iPadPro11Inch, .iPadPro, .iPadPro3rdGen:
                 self.titleOffset = self.keyboard.topOffset - 120.0
                 self.subtitleOffset = -2.0
                 self.inputFieldOffset = self.keyboard.topOffset - 76.0

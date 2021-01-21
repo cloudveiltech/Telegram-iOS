@@ -25,11 +25,14 @@
 @property (nonatomic, readonly) CGSize originalSize;
 @property (nonatomic, readonly) CGRect cropRect;
 @property (nonatomic, readonly) UIImageOrientation cropOrientation;
+@property (nonatomic, readonly) CGFloat cropRotation;
 @property (nonatomic, readonly) CGFloat cropLockedAspectRatio;
 @property (nonatomic, readonly) bool cropMirrored;
 @property (nonatomic, readonly) bool sendAsGif;
 @property (nonatomic, readonly) TGPaintingData *paintingData;
+@property (nonatomic, readonly) NSDictionary *toolValues;
 
+- (bool)toolsApplied;
 - (bool)hasPainting;
 
 - (bool)cropAppliedForAvatar:(bool)forAvatar;
@@ -79,7 +82,8 @@
 - (SSignal *)timersUpdatedSignal;
 
 - (UIImage *)paintingImageForItem:(NSObject<TGMediaEditableItem> *)item;
-- (bool)setPaintingData:(NSData *)data image:(UIImage *)image forItem:(NSObject<TGMediaEditableItem> *)item dataUrl:(NSURL **)dataOutUrl imageUrl:(NSURL **)imageOutUrl forVideo:(bool)video;
+- (UIImage *)stillPaintingImageForItem:(NSObject<TGMediaEditableItem> *)item;
+- (bool)setPaintingData:(NSData *)data image:(UIImage *)image stillImage:(UIImage *)image forItem:(NSObject<TGMediaEditableItem> *)item dataUrl:(NSURL **)dataOutUrl imageUrl:(NSURL **)imageOutUrl forVideo:(bool)video;
 - (void)clearPaintingData;
 
 - (SSignal *)facesForItem:(NSObject<TGMediaEditableItem> *)item;

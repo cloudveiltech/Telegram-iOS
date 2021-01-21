@@ -66,7 +66,7 @@ private final class InnerActionsContainerNode: ASDisplayNode {
         }
     }
     
-    init(presentationData: PresentationData, items: [ContextMenuItem], getController: @escaping () -> ContextController?, actionSelected: @escaping (ContextMenuActionResult) -> Void, feedbackTap: @escaping () -> Void) {
+    init(presentationData: PresentationData, items: [ContextMenuItem], getController: @escaping () -> ContextController?, actionSelected: @escaping (ContextMenuActionResult) -> Void, feedbackTap: @escaping () -> Void, blurBackground: Bool) {
         self.presentationData = presentationData
         self.feedbackTap = feedbackTap
         
@@ -95,6 +95,9 @@ private final class InnerActionsContainerNode: ASDisplayNode {
         self.cornerRadius = 14.0
         
         self.backgroundColor = presentationData.theme.contextMenu.backgroundColor
+        if !blurBackground {
+            self.backgroundColor = self.backgroundColor?.withAlphaComponent(1.0)
+        }
         
         self.itemNodes.forEach({ itemNode in
             switch itemNode {
@@ -392,6 +395,7 @@ private final class InnerTextSelectionTipContainerNode: ASDisplayNode {
 final class ContextActionsContainerNode: ASDisplayNode {
     private let actionsNode: InnerActionsContainerNode
     private let textSelectionTipNode: InnerTextSelectionTipContainerNode?
+    private let scrollNode: ASScrollNode
     
     var panSelectionGestureEnabled: Bool = true {
         didSet {
@@ -401,8 +405,8 @@ final class ContextActionsContainerNode: ASDisplayNode {
         }
     }
     
-    init(presentationData: PresentationData, items: [ContextMenuItem], getController: @escaping () -> ContextController?, actionSelected: @escaping (ContextMenuActionResult) -> Void, feedbackTap: @escaping () -> Void, displayTextSelectionTip: Bool) {
-        self.actionsNode = InnerActionsContainerNode(presentationData: presentationData, items: items, getController: getController, actionSelected: actionSelected, feedbackTap: feedbackTap)
+    init(presentationData: PresentationData, items: [ContextMenuItem], getController: @escaping () -> ContextController?, actionSelected: @escaping (ContextMenuActionResult) -> Void, feedbackTap: @escaping () -> Void, displayTextSelectionTip: Bool, blurBackground: Bool) {
+        self.actionsNode = InnerActionsContainerNode(presentationData: presentationData, items: items, getController: getController, actionSelected: actionSelected, feedbackTap: feedbackTap, blurBackground: blurBackground)
         if displayTextSelectionTip {
             let textSelectionTipNode = InnerTextSelectionTipContainerNode(presentationData: presentationData)
             textSelectionTipNode.isUserInteractionEnabled = false
@@ -411,10 +415,19 @@ final class ContextActionsContainerNode: ASDisplayNode {
             self.textSelectionTipNode = nil
         }
         
+        self.scrollNode = ASScrollNode()
+        self.scrollNode.canCancelAllTouchesInViews = true
+        self.scrollNode.view.delaysContentTouches = false
+        self.scrollNode.view.showsVerticalScrollIndicator = false
+        if #available(iOS 11.0, *) {
+            self.scrollNode.view.contentInsetAdjustmentBehavior = .never
+        }
+        
         super.init()
         
-        self.addSubnode(self.actionsNode)
-        self.textSelectionTipNode.flatMap(self.addSubnode)
+        self.scrollNode.addSubnode(self.actionsNode)
+        self.textSelectionTipNode.flatMap(self.scrollNode.addSubnode)
+        self.addSubnode(self.scrollNode)
     }
     
     func updateLayout(widthClass: ContainerViewLayoutSizeClass, constrainedWidth: CGFloat, transition: ContainedViewLayoutTransition) -> CGSize {
@@ -431,6 +444,11 @@ final class ContextActionsContainerNode: ASDisplayNode {
         }
         
         return contentSize
+    }
+    
+    func updateSize(containerSize: CGSize, contentSize: CGSize) {
+        self.scrollNode.view.contentSize = contentSize
+        self.scrollNode.frame = CGRect(origin: CGPoint(), size: containerSize)
     }
     
     func actionNode(at point: CGPoint) -> ContextActionNode? {

@@ -8,6 +8,7 @@ import TelegramStringFormatting
 enum PeerChannelMemberContextKey: Equatable, Hashable {
     case recent
     case recentSearch(String)
+    case mentions(threadId: MessageId?, query: String?)
     case admins(String?)
     case contacts(String?)
     case bots(String?)
@@ -266,6 +267,11 @@ private final class PeerChannelMemberCategoriesContextsManagerImpl {
 public final class PeerChannelMemberCategoriesContextsManager {
     private let impl: QueueLocalObject<PeerChannelMemberCategoriesContextsManagerImpl>
     
+    private let removedChannelMembersPipe = ValuePipe<[(PeerId, PeerId)]>()
+    public var removedChannelMembers: Signal<[(PeerId, PeerId)], NoError> {
+        return self.removedChannelMembersPipe.signal()
+    }
+    
     public init() {
         self.impl = QueueLocalObject(queue: Queue.mainQueue(), generate: {
             return PeerChannelMemberCategoriesContextsManagerImpl()
@@ -321,6 +327,11 @@ public final class PeerChannelMemberCategoriesContextsManager {
         return self.getContext(postbox: postbox, network: network, accountPeerId: accountPeerId, peerId: peerId, key: key, requestUpdate: requestUpdate, updated: updated)
     }
     
+    public func mentions(postbox: Postbox, network: Network, accountPeerId: PeerId, peerId: PeerId, threadMessageId: MessageId?, searchQuery: String? = nil, requestUpdate: Bool = true, updated: @escaping (ChannelMemberListState) -> Void) -> (Disposable, PeerChannelMemberCategoryControl?) {
+        let key: PeerChannelMemberContextKey = .mentions(threadId: threadMessageId, query: searchQuery)
+        return self.getContext(postbox: postbox, network: network, accountPeerId: accountPeerId, peerId: peerId, key: key, requestUpdate: requestUpdate, updated: updated)
+    }
+    
     public func admins(postbox: Postbox, network: Network, accountPeerId: PeerId, peerId: PeerId, searchQuery: String? = nil, updated: @escaping (ChannelMemberListState) -> Void) -> (Disposable, PeerChannelMemberCategoryControl?) {
         return self.getContext(postbox: postbox, network: network, accountPeerId: accountPeerId, peerId: peerId, key: .admins(searchQuery), requestUpdate: true, updated: updated)
     }
@@ -356,6 +367,9 @@ public final class PeerChannelMemberCategoriesContextsManager {
                             context.replayUpdates([(previous, updated, isMember)])
                         }
                     }
+                }
+                if !isMember {
+                    strongSelf.removedChannelMembersPipe.putNext([(peerId, memberId)])
                 }
             }
         }

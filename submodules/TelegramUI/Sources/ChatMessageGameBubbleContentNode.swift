@@ -26,7 +26,7 @@ final class ChatMessageGameBubbleContentNode: ChatMessageBubbleContentNode {
         self.addSubnode(self.contentNode)
         self.contentNode.openMedia = { [weak self] _ in
             if let strongSelf = self, let item = strongSelf.item {
-                item.controllerInteraction.requestMessageActionCallback(item.message.id, nil, true)
+                item.controllerInteraction.requestMessageActionCallback(item.message.id, nil, true, false)
             }
         }
     }
@@ -71,7 +71,7 @@ final class ChatMessageGameBubbleContentNode: ChatMessageBubbleContentNode {
                 }
             }
             
-            let (initialWidth, continueLayout) = contentNodeLayout(item.presentationData, item.controllerInteraction.automaticMediaDownloadSettings, item.associatedData, item.attributes, item.context, item.controllerInteraction, item.message, item.read, title, nil, item.message.text.isEmpty ? text : item.message.text, item.message.text.isEmpty ? nil : messageEntities, mediaAndFlags, nil, nil, nil, true, layoutConstants, constrainedSize)
+            let (initialWidth, continueLayout) = contentNodeLayout(item.presentationData, item.controllerInteraction.automaticMediaDownloadSettings, item.associatedData, item.attributes, item.context, item.controllerInteraction, item.message, item.read, .peer(item.message.id.peerId), title, nil, item.message.text.isEmpty ? text : item.message.text, item.message.text.isEmpty ? nil : messageEntities, mediaAndFlags, nil, nil, nil, true, layoutConstants, constrainedSize)
             
             let contentProperties = ChatMessageBubbleContentProperties(hidesSimpleAuthorHeader: false, headerSpacing: 8.0, hidesBackground: .never, forceFullCorners: false, forceAlignment: .none)
             
@@ -134,7 +134,7 @@ final class ChatMessageGameBubbleContentNode: ChatMessageBubbleContentNode {
         return self.contentNode.transitionNode(media: media)
     }
     
-    override func reactionTargetNode(value: String) -> (ASDisplayNode, Int)? {
+    override func reactionTargetNode(value: String) -> (ASDisplayNode, ASDisplayNode)? {
         return self.contentNode.reactionTargetNode(value: value)
     }
 }

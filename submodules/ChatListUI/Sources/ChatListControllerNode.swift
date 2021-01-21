@@ -14,18 +14,6 @@ import SearchBarNode
 import SearchUI
 import ContextUI
 
-private final class ChatListControllerNodeView: UITracingLayerView, PreviewingHostView {
-    var previewingDelegate: PreviewingHostViewDelegate? {
-        return PreviewingHostViewDelegate(controllerForLocation: { [weak self] sourceView, point in
-            return self?.controller?.previewingController(from: sourceView, for: point)
-        }, commitController: { [weak self] controller in
-            self?.controller?.previewingCommit(controller)
-        })
-    }
-    
-    weak var controller: ChatListControllerImpl?
-}
-
 enum ChatListContainerNodeFilter: Equatable {
     case all
     case filter(ChatListFilter)
@@ -194,13 +182,13 @@ private final class ChatListShimmerNode: ASDisplayNode {
             let peer1 = TelegramUser(id: PeerId(namespace: Namespaces.Peer.CloudUser, id: 1), accessHash: nil, firstName: "FirstName", lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [])
             let timestamp1: Int32 = 100000
             let peers = SimpleDictionary<PeerId, Peer>()
-            let interaction = ChatListNodeInteraction(activateSearch: {}, peerSelected: { _ in }, disabledPeerSelected: { _ in }, togglePeerSelected: { _ in }, additionalCategorySelected: { _ in
-            }, messageSelected: { _, _, _ in}, groupSelected: { _ in }, addContact: { _ in }, setPeerIdWithRevealedOptions: { _, _ in }, setItemPinned: { _, _ in }, setPeerMuted: { _, _ in }, deletePeer: { _ in }, updatePeerGrouping: { _, _ in }, togglePeerMarkedUnread: { _, _ in}, toggleArchivedFolderHiddenByDefault: {}, activateChatPreview: { _, _, gesture in
+            let interaction = ChatListNodeInteraction(activateSearch: {}, peerSelected: { _, _ in }, disabledPeerSelected: { _ in }, togglePeerSelected: { _ in }, additionalCategorySelected: { _ in
+            }, messageSelected: { _, _, _ in}, groupSelected: { _ in }, addContact: { _ in }, setPeerIdWithRevealedOptions: { _, _ in }, setItemPinned: { _, _ in }, setPeerMuted: { _, _ in }, deletePeer: { _, _ in }, updatePeerGrouping: { _, _ in }, togglePeerMarkedUnread: { _, _ in}, toggleArchivedFolderHiddenByDefault: {}, hidePsa: { _ in }, activateChatPreview: { _, _, gesture in
                 gesture?.cancel()
             }, present: { _ in })
             
             let items = (0 ..< 2).map { _ -> ChatListItem in
-                return ChatListItem(presentationData: chatListPresentationData, context: context, peerGroupId: .root, filterData: nil, index: ChatListIndex(pinningIndex: 0, messageIndex: MessageIndex(id: MessageId(peerId: peer1.id, namespace: 0, id: 0), timestamp: timestamp1)), content: .peer(message: Message(stableId: 0, stableVersion: 0, id: MessageId(peerId: peer1.id, namespace: 0, id: 0), globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, timestamp: timestamp1, flags: [], tags: [], globalTags: [], localTags: [], forwardInfo: nil, author: peer1, text: "Text", attributes: [], media: [], peers: peers, associatedMessages: SimpleDictionary(), associatedMessageIds: []), peer: RenderedPeer(peer: peer1), combinedReadState: CombinedPeerReadState(states: [(Namespaces.Message.Cloud, PeerReadState.idBased(maxIncomingReadId: 0, maxOutgoingReadId: 0, maxKnownId: 0, count: 0, markedUnread: false))]), isRemovedFromTotalUnreadCount: false, presence: nil, summaryInfo: ChatListMessageTagSummaryInfo(tagSummaryCount: nil, actionsSummaryCount: nil), embeddedState: nil, inputActivities: nil, isAd: false, ignoreUnreadBadge: false, displayAsMessage: false, hasFailedMessages: false), editing: false, hasActiveRevealControls: false, selected: false, header: nil, enableContextActions: false, hiddenOffset: false, interaction: interaction)
+                return ChatListItem(presentationData: chatListPresentationData, context: context, peerGroupId: .root, filterData: nil, index: ChatListIndex(pinningIndex: 0, messageIndex: MessageIndex(id: MessageId(peerId: peer1.id, namespace: 0, id: 0), timestamp: timestamp1)), content: .peer(messages: [Message(stableId: 0, stableVersion: 0, id: MessageId(peerId: peer1.id, namespace: 0, id: 0), globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, threadId: nil, timestamp: timestamp1, flags: [], tags: [], globalTags: [], localTags: [], forwardInfo: nil, author: peer1, text: "Text", attributes: [], media: [], peers: peers, associatedMessages: SimpleDictionary(), associatedMessageIds: [])], peer: RenderedPeer(peer: peer1), combinedReadState: CombinedPeerReadState(states: [(Namespaces.Message.Cloud, PeerReadState.idBased(maxIncomingReadId: 0, maxOutgoingReadId: 0, maxKnownId: 0, count: 0, markedUnread: false))]), isRemovedFromTotalUnreadCount: false, presence: nil, summaryInfo: ChatListMessageTagSummaryInfo(tagSummaryCount: nil, actionsSummaryCount: nil), embeddedState: nil, inputActivities: nil, promoInfo: nil, ignoreUnreadBadge: false, displayAsMessage: false, hasFailedMessages: false), editing: false, hasActiveRevealControls: false, selected: false, header: nil, enableContextActions: false, hiddenOffset: false, interaction: interaction)
             }
             
             var itemNodes: [ChatListItemNode] = []
@@ -276,6 +264,7 @@ private final class ChatListContainerItemNode: ASDisplayNode {
     
     private(set) var emptyNode: ChatListEmptyNode?
     var emptyShimmerEffectNode: ChatListShimmerNode?
+    private var shimmerNodeOffset: CGFloat = 0.0
     let listNode: ChatListNode
     
     private var validLayout: (CGSize, UIEdgeInsets, CGFloat)?
@@ -297,8 +286,12 @@ private final class ChatListContainerItemNode: ASDisplayNode {
                 return
             }
             var needsShimmerNode = false
+            var shimmerNodeOffset: CGFloat = 0.0
             switch isEmptyState {
-            case let .empty(isLoading):
+            case let .empty(isLoading, hasArchiveInfo):
+                if hasArchiveInfo {
+                    shimmerNodeOffset = 253.0
+                }
                 if isLoading {
                     needsShimmerNode = true
                     
@@ -338,12 +331,13 @@ private final class ChatListContainerItemNode: ASDisplayNode {
                 }
             }
             if needsShimmerNode {
+                strongSelf.shimmerNodeOffset = shimmerNodeOffset
                 if strongSelf.emptyShimmerEffectNode == nil {
                     let emptyShimmerEffectNode = ChatListShimmerNode()
                     strongSelf.emptyShimmerEffectNode = emptyShimmerEffectNode
                     strongSelf.insertSubnode(emptyShimmerEffectNode, belowSubnode: strongSelf.listNode)
                     if let (size, insets, _) = strongSelf.validLayout, let offset = strongSelf.floatingHeaderOffset {
-                        strongSelf.layoutEmptyShimmerEffectNode(node: emptyShimmerEffectNode, size: size, insets: insets, verticalOffset: offset, transition: .immediate)
+                        strongSelf.layoutEmptyShimmerEffectNode(node: emptyShimmerEffectNode, size: size, insets: insets, verticalOffset: offset + strongSelf.shimmerNodeOffset, transition: .immediate)
                     }
                 }
             } else if let emptyShimmerEffectNode = strongSelf.emptyShimmerEffectNode {
@@ -361,7 +355,7 @@ private final class ChatListContainerItemNode: ASDisplayNode {
             }
             strongSelf.floatingHeaderOffset = offset
             if let (size, insets, _) = strongSelf.validLayout, let emptyShimmerEffectNode = strongSelf.emptyShimmerEffectNode {
-                strongSelf.layoutEmptyShimmerEffectNode(node: emptyShimmerEffectNode, size: size, insets: insets, verticalOffset: offset, transition: transition)
+                strongSelf.layoutEmptyShimmerEffectNode(node: emptyShimmerEffectNode, size: size, insets: insets, verticalOffset: offset + strongSelf.shimmerNodeOffset, transition: transition)
             }
         }
     }
@@ -447,6 +441,7 @@ final class ChatListContainerNode: ASDisplayNode, UIGestureRecognizerDelegate {
             previousItemNode.listNode.presentAlert = nil
             previousItemNode.listNode.present = nil
             previousItemNode.listNode.toggleArchivedFolderHiddenByDefault = nil
+            previousItemNode.listNode.hidePsa = nil
             previousItemNode.listNode.deletePeerChat = nil
             previousItemNode.listNode.peerSelected = nil
             previousItemNode.listNode.groupSelected = nil
@@ -474,8 +469,11 @@ final class ChatListContainerNode: ASDisplayNode, UIGestureRecognizerDelegate {
         itemNode.listNode.toggleArchivedFolderHiddenByDefault = { [weak self] in
             self?.toggleArchivedFolderHiddenByDefault?()
         }
-        itemNode.listNode.deletePeerChat = { [weak self] peerId in
-            self?.deletePeerChat?(peerId)
+        itemNode.listNode.hidePsa = { [weak self] peerId in
+            self?.hidePsa?(peerId)
+        }
+        itemNode.listNode.deletePeerChat = { [weak self] peerId, joined in
+            self?.deletePeerChat?(peerId, joined)
         }
         itemNode.listNode.peerSelected = { [weak self] peerId, a, b in
             self?.peerSelected?(peerId, a, b)
@@ -522,8 +520,9 @@ final class ChatListContainerNode: ASDisplayNode, UIGestureRecognizerDelegate {
     var presentAlert: ((String) -> Void)?
     var present: ((ViewController) -> Void)?
     var toggleArchivedFolderHiddenByDefault: (() -> Void)?
-    var deletePeerChat: ((PeerId) -> Void)?
-    var peerSelected: ((Peer, Bool, Bool) -> Void)?
+    var hidePsa: ((PeerId) -> Void)?
+    var deletePeerChat: ((PeerId, Bool) -> Void)?
+    var peerSelected: ((Peer, Bool, ChatListNodeEntryPromoInfo?) -> Void)?
     var groupSelected: ((PeerGroupId) -> Void)?
     var updatePeerGrouping: ((PeerId, Bool) -> Void)?
     var contentOffsetChanged: ((ListViewVisibleContentOffset) -> Void)?
@@ -992,7 +991,7 @@ final class ChatListControllerNode: ASDisplayNode {
     var requestDeactivateSearch: (() -> Void)?
     var requestOpenPeerFromSearch: ((Peer, Bool) -> Void)?
     var requestOpenRecentPeerOptions: ((Peer) -> Void)?
-    var requestOpenMessageFromSearch: ((Peer, MessageId) -> Void)?
+    var requestOpenMessageFromSearch: ((Peer, MessageId, Bool) -> Void)?
     var requestAddContact: ((String) -> Void)?
     var peerContextAction: ((Peer, ChatListSearchContextActionSource, ASDisplayNode, ContextGesture?) -> Void)?
     var dismissSelfIfCompletedPresentation: (() -> Void)?
@@ -1022,7 +1021,7 @@ final class ChatListControllerNode: ASDisplayNode {
         super.init()
         
         self.setViewBlock({
-            return ChatListControllerNodeView()
+            return UITracingLayerView()
         })
         
         self.backgroundColor = presentationData.theme.chatList.backgroundColor
@@ -1050,8 +1049,6 @@ final class ChatListControllerNode: ASDisplayNode {
     
     override func didLoad() {
         super.didLoad()
-        
-        (self.view as? ChatListControllerNodeView)?.controller = self.controller
         
         let tapRecognizer = UITapGestureRecognizer(target: self, action: #selector(self.tapGesture(_:)))
         self.tapRecognizer = tapRecognizer
@@ -1083,7 +1080,6 @@ final class ChatListControllerNode: ASDisplayNode {
         
         var insets = layout.insets(options: [.input])
         insets.top += navigationBarHeight
-        
         insets.left += layout.safeInsets.left
         insets.right += layout.safeInsets.right
         
@@ -1106,7 +1102,7 @@ final class ChatListControllerNode: ASDisplayNode {
             
             if let toolbarNode = self.toolbarNode {
                 transition.updateFrame(node: toolbarNode, frame: tabBarFrame)
-                toolbarNode.updateLayout(size: tabBarFrame.size, leftInset: layout.safeInsets.left, rightInset: layout.safeInsets.right,  bottomInset: bottomInset, toolbar: toolbar, transition: transition)
+                toolbarNode.updateLayout(size: tabBarFrame.size, leftInset: layout.safeInsets.left, rightInset: layout.safeInsets.right, additionalSideInsets: layout.additionalInsets, bottomInset: bottomInset, toolbar: toolbar, transition: transition)
             } else {
                 let toolbarNode = ToolbarNode(theme: TabBarControllerTheme(rootControllerTheme: self.presentationData.theme), displaySeparator: true, left: { [weak self] in
                     self?.toolbarActionSelected?(.left)
@@ -1116,7 +1112,7 @@ final class ChatListControllerNode: ASDisplayNode {
                     self?.toolbarActionSelected?(.middle)
                 })
                 toolbarNode.frame = tabBarFrame
-                toolbarNode.updateLayout(size: tabBarFrame.size, leftInset: layout.safeInsets.left, rightInset: layout.safeInsets.right, bottomInset: bottomInset, toolbar: toolbar, transition: .immediate)
+                toolbarNode.updateLayout(size: tabBarFrame.size, leftInset: layout.safeInsets.left, rightInset: layout.safeInsets.right, additionalSideInsets: layout.additionalInsets, bottomInset: bottomInset, toolbar: toolbar, transition: .immediate)
                 self.addSubnode(toolbarNode)
                 self.toolbarNode = toolbarNode
                 if transition.isAnimated {
@@ -1142,50 +1138,72 @@ final class ChatListControllerNode: ASDisplayNode {
         }
     }
     
-    func activateSearch(placeholderNode: SearchBarPlaceholderNode) {
+    func activateSearch(placeholderNode: SearchBarPlaceholderNode, displaySearchFilters: Bool, navigationController: NavigationController?) -> (ASDisplayNode, () -> Void)? {
         guard let (containerLayout, _, _, cleanNavigationBarHeight) = self.containerLayout, let navigationBar = self.navigationBar, self.searchDisplayController == nil else {
-            return
+            return nil
         }
         
-        self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ChatListSearchContainerNode(context: self.context, filter: [], groupId: self.groupId, openPeer: { [weak self] peer, dismissSearch in
+        var filter: ChatListNodePeersFilter = []
+        if false, case .group = self.groupId {
+            filter.insert(.excludeRecent)
+        }
+        
+        let contentNode = ChatListSearchContainerNode(context: self.context, filter: filter, groupId: self.groupId, displaySearchFilters: displaySearchFilters, openPeer: { [weak self] peer, dismissSearch in
             self?.requestOpenPeerFromSearch?(peer, dismissSearch)
         }, openDisabledPeer: { _ in
         }, openRecentPeerOptions: { [weak self] peer in
             self?.requestOpenRecentPeerOptions?(peer)
-        }, openMessage: { [weak self] peer, messageId in
+        }, openMessage: { [weak self] peer, messageId, deactivateOnAction in
             if let requestOpenMessageFromSearch = self?.requestOpenMessageFromSearch {
-                requestOpenMessageFromSearch(peer, messageId)
+                requestOpenMessageFromSearch(peer, messageId, deactivateOnAction)
             }
         }, addContact: { [weak self] phoneNumber in
             if let requestAddContact = self?.requestAddContact {
                 requestAddContact(phoneNumber)
             }
-        }, peerContextAction: self.peerContextAction, present: { [weak self] c in
-            self?.controller?.present(c, in: .window(.root))
-        }), cancel: { [weak self] in
+        }, peerContextAction: self.peerContextAction, present: { [weak self] c, a in
+            self?.controller?.present(c, in: .window(.root), with: a)
+        }, presentInGlobalOverlay: { [weak self] c, a in
+            self?.controller?.presentInGlobalOverlay(c, with: a)
+        }, navigationController: navigationController)
+        
+        self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: contentNode, cancel: { [weak self] in
             if let requestDeactivateSearch = self?.requestDeactivateSearch {
                 requestDeactivateSearch()
             }
         })
         self.containerNode.accessibilityElementsHidden = true
-        
-        self.searchDisplayController?.containerLayoutUpdated(containerLayout, navigationBarHeight: cleanNavigationBarHeight, transition: .immediate)
-        self.searchDisplayController?.activate(insertSubnode: { [weak self, weak placeholderNode] subnode, isSearchBar in
-            if let strongSelf = self, let strongPlaceholderNode = placeholderNode {
-                if isSearchBar {
-                    strongPlaceholderNode.supernode?.insertSubnode(subnode, aboveSubnode: strongPlaceholderNode)
-                } else {
-                    strongSelf.insertSubnode(subnode, belowSubnode: navigationBar)
-                }
+                
+        return (contentNode.filterContainerNode, { [weak self] in
+            guard let strongSelf = self else {
+                return
             }
-        }, placeholder: placeholderNode)
+            strongSelf.searchDisplayController?.containerLayoutUpdated(containerLayout, navigationBarHeight: cleanNavigationBarHeight, transition: .immediate)
+            strongSelf.searchDisplayController?.activate(insertSubnode: { [weak self, weak placeholderNode] subnode, isSearchBar in
+                if let strongSelf = self, let strongPlaceholderNode = placeholderNode {
+                    if isSearchBar {
+                        strongPlaceholderNode.supernode?.insertSubnode(subnode, aboveSubnode: strongPlaceholderNode)
+                    } else {
+                        strongSelf.insertSubnode(subnode, belowSubnode: navigationBar)
+                    }
+                }
+            }, placeholder: placeholderNode)
+        })
     }
     
-    func deactivateSearch(placeholderNode: SearchBarPlaceholderNode, animated: Bool) {
+    func deactivateSearch(placeholderNode: SearchBarPlaceholderNode, animated: Bool) -> (() -> Void)? {
         if let searchDisplayController = self.searchDisplayController {
             searchDisplayController.deactivate(placeholder: placeholderNode, animated: animated)
             self.searchDisplayController = nil
             self.containerNode.accessibilityElementsHidden = false
+            
+            return { [weak self] in
+                if let strongSelf = self, let (layout, _, _, cleanNavigationBarHeight) = strongSelf.containerLayout {
+                    searchDisplayController.containerLayoutUpdated(layout, navigationBarHeight: cleanNavigationBarHeight, transition: .animated(duration: 0.4, curve: .spring))
+                }
+            }
+        } else {
+            return nil
         }
     }
     

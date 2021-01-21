@@ -172,7 +172,7 @@
     {
         [self performTransitionInWithCompletion:nil];
     }
-    else if (_delayedImage != nil)
+    else if (_delayedImage != nil && [_delayedImage isKindOfClass:[UIImage class]])
     {
         UIImageView *transitionView = [[UIImageView alloc] initWithFrame:_snapshotView.frame];
         transitionView.image = ((UIImageView *)_snapshotView).image;
@@ -228,7 +228,8 @@
             if (self.touchedDown != nil)
                 self.touchedDown();
 
-            [self setActualImageHidden:true animated:false];
+            if (!self.customTouchDownHandling)
+                [self setActualImageHidden:true animated:false];
         }
             break;
             
@@ -240,7 +241,8 @@
             if (self.touchedUp != nil)
                 self.touchedUp();
             
-            [self setActualImageHidden:false animated:false];
+            if (!self.customTouchDownHandling)
+                [self setActualImageHidden:false animated:false];
             
             if (self.interactionEnded != nil)
                 self.interactionEnded();
@@ -279,12 +281,20 @@
 
 - (void)layoutSubviews
 {
+    if (self.bounds.size.width <= 0.0f || _cropRect.size.width <= 0.0f || _originalSize.width <= 0.0f || self.paintingView.image == nil) {
+        return;
+    }
+    
     CGFloat rotation = TGRotationForOrientation(_cropOrientation);
-    _paintingContainerView.transform = CGAffineTransformMakeRotation(rotation);
+    CGAffineTransform transform = CGAffineTransformMakeScale(_cropMirrored && self.applyMirror ? -1.0 : 1.0, 1.0);
+    _paintingContainerView.transform = CGAffineTransformRotate(transform, rotation);
     _paintingContainerView.frame = self.bounds;
     
-    CGFloat width = TGOrientationIsSideward(_cropOrientation, NULL) ? self.frame.size.height : self.frame.size.width;
-    CGFloat ratio = width / _cropRect.size.width;
+    CGFloat width = TGOrientationIsSideward(_cropOrientation, NULL) ? self.bounds.size.height : self.bounds.size.width;
+    CGFloat ratio = 1.0;
+    if (_cropRect.size.width > 0.0) {
+        ratio = width / _cropRect.size.width;
+    }
    
     rotation = _cropRotation;
     

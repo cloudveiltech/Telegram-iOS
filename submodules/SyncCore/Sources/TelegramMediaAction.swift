@@ -38,13 +38,16 @@ public enum TelegramMediaActionType: PostboxCoding, Equatable {
     case historyScreenshot
     case messageAutoremoveTimeoutUpdated(Int32)
     case gameScore(gameId: Int64, score: Int32)
-    case phoneCall(callId: Int64, discardReason: PhoneCallDiscardReason?, duration: Int32?)
+    case phoneCall(callId: Int64, discardReason: PhoneCallDiscardReason?, duration: Int32?, isVideo: Bool)
     case paymentSent(currency: String, totalAmount: Int64)
     case customText(text: String, entities: [MessageTextEntity])
     case botDomainAccessGranted(domain: String)
     case botSentSecureValues(types: [SentSecureValueType])
     case peerJoined
     case phoneNumberRequest
+    case geoProximityReached(from: PeerId, to: PeerId, distance: Int32)
+    case groupPhoneCall(callId: Int64, accessHash: Int64, duration: Int32?)
+    case inviteToGroupPhoneCall(callId: Int64, accessHash: Int64, peerIds: [PeerId])
     
     public init(decoder: PostboxDecoder) {
         let rawValue: Int32 = decoder.decodeInt32ForKey("_rawValue", orElse: 0)
@@ -80,7 +83,7 @@ public enum TelegramMediaActionType: PostboxCoding, Equatable {
                 if let value = decoder.decodeOptionalInt32ForKey("dr") {
                     discardReason = PhoneCallDiscardReason(rawValue: value)
                 }
-                self = .phoneCall(callId: decoder.decodeInt64ForKey("i", orElse: 0), discardReason: discardReason, duration: decoder.decodeInt32ForKey("d", orElse: 0))
+                self = .phoneCall(callId: decoder.decodeInt64ForKey("i", orElse: 0), discardReason: discardReason, duration: decoder.decodeInt32ForKey("d", orElse: 0), isVideo: decoder.decodeInt32ForKey("vc", orElse: 0) != 0)
             case 15:
                 self = .paymentSent(currency: decoder.decodeStringForKey("currency", orElse: ""), totalAmount: decoder.decodeInt64ForKey("ta", orElse: 0))
             case 16:
@@ -95,6 +98,18 @@ public enum TelegramMediaActionType: PostboxCoding, Equatable {
                 self = .peerJoined
             case 20:
                 self = .phoneNumberRequest
+            case 21:
+                self = .geoProximityReached(from: PeerId(decoder.decodeInt64ForKey("fromId", orElse: 0)), to: PeerId(decoder.decodeInt64ForKey("toId", orElse: 0)), distance: (decoder.decodeInt32ForKey("dst", orElse: 0)))
+            case 22:
+                self = .groupPhoneCall(callId: decoder.decodeInt64ForKey("callId", orElse: 0), accessHash: decoder.decodeInt64ForKey("accessHash", orElse: 0), duration: decoder.decodeOptionalInt32ForKey("duration"))
+            case 23:
+                var peerIds: [PeerId] = []
+                if let peerId = decoder.decodeOptionalInt64ForKey("peerId") {
+                    peerIds.append(PeerId(peerId))
+                } else {
+                    peerIds = decoder.decodeInt64ArrayForKey("peerIds").map(PeerId.init)
+                }
+                self = .inviteToGroupPhoneCall(callId: decoder.decodeInt64ForKey("callId", orElse: 0), accessHash: decoder.decodeInt64ForKey("accessHash", orElse: 0), peerIds: peerIds)
             default:
                 self = .unknown
         }
@@ -152,7 +167,7 @@ public enum TelegramMediaActionType: PostboxCoding, Equatable {
                 encoder.encodeInt32(15, forKey: "_rawValue")
                 encoder.encodeString(currency, forKey: "currency")
                 encoder.encodeInt64(totalAmount, forKey: "ta")
-            case let .phoneCall(callId, discardReason, duration):
+            case let .phoneCall(callId, discardReason, duration, isVideo):
                 encoder.encodeInt32(14, forKey: "_rawValue")
                 encoder.encodeInt64(callId, forKey: "i")
                 if let discardReason = discardReason {
@@ -165,6 +180,7 @@ public enum TelegramMediaActionType: PostboxCoding, Equatable {
                 } else {
                     encoder.encodeNil(forKey: "d")
                 }
+                encoder.encodeInt32(isVideo ? 1 : 0, forKey: "vc")
             case let .customText(text, entities):
                 encoder.encodeInt32(16, forKey: "_rawValue")
                 encoder.encodeString(text, forKey: "text")
@@ -179,6 +195,25 @@ public enum TelegramMediaActionType: PostboxCoding, Equatable {
                 encoder.encodeInt32(19, forKey: "_rawValue")
             case .phoneNumberRequest:
                 encoder.encodeInt32(20, forKey: "_rawValue")
+            case let .geoProximityReached(from, to, distance):
+                encoder.encodeInt32(21, forKey: "_rawValue")
+                encoder.encodeInt64(from.toInt64(), forKey: "fromId")
+                encoder.encodeInt64(to.toInt64(), forKey: "toId")
+                encoder.encodeInt32(distance, forKey: "dst")
+            case let .groupPhoneCall(callId, accessHash, duration):
+                encoder.encodeInt32(22, forKey: "_rawValue")
+                encoder.encodeInt64(callId, forKey: "callId")
+                encoder.encodeInt64(accessHash, forKey: "accessHash")
+                if let duration = duration {
+                    encoder.encodeInt32(duration, forKey: "duration")
+                } else {
+                    encoder.encodeNil(forKey: "duration")
+                }
+            case let .inviteToGroupPhoneCall(callId, accessHash, peerIds):
+                encoder.encodeInt32(23, forKey: "_rawValue")
+                encoder.encodeInt64(callId, forKey: "callId")
+                encoder.encodeInt64(accessHash, forKey: "accessHash")
+                encoder.encodeInt64Array(peerIds.map { $0.toInt64() }, forKey: "peerIds")
         }
     }
     
@@ -194,6 +229,10 @@ public enum TelegramMediaActionType: PostboxCoding, Equatable {
                 return [groupId]
             case let .groupMigratedToChannel(channelId):
                 return [channelId]
+            case let .geoProximityReached(from, to, _):
+                return [from, to]
+            case let .inviteToGroupPhoneCall(_, _, peerIds):
+                return peerIds
             default:
                 return []
         }

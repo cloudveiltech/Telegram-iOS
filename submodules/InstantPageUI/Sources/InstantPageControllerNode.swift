@@ -337,7 +337,11 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
         
         let maxBarHeight: CGFloat
         if !layout.safeInsets.top.isZero {
-            maxBarHeight = layout.safeInsets.top + 34.0
+            if let statusBarHeight = layout.statusBarHeight, statusBarHeight > 34.0 {
+                maxBarHeight = statusBarHeight + 34.0
+            } else {
+                maxBarHeight = layout.safeInsets.top + 34.0
+            }
         } else {
             maxBarHeight = (layout.statusBarHeight ?? 0.0) + 44.0
         }
@@ -692,7 +696,11 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
         let maxBarHeight: CGFloat
         let minBarHeight: CGFloat
         if !containerLayout.safeInsets.top.isZero {
-            maxBarHeight = containerLayout.safeInsets.top + 34.0
+            if let statusBarHeight = containerLayout.statusBarHeight, statusBarHeight > 34.0 {
+                maxBarHeight = statusBarHeight + 44.0
+            } else {
+                maxBarHeight = containerLayout.safeInsets.top + 34.0
+            }
             minBarHeight = containerLayout.safeInsets.top + 8.0
         } else {
             maxBarHeight = (containerLayout.statusBarHeight ?? 0.0) + 44.0
@@ -1168,9 +1176,9 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
                         strongSelf.loadProgress.set(1.0)
                         strongSelf.context.sharedContext.openResolvedUrl(result, context: strongSelf.context, urlContext: .generic, navigationController: strongSelf.getNavigationController(), openPeer: { peerId, navigation in
                             switch navigation {
-                                case let .chat(_, subject):
+                                case let .chat(_, subject, peekData):
                                     if let navigationController = strongSelf.getNavigationController() {
-                                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peerId), subject: subject))
+                                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peerId), subject: subject, peekData: peekData))
                                     }
                                 case let .withBotStartPayload(botStart):
                                     if let navigationController = strongSelf.getNavigationController() {
@@ -1228,7 +1236,15 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
         }
         
         if let map = media.media as? TelegramMediaMap {
-            let controller = legacyLocationController(message: nil, mapMedia: map, context: self.context, openPeer: { _ in }, sendLiveLocation: { _, _ in }, stopLiveLocation: { }, openUrl: { _ in })
+            let controllerParams = LocationViewParams(sendLiveLocation: { _ in
+            }, stopLiveLocation: { _ in
+            }, openUrl: { _ in }, openPeer: { _ in
+            }, showAll: false)
+            
+            let peer = TelegramUser(id: PeerId(namespace: Namespaces.Peer.CloudUser, id: 1), accessHash: nil, firstName: "", lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [])
+            let message = Message(stableId: 0, stableVersion: 0, id: MessageId(peerId: peer.id, namespace: 0, id: 0), globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, threadId: nil, timestamp: 0, flags: [], tags: [], globalTags: [], localTags: [], forwardInfo: nil, author: peer, text: "", attributes: [], media: [map], peers: SimpleDictionary(), associatedMessages: SimpleDictionary(), associatedMessageIds: [])
+            
+            let controller = LocationViewController(context: self.context, subject: message, params: controllerParams)
             self.pushController(controller)
             return
         }

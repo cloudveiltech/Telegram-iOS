@@ -411,7 +411,7 @@ private enum UserInfoEntry: ItemListNodeEntry {
             case let .about(theme, peer, text, value):
                 var enabledEntityTypes: EnabledEntityTypes = []
                 if let peer = peer as? TelegramUser, let _ = peer.botInfo {
-                    enabledEntityTypes = [.url, .mention, .hashtag]
+                    enabledEntityTypes = [.allUrl, .mention, .hashtag]
                 }
                 return ItemListTextWithLabelItem(presentationData: presentationData, label: text, text: foldMultipleLineBreaks(value), enabledEntityTypes: enabledEntityTypes, multiline: true, sectionId: self.section, action: nil, longTapAction: {
                     arguments.displayAboutContextMenu(value)
@@ -598,7 +598,7 @@ private func userInfoEntries(account: Account, presentationData: PresentationDat
     
     var callsAvailable = true
     if let cachedUserData = cachedPeerData as? CachedUserData {
-        callsAvailable = cachedUserData.callsAvailable
+        callsAvailable = cachedUserData.voiceCallsAvailable
     }
     
     entries.append(UserInfoEntry.info(presentationData.theme, presentationData.strings, presentationData.dateTimeFormat, peer: user, presence: view.peerPresences[user.id], cachedData: cachedPeerData, state: ItemListAvatarAndNameInfoItemState(editingName: editingName, updatingName: nil), displayCall: user.botInfo == nil && callsAvailable))
@@ -662,11 +662,11 @@ private func userInfoEntries(account: Account, presentationData: PresentationDat
         }
         entries.append(UserInfoEntry.about(presentationData.theme, peer, aboutTitle, aboutValue))
     } else if let cachedUserData = cachedPeerData as? CachedUserData, let about = cachedUserData.about, !about.isEmpty {
-        //CloudVeil start
-        if !MainController.shared.disableBio {
-            entries.append(UserInfoEntry.about(presentationData.theme, peer, aboutTitle, about))
-        }
-        //CloudVeil end
+		//CloudVeil start
+		if !MainController.shared.disableBio {
+			entries.append(UserInfoEntry.about(presentationData.theme, peer, aboutTitle, about))
+		}
+		//CloudVeil end
     }
     
     if !isEditing {
@@ -693,11 +693,11 @@ private func userInfoEntries(account: Account, presentationData: PresentationDat
         }
         
         if let peer = peer as? TelegramUser, peer.botInfo == nil {
-            //CloudVeil start
-            if MainController.shared.isSecretChatAvailable {
-                entries.append(UserInfoEntry.startSecretChat(presentationData.theme, presentationData.strings.UserInfo_StartSecretChat))
-            }
-            //CloudVeil end
+			//CloudVeil start
+			if MainController.shared.isSecretChatAvailable {
+				entries.append(UserInfoEntry.startSecretChat(presentationData.theme, presentationData.strings.UserInfo_StartSecretChat))
+			}
+			//CloudVeil end
         }
         
         if let peer = peer as? TelegramUser, let botInfo = peer.botInfo {
@@ -868,7 +868,7 @@ public func userInfoController(context: AccountContext, peerId: PeerId, mode: Pe
         return .single((view, view.cachedData))
     }))
     
-    let requestCallImpl: () -> Void = {
+    let requestCallImpl: (Bool) -> Void = { isVideo in
         let _ = (peerView.get()
             |> take(1)
             |> deliverOnMainQueue).start(next: { view in
@@ -881,24 +881,8 @@ public func userInfoController(context: AccountContext, peerId: PeerId, mode: Pe
                 presentControllerImpl?(textAlertController(context: context, title: presentationData.strings.Call_ConnectionErrorTitle, text: presentationData.strings.Call_PrivacyErrorMessage(peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
                 return
             }
-            
-            let callResult = context.sharedContext.callManager?.requestCall(account: context.account, peerId: peer.id, endCurrentIfAny: false)
-            if let callResult = callResult, case let .alreadyInProgress(currentPeerId) = callResult {
-                if currentPeerId == peer.id {
-                    context.sharedContext.navigateToCurrentCall()
-                } else {
-                    let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-                    let _ = (context.account.postbox.transaction { transaction -> (Peer?, Peer?) in
-                        return (transaction.getPeer(peer.id), transaction.getPeer(currentPeerId))
-                        } |> deliverOnMainQueue).start(next: { peer, current in
-                            if let peer = peer, let current = current {
-                                presentControllerImpl?(textAlertController(context: context, title: presentationData.strings.Call_CallInProgressTitle, text: presentationData.strings.Call_CallInProgressMessage(current.compactDisplayTitle, peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
-                                    let _ = context.sharedContext.callManager?.requestCall(account: context.account, peerId: peer.id, endCurrentIfAny: true)
-                                })]), nil)
-                            }
-                        })
-                }
-            }
+                
+            context.requestCall(peerId: peer.id, isVideo: isVideo, completion: {})
         })
     }
     
@@ -919,13 +903,13 @@ public func userInfoController(context: AccountContext, peerId: PeerId, mode: Pe
             if peer.profileImageRepresentations.isEmpty {
                 return
             }
-            
-            //CloudVeil start
-            if MainController.shared.disableProfilePhoto {
-                return
-            }
-            //CloudVeil end
-            
+			
+			//CloudVeil start
+			if MainController.shared.disableProfilePhoto {
+				return
+			}
+			//CloudVeil end
+			
             let galleryController = AvatarGalleryController(context: context, peer: peer, remoteEntries: cachedAvatarEntries.with { $0 }, replaceRootController: { controller, ready in
             })
             hiddenAvatarRepresentationDisposable.set((galleryController.hiddenMedia |> deliverOnMainQueue).start(next: { entry in
@@ -1126,7 +1110,7 @@ public func userInfoController(context: AccountContext, peerId: PeerId, mode: Pe
     }, displayCopyContextMenu: { tag, phone in
         displayCopyContextMenuImpl?(tag, phone)
     }, call: {
-        requestCallImpl()
+        requestCallImpl(false)
     }, openCallMenu: { number in
         let _ = (getUserPeer(postbox: context.account.postbox, peerId: peerId)
         |> deliverOnMainQueue).start(next: { peer, _ in
@@ -1140,7 +1124,7 @@ public func userInfoController(context: AccountContext, peerId: PeerId, mode: Pe
                     ActionSheetItemGroup(items: [
                         ActionSheetButtonItem(title: presentationData.strings.UserInfo_TelegramCall, action: {
                             dismissAction()
-                            requestCallImpl()
+                            requestCallImpl(false)
                         }),
                         ActionSheetButtonItem(title: presentationData.strings.UserInfo_PhoneCall, action: {
                             dismissAction()

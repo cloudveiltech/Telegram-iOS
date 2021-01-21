@@ -6,18 +6,36 @@ import AsyncDisplayKit
 private final class AudioWaveformNodeParameters: NSObject {
     let waveform: AudioWaveform?
     let color: UIColor?
+    let gravity: AudioWaveformNode.Gravity?
+    let progress: CGFloat?
     
-    init(waveform: AudioWaveform?, color: UIColor?) {
+    init(waveform: AudioWaveform?, color: UIColor?, gravity: AudioWaveformNode.Gravity?, progress: CGFloat?) {
         self.waveform = waveform
         self.color = color
+        self.gravity = gravity
+        self.progress = progress
         
         super.init()
     }
 }
 
 final class AudioWaveformNode: ASDisplayNode {
+    enum Gravity {
+        case bottom
+        case center
+    }
+    
     private var waveform: AudioWaveform?
     private var color: UIColor?
+    private var gravity: Gravity?
+    
+    var progress: CGFloat? {
+        didSet {
+            if self.progress != oldValue {
+                self.setNeedsDisplay()
+            }
+        }
+    }
     
     override init() {
         super.init()
@@ -38,20 +56,20 @@ final class AudioWaveformNode: ASDisplayNode {
         }
     }
     
-    func setup(color: UIColor, waveform: AudioWaveform?) {
-        if self.color == nil || !self.color!.isEqual(color) || self.waveform != waveform {
+    func setup(color: UIColor, gravity: Gravity, waveform: AudioWaveform?) {
+        if self.color == nil || !self.color!.isEqual(color) || self.waveform != waveform || self.gravity != gravity {
             self.color = color
+            self.gravity = gravity
             self.waveform = waveform
             self.setNeedsDisplay()
         }
     }
     
     override func drawParameters(forAsyncLayer layer: _ASDisplayLayer) -> NSObjectProtocol? {
-        return AudioWaveformNodeParameters(waveform: self.waveform, color: self.color)
+        return AudioWaveformNodeParameters(waveform: self.waveform, color: self.color, gravity: self.gravity, progress: self.progress)
     }
     
     @objc override public class func draw(_ bounds: CGRect, withParameters parameters: Any?, isCancelled: () -> Bool, isRasterizing: Bool) {
-        
         let context = UIGraphicsGetCurrentContext()!
         
         if !isRasterizing {
@@ -111,12 +129,34 @@ final class AudioWaveformNode: ASDisplayNode {
                             sampleHeight = peakHeight
                         }
                         
-                        let adjustedSampleHeight = sampleHeight - sampleWidth
-                        if adjustedSampleHeight.isLessThanOrEqualTo(sampleWidth) {
-                            context.fillEllipse(in: CGRect(x: offset, y: size.height - sampleWidth, width: sampleWidth, height: sampleWidth))
-                            context.fill(CGRect(x: offset, y: size.height - halfSampleWidth, width: sampleWidth, height: halfSampleWidth))
+                        let diff: CGFloat
+                        let samplePosition = CGFloat(i) / CGFloat(numSamples)
+                        if let position = parameters.progress, abs(position - samplePosition) < 0.01  {
+                            diff = sampleWidth * 1.5
                         } else {
-                            let adjustedRect = CGRect(x: offset, y: size.height - adjustedSampleHeight, width: sampleWidth, height: adjustedSampleHeight)
+                            diff = sampleWidth * 1.5
+                        }
+                        
+                        let gravityMultiplierY: CGFloat = {
+                            switch parameters.gravity ?? .bottom {
+                            case .bottom:
+                                return 1
+                            case .center:
+                                return 0.5
+                            }
+                        }()
+                        
+                        let adjustedSampleHeight = sampleHeight - diff
+                        if adjustedSampleHeight.isLessThanOrEqualTo(sampleWidth) {
+                            context.fillEllipse(in: CGRect(x: offset, y: (size.height - sampleWidth) * gravityMultiplierY, width: sampleWidth, height: sampleWidth))
+                            context.fill(CGRect(x: offset, y: (size.height - halfSampleWidth) * gravityMultiplierY, width: sampleWidth, height: halfSampleWidth))
+                        } else {
+                            let adjustedRect = CGRect(
+                                x: offset,
+                                y: (size.height - adjustedSampleHeight) * gravityMultiplierY,
+                                width: sampleWidth,
+                                height: adjustedSampleHeight
+                            )
                             context.fill(adjustedRect)
                             context.fillEllipse(in: CGRect(x: adjustedRect.minX, y: adjustedRect.minY - halfSampleWidth, width: sampleWidth, height: sampleWidth))
                             context.fillEllipse(in: CGRect(x: adjustedRect.minX, y: adjustedRect.maxY - halfSampleWidth, width: sampleWidth, height: sampleWidth))

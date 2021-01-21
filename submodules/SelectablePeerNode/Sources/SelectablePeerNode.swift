@@ -114,7 +114,7 @@ public final class SelectablePeerNode: ASDisplayNode {
         
         self.textNode = ASTextNode()
         self.textNode.isUserInteractionEnabled = false
-        self.textNode.displaysAsynchronously = true
+        self.textNode.displaysAsynchronously = false
         
         self.onlineNode = PeerOnlineMarkerNode()
         
@@ -149,6 +149,9 @@ public final class SelectablePeerNode: ASDisplayNode {
         if peer.peerId == context.account.peerId {
             text = strings.DialogList_SavedMessages
             overrideImage = .savedMessagesIcon
+        } else if peer.peerId.isReplies {
+            text = strings.DialogList_Replies
+            overrideImage = .repliesIcon
         } else {
             text = mainPeer.compactDisplayTitle
             if mainPeer.isDeleted {
@@ -160,10 +163,10 @@ public final class SelectablePeerNode: ASDisplayNode {
         self.avatarNode.setPeer(context: context, theme: theme, peer: mainPeer, overrideImage: overrideImage, emptyColor: self.theme.avatarPlaceholderColor, synchronousLoad: synchronousLoad)
         
         let onlineLayout = self.onlineNode.asyncLayout()
-        let (onlineSize, onlineApply) = onlineLayout(online)
+        let (onlineSize, onlineApply) = onlineLayout(online, false)
         let _ = onlineApply(false)
         
-        self.onlineNode.setImage(PresentationResourcesChatList.recentStatusOnlineIcon(theme, state: .panel))
+        self.onlineNode.setImage(PresentationResourcesChatList.recentStatusOnlineIcon(theme, state: .panel), color: nil, transition: .immediate)
         self.onlineNode.frame = CGRect(origin: CGPoint(), size: onlineSize)
         
         self.setNeedsLayout()

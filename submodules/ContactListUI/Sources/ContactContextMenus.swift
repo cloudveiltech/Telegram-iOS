@@ -11,6 +11,7 @@ import AlertUI
 import PresentationDataUtils
 import OverlayStatusController
 import LocalizedPeerData
+import CloudVeilSecurityManager
 
 func contactContextMenuItems(context: AccountContext, peerId: PeerId, contactsController: ContactsController?) -> Signal<[ContextMenuItem], NoError> {
     let strings = context.sharedContext.currentPresentationData.with({ $0 }).strings
@@ -21,7 +22,7 @@ func contactContextMenuItems(context: AccountContext, peerId: PeerId, contactsCo
         
         items.append(.action(ContextMenuActionItem(text: strings.ContactList_Context_SendMessage, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Message"), color: theme.contextMenu.primaryColor) }, action: { _, f in
             if let contactsController = contactsController, let navigationController = contactsController.navigationController as? NavigationController {
-                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId)))
+                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId), peekData: nil))
             }
             f(.default)
         })))
@@ -31,6 +32,9 @@ func contactContextMenuItems(context: AccountContext, peerId: PeerId, contactsCo
             canStartSecretChat = false
         }
         
+		//CloudVeil start
+		canStartSecretChat = canStartSecretChat && MainController.shared.isSecretChatAvailable
+		//CloudVeil end
         if canStartSecretChat {
             items.append(.action(ContextMenuActionItem(text: strings.ContactList_Context_StartSecretChat, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Timer"), color: theme.contextMenu.primaryColor) }, action: { _, f in
                 let _ = (context.account.postbox.transaction { transaction -> PeerId? in
@@ -58,7 +62,7 @@ func contactContextMenuItems(context: AccountContext, peerId: PeerId, contactsCo
                 |> deliverOnMainQueue).start(next: { currentPeerId in
                     if let currentPeerId = currentPeerId {
                         if let contactsController = contactsController, let navigationController = (contactsController.navigationController as? NavigationController) {
-                            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(currentPeerId)))
+                            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(currentPeerId), peekData: nil))
                         }
                     } else {
                         var createSignal = createSecretChat(account: context.account, peerId: peerId)
@@ -93,7 +97,7 @@ func contactContextMenuItems(context: AccountContext, peerId: PeerId, contactsCo
                         createSecretChatDisposable.set((createSignal
                         |> deliverOnMainQueue).start(next: { peerId in
                             if let navigationController = (contactsController?.navigationController as? NavigationController) {
-                                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId)))
+                                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId), peekData: nil))
                             }
                         }, error: { _ in
                             if let contactsController = contactsController {
@@ -111,33 +115,23 @@ func contactContextMenuItems(context: AccountContext, peerId: PeerId, contactsCo
         if let user = peer as? TelegramUser, let cachedUserData = transaction.getPeerCachedData(peerId: peerId) as? CachedUserData, user.flags.contains(.isSupport) || cachedUserData.callsPrivate {
             canCall = false
         }
+        var canVideoCall = false
+        if canCall {
+            if let cachedUserData = transaction.getPeerCachedData(peerId: peerId) as? CachedUserData {
+                if cachedUserData.videoCallsAvailable {
+                    canVideoCall = true
+                }
+            }
+        }
         
         if canCall {
             items.append(.action(ContextMenuActionItem(text: strings.ContactList_Context_Call, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Call"), color: theme.contextMenu.primaryColor) }, action: { _, f in
                 if let contactsController = contactsController {
-                    let callResult = context.sharedContext.callManager?.requestCall(account: context.account, peerId: peerId, endCurrentIfAny: false)
-                    if let callResult = callResult, case let .alreadyInProgress(currentPeerId) = callResult {
-                        if currentPeerId == peerId {
-                            context.sharedContext.navigateToCurrentCall()
-                        } else {
-                            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-                            let _ = (context.account.postbox.transaction { transaction -> (Peer?, Peer?) in
-                                return (transaction.getPeer(peerId), transaction.getPeer(currentPeerId))
-                            }
-                            |> deliverOnMainQueue).start(next: { [weak contactsController] peer, current in
-                                if let contactsController = contactsController, let peer = peer, let current = current {
-                                    contactsController.present(textAlertController(context: context, title: presentationData.strings.Call_CallInProgressTitle, text: presentationData.strings.Call_CallInProgressMessage(current.compactDisplayTitle, peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
-                                        let _ = context.sharedContext.callManager?.requestCall(account: context.account, peerId: peerId, endCurrentIfAny: true)
-                                    })]), in: .window(.root))
-                                }
-                            })
-                        }
-                    }
+                    context.requestCall(peerId: peerId, isVideo: false, completion: {})
                 }
                 f(.default)
             })))
         }
-        
         return items
     }
 }

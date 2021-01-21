@@ -208,11 +208,13 @@ private final class LoadingShimmerNode: ASDisplayNode {
 public struct ItemListPeerItemEditing: Equatable {
     public var editable: Bool
     public var editing: Bool
+    public var canBeReordered: Bool
     public var revealed: Bool?
     
-    public init(editable: Bool, editing: Bool, revealed: Bool?) {
+    public init(editable: Bool, editing: Bool, canBeReordered: Bool = false, revealed: Bool?) {
         self.editable = editable
         self.editing = editing
+        self.canBeReordered = canBeReordered
         self.revealed = revealed
     }
 }
@@ -223,8 +225,14 @@ public enum ItemListPeerItemHeight {
 }
 
 public enum ItemListPeerItemText {
+    public enum TextColor {
+        case secondary
+        case accent
+        case constructive
+    }
+    
     case presence
-    case text(String)
+    case text(String, TextColor)
     case none
 }
 
@@ -274,6 +282,7 @@ public enum ItemListPeerItemRevealOptionType {
     case neutral
     case warning
     case destructive
+    case accent
 }
 
 public struct ItemListPeerItemRevealOption {
@@ -321,6 +330,7 @@ public final class ItemListPeerItem: ListViewItem, ItemListItem {
     let revealOptions: ItemListPeerItemRevealOptions?
     let switchValue: ItemListPeerItemSwitch?
     let enabled: Bool
+    let highlighted: Bool
     public let selectable: Bool
     public let sectionId: ItemListSectionId
     let action: (() -> Void)?
@@ -337,7 +347,7 @@ public final class ItemListPeerItem: ListViewItem, ItemListItem {
     let displayDecorations: Bool
     let disableInteractiveTransitionIfNecessary: Bool
     
-    public init(presentationData: ItemListPresentationData, dateTimeFormat: PresentationDateTimeFormat, nameDisplayOrder: PresentationPersonNameOrder, context: AccountContext, peer: Peer, height: ItemListPeerItemHeight = .peerList, aliasHandling: ItemListPeerItemAliasHandling = .standard, nameColor: ItemListPeerItemNameColor = .primary, nameStyle: ItemListPeerItemNameStyle = .distinctBold, presence: PeerPresence?, text: ItemListPeerItemText, label: ItemListPeerItemLabel, editing: ItemListPeerItemEditing, revealOptions: ItemListPeerItemRevealOptions? = nil, switchValue: ItemListPeerItemSwitch?, enabled: Bool, selectable: Bool, sectionId: ItemListSectionId, action: (() -> Void)?, setPeerIdWithRevealedOptions: @escaping (PeerId?, PeerId?) -> Void, removePeer: @escaping (PeerId) -> Void, toggleUpdated: ((Bool) -> Void)? = nil, contextAction: ((ASDisplayNode, ContextGesture?) -> Void)? = nil, hasTopStripe: Bool = true, hasTopGroupInset: Bool = true, noInsets: Bool = false, tag: ItemListItemTag? = nil, header: ListViewItemHeader? = nil, shimmering: ItemListPeerItemShimmering? = nil, displayDecorations: Bool = true, disableInteractiveTransitionIfNecessary: Bool = false) {
+    public init(presentationData: ItemListPresentationData, dateTimeFormat: PresentationDateTimeFormat, nameDisplayOrder: PresentationPersonNameOrder, context: AccountContext, peer: Peer, height: ItemListPeerItemHeight = .peerList, aliasHandling: ItemListPeerItemAliasHandling = .standard, nameColor: ItemListPeerItemNameColor = .primary, nameStyle: ItemListPeerItemNameStyle = .distinctBold, presence: PeerPresence?, text: ItemListPeerItemText, label: ItemListPeerItemLabel, editing: ItemListPeerItemEditing, revealOptions: ItemListPeerItemRevealOptions? = nil, switchValue: ItemListPeerItemSwitch?, enabled: Bool, highlighted: Bool = false, selectable: Bool, sectionId: ItemListSectionId, action: (() -> Void)?, setPeerIdWithRevealedOptions: @escaping (PeerId?, PeerId?) -> Void, removePeer: @escaping (PeerId) -> Void, toggleUpdated: ((Bool) -> Void)? = nil, contextAction: ((ASDisplayNode, ContextGesture?) -> Void)? = nil, hasTopStripe: Bool = true, hasTopGroupInset: Bool = true, noInsets: Bool = false, tag: ItemListItemTag? = nil, header: ListViewItemHeader? = nil, shimmering: ItemListPeerItemShimmering? = nil, displayDecorations: Bool = true, disableInteractiveTransitionIfNecessary: Bool = false) {
         self.presentationData = presentationData
         self.dateTimeFormat = dateTimeFormat
         self.nameDisplayOrder = nameDisplayOrder
@@ -354,6 +364,7 @@ public final class ItemListPeerItem: ListViewItem, ItemListItem {
         self.revealOptions = revealOptions
         self.switchValue = switchValue
         self.enabled = enabled
+        self.highlighted = highlighted
         self.selectable = selectable
         self.sectionId = sectionId
         self.action = action
@@ -457,7 +468,8 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
     private var layoutParams: (ItemListPeerItem, ListViewItemLayoutParams, ItemListNeighbors, Bool)?
     
     private var editableControlNode: ItemListEditableControlNode?
-    
+    private var reorderControlNode: ItemListEditableReorderControlNode?
+        
     override public var canBeSelected: Bool {
         if self.editableControlNode != nil || self.disabledOverlayNode != nil {
             return false
@@ -487,7 +499,7 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
         self.containerNode = ContextControllerSourceNode()
         
         self.avatarNode = AvatarNode(font: avatarFont)
-        self.avatarNode.isLayerBacked = !smartInvertColorsEnabled()
+        //self.avatarNode.isLayerBacked = !smartInvertColorsEnabled()
         
         self.titleNode = TextNode()
         self.titleNode.isUserInteractionEnabled = false
@@ -557,6 +569,7 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
         let makeStatusLayout = TextNode.asyncLayout(self.statusNode)
         let makeLabelLayout = TextNode.asyncLayout(self.labelNode)
         let editableControlLayout = ItemListEditableControlNode.asyncLayout(self.editableControlNode)
+        let reorderControlLayout = ItemListEditableReorderControlNode.asyncLayout(self.reorderControlNode)
         
         var currentDisabledOverlayNode = self.disabledOverlayNode
         
@@ -622,6 +635,9 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
                             case .destructive:
                                 color = item.presentationData.theme.list.itemDisclosureActions.destructive.fillColor
                                 textColor = item.presentationData.theme.list.itemDisclosureActions.destructive.foregroundColor
+                            case .accent:
+                                color = item.presentationData.theme.list.itemDisclosureActions.accent.fillColor
+                                textColor = item.presentationData.theme.list.itemDisclosureActions.accent.foregroundColor
                         }
                         mappedOptions.append(ItemListRevealOption(key: index, title: option.title, icon: .none, color: color, textColor: textColor))
                         index += 1
@@ -677,6 +693,8 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
             
             if item.peer.id == item.context.account.peerId, case .threatSelfAsSaved = item.aliasHandling {
                 titleAttributedString = NSAttributedString(string: item.presentationData.strings.DialogList_SavedMessages, font: currentBoldFont, textColor: titleColor)
+            } else if item.peer.id.isReplies {
+                titleAttributedString = NSAttributedString(string: item.presentationData.strings.DialogList_Replies, font: currentBoldFont, textColor: titleColor)
             } else if let user = item.peer as? TelegramUser {
                 if let firstName = user.firstName, let lastName = user.lastName, !firstName.isEmpty, !lastName.isEmpty {
                     let string = NSMutableAttributedString()
@@ -721,8 +739,17 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
                 } else {
                     statusAttributedString = NSAttributedString(string: item.presentationData.strings.LastSeen_Offline, font: statusFont, textColor: item.presentationData.theme.list.itemSecondaryTextColor)
                 }
-            case let .text(text):
-                statusAttributedString = NSAttributedString(string: text, font: statusFont, textColor: item.presentationData.theme.list.itemSecondaryTextColor)
+            case let .text(text, textColor):
+                let textColorValue: UIColor
+                switch textColor {
+                case .secondary:
+                    textColorValue = item.presentationData.theme.list.itemSecondaryTextColor
+                case .accent:
+                    textColorValue = item.presentationData.theme.list.itemAccentColor
+                case .constructive:
+                    textColorValue = item.presentationData.theme.list.itemDisclosureActions.constructive.fillColor
+                }
+                statusAttributedString = NSAttributedString(string: text, font: statusFont, textColor: textColorValue)
             case .none:
                 break
             }
@@ -753,12 +780,20 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
             }
             
             var editableControlSizeAndApply: (CGFloat, (CGFloat) -> ItemListEditableControlNode)?
+            var reorderControlSizeAndApply: (CGFloat, (CGFloat, Bool, ContainedViewLayoutTransition) -> ItemListEditableReorderControlNode)?
             
             let editingOffset: CGFloat
+            var reorderInset: CGFloat = 0.0
             if item.editing.editing {
                 let sizeAndApply = editableControlLayout(item.presentationData.theme, false)
                 editableControlSizeAndApply = sizeAndApply
                 editingOffset = sizeAndApply.0
+                
+                if item.editing.canBeReordered {
+                    let reorderSizeAndApply = reorderControlLayout(item.presentationData.theme)
+                    reorderControlSizeAndApply = reorderSizeAndApply
+                    reorderInset = reorderSizeAndApply.0
+                }
             } else {
                 editingOffset = 0.0
             }
@@ -795,6 +830,8 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
                     labelAttributedString = NSAttributedString(string: text, font: badgeFont, textColor: item.presentationData.theme.list.itemCheckColors.foregroundColor)
                     labelInset += 15.0
             }
+            
+            labelInset += reorderInset
             
             let (labelLayout, labelApply) = makeLabelLayout(TextNodeLayoutArguments(attributedString: labelAttributedString, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: params.width - leftInset - 16.0 - editingOffset - rightInset, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
             
@@ -923,6 +960,23 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
                         })
                     }
                     
+                    if let reorderControlSizeAndApply = reorderControlSizeAndApply {
+                        if strongSelf.reorderControlNode == nil {
+                            let reorderControlNode = reorderControlSizeAndApply.1(layout.contentSize.height, false, .immediate)
+                            strongSelf.reorderControlNode = reorderControlNode
+                            strongSelf.addSubnode(reorderControlNode)
+                            reorderControlNode.alpha = 0.0
+                            transition.updateAlpha(node: reorderControlNode, alpha: 1.0)
+                        }
+                        let reorderControlFrame = CGRect(origin: CGPoint(x: params.width + revealOffset - params.rightInset - reorderControlSizeAndApply.0, y: 0.0), size: CGSize(width: reorderControlSizeAndApply.0, height: layout.contentSize.height))
+                        strongSelf.reorderControlNode?.frame = reorderControlFrame
+                    } else if let reorderControlNode = strongSelf.reorderControlNode {
+                        strongSelf.reorderControlNode = nil
+                        transition.updateAlpha(node: reorderControlNode, alpha: 0.0, completion: { [weak reorderControlNode] _ in
+                            reorderControlNode?.removeFromSupernode()
+                        })
+                    }
+                    
                     let _ = titleApply()
                     let _ = statusApply()
                     let _ = labelApply()
@@ -942,7 +996,7 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
                         strongSelf.insertSubnode(strongSelf.maskNode, at: 3)
                     }
                     
-                    let hasCorners = itemListHasRoundedBlockLayout(params)
+                    let hasCorners = itemListHasRoundedBlockLayout(params) && !item.noInsets
                     var hasTopCorners = false
                     var hasBottomCorners = false
                     switch neighbors.top {
@@ -1011,13 +1065,13 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
                         strongSelf.checkNode = nil
                     }
                     
-                    var rightLabelInset: CGFloat = 15.0
+                    var rightLabelInset: CGFloat = 15.0 + params.rightInset
                     
                     if let updatedLabelArrowNode = updatedLabelArrowNode {
                         strongSelf.labelArrowNode = updatedLabelArrowNode
                         strongSelf.containerNode.addSubnode(updatedLabelArrowNode)
                         if let image = updatedLabelArrowNode.image {
-                            let labelArrowNodeFrame = CGRect(origin: CGPoint(x: params.width - params.rightInset - rightLabelInset - image.size.width + 8.0, y: floor((contentSize.height - image.size.height) / 2.0)), size: image.size)
+                            let labelArrowNodeFrame = CGRect(origin: CGPoint(x: params.width - rightLabelInset - image.size.width + 8.0, y: floor((contentSize.height - image.size.height) / 2.0)), size: image.size)
                             transition.updateFrame(node: updatedLabelArrowNode, frame: labelArrowNodeFrame)
                             rightLabelInset += 19.0
                         }
@@ -1049,10 +1103,13 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
                     
                     strongSelf.labelBadgeNode.frame = CGRect(origin: CGPoint(x: revealOffset + params.width - rightLabelInset - badgeWidth, y: labelFrame.minY - 1.0), size: CGSize(width: badgeWidth, height: badgeDiameter))
                     
-                    transition.updateFrame(node: strongSelf.avatarNode, frame: CGRect(origin: CGPoint(x: params.leftInset + revealOffset + editingOffset + 15.0, y: floorToScreenPixels((layout.contentSize.height - avatarSize) / 2.0)), size: CGSize(width: avatarSize, height: avatarSize)))
+                    let avatarFrame = CGRect(origin: CGPoint(x: params.leftInset + revealOffset + editingOffset + 15.0, y: floorToScreenPixels((layout.contentSize.height - avatarSize) / 2.0)), size: CGSize(width: avatarSize, height: avatarSize))
+                    transition.updateFrame(node: strongSelf.avatarNode, frame: avatarFrame)
                     
                     if item.peer.id == item.context.account.peerId, case .threatSelfAsSaved = item.aliasHandling {
                         strongSelf.avatarNode.setPeer(context: item.context, theme: item.presentationData.theme, peer: item.peer, overrideImage: .savedMessagesIcon, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, synchronousLoad: synchronousLoad)
+                    } else if item.peer.id.isReplies {
+                        strongSelf.avatarNode.setPeer(context: item.context, theme: item.presentationData.theme, peer: item.peer, overrideImage: .repliesIcon, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, synchronousLoad: synchronousLoad)
                     } else {
                         var overrideImage: AvatarNodeImageOverride?
                         if item.peer.isDeleted {
@@ -1114,15 +1171,25 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
                     if let revealed = item.editing.revealed {
                         strongSelf.setRevealOptionsOpened(revealed, animated: animated)
                     }
+                    
+                    strongSelf.updateIsHighlighted(transition: transition)
                 }
             })
         }
     }
     
-    override public func setHighlighted(_ highlighted: Bool, at point: CGPoint, animated: Bool) {
-        super.setHighlighted(highlighted, at: point, animated: animated)
-        
-        if highlighted {
+    var isHighlighted = false
+    
+    var reallyHighlighted: Bool {
+        var reallyHighlighted = self.isHighlighted
+        if let (item, _, _, _) = self.layoutParams, item.highlighted {
+            reallyHighlighted = true
+        }
+        return reallyHighlighted
+    }
+    
+    func updateIsHighlighted(transition: ContainedViewLayoutTransition) {
+        if self.reallyHighlighted {
             self.highlightedBackgroundNode.alpha = 1.0
             if self.highlightedBackgroundNode.supernode == nil {
                 var anchorNode: ASDisplayNode?
@@ -1141,20 +1208,28 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
             }
         } else {
             if self.highlightedBackgroundNode.supernode != nil {
-                if animated {
+                if transition.isAnimated {
                     self.highlightedBackgroundNode.layer.animateAlpha(from: self.highlightedBackgroundNode.alpha, to: 0.0, duration: 0.4, completion: { [weak self] completed in
                         if let strongSelf = self {
                             if completed {
                                 strongSelf.highlightedBackgroundNode.removeFromSupernode()
                             }
                         }
-                        })
+                    })
                     self.highlightedBackgroundNode.alpha = 0.0
                 } else {
                     self.highlightedBackgroundNode.removeFromSupernode()
                 }
             }
         }
+    }
+    
+    override public func setHighlighted(_ highlighted: Bool, at point: CGPoint, animated: Bool) {
+        super.setHighlighted(highlighted, at: point, animated: animated)
+             
+        self.isHighlighted = highlighted
+            
+        self.updateIsHighlighted(transition: (animated && !highlighted) ? .animated(duration: 0.3, curve: .easeInOut) : .immediate)
     }
     
     override public func animateInsertion(_ currentTimestamp: Double, duration: Double, short: Bool) {
@@ -1264,6 +1339,13 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
         if let shimmerNode = self.shimmerNode {
             shimmerNode.updateAbsoluteRect(rect, within: containerSize)
         }
+    }
+    
+    override public func isReorderable(at point: CGPoint) -> Bool {
+        if let reorderControlNode = self.reorderControlNode, reorderControlNode.frame.contains(point), !self.isDisplayingRevealedOptions {
+            return true
+        }
+        return false
     }
 }
 

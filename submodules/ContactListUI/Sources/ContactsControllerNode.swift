@@ -15,18 +15,6 @@ import SearchUI
 import AppBundle
 import ContextUI
 
-private final class ContactsControllerNodeView: UITracingLayerView, PreviewingHostView {
-    var previewingDelegate: PreviewingHostViewDelegate? {
-        return PreviewingHostViewDelegate(controllerForLocation: { [weak self] sourceView, point in
-            return self?.controller?.previewingController(from: sourceView, for: point)
-        }, commitController: { [weak self] controller in
-            self?.controller?.previewingCommit(controller)
-        })
-    }
-    
-    weak var controller: ContactsController?
-}
-
 private final class ContextControllerContentSourceImpl: ContextControllerContentSource {
     let controller: ViewController
     weak var sourceNode: ASDisplayNode?
@@ -67,6 +55,7 @@ final class ContactsControllerNode: ASDisplayNode {
     
     var requestDeactivateSearch: (() -> Void)?
     var requestOpenPeerFromSearch: ((ContactListPeer) -> Void)?
+    var requestAddContact: ((String) -> Void)?
     var openPeopleNearby: (() -> Void)?
     var openInvite: (() -> Void)?
     
@@ -84,9 +73,10 @@ final class ContactsControllerNode: ASDisplayNode {
         var addNearbyImpl: (() -> Void)?
         var inviteImpl: (() -> Void)?
         let options = [/*CLoudVeil disabled
-        ContactListAdditionalOption(title: presentationData.strings.Contacts_AddPeopleNearby, icon: .generic(UIImage(bundleImageName: "Contact List/PeopleNearbyIcon")!), action: {
+		ContactListAdditionalOption(title: presentationData.strings.Contacts_AddPeopleNearby, icon: .generic(UIImage(bundleImageName: "Contact List/PeopleNearbyIcon")!), action: {
             addNearbyImpl?()
-        }),*/ ContactListAdditionalOption(title: presentationData.strings.Contacts_InviteFriends, icon: .generic(UIImage(bundleImageName: "Contact List/AddMemberIcon")!), action: {
+        }),*/
+			ContactListAdditionalOption(title: presentationData.strings.Contacts_InviteFriends, icon: .generic(UIImage(bundleImageName: "Contact List/AddMemberIcon")!), action: {
             inviteImpl?()
         })]
         
@@ -109,7 +99,7 @@ final class ContactsControllerNode: ASDisplayNode {
         super.init()
         
         self.setViewBlock({
-            return ContactsControllerNodeView()
+            return UITracingLayerView()
         })
         
         self.backgroundColor = self.presentationData.theme.chatList.backgroundColor
@@ -132,8 +122,8 @@ final class ContactsControllerNode: ASDisplayNode {
         
         addNearbyImpl = { [weak self] in
             if let strongSelf = self {
-                //CloudVeil disabled
-             //   strongSelf.openPeopleNearby?()
+				//CloudVeil disabled
+				//   strongSelf.openPeopleNearby?()
             }
         }
         
@@ -150,12 +140,6 @@ final class ContactsControllerNode: ASDisplayNode {
     
     deinit {
         self.presentationDataDisposable?.dispose()
-    }
-    
-    override func didLoad() {
-        super.didLoad()
-        
-        (self.view as? ContactsControllerNodeView)?.controller = self.controller
     }
     
     private func updateThemeAndStrings() {
@@ -184,7 +168,7 @@ final class ContactsControllerNode: ASDisplayNode {
             searchDisplayController.containerLayoutUpdated(layout, navigationBarHeight: navigationBarHeight, transition: transition)
         }
         
-        self.contactListNode.containerLayoutUpdated(ContainerViewLayout(size: layout.size, metrics: layout.metrics, deviceMetrics: layout.deviceMetrics, intrinsicInsets: insets, safeInsets: layout.safeInsets, statusBarHeight: layout.statusBarHeight, inputHeight: layout.inputHeight, inputHeightIsInteractivellyChanging: layout.inputHeightIsInteractivellyChanging, inVoiceOver: layout.inVoiceOver), headerInsets: headerInsets, transition: transition)
+        self.contactListNode.containerLayoutUpdated(ContainerViewLayout(size: layout.size, metrics: layout.metrics, deviceMetrics: layout.deviceMetrics, intrinsicInsets: insets, safeInsets: layout.safeInsets, additionalInsets: layout.additionalInsets, statusBarHeight: layout.statusBarHeight, inputHeight: layout.inputHeight, inputHeightIsInteractivellyChanging: layout.inputHeightIsInteractivellyChanging, inVoiceOver: layout.inVoiceOver), headerInsets: headerInsets, transition: transition)
         
         self.contactListNode.frame = CGRect(origin: CGPoint(), size: layout.size)
     }
@@ -204,7 +188,11 @@ final class ContactsControllerNode: ASDisplayNode {
             return
         }
         
-        self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ContactsSearchContainerNode(context: self.context, onlyWriteable: false, categories: [.cloudContacts, .global, .deviceContacts], openPeer: { [weak self] peer in
+        self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ContactsSearchContainerNode(context: self.context, onlyWriteable: false, categories: [.cloudContacts, .global, .deviceContacts], addContact: { [weak self] phoneNumber in
+            if let requestAddContact = self?.requestAddContact {
+                requestAddContact(phoneNumber)
+            }
+        }, openPeer: { [weak self] peer in
             if let requestOpenPeerFromSearch = self?.requestOpenPeerFromSearch {
                 requestOpenPeerFromSearch(peer)
             }

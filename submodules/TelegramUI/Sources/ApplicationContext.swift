@@ -85,7 +85,8 @@ final class AuthorizedApplicationContext {
     let notificationController: NotificationContainerController
     
     private var scheduledOpenNotificationSettings: Bool = false
-    private var scheduledOperChatWithPeerId: (PeerId, MessageId?, Bool)?
+    private var scheduledOpenChatWithPeerId: (PeerId, MessageId?, Bool)?
+    private let scheduledCallPeerDisposable = MetaDisposable()
     private var scheduledOpenExternalUrl: URL?
         
     private let passcodeStatusDisposable = MetaDisposable()
@@ -264,23 +265,21 @@ final class AuthorizedApplicationContext {
                 if UIApplication.shared.applicationState == .active {
                     var chatIsVisible = false
                     if let topController = strongSelf.rootController.topViewController as? ChatControllerImpl, topController.traceVisibility() {
-                        if case .peer(firstMessage.id.peerId) = topController.chatLocation {
+                        if topController.chatLocation.peerId == firstMessage.id.peerId {
                             chatIsVisible = true
-                        }/* else if case let .group(topGroupId) = topController.chatLocation, topGroupId == groupId {
-                            chatIsVisible = true
-                        }*/
+                        }
                     }
                     
                     if !notify {
                         chatIsVisible = true
                     }
-                    
-                    //CloudVeil start
-                    if !MainController.shared.isConversationAvailable(conversationId: NSInteger(firstMessage.id.peerId.id)) {
-                        return
-                    }
-                    //CloudVeil end
-                    
+					
+					//CloudVeil start
+					if !MainController.shared.isConversationAvailable(conversationId: NSInteger(firstMessage.id.peerId.id)) {
+						return
+					}
+					//CloudVeil end
+					
                     if !chatIsVisible {
                         strongSelf.mainWindow.forEachViewController({ controller in
                             if let controller = controller as? ChatControllerImpl, case .peer(firstMessage.id.peerId) = controller.chatLocation  {
@@ -367,7 +366,18 @@ final class AuthorizedApplicationContext {
                                         
                                         strongSelf.notificationController.removeItemsWithGroupingKey(firstMessage.id.peerId)
                                         
-                                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: strongSelf.rootController, context: strongSelf.context, chatLocation: .peer(firstMessage.id.peerId)))
+                                        var processed = false
+                                        for media in firstMessage.media {
+                                            if let action = media as? TelegramMediaAction, case let .geoProximityReached(fromId, toId, distance) = action.action {
+                                                strongSelf.context.sharedContext.openLocationScreen(context: strongSelf.context, messageId: firstMessage.id, navigationController: strongSelf.rootController)
+                                                processed = true
+                                                break
+                                            }
+                                        }
+                                        
+                                        if !processed {
+                                            strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: strongSelf.rootController, context: strongSelf.context, chatLocation: .peer(firstMessage.id.peerId)))
+                                        }
                                     }
                                     return false
                                 }, expandAction: { expandData in
@@ -710,7 +720,7 @@ final class AuthorizedApplicationContext {
                         }
                         
                         let navigateToMessage = {
-                            strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: strongSelf.rootController, context: strongSelf.context, chatLocation: .peer(messageId.peerId), subject: .message(messageId)))
+                            strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: strongSelf.rootController, context: strongSelf.context, chatLocation: .peer(messageId.peerId), subject: .message(id: messageId, highlight: true)))
                         }
                         
                         if chatIsVisible {
@@ -726,6 +736,8 @@ final class AuthorizedApplicationContext {
                 }
             }))
         })
+        
+        self.rootController.setForceInCallStatusBar((self.context.sharedContext as! SharedAccountContextImpl).currentCallStatusBarNode)
     }
     
     deinit {
@@ -745,6 +757,7 @@ final class AuthorizedApplicationContext {
         self.termsOfServiceProceedToBotDisposable.dispose()
         self.watchNavigateToMessageDisposable.dispose()
         self.permissionsDisposable.dispose()
+        self.scheduledCallPeerDisposable.dispose()
     }
     
     func openNotificationSettings() {
@@ -755,6 +768,23 @@ final class AuthorizedApplicationContext {
         }
     }
     
+    func startCall(peerId: PeerId, isVideo: Bool) {
+        guard let appLockContext = self.context.sharedContext.appLockContext as? AppLockContextImpl else {
+            return
+        }
+        self.scheduledCallPeerDisposable.set((appLockContext.isCurrentlyLocked
+        |> filter {
+            !$0
+        }
+        |> take(1)
+        |> deliverOnMainQueue).start(next: { [weak self] _ in
+            guard let strongSelf = self else {
+                return
+            }
+            let _ = strongSelf.context.sharedContext.callManager?.requestCall(context: strongSelf.context, peerId: peerId, isVideo: isVideo, endCurrentIfAny: false)
+        }))
+    }
+    
     func openChatWithPeerId(peerId: PeerId, messageId: MessageId? = nil, activateInput: Bool = false) {
         var visiblePeerId: PeerId?
         if let controller = self.rootController.topViewController as? ChatControllerImpl, case let .peer(peerId) = controller.chatLocation {
@@ -763,9 +793,9 @@ final class AuthorizedApplicationContext {
         
         if visiblePeerId != peerId || messageId != nil {
             if self.rootController.rootTabController != nil {
-                self.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: self.rootController, context: self.context, chatLocation: .peer(peerId), subject: messageId.flatMap { .message($0) }, activateInput: activateInput))
+                self.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: self.rootController, context: self.context, chatLocation: .peer(peerId), subject: messageId.flatMap { .message(id: $0, highlight: true) }, activateInput: activateInput))
             } else {
-                self.scheduledOperChatWithPeerId = (peerId, messageId, activateInput)
+                self.scheduledOpenChatWithPeerId = (peerId, messageId, activateInput)
             }
         }
     }

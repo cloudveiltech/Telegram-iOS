@@ -20,13 +20,14 @@ public class ItemListSwitchItem: ListViewItem, ItemListItem {
     let enabled: Bool
     let disableLeadingInset: Bool
     let maximumNumberOfLines: Int
+    let noCorners: Bool
     public let sectionId: ItemListSectionId
     let style: ItemListStyle
     let updated: (Bool) -> Void
     let activatedWhileDisabled: () -> Void
     public let tag: ItemListItemTag?
     
-    public init(presentationData: ItemListPresentationData, title: String, value: Bool, type: ItemListSwitchItemNodeType = .regular, enableInteractiveChanges: Bool = true, enabled: Bool = true, disableLeadingInset: Bool = false, maximumNumberOfLines: Int = 1, sectionId: ItemListSectionId, style: ItemListStyle, updated: @escaping (Bool) -> Void, activatedWhileDisabled: @escaping () -> Void = {}, tag: ItemListItemTag? = nil) {
+    public init(presentationData: ItemListPresentationData, title: String, value: Bool, type: ItemListSwitchItemNodeType = .regular, enableInteractiveChanges: Bool = true, enabled: Bool = true, disableLeadingInset: Bool = false, maximumNumberOfLines: Int = 1, noCorners: Bool = false, sectionId: ItemListSectionId, style: ItemListStyle, updated: @escaping (Bool) -> Void, activatedWhileDisabled: @escaping () -> Void = {}, tag: ItemListItemTag? = nil) {
         self.presentationData = presentationData
         self.title = title
         self.value = value
@@ -35,6 +36,7 @@ public class ItemListSwitchItem: ListViewItem, ItemListItem {
         self.enabled = enabled
         self.disableLeadingInset = disableLeadingInset
         self.maximumNumberOfLines = maximumNumberOfLines
+        self.noCorners = noCorners
         self.sectionId = sectionId
         self.style = style
         self.updated = updated
@@ -249,8 +251,8 @@ public class ItemListSwitchItemNode: ListViewItemNode, ItemListItemNode {
                     strongSelf.activateArea.frame = CGRect(origin: CGPoint(x: params.leftInset, y: 0.0), size: CGSize(width: params.width - params.leftInset - params.rightInset, height: layout.contentSize.height))
                     
                     strongSelf.activateArea.accessibilityLabel = item.title
-                    strongSelf.activateArea.accessibilityValue = item.value ? "On" : "Off"
-                    strongSelf.activateArea.accessibilityHint = "Tap to change"
+                    strongSelf.activateArea.accessibilityValue = item.value ? item.presentationData.strings.VoiceOver_Common_On : item.presentationData.strings.VoiceOver_Common_Off
+                    strongSelf.activateArea.accessibilityHint = item.presentationData.strings.VoiceOver_Common_SwitchHint
                     var accessibilityTraits = UIAccessibilityTraits()
                     if item.enabled {
                     } else {
@@ -329,7 +331,7 @@ public class ItemListSwitchItemNode: ListViewItemNode, ItemListItemNode {
                                 strongSelf.insertSubnode(strongSelf.maskNode, at: 3)
                             }
                             
-                            let hasCorners = itemListHasRoundedBlockLayout(params)
+                            let hasCorners = itemListHasRoundedBlockLayout(params) && !item.noCorners
                             var hasTopCorners = false
                             var hasBottomCorners = false
                             switch neighbors.top {

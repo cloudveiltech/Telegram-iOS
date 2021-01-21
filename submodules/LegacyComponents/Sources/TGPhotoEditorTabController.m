@@ -82,6 +82,24 @@ const CGFloat TGPhotoEditorToolbarSize = 49.0f;
     }
 }
 
+- (bool)hasOnScreenNavigation {
+    bool hasOnScreenNavigation = false;
+    if (iosMajorVersion() >= 11)
+        hasOnScreenNavigation = (self.viewLoaded && self.view.safeAreaInsets.bottom > FLT_EPSILON) || self.context.safeAreaInset.bottom > FLT_EPSILON;
+    return hasOnScreenNavigation;
+}
+
+- (UIInterfaceOrientation)effectiveOrientation {
+    return [self effectiveOrientation:self.interfaceOrientation];
+}
+
+- (UIInterfaceOrientation)effectiveOrientation:(UIInterfaceOrientation)orientation {
+    bool isPad = [UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    if ([self inFormSheet] || isPad)
+        orientation = UIInterfaceOrientationPortrait;
+    return orientation;
+}
+
 - (void)transitionInWithDuration:(CGFloat)__unused duration
 {
     
@@ -89,6 +107,8 @@ const CGFloat TGPhotoEditorToolbarSize = 49.0f;
 
 - (void)prepareTransitionInWithReferenceView:(UIView *)referenceView referenceFrame:(CGRect)referenceFrame parentView:(UIView *)parentView noTransitionView:(bool)noTransitionView
 {
+    _dismissing = false;
+    
     CGRect targetFrame = [self _targetFrameForTransitionInFromFrame:referenceFrame];
     
     if (_CGRectEqualToRectWithEpsilon(targetFrame, referenceFrame, FLT_EPSILON))
@@ -115,7 +135,7 @@ const CGFloat TGPhotoEditorToolbarSize = 49.0f;
     
     UIView *transitionViewSuperview = nil;
     UIImage *transitionImage = nil;
-    if ([referenceView isKindOfClass:[UIImageView class]])
+    if ([referenceView isKindOfClass:[UIImageView class]] && referenceView.subviews.count == 0)
         transitionImage = ((UIImageView *)referenceView).image;
     
     if (transitionImage != nil)
@@ -127,8 +147,12 @@ const CGFloat TGPhotoEditorToolbarSize = 49.0f;
     }
     else
     {
-        _transitionView = referenceView;
-        transitionViewSuperview = self.view;
+        if (![referenceView isKindOfClass:[TGPhotoEditorPreviewView class]])
+            _transitionView = [referenceView snapshotViewAfterScreenUpdates:false];
+        if (_transitionView == nil) {
+            _transitionView = referenceView;
+        }
+        transitionViewSuperview = parentView;
     }
     
     
@@ -145,30 +169,43 @@ const CGFloat TGPhotoEditorToolbarSize = 49.0f;
     
     _transitionInProgress = true;
     
-    POPSpringAnimation *animation = [TGPhotoEditorAnimation prepareTransitionAnimationForPropertyNamed:kPOPViewFrame];
-    if (self.transitionSpeed > FLT_EPSILON)
-        animation.springSpeed = self.transitionSpeed;
-    animation.fromValue = [NSValue valueWithCGRect:_transitionView.frame];
-    animation.toValue = [NSValue valueWithCGRect:_transitionTargetFrame];
-    animation.completionBlock = ^(__unused POPAnimation *animation, __unused BOOL finished)
+    CGAffineTransform initialTransform = _transitionView.transform;
+    [UIView animateWithDuration:0.3f delay:0.0f options:UIViewAnimationOptionCurveEaseInOut | UIViewAnimationOptionLayoutSubviews animations:^
     {
+        if (_animateScale) {
+            CGFloat scale = _transitionTargetFrame.size.width / _transitionView.frame.size.width;
+            _transitionView.center = CGPointMake(CGRectGetMidX(_transitionTargetFrame), CGRectGetMidY(_transitionTargetFrame));
+            _transitionView.transform = CGAffineTransformScale(initialTransform, scale, scale);
+        } else {
+            _transitionView.frame = _transitionTargetFrame;
+        }
+    } completion:^(BOOL finished) {
         _transitionInProgress = false;
-        
-        UIView *transitionView = _transitionView;
-        _transitionView = nil;
+             
+         UIView *transitionView = _transitionView;
+         _transitionView = nil;
+         
+        if (_animateScale) {
+            _transitionView.transform = initialTransform;
+            _transitionView.frame = _transitionTargetFrame;
+        }
         
         if (self.finishedTransitionIn != nil)
         {
             self.finishedTransitionIn();
             self.finishedTransitionIn = nil;
         }
-        
+         
         [self _finishedTransitionInWithView:transitionView];
-    };
-    [_transitionView pop_addAnimation:animation forKey:@"frame"];
+    }];
 }
 
 - (void)prepareForCustomTransitionOut
+{
+    
+}
+
+- (void)finishCustomTransitionOut
 {
     
 }
@@ -239,7 +276,7 @@ const CGFloat TGPhotoEditorToolbarSize = 49.0f;
         UIView *toTransitionView = nil;
         
         UIImage *transitionImage = nil;
-        if ([referenceView isKindOfClass:[UIImageView class]])
+        if ([referenceView isKindOfClass:[UIImageView class]] && referenceView.subviews.count == 0)
             transitionImage = ((UIImageView *)referenceView).image;
         
         if (transitionImage != nil)
@@ -250,10 +287,16 @@ const CGFloat TGPhotoEditorToolbarSize = 49.0f;
         }
         else
         {
-            toTransitionView = [referenceView snapshotViewAfterScreenUpdates:false];
+            bool wasHidden = referenceView.isHidden;
+            referenceView.hidden = false;
+            toTransitionView = [referenceView snapshotViewAfterScreenUpdates:true];
+            referenceView.hidden = wasHidden;
         }
         
         [parentView addSubview:toTransitionView];
+        
+        if (_noTransitionToSnapshot)
+            toTransitionView.alpha = 0.0f;
         
         UIInterfaceOrientation orientation = [[LegacyComponentsGlobals provider] applicationStatusBarOrientation];
         if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad)
@@ -321,10 +364,7 @@ const CGFloat TGPhotoEditorToolbarSize = 49.0f;
 - (CGRect)_targetFrameForTransitionInFromFrame:(CGRect)fromFrame
 {
     CGSize referenceSize = [self referenceViewSize];
-    UIInterfaceOrientation orientation = self.interfaceOrientation;
-    
-    if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad)
-        orientation = UIInterfaceOrientationPortrait;
+    UIInterfaceOrientation orientation = self.effectiveOrientation;
     
     bool hasOnScreenNavigation = false;
     if (iosMajorVersion() >= 11)
@@ -342,7 +382,11 @@ const CGFloat TGPhotoEditorToolbarSize = 49.0f;
 
 - (void)_finishedTransitionInWithView:(UIView *)transitionView
 {
-    [transitionView removeFromSuperview];
+    if ([transitionView isKindOfClass:[TGPhotoEditorPreviewView class]]) {
+        [self.view insertSubview:transitionView atIndex:0];
+    } else {
+        [transitionView removeFromSuperview];
+    }
 }
 
 - (bool)inFormSheet
@@ -446,13 +490,15 @@ const CGFloat TGPhotoEditorToolbarSize = 49.0f;
     if ([editorValues hasPainting])
         highlightedButtons |= TGPhotoEditorPaintTab;
     
-    if ([editorValues isKindOfClass:[PGPhotoEditorValues class]])
-    {
-        if ([(PGPhotoEditorValues *)editorValues toolsApplied])
-            highlightedButtons |= TGPhotoEditorToolsTab;
-    }
+    if ([editorValues toolsApplied])
+        highlightedButtons |= TGPhotoEditorToolsTab;
     
     return highlightedButtons;
+}
+
+- (bool)presentedForAvatarCreation
+{
+    return _intent & (TGPhotoEditorControllerAvatarIntent | TGPhotoEditorControllerSignupAvatarIntent);
 }
 
 @end

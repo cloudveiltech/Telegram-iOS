@@ -10,8 +10,9 @@ import AccountContext
 class ChatInputPanelNode: ASDisplayNode {
     var context: AccountContext?
     var interfaceInteraction: ChatPanelInterfaceInteraction?
+    var prevInputPanelNode: ChatInputPanelNode?
     
-    func updateLayout(width: CGFloat, leftInset: CGFloat, rightInset: CGFloat, maxHeight: CGFloat, isSecondary: Bool, transition: ContainedViewLayoutTransition, interfaceState: ChatPresentationInterfaceState, metrics: LayoutMetrics) -> CGFloat {
+    func updateLayout(width: CGFloat, leftInset: CGFloat, rightInset: CGFloat, additionalSideInsets: UIEdgeInsets, maxHeight: CGFloat, isSecondary: Bool, transition: ContainedViewLayoutTransition, interfaceState: ChatPresentationInterfaceState, metrics: LayoutMetrics) -> CGFloat {
         return 0.0
     }
     
@@ -25,5 +26,9 @@ class ChatInputPanelNode: ASDisplayNode {
         } else {
             return 45.0
         }
+    }
+    
+    func canHandleTransition(from prevInputPanelNode: ChatInputPanelNode?) -> Bool {
+        return false
     }
 }

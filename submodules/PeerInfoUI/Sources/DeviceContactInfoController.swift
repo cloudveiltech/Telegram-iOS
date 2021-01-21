@@ -877,23 +877,7 @@ public func deviceContactInfoController(context: AccountContext, subject: Device
                     ActionSheetItemGroup(items: [
                         ActionSheetButtonItem(title: presentationData.strings.UserInfo_TelegramCall, action: {
                             dismissAction()
-                            let callResult = context.sharedContext.callManager?.requestCall(account: context.account, peerId: user.id, endCurrentIfAny: false)
-                            if let callResult = callResult, case let .alreadyInProgress(currentPeerId) = callResult {
-                                if currentPeerId == user.id {
-                                    context.sharedContext.navigateToCurrentCall()
-                                } else {
-                                    let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-                                    let _ = (context.account.postbox.transaction { transaction -> (Peer?, Peer?) in
-                                        return (transaction.getPeer(user.id), transaction.getPeer(currentPeerId))
-                                        } |> deliverOnMainQueue).start(next: { peer, current in
-                                            if let peer = peer, let current = current {
-                                                presentControllerImpl?(textAlertController(context: context, title: presentationData.strings.Call_CallInProgressTitle, text: presentationData.strings.Call_CallInProgressMessage(current.compactDisplayTitle, peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
-                                                    let _ = context.sharedContext.callManager?.requestCall(account: context.account, peerId: peer.id, endCurrentIfAny: true)
-                                                })]), nil)
-                                            }
-                                        })
-                                }
-                            }
+                            context.requestCall(peerId: user.id, isVideo: false, completion: {})
                         }),
                         ActionSheetButtonItem(title: presentationData.strings.UserInfo_PhoneCall, action: {
                             dismissAction()
@@ -1336,7 +1320,7 @@ private func addContactToExisting(context: AccountContext, parentController: Vie
     (parentController.navigationController as? NavigationController)?.pushViewController(contactsController)
     let _ = (contactsController.result
     |> deliverOnMainQueue).start(next: { peer in
-        if let peer = peer {
+        if let (peer, _) = peer {
             let dataSignal: Signal<(Peer?, DeviceContactStableId?), NoError>
             switch peer {
                 case let .peer(contact, _, _):

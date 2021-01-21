@@ -844,6 +844,9 @@ static id<LegacyComponentsContext> _defaultContext = nil;
         
         CGRect keyboardFrame = [[[notification userInfo] objectForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue];
         CGFloat keyboardHeight = MIN(keyboardFrame.size.height, keyboardFrame.size.width);
+        if (CGRectGetMaxY(keyboardFrame) < [UIScreen mainScreen].bounds.size.height) {
+            keyboardHeight = 0.0f;
+        }
         double duration = ([[[notification userInfo] objectForKey:UIKeyboardAnimationDurationUserInfoKey] doubleValue]);
         
         if ([self isViewLoaded] && !_viewControllerHasEverAppeared && ([self findFirstResponder:self.view] == nil && ![self willCaptureInputShortly]))
@@ -1023,7 +1026,7 @@ static id<LegacyComponentsContext> _defaultContext = nil;
 
 - (CGFloat)navigationBarHeightForInterfaceOrientation:(UIInterfaceOrientation)orientation
 {
-    static CGFloat portraitHeight = 44.0f;
+    static CGFloat portraitHeight = 56.0f;
     static CGFloat landscapeHeight = 32.0f;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^
@@ -1032,13 +1035,13 @@ static id<LegacyComponentsContext> _defaultContext = nil;
         CGFloat widescreenWidth = MAX(screenSize.width, screenSize.height);
         if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone && ABS(widescreenWidth - 736) > FLT_EPSILON)
         {
-            portraitHeight = 44.0f;
-            landscapeHeight = 32.0f;
+            portraitHeight = 56.0f;
+            landscapeHeight = 56.0f;
         }
         else
         {
-            portraitHeight = 44.0f;
-            landscapeHeight = 44.0f;
+            portraitHeight = 56.0f;
+            landscapeHeight = 56.0f;
         }
     });
     bool large = UIInterfaceOrientationIsPortrait(orientation) || self.alwaysUseTallNavigationBarHeight;
@@ -1069,7 +1072,7 @@ static id<LegacyComponentsContext> _defaultContext = nil;
 + (UIEdgeInsets)safeAreaInsetForOrientation:(UIInterfaceOrientation)orientation hasOnScreenNavigation:(bool)hasOnScreenNavigation
 {
     int height = (int)TGScreenSize().height;
-    if (!TGIsPad() && (height != 812 && height != 896))
+    if (!TGIsPad() && (height != 812 && height != 896 && height != 780 && height != 844 && height != 926) && !hasOnScreenNavigation)
         return UIEdgeInsetsZero;
     
     if (TGIsPad()) {

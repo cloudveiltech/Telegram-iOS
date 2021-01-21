@@ -96,10 +96,10 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                                 } else {
                                     automaticPlayback = item.context.account.postbox.mediaBox.completedResourcePath(telegramFile.resource) != nil
                                 }
-                                
-                                //CloudVeil start
-                                automaticPlayback = automaticPlayback && !MainController.SecurityStaticSettings.disableAutoPlayGifs
-                                //CloudVeil ends
+								
+								//CloudVeil start
+								automaticPlayback = automaticPlayback && !MainController.SecurityStaticSettings.disableAutoPlayGifs
+								//CloudVeil ends
                             } else if (telegramFile.isVideo && !telegramFile.isAnimated) && item.controllerInteraction.automaticMediaDownloadSettings.autoplayVideos {
                                 if case .full = automaticDownload {
                                     automaticPlayback = true
@@ -179,6 +179,7 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                         edited = true
                     }
                     var viewCount: Int?
+                    var dateReplies = 0
                     for attribute in item.message.attributes {
                         if let attribute = attribute as? EditedMessageAttribute {
                             if case .mosaic = preparePosition {
@@ -187,6 +188,10 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                             }
                         } else if let attribute = attribute as? ViewCountMessageAttribute {
                             viewCount = attribute.count
+                        } else if let attribute = attribute as? ReplyThreadMessageAttribute, case .peer = item.chatLocation {
+                            if let channel = item.message.peers[item.message.id.peerId] as? TelegramChannel, case .group = channel.info {
+                                dateReplies = Int(attribute.count)
+                            }
                         }
                     }
                     
@@ -207,7 +212,7 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                     
                     let statusType: ChatMessageDateAndStatusType?
                     switch position {
-                        case .linear(_, .None):
+                        case .linear(_, .None), .linear(_, .Neighbour(true, _, _)):
                             if item.message.effectivelyIncoming(item.context.account.peerId) {
                                 statusType = .ImageIncoming
                             } else {
@@ -231,7 +236,12 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                     var statusApply: ((Bool) -> Void)?
                     
                     if let statusType = statusType {
-                        let (size, apply) = statusLayout(item.context, item.presentationData, edited, viewCount, dateText, statusType, CGSize(width: imageSize.width - 30.0, height: CGFloat.greatestFiniteMagnitude), dateReactions)
+                        var isReplyThread = false
+                        if case .replyThread = item.chatLocation {
+                            isReplyThread = true
+                        }
+                        
+                        let (size, apply) = statusLayout(item.context, item.presentationData, edited, viewCount, dateText, statusType, CGSize(width: imageSize.width - 30.0, height: CGFloat.greatestFiniteMagnitude), dateReactions, dateReplies, item.message.tags.contains(.pinned) && !item.associatedData.isInPinnedListMode && !isReplyThread)
                         statusSize = size
                         statusApply = apply
                     }
@@ -399,7 +409,7 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
         return false
     }
     
-    override func reactionTargetNode(value: String) -> (ASDisplayNode, Int)? {
+    override func reactionTargetNode(value: String) -> (ASDisplayNode, ASDisplayNode)? {
         if !self.dateAndStatusNode.isHidden {
             return self.dateAndStatusNode.reactionNode(value: value)
         }

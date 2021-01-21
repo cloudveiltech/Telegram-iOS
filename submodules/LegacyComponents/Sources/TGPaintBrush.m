@@ -2,7 +2,7 @@
 
 #import <LegacyComponents/LegacyComponents.h>
 
-const CGSize TGPaintBrushTextureSize = { 256.0f, 256.0f };
+const CGSize TGPaintBrushTextureSize = { 384.0f, 384.0f };
 const CGSize TGPaintBrushPreviewTextureSize = { 64.0f, 64.0f };
 
 @interface TGPaintBrush ()
@@ -59,6 +59,11 @@ const CGSize TGPaintBrushPreviewTextureSize = { 64.0f, 64.0f };
 - (CGFloat)scale
 {
     return 1.0f;
+}
+
+- (CGFloat)dynamic
+{
+    return 0.0f;
 }
 
 - (bool)lightSaber

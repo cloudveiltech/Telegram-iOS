@@ -7,7 +7,9 @@ import SyncCore
 func parsedTelegramProfilePhoto(_ photo: Api.UserProfilePhoto) -> [TelegramMediaImageRepresentation] {
     var representations: [TelegramMediaImageRepresentation] = []
     switch photo {
-        case let .userProfilePhoto(_, photoSmall, photoBig, dcId):
+        case let .userProfilePhoto(flags, _, photoSmall, photoBig, dcId):
+            let _ = (flags & (1 << 0)) != 0
+            
             let smallResource: TelegramMediaResource
             let fullSizeResource: TelegramMediaResource
             switch photoSmall {
@@ -18,8 +20,8 @@ func parsedTelegramProfilePhoto(_ photo: Api.UserProfilePhoto) -> [TelegramMedia
                 case let .fileLocationToBeDeprecated(volumeId, localId):
                     fullSizeResource = CloudPeerPhotoSizeMediaResource(datacenterId: dcId, sizeSpec: .fullSize, volumeId: volumeId, localId: localId)
             }
-            representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 80, height: 80), resource: smallResource))
-            representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 640, height: 640), resource: fullSizeResource))
+            representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 80, height: 80), resource: smallResource, progressiveSizes: []))
+            representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 640, height: 640), resource: fullSizeResource, progressiveSizes: []))
         case .userProfilePhotoEmpty:
             break
     }
@@ -134,6 +136,39 @@ extension TelegramUser {
                 }
             case .userEmpty:
                 return TelegramUser(user: rhs)
+        }
+    }
+    
+    static func merge(lhs: TelegramUser?, rhs: TelegramUser) -> TelegramUser {
+        guard let lhs = lhs else {
+            return rhs
+        }
+        if case .personal? = rhs.accessHash {
+            return rhs
+        } else {
+            var userFlags: UserInfoFlags = []
+            if rhs.flags.contains(.isVerified) {
+                userFlags.insert(.isVerified)
+            }
+            if rhs.flags.contains(.isSupport) {
+                userFlags.insert(.isSupport)
+            }
+            if rhs.flags.contains(.isScam) {
+                userFlags.insert(.isScam)
+            }
+            
+            let botInfo: BotUserInfo? = rhs.botInfo
+            
+            let restrictionInfo: PeerAccessRestrictionInfo? = rhs.restrictionInfo
+            
+            let accessHash: TelegramPeerAccessHash?
+            if let rhsAccessHashValue = lhs.accessHash, case .personal = rhsAccessHashValue {
+                accessHash = rhsAccessHashValue
+            } else {
+                accessHash = lhs.accessHash ?? rhs.accessHash
+            }
+            
+            return TelegramUser(id: lhs.id, accessHash: accessHash, firstName: lhs.firstName, lastName: lhs.lastName, username: rhs.username, phone: lhs.phone, photo: rhs.photo.isEmpty ? lhs.photo : rhs.photo, botInfo: botInfo, restrictionInfo: restrictionInfo, flags: userFlags)
         }
     }
 }

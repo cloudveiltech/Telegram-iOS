@@ -23,6 +23,43 @@ internal:
   environment:
     name: internal
   artifacts:
+    when: always
+    paths:
+      - build/artifacts
+    expire_in: 1 week
+
+experimental:
+  tags:
+    - ios_internal
+  stage: build
+  only:
+    - experimental
+  except:
+    - tags
+  script:
+    - bash buildbox/build-telegram.sh appcenter-experimental
+    - bash buildbox/deploy-telegram.sh appcenter-experimental
+  environment:
+    name: experimental
+  artifacts:
+    paths:
+      - build/artifacts/Telegram.DSYMs.zip
+    expire_in: 1 week
+
+experimental:
+  tags:
+    - ios_internal
+  stage: build
+  only:
+    - experimental-2
+  except:
+    - tags
+  script:
+    - bash buildbox/build-telegram.sh appcenter-experimental-2
+    - bash buildbox/deploy-telegram.sh appcenter-experimental-2
+  environment:
+    name: experimental-2
+  artifacts:
     paths:
       - build/artifacts/Telegram.DSYMs.zip
     expire_in: 1 week
@@ -72,7 +109,7 @@ verifysanity_beta_testflight:
   artifacts:
     when: on_failure
     paths:
-      - build/verifysanity_artifacts
+      - build/artifacts
     expire_in: 1 week
 
 verify_beta_testflight:
@@ -90,5 +127,5 @@ verify_beta_testflight:
   artifacts:
     when: on_failure
     paths:
-      - build/verify_artifacts
+      - build/artifacts
     expire_in: 1 week

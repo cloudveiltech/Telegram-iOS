@@ -6,7 +6,10 @@ swift_library(
     srcs = glob([
         "Sources/**/*.swift",
     ]),
-    deps = [
+    deps = [    
+		#CloudVeil start
+		"//Telegram:CloudVeilSecurityManager",
+		#CloudVeil end
     	"//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/Display:Display",
         "//submodules/TelegramPresentationData:TelegramPresentationData",
@@ -22,6 +25,24 @@ swift_library(
         "//submodules/AppBundle:AppBundle",
         "//submodules/PresentationDataUtils:PresentationDataUtils",
         "//submodules/TelegramCallsUI/CallsEmoji:CallsEmoji",
+        "//submodules/SemanticStatusNode:SemanticStatusNode",
+        "//submodules/TooltipUI:TooltipUI",
+        "//submodules/ItemListPeerItem:ItemListPeerItem",
+        "//submodules/MergeLists:MergeLists",
+        "//submodules/RadialStatusNode:RadialStatusNode",
+        "//submodules/ContextUI:ContextUI",
+        "//submodules/ShareController:ShareController",
+        "//submodules/LegacyComponents:LegacyComponents",
+        "//submodules/DeleteChatPeerActionSheetItem:DeleteChatPeerActionSheetItem",
+        "//submodules/AnimationUI:AnimationUI",
+        "//submodules/UndoUI:UndoUI",
+        "//submodules/AudioBlob:AudioBlob",
+        "//submodules/AnimatedAvatarSetNode:AnimatedAvatarSetNode",
+        "//submodules/AlertUI:AlertUI",
+        "//submodules/DirectionalPanGesture:DirectionalPanGesture",
+        "//submodules/PeerInfoUI:PeerInfoUI",
+        "//submodules/AnimatedCountLabelNode:AnimatedCountLabelNode",
+        "//submodules/DeviceProximity:DeviceProximity",
     ],
     visibility = [
         "//visibility:public",

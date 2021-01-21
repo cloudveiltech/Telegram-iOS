@@ -354,7 +354,7 @@ public func makeDefaultDayPresentationTheme(extendingThemeReference: Presentatio
         controlColor: UIColor(rgb: 0x7e8791),
         accentTextColor: UIColor(rgb: 0x007ee5),
         backgroundColor: UIColor(rgb: 0xf7f7f7),
-        separatorColor: UIColor(rgb: 0xb1b1b1),
+        separatorColor: UIColor(rgb: 0xc8c7cc),
         badgeBackgroundColor: UIColor(rgb: 0xff3b30),
         badgeStrokeColor: UIColor(rgb: 0xff3b30),
         badgeTextColor: UIColor(rgb: 0xffffff),
@@ -374,7 +374,7 @@ public func makeDefaultDayPresentationTheme(extendingThemeReference: Presentatio
         inputPlaceholderTextColor: UIColor(rgb: 0x8e8e93),
         inputIconColor: UIColor(rgb: 0x8e8e93),
         inputClearButtonColor: UIColor(rgb: 0x7b7b81),
-        separatorColor: UIColor(rgb: 0xb1b1b1)
+        separatorColor: UIColor(rgb: 0xc8c7cc)
     )
         
     let rootController = PresentationThemeRootController(
@@ -548,7 +548,9 @@ public func makeDefaultDayPresentationTheme(extendingThemeReference: Presentatio
         mediaOverlayControlColors: PresentationThemeFillForeground(fillColor: UIColor(rgb: 0x000000, alpha: 0.6), foregroundColor: UIColor(rgb: 0xffffff)),
         selectionControlColors: PresentationThemeFillStrokeForeground(fillColor: UIColor(rgb: 0x007ee5), strokeColor: UIColor(rgb: 0xc7c7cc), foregroundColor: UIColor(rgb: 0xffffff)),
         deliveryFailedColors: PresentationThemeFillForeground(fillColor: UIColor(rgb: 0xff3b30), foregroundColor: UIColor(rgb: 0xffffff)),
-        mediaHighlightOverlayColor: UIColor(white: 1.0, alpha: 0.6)
+        mediaHighlightOverlayColor: UIColor(white: 1.0, alpha: 0.6),
+        stickerPlaceholderColor: PresentationThemeVariableColor(withWallpaper: serviceBackgroundColor.withAlphaComponent(0.3), withoutWallpaper: UIColor(rgb: 0x748391, alpha: 0.25)),
+        stickerPlaceholderShimmerColor: PresentationThemeVariableColor(withWallpaper: UIColor(rgb: 0xffffff, alpha: 0.2), withoutWallpaper: UIColor(rgb: 0x000000, alpha: 0.1))
     )
     
     let messageDay = PresentationThemeChatMessage(
@@ -614,11 +616,13 @@ public func makeDefaultDayPresentationTheme(extendingThemeReference: Presentatio
         mediaOverlayControlColors: PresentationThemeFillForeground(fillColor: UIColor(rgb: 0x000000, alpha: 0.6), foregroundColor: UIColor(rgb: 0xffffff)),
         selectionControlColors: PresentationThemeFillStrokeForeground(fillColor: UIColor(rgb: 0x007ee5), strokeColor: UIColor(rgb: 0xc7c7cc), foregroundColor: UIColor(rgb: 0xffffff)),
         deliveryFailedColors: PresentationThemeFillForeground(fillColor: UIColor(rgb: 0xff3b30), foregroundColor: UIColor(rgb: 0xffffff)),
-        mediaHighlightOverlayColor: UIColor(rgb: 0xffffff, alpha: 0.6)
+        mediaHighlightOverlayColor: UIColor(rgb: 0xffffff, alpha: 0.6),
+        stickerPlaceholderColor: PresentationThemeVariableColor(withWallpaper: serviceBackgroundColor.withAlphaComponent(0.3), withoutWallpaper: UIColor(rgb: 0xf7f7f7)),
+        stickerPlaceholderShimmerColor: PresentationThemeVariableColor(withWallpaper: UIColor(rgb: 0xffffff, alpha: 0.2), withoutWallpaper: UIColor(rgb: 0x000000, alpha: 0.1))
     )
     
     let serviceMessage = PresentationThemeServiceMessage(
-        components: PresentationThemeServiceMessageColor(withDefaultWallpaper: PresentationThemeServiceMessageColorComponents(fill: UIColor(rgb: 0x748391, alpha: 0.45), primaryText: UIColor(rgb: 0xffffff), linkHighlight: UIColor(rgb: 0x748391, alpha: 0.25), scam: UIColor(rgb: 0xffffff), dateFillStatic: UIColor(rgb: 0x748391, alpha: 0.45), dateFillFloating: UIColor(rgb: 0x939fab, alpha: 0.5)), withCustomWallpaper: PresentationThemeServiceMessageColorComponents(fill: serviceBackgroundColor, primaryText: UIColor(rgb: 0xffffff), linkHighlight: UIColor(rgb: 0x748391, alpha: 0.25), scam: UIColor(rgb: 0xffffff), dateFillStatic: serviceBackgroundColor, dateFillFloating: serviceBackgroundColor.withAlphaComponent(serviceBackgroundColor.alpha * 0.6667))),
+        components: PresentationThemeServiceMessageColor(withDefaultWallpaper: PresentationThemeServiceMessageColorComponents(fill: UIColor(rgb: 0x939fab, alpha: 0.5), primaryText: UIColor(rgb: 0xffffff), linkHighlight: UIColor(rgb: 0x748391, alpha: 0.25), scam: UIColor(rgb: 0xffffff), dateFillStatic: UIColor(rgb: 0x748391, alpha: 0.45), dateFillFloating: UIColor(rgb: 0x939fab, alpha: 0.5)), withCustomWallpaper: PresentationThemeServiceMessageColorComponents(fill: serviceBackgroundColor, primaryText: UIColor(rgb: 0xffffff), linkHighlight: UIColor(rgb: 0x748391, alpha: 0.25), scam: UIColor(rgb: 0xffffff), dateFillStatic: serviceBackgroundColor, dateFillFloating: serviceBackgroundColor.withAlphaComponent(serviceBackgroundColor.alpha * 0.6667))),
         unreadBarFillColor: UIColor(white: 1.0, alpha: 0.9),
         unreadBarStrokeColor: UIColor(white: 0.0, alpha: 0.2),
         unreadBarTextColor: UIColor(rgb: 0x86868d),
@@ -685,7 +689,7 @@ public func makeDefaultDayPresentationTheme(extendingThemeReference: Presentatio
     
     let historyNavigation = PresentationThemeChatHistoryNavigation(
         fillColor: UIColor(rgb: 0xf7f7f7),
-        strokeColor: UIColor(rgb: 0xb1b1b1),
+        strokeColor: UIColor(rgb: 0xc8c7cc),
         foregroundColor: UIColor(rgb: 0x88888d),
         badgeBackgroundColor: UIColor(rgb: 0x007ee5),
         badgeStrokeColor: UIColor(rgb: 0x007ee5),
@@ -751,7 +755,7 @@ public func makeDefaultDayPresentationTheme(extendingThemeReference: Presentatio
                 backgroundColor: UIColor(rgb: 0xffffff),
                 primaryTextColor: UIColor(rgb: 0x000000),
                 controlColor: UIColor(rgb: 0x7e8791),
-                separatorColor: UIColor(rgb: 0xb1b1b1)
+                separatorColor: UIColor(rgb: 0xc8c7cc)
             )
         )
     )

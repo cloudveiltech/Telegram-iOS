@@ -9,6 +9,7 @@ import AccountContext
 import LocalizedPeerData
 import ContextUI
 import ChatListUI
+import TelegramPresentationData
 
 struct ChatMessageItemWidthFill {
     var compactInset: CGFloat
@@ -206,7 +207,7 @@ final class ChatMessageAccessibilityData {
         let authorName = item.message.author?.displayTitle(strings: item.presentationData.strings, displayOrder: item.presentationData.nameDisplayOrder)
         
         if let chatPeer = item.message.peers[item.message.id.peerId] {
-            let (_, _, messageText) = chatListItemStrings(strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, message: item.message, chatPeer: RenderedPeer(peer: chatPeer), accountPeerId: item.context.account.peerId)
+            let (_, _, messageText) = chatListItemStrings(strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, messages: [item.message], chatPeer: RenderedPeer(peer: chatPeer), accountPeerId: item.context.account.peerId)
             
             var text = messageText
             
@@ -610,13 +611,13 @@ final class ChatMessageAccessibilityData {
         }
         
         if isSelected == nil {
-            var canReply = item.controllerInteraction.canSetupReply(item.message)
+            var canReply = item.controllerInteraction.canSetupReply(item.message) == .reply
             for media in item.content.firstMessage.media {
                 if let _ = media as? TelegramMediaExpiredContent {
                     canReply = false
                 }
                 else if let media = media as? TelegramMediaAction {
-                    if case .phoneCall(_, _, _) = media.action {
+                    if case .phoneCall = media.action {
                     } else {
                         canReply = false
                     }
@@ -715,7 +716,7 @@ public class ChatMessageItemView: ListViewItemNode {
         return nil
     }
     
-    func getMessageContextSourceNode() -> ContextExtractedContentContainingNode? {
+    func getMessageContextSourceNode(stableId: UInt32?) -> ContextExtractedContentContainingNode? {
         return nil
     }
     
@@ -782,9 +783,9 @@ public class ChatMessageItemView: ListViewItemNode {
                 case .requestPhone:
                     item.controllerInteraction.shareAccountContact()
                 case .openWebApp:
-                    item.controllerInteraction.requestMessageActionCallback(item.message.id, nil, true)
-                case let .callback(data):
-                    item.controllerInteraction.requestMessageActionCallback(item.message.id, data, false)
+                    item.controllerInteraction.requestMessageActionCallback(item.message.id, nil, true, false)
+                case let .callback(requiresPassword, data):
+                    item.controllerInteraction.requestMessageActionCallback(item.message.id, data, false, requiresPassword)
                 case let .switchInline(samePeer, query):
                     var botPeer: Peer?
                     
@@ -829,7 +830,7 @@ public class ChatMessageItemView: ListViewItemNode {
         }
     }
     
-    func targetReactionNode(value: String) -> (ASDisplayNode, Int)? {
+    func targetReactionNode(value: String) -> (ASDisplayNode, ASDisplayNode)? {
         return nil
     }
 }

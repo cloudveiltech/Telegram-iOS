@@ -521,6 +521,10 @@ private func decryptedAttributes46(_ attributes: [TelegramMediaFileAttribute], t
                 result.append(.documentAttributeAudio(flags: flags, duration: Int32(duration), title: title, performer: performer, waveform: waveformBuffer))
             case .HasLinkedStickers:
                 break
+            case .hintFileIsLarge:
+                break
+            case .hintIsValidated:
+                break
         }
     }
     return result
@@ -576,6 +580,12 @@ private func decryptedAttributes73(_ attributes: [TelegramMediaFileAttribute], t
                 result.append(.documentAttributeAudio(flags: flags, duration: Int32(duration), title: title, performer: performer, waveform: waveformBuffer))
             case .HasLinkedStickers:
                 break
+            case .hintFileIsLarge:
+                break
+            case .hintIsValidated:
+                break
+            case .hintIsValidated:
+                break
         }
     }
     return result
@@ -630,6 +640,10 @@ private func decryptedAttributes101(_ attributes: [TelegramMediaFileAttribute], 
                 }
                 result.append(.documentAttributeAudio(flags: flags, duration: Int32(duration), title: title, performer: performer, waveform: waveformBuffer))
             case .HasLinkedStickers:
+                break
+            case .hintFileIsLarge:
+                break
+            case .hintIsValidated:
                 break
         }
     }
@@ -751,6 +765,7 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
     
     var viaBotName: String?
     var entities: [MessageTextEntity]?
+    var muted: Bool = false
     
     for attribute in message.attributes {
         if let attribute = attribute as? AutoremoveTimeoutMessageAttribute {
@@ -763,6 +778,10 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
             }
         } else if let attribute = attribute as? TextEntitiesMessageAttribute {
             entities = attribute.entities
+        } else if let attribute = attribute as? NotificationInfoMessageAttribute {
+            if attribute.flags.contains(.muted) {
+                muted = true
+            }
         }
     }
     
@@ -791,6 +810,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                     
                     return .layer8(.decryptedMessage(randomId: globallyUniqueId, randomBytes: randomBytes, message: message.text, media: decryptedMedia))
                 case .layer46:
+                    if muted {
+                        flags |= (1 << 5)
+                    }
                     if let _ = viaBotName {
                         flags |= (1 << 11)
                     }
@@ -798,6 +820,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                     flags |= (1 << 9)
                     return .layer46(.decryptedMessage(flags: flags, randomId: globallyUniqueId, ttl: messageAutoremoveTimeout, message: message.text, media: decryptedMedia, entities: nil, viaBotName: viaBotName, replyToRandomId: replyGlobalId))
                 case .layer73:
+                    if muted {
+                        flags |= (1 << 5)
+                    }
                     if let _ = viaBotName {
                         flags |= (1 << 11)
                     }
@@ -812,6 +837,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                     }
                     return .layer73(.decryptedMessage(flags: flags, randomId: globallyUniqueId, ttl: messageAutoremoveTimeout, message: message.text, media: decryptedMedia, entities: decryptedEntites, viaBotName: viaBotName, replyToRandomId: replyGlobalId, groupedId: message.groupingKey))
                 case .layer101:
+                    if muted {
+                        flags |= (1 << 5)
+                    }
                     if let _ = viaBotName {
                         flags |= (1 << 11)
                     }
@@ -883,6 +911,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                     }
                     
                     if let decryptedMedia = decryptedMedia {
+                        if muted {
+                            flags |= (1 << 5)
+                        }
                         if let _ = viaBotName {
                             flags |= (1 << 11)
                         }
@@ -907,6 +938,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                     }
                     
                     if let decryptedMedia = decryptedMedia {
+                        if muted {
+                            flags |= (1 << 5)
+                        }
                         if let _ = viaBotName {
                             flags |= (1 << 11)
                         }
@@ -938,6 +972,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                 }
                 
                 if let decryptedMedia = decryptedMedia {
+                    if muted {
+                        flags |= (1 << 5)
+                    }
                     if let _ = viaBotName {
                         flags |= (1 << 11)
                     }
@@ -963,6 +1000,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                     case .layer8:
                         break
                     case .layer46:
+                        if muted {
+                            flags |= (1 << 5)
+                        }
                         if let _ = viaBotName {
                             flags |= (1 << 11)
                         }
@@ -970,6 +1010,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                         flags |= (1 << 9)
                         return .layer46(.decryptedMessage(flags: flags, randomId: globallyUniqueId, ttl: messageAutoremoveTimeout, message: message.text, media: decryptedMedia, entities: nil, viaBotName: viaBotName, replyToRandomId: replyGlobalId))
                     case .layer73:
+                        if muted {
+                            flags |= (1 << 5)
+                        }
                         if let _ = viaBotName {
                             flags |= (1 << 11)
                         }
@@ -981,6 +1024,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                         flags |= (1 << 9)
                         return .layer73(.decryptedMessage(flags: flags, randomId: globallyUniqueId, ttl: messageAutoremoveTimeout, message: message.text, media: decryptedMedia, entities: decryptedEntites, viaBotName: viaBotName, replyToRandomId: replyGlobalId, groupedId: message.groupingKey))
                     case .layer101:
+                        if muted {
+                            flags |= (1 << 5)
+                        }
                         if let _ = viaBotName {
                             flags |= (1 << 11)
                         }
@@ -998,6 +1044,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                 case .layer8:
                     break
                 case .layer46:
+                    if muted {
+                        flags |= (1 << 5)
+                    }
                     if let _ = viaBotName {
                         flags |= (1 << 11)
                     }
@@ -1010,6 +1059,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                     }
                     return .layer46(.decryptedMessage(flags: flags, randomId: globallyUniqueId, ttl: messageAutoremoveTimeout, message: message.text, media: decryptedMedia, entities: nil, viaBotName: viaBotName, replyToRandomId: replyGlobalId))
                 case .layer73:
+                    if muted {
+                        flags |= (1 << 5)
+                    }
                     if let _ = viaBotName {
                         flags |= (1 << 11)
                     }
@@ -1027,6 +1079,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                     }
                     return .layer73(.decryptedMessage(flags: flags, randomId: globallyUniqueId, ttl: messageAutoremoveTimeout, message: message.text, media: decryptedMedia, entities: decryptedEntites, viaBotName: viaBotName, replyToRandomId: replyGlobalId, groupedId: message.groupingKey))
                 case .layer101:
+                    if muted {
+                        flags |= (1 << 5)
+                    }
                     if let _ = viaBotName {
                         flags |= (1 << 11)
                     }
@@ -1049,6 +1104,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                 case .layer8:
                     break
                 case .layer46:
+                    if muted {
+                        flags |= (1 << 5)
+                    }
                     if let _ = viaBotName {
                         flags |= (1 << 11)
                     }
@@ -1056,6 +1114,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                     flags |= (1 << 9)
                     return .layer46(.decryptedMessage(flags: flags, randomId: globallyUniqueId, ttl: messageAutoremoveTimeout, message: message.text, media: decryptedMedia, entities: nil, viaBotName: viaBotName, replyToRandomId: replyGlobalId))
                 case .layer73:
+                    if muted {
+                        flags |= (1 << 5)
+                    }
                     if let _ = viaBotName {
                         flags |= (1 << 11)
                     }
@@ -1068,6 +1129,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
                     flags |= (1 << 9)
                     return .layer73(.decryptedMessage(flags: flags, randomId: globallyUniqueId, ttl: messageAutoremoveTimeout, message: message.text, media: decryptedMedia, entities: decryptedEntites, viaBotName: viaBotName, replyToRandomId: replyGlobalId, groupedId: message.groupingKey))
                 case .layer101:
+                    if muted {
+                        flags |= (1 << 5)
+                    }
                     if let _ = viaBotName {
                         flags |= (1 << 11)
                     }
@@ -1091,11 +1155,17 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
             
             return .layer8(.decryptedMessage(randomId: globallyUniqueId, randomBytes: randomBytes, message: message.text, media: .decryptedMessageMediaEmpty))
         case .layer46:
+            if muted {
+                flags |= (1 << 5)
+            }
             if let _ = viaBotName {
                 flags |= (1 << 11)
             }
             return .layer46(.decryptedMessage(flags: flags, randomId: globallyUniqueId, ttl: messageAutoremoveTimeout, message: message.text, media: .decryptedMessageMediaEmpty, entities: nil, viaBotName: viaBotName, replyToRandomId: replyGlobalId))
         case .layer73:
+            if muted {
+                flags |= (1 << 5)
+            }
             if let _ = viaBotName {
                 flags |= (1 << 11)
             }
@@ -1105,6 +1175,9 @@ private func boxedDecryptedMessage(transaction: Transaction, message: Message, g
             }
             return .layer73(.decryptedMessage(flags: flags, randomId: globallyUniqueId, ttl: messageAutoremoveTimeout, message: message.text, media: .decryptedMessageMediaEmpty, entities: decryptedEntites, viaBotName: viaBotName, replyToRandomId: replyGlobalId, groupedId: message.groupingKey))
         case .layer101:
+            if muted {
+                flags |= (1 << 5)
+            }
             if let _ = viaBotName {
                 flags |= (1 << 11)
             }
@@ -1369,7 +1442,7 @@ private func sendMessage(auxiliaryMethods: AccountAuxiliaryMethods, postbox: Pos
             if let state = transaction.getPeerChatState(messageId.peerId) as? SecretChatState, let peer = transaction.getPeer(messageId.peerId) as? TelegramSecretChat {
                 if let message = transaction.getMessage(messageId), let globallyUniqueId = message.globallyUniqueId {
                     let decryptedMessage = boxedDecryptedMessage(transaction: transaction, message: message, globallyUniqueId: globallyUniqueId, uploadedFile: file, thumbnailData: thumbnailData, layer: layer)
-                    return sendBoxedDecryptedMessage(postbox: postbox, network: network, peer: peer, state: state, operationIndex: tagLocalIndex, decryptedMessage: decryptedMessage, globallyUniqueId: globallyUniqueId, file: file, asService: wasDelivered, wasDelivered: wasDelivered)
+                    return sendBoxedDecryptedMessage(postbox: postbox, network: network, peer: peer, state: state, operationIndex: tagLocalIndex, decryptedMessage: decryptedMessage, globallyUniqueId: globallyUniqueId, file: file, silent: message.muted, asService: wasDelivered, wasDelivered: wasDelivered)
                     |> mapToSignal { result in
                         return postbox.transaction { transaction -> Void in
                             let forceRemove: Bool
@@ -1400,12 +1473,13 @@ private func sendMessage(auxiliaryMethods: AccountAuxiliaryMethods, postbox: Pos
                                 if case .message = result {
                                     flags.remove(.Unsent)
                                     flags.remove(.Sending)
+                                    flags.remove(.Failed)
                                 } else {
                                     flags = [.Failed]
                                 }
                                 var storeForwardInfo: StoreMessageForwardInfo?
                                 if let forwardInfo = currentMessage.forwardInfo {
-                                    storeForwardInfo = StoreMessageForwardInfo(authorId: forwardInfo.author?.id, sourceId: forwardInfo.source?.id, sourceMessageId: forwardInfo.sourceMessageId, date: forwardInfo.date, authorSignature: forwardInfo.authorSignature)
+                                    storeForwardInfo = StoreMessageForwardInfo(authorId: forwardInfo.author?.id, sourceId: forwardInfo.source?.id, sourceMessageId: forwardInfo.sourceMessageId, date: forwardInfo.date, authorSignature: forwardInfo.authorSignature, psaType: forwardInfo.psaType)
                                 }
                                 
                                 var updatedMedia = currentMessage.media
@@ -1413,7 +1487,7 @@ private func sendMessage(auxiliaryMethods: AccountAuxiliaryMethods, postbox: Pos
                                 if let fromMedia = currentMessage.media.first, let encryptedFile = encryptedFile, let file = file {
                                     var toMedia: Media?
                                     if let fromMedia = fromMedia as? TelegramMediaFile {
-                                        let updatedFile = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.CloudSecretFile, id: encryptedFile.id), partialReference: nil, resource: SecretFileMediaResource(fileId: encryptedFile.id, accessHash: encryptedFile.accessHash, containerSize: encryptedFile.size, decryptedSize: file.size, datacenterId: Int(encryptedFile.datacenterId), key: file.key), previewRepresentations: fromMedia.previewRepresentations, immediateThumbnailData: fromMedia.immediateThumbnailData, mimeType: fromMedia.mimeType, size: fromMedia.size, attributes: fromMedia.attributes)
+                                        let updatedFile = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.CloudSecretFile, id: encryptedFile.id), partialReference: nil, resource: SecretFileMediaResource(fileId: encryptedFile.id, accessHash: encryptedFile.accessHash, containerSize: encryptedFile.size, decryptedSize: file.size, datacenterId: Int(encryptedFile.datacenterId), key: file.key), previewRepresentations: fromMedia.previewRepresentations, videoThumbnails: fromMedia.videoThumbnails, immediateThumbnailData: fromMedia.immediateThumbnailData, mimeType: fromMedia.mimeType, size: fromMedia.size, attributes: fromMedia.attributes)
                                         toMedia = updatedFile
                                         updatedMedia = [updatedFile]
                                     }
@@ -1423,7 +1497,7 @@ private func sendMessage(auxiliaryMethods: AccountAuxiliaryMethods, postbox: Pos
                                     }
                                 }
                                 
-                                return .update(StoreMessage(id: currentMessage.id, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, timestamp: timestamp, flags: flags, tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: currentMessage.attributes, media: updatedMedia))
+                                return .update(StoreMessage(id: currentMessage.id, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: timestamp, flags: flags, tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: currentMessage.attributes, media: updatedMedia))
                             })
                             
                             maybeReadSecretOutgoingMessage(transaction: transaction, index: MessageIndex(id: message.id, timestamp: timestamp))
@@ -1462,7 +1536,7 @@ private func sendServiceActionMessage(postbox: Postbox, network: Network, peerId
     return postbox.transaction { transaction -> Signal<Void, NoError> in
         if let state = transaction.getPeerChatState(peerId) as? SecretChatState, let peer = transaction.getPeer(peerId) as? TelegramSecretChat {
             let decryptedMessage = boxedDecryptedSecretMessageAction(action: action)
-            return sendBoxedDecryptedMessage(postbox: postbox, network: network, peer: peer, state: state, operationIndex: tagLocalIndex, decryptedMessage: decryptedMessage, globallyUniqueId: action.globallyUniqueId, file: nil, asService: true, wasDelivered: wasDelivered)
+            return sendBoxedDecryptedMessage(postbox: postbox, network: network, peer: peer, state: state, operationIndex: tagLocalIndex, decryptedMessage: decryptedMessage, globallyUniqueId: action.globallyUniqueId, file: nil, silent: false, asService: true, wasDelivered: wasDelivered)
             |> mapToSignal { result in
                 return postbox.transaction { transaction -> Void in
                     let forceRemove: Bool
@@ -1493,9 +1567,9 @@ private func sendServiceActionMessage(postbox: Postbox, network: Network, peerId
                             resultTimestamp = timestamp
                             var storeForwardInfo: StoreMessageForwardInfo?
                             if let forwardInfo = currentMessage.forwardInfo {
-                                storeForwardInfo = StoreMessageForwardInfo(authorId: forwardInfo.author?.id, sourceId: forwardInfo.source?.id, sourceMessageId: forwardInfo.sourceMessageId, date: forwardInfo.date, authorSignature: forwardInfo.authorSignature)
+                                storeForwardInfo = StoreMessageForwardInfo(authorId: forwardInfo.author?.id, sourceId: forwardInfo.source?.id, sourceMessageId: forwardInfo.sourceMessageId, date: forwardInfo.date, authorSignature: forwardInfo.authorSignature, psaType: forwardInfo.psaType)
                             }
-                            return .update(StoreMessage(id: currentMessage.id, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, timestamp: timestamp, flags: flags, tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: currentMessage.attributes, media: currentMessage.media))
+                            return .update(StoreMessage(id: currentMessage.id, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: timestamp, flags: flags, tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: currentMessage.attributes, media: currentMessage.media))
                         })
                         
                         if let resultTimestamp = resultTimestamp {
@@ -1521,7 +1595,7 @@ private enum SendBoxedDecryptedMessageResult {
     case error(SendBoxedDecryptedMessageError)
 }
 
-private func sendBoxedDecryptedMessage(postbox: Postbox, network: Network, peer: TelegramSecretChat, state: SecretChatState, operationIndex: Int32, decryptedMessage: BoxedDecryptedMessage, globallyUniqueId: Int64, file: SecretChatOutgoingFile?, asService: Bool, wasDelivered: Bool) -> Signal<SendBoxedDecryptedMessageResult, NoError> {
+private func sendBoxedDecryptedMessage(postbox: Postbox, network: Network, peer: TelegramSecretChat, state: SecretChatState, operationIndex: Int32, decryptedMessage: BoxedDecryptedMessage, globallyUniqueId: Int64, file: SecretChatOutgoingFile?, silent: Bool, asService: Bool, wasDelivered: Bool) -> Signal<SendBoxedDecryptedMessageResult, NoError> {
     let payload = Buffer()
     var sequenceInfo: SecretChatOperationSequenceInfo?
     var maybeParameters: SecretChatEncryptionParameters?
@@ -1566,6 +1640,11 @@ private func sendBoxedDecryptedMessage(postbox: Postbox, network: Network, peer:
     let sendMessage: Signal<Api.messages.SentEncryptedMessage, MTRpcError>
     let inputPeer = Api.InputEncryptedChat.inputEncryptedChat(chatId: peer.id.id, accessHash: peer.accessHash)
     
+    var flags: Int32 = 0
+    if silent {
+        flags |= (1 << 0)
+    }
+    
     if asService {
         let actionRandomId: Int64
         if wasDelivered {
@@ -1576,9 +1655,9 @@ private func sendBoxedDecryptedMessage(postbox: Postbox, network: Network, peer:
         sendMessage = network.request(Api.functions.messages.sendEncryptedService(peer: inputPeer, randomId: actionRandomId, data: Buffer(data: encryptedPayload)))
     } else {
         if let file = file {
-            sendMessage = network.request(Api.functions.messages.sendEncryptedFile(peer: inputPeer, randomId: globallyUniqueId, data: Buffer(data: encryptedPayload), file: file.reference.apiInputFile))
+            sendMessage = network.request(Api.functions.messages.sendEncryptedFile(flags: flags, peer: inputPeer, randomId: globallyUniqueId, data: Buffer(data: encryptedPayload), file: file.reference.apiInputFile))
         } else {
-            sendMessage = network.request(Api.functions.messages.sendEncrypted(peer: inputPeer, randomId: globallyUniqueId, data: Buffer(data: encryptedPayload)))
+            sendMessage = network.request(Api.functions.messages.sendEncrypted(flags: flags, peer: inputPeer, randomId: globallyUniqueId, data: Buffer(data: encryptedPayload)))
         }
     }
     return sendMessage
@@ -1622,7 +1701,7 @@ private func requestTerminateSecretChat(postbox: Postbox, network: Network, peer
                                 transaction.updatePeerCachedData(peerIds: Set([peerId]), update: { _, current in
                                     if let current = current as? CachedSecretChatData {
                                         var peerStatusSettings = current.peerStatusSettings ?? PeerStatusSettings()
-                                        peerStatusSettings = []
+                                        peerStatusSettings.flags = []
                                         return current.withUpdatedPeerStatusSettings(peerStatusSettings)
                                     } else {
                                         return current

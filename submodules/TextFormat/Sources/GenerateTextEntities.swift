@@ -41,6 +41,12 @@ private let validTimecodeSet: CharacterSet = {
     set.insert(":")
     return set
 }()
+private let validTimecodePreviousSet: CharacterSet = {
+    var set = CharacterSet.whitespacesAndNewlines
+    set.insert("(")
+    set.insert("[")
+    return set
+}()
 
 public struct ApplicationSpecificEntityType {
     public static let Timecode: Int32 = 1
@@ -79,12 +85,13 @@ public struct EnabledEntityTypes: OptionSet {
     public static let command = EnabledEntityTypes(rawValue: 1 << 0)
     public static let mention = EnabledEntityTypes(rawValue: 1 << 1)
     public static let hashtag = EnabledEntityTypes(rawValue: 1 << 2)
-    public static let url = EnabledEntityTypes(rawValue: 1 << 3)
+    public static let allUrl = EnabledEntityTypes(rawValue: 1 << 3)
     public static let phoneNumber = EnabledEntityTypes(rawValue: 1 << 4)
     public static let timecode = EnabledEntityTypes(rawValue: 1 << 5)
     public static let external = EnabledEntityTypes(rawValue: 1 << 6)
+    public static let internalUrl = EnabledEntityTypes(rawValue: 1 << 7)
     
-    public static let all: EnabledEntityTypes = [.command, .mention, .hashtag, .url, .phoneNumber]
+    public static let all: EnabledEntityTypes = [.command, .mention, .hashtag, .allUrl, .phoneNumber]
 }
 
 private func commitEntity(_ utf16: String.UTF16View, _ type: CurrentEntityType, _ range: Range<String.UTF16View.Index>, _ enabledTypes: EnabledEntityTypes, _ entities: inout [MessageTextEntity], mediaDuration: Double? = nil) {
@@ -154,11 +161,11 @@ public func generateTextEntities(_ text: String, enabledTypes: EnabledEntityType
     let utf16 = text.utf16
     
     var detector: NSDataDetector?
-    if enabledTypes.contains(.phoneNumber) && enabledTypes.contains(.url) {
+    if enabledTypes.contains(.phoneNumber) && (enabledTypes.contains(.allUrl) || enabledTypes.contains(.internalUrl)) {
         detector = dataAndPhoneNumberDetector
     } else if enabledTypes.contains(.phoneNumber) {
         detector = phoneNumberDetector
-    } else if enabledTypes.contains(.url) {
+    } else if enabledTypes.contains(.allUrl) || enabledTypes.contains(.internalUrl) {
         detector = dataDetector
     }
     
@@ -173,6 +180,21 @@ public func generateTextEntities(_ text: String, enabledTypes: EnabledEntityType
                     if let lowerBound = lowerBound, let upperBound = upperBound {
                         let type: MessageTextEntityType
                         if result.resultType == NSTextCheckingResult.CheckingType.link {
+                            if !enabledTypes.contains(.allUrl) && enabledTypes.contains(.internalUrl) {
+                                guard let url = result.url else {
+                                    return
+                                }
+                                if url.scheme != "tg" {
+                                    guard let host = url.host?.lowercased() else {
+                                        return
+                                    }
+                                    if host == "telegram.org" || host == "t.me" {
+                                    } else {
+                                        return
+                                    }
+                                }
+                            }
+                            
                             type = .Url
                         } else {
                             type = .PhoneNumber
@@ -320,7 +342,7 @@ public func addLocallyGeneratedEntities(_ text: String, enabledTypes: EnabledEnt
                         notFound = false
                         if let (type, range) = currentEntity, type == .timecode {
                             currentEntity = (.timecode, range.lowerBound ..< utf16.index(after: index))
-                        } else if previousScalar == nil || CharacterSet.whitespacesAndNewlines.contains(previousScalar!) {
+                        } else if previousScalar == nil || validTimecodePreviousSet.contains(previousScalar!) {
                             currentEntity = (.timecode, index ..< index)
                         }
                     }

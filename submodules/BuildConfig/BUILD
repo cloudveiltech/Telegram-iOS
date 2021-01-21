@@ -1,5 +1,5 @@
 load(
-    "//build-input/data:variables.bzl",
+    "@build_configuration//:variables.bzl",
     "telegram_api_id",
     "telegram_api_hash",
     "telegram_app_center_id",
@@ -26,8 +26,11 @@ objc_library(
         "-DAPP_SPECIFIC_URL_SCHEME=\\\"{}\\\"".format(telegram_app_specific_url_scheme),
     ],
     hdrs = glob([
-        "Sources/*.h",
+        "PublicHeaders/**/*.h",
     ]),
+    includes = [
+        "PublicHeaders",
+    ],
     deps = [
     ],
     visibility = ["//visibility:public"],

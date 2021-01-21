@@ -65,22 +65,9 @@
 "PUSH_CHANNEL_MESSAGE_GEOLIVE" = "%1$@|posted a live location";
 "PUSH_CHANNEL_MESSAGE_GIF" = "%1$@|posted a GIF";
 
-"PUSH_PINNED_TEXT" = "%1$@ pinned \"%2$@\" ";
-"PUSH_PINNED_NOTEXT" = "%1$@ pinned a message";
-"PUSH_PINNED_PHOTO" = "%1$@ pinned a photo";
-"PUSH_PINNED_VIDEO" = "%1$@ pinned a video";
-"PUSH_PINNED_ROUND" = "%1$@ pinned a video message";
-"PUSH_PINNED_DOC" = "%1$@ pinned a file";
-"PUSH_PINNED_STICKER" = "%1$@ pinned a %2$@sticker";
-"PUSH_PINNED_AUDIO" = "%1$@ pinned a voice message";
-"PUSH_PINNED_GEO" = "%1$@ pinned a map";
-"PUSH_PINNED_GEOLIVE" = "%1$@ pinned a live location";
-"PUSH_PINNED_GIF" = "%1$@ pinned a GIF";
-
 "PUSH_MESSAGE_GAME" = "%1$@|invited you to play %2$@";
 "PUSH_CHANNEL_MESSAGE_GAME" = "%1$@|invited you to play %2$@";
 "PUSH_CHAT_MESSAGE_GAME" = "%2$@|%1$@ invited the group to play %3$@";
-"PUSH_PINNED_GAME" = "%1$@ pinned a game";
 
 "PUSH_MESSAGE_TEXT" = "%1$@|%2$@";
 "PUSH_MESSAGE_NOTEXT" = "%1$@|sent you a message";
@@ -117,6 +104,10 @@
 "PUSH_MESSAGES_1" = "%1$@|sent you a message";
 "PUSH_MESSAGES_any" = "%1$@|sent you %2$d messages";
 "PUSH_ALBUM" = "%1$@|sent you an album";
+"PUSH_MESSAGE_DOCS" = "%1$@|sent you %2$d files";
+"PUSH_MESSAGE_DOCS_1" = "%1$@|sent you a file";
+"PUSH_MESSAGE_DOCS_any" = "%1$@|sent you %2$d files";
+
 
 "PUSH_CHANNEL_MESSAGE_TEXT" = "%1$@|%2$@";
 "PUSH_CHANNEL_MESSAGE_NOTEXT" = "%1$@|posted a message";
@@ -149,6 +140,9 @@
 "PUSH_CHANNEL_MESSAGES_1" = "%1$@|posted a message";
 "PUSH_CHANNEL_MESSAGES_any" = "%1$@|posted %2$d messages";
 "PUSH_CHANNEL_ALBUM" = "%1$@|posted an album";
+"PUSH_CHANNEL_MESSAGE_DOCS" = "%1$@|posted %2$d files";
+"PUSH_CHANNEL_MESSAGE_DOCS_1" = "%1$@|posted a file";
+"PUSH_CHANNEL_MESSAGE_DOCS_any" = "%1$@|posted %2$d files";
 
 "PUSH_CHAT_MESSAGE_TEXT" = "%2$@|%1$@:%3$@";
 "PUSH_CHAT_MESSAGE_NOTEXT" = "%2$@|%1$@ sent a message to the group";
@@ -191,6 +185,8 @@
 "PUSH_CHAT_MESSAGES_1" = "%2$@|%1$@ sent a message";
 "PUSH_CHAT_MESSAGES_any" = "%2$@|%1$@ sent %3$d messages";
 "PUSH_CHAT_ALBUM" = "%2$@|%1$@ sent an album";
+"PUSH_CHAT_MESSAGE_DOCS_FIX1_1" = "%2$@|%1$@ sent a file";
+"PUSH_CHAT_MESSAGE_DOCS_FIX1_any" = "%2$@|%1$@ sent %3$d files";
 
 "PUSH_PINNED_TEXT" = "%1$@|pinned \"%2$@\" ";
 "PUSH_PINNED_NOTEXT" = "%1$@|pinned a message";
@@ -215,7 +211,9 @@
 "PUSH_AUTH_REGION" = "New login|from unrecognized device %1$@, location: %2$@";
 
 "PUSH_PHONE_CALL_REQUEST" = "%1$@|is calling you!";
+"PUSH_VIDEO_CALL_REQUEST" = "%1$@|is calling you!";
 "PUSH_PHONE_CALL_MISSED" = "%1$@|You missed a call";
+"PUSH_VIDEO_CALL_MISSED" = "%1$@|You missed a video call";
 
 "PUSH_MESSAGE_GAME_SCORE" = "%1$@ scored %3$@ in game %2$@";
 "PUSH_MESSAGE_VIDEOS" = "%1$@ sent you %2$@ videos";
@@ -1521,7 +1519,6 @@
 
 "Channel.UpdatePhotoItem" = "Set Channel Photo";
 
-"Channel.AboutItem" = "about";
 "Channel.LinkItem" = "share link";
 "Channel.Edit.AboutItem" = "Description";
 "Channel.Edit.LinkItem" = "Link";
@@ -1555,6 +1552,7 @@
 
 "Channel.ErrorAccessDenied" = "Sorry, this channel is private.";
 "Group.ErrorAccessDenied" = "Sorry, this group is private.";
+"CommentsGroup.ErrorAccessDenied" = "Sorry, you can't access this chat because you were banned by an admin.";
 "Conversation.InputTextBroadcastPlaceholder" = "Broadcast";
 
 "Channel.NotificationLoading" = "Loading...";
@@ -1919,6 +1917,7 @@
 "Conversation.Unpin" = "Unpin";
 "Conversation.Report" = "Report Spam";
 "Conversation.PinnedMessage" = "Pinned Message";
+"Conversation.PinnedPreviousMessage" = "Previous Message";
 
 "Conversation.Moderate.Delete" = "Delete Message";
 "Conversation.Moderate.Ban" = "Ban User";
@@ -1951,6 +1950,7 @@
 "Message.PinnedStickerMessage" = "pinned sticker";
 "Message.PinnedLocationMessage" = "pinned location";
 "Message.PinnedContactMessage" = "pinned contact";
+"Message.PinnedGenericMessage" = "%@ pinned a message";
 
 "Notification.PinnedMessage" = "pinned message";
 
@@ -1973,6 +1973,7 @@
 
 "Conversation.PinMessageAlertGroup" = "Pin this message and notify all members of the group?";
 "Conversation.PinMessageAlert.OnlyPin" = "Only Pin";
+"Conversation.PinMessageAlert.PinAndNotifyMembers" = "Pin and notify all members";
 
 "Conversation.UnpinMessageAlert" = "Would you like to unpin this message?";
 
@@ -2182,6 +2183,8 @@ Unused sets are archived when you add more.";
 
 "Widget.AuthRequired" = "Log in to Telegram";
 "Widget.NoUsers" = "Start messaging to see your friends here";
+"Widget.GalleryTitle" = "Telegram";
+"Widget.GalleryDescription" = "See your friends here";
 
 "ShareMenu.CopyShareLinkGame" = "Copy link to game";
 
@@ -2274,6 +2277,19 @@ Unused sets are archived when you add more.";
 "Call.Minutes_any" = "%@ minutes";
 "Call.Minutes_many" = "%@ minutes";
 "Call.Minutes_0" = "%@ minutes";
+"Call.Hours_1" = "%@ hour";
+"Call.Hours_2" = "%@ hours";
+"Call.Hours_3_10" = "%@ hours";
+"Call.Hours_any" = "%@ hours";
+"Call.Hours_many" = "%@ hours";
+"Call.Hours_0" = "%@ hours";
+"Call.Days_1" = "%@ day";
+"Call.Days_2" = "%@ days";
+"Call.Days_3_10" = "%@ days";
+"Call.Days_any" = "%@ days";
+"Call.Days_many" = "%@ days";
+"Call.Days_0" = "%@ days";
+
 
 "Call.ShortSeconds_1" = "%@ sec";
 "Call.ShortSeconds_2" = "%@ sec";
@@ -2290,9 +2306,13 @@ Unused sets are archived when you add more.";
 
 "Notification.CallTimeFormat" = "%1$@ (%2$@)"; // 1 - type, 2 - duration
 "Notification.CallOutgoing" = "Outgoing Call";
+"Notification.VideoCallOutgoing" = "Outgoing Video Call";
 "Notification.CallIncoming" = "Incoming Call";
+"Notification.VideoCallIncoming" = "Incoming Video Call";
 "Notification.CallMissed" = "Missed Call";
+"Notification.VideoCallMissed" = "Missed Video Call";
 "Notification.CallCanceled" = "Cancelled Call";
+"Notification.VideoCallCanceled" = "Cancelled Video Call";
 "Notification.CallOutgoingShort" = "Outgoing";
 "Notification.CallIncomingShort" = "Incoming";
 "Notification.CallMissedShort" = "Missed";
@@ -2425,6 +2445,8 @@ Unused sets are archived when you add more.";
 "Calls.RatingFeedback" = "Write a comment...";
 
 "Call.StatusIncoming" = "Telegram Audio...";
+"Call.IncomingVoiceCall" = "Incoming Voice Call";
+"Call.IncomingVideoCall" = "Incoming Video Call";
 "Call.StatusRequesting" = "Contacting...";
 "Call.StatusWaiting" = "Waiting...";
 "Call.StatusRinging" = "Ringing...";
@@ -2439,6 +2461,7 @@ Unused sets are archived when you add more.";
 "Call.StatusBar" = "Touch to return to call %@";
 
 "Call.ParticipantVersionOutdatedError" = "%@'s app does not support calls. They need to update their app before you can call them.";
+"Call.ParticipantVideoVersionOutdatedError" = "%@'s app does not support video calls. They need to update their app before you can call them.";
 
 "Privacy.Calls" = "Voice Calls";
 
@@ -2467,6 +2490,12 @@ Unused sets are archived when you add more.";
 
 "Call.CallInProgressTitle" = "Call in Progress";
 "Call.CallInProgressMessage" = "Finish call with %1$@ and start a new one with %2$@?";
+"Call.CallInProgressVoiceChatMessage" = "Finish call with %1$@ and start a voice chat with %2$@?";
+"Call.ExternalCallInProgressMessage" = "Please finish the current call first.";
+
+"Call.VoiceChatInProgressTitle" = "Voice Chat in Progress";
+"Call.VoiceChatInProgressMessage" = "Leave voice chat in %1$@ and start a new one with %2$@?";
+"Call.VoiceChatInProgressCallMessage" = "Leave voice chat in %1$@ and start a call with %2$@?";
 
 "Call.Message" = "Message";
 
@@ -2598,7 +2627,9 @@ Unused sets are archived when you add more.";
 "Channel.AdminLog.CanInviteUsers" = "Add Users";
 "Channel.AdminLog.CanPinMessages" = "Pin Messages";
 "Channel.AdminLog.CanAddAdmins" = "Add New Admins";
+"Channel.AdminLog.CanBeAnonymous" = "Remain Anonymous";
 "Channel.AdminLog.CanEditMessages" = "Edit Messages";
+"Channel.AdminLog.CanManageCalls" = "Manage Voice Chats";
 
 "Channel.AdminLog.MessageToggleInvitesOn" = "%@ enabled group invites";
 "Channel.AdminLog.MessageToggleInvitesOff" = "%@ disabled group invites";
@@ -2656,6 +2687,7 @@ Unused sets are archived when you add more.";
 "Channel.AdminLogFilter.EventsEditedMessages" = "Edited Messages";
 "Channel.AdminLogFilter.EventsPinned" = "Pinned Messages";
 "Channel.AdminLogFilter.EventsLeaving" = "Members Removed";
+"Channel.AdminLogFilter.EventsCalls" = "Vocie Chats";
 "Channel.AdminLogFilter.AdminsTitle" = "ADMINS";
 "Channel.AdminLogFilter.AdminsAll" = "All Admins";
 
@@ -2747,6 +2779,7 @@ Unused sets are archived when you add more.";
 
 "Channel.EditAdmin.CannotEdit" = "You cannot edit the rights of this admin.";
 "Call.RateCall" = "Rate This Call";
+"Call.ShareStats" = "Share Statistics";
 
 "Settings.ApplyProxyAlert" = "Are you sure you want to enable this proxy?\nServer: %1$@\nPort: %2$@\n\nYou can change your proxy server later it in the Settings (Data and Storage).";
 "Settings.ApplyProxyAlertCredentials" = "Are you sure you want to enable this proxy?\nServer: %1$@\nPort: %2$@\nUsername: %3$@\nPassword: %4$@\n\nYou can change your proxy server later it in the Settings (Data and Storage).";
@@ -3020,7 +3053,7 @@ Unused sets are archived when you add more.";
 
 "InfoPlist.NSContactsUsageDescription" = "Telegram will continuously upload your contacts to its heavily encrypted cloud servers to let you connect with your friends across all your devices.";
 "InfoPlist.NSLocationWhenInUseUsageDescription" = "When you send your location to your friends, Telegram needs access to show them a map.";
-"InfoPlist.NSCameraUsageDescription" = "We need this so that you can take and share photos and videos.";
+"InfoPlist.NSCameraUsageDescription" = "We need this so that you can take and share photos and videos, as well as make video calls.";
 "InfoPlist.NSPhotoLibraryUsageDescription" = "We need this so that you can share photos and videos from your photo library.";
 "InfoPlist.NSPhotoLibraryAddUsageDescription" = "We need this so that you can save photos and videos to your photo library.";
 "InfoPlist.NSMicrophoneUsageDescription" = "We need this so that you can record and share voice messages and videos with sound.";
@@ -3994,6 +4027,8 @@ Unused sets are archived when you add more.";
 "CallFeedback.ReasonSilentLocal" = "I couldn't hear the other side";
 "CallFeedback.ReasonSilentRemote" = "The other side couldn't hear me";
 "CallFeedback.ReasonDropped" = "Call ended unexpectedly";
+"CallFeedback.VideoReasonDistorted" = "Video was distorted";
+"CallFeedback.VideoReasonLowQuality" = "Video was pixelated";
 "CallFeedback.AddComment" = "Add an optional comment";
 "CallFeedback.IncludeLogs" = "Include technical information";
 "CallFeedback.IncludeLogsInfo" = "This won't reveal the contents of your conversation, but will help us fix the issue sooner.";
@@ -4084,7 +4119,7 @@ Unused sets are archived when you add more.";
 
 "GroupPermission.PermissionGloballyDisabled" = "This permission is disabled in this group.";
 
-"ChannelInfo.Stats" = "Statistics";
+"ChannelInfo.Stats" = "View Statistics";
 
 "Conversation.PressVolumeButtonForSound" = "Press volume button\nto unmute the video";
 
@@ -4133,7 +4168,7 @@ Unused sets are archived when you add more.";
 "Chat.DeleteMessagesConfirmation_1" = "Delete message";
 "Chat.DeleteMessagesConfirmation_any" = "Delete %@ messages";
 
-"Settings.Search" = "Search";
+"Settings.Search" = "Search Settings";
 
 "SettingsSearch.FAQ" = "FAQ";
 
@@ -4345,14 +4380,13 @@ Sorry for the inconvenience.";
 "Channel.DiscussionGroup.HeaderLabel" = "Discuss";
 "Channel.DiscussionGroup.Create" = "Create New Group";
 "Channel.DiscussionGroup.PrivateGroup" = "private group";
+"Channel.DiscussionGroup.PrivateChannel" = "private channel";
 "Channel.DiscussionGroup.Info" = "Everything you post in the channel will be forwarded to this group.";
 "Channel.DiscussionGroup.LinkGroup" = "Link Group";
 "Channel.DiscussionGroup.UnlinkGroup" = "Unlink Group";
 "Channel.DiscussionGroup.UnlinkChannel" = "Unlink Channel";
 "Channel.DiscussionGroup.PublicChannelLink" = "Do you want to make %1$@ the discussion board for %2$@?";
-"Channel.DiscussionGroup.PrivateChannelLink" = "Do you want to make %1$@ the discussion board for %2$@?
-
-Any member of this group will be able to see messages in the channel.";
+"Channel.DiscussionGroup.PrivateChannelLink" = "Do you want to make %1$@ the discussion board for %2$@?\n\nAny member of this group will be able to see messages in the channel.";
 "Channel.DiscussionGroup.MakeHistoryPublic" = "Warning: If you set this private group as the disccussion group for your channel, all channel subscribers will be able to access the group. \"Chat history for new members\" will be switched to Visible.";
 "Channel.DiscussionGroup.MakeHistoryPublicProceed" = "Proceed";
 
@@ -4785,6 +4819,7 @@ Any member of this group will be able to see messages in the channel.";
 "ContactList.Context.SendMessage" = "Send Message";
 "ContactList.Context.StartSecretChat" = "Start Secret Chat";
 "ContactList.Context.Call" = "Call";
+"ContactList.Context.VideoCall" = "Video Call";
 
 "Theme.Context.Apply" = "Apply";
 
@@ -5329,6 +5364,7 @@ Any member of this group will be able to see messages in the channel.";
 "PeerInfo.ButtonMessage" = "Message";
 "PeerInfo.ButtonDiscuss" = "Discuss";
 "PeerInfo.ButtonCall" = "Call";
+"PeerInfo.ButtonVideoCall" = "Video";
 "PeerInfo.ButtonMute" = "Mute";
 "PeerInfo.ButtonUnmute" = "Unmute";
 "PeerInfo.ButtonMore" = "More";
@@ -5339,10 +5375,11 @@ Any member of this group will be able to see messages in the channel.";
 "PeerInfo.PaneMedia" = "Media";
 "PeerInfo.PaneFiles" = "Files";
 "PeerInfo.PaneLinks" = "Links";
-"PeerInfo.PaneVoice" = "Voice Messages";
+"PeerInfo.PaneVoiceAndVideo" = "Voice";
 "PeerInfo.PaneAudio" = "Audio";
 "PeerInfo.PaneGroups" = "Groups";
 "PeerInfo.PaneMembers" = "Members";
+"PeerInfo.PaneGifs" = "GIFs";
 
 "PeerInfo.AddToContacts" = "Add to Contacts";
 
@@ -5474,18 +5511,9 @@ Any member of this group will be able to see messages in the channel.";
 
 "MuteFor.Forever" = "Mute Forever";
 
-"Conversation.Dice" = "Send a 🎲 emoji to any chat to get a random number from Telegram.";
-
-"Conversation.Dice.🎲" = "Send a dice emoji to any chat to roll a die.";
-"Conversation.Dice.🎯" = "Send a dart emoji to try your luck.";
+"Conversation.Dice.u1F3B2" = "Send a dice emoji to any chat to roll a die.";
+"Conversation.Dice.u1F3AF" = "Send a dart emoji to try your luck.";
 "Conversation.SendDice" = "Send";
-
-"ForwardedDices_1" = "Forwarded dice";
-"ForwardedDices_2" = "2 forwarded dices";
-"ForwardedDices_3_10" = "%@ forwarded dices";
-"ForwardedDices_any" = "%@ forwarded dices";
-"ForwardedDices_many" = "%@ forwarded dices";
-"ForwardedDices_0" = "%@ forwarded dices";
 
 "Conversation.ContextMenuDiscuss" = "Discuss";
 
@@ -5494,3 +5522,507 @@ Any member of this group will be able to see messages in the channel.";
 "CreatePoll.ExplanationInfo" = "Users will see this comment after choosing a wrong answer, good for educational purposes.";
 
 "FeaturedStickers.OtherSection" = "OTHER STICKERS";
+
+"ChatList.GenericPsaAlert" = "This provides public service announcements in your chat list.";
+"ChatList.PsaAlert.covid" = "This message provides you with a public service announcement in relation to the undergoing pandemics. Learn more about this initiative at https://telegram.org/blog/coronavirus";
+"ChatList.GenericPsaLabel" = "PSA";
+"ChatList.PsaLabel.covid" = "Covid-19";
+"Chat.GenericPsaTooltip" = "This is a public service announcement";
+"Chat.PsaTooltip.covid" = "This message provides you with a public service announcement in relation to the undergoing pandemics. Learn more about this initiative at https://telegram.org/blog/coronavirus";
+
+"Message.GenericForwardedPsa" = "Public Service Announcement\nFrom: %@";
+"Message.ForwardedPsa.covid" = "Covid-19 Notification\nFrom: %@";
+
+"Channel.AboutItem" = "about";
+"PeerInfo.GroupAboutItem" = "about";
+
+"Widget.ApplicationStartRequired" = "Open the app to use the widget";
+
+"ChatList.Context.AddToFolder" = "Add to Folder";
+"ChatList.Context.RemoveFromFolder" = "Remove from Folder";
+"ChatList.Context.Back" = "Back";
+"ChatList.AddedToFolderTooltip" = "%1$@ has been added to folder %2$@";
+"ChatList.RemovedFromFolderTooltip" = "%1$@ has been removed from folder %2$@";
+
+"OwnershipTransfer.Transfer" = "Transfer";
+
+"TwoStepAuth.Disable" = "Disable";
+
+"Chat.Gifs.TrendingSectionHeader" = "TRENDING GIFS";
+"Chat.Gifs.SavedSectionHeader" = "MY GIFS";
+
+"Paint.Framed" = "Framed";
+
+"Media.SendingOptionsTooltip" = "Hold this button to send your message with a self-destruct timer.";
+"Media.SendWithTimer" = "Send With Timer";
+
+"Conversation.Timer.Title" = "Send With Timer";
+"Conversation.Timer.Send" = "Send With Timer";
+
+"Paint.Pen" = "Pen";
+"Paint.Marker" = "Marker";
+"Paint.Neon" = "Neon";
+"Paint.Arrow" = "Arrow";
+
+"Conversation.NoticeInvitedByInChannel" = "%@ invited you to this channel";
+"Conversation.NoticeInvitedByInGroup" = "%@ invited you to this group";
+
+"ChatList.MessagePhotos_1" = "1 Photo";
+"ChatList.MessagePhotos_any" = "%@ Photos";
+"ChatList.MessageVideos_1" = "1 Videos";
+"ChatList.MessageVideos_any" = "%@ Videos";
+
+"Conversation.PrivateChannelTimeLimitedAlertTitle" = "Join Channel";
+"Conversation.PrivateChannelTimeLimitedAlertText" = "This channel is private. Please join it to continue viewing its content.";
+"Conversation.PrivateChannelTimeLimitedAlertJoin" = "Join";
+
+"KeyCommand.SearchInChat" = "Search in Chat";
+
+"PhotoEditor.SkinTool" = "Soften Skin";
+"PhotoEditor.BlurToolPortrait" = "Portrait";
+"PhotoEditor.SelectCoverFrame" = "Choose a cover for your profile video";
+
+"Conversation.PeerNearbyTitle" = "%1$@ is %2$@ away";
+"Conversation.PeerNearbyText" = "Send a message or tap on the greeting below to show that you are ready to chat.";
+"Conversation.PeerNearbyDistance" = "%1$@ is %2$@ away";
+
+"ProfilePhoto.MainPhoto" = "Main Photo";
+"ProfilePhoto.SetMainPhoto" = "Set as Main Photo";
+
+"ProfilePhoto.MainVideo" = "Main Video";
+"ProfilePhoto.SetMainVideo" = "Set as Main Video";
+
+"Stats.GroupOverview" = "OVERVIEW";
+"Stats.GroupMembers" = "Members";
+"Stats.GroupMessages" = "Messages";
+"Stats.GroupViewers" = "Viewing Members";
+"Stats.GroupPosters" = "Posting Members";
+
+"Stats.GroupGrowthTitle" = "GROWTH";
+"Stats.GroupMembersTitle" = "GROUP MEMBERS";
+"Stats.GroupNewMembersBySourceTitle" = "NEW MEMBERS BY SOURCE";
+"Stats.GroupLanguagesTitle" = "MEMBERS' PRIMARY LANGUAGE";
+"Stats.GroupMessagesTitle" = "MESSAGES";
+"Stats.GroupActionsTitle" = "ACTIONS";
+"Stats.GroupTopHoursTitle" = "TOP HOURS";
+"Stats.GroupTopWeekdaysTitle" = "TOP DAYS OF WEEK";
+"Stats.GroupTopPostersTitle" = "TOP MEMBERS";
+"Stats.GroupTopAdminsTitle" = "TOP ADMINS";
+"Stats.GroupTopInvitersTitle" = "TOP INVITERS";
+
+"Stats.GroupTopPosterMessages_0" = "%@ messages";
+"Stats.GroupTopPosterMessages_1" = "%@ message";
+"Stats.GroupTopPosterMessages_2" = "%@ messages";
+"Stats.GroupTopPosterMessages_3_10" = "%@ messages";
+"Stats.GroupTopPosterMessages_many" = "%@ messages";
+"Stats.GroupTopPosterMessages_any" = "%@ messages";
+
+"Stats.GroupTopPosterChars_0" = "%@ symbols per message";
+"Stats.GroupTopPosterChars_1" = "%@ symbol per message";
+"Stats.GroupTopPosterChars_2" = "%@ symbols per message";
+"Stats.GroupTopPosterChars_3_10" = "%@ symbols per message";
+"Stats.GroupTopPosterChars_many" = "%@ symbols per message";
+"Stats.GroupTopPosterChars_any" = "%@ symbols per message";
+
+"Stats.GroupTopPoster.History" = "History";
+"Stats.GroupTopPoster.Promote" = "Promote";
+
+"Stats.GroupTopAdminDeletions_0" = "%@ deletions";
+"Stats.GroupTopAdminDeletions_1" = "%@ deletion";
+"Stats.GroupTopAdminDeletions_2" = "%@ deletions";
+"Stats.GroupTopAdminDeletions_3_10" = "%@ deletions";
+"Stats.GroupTopAdminDeletions_many" = "%@ deletions";
+"Stats.GroupTopAdminDeletions_any" = "%@ deletions";
+
+"Stats.GroupTopAdminKicks_0" = "%@ kicks";
+"Stats.GroupTopAdminKicks_1" = "%@ kick";
+"Stats.GroupTopAdminKicks_2" = "%@ kicks";
+"Stats.GroupTopAdminKicks_3_10" = "%@ kicks";
+"Stats.GroupTopAdminKicks_many" = "%@ kicks";
+"Stats.GroupTopAdminKicks_any" = "%@ kicks";
+
+"Stats.GroupTopAdminBans_0" = "%@ bans";
+"Stats.GroupTopAdminBans_1" = "%@ ban";
+"Stats.GroupTopAdminBans_2" = "%@ bans";
+"Stats.GroupTopAdminBans_3_10" = "%@ bans";
+"Stats.GroupTopAdminBans_many" = "%@ bans";
+"Stats.GroupTopAdminBans_any" = "%@ bans";
+
+"Stats.GroupTopAdmin.Actions" = "Actions";
+"Stats.GroupTopAdmin.Promote" = "Promote";
+
+"Stats.GroupTopInviterInvites_0" = "%@ invitations";
+"Stats.GroupTopInviterInvites_1" = "%@ invitation";
+"Stats.GroupTopInviterInvites_2" = "%@ invitations";
+"Stats.GroupTopInviterInvites_3_10" = "%@ invitations";
+"Stats.GroupTopInviterInvites_many" = "%@ invitations";
+"Stats.GroupTopInviterInvites_any" = "%@ invitations";
+
+"Stats.GroupTopInviter.History" = "History";
+"Stats.GroupTopInviter.Promote" = "Promote";
+
+"PrivacySettings.AutoArchiveTitle" = "NEW CHATS FROM UNKNOWN USERS";
+"PrivacySettings.AutoArchive" = "Archive and Mute";
+"PrivacySettings.AutoArchiveInfo" = "Automatically archive and mute new chats, groups and channels from non-contacts.";
+
+"Call.RemoteVideoPaused" = "%@'s video is paused";
+
+"Settings.SetProfilePhotoOrVideo" = "Set Photo or Video";
+"Settings.SetNewProfilePhotoOrVideo" = "Set New Photo or Video";
+"Settings.ViewVideo" = "View Video";
+"Settings.RemoveVideo" = "Remove Video";
+
+"Conversation.Unarchive" = "Unarchive";
+"Conversation.UnarchiveDone" = "The chat was moved to your main list.";
+
+"ChatList.AutoarchiveSuggestion.Title" = "Hide new chats?";
+"ChatList.AutoarchiveSuggestion.Text" = "You are receiving lots of new chats from users who are not in your Contact List. Do you want to have such chats **automatically muted** and **archived**?";
+"ChatList.AutoarchiveSuggestion.OpenSettings" = "Go to Settings";
+
+"SettingsSearch.Synonyms.ChatSettings.IntentsSettings" = "Siri Suggestions";
+
+"Stats.GroupShowMoreTopPosters_0" = "Show %@ More";
+"Stats.GroupShowMoreTopPosters_1" = "Show %@ More";
+"Stats.GroupShowMoreTopPosters_2" = "Show %@ More";
+"Stats.GroupShowMoreTopPosters_3_10" = "Show %@ More";
+"Stats.GroupShowMoreTopPosters_many" = "Show %@ More";
+"Stats.GroupShowMoreTopPosters_any" = "Show %@ More";
+
+"Stats.GroupShowMoreTopAdmins_0" = "Show %@ More";
+"Stats.GroupShowMoreTopAdmins_1" = "Show %@ More";
+"Stats.GroupShowMoreTopAdmins_2" = "Show %@ More";
+"Stats.GroupShowMoreTopAdmins_3_10" = "Show %@ More";
+"Stats.GroupShowMoreTopAdmins_many" = "Show %@ More";
+"Stats.GroupShowMoreTopAdmins_any" = "Show %@ More";
+
+"Stats.GroupShowMoreTopInviters_0" = "Show %@ More";
+"Stats.GroupShowMoreTopInviters_1" = "Show %@ More";
+"Stats.GroupShowMoreTopInviters_2" = "Show %@ More";
+"Stats.GroupShowMoreTopInviters_3_10" = "Show %@ More";
+"Stats.GroupShowMoreTopInviters_many" = "Show %@ More";
+"Stats.GroupShowMoreTopInviters_any" = "Show %@ More";
+
+"Settings.AddAnotherAccount" = "Add Another Account";
+"Settings.AddAnotherAccount.Help" = "You can add up to three accounts with different phone numbers.";
+
+"ProfilePhoto.OpenGallery" = "Open Gallery";
+"ProfilePhoto.SearchWeb" = "Search Web";
+"ProfilePhoto.OpenInEditor" = "Open in Editor";
+
+"Settings.EditAccount" = "Edit Account";
+"Settings.EditPhoto" = "Edit";
+"Settings.EditVideo" = "Edit";
+"Settings.CancelUpload" = "Cancel Upload";
+
+"Settings.FrequentlyAskedQuestions" = "Frequently Asked Questions";
+
+"Notification.ChangedGroupVideo" = "%@ changed group video";
+"Group.MessageVideoUpdated" = "Group video updated";
+"Channel.MessageVideoUpdated" = "Channel video updated";
+
+"Conversation.Dice.u1F3C0" = "Send a basketball emoji to try your luck.";
+"Conversation.Dice.u26BD" = "Send a football emoji to try your luck.";
+
+"SettingsSearch_Synonyms_ChatFolders" = "";
+
+"EditProfile.NameAndPhotoOrVideoHelp" = "Enter your name and add an optional profile photo or video.";
+
+"Settings.RemoveConfirmation" = "Remove";
+
+"Conversation.ContextMenuOpenProfile" = "Open Profile";
+"Conversation.ContextMenuSendMessage" = "Send Message";
+"Conversation.ContextMenuMention" = "Mention";
+
+"Conversation.ContextMenuOpenChannelProfile" = "Open Profile";
+"Conversation.ContextMenuOpenChannel" = "Open Channel";
+
+"Cache.KeepMediaHelp" = "Photos, videos and other files from cloud chats that you have **not accessed** during this period will be removed from this device to save disk space.";
+
+
+"Cache.MaximumCacheSize" = "Maximum Cache Size";
+"Cache.NoLimit" = "No Limit";
+"Cache.MaximumCacheSizeHelp" = "If your cache size exceeds this limit, the oldest media will be deleted.\n\nAll media will stay in the Telegram cloud and can be re-downloaded if you need it again.";
+
+"Stats.MessageTitle" = "Message Statistics";
+"Stats.MessageOverview" = "Overview";
+"Stats.MessageInteractionsTitle" = "Interactions";
+"Stats.MessagePublicForwardsTitle" = "Public Shares";
+
+"Call.CameraTooltip" = "Tap here to turn on your camera";
+"Call.CameraConfirmationText" = "Switch to video call?";
+"Call.CameraConfirmationConfirm" = "Switch";
+
+"Call.YourMicrophoneOff" = "Your microphone is off";
+"Call.MicrophoneOff" = "%@'s microphone is off";
+"Call.CameraOff" = "%@'s camera is off";
+"Call.BatteryLow" = "%@'s battery level is low";
+
+"Call.Audio" = "audio";
+"Call.AudioRouteMute" = "Mute Yourself";
+
+"AccessDenied.VideoCallCamera" = "Telegram needs access to your camera to make video calls.\n\nPlease go to Settings > Privacy > Camera and set Telegram to ON.";
+
+"Call.AccountIsLoggedOnCurrentDevice" = "Sorry, you can't call %@ because that account is logged in to Telegram on the device you're using for the call.";
+
+"ChatList.Search.FilterChats" = "Chats";
+"ChatList.Search.FilterMedia" = "Media";
+"ChatList.Search.FilterLinks" = "Links";
+"ChatList.Search.FilterFiles" = "Files";
+"ChatList.Search.FilterMusic" = "Music";
+"ChatList.Search.FilterVoice" = "Voice";
+
+"ChatList.Search.NoResults" = "No Results";
+"ChatList.Search.NoResultsQueryDescription" = "There were no results for \"%@\".\nTry a new search.";
+"ChatList.Search.NoResultsDescription" = "There were no results.\nTry a new search.";
+
+"ChatList.Search.NoResultsFilter" = "Nothing Yet";
+"ChatList.Search.NoResultsFitlerMedia" = "Photos and videos from all your chats will be shown here.";
+"ChatList.Search.NoResultsFitlerLinks" = "Links from all your chats will be shown here.";
+"ChatList.Search.NoResultsFitlerFiles" = "Files from all your chats will be shown here.";
+"ChatList.Search.NoResultsFitlerMusic" = "Music from all your chats will be shown here.";
+"ChatList.Search.NoResultsFitlerVoice" = "Voice and video messages from all your chats will be shown here.";
+
+"ChatList.Search.Messages_0" = "%@ messages";
+"ChatList.Search.Messages_1" = "%@ message";
+"ChatList.Search.Messages_2" = "%@ messages";
+"ChatList.Search.Messages_3_10" = "%@ messages";
+"ChatList.Search.Messages_many" = "%@ messages";
+"ChatList.Search.Messages_any" = "%@ messages";
+
+"Conversation.InputTextAnonymousPlaceholder" = "Send anonymously";
+
+"DialogList.Replies" = "Replies";
+
+"Conversation.ContextViewReplies_1" = "View %@ Reply";
+"Conversation.ContextViewReplies_any" = "View %@ Replies";
+"Conversation.ContextViewThread" = "View Thread";
+
+"Conversation.ViewReply" = "View Reply";
+
+"Conversation.MessageViewComments_1" = "[%@]Comment";
+"Conversation.MessageViewComments_any" = "[%@]Comments";
+"Conversation.MessageViewCommentsFormat" = "%1$@ %2$@";
+
+"Conversation.TitleCommentsEmpty" = "Comments";
+"Conversation.TitleComments_1" = "[%@]Comment";
+"Conversation.TitleComments_any" = "[%@]Comments";
+"Conversation.TitleCommentsFormat" = "%1$@ %2$@";
+
+"Conversation.TitleRepliesEmpty" = "Replies";
+"Conversation.TitleReplies_1" = "[%@]Reply";
+"Conversation.TitleReplies_any" = "[%@]Replies";
+"Conversation.TitleRepliesFormat" = "%1$@ %2$@";
+
+"Conversation.MessageLeaveComment" = "Leave a Comment";
+"Conversation.MessageLeaveCommentShort" = "Comment";
+
+"Conversation.DiscussionNotStarted" = "No comments here yet...";
+"Conversation.DiscussionStarted" = "Discussion started";
+
+"Conversation.InputTextPlaceholderReply" = "Reply";
+"Conversation.InputTextPlaceholderComment" = "Comment";
+
+"Conversation.TitleNoComments" = "Comments";
+
+"Conversation.ContextMenuBlock" = "Block User";
+
+"Replies.BlockAndDeleteRepliesActionTitle" = "Block and Delete Replies";
+
+"Channel.CommentsGroup.Header" = "Select a group chat that will be used to host comments from your channel.";
+"Channel.CommentsGroup.HeaderSet" = "%@ is selected as the group that will be used to host comments for your channel.";
+"Channel.CommentsGroup.HeaderGroupSet" = "%@ is linking the group as it's discussion board.";
+
+"RepliesChat.DescriptionText" = "This chat helps you keep track of replies to your comments in Channels.";
+
+"Channel.DiscussionMessageUnavailable" = "Sorry, this post has been removed from the discussion group.";
+
+"Conversation.ContextViewStats" = "View Statistics";
+
+"ChatList.MessageMusic_1" = "%@ Music File";
+"ChatList.MessageMusic_any" = "%@ Music Files";
+
+"Conversation.PinOlderMessageAlertTitle" = "Pin Message";
+"Conversation.PinOlderMessageAlertText" = "Do you want to pin an older message while leaving a more recent one pinned?";
+"Conversation.PinMessageAlertPin" = "Pin";
+
+"Conversation.ContextMenuSelect" = "Select";
+
+"Conversation.ContextMenuSelectAll_0" = "Select All %@ Items";
+"Conversation.ContextMenuSelectAll_1" = "Select All %@ Items";
+"Conversation.ContextMenuSelectAll_2" = "Select All %@ Items";
+"Conversation.ContextMenuSelectAll_3_10" = "Select All %@ Items";
+"Conversation.ContextMenuSelectAll_many" = "Select All %@ Items";
+"Conversation.ContextMenuSelectAll_any" = "Select All %@ Items";
+
+"Conversation.Dice.u1F3B0" = "Send a slot machine emoji to try your luck.";
+
+"Notification.ProximityReached" = "%1$@ is now within %2$@ from %3$@";
+"Notification.ProximityReachedYou" = "%1$@ is now within %2$@ from you";
+"Notification.ProximityYouReached" = "You are now within %1$@ from %2$@";
+
+"Location.ProximityNotification.Title" = "Proximity Alert";
+"Location.ProximityNotification.Notify" = "Notify me within %@";
+"Location.ProximityNotification.NotifyLong" = "Notify when %1$@ is within %2$@";
+"Location.ProximityNotification.AlreadyClose" = "You are already closer than %@";
+"Location.ProximityNotification.DistanceKM" = "km";
+"Location.ProximityNotification.DistanceM" = "m";
+"Location.ProximityNotification.DistanceMI" = "mi";
+
+"Location.ProximityTip" = "Alert when %@ is close";
+"Location.ProximityGroupTip" = "Alert when any group member is close";
+
+"ChatList.MessageFiles_1" = "%@ File";
+"ChatList.MessageFiles_any" = "%@ Files";
+
+"Chat.TitlePinnedMessages_1" = "Pinned Message";
+"Chat.TitlePinnedMessages_any" = "%@ Pinned Messages";
+
+"Chat.PanelHidePinnedMessages" = "Don't Show Pinned Messages";
+"Chat.PanelUnpinAllMessages" = "Unpin All Messages";
+
+"Chat.MessagesUnpinned_1" = "Message Unpinned";
+"Chat.MessagesUnpinned_any" = "%@ Messages Unpinned";
+
+"Chat.PinnedMessagesHiddenTitle" = "Pinned Messages Hidden";
+"Chat.PinnedMessagesHiddenText" = "You will see the bar with pinned messages only if a new message is pinned.";
+
+"OpenFile.PotentiallyDangerousContentAlert" = "Previewing this file can potentially expose your IP address to its sender. Continue?";
+"OpenFile.Proceed" = "Proceed";
+
+"Chat.PinnedListPreview.ShowAllMessages" = "Show All Messages";
+"Chat.PinnedListPreview.UnpinAllMessages" = "Unpin All Messages";
+"Chat.PinnedListPreview.HidePinnedMessages" = "Hide Pinned Messages";
+
+"Conversation.PinMessagesForMe" = "Pin for me";
+"Conversation.PinMessagesFor" = "Pin for me and %@";
+
+"Location.LiveLocationRequired.Title" = "Share Location";
+"Location.LiveLocationRequired.Description" = "For the alert to work, please share your live location in this chat.";
+"Location.LiveLocationRequired.ShareLocation" = "Share Location";
+
+"Location.ProximityAlertSetTitle" = "Proximity alert set";
+"Location.ProximityAlertSetText" = "We will notify you once %1$@ is within %2$@ from you.";
+"Location.ProximityAlertSetTextGroup" = "We will notify you once any other group member is within %@ from you.";
+"Location.ProximityAlertCancelled" = "Proximity alert cancelled";
+
+"Stats.Message.Views" = "Views";
+"Stats.Message.PublicShares" = "Public Shares";
+"Stats.Message.PrivateShares" = "Private Shares";
+
+"ChatSettings.WidgetSettings" = "Widget";
+
+"Conversation.EditingPhotoPanelTitle" = "Edit Photo";
+
+"Conversation.TextCopied" = "Text copied to clipboard";
+
+"Media.LimitedAccessTitle" = "Limited Access to Media";
+"Media.LimitedAccessText" = "You've given Telegram access only to select number of photos.";
+"Media.LimitedAccessManage" = "Manage";
+
+"VoiceChat.StatusSpeaking" = "speaking";
+"VoiceChat.StatusListening" = "listening";
+"VoiceChat.StatusInvited" = "invited";
+
+"VoiceChat.Connecting" = "Connecting...";
+"VoiceChat.Reconnecting" = "Reconnecting...";
+
+"VoiceChat.Unmute" = "Unmute";
+"VoiceChat.UnmuteHelp" = "or hold and speak";
+"VoiceChat.Live" = "You're Live";
+"VoiceChat.Mute" = "Tap to Mute";
+"VoiceChat.Muted" = "Muted";
+"VoiceChat.MutedHelp" = "You are in Listen Only mode";
+
+"VoiceChat.Audio" = "audio";
+"VoiceChat.Leave" = "leave";
+
+"VoiceChat.SpeakPermissionEveryone" = "New participants can speak";
+"VoiceChat.SpeakPermissionAdmin" = "New paricipants are muted";
+"VoiceChat.Share" = "Share Invite Link";
+"VoiceChat.EndVoiceChat" = "End Voice Chat";
+
+"VoiceChat.CopyInviteLink" = "Copy Invite Link";
+"VoiceChat.InviteLinkCopiedText" = "Invite link copied to clipboard";
+
+"VoiceChat.UnmutePeer" = "Allow to Speak";
+"VoiceChat.MutePeer" = "Mute";
+"VoiceChat.RemovePeer" = "Remove";
+"VoiceChat.RemovePeerConfirmation" = "Are you sure you want to remove %@ from the group chat?";
+"VoiceChat.RemovePeerRemove" = "Remove";
+
+"VoiceChat.PanelJoin" = "Join";
+"VoiceChat.Title" = "Voice Chat";
+
+"VoiceChat.InviteMember" = "Invite Member";
+"VoiceChat.UserInvited" = "You invited **%@** to the voice chat";
+
+"Notification.VoiceChatInvitation" = "%1$@ invited %2$@ to the voice chat";
+"Notification.VoiceChatInvitationForYou" = "%1$@ invited you to the voice chat";
+
+"VoiceChat.InvitedPeerText" = "You invited %@ to the voice chat";
+"VoiceChat.RemovedPeerText" = "You removed %@ from this group";
+
+"Notification.VoiceChatStarted" = "%1$@ started a voice chat";
+"Notification.VoiceChatEnded" = "Voice chat ended (%@)";
+
+"VoiceChat.Panel.TapToJoin" = "Tap to join";
+"VoiceChat.Panel.Members_0" = "%@ participants";
+"VoiceChat.Panel.Members_1" = "%@ participant";
+"VoiceChat.Panel.Members_2" = "%@ participants";
+"VoiceChat.Panel.Members_3_10" = "%@ participants";
+"VoiceChat.Panel.Members_many" = "%@ participants";
+"VoiceChat.Panel.Members_any" = "%@ participants";
+
+"VoiceChat.Status.Members_0" = "[%@]participants";
+"VoiceChat.Status.Members_1" = "[%@]participant";
+"VoiceChat.Status.Members_2" = "[%@]participants";
+"VoiceChat.Status.Members_3_10" = "[%@]participants";
+"VoiceChat.Status.Members_many" = "[%@]participants";
+"VoiceChat.Status.Members_any" = "[%@]participants";
+"VoiceChat.Status.MembersFormat" = "%1$@ %2$@";
+
+"ChannelInfo.CreateVoiceChat" = "Start Voice Chat";
+
+"VoiceChat.AnonymousDisabledAlertText" = "Sorry, you can't join voice chat as an anonymous admin.";
+"VoiceChat.ChatFullAlertText" = "Sorry, this voice chat has too many participants at the moment.";
+
+"VoiceChat.EndConfirmationTitle" = "End voice chat";
+"VoiceChat.EndConfirmationText" = "Are you sure you want to end this voice chat?";
+"VoiceChat.EndConfirmationEnd" = "End";
+
+"VoiceChat.InviteMemberToGroupFirstText" = "%1$@ isn't a member of \"%2$@\" yet. Add them to the group?";
+"VoiceChat.InviteMemberToGroupFirstAdd" = "Add";
+
+"VoiceChat.CreateNewVoiceChatText" = "Voice chat ended. Start a new one?";
+"VoiceChat.CreateNewVoiceChatStart" = "Start";
+
+"CHAT_VOICECHAT_START" = "%1$@ has started voice chat in the group %2$@";
+"CHAT_VOICECHAT_INVITE" = "%1$@ has invited %3$@ in the group %2$@";
+"CHAT_VOICECHAT_INVITE_YOU" = "%1$@ has invited you to voice chat in the group %2$@";
+
+"Call.VoiceChatInProgressTitle" = "Voice Chat in Progress";
+"Call.VoiceChatInProgressMessageCall" = "Leave voice chat in %1$@ and start a call with %2$@?";
+
+"Conversation.Dice.u1F3B3" = "Send a bowling emoji to try your luck.";
+
+"VoiceOver.Common.SwitchHint" = "Double Tap To Toggle";
+"VoiceOver.Common.On" = "On";
+"VoiceOver.Common.Off" = "Off";
+
+"VoiceOver.Chat.MessagesSelected_0" = "%@ messages selected";
+"VoiceOver.Chat.MessagesSelected_1" = "%@ message selected";
+"VoiceOver.Chat.MessagesSelected_2" = "%@ messages selected";
+"VoiceOver.Chat.MessagesSelected_3_10" = "%@ messages selected";
+"VoiceOver.Chat.MessagesSelected_many" = "%@ messages selected";
+"VoiceOver.Chat.MessagesSelected_any" = "%@ messages selected";
+
+"Channel.AdminLog.StartedVoiceChat" = "%1$@ started voice chat";
+"Channel.AdminLog.EndedVoiceChat" = "%1$@ ended voice chat";
+"Channel.AdminLog.MutedParticipant" = "%1$@ muted %2$@";
+"Channel.AdminLog.UnmutedMutedParticipant" = "%1$@ unmuted %2$@";
+"Channel.AdminLog.AllowedNewMembersToSpeak" = "%1$@ allowed new members to speak";
+"Channel.AdminLog.MutedNewMembers" = "%1$@ muted new members";
+
+"Group.GroupMembersHeader" = "GROUP MEMBERS";
+
+"Conversation.VoiceChatMediaRecordingRestricted" = "You can't record voice and video messages during a voice chat.";

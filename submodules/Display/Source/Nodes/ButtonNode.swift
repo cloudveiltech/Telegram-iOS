@@ -7,6 +7,9 @@ open class ASButtonNode: ASControlNode {
     public let highlightedTitleNode: ImmediateTextNode
     public let disabledTitleNode: ImmediateTextNode
     public let imageNode: ASImageNode
+    public let highlightedImageNode: ASImageNode
+    public let selectedImageNode: ASImageNode
+    public let highlightedSelectedImageNode: ASImageNode
     public let disabledImageNode: ASImageNode
     public let backgroundImageNode: ASImageNode
     public let highlightedBackgroundImageNode: ASImageNode
@@ -69,6 +72,21 @@ open class ASButtonNode: ASControlNode {
         self.imageNode.displaysAsynchronously = false
         self.imageNode.displayWithoutProcessing = true
         
+        self.selectedImageNode = ASImageNode()
+        self.selectedImageNode.isUserInteractionEnabled = false
+        self.selectedImageNode.displaysAsynchronously = false
+        self.selectedImageNode.displayWithoutProcessing = true
+        
+        self.highlightedImageNode = ASImageNode()
+        self.highlightedImageNode.isUserInteractionEnabled = false
+        self.highlightedImageNode.displaysAsynchronously = false
+        self.highlightedImageNode.displayWithoutProcessing = true
+        
+        self.highlightedSelectedImageNode = ASImageNode()
+        self.highlightedSelectedImageNode.isUserInteractionEnabled = false
+        self.highlightedSelectedImageNode.displaysAsynchronously = false
+        self.highlightedSelectedImageNode.displayWithoutProcessing = true
+        
         self.disabledImageNode = ASImageNode()
         self.disabledImageNode.isUserInteractionEnabled = false
         self.disabledImageNode.displaysAsynchronously = false
@@ -95,6 +113,12 @@ open class ASButtonNode: ASControlNode {
         self.addSubnode(self.disabledTitleNode)
         self.disabledTitleNode.isHidden = true
         self.addSubnode(self.imageNode)
+        self.addSubnode(self.selectedImageNode)
+        self.selectedImageNode.isHidden = true
+        self.addSubnode(self.highlightedImageNode)
+        self.highlightedImageNode.isHidden = true
+        self.addSubnode(self.highlightedSelectedImageNode)
+        self.highlightedSelectedImageNode.isHidden = true
         self.addSubnode(self.disabledImageNode)
         self.disabledImageNode.isHidden = true
     }
@@ -216,6 +240,14 @@ open class ASButtonNode: ASControlNode {
         }
         if state == .disabled {
             self.disabledImageNode.image = image
+        } else if state == [] {
+            self.imageNode.image = image
+        } else if state == .highlighted {
+            self.highlightedImageNode.image = image
+        } else if state == .selected {
+            self.selectedImageNode.image = image
+        } else if state == [.selected, .highlighted] {
+            self.highlightedSelectedImageNode.image = image
         } else {
             self.imageNode.image = image
         }
@@ -225,7 +257,7 @@ open class ASButtonNode: ASControlNode {
         if state == [] {
             self.backgroundImageNode.image = image
             self.highlightedBackgroundImageNode.image = image
-        } else if state == .highlighted || state == .selected {
+        } else if state == .highlighted || state == .selected || state == [.selected, .highlighted] {
             self.highlightedBackgroundImageNode.image = image
         } else {
             self.backgroundImageNode.image = image
@@ -243,6 +275,25 @@ open class ASButtonNode: ASControlNode {
     
     open func backgroundImage(for state: UIControl.State) -> UIImage? {
         return self.backgroundImageNode.image
+    }
+    
+    override open var isSelected: Bool {
+        didSet {
+            if self.isSelected != oldValue {
+                if self.isSelected {
+                    if self.selectedImageNode.image != nil {
+                        self.selectedImageNode.isHidden = false
+                        self.imageNode.isHidden = true
+                    } else {
+                        self.selectedImageNode.isHidden = true
+                        self.imageNode.isHidden = false
+                    }
+                } else {
+                    self.selectedImageNode.isHidden = true
+                    self.imageNode.isHidden = false
+                }
+            }
+        }
     }
     
     override open var isHighlighted: Bool {
@@ -263,12 +314,36 @@ open class ASButtonNode: ASControlNode {
                         self.highlightedBackgroundImageNode.isHidden = true
                         self.backgroundImageNode.isHidden = false
                     }
+                    if self.isSelected && self.highlightedSelectedImageNode.image != nil {
+                        self.highlightedSelectedImageNode.isHidden = false
+                        self.highlightedImageNode.isHidden = true
+                        self.selectedImageNode.isHidden = true
+                        self.imageNode.isHidden = true
+                    } else if self.highlightedImageNode.image != nil {
+                        self.highlightedSelectedImageNode.isHidden = true
+                        self.highlightedImageNode.isHidden = false
+                        self.imageNode.isHidden = true
+                    } else {
+                        self.highlightedSelectedImageNode.isHidden = true
+                        self.highlightedImageNode.isHidden = true
+                        self.imageNode.isHidden = false
+                    }
                 } else {
                     self.highlightedTitleNode.isHidden = true
                     self.titleNode.isHidden = false
                     
                     self.highlightedBackgroundImageNode.isHidden = true
                     self.backgroundImageNode.isHidden = false
+                    
+                    self.highlightedSelectedImageNode.isHidden = true
+                    self.highlightedImageNode.isHidden = true
+                    if self.isSelected && self.selectedImageNode.image != nil {
+                        self.selectedImageNode.isHidden = false
+                        self.imageNode.isHidden = true
+                    } else {
+                        self.selectedImageNode.isHidden = true
+                        self.imageNode.isHidden = false
+                    }
                 }
             }
         }
@@ -342,6 +417,9 @@ open class ASButtonNode: ASControlNode {
         self.highlightedTitleNode.frame = CGRect(origin: highlightedTitleOrigin, size: self.calculatedHighlightedTitleSize)
         self.disabledTitleNode.frame = CGRect(origin: disabledTitleOrigin, size: self.calculatedDisabledTitleSize)
         self.imageNode.frame = CGRect(origin: imageOrigin, size: imageSize)
+        self.selectedImageNode.frame = CGRect(origin: imageOrigin, size: imageSize)
+        self.highlightedImageNode.frame =  CGRect(origin: imageOrigin, size: imageSize)
+        self.highlightedSelectedImageNode.frame =  CGRect(origin: imageOrigin, size: imageSize)
         self.disabledImageNode.frame = CGRect(origin: imageOrigin, size: imageSize)
         
         self.backgroundImageNode.frame = CGRect(origin: CGPoint(), size: size)

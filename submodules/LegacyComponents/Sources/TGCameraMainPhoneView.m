@@ -100,7 +100,7 @@
 @synthesize cancelPressed;
 @synthesize actionHandle = _actionHandle;
 
-- (instancetype)initWithFrame:(CGRect)frame
+- (instancetype)initWithFrame:(CGRect)frame avatar:(bool)avatar
 {
     self = [super initWithFrame:frame];
     if (self != nil)
@@ -110,7 +110,18 @@
         CGFloat shutterButtonWidth = 66.0f;
         CGSize screenSize = TGScreenSize();
         CGFloat widescreenWidth = MAX(screenSize.width, screenSize.height);
-        if (widescreenWidth == 896.0f)
+        if (widescreenWidth == 926.0f)
+        {
+            _topPanelOffset = 77.0f;
+            _topPanelHeight = 77.0f;
+            _bottomPanelOffset = 94.0f;
+            _bottomPanelHeight = 155.0f;
+            _modeControlOffset = 6.0f;
+            _modeControlHeight = 66.0f;
+            _counterOffset = 7.0f;
+            shutterButtonWidth = 72.0f;
+        }
+        else if (widescreenWidth == 896.0f)
         {
             _topPanelOffset = 33.0f;
             _topPanelHeight = 44.0f;
@@ -120,6 +131,17 @@
             _modeControlHeight = 52.0f;
             _counterOffset = 7.0f;
             shutterButtonWidth = 72.0f;
+        }
+        if (widescreenWidth == 844.0f)
+        {
+            _topPanelOffset = 33.0f;
+            _topPanelHeight = 44.0f;
+            _bottomPanelOffset = 63.0f;
+            _bottomPanelHeight = 123.0f;
+            _modeControlOffset = 3.0f;
+            _modeControlHeight = 40.0f;
+            _counterOffset = 7.0f;
+            shutterButtonWidth = 70.0f;
         }
         else if (widescreenWidth == 812.0f)
         {
@@ -216,7 +238,7 @@
         [_shutterButton addTarget:self action:@selector(shutterButtonPressed) forControlEvents:UIControlEventTouchDown];
         [_bottomPanelView addSubview:_shutterButton];
         
-        _modeControl = [[TGCameraModeControl alloc] initWithFrame:CGRectMake(0, 0, frame.size.width, _modeControlHeight)];
+        _modeControl = [[TGCameraModeControl alloc] initWithFrame:CGRectMake(0, 0, frame.size.width, _modeControlHeight) avatar:avatar];
         [_bottomPanelView addSubview:_modeControl];
         
         _flipButton = [[TGCameraFlipButton alloc] initWithFrame:CGRectMake(0, 0, 56, 56) large:true];
@@ -443,7 +465,7 @@
     UIInterfaceOrientation orientation = _interfaceOrientation;
     PGCameraMode cameraMode = _modeControl.cameraMode;
     
-    if (UIInterfaceOrientationIsLandscape(orientation) && !((cameraMode == PGCameraModePhoto && previousMode == PGCameraModeSquare) || (cameraMode == PGCameraModeSquare && previousMode == PGCameraModePhoto)))
+    if (UIInterfaceOrientationIsLandscape(orientation) && !((cameraMode == PGCameraModePhoto && previousMode == PGCameraModeSquarePhoto) || (cameraMode == PGCameraModeSquarePhoto && previousMode == PGCameraModePhoto)))
     {
         if (cameraMode == PGCameraModeVideo)
             _timecodeView.hidden = true;

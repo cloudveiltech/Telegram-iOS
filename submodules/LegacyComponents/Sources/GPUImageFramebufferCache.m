@@ -77,7 +77,11 @@
     }
 }
 
-- (GPUImageFramebuffer *)fetchFramebufferForSize:(CGSize)framebufferSize textureOptions:(GPUTextureOptions)textureOptions onlyTexture:(BOOL)onlyTexture
+- (GPUImageFramebuffer *)fetchFramebufferForSize:(CGSize)framebufferSize textureOptions:(GPUTextureOptions)textureOptions onlyTexture:(BOOL)onlyTexture {
+    return [self fetchFramebufferForSize:framebufferSize textureOptions:textureOptions onlyTexture:onlyTexture mark:false];
+}
+
+- (GPUImageFramebuffer *)fetchFramebufferForSize:(CGSize)framebufferSize textureOptions:(GPUTextureOptions)textureOptions onlyTexture:(BOOL)onlyTexture mark:(BOOL)mark
 {
     __block GPUImageFramebuffer *framebufferFromCache = nil;
 //    dispatch_sync(framebufferCacheQueue, ^{
@@ -142,7 +146,7 @@
     [framebuffer clearAllLocks];
     
 //    dispatch_async(framebufferCacheQueue, ^{
-    runAsynchronouslyOnVideoProcessingQueue(^{
+    runAsynchronouslyOnVideoProcessingQueue(^{        
         CGSize framebufferSize = framebuffer.size;
         GPUTextureOptions framebufferTextureOptions = framebuffer.textureOptions;
         NSString *lookupHash = [self hashForSize:framebufferSize textureOptions:framebufferTextureOptions onlyTexture:framebuffer.missingFramebuffer];

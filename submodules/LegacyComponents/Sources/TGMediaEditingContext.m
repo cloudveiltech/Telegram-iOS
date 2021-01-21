@@ -12,6 +12,8 @@
 #import "TGMemoryImageCache.h"
 #import "TGMediaAsset.h"
 
+#import "TGPaintingData.h"
+
 @interface TGMediaImageUpdate : NSObject
 
 @property (nonatomic, readonly, strong) id<TGMediaEditableItem> item;
@@ -78,6 +80,7 @@
     TGMemoryImageCache *_thumbnailImageCache;
     
     TGMemoryImageCache *_paintingImageCache;
+    TGMemoryImageCache *_stillPaintingImageCache;
     
     TGMemoryImageCache *_originalImageCache;
     TGMemoryImageCache *_originalThumbnailImageCache;
@@ -86,6 +89,7 @@
     NSURL *_fullSizeResultsUrl;
     NSURL *_paintingDatasUrl;
     NSURL *_paintingImagesUrl;
+    NSURL *_stillPaintingImagesUrl;
     NSURL *_videoPaintingImagesUrl;
     
     NSMutableArray *_storeVideoPaintingImages;
@@ -131,6 +135,9 @@
         _paintingImageCache = [[TGMemoryImageCache alloc] initWithSoftMemoryLimit:[[self class] imageSoftMemoryLimit]
                                                                   hardMemoryLimit:[[self class] imageHardMemoryLimit]];
         
+        _stillPaintingImageCache = [[TGMemoryImageCache alloc] initWithSoftMemoryLimit:[[self class] imageSoftMemoryLimit]
+                                                                  hardMemoryLimit:[[self class] imageHardMemoryLimit]];
+        
         _originalImageCache = [[TGMemoryImageCache alloc] initWithSoftMemoryLimit:[[self class] originalImageSoftMemoryLimit]
                                                                   hardMemoryLimit:[[self class] originalImageHardMemoryLimit]];
         _originalThumbnailImageCache = [[TGMemoryImageCache alloc] initWithSoftMemoryLimit:[[self class] thumbnailImageSoftMemoryLimit]
@@ -144,6 +151,9 @@
         
         _paintingImagesUrl = [NSURL fileURLWithPath:[[[LegacyComponentsGlobals provider] dataStoragePath] stringByAppendingPathComponent:[NSString stringWithFormat:@"paintingimages/%@", _contextId]]];
         [[NSFileManager defaultManager] createDirectoryAtPath:_paintingImagesUrl.path withIntermediateDirectories:true attributes:nil error:nil];
+        
+        _stillPaintingImagesUrl = [NSURL fileURLWithPath:[[[LegacyComponentsGlobals provider] dataStoragePath] stringByAppendingPathComponent:@"stillpaintingimages"]];
+        [[NSFileManager defaultManager] createDirectoryAtPath:_stillPaintingImagesUrl.path withIntermediateDirectories:true attributes:nil error:nil];
         
         _videoPaintingImagesUrl = [NSURL fileURLWithPath:[[[LegacyComponentsGlobals provider] dataStoragePath] stringByAppendingPathComponent:@"videopaintingimages"]];
         [[NSFileManager defaultManager] createDirectoryAtPath:_videoPaintingImagesUrl.path withIntermediateDirectories:true attributes:nil error:nil];
@@ -334,6 +344,27 @@
         {
             result = diskImage;
             [_paintingImageCache setImage:result forKey:itemId attributes:NULL];
+        }
+    }
+
+    return result;
+}
+
+- (UIImage *)stillPaintingImageForItem:(NSObject<TGMediaEditableItem> *)item
+{
+    NSString *itemId = [self _contextualIdForItemId:item.uniqueIdentifier];
+    if (itemId == nil)
+        return nil;
+    
+    UIImage *result = [_stillPaintingImageCache imageForKey:itemId attributes:NULL];
+    if (result == nil)
+    {
+        NSURL *imageUrl = [_stillPaintingImagesUrl URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", [TGStringUtils md5:itemId]]];
+        UIImage *diskImage = [UIImage imageWithContentsOfFile:imageUrl.path];
+        if (diskImage != nil)
+        {
+            result = diskImage;
+            [_stillPaintingImageCache setImage:result forKey:itemId attributes:NULL];
         }
     }
 
@@ -602,7 +633,7 @@
         [_queue dispatch:block];
 }
 
-- (bool)setPaintingData:(NSData *)data image:(UIImage *)image forItem:(NSObject<TGMediaEditableItem> *)item dataUrl:(NSURL **)dataOutUrl imageUrl:(NSURL **)imageOutUrl forVideo:(bool)video
+- (bool)setPaintingData:(NSData *)data image:(UIImage *)image stillImage:(UIImage *)stillImage forItem:(NSObject<TGMediaEditableItem> *)item dataUrl:(NSURL **)dataOutUrl imageUrl:(NSURL **)imageOutUrl forVideo:(bool)video
 {
     NSString *itemId = [self _contextualIdForItemId:item.uniqueIdentifier];
     
@@ -616,7 +647,9 @@
     [_paintingImageCache setImage:image forKey:itemId attributes:NULL];
     
     NSData *imageData = UIImagePNGRepresentation(image);
+    [[NSFileManager defaultManager] removeItemAtURL:imageUrl error:nil];
     bool imageSuccess = [imageData writeToURL:imageUrl options:NSDataWritingAtomic error:nil];
+    [[NSFileManager defaultManager] removeItemAtURL:dataUrl error:nil];
     bool dataSuccess = [data writeToURL:dataUrl options:NSDataWritingAtomic error:nil];
     
     if (imageSuccess && imageOutUrl != NULL)
@@ -624,9 +657,21 @@
     
     if (dataSuccess && dataOutUrl != NULL)
         *dataOutUrl = dataUrl;
-    
+        
     if (video)
         [_storeVideoPaintingImages addObject:imageUrl];
+    
+    if (stillImage != nil) {
+        NSURL *stillImageUrl = [_stillPaintingImagesUrl URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", [TGStringUtils md5:itemId]]];
+        [_stillPaintingImageCache setImage:stillImage forKey:itemId attributes:NULL];
+        
+        NSData *stillImageData = UIImagePNGRepresentation(stillImage);
+        [[NSFileManager defaultManager] removeItemAtURL:stillImageUrl error:nil];
+        [stillImageData writeToURL:stillImageUrl options:NSDataWritingAtomic error:nil];
+        
+        if (video)
+            [_storeVideoPaintingImages addObject:stillImageUrl];
+    }
     
     return (image == nil || imageSuccess) && (data == nil || dataSuccess);
 }
@@ -707,6 +752,9 @@
     
     PGPhotoEditorValues *editorValues = (PGPhotoEditorValues *)adjustments;
     if (![editorValues toolsApplied] && ![editorValues hasPainting])
+        return [SSignal complete];
+    
+    if ([editorValues.paintingData hasAnimation])
         return [SSignal complete];
     
     NSURL *url = [self _fullSizeImageUrlForItem:item];

@@ -25,10 +25,10 @@ private var sharedAccountContext: SharedAccountContext?
 
 private var installedSharedLogger = false
 
-private func setupSharedLogger(_ path: String) {
+private func setupSharedLogger(rootPath: String, path: String) {
     if !installedSharedLogger {
         installedSharedLogger = true
-        Logger.setSharedLogger(Logger(basePath: path))
+        Logger.setSharedLogger(Logger(rootPath: rootPath, basePath: path))
     }
 }
 
@@ -107,7 +107,7 @@ public final class NotificationViewControllerImpl {
         let logsPath = rootPath + "/notificationcontent-logs"
         let _ = try? FileManager.default.createDirectory(atPath: logsPath, withIntermediateDirectories: true, attributes: nil)
         
-        setupSharedLogger(logsPath)
+        setupSharedLogger(rootPath: rootPath, path: logsPath)
         
         accountsPath = rootPath
         
@@ -327,7 +327,7 @@ public final class NotificationViewControllerImpl {
                         let dimensions = fileReference.media.dimensions ?? PixelDimensions(width: 512, height: 512)
                         let fittedDimensions = dimensions.cgSize.aspectFitted(CGSize(width: 512.0, height: 512.0))
                         strongSelf.imageNode.setSignal(chatMessageAnimatedSticker(postbox: accountAndImage.0.postbox, file: fileReference.media, small: false, size: fittedDimensions))
-                        animatedStickerNode.setup(source: AnimatedStickerResourceSource(account: accountAndImage.0, resource: fileReference.media.resource), width: Int(fittedDimensions.width), height: Int(fittedDimensions.height), mode: .direct)
+                        animatedStickerNode.setup(source: AnimatedStickerResourceSource(account: accountAndImage.0, resource: fileReference.media.resource), width: Int(fittedDimensions.width), height: Int(fittedDimensions.height), mode: .direct(cachePathPrefix: nil))
                         animatedStickerNode.visibility = true
                         
                         accountAndImage.0.network.shouldExplicitelyKeepWorkerConnections.set(.single(true))

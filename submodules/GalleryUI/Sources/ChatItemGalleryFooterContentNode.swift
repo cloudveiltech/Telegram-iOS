@@ -17,9 +17,12 @@ import ShareController
 import OpenInExternalAppUI
 import AppBundle
 import LocalizedPeerData
+import TextSelectionNode
+import UrlEscaping
 
 private let deleteImage = generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Accessory Panels/MessageSelectionTrash"), color: .white)
-private let actionImage = generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Accessory Panels/MessageSelectionAction"), color: .white)
+private let actionImage = generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Accessory Panels/MessageSelectionForward"), color: .white)
+private let editImage = generateTintedImage(image: UIImage(bundleImageName: "Media Gallery/Draw"), color: .white)
 
 private let backwardImage = generateTintedImage(image:  UIImage(bundleImageName: "Media Gallery/BackwardButton"), color: .white)
 private let forwardImage = generateTintedImage(image: UIImage(bundleImageName: "Media Gallery/ForwardButton"), color: .white)
@@ -46,7 +49,7 @@ private let dateFont = Font.regular(14.0)
 
 enum ChatItemGalleryFooterContent: Equatable {
     case info
-    case fetch(status: MediaResourceStatus)
+    case fetch(status: MediaResourceStatus, seekable: Bool)
     case playback(paused: Bool, seekable: Bool)
     
     static func ==(lhs: ChatItemGalleryFooterContent, rhs: ChatItemGalleryFooterContent) -> Bool {
@@ -57,8 +60,8 @@ enum ChatItemGalleryFooterContent: Equatable {
                 } else {
                     return false
                 }
-            case let .fetch(lhsStatus):
-                if case let .fetch(rhsStatus) = rhs, lhsStatus == rhsStatus {
+            case let .fetch(lhsStatus, lhsSeekable):
+                if case let .fetch(rhsStatus, rhsSeekable) = rhs, lhsStatus == rhsStatus, lhsSeekable == rhsSeekable {
                     return true
                 } else {
                     return false
@@ -112,8 +115,10 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
     private var nameOrder: PresentationPersonNameOrder
     private var dateTimeFormat: PresentationDateTimeFormat
     
+    private let contentNode: ASDisplayNode
     private let deleteButton: UIButton
     private let actionButton: UIButton
+    private let editButton: UIButton
     private let maskNode: ASDisplayNode
     private let scrollWrapperNode: CaptionScrollWrapperNode
     private let scrollNode: ASScrollNode
@@ -163,11 +168,11 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
                         self.playbackControlButton.isHidden = true
                         self.statusButtonNode.isHidden = true
                         self.statusNode.isHidden = true
-                    case let .fetch(status):
+                    case let .fetch(status, seekable):
                         self.authorNameNode.isHidden = true
                         self.dateNode.isHidden = true
-                        self.backwardButton.isHidden = true
-                        self.forwardButton.isHidden = true
+                        self.backwardButton.isHidden = !seekable
+                        self.forwardButton.isHidden = !seekable
                         if status == .Local {
                             self.playbackControlButton.isHidden = false
                             self.playbackControlButton.setImage(playImage, for: [])
@@ -215,7 +220,8 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
             }
         }
         didSet {
-            if let scrubberView = self.scrubberView {
+             if let scrubberView = self.scrubberView {
+                scrubberView.setCollapsed(self.visibilityAlpha < 1.0, animated: false)
                 self.view.addSubview(scrubberView)
                 scrubberView.updateScrubbingVisual = { [weak self] value in
                     guard let strongSelf = self else {
@@ -247,7 +253,13 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
         }
     }
     
-    init(context: AccountContext, presentationData: PresentationData) {
+    override func setVisibilityAlpha(_ alpha: CGFloat, animated: Bool) {
+        self.visibilityAlpha = alpha
+        self.contentNode.alpha = alpha
+        self.scrubberView?.setCollapsed(alpha < 1.0, animated: animated)
+    }
+    
+    init(context: AccountContext, presentationData: PresentationData, present: @escaping (ViewController, Any?) -> Void = { _, _ in }) {
         self.context = context
         self.presentationData = presentationData
         self.theme = presentationData.theme
@@ -255,11 +267,15 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
         self.nameOrder = presentationData.nameDisplayOrder
         self.dateTimeFormat = presentationData.dateTimeFormat
         
+        self.contentNode = ASDisplayNode()
+        
         self.deleteButton = UIButton()
         self.actionButton = UIButton()
+        self.editButton = UIButton()
         
         self.deleteButton.setImage(deleteImage, for: [.normal])
         self.actionButton.setImage(actionImage, for: [.normal])
+        self.editButton.setImage(editImage, for: [.normal])
         
         self.scrollWrapperNode = CaptionScrollWrapperNode()
         self.scrollWrapperNode.clipsToBounds = true
@@ -299,6 +315,8 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
         
         super.init()
         
+        self.addSubnode(self.contentNode)
+        
         self.textNode.highlightAttributeAction = { attributes in
             let highlightedAttributes = [TelegramTextAttributes.URL,
                                          TelegramTextAttributes.PeerMention,
@@ -314,35 +332,37 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
             }
             return nil
         }
-        self.textNode.tapAttributeAction = { [weak self] attributes in
-            if let strongSelf = self, let action = strongSelf.actionForAttributes(attributes) {
+        self.textNode.tapAttributeAction = { [weak self] attributes, index in
+            if let strongSelf = self, let action = strongSelf.actionForAttributes(attributes, index) {
                 strongSelf.performAction?(action)
             }
         }
-        self.textNode.longTapAttributeAction = { [weak self] attributes in
-            if let strongSelf = self, let action = strongSelf.actionForAttributes(attributes) {
+        self.textNode.longTapAttributeAction = { [weak self] attributes, index in
+            if let strongSelf = self, let action = strongSelf.actionForAttributes(attributes, index) {
                 strongSelf.openActionOptions?(action)
             }
         }
         
-        self.view.addSubview(self.deleteButton)
-        self.view.addSubview(self.actionButton)
-        self.addSubnode(self.scrollWrapperNode)
+        self.contentNode.view.addSubview(self.deleteButton)
+        self.contentNode.view.addSubview(self.actionButton)
+        self.contentNode.view.addSubview(self.editButton)
+        self.contentNode.addSubnode(self.scrollWrapperNode)
         self.scrollWrapperNode.addSubnode(self.scrollNode)
         self.scrollNode.addSubnode(self.textNode)
         
-        self.addSubnode(self.authorNameNode)
-        self.addSubnode(self.dateNode)
+        self.contentNode.addSubnode(self.authorNameNode)
+        self.contentNode.addSubnode(self.dateNode)
         
-        self.addSubnode(self.backwardButton)
-        self.addSubnode(self.forwardButton)
-        self.addSubnode(self.playbackControlButton)
+        self.contentNode.addSubnode(self.backwardButton)
+        self.contentNode.addSubnode(self.forwardButton)
+        self.contentNode.addSubnode(self.playbackControlButton)
         
-        self.addSubnode(self.statusNode)
-        self.addSubnode(self.statusButtonNode)
+        self.contentNode.addSubnode(self.statusNode)
+        self.contentNode.addSubnode(self.statusButtonNode)
         
         self.deleteButton.addTarget(self, action: #selector(self.deleteButtonPressed), for: [.touchUpInside])
         self.actionButton.addTarget(self, action: #selector(self.actionButtonPressed), for: [.touchUpInside])
+        self.editButton.addTarget(self, action: #selector(self.editButtonPressed), for: [.touchUpInside])
         
         self.backwardButton.addTarget(self, action: #selector(self.backwardButtonPressed), forControlEvents: .touchUpInside)
         self.forwardButton.addTarget(self, action: #selector(self.forwardButtonPressed), forControlEvents: .touchUpInside)
@@ -372,9 +392,13 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
         self.scrollNode.view.showsVerticalScrollIndicator = false
     }
     
-    private func actionForAttributes(_ attributes: [NSAttributedString.Key: Any]) -> GalleryControllerInteractionTapAction? {
+    private func actionForAttributes(_ attributes: [NSAttributedString.Key: Any], _ index: Int) -> GalleryControllerInteractionTapAction? {
         if let url = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)] as? String {
-            return .url(url: url, concealed: false)
+            var concealed = true
+            if let (attributeText, fullText) = self.textNode.attributeSubstring(name: TelegramTextAttributes.URL, index: index) {
+                concealed = !doesUrlMatchText(url: url, text: attributeText, fullText: fullText)
+            }
+            return .url(url: url, concealed: concealed)
         } else if let peerMention = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.PeerMention)] as? TelegramPeerMention {
             return .peerMention(peerMention.peerId, peerMention.mention)
         } else if let peerName = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.PeerTextMention)] as? String {
@@ -422,15 +446,27 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
         }
         
         if origin == nil {
+            self.editButton.isHidden = true
             self.deleteButton.isHidden = true
+            self.editButton.isHidden = true
         }
     }
     
-    func setMessage(_ message: Message) {
+    func setMessage(_ message: Message, displayInfo: Bool = true) {
         self.currentMessage = message
         
         let canDelete: Bool
         var canShare = !message.containsSecretMedia && !Namespaces.Message.allScheduled.contains(message.id.namespace)
+        
+        var canEdit = false
+        for media in message.media {
+            if media is TelegramMediaImage {
+                canEdit = true
+                break
+            }
+        }
+        
+        canEdit = canEdit && !message.containsSecretMedia
         if let peer = message.peers[message.id.peerId] {
             if peer is TelegramUser || peer is TelegramSecretChat {
                 canDelete = true
@@ -439,26 +475,34 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
             } else if let channel = peer as? TelegramChannel {
                 if message.flags.contains(.Incoming) {
                     canDelete = channel.hasPermission(.deleteAllMessages)
+                    canEdit = canEdit && channel.hasPermission(.editAllMessages)
                 } else {
                     canDelete = true
                 }
             } else {
                 canDelete = false
+                canEdit = false
             }
         } else {
             canDelete = false
             canShare = false
+            canEdit = false
         }
         
-        var authorNameText: String?
         
+        var authorNameText: String?
         if let author = message.effectiveAuthor {
             authorNameText = author.displayTitle(strings: self.strings, displayOrder: self.nameOrder)
         } else if let peer = message.peers[message.id.peerId] {
             authorNameText = peer.displayTitle(strings: self.strings, displayOrder: self.nameOrder)
         }
         
-        let dateText = humanReadableStringForTimestamp(strings: self.strings, dateTimeFormat: self.dateTimeFormat, timestamp: message.timestamp)
+        var dateText = humanReadableStringForTimestamp(strings: self.strings, dateTimeFormat: self.dateTimeFormat, timestamp: message.timestamp)
+        
+        if !displayInfo {
+            authorNameText = ""
+            dateText = ""
+        }
         
         var messageText = NSAttributedString(string: "")
         var hasCaption = false
@@ -479,11 +523,8 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
             }
             messageText = galleryCaptionStringWithAppliedEntities(message.text, entities: entities)
         }
-        
-        self.actionButton.isHidden = message.containsSecretMedia || Namespaces.Message.allScheduled.contains(message.id.namespace)
-        
-        
-        if self.currentMessageText != messageText || canDelete != !self.deleteButton.isHidden || canShare != !self.actionButton.isHidden || self.currentAuthorNameText != authorNameText || self.currentDateText != dateText {
+                        
+        if self.currentMessageText != messageText || canDelete != !self.deleteButton.isHidden || canShare != !self.actionButton.isHidden || canEdit != !self.editButton.isHidden || self.currentAuthorNameText != authorNameText || self.currentDateText != dateText {
             self.currentMessageText = messageText
             
             if messageText.length == 0 {
@@ -503,6 +544,7 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
             
             self.deleteButton.isHidden = !canDelete
             self.actionButton.isHidden = !canShare
+            self.editButton.isHidden = !canEdit
             
             self.requestLayout?(.immediate)
         }
@@ -604,20 +646,22 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
             if self.textNode.isHidden || !displayCaption {
                 panelHeight += 8.0
             } else {
-                scrubberY = panelHeight - bottomInset - 44.0 - 41.0
+                scrubberY = panelHeight - bottomInset - 44.0 - 44.0
                 if contentInset > 0.0 {
-                    scrubberY -= contentInset + 3.0
+                    scrubberY -= contentInset
                 }
             }
             
             let scrubberFrame = CGRect(origin: CGPoint(x: leftInset, y: scrubberY), size: CGSize(width: width - leftInset - rightInset, height: 34.0))
             scrubberView.updateLayout(size: size, leftInset: leftInset, rightInset: rightInset, transition: .immediate)
-            transition.updateFrame(layer: scrubberView.layer, frame: scrubberFrame)
+            transition.updateBounds(layer: scrubberView.layer, bounds: CGRect(origin: CGPoint(), size: scrubberFrame.size))
+            transition.updatePosition(layer: scrubberView.layer, position: CGPoint(x: scrubberFrame.midX, y: scrubberFrame.midY))
         }
         transition.updateAlpha(node: self.textNode, alpha: displayCaption ? 1.0 : 0.0)
         
         self.actionButton.frame = CGRect(origin: CGPoint(x: leftInset, y: panelHeight - bottomInset - 44.0), size: CGSize(width: 44.0, height: 44.0))
         self.deleteButton.frame = CGRect(origin: CGPoint(x: width - 44.0 - rightInset, y: panelHeight - bottomInset - 44.0), size: CGSize(width: 44.0, height: 44.0))
+        self.editButton.frame = CGRect(origin: CGPoint(x: width - 44.0 - 50.0 - rightInset, y: panelHeight - bottomInset - 44.0), size: CGSize(width: 44.0, height: 44.0))
 
         if let image = self.backwardButton.image(for: .normal) {
             self.backwardButton.frame = CGRect(origin: CGPoint(x: floor((width - image.size.width) / 2.0) - 66.0, y: panelHeight - bottomInset - 44.0 + 7.0), size: image.size)
@@ -672,6 +716,8 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
             videoFrameTextNode.frame = CGRect(origin: CGPoint(x: CGFloat(textOffset), y: imageFrame.size.height - videoFrameTextNode.bounds.height - 5.0), size: videoFrameTextNode.bounds.size)
         }
         
+        self.contentNode.frame = CGRect(origin: CGPoint(), size: CGSize(width: width, height: panelHeight))
+        
         return panelHeight
     }
     
@@ -690,6 +736,7 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
         self.authorNameNode.alpha = 1.0
         self.deleteButton.alpha = 1.0
         self.actionButton.alpha = 1.0
+        self.editButton.alpha = 1.0
         self.backwardButton.alpha = 1.0
         self.forwardButton.alpha = 1.0
         self.statusNode.alpha = 1.0
@@ -712,6 +759,7 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
         self.authorNameNode.alpha = 0.0
         self.deleteButton.alpha = 0.0
         self.actionButton.alpha = 0.0
+        self.editButton.alpha = 0.0
         self.backwardButton.alpha = 0.0
         self.forwardButton.alpha = 0.0
         self.statusNode.alpha = 0.0
@@ -1031,6 +1079,13 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
         }
     }
     
+    @objc func editButtonPressed() {
+        guard let message = self.currentMessage else {
+            return
+        }
+        self.controllerInteraction?.editMedia(message.id)
+    }
+    
     @objc func playbackControlPressed() {
         self.playbackControl?()
     }
@@ -1081,7 +1136,7 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, UIScroll
                 }
                 let textSize = videoFrameTextNode.updateLayout(CGSize(width: 100.0, height: 100.0))
                 videoFrameTextNode.frame = CGRect(origin: CGPoint(), size: textSize)
-                videoFramePreviewNode.addSubnode(videoFrameTextNode)
+//                videoFramePreviewNode.addSubnode(videoFrameTextNode)
                 
                 self.videoFramePreviewNode = (videoFramePreviewNode, videoFrameTextNode)
                 self.addSubnode(videoFramePreviewNode)

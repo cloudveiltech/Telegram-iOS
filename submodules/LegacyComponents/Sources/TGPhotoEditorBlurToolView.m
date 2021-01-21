@@ -21,6 +21,7 @@
     TGPhotoEditorBlurTypeButton *_offButton;
     TGPhotoEditorBlurTypeButton *_radialButton;
     TGPhotoEditorBlurTypeButton *_linearButton;
+    TGPhotoEditorBlurTypeButton *_portraitButton;
     
     TGPhotoEditorSliderView *_sliderView;
     
@@ -59,27 +60,34 @@
         _titleLabel.textColor = [TGPhotoEditorInterfaceAssets editorItemTitleColor];
         _titleLabel.userInteractionEnabled = false;
         [self addSubview:_titleLabel];
-        
+               
         _offButton = [[TGPhotoEditorBlurTypeButton alloc] initWithFrame:CGRectZero];
         _offButton.tag = PGBlurToolTypeNone;
         [_offButton addTarget:self action:@selector(blurButtonPressed:) forControlEvents:UIControlEventTouchUpInside];
-        [_offButton setImage:TGComponentsImageNamed(@"PhotoEditorBlurOff")];
+        [_offButton setImage:TGTintedImage([UIImage imageNamed:@"Editor/BlurOff"], [UIColor whiteColor])];
         [_offButton setTitle:TGLocalized(@"PhotoEditor.BlurToolOff")];
         [_buttonsWrapper addSubview:_offButton];
         
         _radialButton = [[TGPhotoEditorBlurTypeButton alloc] initWithFrame:CGRectZero];
         _radialButton.tag = PGBlurToolTypeRadial;
         [_radialButton addTarget:self action:@selector(blurButtonPressed:) forControlEvents:UIControlEventTouchUpInside];
-        [_radialButton setImage:TGComponentsImageNamed(@"PhotoEditorBlurRadial")];
+        [_radialButton setImage:TGTintedImage([UIImage imageNamed:@"Editor/BlurRadial"], [UIColor whiteColor])];
         [_radialButton setTitle:TGLocalized(@"PhotoEditor.BlurToolRadial")];
         [_buttonsWrapper addSubview:_radialButton];
 
         _linearButton = [[TGPhotoEditorBlurTypeButton alloc] initWithFrame:CGRectZero];
         _linearButton.tag = PGBlurToolTypeLinear;
         [_linearButton addTarget:self action:@selector(blurButtonPressed:) forControlEvents:UIControlEventTouchUpInside];
-        [_linearButton setImage:TGComponentsImageNamed(@"PhotoEditorBlurLinear")];
+        [_linearButton setImage:TGTintedImage([UIImage imageNamed:@"Editor/BlurLinear"], [UIColor whiteColor])];
         [_linearButton setTitle:TGLocalized(@"PhotoEditor.BlurToolLinear")];
         [_buttonsWrapper addSubview:_linearButton];
+        
+        _portraitButton = [[TGPhotoEditorBlurTypeButton alloc] initWithFrame:CGRectZero];
+        _portraitButton.tag = PGBlurToolTypePortrait;
+        [_portraitButton addTarget:self action:@selector(blurButtonPressed:) forControlEvents:UIControlEventTouchUpInside];
+        [_portraitButton setImage:TGTintedImage([UIImage imageNamed:@"Editor/BlurPortrait"], [UIColor whiteColor])];
+        [_portraitButton setTitle:TGLocalized(@"PhotoEditor.BlurToolPortrait")];
+//        [_buttonsWrapper addSubview:_portraitButton];
         
         _sliderView = [[TGPhotoEditorSliderView alloc] initWithFrame:CGRectZero];
         _sliderView.alpha = 0.0f;
@@ -272,17 +280,22 @@
 
         _sliderView.frame = CGRectMake((self.frame.size.width - 32) / 2, TGPhotoEditorSliderViewMargin, 32, self.frame.size.height - 2 * TGPhotoEditorSliderViewMargin);
         
+        CGFloat titleOffset = 10;
+        if (MAX(_offButton.title.length, MAX(_radialButton.title.length, _linearButton.title.length)) > 7) {
+            titleOffset = -2;
+        }
+        
         [UIView performWithoutAnimation:^
         {
             if (orientation == UIInterfaceOrientationLandscapeLeft)
             {
                 _titleLabel.transform = CGAffineTransformMakeRotation(M_PI_2);
-                _titleLabel.frame = CGRectMake(self.frame.size.width - _titleLabel.frame.size.width - 10, (self.frame.size.height - _titleLabel.frame.size.height) / 2, _titleLabel.frame.size.width, _titleLabel.frame.size.height);
+                _titleLabel.frame = CGRectMake(self.frame.size.width - _titleLabel.frame.size.width - titleOffset, (self.frame.size.height - _titleLabel.frame.size.height) / 2, _titleLabel.frame.size.width, _titleLabel.frame.size.height);
             }
             else if (orientation == UIInterfaceOrientationLandscapeRight)
             {
                 _titleLabel.transform = CGAffineTransformMakeRotation(-M_PI_2);
-                _titleLabel.frame = CGRectMake(10, (self.frame.size.height - _titleLabel.frame.size.height) / 2, _titleLabel.frame.size.width, _titleLabel.frame.size.height);
+                _titleLabel.frame = CGRectMake(titleOffset, (self.frame.size.height - _titleLabel.frame.size.height) / 2, _titleLabel.frame.size.width, _titleLabel.frame.size.height);
             }
         }];
     }

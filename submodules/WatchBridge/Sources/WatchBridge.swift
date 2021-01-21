@@ -211,7 +211,7 @@ func makeBridgeMedia(message: Message, strings: PresentationStrings, chatPeer: P
                             bridgeAction?.actionType = .channelCreated
                         }
                     }
-                case let .phoneCall(_, discardReason, _):
+                case let .phoneCall(_, discardReason, _, _):
                     let bridgeAttachment = TGBridgeUnsupportedMediaAttachment()
                     let incoming = message.flags.contains(.Incoming)
                     var compactTitle: String = ""
@@ -319,10 +319,11 @@ func makeBridgeMedia(message: Message, strings: PresentationStrings, chatPeer: P
 }
 
 func makeBridgeChat(_ entry: ChatListEntry, strings: PresentationStrings) -> (TGBridgeChat, [Int64 : TGBridgeUser])? {
-    if case let .MessageEntry(index, message, readState, _, _, renderedPeer, _, _, hasFailed, _) = entry {
+    if case let .MessageEntry(index, messages, readState, _, _, renderedPeer, _, _, hasFailed, _) = entry {
         guard index.messageIndex.id.peerId.namespace != Namespaces.Peer.SecretChat else {
             return nil
         }
+        let message = messages.last
         let (bridgeChat, participants) = makeBridgeChat(renderedPeer.peer)
         bridgeChat.date = TimeInterval(index.messageIndex.timestamp)
         if let message = message {

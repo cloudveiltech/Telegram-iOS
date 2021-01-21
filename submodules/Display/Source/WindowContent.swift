@@ -3,6 +3,9 @@ import UIKit
 import AsyncDisplayKit
 import SwiftSignalKit
 
+public func qewfqewfq() {
+}
+
 private struct WindowLayout: Equatable {
     let size: CGSize
     let metrics: LayoutMetrics
@@ -114,7 +117,7 @@ private func containedLayoutForWindowLayout(_ layout: WindowLayout, deviceMetric
         resolvedSafeInsets = deviceMetrics.safeInsets(inLandscape: isLandscape)
     }
     
-    return ContainerViewLayout(size: layout.size, metrics: layout.metrics, deviceMetrics: deviceMetrics, intrinsicInsets: UIEdgeInsets(top: 0.0, left: 0.0, bottom: layout.onScreenNavigationHeight ?? 0.0, right: 0.0), safeInsets: resolvedSafeInsets, statusBarHeight: resolvedStatusBarHeight, inputHeight: updatedInputHeight, inputHeightIsInteractivellyChanging: layout.upperKeyboardInputPositionBound != nil && layout.upperKeyboardInputPositionBound != layout.size.height && layout.inputHeight != nil, inVoiceOver: layout.inVoiceOver)
+    return ContainerViewLayout(size: layout.size, metrics: layout.metrics, deviceMetrics: deviceMetrics, intrinsicInsets: UIEdgeInsets(top: 0.0, left: 0.0, bottom: layout.onScreenNavigationHeight ?? 0.0, right: 0.0), safeInsets: resolvedSafeInsets, additionalInsets: UIEdgeInsets(), statusBarHeight: resolvedStatusBarHeight, inputHeight: updatedInputHeight, inputHeightIsInteractivellyChanging: layout.upperKeyboardInputPositionBound != nil && layout.upperKeyboardInputPositionBound != layout.size.height && layout.inputHeight != nil, inVoiceOver: layout.inVoiceOver)
 }
 
 private func encodeText(_ string: String, _ key: Int) -> String {
@@ -291,7 +294,7 @@ public class Window1 {
         self.systemUserInterfaceStyle = hostView.systemUserInterfaceStyle
         
         let boundsSize = self.hostView.eventView.bounds.size
-        self.deviceMetrics = DeviceMetrics(screenSize: UIScreen.main.bounds.size, statusBarHeight: statusBarHost?.statusBarFrame.height ?? defaultStatusBarHeight, onScreenNavigationHeight: self.hostView.onScreenNavigationHeight)
+        self.deviceMetrics = DeviceMetrics(screenSize: UIScreen.main.bounds.size, scale: UIScreen.main.scale, statusBarHeight: statusBarHost?.statusBarFrame.height ?? defaultStatusBarHeight, onScreenNavigationHeight: self.hostView.onScreenNavigationHeight)
         
         self.statusBarHost = statusBarHost
         let statusBarHeight: CGFloat
@@ -442,11 +445,13 @@ public class Window1 {
         self.keyboardFrameChangeObserver = NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillChangeFrameNotification, object: nil, queue: nil, using: { [weak self] notification in
             if let strongSelf = self {
                 var keyboardFrame: CGRect = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue ?? CGRect()
-                if let keyboardView = strongSelf.statusBarHost?.keyboardView {
+                if #available(iOSApplicationExtension 14.2, iOS 14.2, *), UIAccessibility.prefersCrossFadeTransitions {
+                } else if let keyboardView = strongSelf.statusBarHost?.keyboardView {
                     if keyboardFrame.width.isEqual(to: keyboardView.bounds.width) && keyboardFrame.height.isEqual(to: keyboardView.bounds.height) && keyboardFrame.minX.isEqual(to: keyboardView.frame.minX) {
                         keyboardFrame.origin.y = keyboardView.frame.minY
                     }
                 }
+                
                 
                 var popoverDelta: CGFloat = 0.0
                 
@@ -479,20 +484,12 @@ public class Window1 {
                     } else {
                         screenHeight = strongSelf.windowLayout.size.height
                     }
-                    
-                    /*if abs(strongSelf.windowLayout.size.height - UIScreen.main.bounds.height) > 41.0 {
-                        if abs(portraitLayoutSize.height - portraitScreenSize.height) > 41.0 || abs(portraitLayoutSize.width - portraitScreenSize.width) > 41.0 {
-                            screenHeight = strongSelf.windowLayout.size.height
-                        } else {
-                            screenHeight = UIScreen.main.bounds.height
-                        }
-                    } else if abs(strongSelf.windowLayout.size.height - UIScreen.main.bounds.height) > 39.0 {
+                } else {
+                    if keyboardFrame.minX > 0.0 {
                         screenHeight = UIScreen.main.bounds.height
                     } else {
-                        screenHeight = strongSelf.windowLayout.size.height
-                    }*/
-                } else {
-                    screenHeight = UIScreen.main.bounds.width
+                        screenHeight = UIScreen.main.bounds.width
+                    }
                 }
                 
                 var keyboardHeight: CGFloat
@@ -501,11 +498,7 @@ public class Window1 {
                 } else {
                     keyboardHeight = max(0.0, screenHeight - keyboardFrame.minY)
                     if inPopover && !keyboardHeight.isZero {
-                        if #available(iOSApplicationExtension 13.0, iOS 13.0, *) {
-                            keyboardHeight = max(0.0, keyboardHeight - popoverDelta)
-                        } else {
-                            keyboardHeight = max(0.0, keyboardHeight - popoverDelta)
-                        }
+                        keyboardHeight = max(0.0, keyboardHeight - popoverDelta)
                     }
                 }
                 
@@ -991,7 +984,7 @@ public class Window1 {
                 }
                 
                 if self.deviceMetrics.type == .tablet, let onScreenNavigationHeight = self.hostView.onScreenNavigationHeight, onScreenNavigationHeight != self.deviceMetrics.onScreenNavigationHeight(inLandscape: false, systemOnScreenNavigationHeight: self.hostView.onScreenNavigationHeight) {
-                    self.deviceMetrics = DeviceMetrics(screenSize: UIScreen.main.bounds.size, statusBarHeight: statusBarHeight ?? defaultStatusBarHeight, onScreenNavigationHeight: onScreenNavigationHeight)
+                    self.deviceMetrics = DeviceMetrics(screenSize: UIScreen.main.bounds.size, scale: UIScreen.main.scale, statusBarHeight: statusBarHeight ?? defaultStatusBarHeight, onScreenNavigationHeight: onScreenNavigationHeight)
                 }
                 
                 let statusBarWasHidden = self.statusBarHidden

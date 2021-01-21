@@ -10,11 +10,13 @@ import TelegramPresentationData
 import AnimationUI
 import AppBundle
 import AccountContext
+import Emoji
 import CloudVeilSecurityManager
 
 private let deletedIcon = UIImage(bundleImageName: "Avatar/DeletedIcon")?.precomposed()
 private let savedMessagesIcon = generateTintedImage(image: UIImage(bundleImageName: "Avatar/SavedMessagesIcon"), color: .white)
 private let archivedChatsIcon = UIImage(bundleImageName: "Avatar/ArchiveAvatarIcon")?.precomposed()
+private let repliesIcon = generateTintedImage(image: UIImage(bundleImageName: "Avatar/RepliesMessagesIcon"), color: .white)
 
 public func avatarPlaceholderFont(size: CGFloat) -> UIFont {
     return Font.with(size: size, design: .round, traits: [.bold])
@@ -100,6 +102,7 @@ private func ==(lhs: AvatarNodeState, rhs: AvatarNodeState) -> Bool {
 private enum AvatarNodeIcon: Equatable {
     case none
     case savedMessagesIcon
+    case repliesIcon
     case archivedChatsIcon(hiddenByDefault: Bool)
     case editAvatarIcon
     case deletedIcon
@@ -109,6 +112,7 @@ public enum AvatarNodeImageOverride: Equatable {
     case none
     case image(TelegramMediaImageRepresentation)
     case savedMessagesIcon
+    case repliesIcon
     case archivedChatsIcon(hiddenByDefault: Bool)
     case editAvatarIcon
     case deletedIcon
@@ -256,6 +260,7 @@ public final class AvatarNode: ASDisplayNode {
         var iconColor = theme.chatList.unpinnedArchiveAvatarColor.foregroundColor
         var backgroundColor = theme.chatList.unpinnedArchiveAvatarColor.backgroundColors.topColor
         let animationBackgroundNode = ASImageNode()
+        animationBackgroundNode.isUserInteractionEnabled = false
         animationBackgroundNode.frame = self.imageNode.frame
         if let overrideImage = self.overrideImage, case let .archivedChatsIcon(hiddenByDefault) = overrideImage {
             let backgroundColors: (UIColor, UIColor)
@@ -274,6 +279,7 @@ public final class AvatarNode: ASDisplayNode {
         self.addSubnode(animationBackgroundNode)
         
         let animationNode = AnimationNode(animation: "anim_archiveAvatar", colors: ["box1.box1.Fill 1": iconColor, "box3.box3.Fill 1": iconColor, "box2.box2.Fill 1": backgroundColor], scale: 0.1653828)
+        animationNode.isUserInteractionEnabled = false
         animationNode.completion = { [weak animationBackgroundNode, weak self] in
             self?.imageNode.isHidden = false
             animationBackgroundNode?.removeFromSupernode()
@@ -306,6 +312,9 @@ public final class AvatarNode: ASDisplayNode {
                 case .savedMessagesIcon:
                     representation = nil
                     icon = .savedMessagesIcon
+                case .repliesIcon:
+                    representation = nil
+                    icon = .repliesIcon
                 case let .archivedChatsIcon(hiddenByDefault):
                     representation = nil
                     icon = .archivedChatsIcon(hiddenByDefault: hiddenByDefault)
@@ -319,13 +328,13 @@ public final class AvatarNode: ASDisplayNode {
         } else if peer?.restrictionText(platform: "ios", contentSettings: context.currentContentSettings.with { $0 }) == nil {
             representation = peer?.smallProfileImage
         }
-        
-        //CloudVeil start
-        if MainController.shared.disableProfilePhoto {
-            representation = nil
-        }
-        //CloudVeil end
-              
+				
+		//CloudVeil start
+		if MainController.shared.disableProfilePhoto {
+			representation = nil
+		}
+		//CloudVeil end
+		
         let updatedState: AvatarNodeState = .peerAvatar(peer?.id ?? PeerId(namespace: 0, id: 0), peer?.displayLetters ?? [], representation)
         if updatedState != self.state || overrideImage != self.overrideImage || theme !== self.theme {
             self.state = updatedState
@@ -337,7 +346,7 @@ public final class AvatarNode: ASDisplayNode {
             if let peer = peer, let signal = peerAvatarImage(account: context.account, peerReference: PeerReference(peer), authorOfMessage: authorOfMessage, representation: representation, displayDimensions: displayDimensions, emptyColor: emptyColor, synchronousLoad: synchronousLoad, provideUnrounded: storeUnrounded) {
                 self.contents = nil
                 self.displaySuspended = true
-                self.imageReady.set(self.imageNode.ready)
+                self.imageReady.set(self.imageNode.contentReady)
                 self.imageNode.setSignal(signal |> beforeNext { [weak self] next in
                     Queue.mainQueue().async {
                         self?.unroundedImage = next?.1
@@ -351,6 +360,7 @@ public final class AvatarNode: ASDisplayNode {
                     if self.editOverlayNode == nil {
                         let editOverlayNode = AvatarEditOverlayNode()
                         editOverlayNode.frame = self.imageNode.frame
+                        editOverlayNode.isUserInteractionEnabled = false
                         self.addSubnode(editOverlayNode)
                         
                         self.editOverlayNode = editOverlayNode
@@ -456,6 +466,8 @@ public final class AvatarNode: ASDisplayNode {
                 colorsArray = grayscaleColors
             } else if case .savedMessagesIcon = parameters.icon {
                 colorsArray = savedMessagesColors
+            } else if case .repliesIcon = parameters.icon {
+                colorsArray = savedMessagesColors
             } else if case .editAvatarIcon = parameters.icon, let theme = parameters.theme {
                 colorsArray = [theme.list.itemAccentColor.withAlphaComponent(0.1).cgColor, theme.list.itemAccentColor.withAlphaComponent(0.1).cgColor]
             } else if case let .archivedChatsIcon(hiddenByDefault) = parameters.icon, let theme = parameters.theme {
@@ -510,6 +522,15 @@ public final class AvatarNode: ASDisplayNode {
                 if let savedMessagesIcon = savedMessagesIcon {
                     context.draw(savedMessagesIcon.cgImage!, in: CGRect(origin: CGPoint(x: floor((bounds.size.width - savedMessagesIcon.size.width) / 2.0), y: floor((bounds.size.height - savedMessagesIcon.size.height) / 2.0)), size: savedMessagesIcon.size))
                 }
+            } else if case .repliesIcon = parameters.icon {
+                let factor = bounds.size.width / 60.0
+                context.translateBy(x: bounds.size.width / 2.0, y: bounds.size.height / 2.0)
+                context.scaleBy(x: factor, y: -factor)
+                context.translateBy(x: -bounds.size.width / 2.0, y: -bounds.size.height / 2.0)
+                
+                if let repliesIcon = repliesIcon {
+                    context.draw(repliesIcon.cgImage!, in: CGRect(origin: CGPoint(x: floor((bounds.size.width - repliesIcon.size.width) / 2.0), y: floor((bounds.size.height - repliesIcon.size.height) / 2.0)), size: repliesIcon.size))
+                }
             } else if case .editAvatarIcon = parameters.icon, let theme = parameters.theme, !parameters.hasImage {
                 context.translateBy(x: bounds.size.width / 2.0, y: bounds.size.height / 2.0)
                 context.scaleBy(x: 1.0, y: -1.0)
@@ -530,7 +551,11 @@ public final class AvatarNode: ASDisplayNode {
                     context.draw(archivedChatsIcon.cgImage!, in: CGRect(origin: CGPoint(x: floor((bounds.size.width - archivedChatsIcon.size.width) / 2.0), y: floor((bounds.size.height - archivedChatsIcon.size.height) / 2.0)), size: archivedChatsIcon.size))
                 }
             } else {
-                let letters = parameters.letters
+                var letters = parameters.letters
+                if letters.count == 2 && letters[0].isSingleEmoji && letters[1].isSingleEmoji {
+                    letters = [letters[0]]
+                }
+                
                 let string = letters.count == 0 ? "" : (letters[0] + (letters.count == 1 ? "" : letters[1]))
                 let attributedString = NSAttributedString(string: string, attributes: [NSAttributedString.Key.font: parameters.font, NSAttributedString.Key.foregroundColor: UIColor.white])
                 

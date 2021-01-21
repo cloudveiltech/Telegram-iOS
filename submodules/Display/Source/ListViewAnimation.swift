@@ -93,6 +93,10 @@ public let listViewAnimationCurveLinear: (CGFloat) -> CGFloat = { t in
     return t
 }
 
+public let listViewAnimationCurveEaseInOut: (CGFloat) -> CGFloat = { t in
+    return bezierPoint(0.42, 0.0, 0.58, 1.0, t)
+}
+
 #if os(iOS)
 public func listViewAnimationCurveFromAnimationOptions(animationOptions: UIView.AnimationOptions) -> (CGFloat) -> CGFloat {
     if animationOptions.rawValue == UInt(7 << 16) {
@@ -187,7 +191,7 @@ public func listViewAnimationDurationAndCurve(transition: ContainedViewLayoutTra
         case let .animated(animationDuration, animationCurve):
             duration = animationDuration
             switch animationCurve {
-                case .easeInOut, .custom:
+                case .linear, .easeInOut, .custom:
                     break
                 case .spring:
                     curve = 7

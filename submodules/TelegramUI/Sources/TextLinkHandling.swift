@@ -14,6 +14,8 @@ import InstantPageUI
 import HashtagSearchUI
 import StickerPackPreviewUI
 import JoinLinkPreviewUI
+import PresentationDataUtils
+import UrlWhitelist
 
 func handleTextLinkActionImpl(context: AccountContext, peerId: PeerId?, navigateDisposable: MetaDisposable, controller: ViewController, action: TextLinkItemActionType, itemLink: TextLinkItem) {
     let presentImpl: (ViewController, Any?) -> Void = { controllerToPresent, _ in
@@ -23,9 +25,9 @@ func handleTextLinkActionImpl(context: AccountContext, peerId: PeerId?, navigate
     let openResolvedPeerImpl: (PeerId?, ChatControllerInteractionNavigateToPeer) -> Void = { [weak controller] peerId, navigation in
         context.sharedContext.openResolvedUrl(.peer(peerId, navigation), context: context, urlContext: .generic, navigationController: (controller?.navigationController as? NavigationController), openPeer: { (peerId, navigation) in
             switch navigation {
-                case let .chat(_, subject):
+                case let .chat(_, subject, peekData):
                     if let navigationController = controller?.navigationController as? NavigationController {
-                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId), subject: subject, keepStack: .always))
+                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId), subject: subject, keepStack: .always, peekData: peekData))
                     }
                 case .info:
                     let peerSignal: Signal<Peer?, NoError>
@@ -55,7 +57,13 @@ func handleTextLinkActionImpl(context: AccountContext, peerId: PeerId?, navigate
                         openResolvedPeerImpl(peerId, .default)
                     case let .channelMessage(peerId, messageId):
                         if let navigationController = controller.navigationController as? NavigationController {
-                            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId), subject: .message(messageId)))
+                            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId), subject: .message(id: messageId, highlight: true)))
+                        }
+                    case let .replyThreadMessage(replyThreadMessage, messageId):
+                        if let navigationController = controller.navigationController as? NavigationController {
+                            let _ = ChatControllerImpl.openMessageReplies(context: context, navigationController: navigationController, present: { [weak controller] c, a in
+                                controller?.present(c, in: .window(.root), with: a)
+                            }, messageId: replyThreadMessage.messageId, isChannelPost: replyThreadMessage.isChannelPost, atMessage: messageId, displayModalProgress: true).start()
                         }
                     case let .stickerPack(name):
                         let packReference: StickerPackReference = .name(name)
@@ -63,8 +71,8 @@ func handleTextLinkActionImpl(context: AccountContext, peerId: PeerId?, navigate
                     case let .instantView(webpage, anchor):
                         (controller.navigationController as? NavigationController)?.pushViewController(InstantPageController(context: context, webPage: webpage, sourcePeerType: .group, anchor: anchor))
                     case let .join(link):
-                        controller.present(JoinLinkPreviewController(context: context, link: link, navigateToPeer: { peerId in
-                            openResolvedPeerImpl(peerId, .chat(textInputState: nil, subject: nil))
+                        controller.present(JoinLinkPreviewController(context: context, link: link, navigateToPeer: { peerId, peekData in
+                            openResolvedPeerImpl(peerId, .chat(textInputState: nil, subject: nil, peekData: peekData))
                         }, parentNavigationController: controller.navigationController as? NavigationController), in: .window(.root))
                     #if ENABLE_WALLET
                     case let .wallet(address, amount, comment):
@@ -89,8 +97,26 @@ func handleTextLinkActionImpl(context: AccountContext, peerId: PeerId?, navigate
     switch action {
         case .tap:
             switch itemLink {
-                case let .url(url):
-                    openLinkImpl(url)
+                case .url(let url, var concealed):
+                    let (parsedString, parsedConcealed) = parseUrl(url: url, wasConcealed: false)
+                    if parsedConcealed {
+                        concealed = true
+                    }
+                    
+                    if concealed {
+                        var rawDisplayUrl: String = parsedString
+                        let maxLength = 180
+                        if rawDisplayUrl.count > maxLength {
+                            rawDisplayUrl = String(rawDisplayUrl[..<rawDisplayUrl.index(rawDisplayUrl.startIndex, offsetBy: maxLength - 2)]) + "..."
+                        }
+                        var displayUrl = rawDisplayUrl
+                        displayUrl = displayUrl.replacingOccurrences(of: "\u{202e}", with: "")
+                        controller.present(textAlertController(context: context, title: nil, text: presentationData.strings.Generic_OpenHiddenLinkAlert(displayUrl).0, actions: [TextAlertAction(type: .genericAction, title: presentationData.strings.Common_No, action: {}), TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Yes, action: {
+                            openLinkImpl(url)
+                        })]), in: .window(.root))
+                    } else {
+                        openLinkImpl(url)
+                    }
                 case let .mention(mention):
                     openPeerMentionImpl(mention)
                 case let .hashtag(_, hashtag):
@@ -105,12 +131,13 @@ func handleTextLinkActionImpl(context: AccountContext, peerId: PeerId?, navigate
             }
         case .longTap:
             switch itemLink {
-                case let .url(url):
+                case let .url(url, _):
                     let canOpenIn = availableOpenInOptions(context: context, item: .url(url: url)).count > 1
                     let openText = canOpenIn ? presentationData.strings.Conversation_FileOpenIn : presentationData.strings.Conversation_LinkDialogOpen
                     let actionSheet = ActionSheetController(presentationData: presentationData)
+                    let (displayUrl, _) = parseUrl(url: url, wasConcealed: false)
                     actionSheet.setItemGroups([ActionSheetItemGroup(items: [
-                        ActionSheetTextItem(title: url),
+                        ActionSheetTextItem(title: displayUrl),
                         ActionSheetButtonItem(title: openText, color: .accent, action: { [weak actionSheet] in
                             actionSheet?.dismissAnimated()
                             openLinkImpl(url)

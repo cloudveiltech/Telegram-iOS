@@ -57,6 +57,11 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
     if hasBannedInlineContent {
         switch inputQueryResult {
             case .stickers, .contextRequestResult:
+				//CloudVeil start
+				if MainController.shared.disableStickers {
+					return nil
+				}
+				//CloudVeil end
                 if let currentPanel = currentPanel as? DisabledContextResultsChatInputContextPanelNode {
                     return currentPanel
                 } else {
@@ -71,21 +76,22 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
     
     switch inputQueryResult {
         case let .stickers(results):
-            //CloudVeil start
-              if MainController.shared.disableStickers {
-                  return nil
-              }
-            //CloudVeil end
-              
+			//CloudVeil start
+			if MainController.shared.disableStickers {
+				return nil
+			}
+			//CloudVeil end
             if !results.isEmpty {
-                if let currentPanel = currentPanel as? HorizontalStickersChatContextPanelNode {
-                    currentPanel.updateResults(results.map({ $0.file }))
+                let query = chatPresentationInterfaceState.interfaceState.composeInputState.inputText.string
+                
+                if let currentPanel = currentPanel as? InlineReactionSearchPanel {
+                    currentPanel.updateResults(results: results.map({ $0.file }), query: query)
                     return currentPanel
                 } else {
-                    let panel = HorizontalStickersChatContextPanelNode(context: context, theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings, fontSize: chatPresentationInterfaceState.fontSize)
+                    let panel = InlineReactionSearchPanel(context: context, theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings, fontSize: chatPresentationInterfaceState.fontSize)
                     panel.controllerInteraction = controllerInteraction
                     panel.interfaceInteraction = interfaceInteraction
-                    panel.updateResults(results.map({ $0.file }))
+                    panel.updateResults(results: results.map({ $0.file }), query: query)
                     return panel
                 }
             }
@@ -101,7 +107,7 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
                     return panel
                 }
             }
-        case let .emojis(results, range):
+        case let .emojis(results, _):
             if !results.isEmpty {
                 if let currentPanel = currentPanel as? EmojisChatInputContextPanelNode {
                     currentPanel.updateResults(results)
@@ -142,12 +148,11 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
                 return nil
             }
         case let .contextRequestResult(_, results):
-            //CloudVeil start
-            if MainController.SecurityStaticSettings.disableInlineBots {
-                return nil
-            }
-            //CloudVeil end
-            
+			//CloudVeil start
+			if MainController.SecurityStaticSettings.disableInlineBots {
+				return nil
+			}
+			//CloudVeil end
             if let results = results, (!results.results.isEmpty || results.switchPeer != nil) {
                 switch results.presentation {
                     case .list:

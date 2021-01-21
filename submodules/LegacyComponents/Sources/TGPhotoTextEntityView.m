@@ -1,6 +1,10 @@
 #import "TGPhotoTextEntityView.h"
 
+#import "TGPaintSwatch.h"
+#import "TGPhotoPaintFont.h"
+
 #import "TGColor.h"
+#import "LegacyComponentsInternal.h"
 
 #import <LegacyComponents/TGPaintUtils.h>
 
@@ -26,6 +30,14 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
 @property (nonatomic, strong) UIColor *strokeColor;
 @property (nonatomic, assign) CGFloat strokeWidth;
 @property (nonatomic, assign) CGPoint strokeOffset;
+@property (nonatomic, assign) UIColor *frameColor;
+@property (nonatomic, assign) CGFloat frameWidthInset;
+@property (nonatomic, assign) CGFloat frameCornerRadius;
+
+@end
+
+
+@interface TGPhotoTextStorage : NSTextStorage
 
 @end
 
@@ -36,7 +48,7 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
     TGPhotoPaintFont *_font;
     CGFloat _baseFontSize;
     CGFloat _maxWidth;
-    bool _stroke;
+    TGPhotoPaintTextEntityStyle _style;
     
     TGPhotoTextView *_textView;
 }
@@ -64,8 +76,7 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
         _textView.selectable = false;
         _textView.contentInset = UIEdgeInsetsZero;
         _textView.showsHorizontalScrollIndicator = false;
-        _textView.showsVerticalScrollIndicator = false;
-        _textView.textContainerInset = UIEdgeInsetsZero;
+        _textView.showsVerticalScrollIndicator = false;;
         _textView.scrollsToTop = false;
         _textView.scrollEnabled = false;
         _textView.textContainerInset = UIEdgeInsetsZero;
@@ -76,9 +87,11 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
         _textView.autocorrectionType = UITextAutocorrectionTypeNo;
         _textView.spellCheckingType = UITextSpellCheckingTypeNo;
         _textView.font = [UIFont boldSystemFontOfSize:_baseFontSize];
+        _textView.typingAttributes = @{NSFontAttributeName: _textView.font};
+//        _textView.frameWidthInset = floor(_baseFontSize * 0.03);
         
         [self setSwatch:entity.swatch];
-        [self setStroke:entity.stroke];
+        [self setStyle:entity.style];
     
         [self addSubview:_textView];
     }
@@ -92,13 +105,26 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
 
 - (TGPhotoPaintTextEntity *)entity
 {
-    TGPhotoPaintTextEntity *entity = [[TGPhotoPaintTextEntity alloc] initWithText:_textView.text font:_font swatch:_swatch baseFontSize:_baseFontSize maxWidth:_maxWidth stroke:_stroke];
+    TGPhotoPaintTextEntity *entity = [[TGPhotoPaintTextEntity alloc] initWithText:_textView.text font:_font swatch:_swatch baseFontSize:_baseFontSize maxWidth:_maxWidth style:_style];
     entity.uuid = _entityUUID;
     entity.angle = self.angle;
     entity.scale = self.scale;
     entity.position = self.center;
     
     return entity;
+}
+
+- (UIImage *)image {
+    CGRect rect = self.bounds;
+    
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(rect.size.width, rect.size.height), false, 1.0f);
+    
+    [self drawViewHierarchyInRect:rect afterScreenUpdates:false];
+    
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    return image;
 }
 
 - (bool)isEditing
@@ -124,6 +150,8 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
     _textView.editable = false;
     _textView.selectable = false;
     
+    _textView.text = [_textView.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    
     if (self.finishedEditing != nil)
         self.finishedEditing(self);
 }
@@ -148,25 +176,29 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
 {
     _font = font;
     _textView.font = [UIFont boldSystemFontOfSize:_baseFontSize];
+    _textView.typingAttributes = @{NSFontAttributeName: _textView.font};
+//    _textView.frameWidthInset = floor(_baseFontSize * 0.03);
+    
     [self sizeToFit];
 }
 
-- (void)setStroke:(bool)stroke
+- (void)setStyle:(TGPhotoPaintTextEntityStyle)style
 {
-    _stroke = stroke;
-    if (stroke)
-    {
-        _textView.layer.shadowRadius = 0.0f;
-        _textView.layer.shadowOpacity = 0.0f;
-        _textView.layer.shadowOffset = CGSizeMake(0.0f, 0.0f);
-        _textView.layer.shadowColor = [[UIColor clearColor] CGColor];
-    }
-    else
-    {
-        _textView.layer.shadowColor = [[UIColor blackColor] CGColor];
-        _textView.layer.shadowOffset = CGSizeMake(0.0f, 4.0f);
-        _textView.layer.shadowOpacity = 0.4f;
-        _textView.layer.shadowRadius = 4.0f;
+    _style = style;
+    switch (_style) {
+        case TGPhotoPaintTextEntityStyleRegular:
+            _textView.layer.shadowColor = [[UIColor blackColor] CGColor];
+            _textView.layer.shadowOffset = CGSizeMake(0.0f, 4.0f);
+            _textView.layer.shadowOpacity = 0.4f;
+            _textView.layer.shadowRadius = 4.0f;
+            break;
+            
+        default:
+            _textView.layer.shadowRadius = 0.0f;
+            _textView.layer.shadowOpacity = 0.0f;
+            _textView.layer.shadowOffset = CGSizeMake(0.0f, 0.0f);
+            _textView.layer.shadowColor = [[UIColor clearColor] CGColor];
+            break;
     }
     
     [self updateColor];
@@ -175,15 +207,45 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
 
 - (void)updateColor
 {
-    if (_stroke)
-    {
-        _textView.textColor = [UIColor whiteColor];
-        _textView.strokeColor = _swatch.color;
-    }
-    else
-    {
-        _textView.textColor = _swatch.color;
-        _textView.strokeColor = nil;
+    switch (_style) {
+        case TGPhotoPaintTextEntityStyleRegular:
+        {
+            _textView.textColor = _swatch.color;
+            _textView.strokeColor = nil;
+            _textView.frameColor = nil;
+        }
+            break;
+            
+        case TGPhotoPaintTextEntityStyleOutlined:
+        {
+            _textView.textColor = [UIColor whiteColor];
+            _textView.strokeColor = _swatch.color;
+            _textView.frameColor = nil;
+        }
+            break;
+            
+        case TGPhotoPaintTextEntityStyleFramed:
+        {
+            CGFloat lightness = 0.0f;
+            CGFloat r = 0.0f;
+            CGFloat g = 0.0f;
+            CGFloat b = 0.0f;
+            
+            if ([_swatch.color getRed:&r green:&g blue:&b alpha:NULL]) {
+                lightness = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+            } else if ([_swatch.color getWhite:&r alpha:NULL]) {
+                lightness = r;
+            }
+            
+            if (lightness > 0.87) {
+                _textView.textColor = [UIColor blackColor];
+            } else {
+                _textView.textColor = [UIColor whiteColor];
+            }
+            _textView.strokeColor = nil;
+            _textView.frameColor = _swatch.color;
+        }
+            break;
     }
 }
 
@@ -354,13 +416,14 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
 {
     CGContextRef context = UIGraphicsGetCurrentContext();
     
-    CGFloat space = 3.0f;
-    CGFloat length = 3.0f;
-    CGFloat thickness = 1;
+    CGFloat space = 4.0f;
+    CGFloat length = 4.5f;
+    CGFloat thickness = 1.5f;
     CGRect selectionBounds = CGRectInset(rect, 5.5f, 5.5f);
     
-    CGContextSetFillColorWithColor(context, [UIColor whiteColor].CGColor);
-    CGContextSetShadowWithColor(context, CGSizeZero, 2.5f, [UIColor colorWithWhite:0.0f alpha:0.3f].CGColor);
+    UIColor *color = UIColorRGBA(0xeaeaea, 0.8);
+    
+    CGContextSetFillColorWithColor(context, color.CGColor);
     
     CGPoint centerPoint = TGPaintCenterOfRect(rect);
     
@@ -384,19 +447,29 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
     
     CGContextFillPath(context);
     
-    CGContextSetFillColorWithColor(context, TGAccentColor().CGColor);
-    CGContextSetStrokeColorWithColor(context, [UIColor whiteColor].CGColor);
+    CGContextSetStrokeColorWithColor(context, color.CGColor);
     CGContextSetLineWidth(context, thickness);
     
-    void (^drawEllipse)(CGPoint) = ^(CGPoint center)
+    void (^drawEllipse)(CGPoint, bool) = ^(CGPoint center, bool clear)
     {
-        CGContextSetShadowWithColor(context, CGSizeZero, 2.5f, [UIColor clearColor].CGColor);
-        CGContextFillEllipseInRect(context, CGRectMake(center.x - 4.5f, center.y - 4.5f, 9.0f, 9.0f));
-        CGContextStrokeEllipseInRect(context, CGRectMake(center.x - 4.5f, center.y - 4.5f, 9.0f, 9.0f));
+        CGRect rect = CGRectMake(center.x - 4.5f, center.y - 4.5f, 9.0f, 9.0f);
+        if (clear) {
+            rect = CGRectInset(rect, -thickness, -thickness);
+            CGContextFillEllipseInRect(context, rect);
+        } else {
+            CGContextStrokeEllipseInRect(context, rect);
+        }
     };
     
-    drawEllipse(CGPointMake(5.5f, centerPoint.y));
-    drawEllipse(CGPointMake(rect.size.width - 5.5f, centerPoint.y));
+    CGContextSetBlendMode(context, kCGBlendModeClear);
+    
+    drawEllipse(CGPointMake(5.5f, centerPoint.y), true);
+    drawEllipse(CGPointMake(rect.size.width - 5.5f, centerPoint.y), true);
+    
+    CGContextSetBlendMode(context, kCGBlendModeNormal);
+    
+    drawEllipse(CGPointMake(5.5f, centerPoint.y), false);
+    drawEllipse(CGPointMake(rect.size.width - 5.5f, centerPoint.y), false);
 }
 
 - (void)layoutSubviews
@@ -409,10 +482,13 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
 
 
 @implementation TGPhotoTextView
+{
+    UIFont *_font;
+}
 
 - (instancetype)initWithFrame:(CGRect)frame
 {
-    NSTextStorage *textStorage = [[NSTextStorage alloc] init];
+    TGPhotoTextStorage *textStorage = [[TGPhotoTextStorage alloc] init];
     TGPhotoTextLayoutManager *layoutManager = [[TGPhotoTextLayoutManager alloc] init];
     
     NSTextContainer *container = [[NSTextContainer alloc] initWithSize:CGSizeMake(0.0f, CGFLOAT_MAX)];
@@ -420,7 +496,7 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
     [layoutManager addTextContainer:container];
     [textStorage addLayoutManager:layoutManager];
     
-    return [self initWithFrame:frame textContainer:container];;
+    return [self initWithFrame:frame textContainer:container];
 }
 
 - (CGRect)caretRectForPosition:(UITextPosition *)position
@@ -463,10 +539,68 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
     [self setNeedsDisplay];
 }
 
+- (UIColor *)frameColor {
+    return ((TGPhotoTextLayoutManager *)self.layoutManager).frameColor;
+}
+
+- (void)setFrameColor:(UIColor *)frameColor {
+    [(TGPhotoTextLayoutManager *)self.layoutManager setFrameColor:frameColor];
+    [self setNeedsDisplay];
+}
+
+- (CGFloat)frameWidthInset {
+    return ((TGPhotoTextLayoutManager *)self.layoutManager).frameWidthInset;
+}
+
+- (void)setFrameWidthInset:(CGFloat)frameWidthInset {
+    [(TGPhotoTextLayoutManager *)self.layoutManager setFrameWidthInset:frameWidthInset];
+    [self setNeedsDisplay];
+}
+
+- (void)setFont:(UIFont *)font {
+    [super setFont:font];
+    _font = font;
+    
+    self.layoutManager.textContainers.firstObject.lineFragmentPadding = floor(font.pointSize * 0.3);
+}
+
+- (void)insertText:(NSString *)text {
+    [self fixTypingAttributes];
+    [super insertText:text];
+    [self fixTypingAttributes];
+}
+
+- (void)paste:(id)sender {
+    [self fixTypingAttributes];
+    [super paste:sender];
+    [self fixTypingAttributes];
+}
+
+- (void)fixTypingAttributes {
+    if (_font != nil) {
+        self.typingAttributes = @{NSFontAttributeName: _font};
+    }
+}
+
 @end
 
 
 @implementation TGPhotoTextLayoutManager
+{
+    CGFloat _radius;
+    NSInteger _maxIndex;
+    NSArray *_pointArray;
+    UIBezierPath *_path;
+    NSMutableArray *_rectArray;
+}
+
+- (instancetype)init {
+    self = [super init];
+    if (self != nil) {
+        _radius = 8.0f;
+    }
+    return self;
+}
 
 - (void)showCGGlyphs:(const CGGlyph *)glyphs positions:(const CGPoint *)positions count:(NSUInteger)glyphCount font:(UIFont *)font matrix:(CGAffineTransform)textMatrix attributes:(NSDictionary<NSString *,id> *)attributes inContext:(CGContextRef)context
 {
@@ -489,6 +623,221 @@ const CGFloat TGPhotoTextSelectionViewHandleSide = 30.0f;
         CGContextSetTextDrawingMode(context, kCGTextFill);
     }
     [super showCGGlyphs:glyphs positions:positions count:glyphCount font:font matrix:textMatrix attributes:attributes inContext:context];
+}
+
+- (void)prepare {
+    _path = nil;
+    [self.rectArray removeAllObjects];
+    
+    [self enumerateLineFragmentsForGlyphRange:NSMakeRange(0, self.textStorage.string) usingBlock:^(CGRect rect, CGRect usedRect, NSTextContainer * _Nonnull textContainer, NSRange glyphRange, BOOL * _Nonnull stop) {
+        bool ignoreRange = false;
+        NSRange characterRange = [self characterRangeForGlyphRange:glyphRange actualGlyphRange:nil];
+        NSString *substring = [[self.textStorage string] substringWithRange:characterRange];
+        if ([substring stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]].length == 0) {
+            ignoreRange = true;
+        }
+         
+         if (!ignoreRange) {
+             CGRect newRect = CGRectMake(usedRect.origin.x - self.frameWidthInset, usedRect.origin.y, usedRect.size.width + self.frameWidthInset * 2, usedRect.size.height);
+             NSValue *value = [NSValue valueWithCGRect:newRect];
+             [self.rectArray addObject:value];
+         }
+     }];
+    
+     [self preProccess];
+}
+
+- (void)drawBackgroundForGlyphRange:(NSRange)glyphsToShow atPoint:(CGPoint)origin {
+//    [super drawBackgroundForGlyphRange:glyphsToShow atPoint:origin];
+    
+    if (self.frameColor != nil) {
+        NSRange range = [self characterRangeForGlyphRange:glyphsToShow actualGlyphRange:NULL];
+        NSRange glyphRange = [self glyphRangeForCharacterRange:range actualCharacterRange:NULL];
+        
+        CGContextRef context = UIGraphicsGetCurrentContext();
+        CGContextSaveGState(context);
+        CGContextTranslateCTM(context, origin.x, origin.y);
+        
+        CGContextSetBlendMode(context, kCGBlendModeNormal);
+        CGContextSetFillColorWithColor(context, self.frameColor.CGColor);
+        CGContextSetStrokeColorWithColor(context, self.frameColor.CGColor);
+        
+        [self prepare];
+//        _path = nil;
+//        [self.rectArray removeAllObjects];
+//
+//        [self enumerateLineFragmentsForGlyphRange:glyphRange usingBlock:^(CGRect rect, CGRect usedRect, NSTextContainer * _Nonnull textContainer, NSRange glyphRange, BOOL * _Nonnull stop) {
+//            bool ignoreRange = false;
+//            NSString *substring = [[self.textStorage string] substringWithRange:glyphRange];
+//            if ([substring stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]].length == 0) {
+//                ignoreRange = true;
+//            }
+//
+//            if (!ignoreRange) {
+//                CGRect newRect = CGRectMake(usedRect.origin.x - self.frameWidthInset, usedRect.origin.y, usedRect.size.width + self.frameWidthInset * 2, usedRect.size.height);
+//                NSValue *value = [NSValue valueWithCGRect:newRect];
+//                [self.rectArray addObject:value];
+//            }
+//        }];
+       
+        [self preProccess];
+       
+        CGRect last = CGRectNull;
+        for (int i = 0; i < self.rectArray.count; i ++) {
+            NSValue *curValue = [self.rectArray objectAtIndex:i];
+            CGRect cur = curValue.CGRectValue;
+            _radius = cur.size.height * 0.18;
+            [self.path appendPath:[UIBezierPath bezierPathWithRoundedRect:cur cornerRadius:_radius]];
+            if (i == 0) {
+                last = cur;
+            } else if (i > 0 && fabs(CGRectGetMaxY(last) - CGRectGetMinY(cur)) < 10.0) {
+                CGPoint a = cur.origin;
+                CGPoint b = CGPointMake(CGRectGetMaxX(cur), cur.origin.y);
+                CGPoint c = CGPointMake(last.origin.x, CGRectGetMaxY(last));
+                CGPoint d = CGPointMake(CGRectGetMaxX(last), CGRectGetMaxY(last));
+                
+                if (a.x - c.x >= 2 * _radius) {
+                    UIBezierPath *addPath = [UIBezierPath bezierPathWithArcCenter:CGPointMake(a.x - _radius, a.y + _radius) radius:_radius startAngle:M_PI_2 * 3 endAngle:0 clockwise:YES];
+                    
+                    [addPath appendPath:[UIBezierPath bezierPathWithArcCenter:CGPointMake(a.x + _radius, a.y + _radius) radius:_radius startAngle:M_PI endAngle:3 * M_PI_2 clockwise:YES]];
+                    [addPath addLineToPoint:CGPointMake(a.x - _radius, a.y)];
+                    [self.path appendPath:addPath];
+                }
+                if (a.x == c.x) {
+                    [self.path moveToPoint:CGPointMake(a.x, a.y - _radius)];
+                    [self.path addLineToPoint:CGPointMake(a.x, a.y + _radius)];
+                    [self.path addArcWithCenter:CGPointMake(a.x + _radius, a.y + _radius) radius:_radius startAngle:M_PI endAngle:M_PI_2 * 3 clockwise:YES];
+                    [self.path addArcWithCenter:CGPointMake(a.x + _radius, a.y - _radius) radius:_radius startAngle:M_PI_2 endAngle:M_PI clockwise:YES];
+                }
+                if (d.x - b.x >= 2 * _radius) {
+                    UIBezierPath *addPath = [UIBezierPath bezierPathWithArcCenter:CGPointMake(b.x + _radius, b.y + _radius) radius:_radius startAngle:M_PI_2 * 3 endAngle:M_PI clockwise:NO];
+                    [addPath appendPath:[UIBezierPath bezierPathWithArcCenter:CGPointMake(b.x - _radius, b.y + _radius) radius:_radius startAngle:0 endAngle:3 * M_PI_2 clockwise:NO]];
+                    [addPath addLineToPoint:CGPointMake(b.x + _radius, b.y)];
+                    [self.path appendPath:addPath];
+                }
+                if (d.x == b.x) {
+                    [self.path moveToPoint:CGPointMake(b.x, b.y - _radius)];
+                    [self.path addLineToPoint:CGPointMake(b.x, b.y + _radius)];
+                    [self.path addArcWithCenter:CGPointMake(b.x - _radius, b.y + _radius) radius:_radius startAngle:0 endAngle:M_PI_2 * 3 clockwise:NO];
+                    [self.path addArcWithCenter:CGPointMake(b.x - _radius, b.y - _radius) radius:_radius startAngle:M_PI_2 endAngle:0 clockwise:NO];
+                }
+                if (c.x - a.x >= 2 * _radius) {
+                    UIBezierPath *addPath = [UIBezierPath bezierPathWithArcCenter:CGPointMake(c.x - _radius, c.y - _radius) radius:_radius startAngle:M_PI_2 endAngle:0 clockwise:NO];
+                    [addPath appendPath:[UIBezierPath bezierPathWithArcCenter:CGPointMake(c.x + _radius, c.y - _radius) radius:_radius startAngle:M_PI endAngle:M_PI_2 clockwise:NO]];
+                    [addPath addLineToPoint:CGPointMake(c.x - _radius, c.y)];
+                    [self.path appendPath:addPath];
+                }
+                if (b.x - d.x >= 2 * _radius) {
+                    UIBezierPath *addPath = [UIBezierPath bezierPathWithArcCenter:CGPointMake(d.x + _radius, d.y - _radius) radius:_radius startAngle:M_PI_2 endAngle:M_PI clockwise:YES];
+                    [addPath appendPath:[UIBezierPath bezierPathWithArcCenter:CGPointMake(d.x - _radius, d.y - _radius) radius:_radius startAngle:0 endAngle:M_PI_2 clockwise:YES]];
+                    [addPath addLineToPoint:CGPointMake(d.x + _radius, d.y)];
+                    [self.path appendPath:addPath];
+                }
+                
+                last = cur;
+            }
+        }
+        [self.path fill];
+        [self.path stroke];
+        
+        CGContextRestoreGState(context);
+    }
+}
+
+- (UIBezierPath *)path {
+    if (!_path) {
+        _path = [UIBezierPath bezierPath];
+    }
+    return _path;
+}
+
+- (NSMutableArray *)rectArray {
+    if (!_rectArray) {
+        _rectArray = [[NSMutableArray alloc] init];
+    }
+    return _rectArray;
+}
+
+- (void)preProccess {
+    _maxIndex = 0;
+    if (self.rectArray.count < 2) {
+        return;
+    }
+    for (int i = 1; i < self.rectArray.count; i++) {
+        _maxIndex = i;
+        [self processRectIndex:i];
+    }
+}
+
+- (void)processRectIndex:(int) index {
+    if (self.rectArray.count < 2 || index < 1 || index > _maxIndex) {
+        return;
+    }
+    NSValue *value1 = [self.rectArray objectAtIndex:index - 1];
+    NSValue *value2 = [self.rectArray objectAtIndex:index];
+    CGRect last = value1.CGRectValue;
+    CGRect cur = value2.CGRectValue;
+    _radius = cur.size.height * 0.18;
+    
+    BOOL t1 = ((cur.origin.x - last.origin.x < 2 * _radius) && (cur.origin.x > last.origin.x)) || ((CGRectGetMaxX(cur) - CGRectGetMaxX(last) > -2 * _radius) && (CGRectGetMaxX(cur) < CGRectGetMaxX(last)));
+    BOOL t2 = ((last.origin.x - cur.origin.x < 2 * _radius) && (last.origin.x > cur.origin.x)) || ((CGRectGetMaxX(last) - CGRectGetMaxX(cur) > -2 * _radius) && (CGRectGetMaxX(last) < CGRectGetMaxX(cur)));
+    
+    if (t2) {
+        CGRect newRect = CGRectMake(cur.origin.x, last.origin.y, cur.size.width, last.size.height);
+        NSValue *newValue = [NSValue valueWithCGRect:newRect];
+        [self.rectArray replaceObjectAtIndex:index - 1 withObject:newValue];
+        [self processRectIndex:index - 1];
+    }
+    if (t1) {
+        CGRect newRect = CGRectMake(last.origin.x, cur.origin.y, last.size.width, cur.size.height);
+        NSValue *newValue = [NSValue valueWithCGRect:newRect];
+        [self.rectArray replaceObjectAtIndex:index withObject:newValue];
+        [self processRectIndex:index + 1];
+    }
+    return;
+}
+
+@end
+
+
+@implementation TGPhotoTextStorage
+{
+    NSTextStorage *_impl;
+}
+
+- (instancetype)init
+{
+    self = [super init];
+    
+    if (self) {
+        _impl = [NSTextStorage new];
+    }
+    
+    return self;
+}
+
+- (NSString *)string
+{
+    return _impl.string;
+}
+
+- (NSDictionary *)attributesAtIndex:(NSUInteger)location effectiveRange:(NSRangePointer)range
+{
+    return [_impl attributesAtIndex:location effectiveRange:range];
+}
+
+- (void)replaceCharactersInRange:(NSRange)range withString:(NSString *)str {
+    [self beginEditing];
+    [_impl replaceCharactersInRange:range withString:str];
+    [self edited:NSTextStorageEditedCharacters range:range changeInLength:(NSInteger)str.length - (NSInteger)range.length];
+    [self endEditing];
+}
+
+- (void)setAttributes:(NSDictionary<NSAttributedStringKey,id> *)attrs range:(NSRange)range {
+    [self beginEditing];
+    [_impl setAttributes:attrs range:range];
+    [self edited:NSTextStorageEditedAttributes range:range changeInLength:0];
+    [self endEditing];
 }
 
 @end

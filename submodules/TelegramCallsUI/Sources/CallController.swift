@@ -13,10 +13,37 @@ import TelegramAudio
 import AccountContext
 import TelegramNotices
 import AppBundle
+import TooltipUI
+
+protocol CallControllerNodeProtocol: class {
+    var isMuted: Bool { get set }
+    
+    var toggleMute: (() -> Void)? { get set }
+    var setCurrentAudioOutput: ((AudioSessionOutput) -> Void)? { get set }
+    var beginAudioOuputSelection: ((Bool) -> Void)? { get set }
+    var acceptCall: (() -> Void)? { get set }
+    var endCall: (() -> Void)? { get set }
+    var back: (() -> Void)? { get set }
+    var presentCallRating: ((CallId, Bool) -> Void)? { get set }
+    var present: ((ViewController) -> Void)? { get set }
+    var callEnded: ((Bool) -> Void)? { get set }
+    var dismissedInteractively: (() -> Void)? { get set }
+    var dismissAllTooltips: (() -> Void)? { get set }
+    
+    func updateAudioOutputs(availableOutputs: [AudioSessionOutput], currentOutput: AudioSessionOutput?)
+    func updateCallState(_ callState: PresentationCallState)
+    func updatePeer(accountPeer: Peer, peer: Peer, hasOther: Bool)
+    
+    func animateIn()
+    func animateOut(completion: @escaping () -> Void)
+    func expandFromPipIfPossible()
+    
+    func containerLayoutUpdated(_ layout: ContainerViewLayout, navigationBarHeight: CGFloat, transition: ContainedViewLayoutTransition)
+}
 
 public final class CallController: ViewController {
-    private var controllerNode: CallControllerNode {
-        return self.displayNode as! CallControllerNode
+    private var controllerNode: CallControllerNodeProtocol {
+        return self.displayNode as! CallControllerNodeProtocol
     }
     
     private let _ready = Promise<Bool>(false)
@@ -44,6 +71,8 @@ public final class CallController: ViewController {
     
     private var audioOutputStateDisposable: Disposable?
     private var audioOutputState: ([AudioSessionOutput], AudioSessionOutput?)?
+    
+    private let idleTimerExtensionDisposable = MetaDisposable()
     
     public init(sharedContext: SharedAccountContext, account: Account, call: PresentationCall, easyDebugAccess: Bool) {
         self.sharedContext = sharedContext
@@ -97,6 +126,7 @@ public final class CallController: ViewController {
         self.disposable?.dispose()
         self.callMutedDisposable?.dispose()
         self.audioOutputStateDisposable?.dispose()
+        self.idleTimerExtensionDisposable.dispose()
     }
     
     private func callStateUpdated(_ callState: PresentationCallState) {
@@ -106,7 +136,11 @@ public final class CallController: ViewController {
     }
     
     override public func loadDisplayNode() {
-        self.displayNode = CallControllerNode(sharedContext: self.sharedContext, account: self.account, presentationData: self.presentationData, statusBar: self.statusBar, debugInfo: self.call.debugInfo(), shouldStayHiddenUntilConnection: !self.call.isOutgoing && self.call.isIntegratedWithCallKit, easyDebugAccess: self.easyDebugAccess)
+        if self.call.isVideoPossible {
+            self.displayNode = CallControllerNode(sharedContext: self.sharedContext, account: self.account, presentationData: self.presentationData, statusBar: self.statusBar, debugInfo: self.call.debugInfo(), shouldStayHiddenUntilConnection: !self.call.isOutgoing && self.call.isIntegratedWithCallKit, easyDebugAccess: self.easyDebugAccess, call: self.call)
+        } else {
+            self.displayNode = LegacyCallControllerNode(sharedContext: self.sharedContext, account: self.account, presentationData: self.presentationData, statusBar: self.statusBar, debugInfo: self.call.debugInfo(), shouldStayHiddenUntilConnection: !self.call.isOutgoing && self.call.isIntegratedWithCallKit, easyDebugAccess: self.easyDebugAccess, call: self.call)
+        }
         self.displayNodeDidLoad()
         
         self.controllerNode.toggleMute = { [weak self] in
@@ -117,7 +151,7 @@ public final class CallController: ViewController {
             self?.call.setCurrentAudioOutput(output)
         }
         
-        self.controllerNode.beginAudioOuputSelection = { [weak self] in
+        self.controllerNode.beginAudioOuputSelection = { [weak self] hasMute in
             guard let strongSelf = self, let (availableOutputs, currentOutput) = strongSelf.audioOutputState else {
                 return
             }
@@ -135,6 +169,9 @@ public final class CallController: ViewController {
                 let actionSheet = ActionSheetController(presentationData: strongSelf.presentationData)
                 var items: [ActionSheetItem] = []
                 for output in availableOutputs {
+                    if hasMute, case .builtin = output {
+                        continue
+                    }
                     let title: String
                     var icon: UIImage?
                     switch output {
@@ -142,13 +179,20 @@ public final class CallController: ViewController {
                             title = UIDevice.current.model
                         case .speaker:
                             title = strongSelf.presentationData.strings.Call_AudioRouteSpeaker
-                            icon = UIImage(bundleImageName: "Call/CallRouteSpeaker")
+                            icon = generateScaledImage(image: UIImage(bundleImageName: "Call/CallSpeakerButton"), size: CGSize(width: 48.0, height: 48.0), opaque: false)
                         case .headphones:
                             title = strongSelf.presentationData.strings.Call_AudioRouteHeadphones
                         case let .port(port):
                             title = port.name
                             if port.type == .bluetooth {
-                                icon = UIImage(bundleImageName: "Call/CallRouteBluetooth")
+                                var image = UIImage(bundleImageName: "Call/CallBluetoothButton")
+                                let portName = port.name.lowercased()
+                                if portName.contains("airpods pro") {
+                                    image = UIImage(bundleImageName: "Call/CallAirpodsProButton")
+                                } else if portName.contains("airpods") {
+                                    image = UIImage(bundleImageName: "Call/CallAirpodsButton")
+                                }
+                                icon = generateScaledImage(image: image, size: CGSize(width: 48.0, height: 48.0), opaque: false)
                             }
                     }
                     items.append(CallRouteActionSheetItem(title: title, icon: icon, selected: output == currentOutput, action: { [weak actionSheet] in
@@ -157,8 +201,15 @@ public final class CallController: ViewController {
                     }))
                 }
                 
+                if hasMute {
+                    items.append(CallRouteActionSheetItem(title: strongSelf.presentationData.strings.Call_AudioRouteMute, icon:  generateScaledImage(image: UIImage(bundleImageName: "Call/CallMuteButton"), size: CGSize(width: 48.0, height: 48.0), opaque: false), selected: strongSelf.isMuted, action: { [weak actionSheet] in
+                        actionSheet?.dismissAnimated()
+                        self?.call.toggleIsMuted()
+                    }))
+                }
+                
                 actionSheet.setItemGroups([ActionSheetItemGroup(items: items), ActionSheetItemGroup(items: [
-                        ActionSheetButtonItem(title: strongSelf.presentationData.strings.Common_Cancel, color: .accent, font: .bold, action: { [weak actionSheet] in
+                        ActionSheetButtonItem(title: strongSelf.presentationData.strings.Call_AudioRouteHide, color: .accent, font: .bold, action: { [weak actionSheet] in
                             actionSheet?.dismissAnimated()
                         })
                     ])
@@ -179,13 +230,13 @@ public final class CallController: ViewController {
             let _ = self?.dismiss()
         }
         
-        self.controllerNode.presentCallRating = { [weak self] callId in
+        self.controllerNode.presentCallRating = { [weak self] callId, isVideo in
             if let strongSelf = self, !strongSelf.presentedCallRating {
                 strongSelf.presentedCallRating = true
                 
                 Queue.mainQueue().after(0.5, {
                     let window = strongSelf.window
-                    let controller = callRatingController(sharedContext: strongSelf.sharedContext, account: strongSelf.account, callId: callId, userInitiated: false, present: { c, a in
+                    let controller = callRatingController(sharedContext: strongSelf.sharedContext, account: strongSelf.account, callId: callId, userInitiated: false, isVideo: isVideo, present: { c, a in
                         if let window = window {
                             c.presentationArguments = a
                             window.present(c, on: .root, blockInteraction: false, completion: {})
@@ -196,6 +247,23 @@ public final class CallController: ViewController {
                         }
                     })
                     strongSelf.present(controller, in: .window(.root))
+                })
+            }
+        }
+        
+        self.controllerNode.present = { [weak self] controller in
+            if let strongSelf = self {
+                strongSelf.present(controller, in: .window(.root))
+            }
+        }
+        
+        self.controllerNode.dismissAllTooltips = { [weak self] in
+            if let strongSelf = self {
+                strongSelf.forEachController({ controller in
+                    if let controller = controller as? TooltipScreen {
+                        controller.dismiss()
+                    }
+                    return true
                 })
             }
         }
@@ -260,6 +328,14 @@ public final class CallController: ViewController {
             
             self.controllerNode.animateIn()
         }
+        
+        self.idleTimerExtensionDisposable.set(self.sharedContext.applicationBindings.pushIdleTimerExtension())
+    }
+    
+    override public func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        
+        self.idleTimerExtensionDisposable.set(nil)
     }
     
     override public func containerLayoutUpdated(_ layout: ContainerViewLayout, transition: ContainedViewLayoutTransition) {
@@ -277,7 +353,11 @@ public final class CallController: ViewController {
         })
     }
     
-    @objc func backPressed() {
+    @objc private func backPressed() {
         self.dismiss()
+    }
+    
+    public func expandFromPipIfPossible() {
+        self.controllerNode.expandFromPipIfPossible()
     }
 }

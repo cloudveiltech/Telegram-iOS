@@ -18,8 +18,6 @@ NSString *const kGPUImageVertexShaderString = SHADER_STRING
  }
  );
 
-#if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
-
 NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
 (
  varying highp vec2 texCoord;
@@ -31,21 +29,6 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
      gl_FragColor = texture2D(sourceImage, texCoord);
  }
 );
-
-#else
-
-NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
-(
- varying vec2 texCoord;
- 
- uniform sampler2D sourceImage;
- 
- void main()
- {
-     gl_FragColor = texture2D(sourceImage, texCoord);
- }
-);
-#endif
 
 
 @implementation GPUImageFilter
@@ -200,6 +183,30 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     return image;
 }
 
+- (void)newCIImageFromCurrentlyProcessedOutput:(void (^)(CIImage *image, void(^unlock)(void)))completion
+{
+    // Give it three seconds to process, then abort if they forgot to set up the image capture properly
+    double timeoutForImageCapture = 3.0;
+    dispatch_time_t convertedTimeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeoutForImageCapture * NSEC_PER_SEC));
+
+    if (dispatch_semaphore_wait(imageCaptureSemaphore, convertedTimeout) != 0)
+    {
+        completion(nil, ^{});
+        return;
+    }
+
+    GPUImageFramebuffer *framebuffer = [self framebufferForOutput];
+    
+    usingNextFrameForImageCapture = NO;
+    dispatch_semaphore_signal(imageCaptureSemaphore);
+    
+    [framebuffer newCIImageFromFramebufferContents:completion];
+}
+
+- (void)commitImageCapture {
+    dispatch_semaphore_signal(imageCaptureSemaphore);
+}
+
 #pragma mark -
 #pragma mark Managing the display FBOs
 
@@ -300,7 +307,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     
     [GPUImageContext setActiveShaderProgram:filterProgram];
 
-    outputFramebuffer = [[GPUImageContext sharedFramebufferCache] fetchFramebufferForSize:[self sizeOfFBO] textureOptions:self.outputTextureOptions onlyTexture:NO];
+    outputFramebuffer = [[GPUImageContext sharedFramebufferCache] fetchFramebufferForSize:[self sizeOfFBO] textureOptions:self.outputTextureOptions onlyTexture:NO mark: true];
     [outputFramebuffer activateFramebuffer];
     if (usingNextFrameForImageCapture)
     {

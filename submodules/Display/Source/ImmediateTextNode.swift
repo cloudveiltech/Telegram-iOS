@@ -60,8 +60,8 @@ public class ImmediateTextNode: TextNode {
         }
     }
     
-    public var tapAttributeAction: (([NSAttributedString.Key: Any]) -> Void)?
-    public var longTapAttributeAction: (([NSAttributedString.Key: Any]) -> Void)?
+    public var tapAttributeAction: (([NSAttributedString.Key: Any], Int) -> Void)?
+    public var longTapAttributeAction: (([NSAttributedString.Key: Any], Int) -> Void)?
     
     public func makeCopy() -> TextNode {
         let node = TextNode()
@@ -105,6 +105,15 @@ public class ImmediateTextNode: TextNode {
         let (layout, apply) = makeLayout(TextNodeLayoutArguments(attributedString: self.attributedText, backgroundColor: nil, maximumNumberOfLines: self.maximumNumberOfLines, truncationType: self.truncationType, constrainedSize: constrainedSize, alignment: self.textAlignment, lineSpacing: self.lineSpacing, cutout: self.cutout, insets: self.insets))
         let _ = apply()
         return ImmediateTextNodeLayoutInfo(size: layout.size, truncated: layout.truncated)
+    }
+    
+    public func updateLayoutFullInfo(_ constrainedSize: CGSize) -> TextNodeLayout {
+        self.constrainedSize = constrainedSize
+        
+        let makeLayout = TextNode.asyncLayout(self)
+        let (layout, apply) = makeLayout(TextNodeLayoutArguments(attributedString: self.attributedText, backgroundColor: nil, maximumNumberOfLines: self.maximumNumberOfLines, truncationType: self.truncationType, constrainedSize: constrainedSize, alignment: self.textAlignment, lineSpacing: self.lineSpacing, cutout: self.cutout, insets: self.insets))
+        let _ = apply()
+        return layout
     }
     
     public func redrawIfPossible() {
@@ -179,12 +188,12 @@ public class ImmediateTextNode: TextNode {
                 if let (gesture, location) = recognizer.lastRecognizedGestureAndLocation {
                     switch gesture {
                         case .tap:
-                            if let (_, attributes) = self.attributesAtPoint(CGPoint(x: location.x, y: location.y)) {
-                                self.tapAttributeAction?(attributes)
+                            if let (index, attributes) = self.attributesAtPoint(CGPoint(x: location.x, y: location.y)) {
+                                self.tapAttributeAction?(attributes, index)
                             }
                         case .longTap:
-                            if let (_, attributes) = self.attributesAtPoint(CGPoint(x: location.x, y: location.y)) {
-                                self.longTapAttributeAction?(attributes)
+                            if let (index, attributes) = self.attributesAtPoint(CGPoint(x: location.x, y: location.y)) {
+                                self.longTapAttributeAction?(attributes, index)
                             }
                         default:
                             break

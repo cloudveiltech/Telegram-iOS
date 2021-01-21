@@ -5,6 +5,7 @@ import TelegramPresentationData
 import SyncCore
 import Postbox
 import TelegramCore
+import AccountContext
 
 public enum UndoOverlayContent {
     case removedChat(text: String)
@@ -17,7 +18,14 @@ public enum UndoOverlayContent {
     case swipeToReply(title: String, text: String)
     case actionSucceeded(title: String, text: String, cancel: String)
     case stickersModified(title: String, text: String, undo: Bool, info: StickerPackCollectionInfo, topItem: ItemCollectionItem?, account: Account)
-    case dice(dice: TelegramMediaDice, account: Account, text: String, action: String)
+    case dice(dice: TelegramMediaDice, account: Account, text: String, action: String?)
+    case chatAddedToFolder(chatTitle: String, folderTitle: String)
+    case chatRemovedFromFolder(chatTitle: String, folderTitle: String)
+    case messagesUnpinned(title: String, text: String, undo: Bool, isHidden: Bool)
+    case setProximityAlert(title: String, text: String, cancelled: Bool)
+    case invitedToVoiceChat(context: AccountContext, peer: Peer, text: String)
+    case linkCopied(text: String)
+    case banned(text: String)
 }
 
 public enum UndoOverlayAction {

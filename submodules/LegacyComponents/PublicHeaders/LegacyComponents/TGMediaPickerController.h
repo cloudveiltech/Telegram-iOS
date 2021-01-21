@@ -8,6 +8,8 @@
 @class TGMediaPickerSelectionGestureRecognizer;
 @class TGMediaAssetsPallete;
 
+@protocol TGPhotoPaintStickersContext;
+
 @interface TGMediaPickerController : TGViewController <UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout>
 {
     TGMediaPickerLayoutMetrics *_layoutMetrics;
@@ -18,6 +20,7 @@
 }
 
 @property (nonatomic, strong) TGSuggestionContext *suggestionContext;
+@property (nonatomic, strong) id<TGPhotoPaintStickersContext> stickersContext;
 @property (nonatomic, assign) bool localMediaCacheEnabled;
 @property (nonatomic, assign) bool captionsEnabled;
 @property (nonatomic, assign) bool allowCaptionEntities;
@@ -31,6 +34,7 @@
 @property (nonatomic, assign) bool hasSchedule;
 @property (nonatomic, assign) bool reminder;
 @property (nonatomic, copy) void (^presentScheduleController)(void (^)(int32_t));
+@property (nonatomic, copy) void (^presentTimerController)(void (^)(int32_t));
 
 @property (nonatomic, strong) TGMediaAssetsPallete *pallete;
 

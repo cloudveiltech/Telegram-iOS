@@ -31,8 +31,8 @@ public func registerNotificationToken(account: Account, token: Data, type: Notif
         switch type {
             case let .aps(encrypt):
                 mappedType = 1
-                if encrypt { //Cloudveil disable
-                   // keyData = masterKey.data
+                if encrypt {
+                    keyData = masterKey.data
                 }
             case .voip:
                 mappedType = 9

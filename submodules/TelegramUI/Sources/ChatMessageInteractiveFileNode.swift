@@ -13,6 +13,10 @@ import PhotoResources
 import TelegramStringFormatting
 import RadialStatusNode
 import SemanticStatusNode
+import FileMediaResourceStatus
+import CheckNode
+import MusicAlbumArtResources
+import AudioBlob
 
 private struct FetchControls {
     let fetch: () -> Void
@@ -20,6 +24,8 @@ private struct FetchControls {
 }
 
 final class ChatMessageInteractiveFileNode: ASDisplayNode {
+    private var selectionNode: FileMessageSelectionNode?
+    
     private let titleNode: TextNode
     private let descriptionNode: TextNode
     private let descriptionMeasuringNode: TextNode
@@ -33,12 +39,15 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
     
     private var iconNode: TransformImageNode?
     private var statusNode: SemanticStatusNode?
-    private var streamingStatusNode: RadialStatusNode?
+    private var playbackAudioLevelView: VoiceBlobView?
+    private var streamingStatusNode: SemanticStatusNode?
     private var tapRecognizer: UITapGestureRecognizer?
     
     private let statusDisposable = MetaDisposable()
     private let playbackStatusDisposable = MetaDisposable()
     private let playbackStatus = Promise<MediaPlayerStatus>()
+    
+    private let audioLevelEventsDisposable = MetaDisposable()
     
     private var playerUpdateTimer: SwiftSignalKit.Timer?
     private var playerStatus: MediaPlayerStatus? {
@@ -54,11 +63,25 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
         }
     }
     
+    private var inputAudioLevel: CGFloat = 0.0
+    private var currentAudioLevel: CGFloat = 0.0
+    
+    var visibility: Bool = false {
+        didSet {
+            guard self.visibility != oldValue else { return }
+            
+            if !self.visibility {
+                self.playbackAudioLevelView?.stopAnimating()
+            }
+        }
+    }
+    
     private let fetchControls = Atomic<FetchControls?>(value: nil)
     private var resourceStatus: FileMediaResourceStatus?
     private var actualFetchStatus: MediaResourceStatus?
     private let fetchDisposable = MetaDisposable()
     
+    var toggleSelection: (Bool) -> Void = { _ in }
     var activateLocalContent: () -> Void = { }
     var requestUpdateLayout: (Bool) -> Void = { _ in }
     
@@ -69,22 +92,20 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
     private var progressFrame: CGRect?
     private var streamingCacheStatusFrame: CGRect?
     private var fileIconImage: UIImage?
-    private var cloudFetchIconImage: UIImage?
-    private var cloudFetchedIconImage: UIImage?
     
     override init() {
         self.titleNode = TextNode()
-        self.titleNode.displaysAsynchronously = true
+        self.titleNode.displaysAsynchronously = false
         self.titleNode.isUserInteractionEnabled = false
         
         self.descriptionNode = TextNode()
-        self.descriptionNode.displaysAsynchronously = true
+        self.descriptionNode.displaysAsynchronously = false
         self.descriptionNode.isUserInteractionEnabled = false
         
         self.descriptionMeasuringNode = TextNode()
         
         self.fetchingTextNode = ImmediateTextNode()
-        self.fetchingTextNode.displaysAsynchronously = true
+        self.fetchingTextNode.displaysAsynchronously = false
         self.fetchingTextNode.isUserInteractionEnabled = false
         self.fetchingTextNode.maximumNumberOfLines = 1
         self.fetchingTextNode.contentMode = .left
@@ -92,7 +113,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
         self.fetchingTextNode.isHidden = true
         
         self.fetchingCompactTextNode = ImmediateTextNode()
-        self.fetchingCompactTextNode.displaysAsynchronously = true
+        self.fetchingCompactTextNode.displaysAsynchronously = false
         self.fetchingCompactTextNode.isUserInteractionEnabled = false
         self.fetchingCompactTextNode.maximumNumberOfLines = 1
         self.fetchingCompactTextNode.contentMode = .left
@@ -120,6 +141,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
         self.statusDisposable.dispose()
         self.playbackStatusDisposable.dispose()
         self.fetchDisposable.dispose()
+        self.audioLevelEventsDisposable.dispose()
     }
     
     override func didLoad() {
@@ -186,7 +208,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
         }
     }
     
-    func asyncLayout() -> (_ context: AccountContext, _ presentationData: ChatPresentationData, _ message: Message, _ attributes: ChatMessageEntryAttributes, _ file: TelegramMediaFile, _ automaticDownload: Bool, _ incoming: Bool, _ isRecentActions: Bool, _ forcedResourceStatus: FileMediaResourceStatus?, _ dateAndStatusType: ChatMessageDateAndStatusType?, _ constrainedSize: CGSize) -> (CGFloat, (CGSize) -> (CGFloat, (CGFloat) -> (CGSize, (Bool) -> Void))) {
+    func asyncLayout() -> (_ context: AccountContext, _ presentationData: ChatPresentationData, _ message: Message, _ associatedData: ChatMessageItemAssociatedData, _ chatLocation: ChatLocation, _ attributes: ChatMessageEntryAttributes, _ isPinned: Bool, _ forcedIsEdited: Bool, _ file: TelegramMediaFile, _ automaticDownload: Bool, _ incoming: Bool, _ isRecentActions: Bool, _ forcedResourceStatus: FileMediaResourceStatus?, _ dateAndStatusType: ChatMessageDateAndStatusType?,  _ messageSelection: Bool?, _ constrainedSize: CGSize) -> (CGFloat, (CGSize) -> (CGFloat, (CGFloat) -> (CGSize, (Bool) -> Void))) {
         let currentFile = self.file
         
         let titleAsyncLayout = TextNode.asyncLayout(self.titleNode)
@@ -196,7 +218,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
         
         let currentMessage = self.message
         
-        return { context, presentationData, message, attributes, file, automaticDownload, incoming, isRecentActions, forcedResourceStatus, dateAndStatusType, constrainedSize in
+        return { context, presentationData, message, associatedData, chatLocation, attributes, isPinned, forcedIsEdited, file, automaticDownload, incoming, isRecentActions, forcedResourceStatus, dateAndStatusType, messageSelection, constrainedSize in
             return (CGFloat.greatestFiniteMagnitude, { constrainedSize in
                 let titleFont = Font.regular(floor(presentationData.fontSize.baseDisplaySize * 16.0 / 17.0))
                 let descriptionFont = Font.regular(floor(presentationData.fontSize.baseDisplaySize * 13.0 / 17.0))
@@ -204,6 +226,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                 
                 var updateImageSignal: Signal<(TransformImageArguments) -> DrawingContext?, NoError>?
                 var updatedStatusSignal: Signal<(FileMediaResourceStatus, MediaResourceStatus?), NoError>?
+                var updatedAudioLevelEventsSignal: Signal<Float, NoError>?
                 var updatedPlaybackStatusSignal: Signal<MediaPlayerStatus, NoError>?
                 var updatedFetchControls: FetchControls?
                 
@@ -241,13 +264,15 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                         |> map { resourceStatus, actualFetchStatus -> (FileMediaResourceStatus, MediaResourceStatus?) in
                             return (resourceStatus, actualFetchStatus)
                         }
+                        updatedAudioLevelEventsSignal = messageFileMediaPlaybackAudioLevelEvents(context: context, file: file, message: message, isRecentActions: isRecentActions, isGlobalSearch: false)
                     } else {
                         updatedStatusSignal = messageFileMediaResourceStatus(context: context, file: file, message: message, isRecentActions: isRecentActions)
                         |> map { resourceStatus -> (FileMediaResourceStatus, MediaResourceStatus?) in
                             return (resourceStatus, nil)
                         }
+                        updatedAudioLevelEventsSignal = messageFileMediaPlaybackAudioLevelEvents(context: context, file: file, message: message, isRecentActions: isRecentActions, isGlobalSearch: false)
                     }
-                    updatedPlaybackStatusSignal = messageFileMediaPlaybackStatus(context: context, file: file, message: message, isRecentActions: isRecentActions)
+                    updatedPlaybackStatusSignal = messageFileMediaPlaybackStatus(context: context, file: file, message: message, isRecentActions: isRecentActions, isGlobalSearch: false)
                 }
                 
                 var statusSize: CGSize?
@@ -256,7 +281,8 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                 var consumableContentIcon: UIImage?
                 for attribute in message.attributes {
                     if let attribute = attribute as? ConsumableContentMessageAttribute {
-                        if !attribute.consumed {
+                        let isConsumed = attribute.consumed
+                        if !isConsumed {
                             if incoming {
                                 consumableContentIcon = PresentationResourcesChat.chatBubbleConsumableContentIncomingIcon(presentationData.theme.theme)
                             } else {
@@ -273,12 +299,20 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                         edited = true
                     }
                     var viewCount: Int?
+                    var dateReplies = 0
                     for attribute in message.attributes {
                         if let attribute = attribute as? EditedMessageAttribute {
                             edited = !attribute.isHidden
                         } else if let attribute = attribute as? ViewCountMessageAttribute {
                             viewCount = attribute.count
+                        } else if let attribute = attribute as? ReplyThreadMessageAttribute, case .peer = chatLocation {
+                            if let channel = message.peers[message.id.peerId] as? TelegramChannel, case .group = channel.info {
+                                dateReplies = Int(attribute.count)
+                            }
                         }
+                    }
+                    if forcedIsEdited {
+                        edited = true
                     }
                     
                     var dateReactions: [MessageReaction] = []
@@ -296,7 +330,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                     
                     let dateText = stringForMessageTimestampStatus(accountPeerId: context.account.peerId, message: message, dateTimeFormat: presentationData.dateTimeFormat, nameDisplayOrder: presentationData.nameDisplayOrder, strings: presentationData.strings, reactionCount: dateReactionCount)
                     
-                    let (size, apply) = statusLayout(context, presentationData, edited, viewCount, dateText, statusType, constrainedSize, dateReactions)
+                    let (size, apply) = statusLayout(context, presentationData, edited, viewCount, dateText, statusType, constrainedSize, dateReactions, dateReplies, isPinned && !associatedData.isInPinnedListMode)
                     statusSize = size
                     statusApply = apply
                 }
@@ -385,15 +419,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                     textConstrainedSize.width -= 80.0
                 }
                 
-                let streamingProgressDiameter: CGFloat = 28.0
-                var hasStreamingProgress = false
-                if isAudio && !isVoice {
-                    hasStreamingProgress = true
-                    
-                    if hasStreamingProgress {
-                        textConstrainedSize.width -= streamingProgressDiameter + 4.0
-                    }
-                }
+                let streamingProgressDiameter: CGFloat = 20.0
                 
                 let (titleLayout, titleApply) = titleAsyncLayout(TextNodeLayoutArguments(attributedString: titleString, backgroundColor: nil, maximumNumberOfLines: hasThumbnail ? 2 : 1, truncationType: .middle, constrainedSize: textConstrainedSize, alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
                 let (descriptionLayout, descriptionApply) = descriptionAsyncLayout(TextNodeLayoutArguments(attributedString: descriptionString, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .middle, constrainedSize: textConstrainedSize, alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
@@ -417,8 +443,13 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                 if hasThumbnail {
                     minLayoutWidth = max(titleLayout.size.width, descriptionMaxWidth) + 86.0
                 } else if isVoice {
+                    var descriptionAndStatusWidth = descriptionLayout.size.width
+                    if let statusSize = statusSize {
+                        descriptionAndStatusWidth += 6 + statusSize.width
+                    }
                     let calcDuration = max(minVoiceLength, min(maxVoiceLength, CGFloat(audioDuration)))
                     minLayoutWidth = minVoiceWidth + (maxVoiceWidth - minVoiceWidth) * (calcDuration - minVoiceLength) / (maxVoiceLength - minVoiceLength)
+                    minLayoutWidth = max(descriptionAndStatusWidth + 56, minLayoutWidth)
                 } else {
                     minLayoutWidth = max(titleLayout.size.width, descriptionMaxWidth) + 44.0 + 8.0
                 }
@@ -426,15 +457,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                 if let statusSize = statusSize {
                     minLayoutWidth = max(minLayoutWidth, statusSize.width)
                 }
-                
-                var cloudFetchIconImage: UIImage?
-                var cloudFetchedIconImage: UIImage?
-                if hasStreamingProgress {
-                    minLayoutWidth += streamingProgressDiameter + 4.0
-                    cloudFetchIconImage = incoming ? PresentationResourcesChat.chatBubbleFileCloudFetchIncomingIcon(presentationData.theme.theme) : PresentationResourcesChat.chatBubbleFileCloudFetchOutgoingIcon(presentationData.theme.theme)
-                    cloudFetchedIconImage = incoming ? PresentationResourcesChat.chatBubbleFileCloudFetchedIncomingIcon(presentationData.theme.theme) : PresentationResourcesChat.chatBubbleFileCloudFetchedOutgoingIcon(presentationData.theme.theme)
-                }
-                
+                                
                 let fileIconImage: UIImage?
                 if hasThumbnail {
                     fileIconImage = nil
@@ -445,7 +468,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                 }
                 
                 return (minLayoutWidth, { boundingWidth in
-                    let progressDiameter: CGFloat = (isVoice && !hasThumbnail) ? 37.0 : 44.0
+                    let progressDiameter: CGFloat = 44.0
                     
                     var iconFrame: CGRect?
                     let progressFrame: CGRect
@@ -455,10 +478,19 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                     if hasThumbnail {
                         let currentIconFrame = CGRect(origin: CGPoint(x: -1.0, y: -7.0), size: CGSize(width: 74.0, height: 74.0))
                         iconFrame = currentIconFrame
-                        progressFrame = CGRect(origin: CGPoint(x: currentIconFrame.minX + floor((currentIconFrame.size.width - progressDiameter) / 2.0), y: currentIconFrame.minY + floor((currentIconFrame.size.height - progressDiameter) / 2.0)), size: CGSize(width: progressDiameter, height: progressDiameter))
+                        progressFrame = CGRect(
+                            origin: CGPoint(
+                                x: currentIconFrame.minX + floor((currentIconFrame.size.width - progressDiameter) / 2.0),
+                                y: currentIconFrame.minY + floor((currentIconFrame.size.height - progressDiameter) / 2.0)
+                            ),
+                            size: CGSize(width: progressDiameter, height: progressDiameter)
+                        )
                         controlAreaWidth = 86.0
                     } else {
-                        progressFrame = CGRect(origin: CGPoint(x: 0.0, y: isVoice ? -5.0 : 0.0), size: CGSize(width: progressDiameter, height: progressDiameter))
+                        progressFrame = CGRect(
+                            origin: CGPoint(x: 3.0, y: isVoice ? -3.0 : 0.0),
+                            size: CGSize(width: progressDiameter, height: progressDiameter)
+                        )
                         controlAreaWidth = progressFrame.maxX + 8.0
                     }
                     
@@ -474,7 +506,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                     
                     let descriptionFrame: CGRect
                     if isVoice {
-                        descriptionFrame = CGRect(origin: CGPoint(x: 43.0, y: 19.0), size: descriptionLayout.size)
+                        descriptionFrame = CGRect(origin: CGPoint(x: 56.0, y: 22.0), size: descriptionLayout.size)
                     } else {
                         descriptionFrame = CGRect(origin: CGPoint(x: titleFrame.minX, y: titleFrame.maxY - 1.0), size: descriptionLayout.size)
                     }
@@ -484,10 +516,10 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                         let textSizes = titleFrame.union(descriptionFrame).size
                         fittedLayoutSize = CGSize(width: textSizes.width + controlAreaWidth, height: 59.0)
                     } else if isVoice {
-                        fittedLayoutSize = CGSize(width: minLayoutWidth, height: 27.0)
+                        fittedLayoutSize = CGSize(width: minLayoutWidth, height: 38.0)
                     } else {
                         let unionSize = titleFrame.union(descriptionFrame).union(progressFrame).size
-                        fittedLayoutSize = CGSize(width: unionSize.width, height: unionSize.height + 6.0)
+                        fittedLayoutSize = CGSize(width: unionSize.width, height: unionSize.height)
                     }
                     
                     var statusFrame: CGRect?
@@ -497,20 +529,17 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                     }
                     
                     if let statusFrameValue = statusFrame, descriptionFrame.intersects(statusFrameValue)  {
-                        fittedLayoutSize.height += statusFrameValue.height
-                        statusFrame = statusFrameValue.offsetBy(dx: 0.0, dy: statusFrameValue.height)
+                        let intersection = descriptionFrame.intersection(statusFrameValue)
+                        let addedWidth = intersection.width + 20
+                        fittedLayoutSize.width += addedWidth
                     }
                     if let statusFrameValue = statusFrame, let iconFrame = iconFrame, iconFrame.intersects(statusFrameValue) {
                         fittedLayoutSize.height += 15.0
                         statusFrame = statusFrameValue.offsetBy(dx: 0.0, dy: 15.0)
                     }
                     
-                    if isAudio && !isVoice {
-                        streamingCacheStatusFrame = CGRect(origin: CGPoint(x: boundingWidth - streamingProgressDiameter + 1.0, y: 8.0), size: CGSize(width: streamingProgressDiameter, height: streamingProgressDiameter))
-                        if hasStreamingProgress {
-                            fittedLayoutSize.width += streamingProgressDiameter + 6.0
-                        }
-                        fittedLayoutSize.width = max(fittedLayoutSize.width, boundingWidth + 2.0)
+                    if (isAudio && !isVoice) || file.previewRepresentations.isEmpty {
+                        streamingCacheStatusFrame = CGRect(origin: CGPoint(x: progressFrame.maxX - streamingProgressDiameter + 2.0, y: progressFrame.maxY - streamingProgressDiameter + 2.0), size: CGSize(width: streamingProgressDiameter, height: streamingProgressDiameter))
                     } else {
                         streamingCacheStatusFrame = CGRect()
                     }
@@ -566,7 +595,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                                     strongSelf.waveformScrubbingNode = waveformScrubbingNode
                                     strongSelf.addSubnode(waveformScrubbingNode)
                                 }
-                                strongSelf.waveformScrubbingNode?.frame = CGRect(origin: CGPoint(x: 43.0, y: -1.0), size: CGSize(width: boundingWidth - 41.0, height: 12.0))
+                                strongSelf.waveformScrubbingNode?.frame = CGRect(origin: CGPoint(x: 57.0, y: 1.0), size: CGSize(width: boundingWidth - 60.0, height: 15.0))
                                 let waveformColor: UIColor
                                 if incoming {
                                     if consumableContentIcon != nil {
@@ -577,8 +606,8 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                                 } else {
                                     waveformColor = messageTheme.mediaInactiveControlColor
                                 }
-                                strongSelf.waveformNode.setup(color: waveformColor, waveform: audioWaveform)
-                                strongSelf.waveformForegroundNode.setup(color: messageTheme.mediaActiveControlColor, waveform: audioWaveform)
+                                strongSelf.waveformNode.setup(color: waveformColor, gravity: .bottom, waveform: audioWaveform)
+                                strongSelf.waveformForegroundNode.setup(color: messageTheme.mediaActiveControlColor, gravity: .bottom, waveform: audioWaveform)
                             } else if let waveformScrubbingNode = strongSelf.waveformScrubbingNode {
                                 strongSelf.waveformScrubbingNode = nil
                                 waveformScrubbingNode.removeFromSupernode()
@@ -622,6 +651,17 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                                 }))
                             }
                             
+                            if let updatedAudioLevelEventsSignal = updatedAudioLevelEventsSignal {
+                                strongSelf.audioLevelEventsDisposable.set((updatedAudioLevelEventsSignal
+                                |> deliverOnMainQueue).start(next: { value in
+                                    guard let strongSelf = self else {
+                                        return
+                                    }
+                                    strongSelf.inputAudioLevel = CGFloat(value)
+                                    strongSelf.playbackAudioLevelView?.updateLevel(CGFloat(value))
+                                }))
+                            }
+                            
                             if let updatedPlaybackStatusSignal = updatedPlaybackStatusSignal {
                                 strongSelf.playbackStatus.set(updatedPlaybackStatusSignal)
                                 strongSelf.playbackStatusDisposable.set((updatedPlaybackStatusSignal |> deliverOnMainQueue).start(next: { [weak strongSelf] status in
@@ -632,15 +672,14 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                                     }
                                 }))
                             }
-                            
+                                                        
                             strongSelf.waveformNode.displaysAsynchronously = !presentationData.isPreview
                             strongSelf.statusNode?.displaysAsynchronously = !presentationData.isPreview
                             strongSelf.statusNode?.frame = progressFrame
+                            strongSelf.playbackAudioLevelView?.frame = progressFrame.insetBy(dx: -12.0, dy: -12.0)
                             strongSelf.progressFrame = progressFrame
                             strongSelf.streamingCacheStatusFrame = streamingCacheStatusFrame
                             strongSelf.fileIconImage = fileIconImage
-                            strongSelf.cloudFetchIconImage = cloudFetchIconImage
-                            strongSelf.cloudFetchedIconImage = cloudFetchedIconImage
                             
                             if let updatedFetchControls = updatedFetchControls {
                                 let _ = strongSelf.fetchControls.swap(updatedFetchControls)
@@ -649,7 +688,47 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                                 }
                             }
                             
-                            strongSelf.updateStatus(animated: !synchronousLoads)
+                            let isAnimated = !synchronousLoads
+                            let transition: ContainedViewLayoutTransition = isAnimated ? .animated(duration: 0.2, curve: .spring) : .immediate
+                            if let selection = messageSelection {
+                                if let streamingStatusNode = strongSelf.streamingStatusNode {
+                                    transition.updateAlpha(node: streamingStatusNode, alpha: 0.0)
+                                    transition.updateTransformScale(node: streamingStatusNode, scale: 0.2)
+                                }
+                                let selectionFrame = CGRect(origin: CGPoint(), size: fittedLayoutSize)
+                                if let selectionNode = strongSelf.selectionNode {
+                                    selectionNode.frame = selectionFrame
+                                    selectionNode.updateSelected(selection, animated: isAnimated)
+                                } else {
+                                    let selectionNode = FileMessageSelectionNode(theme: presentationData.theme.theme, incoming: incoming, noPreview: file.isMusic || file.previewRepresentations.isEmpty, toggle: { [weak self] value in
+                                        self?.toggleSelection(value)
+                                    })
+                                    strongSelf.selectionNode = selectionNode
+                                    strongSelf.addSubnode(selectionNode)
+                                    selectionNode.frame = selectionFrame
+                                    selectionNode.updateSelected(selection, animated: false)
+                                    if isAnimated {
+                                        selectionNode.animateIn()
+                                    }
+                                }
+                            } else {
+                                if let streamingStatusNode = strongSelf.streamingStatusNode {
+                                    transition.updateAlpha(node: streamingStatusNode, alpha: 1.0)
+                                    transition.updateTransformScale(node: streamingStatusNode, scale: 1.0)
+                                }
+                                if let selectionNode = strongSelf.selectionNode {
+                                    strongSelf.selectionNode = nil
+                                    if isAnimated {
+                                        selectionNode.animateOut(completion: { [weak selectionNode] in
+                                            selectionNode?.removeFromSupernode()
+                                        })
+                                    } else {
+                                        selectionNode.removeFromSupernode()
+                                    }
+                                }
+                            }
+                            
+                            strongSelf.updateStatus(animated: isAnimated)
                         }
                     })
                 })
@@ -694,7 +773,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
         }
         
         let state: SemanticStatusNodeState
-        var streamingState: RadialStatusNodeState = .none
+        var streamingState: SemanticStatusNodeState = .none
         
         let isSending = message.flags.isSending
         
@@ -737,36 +816,6 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
             }
         }
         
-        if isAudio && !isVoice && !isSending {
-            let streamingStatusForegroundColor: UIColor = messageTheme.accentControlColor
-            let streamingStatusBackgroundColor: UIColor = messageTheme.mediaInactiveControlColor
-            switch resourceStatus.fetchStatus {
-                case let .Fetching(_, progress):
-                    let adjustedProgress = max(progress, 0.027)
-                    streamingState = .cloudProgress(color: streamingStatusForegroundColor, strokeBackgroundColor: streamingStatusBackgroundColor, lineWidth: 2.0, value: CGFloat(adjustedProgress))
-                case .Local:
-                    if let cloudFetchedIconImage = self.cloudFetchedIconImage {
-                        streamingState = .customIcon(cloudFetchedIconImage)
-                    } else {
-                        streamingState = .none
-                    }
-                case .Remote:
-                    if let cloudFetchIconImage = self.cloudFetchIconImage {
-                        streamingState = .customIcon(cloudFetchIconImage)
-                    } else {
-                        streamingState = .none
-                    }
-            }
-        } else {
-            streamingState = .none
-        }
-        
-        let statusForegroundColor: UIColor
-        if self.iconNode != nil {
-            statusForegroundColor = presentationData.theme.theme.chat.message.mediaOverlayControlColors.foregroundColor
-        } else {
-            statusForegroundColor = incoming ? presentationData.theme.theme.chat.message.incoming.mediaControlInnerBackgroundColor : presentationData.theme.theme.chat.message.outgoing.mediaControlInnerBackgroundColor
-        }
         switch resourceStatus.mediaStatus {
             case var .fetchStatus(fetchStatus):
                 if self.message?.forwardInfo != nil {
@@ -776,7 +825,20 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                 switch fetchStatus {
                     case let .Fetching(_, progress):
                         let adjustedProgress = max(progress, 0.027)
-                        state = .progress(value: CGFloat(adjustedProgress), cancelEnabled: true)
+                        var wasCheck = false
+                        if let statusNode = self.statusNode, case .check = statusNode.state {
+                            wasCheck = true
+                        }
+                        
+                        if isAudio && !isVoice && !isSending {
+                            state = .play
+                        } else {
+                            if message.groupingKey != nil, adjustedProgress.isEqual(to: 1.0), (message.flags.contains(.Unsent) || wasCheck) {
+                                state = .check(appearance: nil)
+                            } else {
+                                state = .progress(value: CGFloat(adjustedProgress), cancelEnabled: true, appearance: nil)
+                            }
+                        }
                     case .Local:
                         if isAudio {
                             state = .play
@@ -802,6 +864,20 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                 }
         }
         
+        if isAudio && !isVoice && !isSending && state != .pause {
+            switch resourceStatus.fetchStatus {
+                case let .Fetching(_, progress):
+                    let adjustedProgress = max(progress, 0.027)
+                    streamingState = .progress(value: CGFloat(adjustedProgress), cancelEnabled: true, appearance: .init(inset: 1.0, lineWidth: 2.0))
+                case .Local:
+                    streamingState = .none
+                case .Remote:
+                    streamingState = .download
+            }
+        } else {
+            streamingState = .none
+        }
+        
         let backgroundNodeColor: UIColor
         let foregroundNodeColor: UIColor
         if self.iconNode != nil {
@@ -813,7 +889,22 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
         }
 
         if state != .none && self.statusNode == nil {
-            let statusNode = SemanticStatusNode(backgroundNodeColor: backgroundNodeColor, foregroundNodeColor: foregroundNodeColor)
+            var image: Signal<(TransformImageArguments) -> DrawingContext?, NoError>? = nil
+            if file.isMusic {
+                var title: String?
+                var performer: String?
+                
+                for attribute in file.attributes {
+                    if case let .Audio(_, _, titleValue, performerValue, _) = attribute {
+                        title = titleValue
+                        performer = performerValue
+                        break
+                    }
+                }
+                
+                image = playerAlbumArt(postbox: context.account.postbox, fileReference: .message(message: MessageReference(message), media: file), albumArt: .init(thumbnailResource: ExternalMusicAlbumArtResource(title: title ?? "", performer: performer ?? "", isThumbnail: true), fullSizeResource: ExternalMusicAlbumArtResource(title: title ?? "", performer: performer ?? "", isThumbnail: false)), thumbnail: true, overlayColor: UIColor(white: 0.0, alpha: 0.3), drawPlaceholderWhenEmpty: false, attemptSynchronously: !animated)
+            }
+            let statusNode = SemanticStatusNode(backgroundNodeColor: backgroundNodeColor, foregroundNodeColor: foregroundNodeColor, image: image, overlayForegroundNodeColor:  presentationData.theme.theme.chat.message.mediaOverlayControlColors.foregroundColor)
             self.statusNode = statusNode
             statusNode.frame = progressFrame
             self.addSubnode(statusNode)
@@ -821,11 +912,37 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
             statusNode.backgroundNodeColor = backgroundNodeColor
         }
         
+        if state != .none && isVoice && self.playbackAudioLevelView == nil && false {
+            let blobFrame = progressFrame.insetBy(dx: -12.0, dy: -12.0)
+            let playbackAudioLevelView = VoiceBlobView(
+                frame: blobFrame,
+                maxLevel: 0.3,
+                smallBlobRange: (0, 0),
+                mediumBlobRange: (0.7, 0.8),
+                bigBlobRange: (0.8, 0.9)
+            )
+            self.playbackAudioLevelView = playbackAudioLevelView
+            self.view.addSubview(playbackAudioLevelView)
+            
+            let maskRect = CGRect(origin: .zero, size: blobFrame.size)
+            let playbackMaskLayer = CAShapeLayer()
+            playbackMaskLayer.frame = maskRect
+            playbackMaskLayer.fillRule = .evenOdd
+            let maskPath = UIBezierPath()
+            maskPath.append(UIBezierPath(roundedRect: maskRect.insetBy(dx: 12, dy: 12), cornerRadius: 22))
+            maskPath.append(UIBezierPath(rect: maskRect))
+            playbackMaskLayer.path = maskPath.cgPath
+            playbackAudioLevelView.layer.mask = playbackMaskLayer
+        }
+        self.playbackAudioLevelView?.setColor(presentationData.theme.theme.chat.inputPanel.actionControlFillColor)
+        
         if streamingState != .none && self.streamingStatusNode == nil {
-            let streamingStatusNode = RadialStatusNode(backgroundNodeColor: .clear)
+            let streamingStatusNode = SemanticStatusNode(backgroundNodeColor: backgroundNodeColor, foregroundNodeColor: foregroundNodeColor)
             self.streamingStatusNode = streamingStatusNode
             streamingStatusNode.frame = streamingCacheStatusFrame
             self.addSubnode(streamingStatusNode)
+        } else if let streamingStatusNode = self.streamingStatusNode {
+            streamingStatusNode.backgroundNodeColor = backgroundNodeColor
         }
         
         if let statusNode = self.statusNode {
@@ -841,6 +958,13 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                     statusNode?.removeFromSupernode()
                 }
             })
+            
+            switch state {
+            case .pause:
+                self.playbackAudioLevelView?.startAnimating()
+            default:
+                self.playbackAudioLevelView?.stopAnimating()
+            }
         }
         
         if let streamingStatusNode = self.streamingStatusNode {
@@ -854,6 +978,14 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
             } else {
                 streamingStatusNode.transitionToState(streamingState)
             }
+        }
+        
+        let cutoutFrame = streamingCacheStatusFrame.insetBy(dx: -(1.0 + UIScreenPixel), dy: -(1.0 + UIScreenPixel)).offsetBy(dx: progressFrame.minX - 6.0, dy: progressFrame.minY)
+        
+        if streamingState == .none && self.selectionNode == nil {
+            self.statusNode?.setCutout(nil, animated: animated)
+        } else if let statusNode = self.statusNode, (self.iconNode?.isHidden ?? true) {
+            statusNode.setCutout(cutoutFrame, animated: true)
         }
         
         if let (expandedString, compactString, font) = downloadingStrings {
@@ -887,12 +1019,12 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
         self.fetchingCompactTextNode.frame = CGRect(origin: self.descriptionNode.frame.origin, size: fetchingCompactSize)
     }
     
-    static func asyncLayout(_ node: ChatMessageInteractiveFileNode?) -> (_ context: AccountContext, _ presentationData: ChatPresentationData, _ message: Message, _ attributes: ChatMessageEntryAttributes, _ file: TelegramMediaFile, _ automaticDownload: Bool, _ incoming: Bool, _ isRecentActions: Bool, _ forcedResourceStatus: FileMediaResourceStatus?, _ dateAndStatusType: ChatMessageDateAndStatusType?, _ constrainedSize: CGSize) -> (CGFloat, (CGSize) -> (CGFloat, (CGFloat) -> (CGSize, (Bool) -> ChatMessageInteractiveFileNode))) {
+    static func asyncLayout(_ node: ChatMessageInteractiveFileNode?) -> (_ context: AccountContext, _ presentationData: ChatPresentationData, _ message: Message, _ associatedData: ChatMessageItemAssociatedData, _ chatLocation: ChatLocation, _ attributes: ChatMessageEntryAttributes, _ isPinned: Bool, _ forcedIsEdited: Bool, _ file: TelegramMediaFile, _ automaticDownload: Bool, _ incoming: Bool, _ isRecentActions: Bool, _ forcedResourceStatus: FileMediaResourceStatus?, _ dateAndStatusType: ChatMessageDateAndStatusType?, _ messageSelection: Bool?, _ constrainedSize: CGSize) -> (CGFloat, (CGSize) -> (CGFloat, (CGFloat) -> (CGSize, (Bool) -> ChatMessageInteractiveFileNode))) {
         let currentAsyncLayout = node?.asyncLayout()
         
-        return { context, presentationData, message, attributes, file, automaticDownload, incoming, isRecentActions, forcedResourceStatus, dateAndStatusType, constrainedSize in
+        return { context, presentationData, message, associatedData, chatLocation, attributes, isPinned, forcedIsEdited, file, automaticDownload, incoming, isRecentActions, forcedResourceStatus, dateAndStatusType, messageSelection, constrainedSize in
             var fileNode: ChatMessageInteractiveFileNode
-            var fileLayout: (_ context: AccountContext, _ presentationData: ChatPresentationData, _ message: Message, _ attributes: ChatMessageEntryAttributes, _ file: TelegramMediaFile, _ automaticDownload: Bool, _ incoming: Bool, _ isRecentActions: Bool, _ forcedResourceStatus: FileMediaResourceStatus?, _ dateAndStatusType: ChatMessageDateAndStatusType?, _ constrainedSize: CGSize) -> (CGFloat, (CGSize) -> (CGFloat, (CGFloat) -> (CGSize, (Bool) -> Void)))
+            var fileLayout: (_ context: AccountContext, _ presentationData: ChatPresentationData, _ message: Message, _ associatedData: ChatMessageItemAssociatedData, _ chatLocation: ChatLocation, _ attributes: ChatMessageEntryAttributes, _ isPinned: Bool, _ forcedIsEdited: Bool, _ file: TelegramMediaFile, _ automaticDownload: Bool, _ incoming: Bool, _ isRecentActions: Bool, _ forcedResourceStatus: FileMediaResourceStatus?, _ dateAndStatusType: ChatMessageDateAndStatusType?, _ messageSelection: Bool?, _ constrainedSize: CGSize) -> (CGFloat, (CGSize) -> (CGFloat, (CGFloat) -> (CGSize, (Bool) -> Void)))
             
             if let node = node, let currentAsyncLayout = currentAsyncLayout {
                 fileNode = node
@@ -902,7 +1034,7 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
                 fileLayout = fileNode.asyncLayout()
             }
             
-            let (initialWidth, continueLayout) = fileLayout(context, presentationData, message, attributes, file, automaticDownload, incoming, isRecentActions, forcedResourceStatus, dateAndStatusType, constrainedSize)
+            let (initialWidth, continueLayout) = fileLayout(context, presentationData, message, associatedData, chatLocation, attributes, isPinned, forcedIsEdited, file, automaticDownload, incoming, isRecentActions, forcedResourceStatus, dateAndStatusType, messageSelection, constrainedSize)
             
             return (initialWidth, { constrainedSize in
                 let (finalWidth, finalLayout) = continueLayout(constrainedSize)
@@ -958,10 +1090,75 @@ final class ChatMessageInteractiveFileNode: ASDisplayNode {
         self.playerUpdateTimer = nil
     }
     
-    func reactionTargetNode(value: String) -> (ASDisplayNode, Int)? {
+    func reactionTargetNode(value: String) -> (ASDisplayNode, ASDisplayNode)? {
         if !self.dateAndStatusNode.isHidden {
             return self.dateAndStatusNode.reactionNode(value: value)
         }
         return nil
     }
 }
+
+
+final class FileMessageSelectionNode: ASDisplayNode {
+    private let toggle: (Bool) -> Void
+    
+    private var selected = false
+    private let checkNode: CheckNode
+    private let noPreview: Bool
+    
+    public init(theme: PresentationTheme, incoming: Bool, noPreview: Bool, toggle: @escaping (Bool) -> Void) {
+        self.noPreview = noPreview
+        self.toggle = toggle
+        self.checkNode = CheckNode(strokeColor: incoming ? theme.chat.message.incoming.mediaPlaceholderColor : theme.chat.message.outgoing.mediaPlaceholderColor, fillColor: theme.list.itemCheckColors.fillColor, foregroundColor: theme.list.itemCheckColors.foregroundColor, style: noPreview ? .compact : .overlay)
+        self.checkNode.isUserInteractionEnabled = false
+        
+        super.init()
+        
+        self.addSubnode(self.checkNode)
+    }
+    
+    override public func didLoad() {
+        super.didLoad()
+        
+        self.view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(self.tapGesture(_:))))
+    }
+    
+    public func animateIn() {
+        self.checkNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.5, timingFunction: kCAMediaTimingFunctionSpring)
+        self.checkNode.layer.animateScale(from: 0.2, to: 1.0, duration: 0.5, timingFunction: kCAMediaTimingFunctionSpring)
+    }
+    
+    public func animateOut(completion: @escaping () -> Void) {
+        self.checkNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.3, timingFunction: kCAMediaTimingFunctionSpring, removeOnCompletion: false)
+        self.checkNode.layer.animateScale(from: 1.0, to: 0.2, duration: 0.3, timingFunction: kCAMediaTimingFunctionSpring, removeOnCompletion: false, completion: { _ in
+            completion()
+        })
+    }
+    
+    public func updateSelected(_ selected: Bool, animated: Bool) {
+        if self.selected != selected {
+            self.selected = selected
+            self.checkNode.setIsChecked(selected, animated: animated)
+        }
+    }
+    
+    @objc private func tapGesture(_ recognizer: UITapGestureRecognizer) {
+        if case .ended = recognizer.state {
+            self.toggle(!self.selected)
+        }
+    }
+    
+    override public func layout() {
+        super.layout()
+        
+        let checkSize = CGSize(width: 30.0, height: 30.0)
+        let checkOrigin: CGPoint
+        if self.noPreview {
+            checkOrigin = CGPoint(x: 23.0, y: 20.0)
+        } else {
+            checkOrigin = CGPoint(x: 39.0, y: -5.0)
+        }
+        self.checkNode.frame = CGRect(origin: checkOrigin, size: checkSize)
+    }
+}
+

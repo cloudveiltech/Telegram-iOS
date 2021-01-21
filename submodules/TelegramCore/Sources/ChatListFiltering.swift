@@ -140,6 +140,34 @@ public struct ChatListFilterIncludePeers: Equatable, Hashable {
         }
     }
     
+    public mutating func addPeer(_ peerId: PeerId) -> Bool {
+        if self.pinnedPeers.contains(peerId) {
+            return false
+        }
+        if self.peers.contains(peerId) {
+            return false
+        }
+        
+        if self.peers.count + self.pinnedPeers.count >= 100 {
+            return false
+        }
+        self.peers.insert(peerId, at: 0)
+        return true
+    }
+    
+    public mutating func removePeer(_ peerId: PeerId) -> Bool {
+        var found = false
+        if let index = self.pinnedPeers.firstIndex(of: peerId) {
+            self.pinnedPeers.remove(at: index)
+            found = true
+        }
+        if let index = self.peers.firstIndex(of: peerId) {
+            self.peers.remove(at: index)
+            found = true
+        }
+        return found
+    }
+    
     public mutating func setPeers(_ peers: [PeerId]) {
         self.peers = peers
         self.pinnedPeers = self.pinnedPeers.filter { peers.contains($0) }
@@ -175,6 +203,32 @@ public struct ChatListFilterData: Equatable, Hashable {
         self.excludeArchived = excludeArchived
         self.includePeers = includePeers
         self.excludePeers = excludePeers
+    }
+    
+    public mutating func addIncludePeer(peerId: PeerId) -> Bool {
+        if self.includePeers.peers.contains(peerId) || self.includePeers.pinnedPeers.contains(peerId) {
+            return false
+        }
+        if self.includePeers.addPeer(peerId) {
+            self.excludePeers.removeAll(where: { $0 == peerId })
+            return true
+        } else {
+            return false
+        }
+    }
+    
+    public mutating func addExcludePeer(peerId: PeerId) -> Bool {
+        if self.excludePeers.contains(peerId) {
+            return false
+        }
+        if self.excludePeers.count >= 100 {
+            return false
+        }
+        
+        let _ = self.includePeers.removePeer(peerId)
+        self.excludePeers.append(peerId)
+        
+        return true
     }
 }
 
@@ -564,7 +618,7 @@ private func loadAndStorePeerChatInfos(accountPeerId: PeerId, postbox: Postbox, 
             var peers: [Peer] = []
             var peerPresences: [PeerId: PeerPresence] = [:]
             var notificationSettings: [PeerId: PeerNotificationSettings] = [:]
-            var channelStates: [PeerId: ChannelState] = [:]
+            var channelStates: [PeerId: Int32] = [:]
             
             switch result {
             case let .peerDialogs(dialogs, messages, chats, users, _):
@@ -644,9 +698,10 @@ private func loadAndStorePeerChatInfos(accountPeerId: PeerId, postbox: Postbox, 
                         transaction.replaceMessageTagSummary(peerId: peerId, tagMask: .unseenPersonalMessage, namespace: Namespaces.Message.Cloud, count: unreadMentionsCount, maxId: topMessage)
                         
                         if let pts = pts {
-                            let channelState = ChannelState(pts: pts, invalidatedPts: pts, synchronizedUntilMessageId: nil)
-                            transaction.setPeerChatState(peerId, state: channelState)
-                            channelStates[peer.peerId] = channelState
+                            if transaction.getPeerChatState(peerId) == nil {
+                                transaction.setPeerChatState(peerId, state: ChannelState(pts: pts, invalidatedPts: nil, synchronizedUntilMessageId: nil))
+                            }
+                            channelStates[peer.peerId] = pts
                         }
                     case .dialogFolder:
                         assertionFailure()
@@ -659,9 +714,9 @@ private func loadAndStorePeerChatInfos(accountPeerId: PeerId, postbox: Postbox, 
                     if let storeMessage = StoreMessage(apiMessage: message) {
                         var updatedStoreMessage = storeMessage
                         if case let .Id(id) = storeMessage.id {
-                            if let channelState = channelStates[id.peerId] {
+                            if let channelPts = channelStates[id.peerId] {
                                 var updatedAttributes = storeMessage.attributes
-                                updatedAttributes.append(ChannelMessageStateVersionAttribute(pts: channelState.pts))
+                                updatedAttributes.append(ChannelMessageStateVersionAttribute(pts: channelPts))
                                 updatedStoreMessage = updatedStoreMessage.withUpdatedAttributes(updatedAttributes)
                             }
                         }

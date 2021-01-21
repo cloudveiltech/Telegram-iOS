@@ -176,11 +176,11 @@ final class ChatButtonKeyboardInputNode: ChatInputNode {
                     self.controllerInteraction.shareAccountContact()
                 case .openWebApp:
                     if let message = self.message {
-                        self.controllerInteraction.requestMessageActionCallback(message.id, nil, true)
+                        self.controllerInteraction.requestMessageActionCallback(message.id, nil, true, false)
                     }
-                case let .callback(data):
+                case let .callback(requiresPassword, data):
                     if let message = self.message {
-                        self.controllerInteraction.requestMessageActionCallback(message.id, data, false)
+                        self.controllerInteraction.requestMessageActionCallback(message.id, data, false, requiresPassword)
                     }
                 case let .switchInline(samePeer, query):
                     if let message = message {
@@ -202,7 +202,7 @@ final class ChatButtonKeyboardInputNode: ChatInputNode {
                             peerId = message.id.peerId
                         }
                         if let botPeer = botPeer, let addressName = botPeer.addressName {
-                            self.controllerInteraction.openPeer(peerId, .chat(textInputState: ChatTextInputState(inputText: NSAttributedString(string: "@\(addressName) \(query)")), subject: nil), nil)
+                            self.controllerInteraction.openPeer(peerId, .chat(textInputState: ChatTextInputState(inputText: NSAttributedString(string: "@\(addressName) \(query)")), subject: nil, peekData: nil), nil)
                         }
                     }
                 case .payment:

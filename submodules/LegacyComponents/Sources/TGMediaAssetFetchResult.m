@@ -1,7 +1,6 @@
 #import "TGMediaAssetFetchResult.h"
 
 #import <Photos/Photos.h>
-#import <AssetsLibrary/AssetsLibrary.h>
 
 #import "TGMediaAsset.h"
 
@@ -15,17 +14,6 @@
 @end
 
 @implementation TGMediaAssetFetchResult
-
-- (instancetype)initForALAssetsReversed:(bool)reversed
-{
-    self = [super init];
-    if (self != nil)
-    {
-        _assets = [[NSMutableArray alloc] init];
-        _reversed = reversed;
-    }
-    return self;
-}
 
 - (instancetype)initWithPHFetchResult:(PHFetchResult *)fetchResult reversed:(bool)reversed
 {
@@ -74,30 +62,6 @@
         index = _reversed ? self.count - index - 1 : index;
     
     return index;
-}
-
-- (NSSet *)itemsIdentifiers
-{
-    NSMutableSet *itemsIds = [[NSMutableSet alloc] init];
-    if (_concreteFetchResult != nil)
-    {
-        for (PHAsset *asset in _concreteFetchResult)
-            [itemsIds addObject:asset.localIdentifier];
-    }
-    else if (_assets.count > 0)
-    {
-        for (TGMediaAsset *asset in _assets)
-            [itemsIds addObject:asset.uniqueIdentifier];
-    }
-    return itemsIds;
-}
-
-- (void)_appendALAsset:(ALAsset *)asset
-{
-    if (asset == nil)
-        return;
-
-    [_assets addObject:[[TGMediaAsset alloc] initWithALAsset:asset]];
 }
 
 @end

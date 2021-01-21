@@ -85,7 +85,7 @@ final class PeerSelectionControllerNode: ASDisplayNode {
             self.segmentedControlNode = nil
         }
        
-        self.chatListNode = ChatListNode(context: context, groupId: .root, previewing: false, fillPreloadItems: false, mode: .peers(filter: filter, isSelecting: false, additionalCategories: []), theme: presentationData.theme, fontSize: presentationData.listsFontSize, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, nameSortOrder: presentationData.nameSortOrder, nameDisplayOrder: presentationData.nameDisplayOrder, disableAnimations: presentationData.disableAnimations)
+        self.chatListNode = ChatListNode(context: context, groupId: .root, previewing: false, fillPreloadItems: false, mode: .peers(filter: filter, isSelecting: false, additionalCategories: [], chatListFilters: nil), theme: presentationData.theme, fontSize: presentationData.listsFontSize, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, nameSortOrder: presentationData.nameSortOrder, nameDisplayOrder: presentationData.nameDisplayOrder, disableAnimations: presentationData.disableAnimations)
         
         super.init()
         
@@ -108,7 +108,12 @@ final class PeerSelectionControllerNode: ASDisplayNode {
         }
         
         self.chatListNode.contentOffsetChanged = { [weak self] offset in
-            self?.contentOffsetChanged?(offset)
+            guard let strongSelf = self else {
+                return
+            }
+            if strongSelf.chatListNode.supernode != nil {
+                strongSelf.contentOffsetChanged?(offset)
+            }
         }
         
         self.chatListNode.contentScrollingEnded = { [weak self] listView in
@@ -198,7 +203,7 @@ final class PeerSelectionControllerNode: ASDisplayNode {
             
             let contactsInsets = insets
             
-            contactListNode.containerLayoutUpdated(ContainerViewLayout(size: layout.size, metrics: layout.metrics, deviceMetrics: layout.deviceMetrics, intrinsicInsets: contactsInsets, safeInsets: layout.safeInsets, statusBarHeight: layout.statusBarHeight, inputHeight: layout.inputHeight, inputHeightIsInteractivellyChanging: layout.inputHeightIsInteractivellyChanging, inVoiceOver: layout.inVoiceOver), headerInsets: headerInsets, transition: transition)
+            contactListNode.containerLayoutUpdated(ContainerViewLayout(size: layout.size, metrics: layout.metrics, deviceMetrics: layout.deviceMetrics, intrinsicInsets: contactsInsets, safeInsets: layout.safeInsets, additionalInsets: layout.additionalInsets, statusBarHeight: layout.statusBarHeight, inputHeight: layout.inputHeight, inputHeightIsInteractivellyChanging: layout.inputHeightIsInteractivellyChanging, inVoiceOver: layout.inVoiceOver), headerInsets: headerInsets, transition: transition)
         }
         
         if let searchDisplayController = self.searchDisplayController {
@@ -212,19 +217,20 @@ final class PeerSelectionControllerNode: ASDisplayNode {
         }
         
         if self.chatListNode.supernode != nil {
-            self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ChatListSearchContainerNode(context: self.context, filter: self.filter, groupId: .root, openPeer: { [weak self] peer, _ in
+            self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ChatListSearchContainerNode(context: self.context, filter: self.filter, groupId: .root, displaySearchFilters: false, openPeer: { [weak self] peer, _ in
                 if let requestOpenPeerFromSearch = self?.requestOpenPeerFromSearch {
                     requestOpenPeerFromSearch(peer)
                 }
             }, openDisabledPeer: { [weak self] peer in
                 self?.requestOpenDisabledPeer?(peer)
             }, openRecentPeerOptions: { _ in
-            }, openMessage: { [weak self] peer, messageId in
+            }, openMessage: { [weak self] peer, messageId, _ in
                 if let requestOpenMessageFromSearch = self?.requestOpenMessageFromSearch {
                     requestOpenMessageFromSearch(peer, messageId)
                 }
-            }, addContact: nil, peerContextAction: nil, present: { _ in
-            }), cancel: { [weak self] in
+            }, addContact: nil, peerContextAction: nil, present: { _, _ in
+            }, presentInGlobalOverlay: { _, _ in
+            }, navigationController: nil), cancel: { [weak self] in
                 if let requestDeactivateSearch = self?.requestDeactivateSearch {
                     requestDeactivateSearch()
                 }
@@ -242,7 +248,7 @@ final class PeerSelectionControllerNode: ASDisplayNode {
             }, placeholder: placeholderNode)
             
         } else if let contactListNode = self.contactListNode, contactListNode.supernode != nil {
-            self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ContactsSearchContainerNode(context: self.context, onlyWriteable: true, categories: [.cloudContacts, .global], openPeer: { [weak self] peer in
+            self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ContactsSearchContainerNode(context: self.context, onlyWriteable: true, categories: [.cloudContacts, .global], addContact: nil, openPeer: { [weak self] peer in
                 if let strongSelf = self {
                     switch peer {
                         case let .peer(peer, _, _):
@@ -292,22 +298,8 @@ final class PeerSelectionControllerNode: ASDisplayNode {
         if self.chatListNode.supernode != nil {
             self.chatListNode.scrollToPosition(.top)
         } else if let contactListNode = self.contactListNode, contactListNode.supernode != nil {
-            contactListNode.scrollToTop()
+            //contactListNode.scrollToTop()
         }
-    }
-    
-    func animateIn() {
-        self.layer.animatePosition(from: CGPoint(x: self.layer.position.x, y: self.layer.position.y + self.layer.bounds.size.height), to: self.layer.position, duration: 0.5, timingFunction: kCAMediaTimingFunctionSpring)
-    }
-    
-    func animateOut(completion: (() -> Void)? = nil) {
-        self.clipsToBounds = true
-        self.layer.animatePosition(from: CGPoint(), to: CGPoint(x: 0.0, y: self.layer.bounds.size.height), duration: 0.2, timingFunction: CAMediaTimingFunctionName.easeInEaseOut.rawValue, removeOnCompletion: false, additive: true, completion: { [weak self] _ in
-            if let strongSelf = self {
-                strongSelf.dismiss()
-            }
-            completion?()
-        })
     }
     
     private func indexChanged(_ index: Int) {
@@ -331,7 +323,7 @@ final class PeerSelectionControllerNode: ASDisplayNode {
                     contactListNode.activateSearch = { [weak self] in
                         self?.requestActivateSearch?()
                     }
-                    contactListNode.openPeer = { [weak self] peer in
+                    contactListNode.openPeer = { [weak self] peer, _ in
                         if case let .peer(peer, _, _) = peer {
                             self?.requestOpenPeer?(peer.id)
                         }
@@ -344,7 +336,12 @@ final class PeerSelectionControllerNode: ASDisplayNode {
                         }
                     }
                     contactListNode.contentOffsetChanged = { [weak self] offset in
-                        self?.contentOffsetChanged?(offset)
+                        guard let strongSelf = self else {
+                            return
+                        }
+                        if strongSelf.contactListNode?.supernode != nil {
+                            strongSelf.contentOffsetChanged?(offset)
+                        }
                     }
                     
                     contactListNode.contentScrollingEnded = { [weak self] listView in

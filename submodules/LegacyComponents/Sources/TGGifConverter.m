@@ -77,7 +77,12 @@ const CGFloat TGGifConverterMaximumSide = 720.0f;
                 return;
             }
             
-            CGSize targetSize = TGFitSizeF(CGSizeMake(sourceWidth, sourceHeight), CGSizeMake(TGGifConverterMaximumSide, TGGifConverterMaximumSide));
+            const CGFloat blockSize = 16.0f;
+            CGFloat renderWidth = CGFloor(sourceWidth / blockSize) * blockSize;
+            CGFloat renderHeight = CGFloor(sourceHeight * renderWidth / sourceWidth);
+            
+            CGSize renderSize = CGSizeMake(renderWidth, renderHeight);
+            CGSize targetSize = TGFitSizeF(CGSizeMake(renderWidth, renderHeight), CGSizeMake(TGGifConverterMaximumSide, TGGifConverterMaximumSide));
             
             NSDictionary *videoCleanApertureSettings = @
             {
@@ -122,8 +127,8 @@ const CGFloat TGGifConverterMaximumSide = 720.0f;
             NSDictionary *attributes = @
             {
                 (NSString *)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32ARGB),
-                (NSString *)kCVPixelBufferWidthKey : @(sourceWidth),
-                (NSString *)kCVPixelBufferHeightKey : @(sourceHeight),
+                (NSString *)kCVPixelBufferWidthKey : @(renderWidth),
+                (NSString *)kCVPixelBufferHeightKey : @(renderHeight),
                 (NSString *)kCVPixelBufferCGImageCompatibilityKey : @YES,
                 (NSString *)kCVPixelBufferCGBitmapContextCompatibilityKey : @YES
             };
@@ -148,11 +153,11 @@ const CGFloat TGGifConverterMaximumSide = 720.0f;
                         
                         if (gifProperties != NULL)
                         {
-                            CVPixelBufferRef pxBuffer = [self newBufferFrom:imgRef withPixelBufferPool:adaptor.pixelBufferPool andAttributes:adaptor.sourcePixelBufferAttributes];
+                            CVPixelBufferRef pxBuffer = [self newBufferFrom:imgRef size:renderSize withPixelBufferPool:adaptor.pixelBufferPool andAttributes:adaptor.sourcePixelBufferAttributes];
                             if (pxBuffer != NULL)
                             {
                                 if (previewImage == nil) {
-                                    previewImage = TGScaleImageToPixelSize([[UIImage alloc] initWithCGImage:imgRef], targetSize);
+                                    previewImage = TGScaleImageToPixelSize([[UIImage alloc] initWithCGImage:imgRef], renderSize);
                                 }
                                 float frameDuration = 0.1f;
                                 NSNumber *delayTimeUnclampedProp = CFDictionaryGetValue(gifProperties, kCGImagePropertyGIFUnclampedDelayTime);
@@ -231,13 +236,10 @@ const CGFloat TGGifConverterMaximumSide = 720.0f;
     }];
 };
 
-+ (CVPixelBufferRef)newBufferFrom:(CGImageRef)frame withPixelBufferPool:(CVPixelBufferPoolRef)pixelBufferPool andAttributes:(NSDictionary *)attributes
++ (CVPixelBufferRef)newBufferFrom:(CGImageRef)frame size:(CGSize)size withPixelBufferPool:(CVPixelBufferPoolRef)pixelBufferPool andAttributes:(NSDictionary *)attributes
 {
     NSParameterAssert(frame);
     
-    size_t width = CGImageGetWidth(frame);
-    size_t height = CGImageGetHeight(frame);
-    size_t bpc = 8;
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     
     CVPixelBufferRef pxBuffer = NULL;
@@ -246,7 +248,7 @@ const CGFloat TGGifConverterMaximumSide = 720.0f;
     if (pixelBufferPool)
         status = CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pixelBufferPool, &pxBuffer);
     else
-        status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, (__bridge CFDictionaryRef)attributes, &pxBuffer);
+        status = CVPixelBufferCreate(kCFAllocatorDefault, size.width, size.height, kCVPixelFormatType_32ARGB, (__bridge CFDictionaryRef)attributes, &pxBuffer);
 
     NSAssert(status == kCVReturnSuccess, @"Could not create a pixel buffer");
     
@@ -255,10 +257,10 @@ const CGFloat TGGifConverterMaximumSide = 720.0f;
     
     size_t bytesPerRow = CVPixelBufferGetBytesPerRow(pxBuffer);
     
-    CGContextRef context = CGBitmapContextCreate(pxData, width, height, bpc, bytesPerRow, colorSpace, kCGImageAlphaNoneSkipFirst);
+    CGContextRef context = CGBitmapContextCreate(pxData, size.width, size.height, 8, bytesPerRow, colorSpace, kCGImageAlphaNoneSkipFirst);
     NSAssert(context, @"Could not create a context");
     
-    CGContextDrawImage(context, CGRectMake(0, 0, width, height), frame);
+    CGContextDrawImage(context, CGRectMake(0, 0, size.width, size.height), frame);
     
     CVPixelBufferUnlockBaseAddress(pxBuffer, 0);
     

@@ -18,7 +18,6 @@
 
 + (UIColor *)editorButtonSelectionBackgroundColor;
 
-+ (UIImage *)captionIcon;
 + (UIImage *)cropIcon;
 + (UIImage *)toolsIcon;
 + (UIImage *)rotateIcon;
@@ -28,6 +27,8 @@
 + (UIImage *)gifBackgroundImage;
 + (UIImage *)gifIcon;
 + (UIImage *)gifActiveIcon;
++ (UIImage *)muteIcon;
++ (UIImage *)muteActiveIcon;
 + (UIImage *)qualityIconForPreset:(TGMediaVideoConversionPreset)preset;
 + (UIImage *)timerIconForValue:(NSInteger)value;
 + (UIImage *)eraserIcon;

@@ -293,7 +293,7 @@ class PaneSearchBarNode: ASDisplayNode, UITextFieldDelegate {
         
         if let iconImage = self.iconNode.image {
             let iconSize = iconImage.size
-            transition.updateFrame(node: self.iconNode, frame: CGRect(origin: CGPoint(x: textBackgroundFrame.minX + 11.0, y: textBackgroundFrame.minY + floor((textBackgroundFrame.size.height - iconSize.height) / 2.0)), size: iconSize))
+            transition.updateFrame(node: self.iconNode, frame: CGRect(origin: CGPoint(x: textBackgroundFrame.minX + 5.0, y: textBackgroundFrame.minY + floor((textBackgroundFrame.size.height - iconSize.height) / 2.0)), size: iconSize))
         }
         
         if let activityIndicator = self.activityIndicator {
@@ -435,7 +435,7 @@ class PaneSearchBarNode: ASDisplayNode, UITextFieldDelegate {
             snapshot.frame = CGRect(origin: self.textField.placeholderLabel.frame.origin, size: node.labelNode.frame.size)
             self.textField.layer.addSublayer(snapshot)
             snapshot.animateAlpha(from: 0.0, to: 1.0, duration: duration * 2.0 / 3.0, timingFunction: CAMediaTimingFunctionName.linear.rawValue)
-            self.textField.placeholderLabel.layer.animateAlpha(from: 1.0, to: 0.0, duration: duration * 3.0 / 2.0, timingFunction: CAMediaTimingFunctionName.linear.rawValue, removeOnCompletion: false)
+            //self.textField.placeholderLabel.layer.animateAlpha(from: 1.0, to: 0.0, duration: duration * 3.0 / 2.0, timingFunction: CAMediaTimingFunctionName.linear.rawValue, removeOnCompletion: false)
             
         }
         
@@ -490,5 +490,10 @@ class PaneSearchBarNode: ASDisplayNode, UITextFieldDelegate {
             self.textField.text = ""
             self.textFieldDidChange(self.textField)
         }
+    }
+    
+    func updateQuery(_ query: String) {
+        self.textField.text = query
+        self.textFieldDidChange(self.textField)
     }
 }

@@ -5,6 +5,16 @@ import SwiftSignalKit
 
 import SyncCore
 
+private func copyOrMoveResourceData(from fromResource: MediaResource, to toResource: MediaResource, mediaBox: MediaBox) {
+    if fromResource is CloudFileMediaResource || fromResource is CloudDocumentMediaResource || fromResource is SecretFileMediaResource {
+        mediaBox.copyResourceData(from: fromResource.id, to: toResource.id)
+    } else if let fromResource = fromResource as? LocalFileMediaResource, fromResource.isSecretRelated {
+        mediaBox.copyResourceData(from: fromResource.id, to: toResource.id)
+    } else {
+        mediaBox.moveResourceData(from: fromResource.id, to: toResource.id)
+    }
+}
+
 func applyMediaResourceChanges(from: Media, to: Media, postbox: Postbox, force: Bool) {
     if let fromImage = from as? TelegramMediaImage, let toImage = to as? TelegramMediaImage {
         let fromSmallestRepresentation = smallestImageRepresentation(fromImage.representations)
@@ -13,23 +23,26 @@ func applyMediaResourceChanges(from: Media, to: Media, postbox: Postbox, force: 
             let widthDifference = fromSmallestRepresentation.dimensions.width - toSmallestRepresentation.dimensions.width
             let heightDifference = fromSmallestRepresentation.dimensions.height - toSmallestRepresentation.dimensions.height
             if abs(widthDifference) < leeway && abs(heightDifference) < leeway {
-                postbox.mediaBox.moveResourceData(from: fromSmallestRepresentation.resource.id, to: toSmallestRepresentation.resource.id)
+                copyOrMoveResourceData(from: fromSmallestRepresentation.resource, to: toSmallestRepresentation.resource, mediaBox: postbox.mediaBox)
             }
         }
         if let fromLargestRepresentation = largestImageRepresentation(fromImage.representations), let toLargestRepresentation = largestImageRepresentation(toImage.representations) {
-            postbox.mediaBox.moveResourceData(from: fromLargestRepresentation.resource.id, to: toLargestRepresentation.resource.id)
+            copyOrMoveResourceData(from: fromLargestRepresentation.resource, to: toLargestRepresentation.resource, mediaBox: postbox.mediaBox)
         }
     } else if let fromFile = from as? TelegramMediaFile, let toFile = to as? TelegramMediaFile {
         if let fromPreview = smallestImageRepresentation(fromFile.previewRepresentations), let toPreview = smallestImageRepresentation(toFile.previewRepresentations) {
-            postbox.mediaBox.moveResourceData(from: fromPreview.resource.id, to: toPreview.resource.id)
+            copyOrMoveResourceData(from: fromPreview.resource, to: toPreview.resource, mediaBox: postbox.mediaBox)
+        }
+        if let fromVideoThumbnail = fromFile.videoThumbnails.first, let toVideoThumbnail = toFile.videoThumbnails.first, fromVideoThumbnail.resource.id.uniqueId != toVideoThumbnail.resource.id.uniqueId {
+            copyOrMoveResourceData(from: fromVideoThumbnail.resource, to: toVideoThumbnail.resource, mediaBox: postbox.mediaBox)
         }
         if (force || fromFile.size == toFile.size || fromFile.resource.size == toFile.resource.size) && fromFile.mimeType == toFile.mimeType {
-            postbox.mediaBox.moveResourceData(from: fromFile.resource.id, to: toFile.resource.id)
+            copyOrMoveResourceData(from: fromFile.resource, to: toFile.resource, mediaBox: postbox.mediaBox)
         }
     }
 }
 
-func applyUpdateMessage(postbox: Postbox, stateManager: AccountStateManager, message: Message, result: Api.Updates) -> Signal<Void, NoError> {
+func applyUpdateMessage(postbox: Postbox, stateManager: AccountStateManager, message: Message, result: Api.Updates, accountPeerId: PeerId) -> Signal<Void, NoError> {
     return postbox.transaction { transaction -> Void in
         let messageId: Int32?
         var apiMessage: Api.Message?
@@ -76,6 +89,8 @@ func applyUpdateMessage(postbox: Postbox, stateManager: AccountStateManager, mes
         if let updatedTimestamp = updatedTimestamp {
             transaction.offsetPendingMessagesTimestamps(lowerBound: message.id, excludeIds: Set([message.id]), timestamp: updatedTimestamp)
         }
+        
+        var updatedMessage: StoreMessage?
         
         transaction.updateMessage(message.id, update: { currentMessage in
             let updatedId: MessageId
@@ -183,7 +198,7 @@ func applyUpdateMessage(postbox: Postbox, stateManager: AccountStateManager, mes
                 }
             }
             
-            let (tags, globalTags) = tagsForStoreMessage(incoming: currentMessage.flags.contains(.Incoming), attributes: attributes, media: media, textEntities: entitiesAttribute?.entities)
+            let (tags, globalTags) = tagsForStoreMessage(incoming: currentMessage.flags.contains(.Incoming), attributes: attributes, media: media, textEntities: entitiesAttribute?.entities, isPinned: currentMessage.tags.contains(.pinned))
             
             if currentMessage.id.peerId.namespace == Namespaces.Peer.CloudChannel, !currentMessage.flags.contains(.Incoming), !Namespaces.Message.allScheduled.contains(currentMessage.id.namespace) {
                 let peerId = currentMessage.id.peerId
@@ -209,16 +224,32 @@ func applyUpdateMessage(postbox: Postbox, stateManager: AccountStateManager, mes
                 }
             }
             
-            return .update(StoreMessage(id: updatedId, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, timestamp: updatedTimestamp ?? currentMessage.timestamp, flags: [], tags: tags, globalTags: globalTags, localTags: currentMessage.localTags, forwardInfo: forwardInfo, authorId: currentMessage.author?.id, text: text, attributes: attributes, media: media))
+            let updatedMessageValue = StoreMessage(id: updatedId, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: updatedTimestamp ?? currentMessage.timestamp, flags: [], tags: tags, globalTags: globalTags, localTags: currentMessage.localTags, forwardInfo: forwardInfo, authorId: currentMessage.author?.id, text: text, attributes: attributes, media: media)
+            updatedMessage = updatedMessageValue
+            
+            return .update(updatedMessageValue)
         })
+        if let updatedMessage = updatedMessage, case let .Id(updatedId) = updatedMessage.id {
+            if message.id.namespace == Namespaces.Message.Local && updatedId.namespace == Namespaces.Message.Cloud && updatedId.peerId.namespace == Namespaces.Peer.CloudChannel {
+                if let threadId = updatedMessage.threadId {
+                    let messageThreadId = makeThreadIdMessageId(peerId: updatedMessage.id.peerId, threadId: threadId)
+                    if let authorId = updatedMessage.authorId {
+                        updateMessageThreadStats(transaction: transaction, threadMessageId: messageThreadId, removedCount: 0, addedMessagePeers: [ReplyThreadUserMessage(id: authorId, messageId: updatedId, isOutgoing: true)])
+                    }
+                }
+            }
+        }
         for file in sentStickers {
             transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentStickers, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: RecentMediaItem(file)), removeTailIfCountExceeds: 20)
         }
         for file in sentGifs {
-            transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentGifs, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: RecentMediaItem(file)), removeTailIfCountExceeds: 200)
+            if !file.hasLinkedStickers {
+                transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentGifs, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: RecentMediaItem(file)), removeTailIfCountExceeds: 200)
+            }
         }
         
         stateManager.addUpdates(result)
+        stateManager.addUpdateGroups([.ensurePeerHasLocalState(id: message.id.peerId)])
     }
 }
 
@@ -272,20 +303,21 @@ func applyUpdateGroupMessages(postbox: Postbox, stateManager: AccountStateManage
         var sentStickers: [TelegramMediaFile] = []
         var sentGifs: [TelegramMediaFile] = []
         
-        var updatedGroupingKey: Int64?
-        for (_, _, updatedMessage) in mapping {
-            if let updatedGroupingKey = updatedGroupingKey {
-                assert(updatedGroupingKey == updatedMessage.groupingKey)
+        var updatedGroupingKey: [Int64 : [MessageId]] = [:]
+        for (message, _, updatedMessage) in mapping {
+            if let groupingKey = updatedMessage.groupingKey {
+                var ids = updatedGroupingKey[groupingKey] ?? []
+                ids.append(message.id)
+                updatedGroupingKey[groupingKey] = ids
             }
-            updatedGroupingKey = updatedMessage.groupingKey
         }
         
         if let latestPreviousId = latestPreviousId, let latestIndex = mapping.last?.1 {
             transaction.offsetPendingMessagesTimestamps(lowerBound: latestPreviousId, excludeIds: Set(mapping.map { $0.0.id }), timestamp: latestIndex.timestamp)
         }
         
-        if let updatedGroupingKey = updatedGroupingKey {
-            transaction.updateMessageGroupingKeysAtomically(mapping.map { $0.0.id }, groupingKey: updatedGroupingKey)
+        for (key, ids) in updatedGroupingKey {
+            transaction.updateMessageGroupingKeysAtomically(ids, groupingKey: key)
         }
         
         for (message, _, updatedMessage) in mapping {
@@ -307,7 +339,7 @@ func applyUpdateGroupMessages(postbox: Postbox, stateManager: AccountStateManage
                 
                 var storeForwardInfo: StoreMessageForwardInfo?
                 if let forwardInfo = currentMessage.forwardInfo {
-                    storeForwardInfo = StoreMessageForwardInfo(authorId: forwardInfo.author?.id, sourceId: forwardInfo.source?.id, sourceMessageId: forwardInfo.sourceMessageId, date: forwardInfo.date, authorSignature: forwardInfo.authorSignature)
+                    storeForwardInfo = StoreMessageForwardInfo(authorId: forwardInfo.author?.id, sourceId: forwardInfo.source?.id, sourceMessageId: forwardInfo.sourceMessageId, date: forwardInfo.date, authorSignature: forwardInfo.authorSignature, psaType: forwardInfo.psaType)
                 }
                 
                 if let fromMedia = currentMessage.media.first, let toMedia = media.first {
@@ -342,9 +374,9 @@ func applyUpdateGroupMessages(postbox: Postbox, stateManager: AccountStateManage
                     }
                 }
                 
-                let (tags, globalTags) = tagsForStoreMessage(incoming: currentMessage.flags.contains(.Incoming), attributes: attributes, media: media, textEntities: entitiesAttribute?.entities)
+                let (tags, globalTags) = tagsForStoreMessage(incoming: currentMessage.flags.contains(.Incoming), attributes: attributes, media: media, textEntities: entitiesAttribute?.entities, isPinned: currentMessage.tags.contains(.pinned))
                 
-                return .update(StoreMessage(id: updatedId, globallyUniqueId: nil, groupingKey: currentMessage.groupingKey, timestamp: updatedMessage.timestamp, flags: [], tags: tags, globalTags: globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: text, attributes: attributes, media: media))
+                return .update(StoreMessage(id: updatedId, globallyUniqueId: nil, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: updatedMessage.timestamp, flags: [], tags: tags, globalTags: globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: text, attributes: attributes, media: media))
             })
         }
         
@@ -352,8 +384,11 @@ func applyUpdateGroupMessages(postbox: Postbox, stateManager: AccountStateManage
             transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentStickers, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: RecentMediaItem(file)), removeTailIfCountExceeds: 20)
         }
         for file in sentGifs {
-            transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentGifs, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: RecentMediaItem(file)), removeTailIfCountExceeds: 200)
+            if !file.hasLinkedStickers {
+                transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentGifs, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: RecentMediaItem(file)), removeTailIfCountExceeds: 200)
+            }
         }
         stateManager.addUpdates(result)
+        stateManager.addUpdateGroups([.ensurePeerHasLocalState(id: messages[0].id.peerId)])
     }
 }

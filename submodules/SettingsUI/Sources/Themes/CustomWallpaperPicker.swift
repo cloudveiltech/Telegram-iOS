@@ -86,12 +86,12 @@ func uploadCustomWallpaper(context: AccountContext, wallpaper: WallpaperGalleryE
         case let .contextResult(result):
             var imageResource: TelegramMediaResource?
             switch result {
-                case let .externalReference(_, _, _, _, _, _, content, _, _):
-                    if let content = content {
+                case let .externalReference(externalReference):
+                    if let content = externalReference.content {
                         imageResource = content.resource
                     }
-                case let .internalReference(_, _, _, _, _, image, _, _):
-                    if let image = image {
+                case let .internalReference(internalReference):
+                    if let image = internalReference.image {
                         if let imageRepresentation = imageRepresentationLargerThan(image.representations, size: PixelDimensions(width: 1000, height: 800)) {
                             imageResource = imageRepresentation.resource
                         }
@@ -175,7 +175,7 @@ func uploadCustomWallpaper(context: AccountContext, wallpaper: WallpaperGalleryE
             
             let apply: () -> Void = {
                 let settings = WallpaperSettings(blur: mode.contains(.blur), motion: mode.contains(.motion), color: nil, intensity: nil)
-                let wallpaper: TelegramWallpaper = .image([TelegramMediaImageRepresentation(dimensions: PixelDimensions(thumbnailDimensions), resource: thumbnailResource), TelegramMediaImageRepresentation(dimensions: PixelDimensions(croppedImage.size), resource: resource)], settings)
+                let wallpaper: TelegramWallpaper = .image([TelegramMediaImageRepresentation(dimensions: PixelDimensions(thumbnailDimensions), resource: thumbnailResource, progressiveSizes: []), TelegramMediaImageRepresentation(dimensions: PixelDimensions(croppedImage.size), resource: resource, progressiveSizes: [])], settings)
                 updateWallpaper(wallpaper)
                 DispatchQueue.main.async {
                     completion()

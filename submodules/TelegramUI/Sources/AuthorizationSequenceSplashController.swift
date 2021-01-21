@@ -9,7 +9,6 @@ import SwiftSignalKit
 import TelegramPresentationData
 import LegacyComponents
 
-import CloudVeilSecurityManager
 import RMIntro
 
 final class AuthorizationSequenceSplashController: ViewController {
@@ -123,19 +122,7 @@ final class AuthorizationSequenceSplashController: ViewController {
         super.viewDidAppear(animated)
         
         controller.viewDidAppear(animated)
-        //CloudVeil start
-        showFirstRunPopup()
-        //CloudVeil end
     }
-    
-    //CloudVeil start
-    func showFirstRunPopup() {
-        let alert = UIAlertController(title: "CloudVeil!", message: "CloudVeil Messenger uses a server based system to control access to Bots, Channels, and Groups and other policy rules. This is used to block unacceptable content. Your Telegram id and list of channels, bots, and groups will be sent to our system to allow this to work. We do not have access to your messages themselves.", preferredStyle: .alert)
-        alert.addAction(.init(title: "OK", style: .default, handler: nil))
-        
-        controller.present(alert, animated: true)
-    }
-    //CloudVeil end
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)

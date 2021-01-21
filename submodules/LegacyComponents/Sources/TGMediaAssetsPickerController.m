@@ -236,7 +236,12 @@
 
 - (SSignal *)_signalForItem:(id)item
 {
-    SSignal *assetSignal = [TGMediaAssetImageSignals imageForAsset:item imageType:TGMediaAssetImageTypeThumbnail size:[_layoutMetrics imageSize]];
+    TGMediaAsset *concreteAsset = (TGMediaAsset *)item;
+    if ([concreteAsset isKindOfClass:[TGCameraCapturedVideo class]]) {
+        concreteAsset = [(TGCameraCapturedVideo *)item originalAsset];
+    }
+    
+    SSignal *assetSignal = [TGMediaAssetImageSignals imageForAsset:concreteAsset imageType:TGMediaAssetImageTypeThumbnail size:[_layoutMetrics imageSize]];
     if (self.editingContext == nil)
         return assetSignal;
     
@@ -260,7 +265,7 @@
                 return TGMediaAssetsVideoCellKind;
                 
             case TGMediaAssetGifType:
-                if (_intent == TGMediaAssetsControllerSetProfilePhotoIntent || _intent == TGMediaAssetsControllerSetSignupProfilePhotoIntent || _intent == TGMediaAssetsControllerPassportIntent || _intent == TGMediaAssetsControllerPassportMultipleIntent)
+                if (_intent == TGMediaAssetsControllerSetSignupProfilePhotoIntent || _intent == TGMediaAssetsControllerPassportIntent || _intent == TGMediaAssetsControllerPassportMultipleIntent)
                     return TGMediaAssetsPhotoCellKind;
                 else
                     return TGMediaAssetsGifCellKind;
@@ -285,8 +290,11 @@
         
         for (TGMediaPickerCell *cell in [strongSelf->_collectionView visibleCells])
         {
-            if ([cell.item isEqual:item.asset])
+            if ([cell.item respondsToSelector:@selector(uniqueIdentifier)] && [[(id)cell.item uniqueIdentifier] isEqual:item.asset.uniqueIdentifier]) {
                 return cell;
+            } else if ([cell.item isEqual:item.asset.uniqueIdentifier]) {
+                return cell;
+            }
         }
         
         return nil;
@@ -323,7 +331,7 @@
 
 - (TGMediaPickerModernGalleryMixin *)_galleryMixinForContext:(id<LegacyComponentsContext>)context item:(id)item thumbnailImage:(UIImage *)thumbnailImage selectionContext:(TGMediaSelectionContext *)selectionContext editingContext:(TGMediaEditingContext *)editingContext suggestionContext:(TGSuggestionContext *)suggestionContext hasCaptions:(bool)hasCaptions allowCaptionEntities:(bool)allowCaptionEntities inhibitDocumentCaptions:(bool)inhibitDocumentCaptions asFile:(bool)asFile
 {
-    return [[TGMediaPickerModernGalleryMixin alloc] initWithContext:context item:item fetchResult:_fetchResult parentController:self thumbnailImage:thumbnailImage selectionContext:selectionContext editingContext:editingContext suggestionContext:suggestionContext hasCaptions:hasCaptions allowCaptionEntities:allowCaptionEntities hasTimer:self.hasTimer onlyCrop:self.onlyCrop inhibitDocumentCaptions:inhibitDocumentCaptions inhibitMute:self.inhibitMute asFile:asFile itemsLimit:0 recipientName:self.recipientName hasSilentPosting:self.hasSilentPosting hasSchedule:self.hasSchedule reminder:self.reminder];
+    return [[TGMediaPickerModernGalleryMixin alloc] initWithContext:context item:item fetchResult:_fetchResult parentController:self thumbnailImage:thumbnailImage selectionContext:selectionContext editingContext:editingContext suggestionContext:suggestionContext hasCaptions:hasCaptions allowCaptionEntities:allowCaptionEntities hasTimer:self.hasTimer onlyCrop:self.onlyCrop inhibitDocumentCaptions:inhibitDocumentCaptions inhibitMute:self.inhibitMute asFile:asFile itemsLimit:0 recipientName:self.recipientName hasSilentPosting:self.hasSilentPosting hasSchedule:self.hasSchedule reminder:self.reminder stickersContext:self.stickersContext];
 }
 
 - (TGMediaPickerModernGalleryMixin *)galleryMixinForIndexPath:(NSIndexPath *)indexPath previewMode:(bool)previewMode outAsset:(TGMediaAsset **)outAsset
@@ -342,6 +350,7 @@
     
     TGMediaPickerModernGalleryMixin *mixin = [self _galleryMixinForContext:_context item:asset thumbnailImage:thumbnailImage selectionContext:self.selectionContext editingContext:self.editingContext suggestionContext:self.suggestionContext hasCaptions:self.captionsEnabled allowCaptionEntities:self.allowCaptionEntities inhibitDocumentCaptions:self.inhibitDocumentCaptions asFile:asFile];
     mixin.presentScheduleController = self.presentScheduleController;
+    mixin.presentTimerController = self.presentTimerController;
     __weak TGMediaAssetsPickerController *weakSelf = self;
     mixin.thumbnailSignalForItem = ^SSignal *(id item)
     {
@@ -395,7 +404,14 @@
         if (_intent == TGMediaAssetsControllerSetSignupProfilePhotoIntent) {
             intent = TGPhotoEditorControllerSignupAvatarIntent;
         }
-        TGPhotoEditorController *controller = [[TGPhotoEditorController alloc] initWithContext:_context item:asset intent:intent adjustments:nil caption:nil screenImage:thumbnailImage availableTabs:[TGPhotoEditorController defaultTabsForAvatarIntent] selectedTab:TGPhotoEditorCropTab];
+        
+        id<TGMediaEditableItem> editableItem = asset;
+        if (asset.type == TGMediaAssetGifType) {
+            editableItem = [[TGCameraCapturedVideo alloc] initWithAsset:asset livePhoto:false];
+        }
+        
+        TGPhotoEditorController *controller = [[TGPhotoEditorController alloc] initWithContext:_context item:editableItem intent:intent adjustments:nil caption:nil screenImage:thumbnailImage availableTabs:[TGPhotoEditorController defaultTabsForAvatarIntent] selectedTab:TGPhotoEditorCropTab];
+        controller.stickersContext = self.stickersContext;
         controller.editingContext = self.editingContext;
         controller.didFinishRenderingFullSizeImage = ^(UIImage *resultImage)
         {
@@ -405,7 +421,7 @@
             
             [[strongSelf->_assetsLibrary saveAssetWithImage:resultImage] startWithNext:nil];
         };
-        controller.didFinishEditing = ^(__unused id<TGMediaEditAdjustments> adjustments, UIImage *resultImage, __unused UIImage *thumbnailImage, bool hasChanges)
+        controller.didFinishEditing = ^(id<TGMediaEditAdjustments> adjustments, UIImage *resultImage, __unused UIImage *thumbnailImage, bool hasChanges)
         {
             if (!hasChanges)
                 return;
@@ -414,9 +430,44 @@
             if (strongSelf == nil)
                 return;
             
-            [(TGMediaAssetsController *)strongSelf.navigationController completeWithAvatarImage:resultImage];
+            if (adjustments.paintingData.hasAnimation) {
+                TGVideoEditAdjustments *videoAdjustments = adjustments;
+                if ([videoAdjustments isKindOfClass:[PGPhotoEditorValues class]]) {
+                    videoAdjustments = [TGVideoEditAdjustments editAdjustmentsWithPhotoEditorValues:(PGPhotoEditorValues *)adjustments preset:TGMediaVideoConversionPresetProfileVeryHigh];
+                }
+                
+                NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSString alloc] initWithFormat:@"gifvideo_%x.jpg", (int)arc4random()]];
+                NSData *data = UIImageJPEGRepresentation(resultImage, 0.8);
+                [data writeToFile:filePath atomically:true];
+                
+                UIImage *previewImage = resultImage;
+                if ([adjustments cropAppliedForAvatar:false] || adjustments.hasPainting || adjustments.toolsApplied)
+                {
+                    UIImage *paintingImage = adjustments.paintingData.stillImage;
+                    if (paintingImage == nil) {
+                        paintingImage = adjustments.paintingData.image;
+                    }
+                    UIImage *croppedPaintingImage = TGPhotoEditorPaintingCrop(paintingImage, adjustments.cropOrientation, adjustments.cropRotation, adjustments.cropRect, adjustments.cropMirrored, resultImage.size, adjustments.originalSize, true, true, false);
+                    UIImage *thumbnailImage = TGPhotoEditorVideoExtCrop(resultImage, croppedPaintingImage, adjustments.cropOrientation, adjustments.cropRotation, adjustments.cropRect, adjustments.cropMirrored, TGScaleToFill(asset.dimensions, CGSizeMake(800, 800)), adjustments.originalSize, true, true, true, true);
+                    if (thumbnailImage != nil) {
+                        previewImage = thumbnailImage;
+                    }
+                }
+                [(TGMediaAssetsController *)strongSelf.navigationController completeWithAvatarVideo:[NSURL fileURLWithPath:filePath] adjustments:videoAdjustments image:previewImage];
+            } else {
+                [(TGMediaAssetsController *)strongSelf.navigationController completeWithAvatarImage:resultImage];
+            }
         };
-        
+        controller.didFinishEditingVideo = ^(AVAsset *asset, id<TGMediaEditAdjustments> adjustments, UIImage *resultImage, UIImage *thumbnailImage, bool hasChanges) {
+            if (!hasChanges)
+                return;
+            
+            __strong TGMediaAssetsPickerController *strongSelf = weakSelf;
+            if (strongSelf == nil)
+                return;
+            
+            [(TGMediaAssetsController *)strongSelf.navigationController completeWithAvatarVideo:asset adjustments:adjustments image:resultImage];
+        };
         controller.requestThumbnailImage = ^(id<TGMediaEditableItem> editableItem)
         {
             return [editableItem thumbnailImageSignal];
@@ -429,7 +480,17 @@
         
         controller.requestOriginalFullSizeImage = ^(id<TGMediaEditableItem> editableItem, NSTimeInterval position)
         {
-            return [editableItem originalImageSignal:position];
+            if (editableItem.isVideo) {
+                if ([editableItem isKindOfClass:[TGMediaAsset class]]) {
+                    return [TGMediaAssetImageSignals avAssetForVideoAsset:(TGMediaAsset *)editableItem allowNetworkAccess:true];
+                } else if ([editableItem isKindOfClass:[TGCameraCapturedVideo class]]) {
+                    return ((TGCameraCapturedVideo *)editableItem).avAsset;
+                } else {
+                    return [editableItem originalImageSignal:position];
+                }
+            } else {
+                return [editableItem originalImageSignal:position];
+            }
         };
         
         [self.navigationController pushViewController:controller animated:true];

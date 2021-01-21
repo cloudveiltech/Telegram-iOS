@@ -39,11 +39,13 @@ final class PaneSearchContainerNode: ASDisplayNode {
     
     private var validLayout: CGSize?
     
+    var openGifContextMenu: ((MultiplexedVideoNodeFile, ASDisplayNode, CGRect, ContextGesture, Bool) -> Void)?
+    
     var ready: Signal<Void, NoError> {
         return self.contentNode.ready
     }
     
-    init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, controllerInteraction: ChatControllerInteraction, inputNodeInteraction: ChatMediaInputNodeInteraction, mode: ChatMediaInputSearchMode, trendingGifsPromise: Promise<[FileMediaReference]?>, cancel: @escaping () -> Void) {
+    init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, controllerInteraction: ChatControllerInteraction, inputNodeInteraction: ChatMediaInputNodeInteraction, mode: ChatMediaInputSearchMode, trendingGifsPromise: Promise<ChatMediaInputGifPaneTrendingState?>, cancel: @escaping () -> Void) {
         self.context = context
         self.mode = mode
         self.controllerInteraction = controllerInteraction
@@ -83,10 +85,19 @@ final class PaneSearchContainerNode: ASDisplayNode {
         }
         
         self.updateThemeAndStrings(theme: theme, strings: strings)
+        
+        if let contentNode = self.contentNode as? GifPaneSearchContentNode {
+            contentNode.requestUpdateQuery = { [weak self] query in
+                self?.updateQuery(query)
+            }
+            contentNode.openGifContextMenu = { [weak self] file, node, rect, gesture, isSaved in
+                self?.openGifContextMenu?(file, node, rect, gesture, isSaved)
+            }
+        }
     }
     
     func updateThemeAndStrings(theme: PresentationTheme, strings: PresentationStrings) {
-        self.backgroundNode.backgroundColor = theme.chat.inputMediaPanel.stickersBackgroundColor
+        self.backgroundNode.backgroundColor = theme.chat.inputMediaPanel.stickersBackgroundColor.withAlphaComponent(1.0)
         self.contentNode.updateThemeAndStrings(theme: theme, strings: strings)
         self.searchBar.updateThemeAndStrings(theme: theme, strings: strings)
         
@@ -98,6 +109,10 @@ final class PaneSearchContainerNode: ASDisplayNode {
             placeholder = strings.Stickers_Search
         }
         self.searchBar.placeholderString = NSAttributedString(string: placeholder, font: Font.regular(17.0), textColor: theme.chat.inputMediaPanel.stickersSearchPlaceholderColor)
+    }
+    
+    func updateQuery(_ query: String) {
+        self.searchBar.updateQuery(query)
     }
     
     func itemAt(point: CGPoint) -> (ASDisplayNode, Any)? {
@@ -121,15 +136,25 @@ final class PaneSearchContainerNode: ASDisplayNode {
         self.searchBar.deactivate(clear: true)
     }
     
-    func animateIn(from placeholder: PaneSearchBarPlaceholderNode, transition: ContainedViewLayoutTransition, completion: @escaping () -> Void) {
-        let placeholderFrame = placeholder.view.convert(placeholder.bounds, to: self.view)
-        let verticalOrigin = placeholderFrame.minY - 4.0
-        self.contentNode.animateIn(additivePosition: verticalOrigin, transition: transition)
+    func animateIn(from placeholder: PaneSearchBarPlaceholderNode?, anchorTop: CGPoint, anhorTopView: UIView, transition: ContainedViewLayoutTransition, completion: @escaping () -> Void) {
+        var verticalOrigin: CGFloat = anhorTopView.convert(anchorTop, to: self.view).y
+        if let placeholder = placeholder {
+            let placeholderFrame = placeholder.view.convert(placeholder.bounds, to: self.view)
+            verticalOrigin = placeholderFrame.minY - 4.0
+            self.contentNode.animateIn(additivePosition: verticalOrigin, transition: transition)
+        } else {
+            self.contentNode.animateIn(additivePosition: 0.0, transition: transition)
+        }
         
         switch transition {
             case let .animated(duration, curve):
                 self.backgroundNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: duration / 2.0)
-                self.searchBar.animateIn(from: placeholder, duration: duration, timingFunction: curve.timingFunction, completion: completion)
+                if let placeholder = placeholder {
+                    self.searchBar.animateIn(from: placeholder, duration: duration, timingFunction: curve.timingFunction, completion: completion)
+                } else {
+                    self.searchBar.alpha = 0.0
+                    transition.updateAlpha(node: self.searchBar, alpha: 1.0)
+                }
                 if let size = self.validLayout {
                     let initialBackgroundFrame = CGRect(origin: CGPoint(x: 0.0, y: verticalOrigin), size: CGSize(width: size.width, height: max(0.0, size.height - verticalOrigin)))
                     self.backgroundNode.layer.animateFrame(from: initialBackgroundFrame, to: self.backgroundNode.frame, duration: duration, timingFunction: curve.timingFunction)

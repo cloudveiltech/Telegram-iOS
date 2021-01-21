@@ -112,7 +112,7 @@ public final class AuthDataTransferSplashScreen: ViewController {
                 return
             }
             
-            DeviceAccess.authorizeAccess(to: .camera, presentationData: strongSelf.presentationData, present: { c, a in
+            DeviceAccess.authorizeAccess(to: .camera(.video), presentationData: strongSelf.presentationData, present: { c, a in
                 guard let strongSelf = self else {
                     return
                 }
@@ -274,7 +274,7 @@ private final class AuthDataTransferSplashScreenNode: ViewControllerTracingNode 
                     return nil
                 }
             }
-            textNode.tapAttributeAction = { attributes in
+            textNode.tapAttributeAction = { attributes, _ in
                 if let _ = attributes[NSAttributedString.Key(rawValue: "URL")] {
                     context.sharedContext.openExternalUrl(context: context, urlContext: .generic, url: "https://desktop.telegram.org", forceExternal: true, presentationData: context.sharedContext.currentPresentationData.with { $0 }, navigationController: nil, dismissInput: {})
                 }

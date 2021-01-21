@@ -358,7 +358,6 @@ private enum ThemeSettingsControllerEntry: ItemListNodeEntry {
                     }
                     if name == .night {
                         colors = colors.filter { $0 != .gray }
-                        defaultColor = PresentationThemeAccentColor(baseColor: .white)
                     } else {
                         colors = colors.filter { $0 != .white }
                     }
@@ -514,8 +513,8 @@ private func themeSettingsControllerEntries(presentationData: PresentationData, 
     }
     entries.append(.textSize(presentationData.theme, strings.Appearance_TextSizeSetting, textSizeValue))
     entries.append(.bubbleSettings(presentationData.theme, strings.Appearance_BubbleCornersSetting, ""))
-    //CloudVeil disabled
-    /*
+	//CloudVeil disabled
+	/*
     if !availableAppIcons.isEmpty {
         entries.append(.iconHeader(presentationData.theme, strings.Appearance_AppIcon.uppercased()))
         entries.append(.iconItem(presentationData.theme, presentationData.strings, availableAppIcons, currentAppIconName))

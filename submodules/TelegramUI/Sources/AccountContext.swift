@@ -10,11 +10,13 @@ import TelegramPresentationData
 import AccountContext
 import LiveLocationManager
 import TemporaryCachedPeerDataManager
-#if ENABLE_WALLET
-import WalletCore
-import WalletUI
-#endif
 import PhoneNumberFormat
+import TelegramUIPreferences
+import TelegramVoip
+import TelegramCallsUI
+import TelegramBaseController
+import AsyncDisplayKit
+import PresentationDataUtils
 
 private final class DeviceSpecificContactImportContext {
     let disposable = MetaDisposable()
@@ -108,10 +110,6 @@ public final class AccountContextImpl: AccountContext {
     }
     public let account: Account
     
-    #if ENABLE_WALLET
-    public let tonContext: StoredTonContext?
-    #endif
-    
     public let fetchManager: FetchManager
     private let prefetchManager: PrefetchManager?
     
@@ -138,47 +136,30 @@ public final class AccountContextImpl: AccountContext {
         return self._contentSettings.get()
     }
     
+    public var currentAppConfiguration: Atomic<AppConfiguration>
+    private let _appConfiguration = Promise<AppConfiguration>()
+    public var appConfiguration: Signal<AppConfiguration, NoError> {
+        return self._appConfiguration.get()
+    }
+    
     public var watchManager: WatchManager?
     
     private var storedPassword: (String, CFAbsoluteTime, SwiftSignalKit.Timer)?
     private var limitsConfigurationDisposable: Disposable?
     private var contentSettingsDisposable: Disposable?
+    private var appConfigurationDisposable: Disposable?
     
     private let deviceSpecificContactImportContexts: QueueLocalObject<DeviceSpecificContactImportContexts>
     private var managedAppSpecificContactsDisposable: Disposable?
     
-    #if ENABLE_WALLET
-    public var hasWallets: Signal<Bool, NoError> {
-        return WalletStorageInterfaceImpl(postbox: self.account.postbox).getWalletRecords()
-        |> map { records in
-            return !records.isEmpty
-        }
-    }
+    private var experimentalUISettingsDisposable: Disposable?
     
-    public var hasWalletAccess: Signal<Bool, NoError> {
-        return self.account.postbox.preferencesView(keys: [PreferencesKeys.appConfiguration])
-        |> map { view -> Bool in
-            guard let appConfiguration = view.values[PreferencesKeys.appConfiguration] as? AppConfiguration else {
-                return false
-            }
-            let walletConfiguration = WalletConfiguration.with(appConfiguration: appConfiguration)
-            if walletConfiguration.config != nil && walletConfiguration.blockchainName != nil {
-                return true
-            } else {
-                return false
-            }
-        }
-        |> distinctUntilChanged
-    }
-    #endif
+    public let cachedGroupCallContexts: AccountGroupCallContextCache
     
-    public init(sharedContext: SharedAccountContextImpl, account: Account, /*tonContext: StoredTonContext?, */limitsConfiguration: LimitsConfiguration, contentSettings: ContentSettings, temp: Bool = false)
+    public init(sharedContext: SharedAccountContextImpl, account: Account, /*tonContext: StoredTonContext?, */limitsConfiguration: LimitsConfiguration, contentSettings: ContentSettings, appConfiguration: AppConfiguration, temp: Bool = false)
     {
         self.sharedContextImpl = sharedContext
         self.account = account
-        #if ENABLE_WALLET
-        self.tonContext = tonContext
-        #endif
         
         self.downloadedMediaStoreManager = DownloadedMediaStoreManagerImpl(postbox: account.postbox, accountManager: sharedContext.accountManager)
         
@@ -199,10 +180,12 @@ public final class AccountContextImpl: AccountContext {
         }
         
         if let locationManager = self.sharedContextImpl.locationManager, sharedContext.applicationBindings.isMainApp && !temp {
-            self.peersNearbyManager = PeersNearbyManagerImpl(account: account, locationManager: locationManager)
+            self.peersNearbyManager = PeersNearbyManagerImpl(account: account, locationManager: locationManager, inForeground: sharedContext.applicationBindings.applicationInForeground)
         } else {
             self.peersNearbyManager = nil
         }
+        
+        self.cachedGroupCallContexts = AccountGroupCallContextCacheImpl()
         
         let updatedLimitsConfiguration = account.postbox.preferencesView(keys: [PreferencesKeys.limitsConfiguration])
         |> map { preferences -> LimitsConfiguration in
@@ -228,6 +211,16 @@ public final class AccountContextImpl: AccountContext {
             let _ = currentContentSettings.swap(value)
         })
         
+        let updatedAppConfiguration = getAppConfiguration(postbox: account.postbox)
+        self.currentAppConfiguration = Atomic(value: appConfiguration)
+        self._appConfiguration.set(.single(appConfiguration) |> then(updatedAppConfiguration))
+        
+        let currentAppConfiguration = self.currentAppConfiguration
+        self.appConfigurationDisposable = (self._appConfiguration.get()
+        |> deliverOnMainQueue).start(next: { value in
+            let _ = currentAppConfiguration.swap(value)
+        })
+        
         let queue = Queue()
         self.deviceSpecificContactImportContexts = QueueLocalObject(queue: queue, generate: {
             return DeviceSpecificContactImportContexts(queue: queue)
@@ -242,12 +235,18 @@ public final class AccountContextImpl: AccountContext {
                 }
             })
         }
+        
+        account.callSessionManager.updateVersions(versions: PresentationCallManagerImpl.voipVersions(includeExperimental: true, includeReference: false).map { version, supportsVideo -> CallSessionManagerImplementationVersion in
+            CallSessionManagerImplementationVersion(version: version, supportsVideo: supportsVideo)
+        })
     }
     
     deinit {
         self.limitsConfigurationDisposable?.dispose()
         self.managedAppSpecificContactsDisposable?.dispose()
         self.contentSettingsDisposable?.dispose()
+        self.appConfigurationDisposable?.dispose()
+        self.experimentalUISettingsDisposable?.dispose()
     }
     
     public func storeSecureIdPassword(password: String) {
@@ -270,4 +269,159 @@ public final class AccountContextImpl: AccountContext {
             return nil
         }
     }
+    
+    public func chatLocationInput(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>) -> ChatLocationInput {
+        switch location {
+        case let .peer(peerId):
+            return .peer(peerId)
+        case let .replyThread(data):
+            let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
+            return .external(data.messageId.peerId, makeMessageThreadId(data.messageId), context.state)
+        }
+    }
+    
+    public func chatLocationOutgoingReadState(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>) -> Signal<MessageId?, NoError> {
+        switch location {
+        case .peer:
+            return .single(nil)
+        case let .replyThread(data):
+            let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
+            return context.maxReadOutgoingMessageId
+        }
+    }
+    
+    public func applyMaxReadIndex(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>, messageIndex: MessageIndex) {
+        switch location {
+        case .peer:
+            let _ = applyMaxReadIndexInteractively(postbox: self.account.postbox, stateManager: self.account.stateManager, index: messageIndex).start()
+        case let .replyThread(data):
+            let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
+            context.applyMaxReadIndex(messageIndex: messageIndex)
+        }
+    }
+    
+    public func joinGroupCall(peerId: PeerId, activeCall: CachedChannelData.ActiveCall) {
+        let callResult = self.sharedContext.callManager?.joinGroupCall(context: self, peerId: peerId, initialCall: activeCall, endCurrentIfAny: false)
+        if let callResult = callResult, case let .alreadyInProgress(currentPeerId) = callResult {
+            if currentPeerId == peerId {
+                self.sharedContext.navigateToCurrentCall()
+            } else {
+                let _ = (self.account.postbox.transaction { transaction -> (Peer?, Peer?) in
+                    return (transaction.getPeer(peerId), currentPeerId.flatMap(transaction.getPeer))
+                }
+                |> deliverOnMainQueue).start(next: { [weak self] peer, current in
+                    guard let strongSelf = self else {
+                        return
+                    }
+                    guard let peer = peer else {
+                        return
+                    }
+                    let presentationData = strongSelf.sharedContext.currentPresentationData.with { $0 }
+                    if let current = current {
+                        if current is TelegramChannel || current is TelegramGroup {
+                            strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: presentationData.strings.Call_VoiceChatInProgressTitle, text: presentationData.strings.Call_VoiceChatInProgressMessage(current.compactDisplayTitle, peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
+                                guard let strongSelf = self else {
+                                    return
+                                }
+                                let _ = strongSelf.sharedContext.callManager?.joinGroupCall(context: strongSelf, peerId: peer.id, initialCall: activeCall, endCurrentIfAny: true)
+                            })]), on: .root)
+                        } else {
+                            strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: presentationData.strings.Call_CallInProgressTitle, text: presentationData.strings.Call_CallInProgressVoiceChatMessage(current.compactDisplayTitle, peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
+                                guard let strongSelf = self else {
+                                    return
+                                }
+                                let _ = strongSelf.sharedContext.callManager?.joinGroupCall(context: strongSelf, peerId: peer.id, initialCall: activeCall, endCurrentIfAny: true)
+                            })]), on: .root)
+                        }
+                    } else {
+                        strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: presentationData.strings.Call_CallInProgressTitle, text: presentationData.strings.Call_ExternalCallInProgressMessage, actions: [TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
+                        })]), on: .root)
+                    }
+                })
+            }
+        }
+    }
+    
+    public func requestCall(peerId: PeerId, isVideo: Bool, completion: @escaping () -> Void) {
+        guard let callResult = self.sharedContext.callManager?.requestCall(context: self, peerId: peerId, isVideo: isVideo, endCurrentIfAny: false) else {
+            return
+        }
+        
+        if case let .alreadyInProgress(currentPeerId) = callResult {
+            if currentPeerId == peerId {
+                completion()
+                self.sharedContext.navigateToCurrentCall()
+            } else {
+                let _ = (self.account.postbox.transaction { transaction -> (Peer?, Peer?) in
+                    return (transaction.getPeer(peerId), currentPeerId.flatMap(transaction.getPeer))
+                }
+                |> deliverOnMainQueue).start(next: { [weak self] peer, current in
+                    guard let strongSelf = self else {
+                        return
+                    }
+                    guard let peer = peer else {
+                        return
+                    }
+                    let presentationData = strongSelf.sharedContext.currentPresentationData.with { $0 }
+                    if let current = current {
+                        if current is TelegramChannel || current is TelegramGroup {
+                            strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: presentationData.strings.Call_VoiceChatInProgressTitle, text: presentationData.strings.Call_VoiceChatInProgressCallMessage(current.compactDisplayTitle, peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
+                                guard let strongSelf = self else {
+                                    return
+                                }
+                                let _ = strongSelf.sharedContext.callManager?.requestCall(context: strongSelf, peerId: peerId, isVideo: isVideo, endCurrentIfAny: true)
+                                completion()
+                            })]), on: .root)
+                        } else {
+                            strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: presentationData.strings.Call_CallInProgressTitle, text: presentationData.strings.Call_CallInProgressMessage(current.compactDisplayTitle, peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
+                                guard let strongSelf = self else {
+                                    return
+                                }
+                                let _ = strongSelf.sharedContext.callManager?.requestCall(context: strongSelf, peerId: peerId, isVideo: isVideo, endCurrentIfAny: true)
+                                completion()
+                            })]), on: .root)
+                        }
+                    } else if let strongSelf = self {
+                        strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: presentationData.strings.Call_CallInProgressTitle, text: presentationData.strings.Call_ExternalCallInProgressMessage, actions: [TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
+                        })]), on: .root)
+                    }
+                })
+            }
+        } else {
+            completion()
+        }
+    }
+}
+
+private func chatLocationContext(holder: Atomic<ChatLocationContextHolder?>, account: Account, data: ChatReplyThreadMessage) -> ReplyThreadHistoryContext {
+    let holder = holder.modify { current in
+        if let current = current as? ChatLocationContextHolderImpl {
+            return current
+        } else {
+            return ChatLocationContextHolderImpl(account: account, data: data)
+        }
+    } as! ChatLocationContextHolderImpl
+    return holder.context
+}
+
+private final class ChatLocationContextHolderImpl: ChatLocationContextHolder {
+    let context: ReplyThreadHistoryContext
+    
+    init(account: Account, data: ChatReplyThreadMessage) {
+        self.context = ReplyThreadHistoryContext(account: account, peerId: data.messageId.peerId, data: data)
+    }
+}
+
+func getAppConfiguration(transaction: Transaction) -> AppConfiguration {
+    let appConfiguration: AppConfiguration = transaction.getPreferencesEntry(key: PreferencesKeys.appConfiguration) as? AppConfiguration ?? AppConfiguration.defaultValue
+    return appConfiguration
+}
+
+func getAppConfiguration(postbox: Postbox) -> Signal<AppConfiguration, NoError> {
+    return postbox.preferencesView(keys: [PreferencesKeys.appConfiguration])
+    |> map { view -> AppConfiguration in
+        let appConfiguration: AppConfiguration = view.values[PreferencesKeys.appConfiguration] as? AppConfiguration ?? AppConfiguration.defaultValue
+        return appConfiguration
+    }
+    |> distinctUntilChanged
 }

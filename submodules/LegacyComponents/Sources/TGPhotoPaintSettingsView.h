@@ -6,8 +6,13 @@
 
 typedef enum
 {
-    TGPhotoPaintSettingsViewIconBrush,
-    TGPhotoPaintSettingsViewIconText,
+    TGPhotoPaintSettingsViewIconBrushPen,
+    TGPhotoPaintSettingsViewIconBrushMarker,
+    TGPhotoPaintSettingsViewIconBrushNeon,
+    TGPhotoPaintSettingsViewIconBrushArrow,
+    TGPhotoPaintSettingsViewIconTextRegular,
+    TGPhotoPaintSettingsViewIconTextOutlined,
+    TGPhotoPaintSettingsViewIconTextFramed,
     TGPhotoPaintSettingsViewIconMirror
 } TGPhotoPaintSettingsViewIcon;
 
@@ -17,7 +22,9 @@ typedef enum
 @property (nonatomic, copy) void (^changedColor)(TGPhotoPaintSettingsView *sender, TGPaintSwatch *swatch);
 @property (nonatomic, copy) void (^finishedColorPicking)(TGPhotoPaintSettingsView *sender, TGPaintSwatch *swatch);
 
+@property (nonatomic, copy) void (^eyedropperPressed)(void);
 @property (nonatomic, copy) void (^settingsPressed)(void);
+
 @property (nonatomic, readonly) UIButton *settingsButton;
 
 @property (nonatomic, strong) TGPaintSwatch *swatch;
@@ -27,10 +34,6 @@ typedef enum
 
 - (void)setIcon:(TGPhotoPaintSettingsViewIcon)icon animated:(bool)animated;
 - (void)setHighlighted:(bool)highlighted;
-
-+ (UIImage *)landscapeLeftBackgroundImage;
-+ (UIImage *)landscapeRightBackgroundImage;
-+ (UIImage *)portraitBackgroundImage;
 
 @end
 

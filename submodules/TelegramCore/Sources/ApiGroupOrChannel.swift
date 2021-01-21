@@ -7,8 +7,7 @@ import SyncCore
 func imageRepresentationsForApiChatPhoto(_ photo: Api.ChatPhoto) -> [TelegramMediaImageRepresentation] {
     var representations: [TelegramMediaImageRepresentation] = []
     switch photo {
-        case let .chatPhoto(photoSmall, photoBig, dcId):
-            
+        case let .chatPhoto(flags, photoSmall, photoBig, dcId):
             let smallResource: TelegramMediaResource
             let fullSizeResource: TelegramMediaResource
             switch photoSmall {
@@ -19,8 +18,8 @@ func imageRepresentationsForApiChatPhoto(_ photo: Api.ChatPhoto) -> [TelegramMed
                 case let .fileLocationToBeDeprecated(volumeId, localId):
                     fullSizeResource = CloudPeerPhotoSizeMediaResource(datacenterId: dcId, sizeSpec: .fullSize, volumeId: volumeId, localId: localId)
             }
-            representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 80, height: 80), resource: smallResource))
-            representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 640, height: 640), resource: fullSizeResource))
+            representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 80, height: 80), resource: smallResource, progressiveSizes: []))
+            representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 640, height: 640), resource: fullSizeResource, progressiveSizes: []))
         case .chatPhotoEmpty:
             break
     }
@@ -56,7 +55,7 @@ func parseTelegramGroupOrChannel(chat: Api.Chat) -> Peer? {
     case let .chatForbidden(id, title):
         return TelegramGroup(id: PeerId(namespace: Namespaces.Peer.CloudGroup, id: id), title: title, photo: [], participantCount: 0, role: .member, membership: .Removed, flags: [], defaultBannedRights: nil, migrationReference: nil, creationDate: 0, version: 0)
     case let .channel(flags, id, accessHash, title, username, photo, date, version, restrictionReason, adminRights, bannedRights, defaultBannedRights, _):
-        let isMin = (flags & (1 << 20)) != 0
+        let isMin = (flags & (1 << 12)) != 0
         
         let participationStatus: TelegramChannelParticipationStatus
         if (flags & Int32(1 << 1)) != 0 {
@@ -98,6 +97,12 @@ func parseTelegramGroupOrChannel(chat: Api.Chat) -> Peer? {
         if (flags & Int32(1 << 21)) != 0 {
             channelFlags.insert(.hasGeo)
         }
+        if (flags & Int32(1 << 23)) != 0 {
+            channelFlags.insert(.hasVoiceChat)
+        }
+        if (flags & Int32(1 << 24)) != 0 {
+            channelFlags.insert(.hasActiveVoiceChat)
+        }
         
         let restrictionInfo: PeerAccessRestrictionInfo?
         if let restrictionReason = restrictionReason {
@@ -131,7 +136,7 @@ func mergeGroupOrChannel(lhs: Peer?, rhs: Api.Chat) -> Peer? {
     switch rhs {
         case .chat, .chatEmpty, .chatForbidden, .channelForbidden:
             return parseTelegramGroupOrChannel(chat: rhs)
-        case let .channel(flags, _, accessHash, title, username, photo, _, _, _, _, _, defaultBannedRights, _/*feed*//*, feedId*/):
+        case let .channel(flags, _, accessHash, title, username, photo, _, _, _, _, _, defaultBannedRights, _):
             let isMin = (flags & (1 << 12)) != 0
             if accessHash != nil && !isMin {
                 return parseTelegramGroupOrChannel(chat: rhs)
@@ -142,6 +147,16 @@ func mergeGroupOrChannel(lhs: Peer?, rhs: Api.Chat) -> Peer? {
                 } else {
                     let _ = channelFlags.remove(.isVerified)
                 }
+                if (flags & Int32(1 << 23)) != 0 {
+                    channelFlags.insert(.hasVoiceChat)
+                } else {
+                    let _ = channelFlags.remove(.hasVoiceChat)
+                }
+                if (flags & Int32(1 << 24)) != 0 {
+                    channelFlags.insert(.hasActiveVoiceChat)
+                } else {
+                    let _ = channelFlags.remove(.hasActiveVoiceChat)
+                }
                 var info = lhs.info
                 switch info {
                 case .broadcast:
@@ -150,9 +165,55 @@ func mergeGroupOrChannel(lhs: Peer?, rhs: Api.Chat) -> Peer? {
                     let infoFlags = TelegramChannelGroupFlags()
                     info = .group(TelegramChannelGroupInfo(flags: infoFlags))
                 }
+                
                 return TelegramChannel(id: lhs.id, accessHash: lhs.accessHash, title: title, username: username, photo: imageRepresentationsForApiChatPhoto(photo), creationDate: lhs.creationDate, version: lhs.version, participationStatus: lhs.participationStatus, info: info, flags: channelFlags, restrictionInfo: lhs.restrictionInfo, adminRights: lhs.adminRights, bannedRights: lhs.bannedRights, defaultBannedRights: defaultBannedRights.flatMap(TelegramChatBannedRights.init))
             } else {
-                return nil
+                return parseTelegramGroupOrChannel(chat: rhs)
             }
     }
 }
+
+func mergeChannel(lhs: TelegramChannel?, rhs: TelegramChannel) -> TelegramChannel {
+    guard let lhs = lhs else {
+        return rhs
+    }
+    
+    if case .personal? = rhs.accessHash {
+        return rhs
+    }
+    
+    var channelFlags = lhs.flags
+    if rhs.flags.contains(.isVerified) {
+        channelFlags.insert(.isVerified)
+    } else {
+        let _ = channelFlags.remove(.isVerified)
+    }
+    if rhs.flags.contains(.hasVoiceChat) {
+        channelFlags.insert(.hasVoiceChat)
+    } else {
+        let _ = channelFlags.remove(.hasVoiceChat)
+    }
+    if rhs.flags.contains(.hasActiveVoiceChat) {
+        channelFlags.insert(.hasActiveVoiceChat)
+    } else {
+        let _ = channelFlags.remove(.hasActiveVoiceChat)
+    }
+    var info = lhs.info
+    switch info {
+    case .broadcast:
+        break
+    case .group:
+        let infoFlags = TelegramChannelGroupFlags()
+        info = .group(TelegramChannelGroupInfo(flags: infoFlags))
+    }
+    
+    let accessHash: TelegramPeerAccessHash?
+    if let rhsAccessHashValue = lhs.accessHash, case .personal = rhsAccessHashValue {
+        accessHash = rhsAccessHashValue
+    } else {
+        accessHash = rhs.accessHash ?? lhs.accessHash
+    }
+    
+    return TelegramChannel(id: lhs.id, accessHash: accessHash, title: rhs.title, username: rhs.username, photo: rhs.photo, creationDate: rhs.creationDate, version: rhs.version, participationStatus: lhs.participationStatus, info: info, flags: channelFlags, restrictionInfo: rhs.restrictionInfo, adminRights: rhs.adminRights, bannedRights: rhs.bannedRights, defaultBannedRights: rhs.defaultBannedRights)
+}
+

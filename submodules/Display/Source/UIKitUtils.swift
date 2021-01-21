@@ -19,8 +19,8 @@ public func springAnimationValueAt(_ animation: CABasicAnimation, _ t: CGFloat) 
     return springAnimationValueAtImpl(animation, t)
 }
 
-public func makeCustomZoomBlurEffect() -> UIBlurEffect? {
-    return makeCustomZoomBlurEffectImpl()
+public func makeCustomZoomBlurEffect(isLight: Bool) -> UIBlurEffect? {
+    return makeCustomZoomBlurEffectImpl(isLight)
 }
 
 public func applySmoothRoundedCorners(_ layer: CALayer) {
@@ -201,16 +201,66 @@ public extension UIColor {
         return self
     }
     
+    func blitOver(_ other: UIColor, alpha: CGFloat) -> UIColor {
+        let alpha = min(1.0, max(0.0, alpha))
+        let oneMinusAlpha = 1.0 - alpha
+        
+        var r1: CGFloat = 0.0
+        var r2: CGFloat = 0.0
+        var g1: CGFloat = 0.0
+        var g2: CGFloat = 0.0
+        var b1: CGFloat = 0.0
+        var b2: CGFloat = 0.0
+        var a1: CGFloat = 0.0
+        var a2: CGFloat = 0.0
+        if self.getRed(&r1, green: &g1, blue: &b1, alpha: &a1) &&
+            other.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        {
+            let resultingAlpha = max(0.0, min(1.0, alpha * a1))
+            let oneMinusResultingAlpha = 1.0 - resultingAlpha
+            
+            let r = r1 * resultingAlpha + r2 * oneMinusResultingAlpha
+            let g = g1 * resultingAlpha + g2 * oneMinusResultingAlpha
+            let b = b1 * resultingAlpha + b2 * oneMinusResultingAlpha
+            let a: CGFloat = 1.0
+            return UIColor(red: r, green: g, blue: b, alpha: a)
+        }
+        return self
+    }
+    
+    func withMultipliedAlpha(_ alpha: CGFloat) -> UIColor {
+        var r1: CGFloat = 0.0
+        var g1: CGFloat = 0.0
+        var b1: CGFloat = 0.0
+        var a1: CGFloat = 0.0
+        if self.getRed(&r1, green: &g1, blue: &b1, alpha: &a1) {
+            return UIColor(red: r1, green: g1, blue: b1, alpha: max(0.0, min(1.0, a1 * alpha)))
+        }
+        return self
+    }
+    
     func interpolateTo(_ color: UIColor, fraction: CGFloat) -> UIColor? {
         let f = min(max(0, fraction), 1)
         
-        guard let c1 = self.cgColor.components, let c2 = color.cgColor.components else { return nil }
-        let r: CGFloat = CGFloat(c1[0] + (c2[0] - c1[0]) * f)
-        let g: CGFloat = CGFloat(c1[1] + (c2[1] - c1[1]) * f)
-        let b: CGFloat = CGFloat(c1[2] + (c2[2] - c1[2]) * f)
-        let a: CGFloat = CGFloat(c1[3] + (c2[3] - c1[3]) * f)
-        
-        return UIColor(red: r, green: g, blue: b, alpha: a)
+        var r1: CGFloat = 0.0
+        var r2: CGFloat = 0.0
+        var g1: CGFloat = 0.0
+        var g2: CGFloat = 0.0
+        var b1: CGFloat = 0.0
+        var b2: CGFloat = 0.0
+        var a1: CGFloat = 0.0
+        var a2: CGFloat = 0.0
+        if self.getRed(&r1, green: &g1, blue: &b1, alpha: &a1) &&
+            color.getRed(&r2, green: &g2, blue: &b2, alpha: &a2) {
+            let r: CGFloat = CGFloat(r1 + (r2 - r1) * f)
+            let g: CGFloat = CGFloat(g1 + (g2 - g1) * f)
+            let b: CGFloat = CGFloat(b1 + (b2 - b1) * f)
+            let a: CGFloat = CGFloat(a1 + (a2 - a1) * f)
+            
+            return UIColor(red: r, green: g, blue: b, alpha: a)
+        } else {
+            return self
+        }
     }
     
     private var colorComponents: (r: Int32, g: Int32, b: Int32) {
@@ -339,15 +389,21 @@ private func makeSubtreeSnapshot(layer: CALayer, keepTransform: Bool = false) ->
     view.layer.contentsGravity = layer.contentsGravity
     view.layer.masksToBounds = layer.masksToBounds
     if let mask = layer.mask {
-        let maskLayer = CALayer()
-        maskLayer.contents = mask.contents
-        maskLayer.contentsRect = mask.contentsRect
-        maskLayer.contentsScale = mask.contentsScale
-        maskLayer.contentsCenter = mask.contentsCenter
-        maskLayer.contentsGravity = mask.contentsGravity
-        maskLayer.frame = mask.frame
-        maskLayer.bounds = mask.bounds
-        view.layer.mask = maskLayer
+        if let shapeMask = mask as? CAShapeLayer {
+            let maskLayer = CAShapeLayer()
+            maskLayer.path = shapeMask.path
+            view.layer.mask = maskLayer
+        } else {
+            let maskLayer = CALayer()
+            maskLayer.contents = mask.contents
+            maskLayer.contentsRect = mask.contentsRect
+            maskLayer.contentsScale = mask.contentsScale
+            maskLayer.contentsCenter = mask.contentsCenter
+            maskLayer.contentsGravity = mask.contentsGravity
+            maskLayer.frame = mask.frame
+            maskLayer.bounds = mask.bounds
+            view.layer.mask = maskLayer
+        }
     }
     view.layer.cornerRadius = layer.cornerRadius
     view.layer.backgroundColor = layer.backgroundColor

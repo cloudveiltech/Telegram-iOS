@@ -7,6 +7,7 @@
 
 @synthesize selectionContext;
 @synthesize editingContext;
+@synthesize stickersContext;
 
 - (NSString *)uniqueId
 {
@@ -25,7 +26,7 @@
 
 - (TGPhotoEditorTab)toolbarTabs
 {
-    return TGPhotoEditorCropTab | TGPhotoEditorToolsTab | TGPhotoEditorPaintTab | TGPhotoEditorTimerTab;
+    return TGPhotoEditorCropTab | TGPhotoEditorToolsTab | TGPhotoEditorPaintTab;
 }
 
 - (Class)viewClass

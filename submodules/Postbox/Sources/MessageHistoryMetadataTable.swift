@@ -12,6 +12,8 @@ private enum MetadataPrefix: Int8 {
     case PeerHistoryInitialized = 9
     case ShouldReindexUnreadCountsState = 10
     case TotalUnreadCountStates = 11
+    case PeerHistoryTagInitialized = 12
+    case PeerHistoryThreadHoleIndexInitialized = 13
 }
 
 public struct ChatListTotalUnreadCounters: PostboxCoding, Equatable {
@@ -44,6 +46,7 @@ final class MessageHistoryMetadataTable: Table {
     }
     
     let sharedPeerHistoryInitializedKey = ValueBoxKey(length: 8 + 1)
+    let sharedPeerThreadHoleIndexInitializedKey = ValueBoxKey(length: 8 + 1 + 8)
     let sharedGroupFeedIndexInitializedKey = ValueBoxKey(length: 4 + 1)
     let sharedChatListGroupHistoryInitializedKey = ValueBoxKey(length: 4 + 1)
     let sharedPeerNextMessageIdByNamespaceKey = ValueBoxKey(length: 8 + 1 + 4)
@@ -51,6 +54,7 @@ final class MessageHistoryMetadataTable: Table {
     
     private var initializedChatList = Set<InitializedChatListKey>()
     private var initializedHistoryPeerIds = Set<PeerId>()
+    private var initializedHistoryPeerIdTags: [PeerId: Set<MessageTags>] = [:]
     private var initializedGroupFeedIndexIds = Set<PeerGroupId>()
     
     private var peerNextMessageIdByNamespace: [PeerId: [MessageId.Namespace: MessageId.Id]] = [:]
@@ -72,6 +76,21 @@ final class MessageHistoryMetadataTable: Table {
         self.sharedPeerHistoryInitializedKey.setInt64(0, value: id.toInt64())
         self.sharedPeerHistoryInitializedKey.setInt8(8, value: MetadataPrefix.PeerHistoryInitialized.rawValue)
         return self.sharedPeerHistoryInitializedKey
+    }
+    
+    private func peerThreadHoleIndexInitializedKey(peerId: PeerId, threadId: Int64) -> ValueBoxKey {
+        self.sharedPeerThreadHoleIndexInitializedKey.setInt64(0, value: peerId.toInt64())
+        self.sharedPeerThreadHoleIndexInitializedKey.setInt8(8, value: MetadataPrefix.PeerHistoryThreadHoleIndexInitialized.rawValue)
+        self.sharedPeerThreadHoleIndexInitializedKey.setInt64(0, value: threadId)
+        return self.sharedPeerThreadHoleIndexInitializedKey
+    }
+    
+    private func peerHistoryInitializedTagKey(id: PeerId, tag: UInt32) -> ValueBoxKey {
+        let key = ValueBoxKey(length: 8 + 1 + 4)
+        key.setInt64(0, value: id.toInt64())
+        key.setInt8(8, value: MetadataPrefix.PeerHistoryTagInitialized.rawValue)
+        key.setUInt32(8 + 1, value: tag)
+        return key
     }
     
     private func groupFeedIndexInitializedKey(_ id: PeerGroupId) -> ValueBoxKey {
@@ -194,6 +213,43 @@ final class MessageHistoryMetadataTable: Table {
         } else {
             if self.valueBox.exists(self.table, key: self.peerHistoryInitializedKey(peerId)) {
                 self.initializedHistoryPeerIds.insert(peerId)
+                return true
+            } else {
+                return false
+            }
+        }
+    }
+    
+    func isThreadHoleIndexInitialized(peerId: PeerId, threadId: Int64) -> Bool {
+        if self.valueBox.exists(self.table, key: self.peerThreadHoleIndexInitializedKey(peerId: peerId, threadId: threadId)) {
+            return true
+        } else {
+            return false
+        }
+    }
+    
+    func setIsThreadHoleIndexInitialized(peerId: PeerId, threadId: Int64) {
+        self.valueBox.set(self.table, key: self.peerThreadHoleIndexInitializedKey(peerId: peerId, threadId: threadId), value: MemoryBuffer())
+    }
+    
+    func setPeerTagInitialized(peerId: PeerId, tag: MessageTags) {
+        if self.initializedHistoryPeerIdTags[peerId] == nil {
+            self.initializedHistoryPeerIdTags[peerId] = Set()
+        }
+        initializedHistoryPeerIdTags[peerId]!.insert(tag)
+        self.sharedBuffer.reset()
+        self.valueBox.set(self.table, key: self.peerHistoryInitializedTagKey(id: peerId, tag: tag.rawValue), value: self.sharedBuffer)
+    }
+    
+    func isPeerTagInitialized(peerId: PeerId, tag: MessageTags) -> Bool {
+        if let currentTags = self.initializedHistoryPeerIdTags[peerId], currentTags.contains(tag) {
+            return true
+        } else {
+            if self.valueBox.exists(self.table, key: self.peerHistoryInitializedTagKey(id: peerId, tag: tag.rawValue)) {
+                if self.initializedHistoryPeerIdTags[peerId] == nil {
+                    self.initializedHistoryPeerIdTags[peerId] = Set()
+                }
+                initializedHistoryPeerIdTags[peerId]!.insert(tag)
                 return true
             } else {
                 return false

@@ -13,12 +13,12 @@ import CloudVeilSecurityManager
 
 //CloudVeil start
 public func loadBlockedImage() -> Signal<Tuple3<Data?, Data?, Bool>, NoError> {
-    return Signal { subscriber in
-        subscriber.putNext(Tuple3(MainController.shared.blockedImageData, MainController.shared.blockedImageData, true))
-        return ActionDisposable {
-            
-        }
-    }
+	return Signal { subscriber in
+		subscriber.putNext(Tuple3(MainController.shared.blockedImageData, MainController.shared.blockedImageData, true))
+		return ActionDisposable {
+			
+		}
+	}
 }
 //CloudVeil end
 
@@ -346,12 +346,18 @@ public func chatMessageSticker(account: Account, file: TelegramMediaFile, small:
     return chatMessageSticker(postbox: account.postbox, file: file, small: small, fetched: fetched, onlyFullSize: onlyFullSize, thumbnail: thumbnail, synchronousLoad: synchronousLoad)
 }
 
-public func chatMessageStickerPackThumbnail(postbox: Postbox, resource: MediaResource, animated: Bool = false, synchronousLoad: Bool = false) -> Signal<(TransformImageArguments) -> DrawingContext?, NoError> {
+public func chatMessageStickerPackThumbnail(postbox: Postbox, resource: MediaResource, animated: Bool = false, synchronousLoad: Bool = false, nilIfEmpty: Bool = false) -> Signal<(TransformImageArguments) -> DrawingContext?, NoError> {
     let signal = chatMessageStickerPackThumbnailData(postbox: postbox, resource: resource, animated: animated, synchronousLoad: synchronousLoad)
     
     return signal
     |> map { fullSizeData in
         return { arguments in
+            if nilIfEmpty {
+                if fullSizeData == nil {
+                    return nil
+                }
+            }
+            
             let context = DrawingContext(size: arguments.drawingSize, scale: arguments.scale ?? 0.0, clear: arguments.emptyColor == nil)
             
             let drawingRect = arguments.drawingRect
@@ -390,27 +396,31 @@ public func chatMessageStickerPackThumbnail(postbox: Postbox, resource: MediaRes
 }
 
 public func chatMessageSticker(postbox: Postbox, file: TelegramMediaFile, small: Bool, fetched: Bool = false, onlyFullSize: Bool = false, thumbnail: Bool = false, synchronousLoad: Bool = false) -> Signal<(TransformImageArguments) -> DrawingContext?, NoError> {
-    var signal: Signal<Tuple3<Data?, Data?, Bool>, NoError>
-    
-    //CloudVeil start
-    if MainController.shared.disableStickers {
-        signal = loadBlockedImage()
-    } else if thumbnail {
-        signal = chatMessageStickerThumbnailData(postbox: postbox, file: file, synchronousLoad: synchronousLoad)
-        |> map { data -> Tuple3<Data?, Data?, Bool>in
-            return Tuple3(data, nil, false)
-        }
-    } else {
-        signal = chatMessageStickerDatas(postbox: postbox, file: file, small: small, fetched: fetched, onlyFullSize: onlyFullSize, synchronousLoad: synchronousLoad)
-    }
-    //CloudVeil end
-  
+	let signal: Signal<Tuple3<Data?, Data?, Bool>, NoError>
+	
+	//CloudVeil start
+	if MainController.shared.disableStickers {
+		signal = loadBlockedImage()
+	} else if thumbnail {
+		signal = chatMessageStickerThumbnailData(postbox: postbox, file: file, synchronousLoad: synchronousLoad)
+			|> map { data -> Tuple3<Data?, Data?, Bool>in
+				return Tuple3(data, nil, false)
+			}
+	} else {
+		signal = chatMessageStickerDatas(postbox: postbox, file: file, small: small, fetched: fetched, onlyFullSize: onlyFullSize, synchronousLoad: synchronousLoad)
+	}
+	//CloudVeil end
+	
     return signal |> map { value in
         let thumbnailData = value._0
         let fullSizeData = value._1
         let fullSizeComplete = value._2
         return { arguments in
             if thumbnailData == nil && fullSizeData == nil {
+                return nil
+            }
+            
+            if file.immediateThumbnailData != nil && fullSizeData == nil {
                 return nil
             }
             
@@ -423,13 +433,13 @@ public func chatMessageSticker(postbox: Postbox, file: TelegramMediaFile, small:
             
             var fullSizeImage: (UIImage, UIImage)?
             if let fullSizeData = fullSizeData, fullSizeComplete {
-                if let image = imageFromAJpeg(data: fullSizeData) {
-                    fullSizeImage = image
-                //CloudVeil start
-                } else if MainController.shared.disableStickers {
-                    fullSizeImage = (UIImage(data: fullSizeData), UIImage(data: fullSizeData)) as! (UIImage, UIImage)
-                }
-                //CloudVeil end
+				if let image = imageFromAJpeg(data: fullSizeData) {
+					fullSizeImage = image
+					//CloudVeil start
+				} else if MainController.shared.disableStickers {
+					fullSizeImage = (UIImage(data: fullSizeData), UIImage(data: fullSizeData)) as! (UIImage, UIImage)
+				}
+				//CloudVeil end
             }
             
             var thumbnailImage: (UIImage, UIImage)?
@@ -495,14 +505,19 @@ public func chatMessageSticker(postbox: Postbox, file: TelegramMediaFile, small:
 
 public func chatMessageAnimatedSticker(postbox: Postbox, file: TelegramMediaFile, small: Bool, size: CGSize, fitzModifier: EmojiFitzModifier? = nil, fetched: Bool = false, onlyFullSize: Bool = false, thumbnail: Bool = false, synchronousLoad: Bool = false) -> Signal<(TransformImageArguments) -> DrawingContext?, NoError> {
     let signal: Signal<Tuple3<Data?, Data?, Bool>, NoError>
-    if thumbnail {
-        signal = chatMessageStickerThumbnailData(postbox: postbox, file: file, synchronousLoad: synchronousLoad)
-        |> map { data -> Tuple3<Data?, Data?, Bool> in
-            return Tuple(data, nil, false)
-        }
-    } else {
-        signal = chatMessageAnimatedStickerDatas(postbox: postbox, file: file, small: small, size: size, fitzModifier: fitzModifier, fetched: fetched, onlyFullSize: onlyFullSize, synchronousLoad: synchronousLoad)
-    }
+	//CloudVeil start
+	if MainController.shared.disableStickers {
+		signal = loadBlockedImage()
+	} else if thumbnail {
+		signal = chatMessageStickerThumbnailData(postbox: postbox, file: file, synchronousLoad: synchronousLoad)
+			|> map { data -> Tuple3<Data?, Data?, Bool>in
+				return Tuple3(data, nil, false)
+			}
+	} else {
+		signal = chatMessageAnimatedStickerDatas(postbox: postbox, file: file, small: small, size: size, fitzModifier: fitzModifier, fetched: fetched, onlyFullSize: onlyFullSize, synchronousLoad: synchronousLoad)
+	}
+	//CloudVeil end
+   
     return signal
     |> map { value in
         let thumbnailData = value._0
@@ -522,8 +537,12 @@ public func chatMessageAnimatedSticker(postbox: Postbox, file: TelegramMediaFile
             var fullSizeImage: (UIImage, UIImage)?
             if let fullSizeData = fullSizeData, fullSizeComplete {
                 if let image = imageFromAJpeg(data: fullSizeData) {
-                    fullSizeImage = image
-                }
+					fullSizeImage = image
+				//CloudVeil start
+				} else if MainController.shared.disableStickers {
+					fullSizeImage = (UIImage(data: fullSizeData), UIImage(data: fullSizeData)) as! (UIImage, UIImage)
+				}
+				//CloudVeil end
             }
             
             var thumbnailImage: (UIImage, UIImage)?

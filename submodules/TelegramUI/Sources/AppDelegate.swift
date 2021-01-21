@@ -143,6 +143,14 @@ protocol SupportedStartCallIntent {
 @available(iOS 10.0, *)
 extension INStartAudioCallIntent: SupportedStartCallIntent {}
 
+protocol SupportedStartVideoCallIntent {
+    @available(iOS 10.0, *)
+    var contacts: [INPerson]? { get }
+}
+
+@available(iOS 10.0, *)
+extension INStartVideoCallIntent: SupportedStartVideoCallIntent {}
+
 private enum QueuedWakeup: Int32 {
     case call
     case backgroundLocation
@@ -173,6 +181,15 @@ final class SharedApplicationContext {
     
     private let isInForegroundPromise = ValuePromise<Bool>(false, ignoreRepeated: true)
     private var isInForegroundValue = false
+	//CloudVeil start
+	static var shared: AppDelegate?
+	static var isAppInForeground: Bool {
+		get {
+			return shared?.isInForegroundValue ?? false
+		}
+	}
+	//CloudVeil end
+	
     private let isActivePromise = ValuePromise<Bool>(false, ignoreRepeated: true)
     private var isActiveValue = false
     let hasActiveAudioSession = Promise<Bool>(false)
@@ -234,29 +251,15 @@ final class SharedApplicationContext {
     private let deviceToken = Promise<Data?>(nil)
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        // Create a Sentry client and start crash handler
-        SentrySDK.start(options: [
-            "dsn": "https://ccd3de565659417a9274a5447a1321fc:b2f2c494a1614b91b0817096270e3d91@sentry.cloudveil.org/18",
-            "debug": false // Helpful to see what's going on
-        ])
-        
-        self.badgeDisposable.set((self.context.get()
-        |> mapToSignal { context -> Signal<Int32, NoError> in
-            if let context = context {
-                return context.applicationBadge
-            } else {
-                return .single(0)
-            }
-        }
-        |> deliverOnMainQueue).start(next: { count in
-            //CloudVeil start
-            AppDelegate.setAppBadge(Int(count))
-            //CloudVeil end
-            UIApplication.shared.applicationIconBadgeNumber = Int(count)
-        }))
-        
-
-        precondition(!testIsLaunched)
+		//CloudVeil start
+		// Create a Sentry client and start crash handler
+		AppDelegate.shared = self
+		SentrySDK.start(options: [
+			"dsn": "https://ccd3de565659417a9274a5447a1321fc:b2f2c494a1614b91b0817096270e3d91@sentry.cloudveil.org/18",
+			"debug": false // Helpful to see what's going on
+		])
+		//CloudVeil end
+		precondition(!testIsLaunched)
         testIsLaunched = true
         
         let _ = voipTokenPromise.get().start(next: { token in
@@ -417,7 +420,9 @@ final class SharedApplicationContext {
             }
         }
         
-        let networkArguments = NetworkInitializationArguments(apiId: apiId, apiHash: apiHash, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: PresentationCallManagerImpl.voipMaxLayer, voipVersions: PresentationCallManagerImpl.voipVersions, appData: self.deviceToken.get()
+        let networkArguments = NetworkInitializationArguments(apiId: apiId, apiHash: apiHash, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: PresentationCallManagerImpl.voipMaxLayer, voipVersions: PresentationCallManagerImpl.voipVersions(includeExperimental: true, includeReference: false).map { version, supportsVideo -> CallSessionManagerImplementationVersion in
+            CallSessionManagerImplementationVersion(version: version, supportsVideo: supportsVideo)
+        }, appData: self.deviceToken.get()
         |> map { token in
             let data = buildConfig.bundleData(withAppToken: token, signatureDict: signatureDict)
             if let data = data, let jsonString = String(data: data, encoding: .utf8) {
@@ -458,7 +463,7 @@ final class SharedApplicationContext {
         
         let logsPath = rootPath + "/logs"
         let _ = try? FileManager.default.createDirectory(atPath: logsPath, withIntermediateDirectories: true, attributes: nil)
-        Logger.setSharedLogger(Logger(basePath: logsPath))
+        Logger.setSharedLogger(Logger(rootPath: rootPath, basePath: logsPath))
         
         if let contents = try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: rootPath + "/accounts-metadata"), includingPropertiesForKeys: nil, options: [.skipsSubdirectoryDescendants]) {
             for url in contents {
@@ -1006,7 +1011,7 @@ final class SharedApplicationContext {
                 }
                 return true
             })
-            |> mapToSignal { account -> Signal<(Account, LimitsConfiguration, CallListSettings, ContentSettings)?, NoError> in
+            |> mapToSignal { account -> Signal<(Account, LimitsConfiguration, CallListSettings, ContentSettings, AppConfiguration)?, NoError> in
                 return sharedApplicationContext.sharedContext.accountManager.transaction { transaction -> CallListSettings? in
                     return transaction.getSharedData(ApplicationSpecificSharedDataKeys.callListSettings) as? CallListSettings
                 }
@@ -1019,12 +1024,13 @@ final class SharedApplicationContext {
                     }
                     return result
                 }
-                |> mapToSignal { callListSettings -> Signal<(Account, LimitsConfiguration, CallListSettings, ContentSettings)?, NoError> in
+                |> mapToSignal { callListSettings -> Signal<(Account, LimitsConfiguration, CallListSettings, ContentSettings, AppConfiguration)?, NoError> in
                     if let account = account {
-                        return account.postbox.transaction { transaction -> (Account, LimitsConfiguration, CallListSettings, ContentSettings)? in
+                        return account.postbox.transaction { transaction -> (Account, LimitsConfiguration, CallListSettings, ContentSettings, AppConfiguration)? in
                             let limitsConfiguration = transaction.getPreferencesEntry(key: PreferencesKeys.limitsConfiguration) as? LimitsConfiguration ?? LimitsConfiguration.defaultValue
                             let contentSettings = getContentSettings(transaction: transaction)
-                            return (account, limitsConfiguration, callListSettings ?? CallListSettings.defaultSettings, contentSettings)
+                            let appConfiguration = getAppConfiguration(transaction: transaction)
+                            return (account, limitsConfiguration, callListSettings ?? CallListSettings.defaultSettings, contentSettings, appConfiguration)
                         }
                     } else {
                         return .single(nil)
@@ -1033,11 +1039,8 @@ final class SharedApplicationContext {
             }
             |> deliverOnMainQueue
             |> map { accountAndSettings -> AuthorizedApplicationContext? in
-                return accountAndSettings.flatMap { account, limitsConfiguration, callListSettings, contentSettings in
-                    #if ENABLE_WALLET
-                    let tonContext = StoredTonContext(basePath: account.basePath, postbox: account.postbox, network: account.network, keychain: tonKeychain)
-                    #endif
-                    let context = AccountContextImpl(sharedContext: sharedApplicationContext.sharedContext, account: account/*, tonContext: tonContext*/, limitsConfiguration: limitsConfiguration, contentSettings: contentSettings)
+                return accountAndSettings.flatMap { account, limitsConfiguration, callListSettings, contentSettings, appConfiguration in
+                    let context = AccountContextImpl(sharedContext: sharedApplicationContext.sharedContext, account: account, limitsConfiguration: limitsConfiguration, contentSettings: contentSettings, appConfiguration: appConfiguration)
                     return AuthorizedApplicationContext(sharedApplicationContext: sharedApplicationContext, mainWindow: self.mainWindow, watchManagerArguments: watchManagerArgumentsPromise.get(), context: context, accountManager: sharedApplicationContext.sharedContext.accountManager, showCallsTab: callListSettings.showTab, reinitializedNotificationSettings: {
                         let _ = (self.context.get()
                         |> take(1)
@@ -1189,8 +1192,6 @@ final class SharedApplicationContext {
                     self.registerForNotifications(context: context.context, authorize: authorizeNotifications)
                     
                     self.resetIntentsIfNeeded(context: context.context)
-                    
-                    let _ = storeCurrentCallListTabDefaultValue(accountManager: context.context.sharedContext.accountManager).start()
                 }))
             } else {
                 self.mainWindow.viewController = nil
@@ -1263,11 +1264,7 @@ final class SharedApplicationContext {
             |> map { loggedOutAccountPeerIds -> (AccountManager, Set<PeerId>) in
                 return (sharedContext.sharedContext.accountManager, loggedOutAccountPeerIds)
             }
-        }).start(next: { [weak self] accountManager, loggedOutAccountPeerIds in
-            guard let strongSelf = self else {
-                return
-            }
-
+        }).start(next: { accountManager, loggedOutAccountPeerIds in
             let _ = (updateIntentsSettingsInteractively(accountManager: accountManager) { current in
                 var updated = current
                 for peerId in loggedOutAccountPeerIds {
@@ -1297,12 +1294,27 @@ final class SharedApplicationContext {
         
         let pushRegistry = PKPushRegistry(queue: .main)
         if #available(iOS 9.0, *) {
-       //     pushRegistry.desiredPushTypes = Set([.voIP])
+            pushRegistry.desiredPushTypes = Set([.voIP])
         }
         self.pushRegistry = pushRegistry
-   // cloudveil disabled because of crash
-        //pushRegistry.delegate = self
-
+		// cloudveil disabled because of crash
+		//pushRegistry.delegate = self
+        
+        self.badgeDisposable.set((self.context.get()
+        |> mapToSignal { context -> Signal<Int32, NoError> in
+            if let context = context {
+                return context.applicationBadge
+            } else {
+                return .single(0)
+            }
+        }
+        |> deliverOnMainQueue).start(next: { count in
+			//CloudVeil start not used 
+			//AppDelegate.setAppBadge(Int(count))
+			//CloudVeil end
+            UIApplication.shared.applicationIconBadgeNumber = Int(count)
+        }))
+        
         if #available(iOS 9.1, *) {
             self.quickActionsDisposable.set((self.context.get()
             |> mapToSignal { context -> Signal<[ApplicationShortcutItem], NoError> in
@@ -1363,12 +1375,11 @@ final class SharedApplicationContext {
         if UIApplication.shared.isStatusBarHidden {
             UIApplication.shared.setStatusBarHidden(false, with: .none)
         }
-        
-        //CloudVeil start©
-        AppDelegate.setAppBadge(0)
-        UIApplication.shared.applicationIconBadgeNumber = 0
-        //CloudVeil end
-        
+		
+		//CloudVeil start
+	//	AppDelegate.setAppBadge(0)
+	//	UIApplication.shared.applicationIconBadgeNumber = 0
+		//CloudVeil end
         
         /*if #available(iOS 13.0, *) {
             BGTaskScheduler.shared.register(forTaskWithIdentifier: baseAppBundleId + ".refresh", using: nil, launchHandler: { task in
@@ -1395,26 +1406,25 @@ final class SharedApplicationContext {
         
         return true
     }
+	
+	//CloudVeil start not used
+	public static func getAppBadge() -> Int {
+		if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+			return userDefaults.integer(forKey: "app-badge")
+		}
+		return 0
+	}
+	
+	public static func setAppBadge(_ newValue: Int) {
+		Logger.shared.log("App badge", "set to = \(newValue)")
+		if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+			userDefaults.set(newValue, forKey: "app-badge")
+			userDefaults.synchronize()
+		}
+	}
+	//CloudVeil end
+	
 
-    
-    //CloudVeil start
-    public static func getAppBadge() -> Int {
-        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
-            return userDefaults.integer(forKey: "app-badge")
-        }
-        return 0
-    }
-    
-    public static func setAppBadge(_ newValue: Int) {        
-        Logger.shared.log("App badge", "set to = \(newValue)")
-        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
-            userDefaults.set(newValue, forKey: "app-badge")
-            userDefaults.synchronize()
-        }
-    }
-    //CloudVeil end
-    
-    
     func applicationWillResignActive(_ application: UIApplication) {
         self.isActiveValue = false
         self.isActivePromise.set(false)
@@ -1554,8 +1564,8 @@ final class SharedApplicationContext {
         if #available(iOS 9.0, *) {
             if case PKPushType.voIP = type {
                 Logger.shared.log("App \(self.episodeId)", "pushRegistry credentials: \(credentials.token as NSData)")
-                //Cloudveil disabled
-              //  self.voipTokenPromise.set(.single(credentials.token))
+				//Cloudveil disabled
+                //self.voipTokenPromise.set(.single(credentials.token))
             }
         }
     }
@@ -1765,12 +1775,19 @@ final class SharedApplicationContext {
     
     func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
         if #available(iOS 10.0, *) {
+            var startCallContacts: [INPerson]?
+            var startCallIsVideo = false
             if let startCallIntent = userActivity.interaction?.intent as? SupportedStartCallIntent {
-                guard let context = self.contextValue?.context else {
-                    return true
-                }
+                startCallContacts = startCallIntent.contacts
+                startCallIsVideo = false
+            } else if let startCallIntent = userActivity.interaction?.intent as? SupportedStartVideoCallIntent {
+                startCallContacts = startCallIntent.contacts
+                startCallIsVideo = true
+            }
+            
+            if let startCallContacts = startCallContacts {
                 let startCall: (Int32) -> Void = { userId in
-                    let _ = context.sharedContext.callManager?.requestCall(account: context.account, peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: userId), endCurrentIfAny: false)
+                    self.startCallWhenReady(accountId: nil, peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: userId), isVideo: startCallIsVideo)
                 }
                 
                 func cleanPhoneNumber(_ text: String) -> String {
@@ -1797,7 +1814,7 @@ final class SharedApplicationContext {
                     }
                 }
                 
-                if let contact = startCallIntent.contacts?.first {
+                if let contact = startCallContacts.first {
                     var processed = false
                     if let handle = contact.customIdentifier, handle.hasPrefix("tg") {
                         let string = handle.suffix(from: handle.index(handle.startIndex, offsetBy: 2))
@@ -1816,6 +1833,9 @@ final class SharedApplicationContext {
                             case .phoneNumber:
                                 let phoneNumber = cleanPhoneNumber(value)
                                 if !phoneNumber.isEmpty {
+                                    guard let context = self.contextValue?.context else {
+                                        return true
+                                    }
                                     let _ = (context.account.postbox.transaction { transaction -> PeerId? in
                                         var result: PeerId?
                                         for peerId in transaction.getContactPeerIds() {
@@ -1910,7 +1930,7 @@ final class SharedApplicationContext {
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedContext in
             let type = ApplicationShortcutItemType(rawValue: shortcutItem.type)
-            var immediately = type == .account
+            let immediately = type == .account
             let proceed: () -> Void = {
                 let _ = (self.context.get()
                 |> take(1)
@@ -1947,11 +1967,33 @@ final class SharedApplicationContext {
     }
     
     private func openNotificationSettingsWhenReady() {
-        let signal = (self.authorizedContext()
+        let _ = (self.authorizedContext()
         |> take(1)
         |> deliverOnMainQueue).start(next: { context in
             context.openNotificationSettings()
         })
+    }
+    
+    private func startCallWhenReady(accountId: AccountRecordId?, peerId: PeerId, isVideo: Bool) {
+        let signal = self.sharedContextPromise.get()
+        |> take(1)
+        |> mapToSignal { sharedApplicationContext -> Signal<AuthorizedApplicationContext, NoError> in
+            if let accountId = accountId {
+                sharedApplicationContext.sharedContext.switchToAccount(id: accountId)
+                return self.authorizedContext()
+                |> filter { context in
+                    context.context.account.id == accountId
+                }
+                |> take(1)
+            } else {
+                return self.authorizedContext()
+                |> take(1)
+            }
+        }
+        self.openChatWhenReadyDisposable.set((signal
+        |> deliverOnMainQueue).start(next: { context in
+            context.startCall(peerId: peerId, isVideo: isVideo)
+        }))
     }
     
     private func openChatWhenReady(accountId: AccountRecordId?, peerId: PeerId, messageId: MessageId? = nil, activateInput: Bool = false) {
@@ -2088,6 +2130,9 @@ final class SharedApplicationContext {
                         var authorizationOptions: UNAuthorizationOptions = [.badge, .sound, .alert, .carPlay]
                         if #available(iOS 12.0, *) {
                             authorizationOptions.insert(.providesAppNotificationSettings)
+                        }
+                        if #available(iOS 13.0, *) {
+                            authorizationOptions.insert(.announcement)
                         }
                         notificationCenter.requestAuthorization(options: authorizationOptions, completionHandler: { result, _ in
                             completion(result)
@@ -2370,22 +2415,22 @@ private func accountIdFromNotification(_ notification: UNNotification, sharedCon
                     return nil
                 }
             }
-        } else {
-            //CloudVeil start
-            return sharedContext
-                |> take(1)
-                |> mapToSignal { sharedContext -> Signal<(AccountRecordId, [AccountRecordAttribute])?, NoError> in
-                    return  sharedContext.sharedContext.accountManager.currentAccountRecord(allocateIfNotExists: false)
-                }
-                |> take(1)
-                |> mapToSignal { record -> Signal<AccountRecordId?, NoError> in
-                    if let record = record {
-                        return .single(record.0)
-                    }
-                    return .single(nil)
-            }
-            //CloudVeil end
-        }
+		} else {
+			//CloudVeil start badge workaround
+			return sharedContext
+				|> take(1)
+				|> mapToSignal { sharedContext -> Signal<(AccountRecordId, [AccountRecordAttribute])?, NoError> in
+					return  sharedContext.sharedContext.accountManager.currentAccountRecord(allocateIfNotExists: false)
+				}
+				|> take(1)
+				|> mapToSignal { record -> Signal<AccountRecordId?, NoError> in
+					if let record = record {
+						return .single(record.0)
+					}
+					return .single(nil)
+				}
+			//CloudVeil end
+		}
     }
 }
 

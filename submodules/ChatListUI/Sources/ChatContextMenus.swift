@@ -11,9 +11,11 @@ import TelegramUIPreferences
 import OverlayStatusController
 import AlertUI
 import PresentationDataUtils
+import UndoUI
 
 func archiveContextMenuItems(context: AccountContext, groupId: PeerGroupId, chatListController: ChatListControllerImpl?) -> Signal<[ContextMenuItem], NoError> {
-    let strings = context.sharedContext.currentPresentationData.with({ $0 }).strings
+    let presentationData = context.sharedContext.currentPresentationData.with({ $0 })
+    let strings = presentationData.strings
     return context.account.postbox.transaction { [weak chatListController] transaction -> [ContextMenuItem] in
         var items: [ContextMenuItem] = []
         
@@ -44,9 +46,14 @@ enum ChatContextMenuSource {
     case search(ChatListSearchContextActionSource)
 }
 
-func chatContextMenuItems(context: AccountContext, peerId: PeerId, source: ChatContextMenuSource, chatListController: ChatListControllerImpl?) -> Signal<[ContextMenuItem], NoError> {
-    let strings = context.sharedContext.currentPresentationData.with({ $0 }).strings
+func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: ChatListNodeEntryPromoInfo?, source: ChatContextMenuSource, chatListController: ChatListControllerImpl?, joined: Bool) -> Signal<[ContextMenuItem], NoError> {
+    let presentationData = context.sharedContext.currentPresentationData.with({ $0 })
+    let strings = presentationData.strings
     return context.account.postbox.transaction { [weak chatListController] transaction -> [ContextMenuItem] in
+        if promoInfo != nil {
+            return []
+        }
+        
         var items: [ContextMenuItem] = []
         
         if case let .search(search) = source {
@@ -75,13 +82,17 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, source: ChatC
         let isSavedMessages = peerId == context.account.peerId
         
         let chatPeer = transaction.getPeer(peerId)
-        var peer: Peer?
+        var maybePeer: Peer?
         if let chatPeer = chatPeer {
             if let chatPeer = chatPeer as? TelegramSecretChat {
-                peer = transaction.getPeer(chatPeer.regularPeerId)
+                maybePeer = transaction.getPeer(chatPeer.regularPeerId)
             } else {
-                peer = chatPeer
+                maybePeer = chatPeer
             }
+        }
+        
+        guard let peer = maybePeer else {
+            return []
         }
         
         if !isSavedMessages, let peer = peer as? TelegramUser, !peer.flags.contains(.isSupport) && peer.botInfo == nil && !peer.isDeleted {
@@ -102,18 +113,149 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, source: ChatC
             }
         }
         
-        if case .chatList = source {
-            if let readState = transaction.getCombinedPeerReadState(peerId), readState.isUnread {
-                items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_MarkAsRead, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/MarkAsRead"), color: theme.contextMenu.primaryColor) }, action: { _, f in
-                    let _ = togglePeerUnreadMarkInteractively(postbox: context.account.postbox, viewTracker: context.account.viewTracker, peerId: peerId).start()
-                    f(.default)
+        var isMuted = false
+        if let notificationSettings = transaction.getPeerNotificationSettings(peerId) as? TelegramPeerNotificationSettings {
+            if case .muted = notificationSettings.muteState {
+                isMuted = true
+            }
+        }
+
+        var isUnread = false
+        if let readState = transaction.getCombinedPeerReadState(peerId), readState.isUnread {
+            isUnread = true
+        }
+        
+        let isContact = transaction.isPeerContact(peerId: peerId)
+        
+        if case let .chatList(currentFilter) = source {
+            if let currentFilter = currentFilter {
+                items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_RemoveFromFolder, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/RemoveFromFolder"), color: theme.contextMenu.primaryColor) }, action: { c, _ in
+                    let _ = (context.account.postbox.transaction { transaction -> Void in
+                        updateChatListFiltersInteractively(transaction: transaction, { filters in
+                            var filters = filters
+                            for i in 0 ..< filters.count {
+                                if filters[i].id == currentFilter.id {
+                                    let _ = filters[i].data.addExcludePeer(peerId: peer.id)
+                                    break
+                                }
+                            }
+                            return filters
+                        })
+                    }
+                    |> deliverOnMainQueue).start(completed: {
+                        c.dismiss(completion: {
+                            chatListController?.present(UndoOverlayController(presentationData: presentationData, content: .chatRemovedFromFolder(chatTitle: peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder), folderTitle: currentFilter.title), elevatedLayout: false, animateInAsReplacement: true, action: { _ in
+                                return false
+                            }), in: .current)
+                        })
+                    })
                 })))
             } else {
-                items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_MarkAsUnread, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/MarkAsUnread"), color: theme.contextMenu.primaryColor) }, action: { _, f in
-                    let _ = togglePeerUnreadMarkInteractively(postbox: context.account.postbox, viewTracker: context.account.viewTracker, peerId: peerId).start()
-                    f(.default)
-                })))
+                var hasFolders = false
+                updateChatListFiltersInteractively(transaction: transaction, { filters in
+                    for filter in filters {
+                        let predicate = chatListFilterPredicate(filter: filter.data)
+                        if predicate.includes(peer: peer, groupId: .root, isRemovedFromTotalUnreadCount: isMuted, isUnread: isUnread, isContact: isContact, messageTagSummaryResult: false) {
+                            continue
+                        }
+                        
+                        var data = filter.data
+                        if data.addIncludePeer(peerId: peer.id) {
+                            hasFolders = true
+                            break
+                        }
+                    }
+                    return filters
+                })
+                
+                if hasFolders {
+                    items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_AddToFolder, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Folder"), color: theme.contextMenu.primaryColor) }, action: { c, _ in
+                        let _ = (context.account.postbox.transaction { transaction -> [ContextMenuItem] in
+                            var updatedItems: [ContextMenuItem] = []
+                            updateChatListFiltersInteractively(transaction: transaction, { filters in
+                                for filter in filters {
+                                    let predicate = chatListFilterPredicate(filter: filter.data)
+                                    if predicate.includes(peer: peer, groupId: .root, isRemovedFromTotalUnreadCount: isMuted, isUnread: isUnread, isContact: isContact, messageTagSummaryResult: false) {
+                                        continue
+                                    }
+                                    
+                                    var data = filter.data
+                                    if !data.addIncludePeer(peerId: peer.id) {
+                                        continue
+                                    }
+                                    
+                                    let filterType = chatListFilterType(filter)
+                                    updatedItems.append(.action(ContextMenuActionItem(text: filter.title, icon: { theme in
+                                        let imageName: String
+                                        switch filterType {
+                                        case .generic:
+                                            imageName = "Chat/Context Menu/List"
+                                        case .unmuted:
+                                            imageName = "Chat/Context Menu/Unmute"
+                                        case .unread:
+                                            imageName = "Chat/Context Menu/MarkAsUnread"
+                                        case .channels:
+                                            imageName = "Chat/Context Menu/Channels"
+                                        case .groups:
+                                            imageName = "Chat/Context Menu/Groups"
+                                        case .bots:
+                                            imageName = "Chat/Context Menu/Bots"
+                                        case .contacts:
+                                            imageName = "Chat/Context Menu/User"
+                                        case .nonContacts:
+                                            imageName = "Chat/Context Menu/UnknownUser"
+                                        }
+                                        return generateTintedImage(image: UIImage(bundleImageName: imageName), color: theme.contextMenu.primaryColor)
+                                    }, action: { c, f in
+                                        c.dismiss(completion: {
+                                            let _ = (updateChatListFiltersInteractively(postbox: context.account.postbox, { filters in
+                                                var filters = filters
+                                                for i in 0 ..< filters.count {
+                                                    if filters[i].id == filter.id {
+                                                        let _ = filters[i].data.addIncludePeer(peerId: peer.id)
+                                                        break
+                                                    }
+                                                }
+                                                return filters
+                                            })).start()
+                                            
+                                            chatListController?.present(UndoOverlayController(presentationData: presentationData, content: .chatAddedToFolder(chatTitle: peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder), folderTitle: filter.title), elevatedLayout: false, animateInAsReplacement: true, action: { _ in
+                                                return false
+                                            }), in: .current)
+                                        })
+                                    })))
+                                }
+                                
+                                return filters
+                            })
+                            
+                            updatedItems.append(.separator)
+                            updatedItems.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_Back, icon: { theme in
+                                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Back"), color: theme.contextMenu.primaryColor)
+                            }, action: { c, _ in
+                                c.setItems(chatContextMenuItems(context: context, peerId: peerId, promoInfo: promoInfo, source: source, chatListController: chatListController, joined: joined))
+                            })))
+                            
+                            return updatedItems
+                        }
+                        |> deliverOnMainQueue).start(next: { updatedItems in
+                            c.setItems(.single(updatedItems))
+                        })
+                    })))
+                }
             }
+        }
+        
+        if isUnread {
+            items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_MarkAsRead, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/MarkAsRead"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+                let _ = togglePeerUnreadMarkInteractively(postbox: context.account.postbox, viewTracker: context.account.viewTracker, peerId: peerId).start()
+                f(.default)
+            })))
+        } else {
+            items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_MarkAsUnread, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/MarkAsUnread"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+                let _ = togglePeerUnreadMarkInteractively(postbox: context.account.postbox, viewTracker: context.account.viewTracker, peerId: peerId).start()
+                f(.default)
+            })))
         }
         
         let groupAndIndex = transaction.getPeerChatListIndex(peerId)
@@ -146,29 +288,33 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, source: ChatC
                 })))
             }
             
-            if case let .chatList(filter) = source {
+//            if  {
                 let location: TogglePeerChatPinnedLocation
-                if let filter = filter {
-                    location = .filter(filter.id)
+                var chatListFilter: ChatListFilter?
+                if case let .chatList(filter) = source, let chatFilter = filter {
+                    chatListFilter = chatFilter
+                    location = .filter(chatFilter.id)
                 } else {
                     location = .group(group)
                 }
                 
                 let isPinned = getPinnedItemIds(transaction: transaction, location: location).contains(.peer(peerId))
                 
-                items.append(.action(ContextMenuActionItem(text: isPinned ? strings.ChatList_Context_Unpin : strings.ChatList_Context_Pin, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: isPinned ? "Chat/Context Menu/Unpin" : "Chat/Context Menu/Pin"), color: theme.contextMenu.primaryColor) }, action: { _, f in
-                    let _ = (toggleItemPinned(postbox: context.account.postbox, location: location, itemId: .peer(peerId))
-                    |> deliverOnMainQueue).start(next: { result in
-                        switch result {
-                        case .done:
-                            break
-                        case .limitExceeded:
-                            break
-                        }
-                        f(.default)
-                    })
-                })))
-            }
+                if isPinned || chatListFilter == nil || peerId.namespace != Namespaces.Peer.SecretChat {
+                    items.append(.action(ContextMenuActionItem(text: isPinned ? strings.ChatList_Context_Unpin : strings.ChatList_Context_Pin, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: isPinned ? "Chat/Context Menu/Unpin" : "Chat/Context Menu/Pin"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+                        let _ = (toggleItemPinned(postbox: context.account.postbox, location: location, itemId: .peer(peerId))
+                        |> deliverOnMainQueue).start(next: { result in
+                            switch result {
+                            case .done:
+                                break
+                            case .limitExceeded:
+                                break
+                            }
+                            f(.default)
+                        })
+                    })))
+                }
+//            }
         
             if !isSavedMessages, let notificationSettings = transaction.getPeerNotificationSettings(peerId) as? TelegramPeerNotificationSettings {
                 var isMuted = false
@@ -235,7 +381,7 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, source: ChatC
         if case .chatList = source, groupAndIndex != nil {
             items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_Delete, textColor: .destructive, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.contextMenu.destructiveColor) }, action: { _, f in
                 if let chatListController = chatListController {
-                    chatListController.deletePeerChat(peerId: peerId)
+                    chatListController.deletePeerChat(peerId: peerId, joined: joined)
                 }
                 f(.default)
             })))

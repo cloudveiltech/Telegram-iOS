@@ -7,6 +7,9 @@ swift_library(
         "Sources/**/*.swift",
     ]),
     deps = [
+		#CloudVeil start
+		"//Telegram:CloudVeilSecurityManager",
+		#CloudVeil end
     	"//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
@@ -17,10 +20,10 @@ swift_library(
         "//submodules/TelegramStringFormatting:TelegramStringFormatting",
         "//submodules/LiveLocationTimerNode:LiveLocationTimerNode",
         "//submodules/AccountContext:AccountContext",
-        "//submodules/LegacyComponents:LegacyComponents",
         "//submodules/OverlayStatusController:OverlayStatusController",
         "//submodules/PresentationDataUtils:PresentationDataUtils",
         "//submodules/Markdown:Markdown",
+        "//submodules/TelegramCallsUI:TelegramCallsUI",
     ],
     visibility = [
         "//visibility:public",

@@ -20,6 +20,8 @@
 #import "TGMediaPickerGalleryItem.h"
 #import "TGMediaPickerGalleryVideoItem.h"
 
+#import "TGCameraCapturedVideo.h"
+
 #import <LegacyComponents/TGVideoEditAdjustments.h>
 #import <LegacyComponents/TGPaintingData.h>
 
@@ -29,15 +31,22 @@
 #import "TGMediaPickerGalleryVideoScrubber.h"
 #import "TGMediaPickerScrubberHeaderView.h"
 
+#import "TGPhotoEditorPreviewView.h"
+#import "TGPhotoEntitiesContainerView.h"
+#import "TGPhotoPaintController.h"
+
 #import <LegacyComponents/TGModernGalleryVideoView.h>
 #import "TGModernGalleryVideoContentView.h"
 
 #import <LegacyComponents/TGMenuView.h>
 
+#import "PGPhotoEditor.h"
+#import "TGPaintFaceDetector.h"
+
 @interface TGMediaPickerGalleryVideoItemView() <TGMediaPickerGalleryVideoScrubberDataSource, TGMediaPickerGalleryVideoScrubberDelegate>
 {
     UIView *_containerView;
-    TGModernGalleryVideoContentView *_contentView;
+    TGModernGalleryVideoContentView *_videoContentView;
     UIView *_playerWrapperView;
     UIView *_playerView;
     UIView *_playerContainerView;
@@ -62,11 +71,18 @@
     bool _scrubbingPanelPresented;
     bool _scrubbingPanelLocked;
     bool _shouldResetScrubber;
+    NSArray *_cachedThumbnails;
+    UIImage *_immediateThumbnail;
     
     UILabel *_fileInfoLabel;
     
-    TGModernGalleryVideoView *_videoView;
+    TGPhotoEditorPreviewView *_videoView;
+    PGPhotoEditor *_photoEditor;
+    
     UIImageView *_paintingImageView;
+    UIView *_contentView;
+    UIView *_contentWrapperView;
+    TGPhotoEntitiesContainerView *_entitiesContainerView;
     
     NSTimer *_positionTimer;
     TGObserverProxy *_didPlayToEndObserver;
@@ -83,7 +99,10 @@
     SMetaDisposable *_adjustmentsDisposable;
     SMetaDisposable *_attributesDisposable;
     SMetaDisposable *_downloadDisposable;
+    SMetaDisposable *_facesDisposable;
     SMetaDisposable *_currentAudioSession;
+    
+    SVariable *_editableItemVariable;
     
     UIEdgeInsets _safeAreaInset;
     
@@ -95,7 +114,8 @@
     bool _sendAsGif;
     bool _autoplayed;
     
-    bool _ignoreNextAdjustmentsChange;
+    CMTime _chaseTime;
+    bool _chasingTime;
 }
 
 @property (nonatomic, strong) TGMediaPickerGalleryVideoItem *item;
@@ -111,23 +131,28 @@
     self = [super initWithFrame:frame];
     if (self != nil)
     {
+        _chaseTime = kCMTimeInvalid;
+        
         _currentAudioSession = [[SMetaDisposable alloc] init];
         _playerItemDisposable = [[SMetaDisposable alloc] init];
+        _facesDisposable = [[SMetaDisposable alloc] init];
         
         _videoDurationVar = [[SVariable alloc] init];
         _videoDurationDisposable = [[SMetaDisposable alloc] init];
         
         _adjustmentsDisposable = [[SMetaDisposable alloc] init];
+                
+        _editableItemVariable = [[SVariable alloc] init];
         
         _containerView = [[UIView alloc] initWithFrame:self.bounds];
         _containerView.clipsToBounds = true;
         [self addSubview:_containerView];
         
-        _contentView = [[TGModernGalleryVideoContentView alloc] init];
-        [_containerView addSubview:_contentView];
+        _videoContentView = [[TGModernGalleryVideoContentView alloc] init];
+        [_containerView addSubview:_videoContentView];
         
         _playerWrapperView = [[UIView alloc] init];
-        [_contentView addSubview:_playerWrapperView];
+        [_videoContentView addSubview:_playerWrapperView];
         
         _playerView = [[UIView alloc] init];
         _playerView.clipsToBounds = true;
@@ -142,16 +167,27 @@
         _paintingImageView = [[UIImageView alloc] init];
         [_playerContainerView addSubview:_paintingImageView];
         
+        _contentView = [[UIView alloc] init];
+        [_playerContainerView addSubview:_contentView];
+        
+        _contentWrapperView = [[UIView alloc] init];
+        [_contentView addSubview:_contentWrapperView];
+        
+        _entitiesContainerView = [[TGPhotoEntitiesContainerView alloc] init];
+        _entitiesContainerView.hidden = true;
+        _entitiesContainerView.userInteractionEnabled = false;
+        [_contentWrapperView addSubview:_entitiesContainerView];
+        
         _curtainView = [[UIView alloc] init];
         _curtainView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         _curtainView.backgroundColor = [UIColor blackColor];
         _curtainView.hidden = true;
-        [_contentView addSubview:_curtainView];
+        [_videoContentView addSubview:_curtainView];
         
-        _actionButton = [[TGModernButton alloc] initWithFrame:CGRectMake(0, 0, 50, 50)];
+        _actionButton = [[TGModernButton alloc] initWithFrame:CGRectMake(0, 0, 60, 60)];
         _actionButton.modernHighlight = true;
         
-        CGFloat circleDiameter = 50.0f;
+        CGFloat circleDiameter = 60.0f;
         static UIImage *highlightImage = nil;
         static dispatch_once_t onceToken;
         dispatch_once(&onceToken, ^
@@ -166,32 +202,32 @@
         
         _actionButton.highlightImage = highlightImage;
         
-        _progressView = [[TGMessageImageViewOverlayView alloc] initWithFrame:CGRectMake(0, 0, 50, 50)];
+        _progressView = [[TGMessageImageViewOverlayView alloc] initWithFrame:CGRectMake(0, 0, 60, 60)];
+        [_progressView setRadius:60.0];
         _progressView.userInteractionEnabled = false;
         [_progressView setPlay];
         [_actionButton addSubview:_progressView];
         
         [_actionButton addTarget:self action:@selector(playPressed) forControlEvents:UIControlEventTouchUpInside];
         
-        _contentView.button = _actionButton;
-        [_contentView addSubview:_actionButton];
+        _videoContentView.button = _actionButton;
+        [_videoContentView addSubview:_actionButton];
         
         TGMediaPickerScrubberHeaderView *headerView = [[TGMediaPickerScrubberHeaderView alloc] initWithFrame:CGRectMake(0, 0, frame.size.width, 44)];
         _headerView = headerView;
         _headerView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
         
-        _scrubberPanelView = [[UIView alloc] initWithFrame:CGRectMake(0, -64, _headerView.frame.size.width, 64)];
+        _scrubberPanelView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, _headerView.frame.size.width, 64)];
         _scrubberPanelView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-        _scrubberPanelView.hidden = true;
         headerView.panelView = _scrubberPanelView;
         [_headerView addSubview:_scrubberPanelView];
         
-        UIView *scrubberBackgroundView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, -100.0f, _headerView.frame.size.width, 164.0f)];
+        UIView *scrubberBackgroundView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, _headerView.frame.size.width, 64.0f)];
         scrubberBackgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
         scrubberBackgroundView.backgroundColor = [TGPhotoEditorInterfaceAssets toolbarTransparentBackgroundColor];
         [_scrubberPanelView addSubview:scrubberBackgroundView];
         
-        _scrubberView = [[TGMediaPickerGalleryVideoScrubber alloc] initWithFrame:CGRectMake(0.0f, _headerView.frame.size.height - 44.0f, _headerView.frame.size.width, 44.0f)];
+        _scrubberView = [[TGMediaPickerGalleryVideoScrubber alloc] initWithFrame:CGRectMake(0.0f, _headerView.frame.size.height - 44.0f, _headerView.frame.size.width, 68.0f)];
         _scrubberView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
         _scrubberView.dataSource = self;
         _scrubberView.delegate = self;
@@ -206,7 +242,7 @@
         _fileInfoLabel.textColor = [UIColor whiteColor];
         
         _tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(singleTap)];
-        [_contentView addGestureRecognizer:_tapGestureRecognizer];
+        [_videoContentView addGestureRecognizer:_tapGestureRecognizer];
     }
     return self;
 }
@@ -219,6 +255,7 @@
     [_thumbnailsDisposable dispose];
     [_attributesDisposable dispose];
     [_downloadDisposable dispose];
+    [_facesDisposable dispose];
     [self stopPlayer];
     
     [self releaseVolumeOverlay];
@@ -238,8 +275,10 @@
     UIWindow *keyWindow = self.window; //[UIApplication sharedApplication].keyWindow;
     UIView *rootView = keyWindow.rootViewController.view;
     
-    _volumeOverlayFixView = [[MPVolumeView alloc] initWithFrame:CGRectMake(10000, 10000, 20, 20)];
-    [rootView addSubview:_volumeOverlayFixView];
+    if (iosMajorVersion() < 13) {
+        _volumeOverlayFixView = [[MPVolumeView alloc] initWithFrame:CGRectMake(10000, 10000, 20, 20)];
+        [rootView addSubview:_volumeOverlayFixView];
+    }
 }
 
 - (void)releaseVolumeOverlay
@@ -263,7 +302,6 @@
     
     _appeared = false;
     [self setScrubbingPanelApperanceLocked:false];
-    [self setScrubbingPanelHidden:true animated:false];
     
     [_positionTimer invalidate];
     _positionTimer = nil;
@@ -337,6 +375,7 @@
         
         [strongSelf setItem:strongSelf.item];
         [strongSelf->_progressView setPlay];
+        strongSelf->_progressView.alpha = 1.0;
         
         strongSelf->_downloaded = true;
         if (strongSelf->_currentAvailabilityObserver != nil)
@@ -347,14 +386,25 @@
 - (void)setItem:(TGMediaPickerGalleryVideoItem *)item synchronously:(bool)synchronously
 {
     bool itemChanged = ![item isEqual:self.item];
+    bool itemIdChanged = item.uniqueId != self.item.uniqueId;
     
     [super setItem:item synchronously:synchronously];
     
-    if (itemChanged)
+    if (itemIdChanged) {
+        _immediateThumbnail = item.immediateThumbnailImage;
+    }
+    
+    if (itemChanged) {
         [self _playerCleanup];
+     
+        if (!item.asFile) {
+            [_facesDisposable setDisposable:[[TGPaintFaceDetector detectFacesInItem:item.editableMediaItem editingContext:item.editingContext] startWithNext:nil]];
+        }
+    }
     
     _scrubberView.allowsTrimming = false;
     _videoDimensions = item.dimensions;
+    _entitiesContainerView.stickersContext = item.stickersContext;
     
     __weak TGMediaPickerGalleryVideoItemView *weakSelf = self;
     [_videoDurationVar set:[[[item.durationSignal deliverOn:[SQueue mainQueue]] catch:^SSignal *(__unused id error)
@@ -410,30 +460,35 @@
     
     [self.imageView setSignal:imageSignal];
     
+    [_editableItemVariable set:[SSignal single:[self editableMediaItem]]];
+    
     if (item.editingContext != nil)
     {
-        SSignal *adjustmentsSignal = [item.editingContext adjustmentsSignalForItem:item.editableMediaItem];
-        [_adjustmentsDisposable setDisposable:[[adjustmentsSignal deliverOn:[SQueue mainQueue]] startWithNext:^(__unused id next)
+        SSignal *adjustmentsSignal = [[self editableItemSignal] mapToSignal:^SSignal *(id<TGMediaEditableItem> editableItem) {
+            return [item.editingContext adjustmentsSignalForItem:editableItem];
+        }];
+        [_adjustmentsDisposable setDisposable:[[adjustmentsSignal deliverOn:[SQueue mainQueue]] startWithNext:^(id<TGMediaEditAdjustments> adjustments)
         {
             __strong TGMediaPickerGalleryVideoItemView *strongSelf = weakSelf;
             if (strongSelf == nil)
                 return;
             
-            if (!strongSelf->_ignoreNextAdjustmentsChange)
-            {
-                [strongSelf _layoutPlayerView];
-                TGVideoEditAdjustments *adjustments = (TGVideoEditAdjustments *)[strongSelf.item.editingContext adjustmentsForItem:strongSelf.item.editableMediaItem];
-                strongSelf->_paintingImageView.image = adjustments.paintingData.image;
-                
-                strongSelf->_sendAsGif = adjustments.sendAsGif;
-                [strongSelf _mutePlayer:adjustments.sendAsGif];
-                
-                if (adjustments.sendAsGif || ([strongSelf itemIsLivePhoto]))
-                    [strongSelf setPlayButtonHidden:true animated:false];
-            }
-            else
-            {
-                strongSelf->_ignoreNextAdjustmentsChange = false;
+            [strongSelf _layoutPlayerView];
+            strongSelf->_paintingImageView.image = adjustments.paintingData.image;
+            
+            id<TGMediaEditAdjustments> baseAdjustments = [strongSelf.item.editingContext adjustmentsForItem:strongSelf.item.editableMediaItem];
+            strongSelf->_sendAsGif = baseAdjustments.sendAsGif;
+            [strongSelf _mutePlayer:baseAdjustments.sendAsGif];
+            
+            if (baseAdjustments.sendAsGif || ([strongSelf itemIsLivePhoto]))
+                [strongSelf setPlayButtonHidden:true animated:false];
+            
+            [strongSelf->_entitiesContainerView setupWithPaintingData:adjustments.paintingData];
+            [strongSelf->_entitiesContainerView updateVisibility:strongSelf.isPlaying];
+            [strongSelf->_photoEditor importAdjustments:adjustments];
+            
+            if (!strongSelf.isPlaying) {
+                [strongSelf->_photoEditor reprocess];
             }
         }]];
     }
@@ -449,8 +504,13 @@
     if (_attributesDisposable == nil)
         _attributesDisposable = [[SMetaDisposable alloc] init];
     
+    TGMediaAsset *asset = item.asset;
+    if ([asset isKindOfClass:[TGCameraCapturedVideo class]]) {
+        asset = [(TGCameraCapturedVideo *)asset originalAsset];
+    }
+    
     _fileInfoLabel.text = nil;
-    [_attributesDisposable setDisposable:[[[TGMediaAssetImageSignals fileAttributesForAsset:item.asset] deliverOn:[SQueue mainQueue]] startWithNext:^(TGMediaAssetImageFileAttributes *next)
+    [_attributesDisposable setDisposable:[[[TGMediaAssetImageSignals fileAttributesForAsset:asset] deliverOn:[SQueue mainQueue]] startWithNext:^(TGMediaAssetImageFileAttributes *next)
     {
         __strong TGMediaPickerGalleryVideoItemView *strongSelf = weakSelf;
         if (strongSelf == nil)
@@ -568,17 +628,15 @@
         
         void (^changeBlock)(void) = ^
         {
-            _scrubberPanelView.frame = CGRectMake(0.0f, -64.0f - _safeAreaInset.top, _scrubberPanelView.frame.size.width, _scrubberPanelView.frame.size.height);
+            _scrubberPanelView.alpha = 0.0f;
         };
         void (^completionBlock)(BOOL) = ^(BOOL finished)
         {
-            if (finished)
-                _scrubberPanelView.hidden = true;
         };
         
         if (animated)
         {
-            [UIView animateWithDuration:0.3f delay:0.0f options:(7 << 16) animations:changeBlock completion:completionBlock];
+            [UIView animateWithDuration:0.2f delay:0.0f options:UIViewAnimationOptionCurveLinear animations:changeBlock completion:completionBlock];
         }
         else
         {
@@ -592,18 +650,17 @@
             return;
         
         _scrubbingPanelPresented = true;
-        
-        _scrubberPanelView.hidden = false;
+
         [_scrubberPanelView layoutSubviews];
         [_scrubberView layoutSubviews];
         
         void (^changeBlock)(void) = ^
         {
-             _scrubberPanelView.frame = CGRectMake(0.0f, 0.0f, _scrubberPanelView.frame.size.width, _scrubberPanelView.frame.size.height);
+            _scrubberPanelView.alpha = 1.0f;
         };
         
         if (animated)
-            [UIView animateWithDuration:0.3f delay:0.0f options:(7 << 16) animations:changeBlock completion:nil];
+            [UIView animateWithDuration:0.2f delay:0.0f options:UIViewAnimationOptionCurveLinear animations:changeBlock completion:nil];
         else
             changeBlock();
     }
@@ -658,7 +715,6 @@
     {
         [_scrubberView resetThumbnails];
         
-        [self setScrubbingPanelHidden:true animated:false];
         [_scrubberPanelView setNeedsLayout];
         [_scrubberPanelView layoutIfNeeded];
         
@@ -672,11 +728,14 @@
     if (_containerView == nil)
         return;
     
-    _containerView.frame = self.bounds;
+    if (self.bounds.size.width > self.bounds.size.height)
+        _containerView.frame = self.bounds;
+    else
+        _containerView.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height - 44.0);
     
     [self _layoutPlayerView];
     
-    _contentView.frame = (CGRect){CGPointZero, frame.size};
+    _videoContentView.frame = (CGRect){CGPointZero, _containerView.frame.size};
     
     if (_tooltipContainerView != nil && frame.size.width > frame.size.height)
     {
@@ -703,8 +762,6 @@
         mirrored = adjustments.cropMirrored;
     }
     
-    _scrubberView.maximumLength = adjustments.sendAsGif ? TGVideoEditMaximumGifDuration : 0.0;
-    
     [self _layoutPlayerViewWithCropRect:cropRect videoFrameSize:videoFrameSize orientation:orientation mirrored:mirrored];
 }
 
@@ -720,16 +777,57 @@
     
     if (CGSizeEqualToSize(videoFrameSize, CGSizeZero))
         return;
-
-    CGSize fittedSize = TGScaleToSize(videoFrameSize, self.frame.size);
-    _playerWrapperView.frame = CGRectMake((_containerView.frame.size.width - fittedSize.width) / 2, (_containerView.frame.size.height - fittedSize.height) / 2, fittedSize.width, fittedSize.height);
+    
+    CGSize fittedVideoSize = TGScaleToSize(videoFrameSize, self.frame.size);
+    _playerWrapperView.frame = CGRectMake((_containerView.frame.size.width - fittedVideoSize.width) / 2, (_containerView.frame.size.height - fittedVideoSize.height) / 2, fittedVideoSize.width, fittedVideoSize.height);
     _playerView.frame = _playerWrapperView.bounds;
     _playerContainerView.frame = _playerView.bounds;
     
-    CGFloat ratio = fittedSize.width / videoFrameSize.width;
+    CGFloat ratio = fittedVideoSize.width / videoFrameSize.width;
     _imageView.frame = CGRectMake(-cropRect.origin.x * ratio, -cropRect.origin.y * ratio, _videoDimensions.width * ratio, _videoDimensions.height * ratio);
     _paintingImageView.frame = _imageView.frame;
     _videoView.frame = _imageView.frame;
+    
+
+    CGSize originalSize = self.item.asset.originalSize;
+    
+    CGSize rotatedCropSize = cropRect.size;
+    if (orientation == UIImageOrientationLeft || orientation == UIImageOrientationRight)
+        rotatedCropSize = CGSizeMake(rotatedCropSize.height, rotatedCropSize.width);
+        
+    CGSize containerSize = _imageView.frame.size;
+    CGSize fittedSize = TGScaleToSize(rotatedCropSize, containerSize);
+    CGRect previewFrame = CGRectMake((containerSize.width - fittedSize.width) / 2, (containerSize.height - fittedSize.height) / 2, fittedSize.width, fittedSize.height);
+    
+    CGAffineTransform rotationTransform = CGAffineTransformMakeRotation(TGRotationForOrientation(orientation));
+    _contentView.transform = rotationTransform;
+    _contentView.frame = _imageView.frame;
+    
+    CGSize fittedContentSize = [TGPhotoPaintController fittedContentSize:cropRect orientation:orientation originalSize:originalSize];
+    CGRect fittedCropRect = [TGPhotoPaintController fittedCropRect:cropRect originalSize:originalSize keepOriginalSize:false];
+    _contentWrapperView.frame = CGRectMake(0.0f, 0.0f, fittedContentSize.width, fittedContentSize.height);
+    
+    CGFloat contentScale = ratio;
+    _contentWrapperView.transform = CGAffineTransformMakeScale(contentScale, contentScale);
+    _contentWrapperView.frame = CGRectMake(0.0f, 0.0f, _contentView.bounds.size.width, _contentView.bounds.size.height);
+    
+    CGRect rect = [TGPhotoPaintController fittedCropRect:cropRect originalSize:originalSize keepOriginalSize:true];
+    _entitiesContainerView.frame = CGRectMake(0, 0, rect.size.width, rect.size.height);
+    _entitiesContainerView.transform = CGAffineTransformMakeRotation(0.0);
+    
+    CGSize fittedOriginalSize = TGScaleToSize(originalSize, [TGPhotoPaintController maximumPaintingSize]);
+    CGSize rotatedSize = TGRotatedContentSize(fittedOriginalSize, 0.0);
+    CGPoint centerPoint = CGPointMake(rotatedSize.width / 2.0f, rotatedSize.height / 2.0f);
+    
+    CGFloat scale = fittedOriginalSize.width / originalSize.width;
+    CGPoint offset = TGPaintSubtractPoints(centerPoint, [TGPhotoPaintController fittedCropRect:cropRect centerScale:scale]);
+    
+    CGPoint boundsCenter = TGPaintCenterOfRect(_contentWrapperView.bounds);
+//    _entitiesContainerView.center = TGPaintAddPoints(boundsCenter, CGPointMake(offset.x / contentScale, offset.y / contentScale));
+}
+
+- (TGPhotoEntitiesContainerView *)entitiesView {
+    return _entitiesContainerView;
 }
 
 - (void)singleTap
@@ -742,8 +840,10 @@
 {
     [super setIsVisible:isVisible];
     
-    if (!isVisible && _player != nil)
+    if (!isVisible && _player != nil) {
         [self stopPlayer];
+        [self setPlayButtonHidden:false animated:false];
+    }
 }
 
 - (UIView *)headerView
@@ -773,13 +873,12 @@
 {
     if (_videoView != nil)
     {
-        UIImage *image = nil;
-        
-        UIGraphicsBeginImageContextWithOptions(_videoView.bounds.size, true, [UIScreen mainScreen].scale);
-
         if (_lastRenderedScreenImage != nil)
             return _lastRenderedScreenImage;
         
+        UIImage *image = nil;
+        
+        UIGraphicsBeginImageContextWithOptions(_videoView.bounds.size, true, [UIScreen mainScreen].scale);
         AVAssetImageGenerator *generator = [[AVAssetImageGenerator alloc] initWithAsset:_player.currentItem.asset];
         generator.appliesPreferredTrackTransform = true;
         generator.maximumSize = TGFitSize(_videoDimensions, CGSizeMake(1280.0f, 1280.0f));
@@ -816,11 +915,16 @@
         generator.requestedTimeToleranceBefore = kCMTimeZero;
         CGImageRef imageRef = [generator copyCGImageAtTime:_player.currentTime actualTime:nil error:NULL];
         
-        _lastRenderedScreenImage = [UIImage imageWithCGImage:imageRef];
-        CGImageRelease(imageRef);
-        
         TGVideoEditAdjustments *adjustments = (TGVideoEditAdjustments *)[self.item.editingContext adjustmentsForItem:self.item.editableMediaItem];
         
+        UIImage *renderedImage = [UIImage imageWithCGImage:imageRef];
+        CGImageRelease(imageRef);
+        
+        if (adjustments.toolsApplied) {
+            renderedImage = [PGPhotoEditor resultImageForImage:renderedImage adjustments:adjustments];
+        }
+        _lastRenderedScreenImage = renderedImage;
+         
         CGSize originalSize = _videoDimensions;
         CGRect cropRect = CGRectMake(0, 0, _videoDimensions.width, _videoDimensions.height);
         UIImageOrientation cropOrientation = UIImageOrientationUp;
@@ -836,7 +940,7 @@
 
         CGRect drawRect = CGRectMake(-cropRect.origin.x * ratio, -cropRect.origin.y * ratio, originalSize.width * ratio, originalSize.height * ratio);
         [_lastRenderedScreenImage drawInRect:drawRect];
-        
+                
         if (_paintingImageView.image != nil)
             [_paintingImageView.image drawInRect:drawRect];
     }
@@ -862,14 +966,6 @@
 {
     _progressVisible = progressVisible;
     
-    if (progressVisible && _progressView == nil)
-    {
-        _progressView = [[TGMessageImageViewOverlayView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, 50.0f, 50.0f)];
-        _progressView.userInteractionEnabled = false;
-        
-        _progressView.frame = (CGRect){{CGFloor((self.frame.size.width - _progressView.frame.size.width) / 2.0f), CGFloor((self.frame.size.height - _progressView.frame.size.height) / 2.0f)}, _progressView.frame.size};
-    }
-    
     if (progressVisible)
     {
         _progressView.alpha = 1.0f;
@@ -879,16 +975,14 @@
         if (animated)
         {
             [UIView animateWithDuration:0.3 delay:0.0 options:UIViewAnimationOptionBeginFromCurrentState animations:^
-             {
+            {
                  _progressView.alpha = 0.0f;
-             } completion:^(BOOL finished)
-             {
-                 if (finished)
-                     [_progressView removeFromSuperview];
-             }];
+            } completion:^(BOOL finished) {
+            }];
         }
-        else
-            [_progressView removeFromSuperview];
+        else {
+            _progressView.alpha = 0.0f;
+        }
     }
     
     [_progressView setProgress:value cancelEnabled:false animated:animated];
@@ -974,17 +1068,22 @@
         SMetaDisposable *currentAudioSession = _currentAudioSession;
         if (currentAudioSession)
         {
-            _videoView.deallocBlock = ^
-            {
+//            _videoView.deallocBlock = ^
+//            {
                 [[SQueue concurrentDefaultQueue] dispatch:^
                 {
                     [currentAudioSession setDisposable:nil];
                 }];
-            };
+//            };
         }
-        [_videoView cleanupPlayer];
+//        [_videoView cleanupPlayer];
+        _photoEditor.previewOutput = nil;
+        
         [_videoView removeFromSuperview];
         _videoView = nil;
+        
+        [_photoEditor cleanup];
+        _photoEditor = nil;
     }
 
     self.isPlaying = false;
@@ -1014,15 +1113,19 @@
     [self inhibitVolumeOverlay];
     
     SSignal *itemSignal = nil;
-    if ([self.item.asset isKindOfClass:[TGMediaAsset class]])
+    if ([self.item.asset isKindOfClass:[TGMediaAsset class]]) {
         itemSignal = [TGMediaAssetImageSignals playerItemForVideoAsset:(TGMediaAsset *)self.item.asset];
-    else if (self.item.avAsset != nil)
-        itemSignal = [SSignal single:[AVPlayerItem playerItemWithAsset:self.item.avAsset]];
+    }
+    else if (self.item.avAsset != nil) {
+        itemSignal = [self.item.avAsset mapToSignal:^SSignal *(AVAsset *avAsset) {
+            return [SSignal single:[AVPlayerItem playerItemWithAsset:avAsset]];
+        }];
+    }
     
     [_playerItemDisposable setDisposable:[[itemSignal deliverOn:[SQueue mainQueue]] startWithNext:^(AVPlayerItem *playerItem)
     {
         __strong TGMediaPickerGalleryVideoItemView *strongSelf = weakSelf;
-        if (strongSelf == nil)
+        if (strongSelf == nil || ![playerItem isKindOfClass:[AVPlayerItem class]])
             return;
         
         strongSelf->_player = [AVPlayer playerWithPlayerItem:playerItem];
@@ -1040,15 +1143,23 @@
         }
         
         strongSelf->_didPlayToEndObserver = [[TGObserverProxy alloc] initWithTarget:strongSelf targetSelector:@selector(playerItemDidPlayToEndTime:) name:AVPlayerItemDidPlayToEndTimeNotification object:playerItem];
+                
+        TGVideoEditAdjustments *adjustments = (TGVideoEditAdjustments *)[strongSelf.item.editingContext adjustmentsForItem:strongSelf.item.editableMediaItem];
         
-        strongSelf->_videoView = [[TGModernGalleryVideoView alloc] initWithFrame:strongSelf->_playerView.bounds player:strongSelf->_player];
-        strongSelf->_videoView.frame = strongSelf->_imageView.frame;
-        strongSelf->_videoView.playerLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
-        strongSelf->_videoView.playerLayer.opaque = false;
-        strongSelf->_videoView.playerLayer.backgroundColor = nil;
+        strongSelf->_videoView = [[TGPhotoEditorPreviewView alloc] initWithFrame:strongSelf->_imageView.frame];
+        strongSelf->_videoView.customTouchDownHandling = true;
+        strongSelf->_videoView.userInteractionEnabled = false;
         [strongSelf->_playerContainerView insertSubview:strongSelf->_videoView belowSubview:strongSelf->_paintingImageView];
         
-        TGVideoEditAdjustments *adjustments = (TGVideoEditAdjustments *)[strongSelf.item.editingContext adjustmentsForItem:strongSelf.item.editableMediaItem];
+        strongSelf->_entitiesContainerView.hidden = false;
+        
+        [strongSelf->_videoView setNeedsTransitionIn];
+        [strongSelf->_videoView performTransitionInIfNeeded];
+        
+        strongSelf->_photoEditor = [[PGPhotoEditor alloc] initWithOriginalSize:strongSelf->_videoDimensions adjustments:adjustments forVideo:true enableStickers:true];
+        strongSelf->_photoEditor.previewOutput = strongSelf->_videoView;
+        [strongSelf->_photoEditor setPlayerItem:playerItem forCropRect:CGRectZero cropRotation:0.0 cropOrientation:UIImageOrientationUp cropMirrored:false];
+        [strongSelf->_photoEditor processAnimated:false completion:nil];
         
         [strongSelf _seekToPosition:adjustments.trimStartValue manual:false];
         if (adjustments.trimEndValue > DBL_EPSILON)
@@ -1059,6 +1170,8 @@
             strongSelf.isPlaying = true;
             [strongSelf->_player play];
         }
+        
+        [strongSelf->_entitiesContainerView updateVisibility:strongSelf.isPlaying];
         
         strongSelf->_positionTimer = [TGTimerTarget scheduledMainThreadTimerWithTarget:self action:@selector(positionTimerEvent) interval:0.25 repeat:true];
         [strongSelf positionTimerEvent];
@@ -1071,10 +1184,14 @@
 {
     if (object == _player && [keyPath isEqualToString:@"rate"])
     {
-        if (_player.rate > FLT_EPSILON)
+        if (_player.rate > FLT_EPSILON) {
             [_scrubberView setIsPlaying:true];
-        else
+            [_entitiesContainerView updateVisibility:true];
+        }
+        else {
             [_scrubberView setIsPlaying:false];
+            [_entitiesContainerView updateVisibility:false];
+        }
     }
 }
 
@@ -1108,6 +1225,8 @@
         _positionTimer = [TGTimerTarget scheduledMainThreadTimerWithTarget:self action:@selector(positionTimerEvent) interval:0.25 repeat:true];
         [self positionTimerEvent];
     }
+    
+    [_entitiesContainerView updateVisibility:true];
 }
 
 - (void)playIfAvailable
@@ -1129,6 +1248,8 @@
     
     [_positionTimer invalidate];
     _positionTimer = nil;
+    
+    [_entitiesContainerView updateVisibility:false];
 }
 
 - (void)togglePlayback
@@ -1141,7 +1262,12 @@
 
 - (void)playerItemDidPlayToEndTime:(NSNotification *)__unused notification
 {
-    if (!_sendAsGif)
+    bool isGif = _sendAsGif;
+    if (!_sendAsGif && [self.item.asset isKindOfClass:[TGCameraCapturedVideo class]]) {
+        isGif = ((TGCameraCapturedVideo *)self.item.asset).originalAsset.type == TGMediaAssetGifType;
+    }
+    
+    if (!isGif)
     {
         self.isPlaying = false;
         [_player pause];
@@ -1164,19 +1290,38 @@
 
 - (void)positionTimerEvent
 {
-    [self updatePositionAndForceStartTime:false];
-}
-
-- (void)updatePositionAndForceStartTime:(bool)forceStartTime
-{
-    NSTimeInterval value = forceStartTime ? _scrubberView.trimStartValue : CMTimeGetSeconds(_player.currentItem.currentTime);
-    [_scrubberView setValue:value];
+    [_scrubberView setValue:CMTimeGetSeconds(_player.currentItem.currentTime)];
 }
 
 - (void)_seekToPosition:(NSTimeInterval)position manual:(bool)__unused manual
 {
+    if (self.player == nil) {
+        return;
+    }
     CMTime targetTime = CMTimeMakeWithSeconds(position, NSEC_PER_SEC);
-    [self.player.currentItem seekToTime:targetTime toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero];
+    
+    if (CMTIME_COMPARE_INLINE(targetTime, !=, _chaseTime))
+    {
+        _chaseTime = targetTime;
+        
+        if (!_chasingTime) {
+            [self chaseTime];
+        }
+    }
+}
+
+- (void)chaseTime {
+    _chasingTime = true;
+    CMTime currentChasingTime = _chaseTime;
+    
+    [self.player.currentItem seekToTime:currentChasingTime toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero completionHandler:^(BOOL finished) {
+        if (CMTIME_COMPARE_INLINE(currentChasingTime, ==, _chaseTime)) {
+            _chasingTime = false;
+            _chaseTime = kCMTimeInvalid;
+        } else {
+            [self chaseTime];
+        }
+    }];
 }
 
 #pragma mark - Video Scrubber Data Source & Delegate
@@ -1204,12 +1349,17 @@
         _wasPlayingBeforeScrubbing = self.isPlaying;
     
     [self pausePressed];
+    
+    [self setPlayButtonHidden:true animated:false];
 }
 
 - (void)videoScrubberDidEndScrubbing:(TGMediaPickerGalleryVideoScrubber *)__unused videoScrubber
 {
-    if (_wasPlayingBeforeScrubbing)
+    if (_wasPlayingBeforeScrubbing) {
         [self play];
+    } else {
+        [self setPlayButtonHidden:false animated:true];
+    }
 }
 
 - (void)videoScrubber:(TGMediaPickerGalleryVideoScrubber *)__unused videoScrubber valueDidChange:(NSTimeInterval)position
@@ -1235,6 +1385,8 @@
         [self preparePlayerAndPlay:false];
     
     [self pausePressed];
+    
+    [self setPlayButtonHidden:true animated:false];
 }
 
 - (void)videoScrubberDidEndEditing:(TGMediaPickerGalleryVideoScrubber *)__unused videoScrubber
@@ -1242,6 +1394,8 @@
     _shouldResetScrubber = false;
     [self updatePlayerRange:videoScrubber.trimEndValue];
     [self updateEditAdjusments];
+    
+    [self setPlayButtonHidden:false animated:true];
 }
 
 - (void)videoScrubber:(TGMediaPickerGalleryVideoScrubber *)__unused videoScrubber editingStartValueDidChange:(NSTimeInterval)startValue
@@ -1261,6 +1415,23 @@
 
 #pragma mark - Edit Adjustments
 
+- (SSignal *)editableItemSignal {
+    return [_editableItemVariable signal];
+}
+
+- (id<TGMediaEditableItem>)editableMediaItem {
+    TGVideoEditAdjustments *adjustments = (TGVideoEditAdjustments *)[self.item.editingContext adjustmentsForItem:self.item.editableMediaItem];
+    if ([self itemIsLivePhoto]) {
+        if (adjustments.sendAsGif) {
+            return [[TGCameraCapturedVideo alloc] initWithAsset:self.item.editableMediaItem livePhoto:true];
+        } else {
+            return self.item.editableMediaItem;
+        }
+    } else {
+        return self.item.editableMediaItem;
+    }
+}
+
 - (void)toggleSendAsGif
 {
     TGVideoEditAdjustments *adjustments = (TGVideoEditAdjustments *)[self.item.editingContext adjustmentsForItem:self.item.editableMediaItem];
@@ -1279,42 +1450,12 @@
             trimEndValue = adjustments.trimEndValue;
         }
     }
-    NSTimeInterval trimDuration = trimEndValue - trimStartValue;
     
     bool sendAsGif = !adjustments.sendAsGif;
-    if (sendAsGif && _scrubberView.allowsTrimming)
-    {
-        if (trimDuration > TGVideoEditMaximumGifDuration)
-        {
-            trimEndValue = trimStartValue + TGVideoEditMaximumGifDuration;
-            
-            if (_scrubberView.value > trimEndValue)
-            {
-                [self stop];
-                [_scrubberView setValue:_scrubberView.trimStartValue resetPosition:true];
-                [self _seekToPosition:_scrubberView.value manual:true];
-            }
-            
-            _scrubberView.trimStartValue = trimStartValue;
-            _scrubberView.trimEndValue = trimEndValue;
-            [_scrubberView setTrimApplied:true];
-            [self updatePlayerRange:trimEndValue];
-        }
-    }
-    else if (_shouldResetScrubber)
-    {
-        trimStartValue = 0.0;
-        trimEndValue = _videoDuration;
-        
-        _scrubberView.trimStartValue = trimStartValue;
-        _scrubberView.trimEndValue = trimEndValue;
-        
-        [_scrubberView setTrimApplied:false];
-        [self updatePlayerRange:trimEndValue];
-    }
-    
-    TGVideoEditAdjustments *updatedAdjustments = [TGVideoEditAdjustments editAdjustmentsWithOriginalSize:_videoDimensions cropRect:cropRect cropOrientation:adjustments.cropOrientation cropLockedAspectRatio:adjustments.cropLockedAspectRatio cropMirrored:adjustments.cropMirrored trimStartValue:trimStartValue trimEndValue:trimEndValue paintingData:adjustments.paintingData sendAsGif:sendAsGif preset:adjustments.preset];
+    TGVideoEditAdjustments *updatedAdjustments = [TGVideoEditAdjustments editAdjustmentsWithOriginalSize:_videoDimensions cropRect:cropRect cropOrientation:adjustments.cropOrientation cropRotation:adjustments.cropRotation cropLockedAspectRatio:adjustments.cropLockedAspectRatio cropMirrored:adjustments.cropMirrored trimStartValue:trimStartValue trimEndValue:trimEndValue toolValues:adjustments.toolValues paintingData:adjustments.paintingData sendAsGif:sendAsGif preset:adjustments.preset];
     [self.item.editingContext setAdjustments:updatedAdjustments forItem:self.item.editableMediaItem];
+    
+    [_editableItemVariable set:[SSignal single:[self editableMediaItem]]];
     
     if (sendAsGif)
     {
@@ -1328,18 +1469,15 @@
             NSMutableArray *actions = [[NSMutableArray alloc] init];
             NSString *text = [self itemIsLivePhoto] ? TGLocalized(@"MediaPicker.LivePhotoDescription") : TGLocalized(@"MediaPicker.VideoMuteDescription");
             [actions addObject:@{@"title":text}];
-            _tooltipContainerView.menuView.forceArrowOnTop = true;
+            _tooltipContainerView.menuView.forceArrowOnTop = false;
             _tooltipContainerView.menuView.multiline = true;
             [_tooltipContainerView.menuView setButtonsAndActions:actions watcherHandle:nil];
             _tooltipContainerView.menuView.buttonHighlightDisabled = true;
             [_tooltipContainerView.menuView sizeToFit];
         
-            CGRect iconViewFrame = CGRectMake(12, 188 + _safeAreaInset.top, 40, 40);
+            CGRect iconViewFrame = CGRectMake(12, self.frame.size.height - 192.0 - _safeAreaInset.bottom, 40, 40);
             [_tooltipContainerView showMenuFromRect:iconViewFrame animated:false];
         }
-        
-        if (self.item.selectionContext != nil)
-            [self.item.selectionContext setItem:self.item.selectableMediaItem selected:true];
         
         if (!self.isPlaying)
             [self play];
@@ -1362,6 +1500,8 @@
     {
         if (fabs(_scrubberView.trimStartValue - adjustments.trimStartValue) > DBL_EPSILON)
         {
+            UIImage *paintingImage = _paintingImageView.image;
+            
             [[SQueue concurrentDefaultQueue] dispatch:^
             {
                 AVAssetImageGenerator *generator = [[AVAssetImageGenerator alloc] initWithAsset:_player.currentItem.asset];
@@ -1387,8 +1527,8 @@
                 
                 [image drawInRect:CGRectMake(0, 0, fillSize.width, fillSize.height)];
                 
-                if (_paintingImageView.image != nil)
-                    [_paintingImageView.image drawInRect:CGRectMake(0, 0, fillSize.width, fillSize.height)];
+                if (paintingImage != nil)
+                    [paintingImage drawInRect:CGRectMake(0, 0, fillSize.width, fillSize.height)];
                 
                 thumbnailImage = UIGraphicsGetImageFromCurrentImageContext();
                 UIGraphicsEndImageContext();
@@ -1405,7 +1545,7 @@
         UIImageOrientation cropOrientation = (adjustments != nil) ? adjustments.cropOrientation : UIImageOrientationUp;
         CGFloat cropLockedAspectRatio = (adjustments != nil) ? adjustments.cropLockedAspectRatio : 0.0f;
         
-        TGVideoEditAdjustments *updatedAdjustments = [TGVideoEditAdjustments editAdjustmentsWithOriginalSize:_videoDimensions cropRect:cropRect cropOrientation:cropOrientation cropLockedAspectRatio:cropLockedAspectRatio cropMirrored:adjustments.cropMirrored trimStartValue:_scrubberView.trimStartValue trimEndValue:_scrubberView.trimEndValue paintingData:adjustments.paintingData sendAsGif:adjustments.sendAsGif preset:adjustments.preset];
+        TGVideoEditAdjustments *updatedAdjustments = [TGVideoEditAdjustments editAdjustmentsWithOriginalSize:_videoDimensions cropRect:cropRect cropOrientation:cropOrientation cropRotation:adjustments.cropRotation cropLockedAspectRatio:cropLockedAspectRatio cropMirrored:adjustments.cropMirrored trimStartValue:_scrubberView.trimStartValue trimEndValue:_scrubberView.trimEndValue toolValues:adjustments.toolValues paintingData:adjustments.paintingData sendAsGif:adjustments.sendAsGif preset:adjustments.preset];
         
         [self.item.editingContext setAdjustments:updatedAdjustments forItem:self.item.editableMediaItem];
     }
@@ -1434,23 +1574,88 @@
     return timestamps;
 }
 
+- (SSignal *)_placeholderThumbnails:(NSArray *)timestamps {
+    NSMutableArray *thumbnails = [[NSMutableArray alloc] init];
+    
+    UIImage *image = _immediateThumbnail;
+    if (image == nil)
+        return [SSignal complete];
+    
+    UIImage *blurredImage = TGBlurredRectangularImage(image, true, image.size, image.size, NULL, nil);
+    for (__unused NSNumber *value in timestamps) {
+        if (thumbnails.count == 0)
+            [thumbnails addObject:image];
+        else
+            [thumbnails addObject:blurredImage];
+    }
+    return [SSignal single:thumbnails];
+}
+
 - (void)videoScrubber:(TGMediaPickerGalleryVideoScrubber *)__unused videoScrubber requestThumbnailImagesForTimestamps:(NSArray *)timestamps size:(CGSize)size isSummaryThumbnails:(bool)isSummaryThumbnails
 {
     if (timestamps.count == 0)
         return;
     
-    AVAsset *avAsset = self.item.avAsset ?: _player.currentItem.asset;
+    SSignal *avAsset = self.item.avAsset ?: [SSignal single:_player.currentItem.asset];
+    TGMediaEditingContext *editingContext = self.item.editingContext;
+    id<TGMediaEditableItem> editableItem = self.editableMediaItem;
     
-    SSignal *thumbnailsSignal = nil;
-    if ([self.item.asset isKindOfClass:[TGMediaAsset class]] && ![self itemIsLivePhoto])
-        thumbnailsSignal = [TGMediaAssetImageSignals videoThumbnailsForAsset:self.item.asset size:size timestamps:timestamps];
-    else if (avAsset != nil)
-        thumbnailsSignal = [TGMediaAssetImageSignals videoThumbnailsForAVAsset:avAsset size:size timestamps:timestamps];
+//    SSignal *thumbnailsSignal = nil;
+//    if ([self.item.asset isKindOfClass:[TGMediaAsset class]] && ![self itemIsLivePhoto])
+//        thumbnailsSignal = [TGMediaAssetImageSignals videoThumbnailsForAsset:self.item.asset size:size timestamps:timestamps];
+//    else if (avAsset != nil)
+//        thumbnailsSignal = [avAsset mapToSignal:^SSignal *(AVAsset *avAsset) {
+//            return [TGMediaAssetImageSignals videoThumbnailsForAVAsset:avAsset size:size timestamps:timestamps];
+//        }];
 
+    __strong TGMediaPickerGalleryVideoItemView *weakSelf = self;
+    SSignal *thumbnailsSignal = nil;
+    if (_cachedThumbnails != nil) {
+        thumbnailsSignal = [SSignal single:_cachedThumbnails];
+    } else if ([self.item.asset isKindOfClass:[TGMediaAsset class]] && ![self itemIsLivePhoto]) {
+        thumbnailsSignal = [[self _placeholderThumbnails:timestamps] then:[[TGMediaAssetImageSignals videoThumbnailsForAsset:(TGMediaAsset *)self.item.asset size:size timestamps:timestamps] onNext:^(NSArray *images) {
+            __strong TGMediaPickerGalleryVideoItemView *strongSelf = weakSelf;
+            if (strongSelf == nil)
+                return;
+            
+            if (strongSelf->_cachedThumbnails == nil)
+                strongSelf->_cachedThumbnails = images;
+        }]];
+    } else if ([self.item.asset isKindOfClass:[TGCameraCapturedVideo class]]) {
+        thumbnailsSignal = [[((TGCameraCapturedVideo *)self.item.asset).avAsset takeLast] mapToSignal:^SSignal *(AVAsset *avAsset) {
+            return [[self _placeholderThumbnails:timestamps] then:[[TGMediaAssetImageSignals videoThumbnailsForAVAsset:avAsset size:size timestamps:timestamps] onNext:^(NSArray *images) {
+                __strong TGMediaPickerGalleryVideoItemView *strongSelf = weakSelf;
+                if (strongSelf == nil)
+                    return;
+                
+                if (strongSelf->_cachedThumbnails == nil)
+                    strongSelf->_cachedThumbnails = images;
+            }]];
+        }];
+    }
+    
     _requestingThumbnails = true;
     
-    __weak TGMediaPickerGalleryVideoItemView *weakSelf = self;
-    [_thumbnailsDisposable setDisposable:[[thumbnailsSignal deliverOn:[SQueue mainQueue]] startWithNext:^(NSArray *images)
+    [_thumbnailsDisposable setDisposable:[[[thumbnailsSignal map:^NSArray *(NSArray *images) {
+        id<TGMediaEditAdjustments> adjustments = [editingContext adjustmentsForItem:editableItem];
+        if (adjustments.toolsApplied) {
+            NSMutableArray *editedImages = [[NSMutableArray alloc] init];
+            PGPhotoEditor *editor = [[PGPhotoEditor alloc] initWithOriginalSize:adjustments.originalSize adjustments:adjustments forVideo:false enableStickers:true];
+            editor.standalone = true;
+            for (UIImage *image in images) {
+                [editor setImage:image forCropRect:adjustments.cropRect cropRotation:0.0 cropOrientation:adjustments.cropOrientation cropMirrored:adjustments.cropMirrored fullSize:false];
+                UIImage *resultImage = editor.currentResultImage;
+                if (resultImage != nil) {
+                    [editedImages addObject:resultImage];
+                } else {
+                    [editedImages addObject:image];
+                }
+            }
+            return editedImages;
+        } else {
+            return images;
+        }
+    }] deliverOn:[SQueue mainQueue]] startWithNext:^(NSArray *images)
     {
         __strong TGMediaPickerGalleryVideoItemView *strongSelf = weakSelf;
         if (strongSelf == nil)
@@ -1459,7 +1664,7 @@
         [images enumerateObjectsUsingBlock:^(UIImage *image, NSUInteger index, __unused BOOL *stop)
         {
             if (index < timestamps.count)
-                [strongSelf->_scrubberView setThumbnailImage:image forTimestamp:[timestamps[index] doubleValue] isSummaryThubmnail:isSummaryThumbnails];
+                [strongSelf->_scrubberView setThumbnailImage:image forTimestamp:[timestamps[index] doubleValue] index:index isSummaryThubmnail:isSummaryThumbnails];
         }];
     } completed:^
     {

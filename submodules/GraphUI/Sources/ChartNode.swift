@@ -11,10 +11,13 @@ public enum ChartType {
     case lines
     case twoAxis
     case pie
+    case area
     case bars
     case step
     case twoAxisStep
     case hourlyStep
+    case twoAxisHourlyStep
+    case twoAxis5MinStep
 }
 
 public extension ChartTheme {    
@@ -76,7 +79,9 @@ public func createChartController(_ data: String, type: ChartType, getDetailsDat
                     controller = TwoAxisLinesChartController(chartsCollection: collection)
                     controller.isZoomable = false
                 case .pie:
-                    controller = PercentPieChartController(chartsCollection: collection)
+                    controller = PercentPieChartController(chartsCollection: collection, initiallyZoomed: true)
+                case .area:
+                    controller = PercentPieChartController(chartsCollection: collection, initiallyZoomed: false)
                 case .bars:
                     controller = StackedBarsChartController(chartsCollection: collection)
                     controller.isZoomable = false
@@ -86,6 +91,16 @@ public func createChartController(_ data: String, type: ChartType, getDetailsDat
                     controller = TwoAxisStepBarsChartController(chartsCollection: collection)
                 case .hourlyStep:
                     controller = StepBarsChartController(chartsCollection: collection, hourly: true)
+                    controller.isZoomable = false
+                case .twoAxisHourlyStep:
+                    let stepController = TwoAxisStepBarsChartController(chartsCollection: collection)
+                    stepController.hourly = true
+                    controller = stepController
+                    controller.isZoomable = false
+                case .twoAxis5MinStep:
+                    let stepController = TwoAxisStepBarsChartController(chartsCollection: collection)
+                    stepController.min5 = true
+                    controller = stepController
                     controller.isZoomable = false
             }
             controller.getDetailsData = { date, completion in

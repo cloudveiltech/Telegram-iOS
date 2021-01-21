@@ -15,7 +15,7 @@ import SearchBarNode
 import SearchUI
 import ChatListSearchItemHeader
 
-extension NavigationBarSearchContentNode: ItemListControllerSearchNavigationContentNode {
+/*extension NavigationBarSearchContentNode: ItemListControllerSearchNavigationContentNode {
     public func activate() {
     }
     
@@ -24,7 +24,7 @@ extension NavigationBarSearchContentNode: ItemListControllerSearchNavigationCont
     
     public func setQueryUpdated(_ f: @escaping (String) -> Void) {
     }
-}
+}*/
 
 extension SettingsSearchableItemIcon {
     func image() -> UIImage? {
@@ -59,6 +59,8 @@ extension SettingsSearchableItemIcon {
                 return PresentationResourcesSettings.support
             case .faq:
                 return PresentationResourcesSettings.faq
+            case .chatFolders:
+                return PresentationResourcesSettings.chatFolders
         }
     }
 }
@@ -72,6 +74,7 @@ final class SettingsSearchItem: ItemListControllerSearch {
     let presentController: (ViewController, Any?) -> Void
     let pushController: (ViewController) -> Void
     let getNavigationController: (() -> NavigationController?)?
+    let resolvedFaqUrl: Signal<ResolvedUrl?, NoError>
     let exceptionsList: Signal<NotificationExceptionsList?, NoError>
     let archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>
     let privacySettings: Signal<AccountPrivacySettings?, NoError>
@@ -83,7 +86,7 @@ final class SettingsSearchItem: ItemListControllerSearch {
     private var activity: ValuePromise<Bool> = ValuePromise(ignoreRepeated: false)
     private let activityDisposable = MetaDisposable()
     
-    init(context: AccountContext, theme: PresentationTheme, placeholder: String, activated: Bool, updateActivated: @escaping (Bool) -> Void, presentController: @escaping (ViewController, Any?) -> Void, pushController: @escaping (ViewController) -> Void, getNavigationController: (() -> NavigationController?)?, exceptionsList: Signal<NotificationExceptionsList?, NoError>, archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>, privacySettings: Signal<AccountPrivacySettings?, NoError>, hasWallet: Signal<Bool, NoError>, activeSessionsContext: Signal<ActiveSessionsContext?, NoError>, webSessionsContext: Signal<WebSessionsContext?, NoError>) {
+    init(context: AccountContext, theme: PresentationTheme, placeholder: String, activated: Bool, updateActivated: @escaping (Bool) -> Void, presentController: @escaping (ViewController, Any?) -> Void, pushController: @escaping (ViewController) -> Void, getNavigationController: (() -> NavigationController?)?, resolvedFaqUrl: Signal<ResolvedUrl?, NoError>, exceptionsList: Signal<NotificationExceptionsList?, NoError>, archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>, privacySettings: Signal<AccountPrivacySettings?, NoError>, hasWallet: Signal<Bool, NoError>, activeSessionsContext: Signal<ActiveSessionsContext?, NoError>, webSessionsContext: Signal<WebSessionsContext?, NoError>) {
         self.context = context
         self.theme = theme
         self.placeholder = placeholder
@@ -92,6 +95,7 @@ final class SettingsSearchItem: ItemListControllerSearch {
         self.presentController = presentController
         self.pushController = pushController
         self.getNavigationController = getNavigationController
+        self.resolvedFaqUrl = resolvedFaqUrl
         self.exceptionsList = exceptionsList
         self.archivedStickerPacks = archivedStickerPacks
         self.privacySettings = privacySettings
@@ -161,7 +165,7 @@ final class SettingsSearchItem: ItemListControllerSearch {
                 pushController(c)
             }, presentController: { c, a in
                 presentController(c, a)
-            }, getNavigationController: self.getNavigationController, exceptionsList: self.exceptionsList, archivedStickerPacks: self.archivedStickerPacks, privacySettings: self.privacySettings, hasWallet: self.hasWallet, activeSessionsContext: self.activeSessionsContext, webSessionsContext: self.webSessionsContext)
+            }, getNavigationController: self.getNavigationController, resolvedFaqUrl: self.resolvedFaqUrl, exceptionsList: self.exceptionsList, archivedStickerPacks: self.archivedStickerPacks, privacySettings: self.privacySettings, hasWallet: self.hasWallet, activeSessionsContext: self.activeSessionsContext, webSessionsContext: self.webSessionsContext)
         }
     }
 }
@@ -258,19 +262,33 @@ private enum SettingsSearchRecentEntryStableId: Hashable {
 }
 
 private enum SettingsSearchRecentEntry: Comparable, Identifiable {
-    case recent(Int, SettingsSearchableItem)
+    case recent(Int, SettingsSearchableItem, ChatListSearchItemHeader)
+    case faq(Int, SettingsSearchableItem, ChatListSearchItemHeader)
     
     var stableId: SettingsSearchRecentEntryStableId {
         switch self {
-            case let .recent(_, item):
+            case let .recent(_, item, _), let .faq(_, item, _):
                 return .recent(item.id)
+        }
+    }
+    
+    var header: ChatListSearchItemHeader {
+        switch self {
+            case let .recent(_, _, header), let .faq(_, _, header):
+                return header
         }
     }
     
     static func ==(lhs: SettingsSearchRecentEntry, rhs: SettingsSearchRecentEntry) -> Bool {
         switch lhs {
-            case let .recent(lhsIndex, lhsItem):
-                if case let .recent(rhsIndex, rhsItem) = rhs, lhsIndex == rhsIndex, lhsItem.id == rhsItem.id {
+            case let .recent(lhsIndex, lhsItem, lhsHeader):
+                if case let .recent(rhsIndex, rhsItem, rhsHeader) = rhs, lhsIndex == rhsIndex, lhsItem.id == rhsItem.id, lhsHeader.id == rhsHeader.id {
+                    return true
+                } else {
+                    return false
+                }
+            case let .faq(lhsIndex, lhsItem, lhsHeader):
+                if case let .faq(rhsIndex, rhsItem, rhsHeader) = rhs, lhsIndex == rhsIndex, lhsItem.id == rhsItem.id, lhsHeader.id == rhsHeader.id {
                     return true
                 } else {
                     return false
@@ -280,17 +298,26 @@ private enum SettingsSearchRecentEntry: Comparable, Identifiable {
     
     static func <(lhs: SettingsSearchRecentEntry, rhs: SettingsSearchRecentEntry) -> Bool {
         switch lhs {
-            case let .recent(lhsIndex, _):
+            case let .recent(lhsIndex, _, _):
                 switch rhs {
-                    case let .recent(rhsIndex, _):
+                    case let .recent(rhsIndex, _, _):
+                        return lhsIndex <= rhsIndex
+                    case .faq:
+                        return false
+                }
+            case let .faq(lhsIndex, _, _):
+                switch rhs {
+                    case .recent:
+                        return true
+                    case let .faq(rhsIndex, _, _):
                         return lhsIndex <= rhsIndex
                 }
         }
     }
     
-    func item(account: Account, theme: PresentationTheme, strings: PresentationStrings, interaction: SettingsSearchInteraction, header: ListViewItemHeader) -> ListViewItem {
+    func item(account: Account, theme: PresentationTheme, strings: PresentationStrings, interaction: SettingsSearchInteraction) -> ListViewItem {
         switch self {
-            case let .recent(_, item):
+            case let .recent(_, item, header), let .faq(_, item, header):
                 return SettingsSearchRecentItem(account: account, theme: theme, strings: strings, title: item.title, breadcrumbs: item.breadcrumbs, action: {
                     interaction.openItem(item)
                 }, deleted: {
@@ -307,18 +334,18 @@ private struct SettingsSearchContainerRecentTransition {
     let isEmpty: Bool
 }
 
-private func preparedSettingsSearchContainerRecentTransition(from fromEntries: [SettingsSearchRecentEntry], to toEntries: [SettingsSearchRecentEntry], account: Account, theme: PresentationTheme, strings: PresentationStrings, interaction: SettingsSearchInteraction, header: ListViewItemHeader) -> SettingsSearchContainerRecentTransition {
+private func preparedSettingsSearchContainerRecentTransition(from fromEntries: [SettingsSearchRecentEntry], to toEntries: [SettingsSearchRecentEntry], account: Account, theme: PresentationTheme, strings: PresentationStrings, interaction: SettingsSearchInteraction) -> SettingsSearchContainerRecentTransition {
     let (deleteIndices, indicesAndItems, updateIndices) = mergeListsStableWithUpdates(leftList: fromEntries, rightList: toEntries)
     
     let deletions = deleteIndices.map { ListViewDeleteItem(index: $0, directionHint: nil) }
-    let insertions = indicesAndItems.map { ListViewInsertItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(account: account, theme: theme, strings: strings, interaction: interaction, header: header), directionHint: nil) }
-    let updates = updateIndices.map { ListViewUpdateItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(account: account, theme: theme, strings: strings, interaction: interaction, header: header), directionHint: nil) }
+    let insertions = indicesAndItems.map { ListViewInsertItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(account: account, theme: theme, strings: strings, interaction: interaction), directionHint: nil) }
+    let updates = updateIndices.map { ListViewUpdateItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(account: account, theme: theme, strings: strings, interaction: interaction), directionHint: nil) }
     
     return SettingsSearchContainerRecentTransition(deletions: deletions, insertions: insertions, updates: updates, isEmpty: toEntries.isEmpty)
 }
 
 
-private final class SettingsSearchContainerNode: SearchDisplayControllerContentNode {
+public final class SettingsSearchContainerNode: SearchDisplayControllerContentNode {
     private let listNode: ListView
     private let recentListNode: ListView
     
@@ -335,7 +362,7 @@ private final class SettingsSearchContainerNode: SearchDisplayControllerContentN
     private var presentationDataDisposable: Disposable?
     private let presentationDataPromise: Promise<PresentationData>
     
-    init(context: AccountContext, openResult: @escaping (SettingsSearchableItem) -> Void, exceptionsList: Signal<NotificationExceptionsList?, NoError>, archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>, privacySettings: Signal<AccountPrivacySettings?, NoError>, hasWallet: Signal<Bool, NoError>, activeSessionsContext: Signal<ActiveSessionsContext?, NoError>, webSessionsContext: Signal<WebSessionsContext?, NoError>) {
+    public init(context: AccountContext, openResult: @escaping (SettingsSearchableItem) -> Void, resolvedFaqUrl: Signal<ResolvedUrl?, NoError>, exceptionsList: Signal<NotificationExceptionsList?, NoError>, archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>, privacySettings: Signal<AccountPrivacySettings?, NoError>, hasWallet: Signal<Bool, NoError>, activeSessionsContext: Signal<ActiveSessionsContext?, NoError>, webSessionsContext: Signal<WebSessionsContext?, NoError>) {
         self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
         self.presentationDataPromise = Promise(self.presentationData)
         
@@ -354,14 +381,20 @@ private final class SettingsSearchContainerNode: SearchDisplayControllerContentN
         self.addSubnode(self.recentListNode)
         self.addSubnode(self.listNode)
         
-        let interaction = SettingsSearchInteraction(openItem: openResult, deleteRecentItem: { id in
+        let interaction = SettingsSearchInteraction(openItem: { result in
+            addRecentSettingsSearchItem(postbox: context.account.postbox, item: result.id)
+            openResult(result)
+        }, deleteRecentItem: { id in
             removeRecentSettingsSearchItem(postbox: context.account.postbox, item: id)
         })
         
         let searchableItems = Promise<[SettingsSearchableItem]>()
         searchableItems.set(settingsSearchableItems(context: context, notificationExceptionsList: exceptionsList, archivedStickerPacks: archivedStickerPacks, privacySettings: privacySettings, hasWallet: hasWallet, activeSessionsContext: activeSessionsContext, webSessionsContext: webSessionsContext))
         
-        let queryAndFoundItems = combineLatest(searchableItems.get(), faqSearchableItems(context: context))
+        let faqItems = Promise<[SettingsSearchableItem]>()
+        faqItems.set(faqSearchableItems(context: context, resolvedUrl: resolvedFaqUrl, suggestAccountDeletion: false))
+        
+        let queryAndFoundItems = combineLatest(searchableItems.get(), faqSearchableItems(context: context, resolvedUrl: resolvedFaqUrl, suggestAccountDeletion: true))
         |> mapToSignal { searchableItems, faqSearchableItems -> Signal<(String, [SettingsSearchableItem])?, NoError> in
             return self.searchQuery.get()
             |> mapToSignal { query -> Signal<(String, [SettingsSearchableItem])?, NoError> in
@@ -429,20 +462,26 @@ private final class SettingsSearchContainerNode: SearchDisplayControllerContentN
         }
         
         let previousRecentItems = Atomic<[SettingsSearchRecentEntry]?>(value: nil)
-        self.recentDisposable = (combineLatest(recentSearchItems, self.presentationDataPromise.get())
-        |> deliverOnMainQueue).start(next: { [weak self] recentSearchItems, presentationData in
+        self.recentDisposable = (combineLatest(recentSearchItems, faqItems.get(), self.presentationDataPromise.get())
+        |> deliverOnMainQueue).start(next: { [weak self] recentSearchItems, faqItems, presentationData in
             if let strongSelf = self {
-                var entries: [SettingsSearchRecentEntry] = []
-                for i in 0 ..< recentSearchItems.count {
-                    entries.append(.recent(i, recentSearchItems[i]))
-                }
-                
-                let header = ChatListSearchItemHeader(type: .recentPeers, theme: presentationData.theme, strings: presentationData.strings, actionTitle: presentationData.strings.WebSearch_RecentSectionClear, action: {
+                let recentHeader = ChatListSearchItemHeader(type: .recentPeers, theme: presentationData.theme, strings: presentationData.strings, actionTitle: presentationData.strings.WebSearch_RecentSectionClear, action: {
                     clearRecentSettingsSearchItems(postbox: context.account.postbox)
                 })
+                let faqHeader = ChatListSearchItemHeader(type: .faq, theme: presentationData.theme, strings: presentationData.strings)
+                
+                var entries: [SettingsSearchRecentEntry] = []
+                for i in 0 ..< recentSearchItems.count {
+                    entries.append(.recent(i, recentSearchItems[i], recentHeader))
+                }
+                
+                for i in 0 ..< faqItems.count {
+                    entries.append(.faq(i, faqItems[i], faqHeader))
+                }
+                
                 
                 let previousEntries = previousRecentItems.swap(entries)
-                let transition = preparedSettingsSearchContainerRecentTransition(from: previousEntries ?? [], to: entries, account: context.account, theme: presentationData.theme, strings: presentationData.strings, interaction: interaction, header: header)
+                let transition = preparedSettingsSearchContainerRecentTransition(from: previousEntries ?? [], to: entries, account: context.account, theme: presentationData.theme, strings: presentationData.strings, interaction: interaction)
                 strongSelf.enqueueRecentTransition(transition, firstTime: previousEntries == nil)
             }
         })
@@ -510,7 +549,7 @@ private final class SettingsSearchContainerNode: SearchDisplayControllerContentN
         self.recentListNode.verticalScrollIndicatorColor = theme.list.scrollIndicatorColor
     }
     
-    override func searchTextUpdated(text: String) {
+    public override func searchTextUpdated(text: String) {
         if text.isEmpty {
             self.searchQuery.set(.single(nil))
         } else {
@@ -569,7 +608,7 @@ private final class SettingsSearchContainerNode: SearchDisplayControllerContentN
         }
     }
     
-    override func containerLayoutUpdated(_ layout: ContainerViewLayout, navigationBarHeight: CGFloat, transition: ContainedViewLayoutTransition) {
+    public override func containerLayoutUpdated(_ layout: ContainerViewLayout, navigationBarHeight: CGFloat, transition: ContainedViewLayoutTransition) {
         super.containerLayoutUpdated(layout, navigationBarHeight: navigationBarHeight, transition: transition)
                 
         let (duration, curve) = listViewAnimationDurationAndCurve(transition: transition)
@@ -593,7 +632,7 @@ private final class SettingsSearchContainerNode: SearchDisplayControllerContentN
         }
     }
     
-    override func scrollToTop() {
+    public override func scrollToTop() {
         let listNodeToScroll: ListView
         if !self.listNode.isHidden {
             listNodeToScroll = self.listNode
@@ -619,6 +658,7 @@ private final class SettingsSearchItemNode: ItemListControllerSearchNode {
     let pushController: (ViewController) -> Void
     let presentController: (ViewController, Any?) -> Void
     let getNavigationController: (() -> NavigationController?)?
+    let resolvedFaqUrl: Signal<ResolvedUrl?, NoError>
     let exceptionsList: Signal<NotificationExceptionsList?, NoError>
     let archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>
     let privacySettings: Signal<AccountPrivacySettings?, NoError>
@@ -628,13 +668,14 @@ private final class SettingsSearchItemNode: ItemListControllerSearchNode {
     
     var cancel: () -> Void
     
-    init(context: AccountContext, cancel: @escaping () -> Void, updateActivity: @escaping(Bool) -> Void, pushController: @escaping (ViewController) -> Void, presentController: @escaping (ViewController, Any?) -> Void, getNavigationController: (() -> NavigationController?)?, exceptionsList: Signal<NotificationExceptionsList?, NoError>, archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>, privacySettings: Signal<AccountPrivacySettings?, NoError>, hasWallet: Signal<Bool, NoError>, activeSessionsContext: Signal<ActiveSessionsContext?, NoError>, webSessionsContext: Signal<WebSessionsContext?, NoError>) {
+    init(context: AccountContext, cancel: @escaping () -> Void, updateActivity: @escaping(Bool) -> Void, pushController: @escaping (ViewController) -> Void, presentController: @escaping (ViewController, Any?) -> Void, getNavigationController: (() -> NavigationController?)?, resolvedFaqUrl: Signal<ResolvedUrl?, NoError>, exceptionsList: Signal<NotificationExceptionsList?, NoError>, archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>, privacySettings: Signal<AccountPrivacySettings?, NoError>, hasWallet: Signal<Bool, NoError>, activeSessionsContext: Signal<ActiveSessionsContext?, NoError>, webSessionsContext: Signal<WebSessionsContext?, NoError>) {
         self.context = context
         self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
         self.cancel = cancel
         self.pushController = pushController
         self.presentController = presentController
         self.getNavigationController = getNavigationController
+        self.resolvedFaqUrl = resolvedFaqUrl
         self.exceptionsList = exceptionsList
         self.archivedStickerPacks = archivedStickerPacks
         self.privacySettings = privacySettings
@@ -657,8 +698,6 @@ private final class SettingsSearchItemNode: ItemListControllerSearchNode {
         
         self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: SettingsSearchContainerNode(context: self.context, openResult: { [weak self] result in
             if let strongSelf = self {
-                addRecentSettingsSearchItem(postbox: strongSelf.context.account.postbox, item: result.id)
-                
                 result.present(strongSelf.context, strongSelf.getNavigationController?(), { [weak self] mode, controller in
                     if let strongSelf = self {
                         switch mode {
@@ -682,7 +721,7 @@ private final class SettingsSearchItemNode: ItemListControllerSearchNode {
                     }
                 })
             }
-        }, exceptionsList: self.exceptionsList, archivedStickerPacks: self.archivedStickerPacks, privacySettings: self.privacySettings, hasWallet: self.hasWallet, activeSessionsContext: self.activeSessionsContext, webSessionsContext: self.webSessionsContext), cancel: { [weak self] in
+        }, resolvedFaqUrl: self.resolvedFaqUrl, exceptionsList: self.exceptionsList, archivedStickerPacks: self.archivedStickerPacks, privacySettings: self.privacySettings, hasWallet: self.hasWallet, activeSessionsContext: self.activeSessionsContext, webSessionsContext: self.webSessionsContext), cancel: { [weak self] in
             self?.cancel()
         })
         

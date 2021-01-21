@@ -226,7 +226,7 @@ public class ContactsController: ViewController {
                                     self?.deactivateSearch(animated: false)
                                     self?.switchToChatsController?()
                                 }
-                                }, scrollToEndIfExists: scrollToEndIfExists, options: [.removeOnMasterDetails], completion: { [weak self] in
+                                }, scrollToEndIfExists: scrollToEndIfExists, options: [.removeOnMasterDetails], completion: { [weak self] _ in
                                 if let strongSelf = self {
                                     strongSelf.contactsNode.contactListNode.listNode.clearHighlightAnimated(true)
                                 }
@@ -275,8 +275,21 @@ public class ContactsController: ViewController {
             self?.activateSearch()
         }
         
-        self.contactsNode.contactListNode.openPeer = { peer in
+        self.contactsNode.contactListNode.openPeer = { peer, _ in
             openPeer(peer, false)
+        }
+        
+        self.contactsNode.requestAddContact = { [weak self] phoneNumber in
+            if let strongSelf = self {
+                strongSelf.view.endEditing(true)
+                strongSelf.context.sharedContext.openAddContact(context: strongSelf.context, firstName: "", lastName: "", phoneNumber: phoneNumber, label: defaultContactLabel, present: { [weak self] controller, arguments in
+                    self?.present(controller, in: .window(.root), with: arguments)
+                }, pushController: { [weak self] controller in
+                    (self?.navigationController as? NavigationController)?.pushViewController(controller)
+                }, completed: {
+                    self?.deactivateSearch(animated: false)
+                })
+            }
         }
         
         self.contactsNode.openPeopleNearby = { [weak self] in
@@ -396,80 +409,6 @@ public class ContactsController: ViewController {
         self.contactsNode.containerLayoutUpdated(layout, navigationBarHeight: self.navigationInsetHeight, actualNavigationBarHeight: self.navigationHeight, transition: transition)
     }
     
-    func previewingController(from sourceView: UIView, for location: CGPoint) -> (UIViewController, CGRect)? {
-        guard let layout = self.validLayout, case .phone = layout.deviceMetrics.type else {
-            return nil
-        }
-        
-        let boundsSize = self.view.bounds.size
-        let contentSize: CGSize
-        if case .unknown = layout.deviceMetrics {
-            contentSize = boundsSize
-        } else {
-            contentSize = layout.deviceMetrics.previewingContentSize(inLandscape: boundsSize.width > boundsSize.height)
-        }
-
-        var selectedNode: ContactsPeerItemNode?
-        
-        if let searchController = self.contactsNode.searchDisplayController {
-            guard let contentNode = searchController.contentNode as? ContactsSearchContainerNode else {
-                return nil
-            }
-            
-            let listLocation = self.view.convert(location, to: contentNode.listNode.view)
-            
-            contentNode.listNode.forEachItemNode { itemNode in
-                if let itemNode = itemNode as? ContactsPeerItemNode, itemNode.frame.contains(listLocation), !itemNode.isDisplayingRevealedOptions {
-                    selectedNode = itemNode
-                }
-            }
-        } else {
-            let listLocation = self.view.convert(location, to: self.contactsNode.contactListNode.listNode.view)
-            
-            self.contactsNode.contactListNode.listNode.forEachItemNode { itemNode in
-                if let itemNode = itemNode as? ContactsPeerItemNode, itemNode.frame.contains(listLocation), !itemNode.isDisplayingRevealedOptions {
-                    selectedNode = itemNode
-                }
-            }
-        }
-        
-        if let selectedNode = selectedNode, let peer = selectedNode.item?.peer {
-            var sourceRect = selectedNode.view.superview!.convert(selectedNode.frame, to: sourceView)
-            sourceRect.size.height -= UIScreenPixel
-            switch peer {
-            case let .peer(peer, _):
-                guard let peer = peer else {
-                    return nil
-                }
-                if peer.id.namespace != Namespaces.Peer.SecretChat {
-                    let chatController = self.context.sharedContext.makeChatController(context: self.context, chatLocation: .peer(peer.id), subject: nil, botStart: nil, mode: .standard(previewing: true))
-                    chatController.canReadHistory.set(false)
-                    chatController.containerLayoutUpdated(ContainerViewLayout(size: contentSize, metrics: LayoutMetrics(), deviceMetrics: layout.deviceMetrics, intrinsicInsets: UIEdgeInsets(), safeInsets: UIEdgeInsets(), statusBarHeight: nil, inputHeight: nil, inputHeightIsInteractivellyChanging: false, inVoiceOver: false), transition: .immediate)
-                    return (chatController, sourceRect)
-                } else {
-                    return nil
-                }
-            case .deviceContact:
-                return nil
-            }
-        } else {
-            return nil
-        }
-    }
-    
-    func previewingCommit(_ viewControllerToCommit: UIViewController) {
-        if let viewControllerToCommit = viewControllerToCommit as? ViewController {
-            if let chatController = viewControllerToCommit as? ChatController {
-                chatController.canReadHistory.set(true)
-                chatController.updatePresentationMode(.standard(previewing: false))
-                if let navigationController = self.navigationController as? NavigationController {
-                    self.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, chatController: chatController, context: self.context, chatLocation: chatController.chatLocation, animated: false))
-                    self.contactsNode.contactListNode.listNode.clearHighlightAnimated(true)
-                }
-            }
-        }
-    }
-    
     private func activateSearch() {
         if self.displayNavigationBar {
             if let searchContentNode = self.searchContentNode {
@@ -535,8 +474,10 @@ public class ContactsController: ViewController {
                             return
                         }
                         if let peer = peer {
-                            if let infoController = strongSelf.context.sharedContext.makePeerInfoController(context: strongSelf.context, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
-                                (strongSelf.navigationController as? NavigationController)?.pushViewController(infoController)
+                            DispatchQueue.main.async {
+                                if let infoController = strongSelf.context.sharedContext.makePeerInfoController(context: strongSelf.context, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
+                                    (strongSelf.navigationController as? NavigationController)?.pushViewController(infoController)
+                                }
                             }
                         } else {
                             (strongSelf.navigationController as? NavigationController)?.pushViewController(strongSelf.context.sharedContext.makeDeviceContactInfoController(context: strongSelf.context, subject: .vcard(nil, stableId, contactData), completed: nil, cancelled: nil))

@@ -135,6 +135,8 @@ private enum ApplicationSpecificGlobalNotice: Int32 {
     case chatTextSelectionTip = 16
     case themeChangeTip = 17
     case callsTabTip = 18
+    case chatFolderTips = 19
+    case locationProximityAlertTip = 20
     
     var key: ValueBoxKey {
         let v = ValueBoxKey(length: 4)
@@ -163,7 +165,8 @@ private struct ApplicationSpecificNoticeKeys {
     private static let globalNamespace: Int32 = 2
     private static let permissionsNamespace: Int32 = 3
     private static let peerReportNamespace: Int32 = 4
-    private static let inlineBotLocationRequestNamespace: Int32 = 1
+    private static let inlineBotLocationRequestNamespace: Int32 = 5
+    private static let psaAcknowledgementNamespace: Int32 = 6
     
     static func inlineBotLocationRequestNotice(peerId: PeerId) -> NoticeEntryKey {
         return NoticeEntryKey(namespace: noticeNamespace(namespace: inlineBotLocationRequestNamespace), key: noticeKey(peerId: peerId, key: 0))
@@ -197,12 +200,20 @@ private struct ApplicationSpecificNoticeKeys {
         return NoticeEntryKey(namespace: noticeNamespace(namespace: globalNamespace), key: ApplicationSpecificGlobalNotice.archiveChatTips.key)
     }
     
+    static func chatFolderTips() -> NoticeEntryKey {
+        return NoticeEntryKey(namespace: noticeNamespace(namespace: globalNamespace), key: ApplicationSpecificGlobalNotice.chatFolderTips.key)
+    }
+    
     static func profileCallTips() -> NoticeEntryKey {
         return NoticeEntryKey(namespace: noticeNamespace(namespace: globalNamespace), key: ApplicationSpecificGlobalNotice.profileCallTips.key)
     }
     
     static func proxyAdsAcknowledgment() -> NoticeEntryKey {
         return NoticeEntryKey(namespace: noticeNamespace(namespace: globalNamespace), key: ApplicationSpecificGlobalNotice.proxyAdsAcknowledgment.key)
+    }
+    
+    static func psaAdsAcknowledgment(peerId: PeerId) -> NoticeEntryKey {
+        return NoticeEntryKey(namespace: noticeNamespace(namespace: psaAcknowledgementNamespace), key: noticeKey(peerId: peerId, key: 0))
     }
     
     static func setPublicChannelLink() -> NoticeEntryKey {
@@ -248,6 +259,10 @@ private struct ApplicationSpecificNoticeKeys {
     static func themeChangeTip() -> NoticeEntryKey {
         return NoticeEntryKey(namespace: noticeNamespace(namespace: globalNamespace), key: ApplicationSpecificGlobalNotice.themeChangeTip.key)
     }
+    
+    static func locationProximityAlertTip() -> NoticeEntryKey {
+        return NoticeEntryKey(namespace: noticeNamespace(namespace: globalNamespace), key: ApplicationSpecificGlobalNotice.locationProximityAlertTip.key)
+    }
 }
 
 public struct ApplicationSpecificNotice {
@@ -284,6 +299,32 @@ public struct ApplicationSpecificNotice {
             } else {
                 return nil
             }
+        }
+    }
+    
+    public static func inlineBotLocationRequestStatus(accountManager: AccountManager, peerId: PeerId) -> Signal<Bool, NoError> {
+        return accountManager.noticeEntry(key: ApplicationSpecificNoticeKeys.inlineBotLocationRequestNotice(peerId: peerId))
+        |> map { view -> Bool in
+            guard let value = view.value as? ApplicationSpecificTimestampNotice else {
+                return false
+            }
+            if value.value == 0 {
+                return true
+            } else {
+                return false
+            }
+        }
+    }
+    
+    public static func updateInlineBotLocationRequestState(accountManager: AccountManager, peerId: PeerId, timestamp: Int32) -> Signal<Bool, NoError> {
+        return accountManager.transaction { transaction -> Bool in
+            if let notice = transaction.getNotice(ApplicationSpecificNoticeKeys.inlineBotLocationRequestNotice(peerId: peerId)) as? ApplicationSpecificTimestampNotice, (notice.value == 0 || timestamp <= notice.value + 10 * 60) {
+                return false
+            }
+            
+            transaction.setNotice(ApplicationSpecificNoticeKeys.inlineBotLocationRequestNotice(peerId: peerId), ApplicationSpecificTimestampNotice(value: timestamp))
+            
+            return true
         }
     }
     
@@ -392,6 +433,21 @@ public struct ApplicationSpecificNotice {
         }
     }
     
+    public static func incrementChatFolderTips(accountManager: AccountManager, count: Int = 1) -> Signal<Int, NoError> {
+        return accountManager.transaction { transaction -> Int in
+            var currentValue: Int32 = 0
+            if let value = transaction.getNotice(ApplicationSpecificNoticeKeys.chatFolderTips()) as? ApplicationSpecificCounterNotice {
+                currentValue = value.value
+            }
+            let previousValue = currentValue
+            currentValue += Int32(count)
+            
+            transaction.setNotice(ApplicationSpecificNoticeKeys.chatFolderTips(), ApplicationSpecificCounterNotice(value: currentValue))
+            
+            return Int(previousValue)
+        }
+    }
+    
     public static func setArchiveIntroDismissed(transaction: AccountManagerModifier, value: Bool) {
         transaction.setNotice(ApplicationSpecificNoticeKeys.archiveIntroDismissed(), ApplicationSpecificVariantNotice(value: value))
     }
@@ -451,6 +507,22 @@ public struct ApplicationSpecificNotice {
     public static func setProxyAdsAcknowledgment(accountManager: AccountManager) -> Signal<Void, NoError> {
         return accountManager.transaction { transaction -> Void in
             transaction.setNotice(ApplicationSpecificNoticeKeys.proxyAdsAcknowledgment(), ApplicationSpecificBoolNotice())
+        }
+    }
+    
+    public static func getPsaAcknowledgment(accountManager: AccountManager, peerId: PeerId) -> Signal<Bool, NoError> {
+        return accountManager.transaction { transaction -> Bool in
+            if let _ = transaction.getNotice(ApplicationSpecificNoticeKeys.psaAdsAcknowledgment(peerId: peerId)) as? ApplicationSpecificBoolNotice {
+                return true
+            } else {
+                return false
+            }
+        }
+    }
+    
+    public static func setPsaAcknowledgment(accountManager: AccountManager, peerId: PeerId) -> Signal<Void, NoError> {
+        return accountManager.transaction { transaction -> Void in
+            transaction.setNotice(ApplicationSpecificNoticeKeys.psaAdsAcknowledgment(peerId: peerId), ApplicationSpecificBoolNotice())
         }
     }
     
@@ -619,6 +691,28 @@ public struct ApplicationSpecificNotice {
         let _ = accountManager.transaction { transaction -> Void in
             transaction.setNotice(ApplicationSpecificNoticeKeys.themeChangeTip(), ApplicationSpecificBoolNotice())
         }.start()
+    }
+    
+    public static func getLocationProximityAlertTip(accountManager: AccountManager) -> Signal<Int32, NoError> {
+        return accountManager.transaction { transaction -> Int32 in
+            if let value = transaction.getNotice(ApplicationSpecificNoticeKeys.chatMessageOptionsTip()) as? ApplicationSpecificCounterNotice {
+                return value.value
+            } else {
+                return 0
+            }
+        }
+    }
+    
+    public static func incrementLocationProximityAlertTip(accountManager: AccountManager, count: Int32 = 1) -> Signal<Void, NoError> {
+        return accountManager.transaction { transaction -> Void in
+            var currentValue: Int32 = 0
+            if let value = transaction.getNotice(ApplicationSpecificNoticeKeys.chatMessageOptionsTip()) as? ApplicationSpecificCounterNotice {
+                currentValue = value.value
+            }
+            currentValue += count
+            
+            transaction.setNotice(ApplicationSpecificNoticeKeys.chatMessageOptionsTip(), ApplicationSpecificCounterNotice(value: currentValue))
+        }
     }
     
     public static func reset(accountManager: AccountManager) -> Signal<Void, NoError> {

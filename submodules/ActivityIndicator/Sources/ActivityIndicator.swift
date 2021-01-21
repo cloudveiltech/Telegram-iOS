@@ -114,11 +114,13 @@ public final class ActivityIndicator: ASDisplayNode {
     override public func didLoad() {
         super.didLoad()
         
-        let indicatorView = UIActivityIndicatorView(style: .whiteLarge)
+        let indicatorView: UIActivityIndicatorView
         switch self.type {
         case let .navigationAccent(color):
+            indicatorView = UIActivityIndicatorView(style: .whiteLarge)
             indicatorView.color = color
-        case let .custom(color, _, _, forceCustom):
+        case let .custom(color, diameter, _, forceCustom):
+            indicatorView = UIActivityIndicatorView(style: diameter < 15.0 ? .white : .whiteLarge)
             indicatorView.color = convertIndicatorColor(color)
             if !forceCustom {
                 self.view.addSubview(indicatorView)
@@ -205,7 +207,7 @@ public final class ActivityIndicator: ASDisplayNode {
             indicatorSize = CGSize(width: diameter, height: diameter)
             shouldScale = !forceDefault
         }
-        self.indicatorNode.frame = CGRect(origin: CGPoint(x: floor((size.width - indicatorSize.width) / 2.0), y: floor((size.height - indicatorSize.height) / 2.0)), size: indicatorSize)
+        self.indicatorNode.frame = CGRect(origin: CGPoint(x: ((size.width - indicatorSize.width) / 2.0), y: ((size.height - indicatorSize.height) / 2.0)), size: indicatorSize)
         if shouldScale, let indicatorView = self.indicatorView {
             let intrinsicSize = indicatorView.bounds.size
             self.subnodeTransform = CATransform3DMakeScale(min(1.0, indicatorSize.width / intrinsicSize.width), min(1.0, indicatorSize.height / intrinsicSize.height), 1.0)

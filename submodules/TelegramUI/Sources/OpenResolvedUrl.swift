@@ -20,14 +20,15 @@ import LanguageLinkPreviewUI
 import SettingsUI
 import UrlHandling
 import ShareController
+import ChatInterfaceState
 
 private func defaultNavigationForPeerId(_ peerId: PeerId?, navigation: ChatControllerInteractionNavigateToPeer) -> ChatControllerInteractionNavigateToPeer {
     if case .default = navigation {
         if let peerId = peerId {
             if peerId.namespace == Namespaces.Peer.CloudUser {
-                return .chat(textInputState: nil, subject: nil)
+                return .chat(textInputState: nil, subject: nil, peekData: nil)
             } else {
-                return .chat(textInputState: nil, subject: nil)
+                return .chat(textInputState: nil, subject: nil, peekData: nil)
             }
         } else {
             return .info
@@ -88,10 +89,16 @@ func openResolvedUrlImpl(_ resolvedUrl: ResolvedUrl, context: AccountContext, ur
             dismissInput()
             navigationController?.pushViewController(controller)
         case let .channelMessage(peerId, messageId):
-            openPeer(peerId, .chat(textInputState: nil, subject: .message(messageId)))
+            openPeer(peerId, .chat(textInputState: nil, subject: .message(id: messageId, highlight: true), peekData: nil))
+        case let .replyThreadMessage(replyThreadMessage, messageId):
+            if let navigationController = navigationController {
+                let _ = ChatControllerImpl.openMessageReplies(context: context, navigationController: navigationController, present: { c, a in
+                    present(c, a)
+                }, messageId: replyThreadMessage.messageId, isChannelPost: replyThreadMessage.isChannelPost, atMessage: messageId, displayModalProgress: true).start()
+            }
         case let .stickerPack(name):
             dismissInput()
-            if true {
+            if false {
                 var mainStickerPack: StickerPackReference?
                 var stickerPacks: [StickerPackReference] = []
                 if let message = contentContext as? Message {
@@ -122,7 +129,7 @@ func openResolvedUrlImpl(_ resolvedUrl: ResolvedUrl, context: AccountContext, ur
                     stickerPacks = [.name(name)]
                 }
                 if let mainStickerPack = mainStickerPack, !stickerPacks.isEmpty {
-                    let controller = StickerPackScreen(context: context, mainStickerPack: mainStickerPack, stickerPacks: stickerPacks, sendSticker: sendSticker)
+                    let controller = StickerPackScreen(context: context, mainStickerPack: mainStickerPack, stickerPacks: stickerPacks, parentNavigationController: navigationController, sendSticker: sendSticker)
                     present(controller, nil)
                 }
             } else {
@@ -133,8 +140,8 @@ func openResolvedUrlImpl(_ resolvedUrl: ResolvedUrl, context: AccountContext, ur
             navigationController?.pushViewController(InstantPageController(context: context, webPage: webpage, sourcePeerType: .channel, anchor: anchor))
         case let .join(link):
             dismissInput()
-            present(JoinLinkPreviewController(context: context, link: link, navigateToPeer: { peerId in
-                openPeer(peerId, .chat(textInputState: nil, subject: nil))
+            present(JoinLinkPreviewController(context: context, link: link, navigateToPeer: { peerId, peekData in
+                openPeer(peerId, .chat(textInputState: nil, subject: nil, peekData: peekData))
             }, parentNavigationController: navigationController), nil)
         case let .localization(identifier):
             dismissInput()

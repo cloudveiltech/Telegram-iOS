@@ -982,7 +982,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseLayer(bool record)
         staticFlag &= child.get()->isStatic();
     }
 
-    if (layer->hasMask()) {
+    if (layer->hasMask() && layer->mExtra) {
         for (const auto &mask : layer->mExtra->mMasks) {
             staticFlag &= mask->isStatic();
         }
@@ -1136,7 +1136,8 @@ std::shared_ptr<LOTData> LottieParserImpl::parseGroupObject()
                 RAPIDJSON_ASSERT(PeekType() == kObjectType);
                 parseObject(group);
             }
-            if (group->mChildren.back()->mType == LOTData::Type::Transform) {
+            if (!group->mChildren.empty()
+                && group->mChildren.back()->mType == LOTData::Type::Transform) {
                 group->mTransform = std::static_pointer_cast<LOTTransformData>(
                     group->mChildren.back());
                 group->mChildren.pop_back();
@@ -1457,10 +1458,19 @@ std::shared_ptr<LOTTransformData> LottieParserImpl::parseTransformObject(
         } else if (0 == strcmp(key, "hd")) {
             sharedTransform->mHidden = GetBool();
         } else if (0 == strcmp(key, "rx")) {
+            if (!obj->mExtra) {
+                return sharedTransform;
+            }
             parseProperty(obj->mExtra->m3DRx);
         } else if (0 == strcmp(key, "ry")) {
+            if (!obj->mExtra) {
+                return sharedTransform;
+            }
             parseProperty(obj->mExtra->m3DRy);
         } else if (0 == strcmp(key, "rz")) {
+            if (!obj->mExtra) {
+                return sharedTransform;
+            }
             parseProperty(obj->mExtra->m3DRz);
         } else {
             Skip(key);

@@ -292,7 +292,7 @@
     if (initializeApi && _apiEnvironment != nil)
     {
         if (MTLogEnabled()) {
-            MTLog(@"apiEnvironment: %d", (int)_apiEnvironment.systemCode.length);
+            MTLog(@"apiEnvironment: %@", [_apiEnvironment apiInitializationHash]);
         }
         MTBuffer *buffer = [[MTBuffer alloc] init];
         
@@ -300,9 +300,7 @@
         [buffer appendInt32:(int32_t)0xda9b0d0d];
         [buffer appendInt32:(int32_t)[_serialization currentLayer]];
         
-        //initConnection#785188b8 {X:Type} flags:# api_id:int device_model:string system_version:string app_version:string system_lang_code:string lang_pack:string lang_code:string proxy:flags.0?InputClientProxy query:!X = X;
-        
-        //inputClientProxy address:string port:int = InputClientProxy;
+        //initConnection#c1cd5ea9 {X:Type} flags:# api_id:int device_model:string system_version:string app_version:string system_lang_code:string lang_pack:string lang_code:string proxy:flags.0?InputClientProxy query:!X = X;
 
         int32_t flags = 0;
         if (_apiEnvironment.socksProxySettings.secret != nil) {
@@ -312,7 +310,7 @@
             flags |= (1 << 1);
         }
         
-        [buffer appendInt32:(int32_t)0x785188b8];
+        [buffer appendInt32:(int32_t)0xc1cd5ea9];
         [buffer appendInt32:flags];
         [buffer appendInt32:(int32_t)_apiEnvironment.apiId];
         [buffer appendTLString:_apiEnvironment.deviceModel];
@@ -393,12 +391,12 @@
     return currentData;
 }
 
-- (MTMessageTransaction *)mtProtoMessageTransaction:(MTProto *)mtProto
+- (MTMessageTransaction *)mtProtoMessageTransaction:(MTProto *)mtProto authInfoSelector:(MTDatacenterAuthInfoSelector)authInfoSelector sessionInfo:(MTSessionInfo *)sessionInfo
 {
     NSMutableArray *messages = nil;
     NSMutableDictionary *requestInternalIdToMessageInternalId = nil;
     
-    bool requestsWillInitializeApi = _apiEnvironment != nil && ![_apiEnvironment.apiInitializationHash isEqualToString:[_context authInfoForDatacenterWithId:mtProto.datacenterId].authKeyAttributes[@"apiInitializationHash"]];
+    bool requestsWillInitializeApi = _apiEnvironment != nil && ![_apiEnvironment.apiInitializationHash isEqualToString:[_context authInfoForDatacenterWithId:mtProto.datacenterId selector:authInfoSelector].authKeyAttributes[@"apiInitializationHash"]];
     
     CFAbsoluteTime currentTime = MTAbsoluteSystemTime();
     
@@ -563,7 +561,7 @@
     return nil;
 }
 
-- (void)mtProto:(MTProto *)__unused mtProto receivedMessage:(MTIncomingMessage *)message
+- (void)mtProto:(MTProto *)__unused mtProto receivedMessage:(MTIncomingMessage *)message authInfoSelector:(MTDatacenterAuthInfoSelector)authInfoSelector
 {
     if ([message.body isKindOfClass:[MTRpcResultMessage class]])
     {
@@ -612,13 +610,13 @@
                         {
                             rpcError = [[MTRpcError alloc] initWithErrorCode:500 errorDescription:@"TL_PARSING_ERROR"];
                             [_context performBatchUpdates:^{
-                                MTDatacenterAuthInfo *authInfo = [_context authInfoForDatacenterWithId:mtProto.datacenterId];
+                                MTDatacenterAuthInfo *authInfo = [_context authInfoForDatacenterWithId:mtProto.datacenterId selector:authInfoSelector];
                                 
                                 NSMutableDictionary *authKeyAttributes = [[NSMutableDictionary alloc] initWithDictionary:authInfo.authKeyAttributes];
                                 authKeyAttributes[@"apiInitializationHash"] = @"";
                                 
                                 authInfo = [authInfo withUpdatedAuthKeyAttributes:authKeyAttributes];
-                                [_context updateAuthInfoForDatacenterWithId:mtProto.datacenterId authInfo:authInfo];
+                                [_context updateAuthInfoForDatacenterWithId:mtProto.datacenterId authInfo:authInfo selector:authInfoSelector];
                             }];
                         }
                     }
@@ -638,7 +636,7 @@
                     
                     if (rpcResult != nil && request.requestContext.willInitializeApi)
                     {
-                        MTDatacenterAuthInfo *authInfo = [_context authInfoForDatacenterWithId:mtProto.datacenterId];
+                        MTDatacenterAuthInfo *authInfo = [_context authInfoForDatacenterWithId:mtProto.datacenterId selector:authInfoSelector];
                         
                         if (![_apiEnvironment.apiInitializationHash isEqualToString:authInfo.authKeyAttributes[@"apiInitializationHash"]])
                         {
@@ -646,7 +644,7 @@
                             authKeyAttributes[@"apiInitializationHash"] = _apiEnvironment.apiInitializationHash;
                             
                             authInfo = [authInfo withUpdatedAuthKeyAttributes:authKeyAttributes];
-                            [_context updateAuthInfoForDatacenterWithId:mtProto.datacenterId authInfo:authInfo];
+                            [_context updateAuthInfoForDatacenterWithId:mtProto.datacenterId authInfo:authInfo selector:authInfoSelector];
                         }
                     }
                     
@@ -728,13 +726,13 @@
                         {
                             [_context performBatchUpdates:^
                             {
-                                MTDatacenterAuthInfo *authInfo = [_context authInfoForDatacenterWithId:mtProto.datacenterId];
+                                MTDatacenterAuthInfo *authInfo = [_context authInfoForDatacenterWithId:mtProto.datacenterId selector:authInfoSelector];
                                 
                                 NSMutableDictionary *authKeyAttributes = [[NSMutableDictionary alloc] initWithDictionary:authInfo.authKeyAttributes];
                                 [authKeyAttributes removeObjectForKey:@"apiInitializationHash"];
                                 
                                 authInfo = [authInfo withUpdatedAuthKeyAttributes:authKeyAttributes];
-                                [_context updateAuthInfoForDatacenterWithId:mtProto.datacenterId authInfo:authInfo];
+                                [_context updateAuthInfoForDatacenterWithId:mtProto.datacenterId authInfo:authInfo selector:authInfoSelector];
                             }];
                         } else if (rpcError.errorCode == 406) {
                             if (_didReceiveSoftAuthResetError) {

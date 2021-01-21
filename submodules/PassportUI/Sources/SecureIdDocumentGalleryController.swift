@@ -76,11 +76,11 @@ class SecureIdDocumentGalleryController: ViewController, StandalonePresentableCo
         return self._hiddenMedia.get()
     }
     
-    private let replaceRootController: (ViewController, ValuePromise<Bool>?) -> Void
+    private let replaceRootController: (ViewController, Promise<Bool>?) -> Void
     
     var deleteResource: ((TelegramMediaResource) -> Void)?
     
-    init(context: AccountContext, secureIdContext: SecureIdAccessContext, entries: [SecureIdDocumentGalleryEntry], centralIndex: Int, replaceRootController: @escaping (ViewController, ValuePromise<Bool>?) -> Void) {
+    init(context: AccountContext, secureIdContext: SecureIdAccessContext, entries: [SecureIdDocumentGalleryEntry], centralIndex: Int, replaceRootController: @escaping (ViewController, Promise<Bool>?) -> Void) {
         self.context = context
         self.secureIdContext = secureIdContext
         self.replaceRootController = replaceRootController
@@ -105,7 +105,7 @@ class SecureIdDocumentGalleryController: ViewController, StandalonePresentableCo
                         $0.item(context: context, theme: strongSelf.presentationData.theme, strings: strongSelf.presentationData.strings, secureIdContext: strongSelf.secureIdContext, delete: { resource in
                             self?.deleteItem(resource)
                         })
-                    }), centralItemIndex: centralIndex, keepFirst: false)
+                    }), centralItemIndex: centralIndex)
                     
                     let ready = (strongSelf.galleryNode.pager.ready() |> timeout(2.0, queue: Queue.mainQueue(), alternate: .single(Void()))) |> afterNext { [weak strongSelf] _ in
                         strongSelf?.didSetReady = true
@@ -177,12 +177,13 @@ class SecureIdDocumentGalleryController: ViewController, StandalonePresentableCo
             if let strongSelf = self {
                 strongSelf.present(controller, in: .window(.root), with: arguments, blockInteraction: true)
             }
-            }, dismissController: { [weak self] in
-                self?.dismiss(forceAway: true)
-            }, replaceRootController: { [weak self] controller, ready in
-                if let strongSelf = self {
-                    strongSelf.replaceRootController(controller, ready)
-                }
+        }, dismissController: { [weak self] in
+            self?.dismiss(forceAway: true)
+        }, replaceRootController: { [weak self] controller, ready in
+            if let strongSelf = self {
+                strongSelf.replaceRootController(controller, ready)
+            }
+        }, editMedia: { _ in
         })
         self.displayNode = GalleryControllerNode(controllerInteraction: controllerInteraction)
         self.displayNodeDidLoad()
@@ -238,7 +239,7 @@ class SecureIdDocumentGalleryController: ViewController, StandalonePresentableCo
             
             if let transitionArguments = presentationArguments.transitionArguments(self.entries[centralItemNode.index]) {
                 nodeAnimatesItself = true
-                centralItemNode.animateIn(from: transitionArguments.transitionNode, addToTransitionSurface: transitionArguments.addToTransitionSurface)
+                centralItemNode.animateIn(from: transitionArguments.transitionNode, addToTransitionSurface: transitionArguments.addToTransitionSurface, completion: {})
                 
                 self._hiddenMedia.set(.single(self.entries[centralItemNode.index]))
             }

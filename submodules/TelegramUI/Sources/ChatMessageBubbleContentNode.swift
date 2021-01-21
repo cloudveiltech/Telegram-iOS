@@ -6,6 +6,7 @@ import Postbox
 import TelegramCore
 import SyncCore
 import TelegramUIPreferences
+import TelegramPresentationData
 import AccountContext
 
 enum ChatMessageBubbleContentBackgroundHiding {
@@ -40,9 +41,20 @@ enum ChatMessageBubbleMergeStatus {
 }
 
 enum ChatMessageBubbleRelativePosition {
+    enum NeighbourType {
+        case media
+        case freeform
+    }
+    
+    enum NeighbourSpacing {
+        case `default`
+        case condensed
+        case overlap(CGFloat)
+    }
+    
     case None(ChatMessageBubbleMergeStatus)
     case BubbleNeighbour
-    case Neighbour
+    case Neighbour(Bool, NeighbourType, NeighbourSpacing)
 }
 
 enum ChatMessageBubbleContentMosaicNeighbor {
@@ -78,13 +90,14 @@ enum ChatMessageBubbleContentTapAction {
     case instantPage
     case wallpaper
     case theme
-    case call(PeerId)
+    case call(peerId: PeerId, isVideo: Bool)
     case openMessage
     case timecode(Double, String)
     case tooltip(String, ASDisplayNode?, CGRect?)
     case bankCard(String)
     case ignore
     case openPollResults(Data)
+    case copy(String)
 }
 
 final class ChatMessageBubbleContentItem {
@@ -92,18 +105,24 @@ final class ChatMessageBubbleContentItem {
     let controllerInteraction: ChatControllerInteraction
     let message: Message
     let read: Bool
+    let chatLocation: ChatLocation
     let presentationData: ChatPresentationData
     let associatedData: ChatMessageItemAssociatedData
     let attributes: ChatMessageEntryAttributes
+    let isItemPinned: Bool
+    let isItemEdited: Bool
     
-    init(context: AccountContext, controllerInteraction: ChatControllerInteraction, message: Message, read: Bool, presentationData: ChatPresentationData, associatedData: ChatMessageItemAssociatedData, attributes: ChatMessageEntryAttributes) {
+    init(context: AccountContext, controllerInteraction: ChatControllerInteraction, message: Message, read: Bool, chatLocation: ChatLocation, presentationData: ChatPresentationData, associatedData: ChatMessageItemAssociatedData, attributes: ChatMessageEntryAttributes, isItemPinned: Bool, isItemEdited: Bool) {
         self.context = context
         self.controllerInteraction = controllerInteraction
         self.message = message
         self.read = read
+        self.chatLocation = chatLocation
         self.presentationData = presentationData
         self.associatedData = associatedData
         self.attributes = attributes
+        self.isItemPinned = isItemPinned
+        self.isItemEdited = isItemEdited
     }
 }
 
@@ -183,7 +202,7 @@ class ChatMessageBubbleContentNode: ASDisplayNode {
     func updateIsExtractedToContextPreview(_ value: Bool) {
     }
     
-    func reactionTargetNode(value: String) -> (ASDisplayNode, Int)? {
+    func reactionTargetNode(value: String) -> (ASDisplayNode, ASDisplayNode)? {
         return nil
     }
 }

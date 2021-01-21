@@ -61,7 +61,7 @@ private final class ChatContextResultPeekNode: ASDisplayNode, PeekControllerCont
     
     private let imageNodeBackground: ASDisplayNode
     private let imageNode: TransformImageNode
-    private var videoLayer: (SoftwareVideoThumbnailLayer, SoftwareVideoLayerFrameManager, SampleBufferLayer)?
+    private var videoLayer: (SoftwareVideoThumbnailNode, SoftwareVideoLayerFrameManager, SampleBufferLayer)?
     
     private var currentImageResource: TelegramMediaResource?
     private var currentVideoFile: TelegramMediaFile?
@@ -153,25 +153,25 @@ private final class ChatContextResultPeekNode: ASDisplayNode, PeekControllerCont
         var videoFileReference: FileMediaReference?
         var imageDimensions: CGSize?
         switch self.contextResult {
-            case let .externalReference(_, _, type, title, _, url, content, thumbnail, _):
-                if let content = content {
+            case let .externalReference(externalReference):
+                if let content = externalReference.content {
                     imageResource = content.resource
-                } else if let thumbnail = thumbnail {
+                } else if let thumbnail = externalReference.thumbnail {
                     imageResource = thumbnail.resource
                 }
-                imageDimensions = content?.dimensions?.cgSize
-                if let content = content, type == "gif", let thumbnailResource = imageResource
+                imageDimensions = externalReference.content?.dimensions?.cgSize
+                if let content = externalReference.content, externalReference.type == "gif", let thumbnailResource = imageResource
                     , let dimensions = content.dimensions {
-                    videoFileReference = .standalone(media: TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: 0), partialReference: nil, resource: content.resource, previewRepresentations: [TelegramMediaImageRepresentation(dimensions: dimensions, resource: thumbnailResource)], immediateThumbnailData: nil, mimeType: "video/mp4", size: nil, attributes: [.Animated, .Video(duration: 0, size: dimensions, flags: [])]))
+                    videoFileReference = .standalone(media: TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: 0), partialReference: nil, resource: content.resource, previewRepresentations: [TelegramMediaImageRepresentation(dimensions: dimensions, resource: thumbnailResource, progressiveSizes: [])], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "video/mp4", size: nil, attributes: [.Animated, .Video(duration: 0, size: dimensions, flags: [])]))
                     imageResource = nil
                 }
-            case let .internalReference(_, _, _, title, _, image, file, _):
-                if let image = image {
+            case let .internalReference(internalReference):
+                if let image = internalReference.image {
                     if let largestRepresentation = largestImageRepresentation(image.representations) {
                         imageDimensions = largestRepresentation.dimensions.cgSize
                     }
                     imageResource = imageRepresentationLargerThan(image.representations, size: PixelDimensions(width: 200, height: 100))?.resource
-                } else if let file = file {
+                } else if let file = internalReference.file {
                     if let dimensions = file.dimensions {
                         imageDimensions = dimensions.cgSize
                     } else if let largestRepresentation = largestImageRepresentation(file.previewRepresentations) {
@@ -180,7 +180,7 @@ private final class ChatContextResultPeekNode: ASDisplayNode, PeekControllerCont
                     imageResource = smallestImageRepresentation(file.previewRepresentations)?.resource
                 }
                 
-                if let file = file {
+                if let file = internalReference.file {
                     if file.isVideo && file.isAnimated {
                         videoFileReference = .standalone(media: file)
                         imageResource = nil
@@ -224,7 +224,7 @@ private final class ChatContextResultPeekNode: ASDisplayNode, PeekControllerCont
         
         if updatedImageResource {
             if let imageResource = imageResource {
-                let tmpRepresentation = TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: Int32(fittedImageDimensions.width * 2.0), height: Int32(fittedImageDimensions.height * 2.0)), resource: imageResource)
+                let tmpRepresentation = TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: Int32(fittedImageDimensions.width * 2.0), height: Int32(fittedImageDimensions.height * 2.0)), resource: imageResource, progressiveSizes: [])
                 let tmpImage = TelegramMediaImage(imageId: MediaId(namespace: 0, id: 0), representations: [tmpRepresentation], immediateThumbnailData: nil, reference: nil, partialReference: nil, flags: [])
                 updateImageSignal = chatMessagePhoto(postbox: self.account.postbox, photoReference: .standalone(media: tmpImage))
             } else {
@@ -248,17 +248,17 @@ private final class ChatContextResultPeekNode: ASDisplayNode, PeekControllerCont
         if updatedVideoFile {
             if let (thumbnailLayer, _, layer) = self.videoLayer {
                 self.videoLayer = nil
-                thumbnailLayer.removeFromSuperlayer()
+                thumbnailLayer.removeFromSupernode()
                 layer.layer.removeFromSuperlayer()
             }
             
             if let videoFileReference = videoFileReference {
-                let thumbnailLayer = SoftwareVideoThumbnailLayer(account: self.account, fileReference: videoFileReference)
-                self.layer.addSublayer(thumbnailLayer)
+                let thumbnailLayer = SoftwareVideoThumbnailNode(account: self.account, fileReference: videoFileReference, synchronousLoad: false)
+                self.addSubnode(thumbnailLayer)
                 let layerHolder = takeSampleBufferLayer()
                 layerHolder.layer.videoGravity = AVLayerVideoGravity.resizeAspectFill
                 self.layer.addSublayer(layerHolder.layer)
-                let manager = SoftwareVideoLayerFrameManager(account: self.account, fileReference: videoFileReference, resource: videoFileReference.media.resource, layerHolder: layerHolder)
+                let manager = SoftwareVideoLayerFrameManager(account: self.account, fileReference: videoFileReference, layerHolder: layerHolder)
                 self.videoLayer = (thumbnailLayer, manager, layerHolder)
                 thumbnailLayer.ready = { [weak self, weak thumbnailLayer, weak manager] in
                     if let strongSelf = self, let thumbnailLayer = thumbnailLayer, let manager = manager {

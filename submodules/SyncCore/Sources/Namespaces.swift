@@ -57,6 +57,7 @@ public struct Namespaces {
         public static let CloudSavedStickers: Int32 = 7
         public static let RecentlyUsedHashtags: Int32 = 8
         public static let CloudThemes: Int32 = 9
+        public static let CloudGreetingStickers: Int32 = 10
     }
     
     public struct CachedItemCollection {
@@ -70,6 +71,8 @@ public struct Namespaces {
         public static let cachedWallpapersConfiguration: Int8 = 7
         public static let cachedThemesConfiguration: Int8 = 8
         public static let cachedPollResults: Int8 = 9
+        public static let cachedContextResults: Int8 = 10
+        public static let proximityNotificationStoredState: Int8 = 11
     }
     
     public struct UnorderedItemList {
@@ -93,8 +96,12 @@ public extension MessageTags {
     static let voiceOrInstantVideo = MessageTags(rawValue: 1 << 4)
     static let unseenPersonalMessage = MessageTags(rawValue: 1 << 5)
     static let liveLocation = MessageTags(rawValue: 1 << 6)
+    static let gif = MessageTags(rawValue: 1 << 7)
+    static let photo = MessageTags(rawValue: 1 << 8)
+    static let video = MessageTags(rawValue: 1 << 9)
+    static let pinned = MessageTags(rawValue: 1 << 10)
     
-    static let all: MessageTags = [.photoOrVideo, .file, .music, .webPage, .voiceOrInstantVideo, .unseenPersonalMessage, .liveLocation]
+    static let all: MessageTags = [.photoOrVideo, .file, .music, .webPage, .voiceOrInstantVideo, .unseenPersonalMessage, .liveLocation, .gif, .photo, .video, .pinned]
 }
 
 public extension GlobalMessageTags {
@@ -345,6 +352,7 @@ private enum SharedDataKeyValues: Int32 {
     case proxySettings = 4
     case autodownloadSettings = 5
     case themeSettings = 6
+    case countriesList = 7
 }
 
 public struct SharedDataKeys {
@@ -381,6 +389,12 @@ public struct SharedDataKeys {
     public static let themeSettings: ValueBoxKey = {
         let key = ValueBoxKey(length: 4)
         key.setInt32(0, value: SharedDataKeyValues.themeSettings.rawValue)
+        return key
+    }()
+    
+    public static let countriesList: ValueBoxKey = {
+        let key = ValueBoxKey(length: 4)
+        key.setInt32(0, value: SharedDataKeyValues.countriesList.rawValue)
         return key
     }()
 }

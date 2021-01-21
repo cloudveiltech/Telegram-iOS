@@ -6,6 +6,7 @@ import SyncCore
 import SwiftSignalKit
 import Display
 import AsyncDisplayKit
+import UniversalMediaPlayer
 
 public enum ChatControllerInteractionOpenMessageMode {
     case `default`
@@ -18,6 +19,8 @@ public enum ChatControllerInteractionOpenMessageMode {
 
 public final class OpenChatMessageParams {
     public let context: AccountContext
+    public let chatLocation: ChatLocation?
+    public let chatLocationContextHolder: Atomic<ChatLocationContextHolder?>?
     public let message: Message
     public let standalone: Bool
     public let reverseMessageGalleryOrder: Bool
@@ -30,15 +33,19 @@ public final class OpenChatMessageParams {
     public let addToTransitionSurface: (UIView) -> Void
     public let openUrl: (String) -> Void
     public let openPeer: (Peer, ChatControllerInteractionNavigateToPeer) -> Void
-    public let callPeer: (PeerId) -> Void
+    public let callPeer: (PeerId, Bool) -> Void
     public let enqueueMessage: (EnqueueMessage) -> Void
     public let sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?
     public let setupTemporaryHiddenMedia: (Signal<Any?, NoError>, Int, Media) -> Void
     public let chatAvatarHiddenMedia: (Signal<MessageId?, NoError>, Media) -> Void
     public let actionInteraction: GalleryControllerActionInteraction?
+    public let playlistLocation: PeerMessagesPlaylistLocation?
+    public let gallerySource: GalleryControllerItemSource?
     
     public init(
         context: AccountContext,
+        chatLocation: ChatLocation?,
+        chatLocationContextHolder: Atomic<ChatLocationContextHolder?>?,
         message: Message,
         standalone: Bool,
         reverseMessageGalleryOrder: Bool,
@@ -51,14 +58,18 @@ public final class OpenChatMessageParams {
         addToTransitionSurface: @escaping (UIView) -> Void,
         openUrl: @escaping (String) -> Void,
         openPeer: @escaping (Peer, ChatControllerInteractionNavigateToPeer) -> Void,
-        callPeer: @escaping (PeerId) -> Void,
+        callPeer: @escaping (PeerId, Bool) -> Void,
         enqueueMessage: @escaping (EnqueueMessage) -> Void,
         sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?,
         setupTemporaryHiddenMedia: @escaping (Signal<Any?, NoError>, Int, Media) -> Void,
         chatAvatarHiddenMedia: @escaping (Signal<MessageId?, NoError>, Media) -> Void,
-        actionInteraction: GalleryControllerActionInteraction? = nil
+        actionInteraction: GalleryControllerActionInteraction? = nil,
+        playlistLocation: PeerMessagesPlaylistLocation? = nil,
+        gallerySource: GalleryControllerItemSource? = nil
     ) {
         self.context = context
+        self.chatLocation = chatLocation
+        self.chatLocationContextHolder = chatLocationContextHolder
         self.message = message
         self.standalone = standalone
         self.reverseMessageGalleryOrder = reverseMessageGalleryOrder
@@ -77,5 +88,7 @@ public final class OpenChatMessageParams {
         self.setupTemporaryHiddenMedia = setupTemporaryHiddenMedia
         self.chatAvatarHiddenMedia = chatAvatarHiddenMedia
         self.actionInteraction = actionInteraction
+        self.playlistLocation = playlistLocation
+        self.gallerySource = gallerySource
     }
 }
