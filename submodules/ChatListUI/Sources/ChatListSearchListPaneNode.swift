@@ -1012,17 +1012,18 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         }
                     }
                 }
-				//CloudVeil start
 				let localExpandType: ChatListSearchSectionExpandType = .none
-				var globalExpandType: ChatListSearchSectionExpandType = .none
-				if !MainController.SecurityStaticSettings.disableGlobalSearch {
-					for peer in foundRemotePeers.0 {
-						if !existingPeerIds.contains(peer.peer.id), filteredPeer(peer.peer, accountPeer) {
-							existingPeerIds.insert(peer.peer.id)
-							totalNumberOfLocalPeers += 1
-						}
+				for peer in foundRemotePeers.0 {
+					if !existingPeerIds.contains(peer.peer.id), filteredPeer(peer.peer, accountPeer) {
+						existingPeerIds.insert(peer.peer.id)
+						totalNumberOfLocalPeers += 1
 					}
-					
+				}
+				
+				
+				//CloudVeil start
+				var globalExpandType: ChatListSearchSectionExpandType = .none
+			//	if !MainController.SecurityStaticSettings.disableGlobalSearch {
 					var totalNumberOfGlobalPeers = 0
 					for peer in foundRemotePeers.1 {
 						if !existingPeerIds.contains(peer.peer.id), filteredPeer(peer.peer, accountPeer) {
@@ -1037,7 +1038,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
 					} else {
 						globalExpandType = .none
 					}
-				}
+			//	}
 				//CloudVeil end
                 
                 let lowercasedQuery = finalQuery.lowercased()
@@ -1068,22 +1069,22 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         }
                     }
                 }
-                
+				
+				for peer in foundRemotePeers.0 {
+					if case .expand = localExpandType, numberOfLocalPeers >= 3 {
+						break
+					}
+					
+					if !existingPeerIds.contains(peer.peer.id), filteredPeer(peer.peer, accountPeer) {
+						existingPeerIds.insert(peer.peer.id)
+						entries.append(.localPeer(peer.peer, nil, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType))
+						index += 1
+						numberOfLocalPeers += 1
+					}
+				}
+				
 				//CloudVeil start
 				if !MainController.SecurityStaticSettings.disableGlobalSearch {
-					for peer in foundRemotePeers.0 {
-						if case .expand = localExpandType, numberOfLocalPeers >= 3 {
-							break
-						}
-						
-						if !existingPeerIds.contains(peer.peer.id), filteredPeer(peer.peer, accountPeer) {
-							existingPeerIds.insert(peer.peer.id)
-							entries.append(.localPeer(peer.peer, nil, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType))
-							index += 1
-							numberOfLocalPeers += 1
-						}
-					}
-
 					var numberOfGlobalPeers = 0
 					index = 0
 					if let _ = tagMask {
@@ -1116,9 +1117,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 }
                 
                 var firstHeaderId: Int64?
-				//CloudVeil start
-				if !MainController.SecurityStaticSettings.disableGlobalSearch && !foundRemotePeers.2 {
-				//CloudVeil end
+				if !foundRemotePeers.2 {
                     index = 0
                     for message in foundRemoteMessages.0.0 {
                         if searchState.deletedMessageIds.contains(message.id) {

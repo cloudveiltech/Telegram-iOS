@@ -503,10 +503,12 @@ public func chatMessageSticker(postbox: Postbox, file: TelegramMediaFile, small:
     }
 }
 
-public func chatMessageAnimatedSticker(postbox: Postbox, file: TelegramMediaFile, small: Bool, size: CGSize, fitzModifier: EmojiFitzModifier? = nil, fetched: Bool = false, onlyFullSize: Bool = false, thumbnail: Bool = false, synchronousLoad: Bool = false) -> Signal<(TransformImageArguments) -> DrawingContext?, NoError> {
+//CloudVeil added new param
+public func chatMessageAnimatedSticker(postbox: Postbox, file: TelegramMediaFile, small: Bool, size: CGSize, fitzModifier: EmojiFitzModifier? = nil, fetched: Bool = false, onlyFullSize: Bool = false, thumbnail: Bool = false, synchronousLoad: Bool = false, isEmoji: Bool = false) -> Signal<(TransformImageArguments) -> DrawingContext?, NoError> {
     let signal: Signal<Tuple3<Data?, Data?, Bool>, NoError>
 	//CloudVeil start
-	if MainController.shared.disableStickers {
+	let blockSticker = MainController.shared.disableStickers && !isEmoji
+	if blockSticker{
 		signal = loadBlockedImage()
 	} else if thumbnail {
 		signal = chatMessageStickerThumbnailData(postbox: postbox, file: file, synchronousLoad: synchronousLoad)
@@ -539,7 +541,7 @@ public func chatMessageAnimatedSticker(postbox: Postbox, file: TelegramMediaFile
                 if let image = imageFromAJpeg(data: fullSizeData) {
 					fullSizeImage = image
 				//CloudVeil start
-				} else if MainController.shared.disableStickers {
+				} else if blockSticker {
 					fullSizeImage = (UIImage(data: fullSizeData), UIImage(data: fullSizeData)) as! (UIImage, UIImage)
 				}
 				//CloudVeil end
