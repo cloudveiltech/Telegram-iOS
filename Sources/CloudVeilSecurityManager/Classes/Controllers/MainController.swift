@@ -68,6 +68,13 @@ open class MainController: NSObject {
 	public var isSecretChatAvailable: Bool {
 		return settings?.secretChat ?? false
 	}
+		
+	public var disableProfileVideo: Bool {
+		return settings?.disableProfileVideo ?? false
+	}
+	public var disableProfileVideoChange: Bool {
+		return settings?.disableProfileVideoChange ?? false
+	}
 	
 	public var isInChatVideoRecordingEnabled: Bool {
 		return settings?.inputToggleVoiceVideo ?? false

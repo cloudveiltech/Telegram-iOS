@@ -23,6 +23,8 @@ class TGSettingsResponse: Mappable {
     public var disableBioChange: Bool?
     public var disableProfilePhoto: Bool?
     public var disableProfilePhotoChange: Bool?
+	public var disableProfileVideo: Bool?
+	public var disableProfileVideoChange: Bool?
     public var access: AccessObject?
     public var disableSticker: Bool?
     public var disableStickers: Bool?
@@ -55,6 +57,8 @@ class TGSettingsResponse: Mappable {
         manageUsers <- map["manage_users"]
         inputToggleVoiceVideo <- map["input_toggle_voice_video"]
         blockedImageResourceUrl <- map["disable_stickers_image"]
+		disableProfileVideo <- map["disable_profile_video"]
+		disableProfileVideoChange <- map["disable_profile_video_change"]
     }
 }
 
