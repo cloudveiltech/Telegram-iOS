@@ -397,7 +397,7 @@ final class PeerInfoAvatarListItemNode: ASDisplayNode {
         self.item = item
         
         let representations: [ImageRepresentationWithReference]
-        let videoRepresentations: [VideoRepresentationWithReference]
+        var  videoRepresentations: [VideoRepresentationWithReference]
         let immediateThumbnailData: Data?
         var id: Int64
         switch item {
@@ -419,6 +419,12 @@ final class PeerInfoAvatarListItemNode: ASDisplayNode {
                 id = Int64(self.peer.id.id)
             }
         }
+		
+		//CloudVeil start
+		if MainController.shared.disableProfileVideo {
+			videoRepresentations = []
+		}
+		//CloudVeil end
         self.imageNode.setSignal(chatAvatarGalleryPhoto(account: self.context.account, representations: representations, immediateThumbnailData: immediateThumbnailData, autoFetchFullSize: true, attemptSynchronously: synchronous), attemptSynchronously: synchronous, dispatchOnDisplayLink: false)
         
         if let video = videoRepresentations.last, let peerReference = PeerReference(self.peer) {
@@ -1351,7 +1357,7 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
 
             if let item = item {
                 let representations: [ImageRepresentationWithReference]
-                let videoRepresentations: [VideoRepresentationWithReference]
+                var videoRepresentations: [VideoRepresentationWithReference]
                 let immediateThumbnailData: Data?
                 var id: Int64
                 switch item {
@@ -1374,6 +1380,12 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                     }
                 }
                 
+				//CloudVeil start
+				if MainController.shared.disableProfileVideo {
+					videoRepresentations = []
+				}
+				//CloudVeil end
+				
                 if let video = videoRepresentations.last, let peerReference = PeerReference(peer) {
                     let videoFileReference = FileMediaReference.avatarList(peer: peerReference, media: TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: 0), partialReference: nil, resource: video.representation.resource, previewRepresentations: representations.map { $0.representation }, videoThumbnails: [], immediateThumbnailData: immediateThumbnailData, mimeType: "video/mp4", size: nil, attributes: [.Animated, .Video(duration: 0, size: video.representation.dimensions, flags: [])]))
                     let videoContent = NativeVideoContent(id: .profileVideo(id, nil), fileReference: videoFileReference, streamVideo: isMediaStreamable(resource: video.representation.resource) ? .conservative : .none, loopVideo: true, enableSound: false, fetchAutomatically: true, onlyFullSizeThumbnail: false, useLargeThumbnail: true, autoFetchFullSizeThumbnail: true, startTimestamp: video.representation.startTimestamp, continuePlayingWithoutSoundOnLostAudioSession: false, placeholderColor: .clear)
@@ -1637,7 +1649,7 @@ final class PeerInfoEditingAvatarNode: ASDisplayNode {
         
         if let item = item {
             let representations: [ImageRepresentationWithReference]
-            let videoRepresentations: [VideoRepresentationWithReference]
+            var videoRepresentations: [VideoRepresentationWithReference]
             let immediateThumbnailData: Data?
             var id: Int64
             switch item {
@@ -1659,6 +1671,12 @@ final class PeerInfoEditingAvatarNode: ASDisplayNode {
                         id = Int64(peer.id.id)
                     }
             }
+			
+			//CloudVeil start
+			if MainController.shared.disableProfileVideo {
+				videoRepresentations = []
+			}
+			//CloudVeil end
             
             if let video = videoRepresentations.last, let peerReference = PeerReference(peer) {
                 let videoFileReference = FileMediaReference.avatarList(peer: peerReference, media: TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: 0), partialReference: nil, resource: video.representation.resource, previewRepresentations: representations.map { $0.representation }, videoThumbnails: [], immediateThumbnailData: immediateThumbnailData, mimeType: "video/mp4", size: nil, attributes: [.Animated, .Video(duration: 0, size: video.representation.dimensions, flags: [])]))

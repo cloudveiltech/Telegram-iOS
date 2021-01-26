@@ -1404,6 +1404,9 @@ final class SharedApplicationContext {
         
         self.maybeCheckForUpdates()
         
+		//CloudVeil start
+		UIAlertView(title: "Improve Notifications", message: "CloudVeil Messenger must remain running in the background to receive notifications.", delegate: nil, cancelButtonTitle: "OK").show()
+		//CloudVeil end
         return true
     }
 	

@@ -2155,12 +2155,20 @@ private final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewD
             galleryController.openAvatarSetup = { [weak self] completion in
                 self?.openAvatarForEditing(fromGallery: true, completion: completion)
             }
-            galleryController.avatarPhotoEditCompletion = { [weak self] image in
+			galleryController.avatarPhotoEditCompletion = { [weak self] image in
+				//CloudVeil start
+				if MainController.shared.disableProfilePhotoChange {
+					return
+				}
+				//CloudVeil end
                 self?.updateProfilePhoto(image)
             }
             galleryController.avatarVideoEditCompletion = { [weak self] image, asset, adjustments in
 				//CloudVeil start
 				if MainController.shared.disableProfilePhotoChange {
+					return
+				}
+				if MainController.shared.disableProfileVideoChange {
 					return
 				}
 				//CloudVeil end
