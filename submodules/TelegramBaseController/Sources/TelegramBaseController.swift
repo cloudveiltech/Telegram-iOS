@@ -126,7 +126,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
     }
 	
 	//CloudVeil start
-	public static func checkPeerIsAllowed(peerId: PeerId, controller: ViewController, account: Account, presentationData: PresentationData, callback: @escaping (Bool) -> ()) {
+	public static func checkPeerIsAllowed(peerId: PeerId, controller: ViewController, account: Account, presentationData: PresentationData, attemption: Int = 0, callback: @escaping (Bool) -> ()) {
 		let checked = MainController.shared.isConversationCheckedOnServer(conversationId: NSInteger(peerId.id), channelId: -NSInteger(peerId.id))
 		
 		let peerView = account.viewTracker.peerView(peerId)
@@ -173,6 +173,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
 			} else {
 				isUser = true
 			}
+			
 			DispatchQueue.main.sync {
 				let appState = UIApplication.shared.applicationState
 				if appState != UIApplication.State.background {
@@ -181,11 +182,20 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
 							print("Timeout checking dialog")
 							MainController.shared.clearObservers()
 							callback(true)
+							return
+						}
+						if attemption > 0 && attemption < 3 {
+							usleep(100000)
+						} else if attemption > 2 {
+							print("Attemption > 3, skip checking dialog")
+							MainController.shared.clearObservers()
+							callback(true)
+							return
 						}
 						
 						MainController.shared.appendObserver {
 							task.cancel()
-							TelegramBaseController.checkPeerIsAllowed(peerId: peerId, controller: controller, account: account, presentationData: presentationData, callback: callback)
+							TelegramBaseController.checkPeerIsAllowed(peerId: peerId, controller: controller, account: account, presentationData: presentationData, attemption: attemption+1, callback: callback)
 						}
 						
 						if isBot {

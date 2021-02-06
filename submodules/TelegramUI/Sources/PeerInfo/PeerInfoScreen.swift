@@ -5518,7 +5518,9 @@ private final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewD
                 shouldBeExpanded = false
                 self.canOpenAvatarByDragging = false
             }
-            if let shouldBeExpanded = shouldBeExpanded, shouldBeExpanded != self.headerNode.isAvatarExpanded {
+			//CloudVeil start
+            if let shouldBeExpanded = shouldBeExpanded, shouldBeExpanded != self.headerNode.isAvatarExpanded, self.headerNode.avatarCanBeExpanded {
+			//CloudVeil end
                 let transition: ContainedViewLayoutTransition = .animated(duration: 0.35, curve: .spring)
                 
                 if self.hapticFeedback == nil {
@@ -5566,6 +5568,13 @@ private final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewD
     }
     
     private func updateNavigationExpansionPresentation(isExpanded: Bool, animated: Bool) {
+		//CloudVeil start
+		var isExpanded = isExpanded
+		if !self.headerNode.avatarCanBeExpanded {
+			isExpanded = false
+		}
+		//CloudVeil end
+		
         if let controller = self.controller {
             controller.setStatusBarStyle(isExpanded ? .White : self.presentationData.theme.rootController.statusBarStyle.style, animated: animated)
             
@@ -5698,8 +5707,16 @@ public final class PeerInfoScreen: ViewController {
     public init(context: AccountContext, peerId: PeerId, avatarInitiallyExpanded: Bool, isOpenedFromChat: Bool, nearbyPeerDistance: Int32?, callMessages: [Message], isSettings: Bool = false, ignoreGroupInCommon: PeerId? = nil) {
         self.context = context
         self.peerId = peerId
+		
 		//CloudVeil start
-		self.avatarInitiallyExpanded = avatarInitiallyExpanded && !MainController.shared.disableProfilePhoto
+		var expanded = avatarInitiallyExpanded
+		if MainController.shared.disableProfilePhoto {
+			expanded = false
+		}
+		if MainController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peerId] ?? false {
+			expanded = false
+		}
+		self.avatarInitiallyExpanded = expanded
 		//CloudVeil end
         self.isOpenedFromChat = isOpenedFromChat
         self.nearbyPeerDistance = nearbyPeerDistance
@@ -5712,9 +5729,7 @@ public final class PeerInfoScreen: ViewController {
         let baseNavigationBarPresentationData = NavigationBarPresentationData(presentationData: self.presentationData)
         super.init(navigationBarPresentationData: NavigationBarPresentationData(
             theme: NavigationBarTheme(
-				//CloudVeil start
-				buttonColor: avatarInitiallyExpanded && !MainController.shared.disableProfilePhoto ? .white : baseNavigationBarPresentationData.theme.buttonColor,
-				//CloudVeil end
+				buttonColor: expanded ? .white : baseNavigationBarPresentationData.theme.buttonColor,
                 disabledButtonColor: baseNavigationBarPresentationData.theme.disabledButtonColor,
                 primaryTextColor: baseNavigationBarPresentationData.theme.primaryTextColor,
                 backgroundColor: .clear,
@@ -5931,7 +5946,9 @@ public final class PeerInfoScreen: ViewController {
             return nil
         }
         
-        self.setStatusBarStyle(avatarInitiallyExpanded ? .White : self.presentationData.theme.rootController.statusBarStyle.style, animated: false)
+		//CloudVeil start
+        self.setStatusBarStyle(expanded ? .White : self.presentationData.theme.rootController.statusBarStyle.style, animated: false)
+		//CloudVeil end
         
         self.scrollToTop = { [weak self] in
             self?.controllerNode.scrollToTop()

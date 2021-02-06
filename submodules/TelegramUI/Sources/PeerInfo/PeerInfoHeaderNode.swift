@@ -396,9 +396,9 @@ final class PeerInfoAvatarListItemNode: ASDisplayNode {
     func setup(item: PeerInfoAvatarListItem, synchronous: Bool) {
         self.item = item
         
-        let representations: [ImageRepresentationWithReference]
+        var representations: [ImageRepresentationWithReference]
         var  videoRepresentations: [VideoRepresentationWithReference]
-        let immediateThumbnailData: Data?
+        var immediateThumbnailData: Data?
         var id: Int64
         switch item {
         case let .topImage(topRepresentations, videoRepresentationsValue, immediateThumbnail):
@@ -421,10 +421,11 @@ final class PeerInfoAvatarListItemNode: ASDisplayNode {
         }
 		
 		//CloudVeil start
-		if MainController.shared.disableProfileVideo {
+		if videoRepresentations.count > 0 && MainController.shared.disableProfileVideo {
 			videoRepresentations = []
 		}
 		//CloudVeil end
+		
         self.imageNode.setSignal(chatAvatarGalleryPhoto(account: self.context.account, representations: representations, immediateThumbnailData: immediateThumbnailData, autoFetchFullSize: true, attemptSynchronously: synchronous), attemptSynchronously: synchronous, dispatchOnDisplayLink: false)
         
         if let video = videoRepresentations.last, let peerReference = PeerReference(self.peer) {
@@ -579,6 +580,19 @@ final class PeerInfoAvatarListContainerNode: ASDisplayNode {
     let isReady = Promise<Bool>()
     private var didSetReady = false
     
+	//CloudVeil start
+	var hasVideoAvatar: Bool {
+		get {
+			for i in 0 ..< items.count {
+				if self.items[i].videoRepresentations.count > 0 {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	//CloudVeil end
+	
     var currentItemNode: PeerInfoAvatarListItemNode? {
         if self.currentIndex >= 0 && self.currentIndex < self.items.count {
             return self.itemNodes[self.items[self.currentIndex].id]
@@ -1053,7 +1067,10 @@ final class PeerInfoAvatarListContainerNode: ASDisplayNode {
     func update(size: CGSize, peer: Peer?, isExpanded: Bool, transition: ContainedViewLayoutTransition) {
         self.validLayout = size
         let previousExpanded = self.isExpanded
-        self.isExpanded = isExpanded
+		//CloudVeil start
+        self.isExpanded = isExpanded && !MainController.shared.disableProfilePhoto
+		
+		//CloudVeil end
         if !isExpanded && previousExpanded {
             self.isCollapsing = true
         }
@@ -1095,7 +1112,6 @@ final class PeerInfoAvatarListContainerNode: ASDisplayNode {
 						}
 					}
 					
-					var items: [PeerInfoAvatarListItem] = []
 					for entry in entries {
 						items.append(PeerInfoAvatarListItem(entry: entry))
 					}
@@ -2599,14 +2615,23 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     
     var navigationTransition: PeerInfoHeaderNavigationTransition?
     
+	//CloudVeil start
+	var avatarCanBeExpanded: Bool {
+		get {
+			if MainController.shared.disableProfilePhoto {
+				return false
+			}
+			if MainController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
+				return false
+			}
+			return true
+		}
+	}
+	//CloudVeil end
+	
     init(context: AccountContext, avatarInitiallyExpanded: Bool, isOpenedFromChat: Bool, isSettings: Bool) {
         self.context = context
         self.isAvatarExpanded = avatarInitiallyExpanded
-		//CloudVeil start
-		if MainController.shared.disableProfilePhoto {
-			self.isAvatarExpanded = false
-		}
-		//CloudVeil end
         self.isOpenedFromChat = isOpenedFromChat
         self.isSettings = isSettings
         self.videoCallsEnabled = VideoCallsConfiguration(appConfiguration: context.currentAppConfiguration.with { $0 }).areVideoCallsEnabled
@@ -2696,6 +2721,15 @@ final class PeerInfoHeaderNode: ASDisplayNode {
             self?.initiateAvatarExpansion(gallery: false, first: false)
         }
         self.editingContentNode.avatarNode.tapped = { [weak self] confirm in
+			//CloudVeil start
+			if MainController.shared.disableProfilePhoto {
+				return
+			}
+			if MainController.shared.disableProfileVideo && self?.avatarListNode.listContainerNode.hasVideoAvatar ?? false {
+				return
+			}
+			//CloudVeil end
+			
             self?.initiateAvatarExpansion(gallery: true, first: true)
         }
         self.editingContentNode.requestEditing = { [weak self] in
@@ -3448,7 +3482,13 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     
     func updateIsAvatarExpanded(_ isAvatarExpanded: Bool, transition: ContainedViewLayoutTransition) {
         if self.isAvatarExpanded != isAvatarExpanded {
-            self.isAvatarExpanded = isAvatarExpanded
+			//CloudVeil start
+            self.isAvatarExpanded = isAvatarExpanded && !MainController.shared.disableProfilePhoto
+			if MainController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
+				self.isAvatarExpanded = false
+			}
+			//CloudVeil end
+			
             if isAvatarExpanded {
                 self.avatarListNode.listContainerNode.selectFirstItem()
             }
