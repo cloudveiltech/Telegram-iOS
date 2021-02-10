@@ -2501,6 +2501,14 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     guard let strongSelf = self, let peer = strongSelf.presentationInterfaceState.renderedPeer?.chatMainPeer, peer.smallProfileImage != nil else {
                         return
                     }
+					//CloudVeil start
+					if MainController.shared.disableProfilePhoto {
+						return
+					}
+					if MainController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peer.id] ?? false {
+						return
+					}
+					//CloudVeil end
                     let galleryController = AvatarGalleryController(context: strongSelf.context, peer: peer, remoteEntries: nil, replaceRootController: { controller, ready in
                     }, synchronousLoad: true)
                     galleryController.setHintWillBePresentedInPreviewingContext(true)

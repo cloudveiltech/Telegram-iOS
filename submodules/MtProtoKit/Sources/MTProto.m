@@ -1956,6 +1956,9 @@ static NSString *dumpHexString(NSData *data, int maxLength) {
             if (currentTransport == _transport)
                 [self requestSecureTransportReset];
             
+			if(abs(protocolErrorCode) == 429) {//flood - cloudveil
+				[NSThread sleepForTimeInterval:1];
+			}
             return;
         }
         
