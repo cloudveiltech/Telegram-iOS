@@ -269,12 +269,17 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
     }];
 }
 
-- (void)setTransport:(MTTransport *)transport
+
+//Cloudveil start
+- (void)setTransportDelayed:(MTTransport *)transport
 {
+	if(_transport == transport) {
+		return;
+	}
     [[MTProto managerQueue] dispatchOnQueue:^
     {
         if (MTLogEnabled()) {
-            MTLog(@"[MTProto#%p@%p changing transport %@#%p to %@#%p]", self, _context, [_transport class] == nil ? @"" : NSStringFromClass([_transport class]), _transport, [transport class] == nil ? @"" : NSStringFromClass([transport class]), transport);
+            MTLog(@"[MTProto#%p@%p changing transport %@#%p to %@#%p thread id %@]", self, _context, [_transport class] == nil ? @"" : NSStringFromClass([_transport class]), _transport, [transport class] == nil ? @"" : NSStringFromClass([transport class]), transport, [NSThread currentThread]);
         }
         
         [self allTransactionsMayHaveFailed];
@@ -299,6 +304,22 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
         [self updateConnectionState];
     }];
 }
+
+NSTimeInterval lastCallTime = 0;
+- (void)setTransport:(MTTransport *)transport {
+	NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
+	if(now - lastCallTime < 1) {
+		return;
+	}
+	if(transport != nil) {
+		lastCallTime = now;
+	} else {
+		lastCallTime = 0;
+	}
+	
+	[self setTransportDelayed:transport];
+}
+//Cloudveil end
 
 - (void)resetTransport
 {
@@ -1957,7 +1978,7 @@ static NSString *dumpHexString(NSData *data, int maxLength) {
                 [self requestSecureTransportReset];
             
 			if(abs(protocolErrorCode) == 429) {//flood - cloudveil
-				[NSThread sleepForTimeInterval:1];
+				[NSThread sleepForTimeInterval:10];
 			}
             return;
         }
