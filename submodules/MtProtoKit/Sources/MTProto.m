@@ -125,6 +125,10 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
     bool _isProbing;
     MTMetaDisposable *_probingDisposable;
     NSNumber *_probingStatus;
+	
+	//CloudVeil start
+	NSTimeInterval _lastSetTransportCallTime;
+	//CloudVeil end
 }
 
 @end
@@ -165,9 +169,9 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
         _messageServices = [[NSMutableArray alloc] init];
         
         _sessionInfo = [[MTSessionInfo alloc] initWithRandomSessionIdAndContext:_context];
-        
-        
-        
+        //CloudVeil start
+		_lastSetTransportCallTime = 0;
+		//CloudVeil end
         _shouldStayConnected = true;
     }
     return self;
@@ -273,50 +277,44 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
 //Cloudveil start
 - (void)setTransportDelayed:(MTTransport *)transport
 {
-	if(_transport == transport) {
-		return;
-	}
     [[MTProto managerQueue] dispatchOnQueue:^
     {
-        if (MTLogEnabled()) {
-            MTLog(@"[MTProto#%p@%p changing transport %@#%p to %@#%p thread id %@]", self, _context, [_transport class] == nil ? @"" : NSStringFromClass([_transport class]), _transport, [transport class] == nil ? @"" : NSStringFromClass([transport class]), transport, [NSThread currentThread]);
-        }
+			if (MTLogEnabled()) {
+				MTLog(@"[MTProto#%p@%p changing transport %@#%p to %@#%p thread id %@]", self, _context, [_transport class] == nil ? @"" : NSStringFromClass([_transport class]), _transport, [transport class] == nil ? @"" : NSStringFromClass([transport class]), transport, [NSThread currentThread]);
+			}
+			
+			[self allTransactionsMayHaveFailed];
+			
+			MTTransport *previousTransport = _transport;
+			[_transport activeTransactionIds:^(NSArray *transactionIds)
+			{
+				[self transportTransactionsMayHaveFailed:previousTransport transactionIds:transactionIds];
+			}];
+			
+			_timeFixContext = nil;
+			
+			if (_transport != nil)
+				[self removeMessageService:_transport];
+			
+			_transport = transport;
+			[previousTransport stop];
+			
+			if (_transport != nil)
+				[self addMessageService:_transport];
         
-        [self allTransactionsMayHaveFailed];
-        
-        MTTransport *previousTransport = _transport;
-        [_transport activeTransactionIds:^(NSArray *transactionIds)
-        {
-            [self transportTransactionsMayHaveFailed:previousTransport transactionIds:transactionIds];
-        }];
-        
-        _timeFixContext = nil;
-        
-        if (_transport != nil)
-            [self removeMessageService:_transport];
-        
-        _transport = transport;
-        [previousTransport stop];
-        
-        if (_transport != nil)
-            [self addMessageService:_transport];
-        
-        [self updateConnectionState];
+			[self updateConnectionState];
     }];
 }
 
-NSTimeInterval lastCallTime = 0;
+
 - (void)setTransport:(MTTransport *)transport {
 	NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
-	if(now - lastCallTime < 1) {
+	if(now - _lastSetTransportCallTime < 1 && transport != nil && _transport != nil) {
 		return;
 	}
 	if(transport != nil) {
-		lastCallTime = now;
-	} else {
-		lastCallTime = 0;
+		_lastSetTransportCallTime = now;
 	}
-	
 	[self setTransportDelayed:transport];
 }
 //Cloudveil end
