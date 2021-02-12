@@ -1315,8 +1315,41 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                 }
             }))
         }
+		
+		
+		//CloudVeil start
+		showNotificationWarning()
+		//CloudVeil end
     }
-    
+	
+	//CloudVeil start
+	private func showNotificationWarning() {
+		if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+			let lastShownTime = userDefaults.double(forKey: "notification_alert_shown_time")
+			let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+			let appBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+			let dontShowKey = "notification_alert_shown_time_\(appVersion)_\(appBuild)"
+			
+			let dontShowAgainChecked = userDefaults.bool(forKey: dontShowKey)
+			if dontShowAgainChecked {
+				return
+			}
+			let now = Date().timeIntervalSince1970
+			if now - lastShownTime < 24*60*60 {//one day
+				return
+			}
+			userDefaults.set(now, forKey: "notification_alert_shown_time")
+			
+			var alert = UIAlertController(title: "Improve Notifications", message: "CloudVeil Messenger must remain running in the background to receive notifications.", preferredStyle: UIAlertController.Style.alert)
+			alert.addAction(UIAlertAction(title: "Ok", style: UIAlertAction.Style.default, handler: nil))
+			alert.addAction(UIAlertAction(title: "Don't show again", style: UIAlertAction.Style.default, handler: { _ in
+				userDefaults.set(true, forKey: dontShowKey)
+			}))
+			self.present(alert, animated: true, completion: nil)
+		}
+	}
+	//CloudVeil end
+	
     override public func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         
