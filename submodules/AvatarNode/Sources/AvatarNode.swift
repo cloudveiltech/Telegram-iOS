@@ -334,23 +334,17 @@ public final class AvatarNode: ASDisplayNode {
 		//CloudVeil start
 		if MainController.shared.disableProfilePhoto {
 			representation = nil
-			avatarDisabled = true
+			setAvatar(icon: icon, representation: representation, context: context, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
 		} else if MainController.shared.disableProfileVideo {
 			if let isVideoAvatarCachedValue = isVideoAvatarCached(context: context, peer: peer) {
 				if isVideoAvatarCachedValue {
 					representation = nil
-					self.avatarDisabled = true
-				} else {
-					self.avatarDisabled = false
 				}
 				setAvatar(icon: icon, representation: representation, context: context, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
 			} else {
 				isVideoAvatar(context: context, peer: peer) { result in
 					if result {
 						representation = nil
-						self.avatarDisabled = true
-					} else {
-						self.avatarDisabled = false
 					}
 					DispatchQueue.main.sync {
 						self.setAvatar(icon: icon, representation: representation, context: context, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
@@ -358,17 +352,18 @@ public final class AvatarNode: ASDisplayNode {
 				}
 			}
 		} else {
-			self.avatarDisabled = false
 			setAvatar(icon: icon, representation: representation, context: context, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
 		}
     }
 	
-	public var avatarDisabled: Bool = false
 	public static var videoAvatarsCache: [PeerId:Bool] = [:]
 	private func isVideoAvatarCached(context: AccountContext, peer: Peer?) -> Bool? {
 		let id = peer?.id ?? PeerId(namespace: 0, id: 0)
 		if let cachedValue = AvatarNode.videoAvatarsCache[id] {
 			return cachedValue
+		}
+		if !MainController.shared.disableProfilePhoto && !MainController.shared.disableProfileVideo {
+			return false
 		}
 		return nil
 	}
