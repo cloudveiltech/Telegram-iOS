@@ -302,20 +302,20 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
 		[self updateConnectionState];
 }
 
+
 - (void)setTransport:(MTTransport *)transport {
-	
+
+	NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
+	if(now - _lastSetTransportCallTime < 1 && transport != nil && _transport != nil) {
+		return;
+	}
+	if(transport != nil) {
+		_lastSetTransportCallTime = now;
+	}
+	[self setTransportDelayed:transport];
 	//[[MTProto managerQueue] dispatchOnQueue:^
 	// {
-	@synchronized (self) {
-		NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
-		if(now - _lastSetTransportCallTime < 1 && transport != nil && _transport != nil) {
-			return;
-		}
-		if(transport != nil) {
-			_lastSetTransportCallTime = now;
-		}
-		[self setTransportDelayed:transport];
-	}
+		
 //	}];
 }
 //Cloudveil end
