@@ -674,7 +674,20 @@ struct ctr_state {
     }];
 }
 
+//CloudVeil start
+NSTimeInterval _lastSendDataIfNeededCallTime = 0;
 - (void)sendDataIfNeeded {
+	NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
+	double maxinterval = 0.03;
+	if(now - _lastSendDataIfNeededCallTime < maxinterval && _lastSendDataIfNeededCallTime != 0) {
+		NSTimeInterval dt = maxinterval - (now - _lastSendDataIfNeededCallTime);
+		MTLog(@"sendDataIfNeeded waiting for %f sec", dt);
+		usleep(1000000*dt);
+	}
+	MTLog(@"sendDataIfNeeded call");
+	_lastSendDataIfNeededCallTime = now;
+	//CloudVeil end
+	
     while (_pendingDataQueue.count != 0) {
         MTTcpSendData *dataToSend = _pendingDataQueue[0];
         [_pendingDataQueue removeObjectAtIndex:0];
