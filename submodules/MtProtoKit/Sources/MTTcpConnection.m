@@ -675,17 +675,23 @@ struct ctr_state {
 }
 
 //CloudVeil start
-NSTimeInterval _lastSendDataIfNeededCallTime = 0;
+static NSTimeInterval _lastSendDataIfNeededCallTime = 0;
+static NSLock *cvlock;
 - (void)sendDataIfNeeded {
+	if(cvlock == nil) {
+		cvlock = [[NSLock alloc] init];
+	}
+	[cvlock lock];
 	NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
-	double maxinterval = 0.03;
+	double maxinterval = 0.05;
 	if(now - _lastSendDataIfNeededCallTime < maxinterval && _lastSendDataIfNeededCallTime != 0) {
 		NSTimeInterval dt = maxinterval - (now - _lastSendDataIfNeededCallTime);
 		MTLog(@"sendDataIfNeeded waiting for %f sec", dt);
-		usleep(1000000*dt);
+		usleep(1000000*dt*1.5);
 	}
 	MTLog(@"sendDataIfNeeded call");
-	_lastSendDataIfNeededCallTime = now;
+	_lastSendDataIfNeededCallTime = [[NSDate date] timeIntervalSince1970];
+	[cvlock unlock];
 	//CloudVeil end
 	
     while (_pendingDataQueue.count != 0) {
