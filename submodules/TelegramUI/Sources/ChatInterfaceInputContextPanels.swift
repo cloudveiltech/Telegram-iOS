@@ -31,8 +31,17 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
         return nil
     }
     
+    if chatPresentationInterfaceState.showCommands, let renderedPeer = chatPresentationInterfaceState.renderedPeer {
+        if let currentPanel = currentPanel as? CommandMenuChatInputContextPanelNode {
+            return currentPanel
+        } else {
+            let panel = CommandMenuChatInputContextPanelNode(context: context, theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings, fontSize: chatPresentationInterfaceState.fontSize, peerId: renderedPeer.peerId)
+            panel.interfaceInteraction = interfaceInteraction
+            return panel
+        }
+    }
+    
     guard let inputQueryResult = chatPresentationInterfaceState.inputQueryResults.values.sorted(by: { lhs, rhs in
-        
         let (lhsP, lhsHasItems) = inputQueryResultPriority(lhs)
         let (rhsP, rhsHasItems) = inputQueryResultPriority(rhs)
         if lhsHasItems != rhsHasItems {
@@ -57,7 +66,7 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
     if hasBannedInlineContent {
         switch inputQueryResult {
             case .stickers, .contextRequestResult:
-				//CloudVeil start
+                //CloudVeil start
 				if MainController.shared.disableStickers {
 					return nil
 				}
@@ -76,8 +85,8 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
     
     switch inputQueryResult {
         case let .stickers(results):
-			//CloudVeil start
-			if MainController.shared.disableStickers {
+            //CloudVeil start
+            if MainController.shared.disableStickers {
 				return nil
 			}
 			//CloudVeil end
@@ -148,7 +157,7 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
                 return nil
             }
         case let .contextRequestResult(_, results):
-			//CloudVeil start
+            //CloudVeil start
 			if MainController.SecurityStaticSettings.disableInlineBots {
 				return nil
 			}

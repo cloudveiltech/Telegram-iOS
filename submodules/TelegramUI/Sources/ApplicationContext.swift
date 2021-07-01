@@ -25,6 +25,7 @@ import SettingsUI
 import AppLock
 import AccountUtils
 import ContextUI
+import TelegramCallsUI
 import CloudVeilSecurityManager
 
 final class UnauthorizedApplicationContext {
@@ -36,6 +37,8 @@ final class UnauthorizedApplicationContext {
     let isReady = Promise<Bool>()
     
     var authorizationCompleted: Bool = false
+
+    private var serviceNotificationEventsDisposable: Disposable?
     
     init(apiId: Int32, apiHash: String, sharedContext: SharedAccountContextImpl, account: UnauthorizedAccount, otherAccountPhoneNumbers: ((String, AccountRecordId, Bool)?, [(String, AccountRecordId, Bool)])) {
         self.sharedContext = sharedContext
@@ -71,6 +74,20 @@ final class UnauthorizedApplicationContext {
         }, { result in
             ApplicationSpecificNotice.setPermissionWarning(accountManager: sharedContext.accountManager, permission: .cellularData, value: 0)
         })
+
+        self.serviceNotificationEventsDisposable = (account.serviceNotificationEvents
+        |> deliverOnMainQueue).start(next: { [weak self] text in
+            if let strongSelf = self {
+                let presentationData = strongSelf.sharedContext.currentPresentationData.with { $0 }
+                let alertController = textAlertController(sharedContext: strongSelf.sharedContext, title: nil, text: text, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})])
+
+                (strongSelf.rootController.viewControllers.last as? ViewController)?.present(alertController, in: .window(.root))
+            }
+        })
+    }
+
+    deinit {
+        self.serviceNotificationEventsDisposable?.dispose()
     }
 }
 
@@ -258,9 +275,28 @@ final class AuthorizedApplicationContext {
                 }
             }
         }))
-        
+
+        let postbox = context.account.postbox
         self.notificationMessagesDisposable.set((context.account.stateManager.notificationMessages
+        |> mapToSignal { messageList -> Signal<[([Message], PeerGroupId, Bool)], NoError> in
+            return postbox.transaction { transaction -> [([Message], PeerGroupId, Bool)] in
+                return messageList.filter { item in
+                    guard let message = item.0.first else {
+                        return false
+                    }
+                    let inclusion = transaction.getPeerChatListInclusion(message.id.peerId)
+                    if case .notIncluded = inclusion {
+                        return false
+                    }
+                    return true
+                }
+            }
+        }
         |> deliverOn(Queue.mainQueue())).start(next: { [weak self] messageList in
+            if messageList.isEmpty {
+                return
+            }
+
             if let strongSelf = self, let (messages, _, notify) = messageList.last, let firstMessage = messages.first {
                 if UIApplication.shared.applicationState == .active {
                     var chatIsVisible = false
@@ -273,9 +309,9 @@ final class AuthorizedApplicationContext {
                     if !notify {
                         chatIsVisible = true
                     }
-					
-					//CloudVeil start
-					if !MainController.shared.isConversationAvailable(conversationId: NSInteger(firstMessage.id.peerId.id)) {
+                    
+                    //CloudVeil start
+					if !MainController.shared.isConversationAvailable(conversationId: NSInteger(firstMessage.id.peerId.id._internalGetInt32Value())) {
 						return
 					}
 					//CloudVeil end
@@ -326,6 +362,16 @@ final class AuthorizedApplicationContext {
                                     }
                                 }
                             }
+                            if let forwardInfo = firstMessage.forwardInfo, forwardInfo.flags.contains(.isImported) {
+                                return
+                            }
+                            for media in firstMessage.media {
+                                if let action = media as? TelegramMediaAction {
+                                    if case .messageAutoremoveTimeoutUpdated = action.action {
+                                        return
+                                    }
+                                }
+                            }
                             
                             if chatIsVisible {
                                 return
@@ -333,7 +379,7 @@ final class AuthorizedApplicationContext {
                             
                             if inAppNotificationSettings.displayPreviews {
                                let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
-                                strongSelf.notificationController.enqueue(ChatMessageNotificationItem(context: strongSelf.context, strings: presentationData.strings, nameDisplayOrder: presentationData.nameDisplayOrder, messages: messages, tapAction: {
+                                strongSelf.notificationController.enqueue(ChatMessageNotificationItem(context: strongSelf.context, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, nameDisplayOrder: presentationData.nameDisplayOrder, messages: messages, tapAction: {
                                     if let strongSelf = self {
                                         var foundOverlay = false
                                         strongSelf.mainWindow.forEachViewController({ controller in
@@ -422,11 +468,11 @@ final class AuthorizedApplicationContext {
                     guard let strongSelf = self else {
                         return
                     }
-                    let _ = (acceptTermsOfService(account: strongSelf.context.account, id: termsOfServiceUpdate.id)
+                    let _ = (strongSelf.context.engine.accountData.acceptTermsOfService(id: termsOfServiceUpdate.id)
                     |> deliverOnMainQueue).start(completed: {
                         controller?.dismiss()
                         if let strongSelf = self, let botName = botName {
-                            strongSelf.termsOfServiceProceedToBotDisposable.set((resolvePeerByName(account: strongSelf.context.account, name: botName, ageLimit: 10) |> take(1) |> deliverOnMainQueue).start(next: { peerId in
+                            strongSelf.termsOfServiceProceedToBotDisposable.set((strongSelf.context.engine.peers.resolvePeerByName(name: botName, ageLimit: 10) |> take(1) |> deliverOnMainQueue).start(next: { peerId in
                                 if let strongSelf = self, let peerId = peerId {
                                     self?.rootController.pushViewController(ChatControllerImpl(context: strongSelf.context, chatLocation: .peer(peerId)))
                                 }
@@ -441,7 +487,7 @@ final class AuthorizedApplicationContext {
                     }
                     let accountId = strongSelf.context.account.id
                     let accountManager = strongSelf.context.sharedContext.accountManager
-                    let _ = (deleteAccount(account: strongSelf.context.account)
+                    let _ = (strongSelf.context.engine.auth.deleteAccount()
                     |> deliverOnMainQueue).start(error: { _ in
                         guard let strongSelf = self else {
                             return
@@ -738,6 +784,12 @@ final class AuthorizedApplicationContext {
         })
         
         self.rootController.setForceInCallStatusBar((self.context.sharedContext as! SharedAccountContextImpl).currentCallStatusBarNode)
+        if let groupCallController = self.context.sharedContext.currentGroupCallController as? VoiceChatController {
+            if let overlayController = groupCallController.currentOverlayController {
+                groupCallController.parentNavigationController = self.rootController
+                self.rootController.presentOverlay(controller: overlayController, inGlobal: true, blockInteraction: false)
+            }
+        }
     }
     
     deinit {

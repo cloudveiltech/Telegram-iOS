@@ -17,16 +17,14 @@ import PeersNearbyUI
 import PeerInfoUI
 import SettingsUI
 import UrlHandling
-#if ENABLE_WALLET
-import WalletUI
-import WalletCore
-#endif
 import LegacyMediaPickerUI
 import LocalMediaResources
 import OverlayStatusController
 import AlertUI
 import PresentationDataUtils
 import LocationUI
+import AppLock
+import WallpaperBackgroundNode
 
 private final class AccountUserInterfaceInUseContext {
     let subscribers = Bag<(Bool) -> Void>()
@@ -58,6 +56,7 @@ private var testHasInstance = false
 public final class SharedAccountContextImpl: SharedAccountContext {
     public let mainWindow: Window1?
     public let applicationBindings: TelegramApplicationBindings
+    public let sharedContainerPath: String
     public let basePath: String
     public let accountManager: AccountManager
     public let appLockContext: AppLockContext
@@ -103,7 +102,13 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     private let callState = Promise<PresentationCallState?>(nil)
     
     private var groupCallController: VoiceChatController?
-    private let hasGroupCallOnScreen = ValuePromise<Bool>(false, ignoreRepeated: true)
+    public var currentGroupCallController: ViewController? {
+        return self.groupCallController
+    }
+    private let hasGroupCallOnScreenPromise = ValuePromise<Bool>(false, ignoreRepeated: true)
+    public var hasGroupCallOnScreen: Signal<Bool, NoError> {
+        return self.hasGroupCallOnScreenPromise.get()
+    }
     
     private var immediateHasOngoingCallValue = Atomic<Bool>(value: false)
     public var immediateHasOngoingCall: Bool {
@@ -157,7 +162,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     private var spotlightDataContext: SpotlightDataContext?
     private var widgetDataContext: WidgetDataContext?
     
-    public init(mainWindow: Window1?, basePath: String, encryptionParameters: ValueBoxEncryptionParameters, accountManager: AccountManager, appLockContext: AppLockContext, applicationBindings: TelegramApplicationBindings, initialPresentationDataAndSettings: InitialPresentationDataAndSettings, networkArguments: NetworkInitializationArguments, rootPath: String, legacyBasePath: String?, legacyCache: LegacyCache?, apsNotificationToken: Signal<Data?, NoError>, voipNotificationToken: Signal<Data?, NoError>, setNotificationCall: @escaping (PresentationCall?) -> Void, navigateToChat: @escaping (AccountRecordId, PeerId, MessageId?) -> Void, displayUpgradeProgress: @escaping (Float?) -> Void = { _ in }) {
+    public init(mainWindow: Window1?, sharedContainerPath: String, basePath: String, encryptionParameters: ValueBoxEncryptionParameters, accountManager: AccountManager, appLockContext: AppLockContext, applicationBindings: TelegramApplicationBindings, initialPresentationDataAndSettings: InitialPresentationDataAndSettings, networkArguments: NetworkInitializationArguments, rootPath: String, legacyBasePath: String?, apsNotificationToken: Signal<Data?, NoError>, voipNotificationToken: Signal<Data?, NoError>, setNotificationCall: @escaping (PresentationCall?) -> Void, navigateToChat: @escaping (AccountRecordId, PeerId, MessageId?) -> Void, displayUpgradeProgress: @escaping (Float?) -> Void = { _ in }) {
         assert(Queue.mainQueue().isCurrent())
         
         precondition(!testHasInstance)
@@ -165,6 +170,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         
         self.mainWindow = mainWindow
         self.applicationBindings = applicationBindings
+        self.sharedContainerPath = sharedContainerPath
         self.basePath = basePath
         self.accountManager = accountManager
         self.navigateToChatImpl = navigateToChat
@@ -640,16 +646,16 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                         
                         if let call = call, let navigationController = mainWindow.viewController as? NavigationController {
                             mainWindow.hostView.containerView.endEditing(true)
-                            strongSelf.hasGroupCallOnScreen.set(true)
+                            strongSelf.hasGroupCallOnScreenPromise.set(true)
                             let groupCallController = VoiceChatController(sharedContext: strongSelf, accountContext: call.accountContext, call: call)
                             groupCallController.onViewDidAppear = { [weak self] in
                                 if let strongSelf = self {
-                                    strongSelf.hasGroupCallOnScreen.set(true)
+                                    strongSelf.hasGroupCallOnScreenPromise.set(true)
                                 }
                             }
                             groupCallController.onViewDidDisappear = { [weak self] in
                                 if let strongSelf = self {
-                                    strongSelf.hasGroupCallOnScreen.set(false)
+                                    strongSelf.hasGroupCallOnScreenPromise.set(false)
                                 }
                             }
                             groupCallController.navigationPresentation = .flatModal
@@ -676,7 +682,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             self.callStateDisposable = combineLatest(queue: .mainQueue(),
                 callSignal,
                 groupCallSignal,
-                self.hasGroupCallOnScreen.get()
+                self.hasGroupCallOnScreenPromise.get()
             ).start(next: { [weak self] call, groupCall, hasGroupCallOnScreen in
                 if let strongSelf = self {
                     let statusBarContent: CallStatusBarNodeImpl.Content?
@@ -743,10 +749,10 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         self.updateNotificationTokensRegistration()
         
         if applicationBindings.isMainApp {
-            self.widgetDataContext = WidgetDataContext(basePath: self.basePath, activeAccount: self.activeAccounts
-            |> map { primary, _, _ in
-                return primary
-            }, presentationData: self.presentationData)
+            self.widgetDataContext = WidgetDataContext(basePath: self.basePath, inForeground: self.applicationBindings.applicationInForeground, activeAccounts: self.activeAccounts
+            |> map { _, accounts, _ in
+                return accounts.map { $0.1 }
+            }, presentationData: self.presentationData, appLockContext: self.appLockContext as! AppLockContextImpl)
             
             let enableSpotlight = accountManager.sharedData(keys: Set([ApplicationSpecificSharedDataKeys.intentsSettings]))
             |> map { sharedData -> Bool in
@@ -950,6 +956,12 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         })
     }
     
+    public func openSearch(filter: ChatListSearchFilter, query: String?) {
+        if let rootController = self.mainWindow?.viewController as? TelegramRootController {
+            rootController.openChatsController(activateSearch: true, filter: filter, query: query)
+        }
+    }
+    
     public func navigateToChat(accountId: AccountRecordId, peerId: PeerId, messageId: MessageId?) {
         self.navigateToChatImpl(accountId, peerId, messageId)
     }
@@ -1112,7 +1124,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         
         if !found {
             let controllerParams = LocationViewParams(sendLiveLocation: { location in
-                let outMessage: EnqueueMessage = .message(text: "", attributes: [], mediaReference: .standalone(media: location), replyToMessageId: nil, localGroupingKey: nil)
+                let outMessage: EnqueueMessage = .message(text: "", attributes: [], mediaReference: .standalone(media: location), replyToMessageId: nil, localGroupingKey: nil, correlationId: nil)
 //                params.enqueueMessage(outMessage)
             }, stopLiveLocation: { messageId in
                 if let messageId = messageId {
@@ -1135,12 +1147,12 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         }
     }
     
-    public func resolveUrl(account: Account, url: String) -> Signal<ResolvedUrl, NoError> {
-        return resolveUrlImpl(account: account, url: url)
+    public func resolveUrl(context: AccountContext, peerId: PeerId?, url: String, skipUrlAuth: Bool) -> Signal<ResolvedUrl, NoError> {
+        return resolveUrlImpl(context: context, peerId: peerId, url: url, skipUrlAuth: skipUrlAuth)
     }
     
-    public func openResolvedUrl(_ resolvedUrl: ResolvedUrl, context: AccountContext, urlContext: OpenURLContext, navigationController: NavigationController?, openPeer: @escaping (PeerId, ChatControllerInteractionNavigateToPeer) -> Void, sendFile: ((FileMediaReference) -> Void)?, sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?, present: @escaping (ViewController, Any?) -> Void, dismissInput: @escaping () -> Void, contentContext: Any?) {
-        openResolvedUrlImpl(resolvedUrl, context: context, urlContext: urlContext, navigationController: navigationController, openPeer: openPeer, sendFile: sendFile, sendSticker: sendSticker, present: present, dismissInput: dismissInput, contentContext: contentContext)
+    public func openResolvedUrl(_ resolvedUrl: ResolvedUrl, context: AccountContext, urlContext: OpenURLContext, navigationController: NavigationController?, openPeer: @escaping (PeerId, ChatControllerInteractionNavigateToPeer) -> Void, sendFile: ((FileMediaReference) -> Void)?, sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?, requestMessageActionUrlAuth: ((MessageActionUrlSubject) -> Void)?, joinVoiceChat: ((PeerId, String?, CachedChannelData.ActiveCall) -> Void)?, present: @escaping (ViewController, Any?) -> Void, dismissInput: @escaping () -> Void, contentContext: Any?) {
+        openResolvedUrlImpl(resolvedUrl, context: context, urlContext: urlContext, navigationController: navigationController, openPeer: openPeer, sendFile: sendFile, sendSticker: sendSticker, requestMessageActionUrlAuth: requestMessageActionUrlAuth, joinVoiceChat: joinVoiceChat, present: present, dismissInput: dismissInput, contentContext: contentContext)
     }
     
     public func makeDeviceContactInfoController(context: AccountContext, subject: DeviceContactInfoSubject, completed: (() -> Void)?, cancelled: (() -> Void)?) -> ViewController {
@@ -1176,7 +1188,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     }
     
     public func makeComposeController(context: AccountContext) -> ViewController {
-        return ComposeController(context: context)
+        return ComposeControllerImpl(context: context)
     }
     
     public func makeProxySettingsController(context: AccountContext) -> ViewController {
@@ -1207,65 +1219,65 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         return PeerSelectionControllerImpl(params)
     }
     
-    public func makeChatMessagePreviewItem(context: AccountContext, messages: [Message], theme: PresentationTheme, strings: PresentationStrings, wallpaper: TelegramWallpaper, fontSize: PresentationFontSize, chatBubbleCorners: PresentationChatBubbleCorners, dateTimeFormat: PresentationDateTimeFormat, nameOrder: PresentationPersonNameOrder, forcedResourceStatus: FileMediaResourceStatus?, tapMessage: ((Message) -> Void)? = nil, clickThroughMessage: (() -> Void)? = nil) -> ListViewItem {
+    public func makeChatMessagePreviewItem(context: AccountContext, messages: [Message], theme: PresentationTheme, strings: PresentationStrings, wallpaper: TelegramWallpaper, fontSize: PresentationFontSize, chatBubbleCorners: PresentationChatBubbleCorners, dateTimeFormat: PresentationDateTimeFormat, nameOrder: PresentationPersonNameOrder, forcedResourceStatus: FileMediaResourceStatus?, tapMessage: ((Message) -> Void)? = nil, clickThroughMessage: (() -> Void)? = nil, backgroundNode: ASDisplayNode?) -> ListViewItem {
         let controllerInteraction: ChatControllerInteraction
-        if tapMessage != nil || clickThroughMessage != nil {
-            controllerInteraction = ChatControllerInteraction(openMessage: { _, _ in
-                return false }, openPeer: { _, _, _ in }, openPeerMention: { _ in }, openMessageContextMenu: { _, _, _, _, _ in }, openMessageContextActions: { _, _, _, _ in }, navigateToMessage: { _, _ in }, navigateToMessageStandalone: { _ in
-                }, tapMessage: { message in
-                    tapMessage?(message)
-            }, clickThroughMessage: {
-                clickThroughMessage?()
-            }, toggleMessagesSelection: { _, _ in }, sendCurrentMessage: { _ in }, sendMessage: { _ in }, sendSticker: { _, _, _, _, _ in return false }, sendGif: { _, _, _ in return false }, sendBotContextResultAsGif: { _, _, _, _ in
-                return false
-            }, requestMessageActionCallback: { _, _, _, _ in }, requestMessageActionUrlAuth: { _, _, _ in }, activateSwitchInline: { _, _ in }, openUrl: { _, _, _, _ in }, shareCurrentLocation: {}, shareAccountContact: {}, sendBotCommand: { _, _ in }, openInstantPage: { _, _ in  }, openWallpaper: { _ in  }, openTheme: { _ in  }, openHashtag: { _, _ in }, updateInputState: { _ in }, updateInputMode: { _ in }, openMessageShareMenu: { _ in
-            }, presentController: { _, _ in }, navigationController: {
-                return nil
-            }, chatControllerNode: {
-                return nil
-            }, reactionContainerNode: {
-                return nil
-            }, presentGlobalOverlayController: { _, _ in }, callPeer: { _, _ in }, longTap: { _, _ in }, openCheckoutOrReceipt: { _ in }, openSearch: { }, setupReply: { _ in
-            }, canSetupReply: { _ in
-                return .none
-            }, navigateToFirstDateMessage: { _ in
-            }, requestRedeliveryOfFailedMessages: { _ in
-            }, addContact: { _ in
-            }, rateCall: { _, _, _ in
-            }, requestSelectMessagePollOptions: { _, _ in
-            }, requestOpenMessagePollResults: { _, _ in
-            }, openAppStorePage: {
-            }, displayMessageTooltip: { _, _, _, _ in
-            }, seekToTimecode: { _, _, _ in
-            }, scheduleCurrentMessage: {
-            }, sendScheduledMessagesNow: { _ in
-            }, editScheduledMessagesTime: { _ in
-            }, performTextSelectionAction: { _, _, _ in
-            }, updateMessageLike: { _, _ in
-            }, openMessageReactions: { _ in
-            }, displaySwipeToReplyHint: {
-            }, dismissReplyMarkupMessage: { _ in
-            }, openMessagePollResults: { _, _ in
-            }, openPollCreation: { _ in
-            }, displayPollSolution: { _, _ in
-            }, displayPsa: { _, _ in
-            }, displayDiceTooltip: { _ in
-            }, animateDiceSuccess: { _ in
-            }, greetingStickerNode: {
-                return nil
-            }, openPeerContextMenu: { _, _, _, _ in
-            }, openMessageReplies: { _, _, _ in
-            }, openReplyThreadOriginalMessage: { _ in
-            }, openMessageStats: { _ in
-            }, editMessageMedia: { _, _ in
-            }, copyText: { _ in
-            }, requestMessageUpdate: { _ in
-            }, cancelInteractiveKeyboardGestures: {
-            }, automaticMediaDownloadSettings: MediaAutoDownloadSettings.defaultSettings,
-               pollActionState: ChatInterfacePollActionState(), stickerSettings: ChatInterfaceStickerSettings(loopAnimatedStickers: false))
-        } else {
-            controllerInteraction = defaultChatControllerInteraction
-        }
+
+        controllerInteraction = ChatControllerInteraction(openMessage: { _, _ in
+            return false }, openPeer: { _, _, _ in }, openPeerMention: { _ in }, openMessageContextMenu: { _, _, _, _, _ in }, activateMessagePinch: { _ in
+            }, openMessageContextActions: { _, _, _, _ in }, navigateToMessage: { _, _ in }, navigateToMessageStandalone: { _ in
+            }, tapMessage: { message in
+                tapMessage?(message)
+        }, clickThroughMessage: {
+            clickThroughMessage?()
+        }, toggleMessagesSelection: { _, _ in }, sendCurrentMessage: { _ in }, sendMessage: { _ in }, sendSticker: { _, _, _, _, _, _, _ in return false }, sendGif: { _, _, _, _, _ in return false }, sendBotContextResultAsGif: { _, _, _, _, _ in
+            return false
+        }, requestMessageActionCallback: { _, _, _, _ in }, requestMessageActionUrlAuth: { _, _ in }, activateSwitchInline: { _, _ in }, openUrl: { _, _, _, _ in }, shareCurrentLocation: {}, shareAccountContact: {}, sendBotCommand: { _, _ in }, openInstantPage: { _, _ in  }, openWallpaper: { _ in  }, openTheme: { _ in  }, openHashtag: { _, _ in }, updateInputState: { _ in }, updateInputMode: { _ in }, openMessageShareMenu: { _ in
+        }, presentController: { _, _ in }, navigationController: {
+            return nil
+        }, chatControllerNode: {
+            return nil
+        }, reactionContainerNode: {
+            return nil
+        }, presentGlobalOverlayController: { _, _ in }, callPeer: { _, _ in }, longTap: { _, _ in }, openCheckoutOrReceipt: { _ in }, openSearch: { }, setupReply: { _ in
+        }, canSetupReply: { _ in
+            return .none
+        }, navigateToFirstDateMessage: { _ in
+        }, requestRedeliveryOfFailedMessages: { _ in
+        }, addContact: { _ in
+        }, rateCall: { _, _, _ in
+        }, requestSelectMessagePollOptions: { _, _ in
+        }, requestOpenMessagePollResults: { _, _ in
+        }, openAppStorePage: {
+        }, displayMessageTooltip: { _, _, _, _ in
+        }, seekToTimecode: { _, _, _ in
+        }, scheduleCurrentMessage: {
+        }, sendScheduledMessagesNow: { _ in
+        }, editScheduledMessagesTime: { _ in
+        }, performTextSelectionAction: { _, _, _ in
+        }, updateMessageLike: { _, _ in
+        }, openMessageReactions: { _ in
+        }, displayImportedMessageTooltip: { _ in
+        }, displaySwipeToReplyHint: {
+        }, dismissReplyMarkupMessage: { _ in
+        }, openMessagePollResults: { _, _ in
+        }, openPollCreation: { _ in
+        }, displayPollSolution: { _, _ in
+        }, displayPsa: { _, _ in
+        }, displayDiceTooltip: { _ in
+        }, animateDiceSuccess: { _ in
+        }, openPeerContextMenu: { _, _, _, _, _ in
+        }, openMessageReplies: { _, _, _ in
+        }, openReplyThreadOriginalMessage: { _ in
+        }, openMessageStats: { _ in
+        }, editMessageMedia: { _, _ in
+        }, copyText: { _ in
+        }, displayUndo: { _ in
+        }, isAnimatingMessage: { _ in
+            return false
+        }, requestMessageUpdate: { _ in
+        }, cancelInteractiveKeyboardGestures: {
+        }, automaticMediaDownloadSettings: MediaAutoDownloadSettings.defaultSettings,
+           pollActionState: ChatInterfacePollActionState(), stickerSettings: ChatInterfaceStickerSettings(loopAnimatedStickers: false), presentationContext: ChatPresentationContext(backgroundNode: backgroundNode as? WallpaperBackgroundNode))
         
         let content: ChatMessageItemContent
         let chatLocation: ChatLocation
@@ -1331,7 +1343,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                                     present(WalletSplashScreen(context: WalletContextImpl(context: context, tonContext: tonContext), mode: .created(walletInfo, nil), walletCreatedPreloadState: nil))
                                 }
                             case let .send(address, amount, comment):
-                                present(walletSendScreen(context: WalletContextImpl(context: context, tonContext: tonContext), randomId: arc4random64(), walletInfo: walletInfo, address: address, amount: amount, comment: comment))
+                                present(walletSendScreen(context: WalletContextImpl(context: context, tonContext: tonContext), randomId: Int64.random(in: Int64.min ... Int64.max), walletInfo: walletInfo, address: address, amount: amount, comment: comment))
                             }
                             
                         })
@@ -1391,9 +1403,9 @@ private let defaultChatControllerInteraction = ChatControllerInteraction.default
 
 private func peerInfoControllerImpl(context: AccountContext, peer: Peer, mode: PeerInfoControllerMode, avatarInitiallyExpanded: Bool, isOpenedFromChat: Bool) -> ViewController? {
     if let _ = peer as? TelegramGroup {
-        return PeerInfoScreen(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
-    } else if let channel = peer as? TelegramChannel {
-        return PeerInfoScreen(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
+        return PeerInfoScreenImpl(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
+    } else if let _ = peer as? TelegramChannel {
+        return PeerInfoScreenImpl(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
     } else if peer is TelegramUser {
         var nearbyPeerDistance: Int32?
         var callMessages: [Message] = []
@@ -1408,9 +1420,9 @@ private func peerInfoControllerImpl(context: AccountContext, peer: Peer, mode: P
         case let .group(id):
             ignoreGroupInCommon = id
         }
-        return PeerInfoScreen(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nearbyPeerDistance, callMessages: callMessages, ignoreGroupInCommon: ignoreGroupInCommon)
+        return PeerInfoScreenImpl(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nearbyPeerDistance, callMessages: callMessages, ignoreGroupInCommon: ignoreGroupInCommon)
     } else if peer is TelegramSecretChat {
-        return PeerInfoScreen(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
+        return PeerInfoScreenImpl(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
     }
     return nil
 }

@@ -15,6 +15,14 @@
 """Implementation of Apple CoreML library rule."""
 
 load(
+    "@build_bazel_apple_support//lib:apple_support.bzl",
+    "apple_support",
+)
+load(
+    "@build_bazel_rules_apple//apple:providers.bzl",
+    "AppleSupportToolchainInfo",
+)
+load(
     "@build_bazel_rules_apple//apple/internal:resource_actions.bzl",
     "resource_actions",
 )
@@ -25,10 +33,6 @@ load(
 load(
     "@build_bazel_rules_apple//apple/internal:swift_support.bzl",
     "swift_support",
-)
-load(
-    "@build_bazel_apple_support//lib:apple_support.bzl",
-    "apple_support",
 )
 load(
     "@bazel_skylib//lib:dicts.bzl",
@@ -43,7 +47,6 @@ def _apple_core_ml_library_impl(ctx):
     """Implementation of the apple_core_ml_library."""
     actions = ctx.actions
     basename = paths.replace_extension(ctx.file.mlmodel.basename, "")
-    rule_executables = ctx.executable
 
     deps = getattr(ctx.attr, "deps", None)
     uses_swift = swift_support.uses_swift(deps) if deps else False
@@ -65,9 +68,11 @@ def _apple_core_ml_library_impl(ctx):
         objc_fragment = None,
         platform_type_string = str(ctx.fragments.apple.single_arch_platform.platform_type),
         uses_swift = uses_swift,
-        xcode_path_wrapper = rule_executables._xcode_path_wrapper,
+        xcode_path_wrapper = ctx.executable._xcode_path_wrapper,
         xcode_version_config = ctx.attr._xcode_config[apple_common.XcodeVersionConfig],
     )
+
+    apple_toolchain_info = ctx.attr._toolchain[AppleSupportToolchainInfo]
 
     # coremlc doesn't have any configuration on the name of the generated source files, it uses the
     # basename of the mlmodel file instead, so we need to expect those files as outputs.
@@ -77,7 +82,7 @@ def _apple_core_ml_library_impl(ctx):
         output_source = coremlc_source,
         output_header = coremlc_header,
         platform_prerequisites = platform_prerequisites,
-        xctoolrunner_executable = rule_executables._xctoolrunner,
+        resolved_xctoolrunner = apple_toolchain_info.resolved_xctoolrunner,
     )
 
     # But we would like our ObjC clients to use <target_name>.h instead, so we create that header
@@ -112,10 +117,9 @@ Label to a single mlmodel file from which to generate sources and compile into m
             mandatory = True,
             doc = "Private attribute to configure the ObjC header name to be exported.",
         ),
-        "_xctoolrunner": attr.label(
-            cfg = "host",
-            executable = True,
-            default = Label("@build_bazel_rules_apple//tools/xctoolrunner"),
+        "_toolchain": attr.label(
+            default = Label("@build_bazel_rules_apple//apple/internal:toolchain_support"),
+            providers = [[AppleSupportToolchainInfo]],
         ),
     }),
     output_to_genfiles = True,

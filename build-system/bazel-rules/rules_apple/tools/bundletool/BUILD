@@ -5,11 +5,10 @@ licenses(["notice"])
 py_binary(
     name = "bundletool",
     srcs = ["bundletool.py"],
-    srcs_version = "PY2AND3",
-    # Used by the rule implementations, so it needs to be public; but
-    # should be considered an implementation detail of the rules and
-    # not used by other things.
-    visibility = ["//visibility:public"],
+    python_version = "PY3",
+    visibility = [
+        "//apple/internal:__pkg__",
+    ],
     deps = [":bundletool_lib"],
 )
 
@@ -22,11 +21,10 @@ py_library(
 py_binary(
     name = "bundletool_experimental",
     srcs = ["bundletool_experimental.py"],
-    srcs_version = "PY2AND3",
-    # Used by the rule implementations, so it needs to be public; but
-    # should be considered an implementation detail of the rules and
-    # not used by other things.
-    visibility = ["//visibility:public"],
+    python_version = "PY3",
+    visibility = [
+        "//apple/internal:__pkg__",
+    ],
 )
 
 py2and3_test(
@@ -41,10 +39,9 @@ py2and3_test(
 filegroup(
     name = "process_and_sign_template",
     srcs = ["process_and_sign.sh.template"],
-    # Used by the rule implementations, so it needs to be public; but
-    # should be considered an implementation detail of the rules and
-    # not used by other things.
-    visibility = ["//visibility:public"],
+    visibility = [
+        "//apple/internal:__pkg__",
+    ],
 )
 
 # Consumed by bazel tests.

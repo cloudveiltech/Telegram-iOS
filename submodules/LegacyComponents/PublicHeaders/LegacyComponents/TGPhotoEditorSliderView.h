@@ -13,6 +13,7 @@
 
 @property (nonatomic, assign) CGFloat startValue;
 @property (nonatomic, assign) CGFloat value;
+@property (nonatomic, assign) int minimumUndottedValue;
 
 @property (nonatomic, assign) CGFloat markValue;
 
@@ -34,6 +35,7 @@
 @property (nonatomic, strong) UIImage *knobImage;
 @property (nonatomic, readonly) UIImageView *knobView;
 
+@property (nonatomic, assign) bool disableSnapToPositions;
 @property (nonatomic, assign) NSInteger positionsCount;
 @property (nonatomic, assign) CGFloat dotSize;
 

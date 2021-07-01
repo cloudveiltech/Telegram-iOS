@@ -171,7 +171,7 @@ final class ChatAnimationGalleryItemNode: ZoomableContentGalleryItemNode {
             self.setupStatus(resource: fileReference.media.resource)
             
             
-            self._title.set(.single("\(fileReference.media.fileName ?? "") - \(dataSizeString(fileReference.media.size ?? 0, forceDecimal: false, decimalSeparator: presentationData.dateTimeFormat.decimalSeparator))"))
+            self._title.set(.single("\(fileReference.media.fileName ?? "") - \(dataSizeString(fileReference.media.size ?? 0, forceDecimal: false, formatting: DataSizeStringFormatting(presentationData: self.presentationData)))"))
             
             let speedItem = UIBarButtonItem(image: UIImage(bundleImageName: "Media Gallery/SlowDown"), style: .plain, target: self, action: #selector(self.toggleSpeedButtonPressed))
             let backgroundItem = UIBarButtonItem(image: backgroundButtonIcon, style: .plain, target: self, action: #selector(self.toggleBackgroundButtonPressed))
@@ -214,10 +214,10 @@ final class ChatAnimationGalleryItemNode: ZoomableContentGalleryItemNode {
                         strongSelf.statusNode.alpha = 1.0
                         strongSelf.statusNodeContainer.isUserInteractionEnabled = true
                         let adjustedProgress = max(progress, 0.027)
-                        strongSelf.statusNode.transitionToState(.progress(color: .white, lineWidth: nil, value: CGFloat(adjustedProgress), cancelEnabled: true), completion: {})
+                        strongSelf.statusNode.transitionToState(.progress(color: .white, lineWidth: nil, value: CGFloat(adjustedProgress), cancelEnabled: true, animateRotation: true), completion: {})
                     case .Local:
                         if let previousStatus = previousStatus, case .Fetching = previousStatus {
-                            strongSelf.statusNode.transitionToState(.progress(color: .white, lineWidth: nil, value: 1.0, cancelEnabled: true), completion: {
+                            strongSelf.statusNode.transitionToState(.progress(color: .white, lineWidth: nil, value: 1.0, cancelEnabled: true, animateRotation: true), completion: {
                                 if let strongSelf = self {
                                     strongSelf.statusNode.alpha = 0.0
                                     strongSelf.statusNodeContainer.isUserInteractionEnabled = false

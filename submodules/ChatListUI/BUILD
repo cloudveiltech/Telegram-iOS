@@ -7,7 +7,7 @@ swift_library(
         "Sources/**/*.swift",
     ]),
     deps = [
-		#CloudVeil start
+        #CloudVeil start
 		"//Telegram:CloudVeilSecurityManager",
 		#CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
@@ -61,6 +61,7 @@ swift_library(
         "//submodules/ChatListFilterSettingsHeaderItem:ChatListFilterSettingsHeaderItem",
         "//submodules/TelegramStringFormatting:TelegramStringFormatting",
         "//submodules/TelegramCallsUI:TelegramCallsUI",
+        "//submodules/StickerResources:StickerResources",
     ],
     visibility = [
         "//visibility:public",

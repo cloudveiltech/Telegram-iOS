@@ -42,6 +42,31 @@ public func stringForMessageTimestamp(timestamp: Int32, dateTimeFormat: Presenta
     return stringForShortTimestamp(hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, dateTimeFormat: dateTimeFormat)
 }
 
+public func stringForMediumDate(timestamp: Int32, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat) -> String {
+    var t: time_t = Int(timestamp)
+    var timeinfo = tm()
+    localtime_r(&t, &timeinfo);
+    
+    let day = timeinfo.tm_mday
+    let month = timeinfo.tm_mon + 1
+    let year = timeinfo.tm_year
+    
+    let dateString: String
+    let separator = dateTimeFormat.dateSeparator
+    let suffix = dateTimeFormat.dateSuffix
+    let displayYear = dateTimeFormat.requiresFullYear ? year - 100 + 2000 : year - 100
+    switch dateTimeFormat.dateFormat {
+        case .monthFirst:
+            dateString = String(format: "%02d%@%02d%@%02d%@", month, separator, day, separator, displayYear, suffix)
+        case .dayFirst:
+            dateString = String(format: "%02d%@%02d%@%02d%@", day, separator, month, separator, displayYear, suffix)
+    }
+    
+    let timeString = stringForShortTimestamp(hours: Int32(timeinfo.tm_hour), minutes: Int32(timeinfo.tm_min), dateTimeFormat: dateTimeFormat)
+    
+    return strings.Time_MediumDate(dateString, timeString).0
+}
+
 public func stringForFullDate(timestamp: Int32, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat) -> String {
     var t: time_t = Int(timestamp)
     var timeinfo = tm()

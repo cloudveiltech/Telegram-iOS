@@ -12,6 +12,7 @@ import ActivityIndicator
 import OverlayStatusController
 import AccountContext
 import PresentationDataUtils
+import UrlEscaping
 
 public final class ProxyServerActionSheetController: ActionSheetController {
     private var presentationDisposable: Disposable?
@@ -131,7 +132,7 @@ private final class ProxyServerInfoItemNode: ActionSheetItemNode {
         let serverTextNode = ImmediateTextNode()
         serverTextNode.isUserInteractionEnabled = false
         serverTextNode.displaysAsynchronously = false
-        serverTextNode.attributedText = NSAttributedString(string: server.host, font: textFont, textColor: theme.primaryTextColor)
+        serverTextNode.attributedText = NSAttributedString(string: urlEncodedStringFromString(server.host), font: textFont, textColor: theme.primaryTextColor)
         fieldNodes.append((serverTitleNode, serverTextNode))
         
         let portTitleNode = ImmediateTextNode()
@@ -239,17 +240,11 @@ private final class ProxyServerInfoItemNode: ActionSheetItemNode {
                 attributedString = NSAttributedString(string: text, font: textFont, textColor: theme.destructiveActionTextColor)
         }
         self.statusTextNode.attributedText = attributedString
-        self.setNeedsLayout()
+        self.requestLayoutUpdate()
     }
     
-    override func calculateSizeThatFits(_ constrainedSize: CGSize) -> CGSize {
-        return CGSize(width: constrainedSize.width, height: 36.0 * CGFloat(self.fieldNodes.count) + 12.0)
-    }
-    
-    override func layout() {
-        super.layout()
-        
-        let size = self.bounds.size
+    public override func updateLayout(constrainedSize: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
+        let size = CGSize(width: constrainedSize.width, height: 36.0 * CGFloat(self.fieldNodes.count) + 12.0)
         
         var offset: CGFloat = 15.0
         for (lhs, rhs) in self.fieldNodes {
@@ -261,6 +256,9 @@ private final class ProxyServerInfoItemNode: ActionSheetItemNode {
             
             offset += 36.0
         }
+  
+        self.updateInternalLayout(size, constrainedSize: constrainedSize)
+        return size
     }
 }
 
@@ -360,14 +358,8 @@ private final class ProxyServerActionItemNode: ActionSheetItemNode {
         }
     }
     
-    override func calculateSizeThatFits(_ constrainedSize: CGSize) -> CGSize {
-        return CGSize(width: constrainedSize.width, height: 57.0)
-    }
-    
-    override func layout() {
-        super.layout()
-        
-        let size = self.bounds.size
+    public override func updateLayout(constrainedSize: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
+        let size = CGSize(width: constrainedSize.width, height: 57.0)
         
         self.buttonNode.frame = CGRect(origin: CGPoint(), size: size)
         
@@ -376,8 +368,11 @@ private final class ProxyServerActionItemNode: ActionSheetItemNode {
         let activitySize = self.activityIndicator.measure(CGSize(width: 100.0, height: 100.0))
         self.titleNode.frame = titleFrame
         self.activityIndicator.frame = CGRect(origin: CGPoint(x: 14.0, y: titleFrame.minY - 0.0), size: activitySize)
+        
+        self.updateInternalLayout(size, constrainedSize: constrainedSize)
+        return size
     }
-    
+
     @objc private func buttonPressed() {
         let proxyServerSettings = self.server
         let _ = (self.accountManager.transaction { transaction -> ProxySettings in
@@ -402,7 +397,7 @@ private final class ProxyServerActionItemNode: ActionSheetItemNode {
                 strongSelf.buttonNode.isUserInteractionEnabled = false
                 strongSelf.titleNode.attributedText = NSAttributedString(string: strongSelf.presentationData.strings.SocksProxySetup_Connecting, font: Font.regular(20.0), textColor: strongSelf.theme.primaryTextColor)
                 strongSelf.activityIndicator.isHidden = false
-                strongSelf.setNeedsLayout()
+                strongSelf.requestLayoutUpdate()
                 
                 let signal = strongSelf.network.connectionStatus
                 |> filter { status in
@@ -434,7 +429,7 @@ private final class ProxyServerActionItemNode: ActionSheetItemNode {
                             })
                             strongSelf.titleNode.attributedText = NSAttributedString(string: strongSelf.presentationData.strings.SocksProxySetup_ConnectAndSave, font: Font.regular(20.0), textColor: strongSelf.theme.controlAccentColor)
                             strongSelf.buttonNode.isUserInteractionEnabled = true
-                            strongSelf.setNeedsLayout()
+                            strongSelf.requestLayoutUpdate()
                             
                             strongSelf.present(standardTextAlertController(theme: AlertControllerTheme(presentationData: strongSelf.presentationData), title: nil, text: strongSelf.presentationData.strings.SocksProxySetup_FailedToConnect, actions: [TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Common_OK, action: {})]), nil)
                         }

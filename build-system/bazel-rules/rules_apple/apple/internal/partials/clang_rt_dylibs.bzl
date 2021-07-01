@@ -47,13 +47,11 @@ def _should_package_clang_runtime(*, features):
             return True
     return False
 
-# TODO(b/161370390): Remove ctx from the args when ctx is removed from all partials.
 def _clang_rt_dylibs_partial_impl(
         *,
-        ctx,
         actions,
+        apple_toolchain_info,
         binary_artifact,
-        clangrttool,
         features,
         label_name,
         platform_prerequisites):
@@ -66,16 +64,18 @@ def _clang_rt_dylibs_partial_impl(
             "clang_rt.zip",
         )
 
+        resolved_clangrttool = apple_toolchain_info.resolved_clangrttool
         legacy_actions.run(
             actions = actions,
             arguments = [
                 binary_artifact.path,
                 clang_rt_zip.path,
             ],
-            executable = clangrttool,
+            executable = resolved_clangrttool.executable,
             # This action needs to read the contents of the Xcode bundle.
             execution_requirements = {"no-sandbox": "1"},
-            inputs = [binary_artifact],
+            inputs = depset([binary_artifact], transitive = [resolved_clangrttool.inputs]),
+            input_manifests = resolved_clangrttool.input_manifests,
             outputs = [clang_rt_zip],
             mnemonic = "ClangRuntimeLibsCopy",
             platform_prerequisites = platform_prerequisites,
@@ -92,8 +92,8 @@ def _clang_rt_dylibs_partial_impl(
 def clang_rt_dylibs_partial(
         *,
         actions,
+        apple_toolchain_info,
         binary_artifact,
-        clangrttool,
         features,
         label_name,
         platform_prerequisites):
@@ -101,8 +101,8 @@ def clang_rt_dylibs_partial(
 
     Args:
       actions: The actions provider from `ctx.actions`.
+      apple_toolchain_info: `struct` of tools from the shared Apple toolchain.
       binary_artifact: The main binary artifact for this target.
-      clangrttool: A reference to a tool to find all Clang runtime libs linked to a binary.
       features: List of features enabled by the user. Typically from `ctx.features`.
       label_name: Name of the target being built.
       platform_prerequisites: Struct containing information on the platform being targeted.
@@ -114,8 +114,8 @@ def clang_rt_dylibs_partial(
     return partial.make(
         _clang_rt_dylibs_partial_impl,
         actions = actions,
+        apple_toolchain_info = apple_toolchain_info,
         binary_artifact = binary_artifact,
-        clangrttool = clangrttool,
         features = features,
         label_name = label_name,
         platform_prerequisites = platform_prerequisites,

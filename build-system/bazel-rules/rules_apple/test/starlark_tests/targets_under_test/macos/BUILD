@@ -17,7 +17,7 @@ load(
 )
 load("//test/starlark_tests:common.bzl", "FIXTURE_TAGS")
 load(
-    "//test/testdata/frameworks:generate_framework.bzl",
+    "//test/testdata/fmwk:generate_framework.bzl",
     "generate_import_framework",
 )
 
@@ -260,7 +260,7 @@ macos_bundle(
     bundle_id = "com.google.example",
     bundle_loader = ":cmd_app_basic",
     infoplists = [
-        "//test/starlark_tests/resources:Info.plist",
+        "//test/starlark_tests/resources:Info-nopackage.plist",
     ],
     minimum_os_version = "10.10",
     tags = FIXTURE_TAGS,

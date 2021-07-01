@@ -1086,7 +1086,7 @@ public class ItemListPeerItemNode: ItemListRevealOptionsItemNode, ItemListItemNo
                         labelFrame = CGRect(origin: CGPoint(x: revealOffset + params.width - rightLabelInset - badgeWidth + (badgeWidth - labelLayout.size.width) / 2.0, y: floor((contentSize.height - labelLayout.size.height) / 2.0) + 1.0), size: labelLayout.size)
                         strongSelf.labelNode.frame = labelFrame
                     } else {
-                        labelFrame = CGRect(origin: CGPoint(x: revealOffset + params.width - labelLayout.size.width - rightLabelInset - rightInset, y: floor((contentSize.height - labelLayout.size.height) / 2.0) + 1.0), size: labelLayout.size)
+                        labelFrame = CGRect(origin: CGPoint(x: revealOffset + params.width - labelLayout.size.width - rightLabelInset, y: floor((contentSize.height - labelLayout.size.height) / 2.0) + 1.0), size: labelLayout.size)
                         transition.updateFrame(node: strongSelf.labelNode, frame: labelFrame)
                     }
                     
@@ -1408,7 +1408,7 @@ public final class ItemListPeerItemHeaderNode: ListViewItemHeaderNode, ItemListH
         self.backgroundNode.backgroundColor = theme.list.blocksBackgroundColor
         
         self.snappedBackgroundNode = ASDisplayNode()
-        self.snappedBackgroundNode.backgroundColor = theme.rootController.navigationBar.backgroundColor
+        self.snappedBackgroundNode.backgroundColor = theme.rootController.navigationBar.opaqueBackgroundColor
         self.snappedBackgroundNode.alpha = 0.0
         
         self.separatorNode = ASDisplayNode()
@@ -1467,7 +1467,7 @@ public final class ItemListPeerItemHeaderNode: ListViewItemHeaderNode, ItemListH
         self.theme = theme
         
         self.backgroundNode.backgroundColor = theme.list.blocksBackgroundColor
-        self.snappedBackgroundNode.backgroundColor = theme.rootController.navigationBar.backgroundColor
+        self.snappedBackgroundNode.backgroundColor = theme.rootController.navigationBar.opaqueBackgroundColor
         self.separatorNode.backgroundColor = theme.list.itemBlocksSeparatorColor
         
         let titleFont = Font.regular(13.0)

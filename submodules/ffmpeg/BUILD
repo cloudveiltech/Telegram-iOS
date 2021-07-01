@@ -120,15 +120,29 @@ filegroup(
     srcs = source_files,
 )
 
+opus_headers = [
+    "opus.h",
+    "opus_defines.h",
+    "opus_multistream.h",
+    "opus_projection.h",
+    "opus_types.h",
+]
+
+opus_libs = [
+    "opus",
+]
+
 genrule(
     name = "libffmpeg_build",
     srcs = [
-        ":FFMpegSources",
+        ":FFMpegSources"
+    ] + [
+        "//third-party/opus:Public/opus/{}".format(x) for x in opus_headers
+    ] + [
+        "//third-party/opus:Public/opus/lib/lib{}.a".format(x) for x in opus_libs
     ],
     cmd_bash =
     """
-        #random:2
-
         set -x
 
         ABS_RULEDIR="$$(pwd)/$(RULEDIR)"
@@ -139,6 +153,20 @@ genrule(
 
         cp -R "submodules/ffmpeg/Sources/FFMpeg" "$$SOURCE_PATH"
 
+        mkdir "$$SOURCE_PATH/libopus"
+        mkdir -p "$$SOURCE_PATH/libopus/include/opus"
+        mkdir -p "$$SOURCE_PATH/libopus/lib"
+    """ + 
+        "\n" +
+        "\n".join([
+            "cp $(location //third-party/opus:Public/opus/{}) $$SOURCE_PATH/libopus/include/opus/".format(x) for x in opus_headers
+        ]) +
+        "\n" +
+        "\n".join([
+            "cp $(location //third-party/opus:Public/opus/lib/lib{}.a) $$SOURCE_PATH/libopus/lib/".format(x) for x in opus_libs
+        ]) +
+        "\n" +
+    """
         BUILD_DIR="$$ABS_RULEDIR/build"
         rm -rf "$$BUILD_DIR"
         mkdir -p "$$BUILD_DIR"
@@ -147,17 +175,22 @@ genrule(
         mkdir -p "$$YASM_DIR"
         tar -xf "$(location //third-party/yasm:yasm.tar)" -C "$$YASM_DIR"
 
+        VARIANT=release
+
         if [ "$(TARGET_CPU)" == "ios_armv7" ]; then
             BUILD_ARCH="armv7"
         elif [ "$(TARGET_CPU)" == "ios_arm64" ]; then
             BUILD_ARCH="arm64"
+        elif [ "$(TARGET_CPU)" == "ios_sim_arm64" ]; then
+            BUILD_ARCH="sim_arm64"
+            VARIANT="debug"
         elif [ "$(TARGET_CPU)" == "ios_x86_64" ]; then
             BUILD_ARCH="x86_64"
         else
             echo "Unsupported architecture $(TARGET_CPU)"
         fi
 
-        PATH="$$PATH:$$YASM_DIR" "$$SOURCE_PATH/build-ffmpeg-bazel.sh" release "$$BUILD_ARCH" "$$BUILD_DIR" "$$SOURCE_PATH"
+        PATH="$$PATH:$$YASM_DIR" "$$SOURCE_PATH/build-ffmpeg-bazel.sh" "$$VARIANT" "$$BUILD_ARCH" "$$BUILD_DIR" "$$SOURCE_PATH"
     """ + "\n" + "\n".join([
         "cp \"$$BUILD_DIR/FFmpeg-iOS/include/{header_path}\" \"$(location Public/ffmpeg/{header_path})\"".format(header_path = header_path) for header_path in ffmpeg_header_paths
     ]) + "\n" + "\n".join([
@@ -197,7 +230,7 @@ objc_library(
     ],
     deps = [
         ":ffmpeg_lib",
-        "//submodules/Opus:opus",
+        "//third-party/opus:opus",
     ],
     visibility = [
         "//visibility:public",

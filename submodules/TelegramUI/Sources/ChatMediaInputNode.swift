@@ -422,10 +422,12 @@ final class ChatMediaInputNode: ChatInputNode {
     
     private var inputNodeInteraction: ChatMediaInputNodeInteraction!
     private var trendingInteraction: TrendingPaneInteraction?
-    
+
     private let collectionListPanel: ASDisplayNode
     private let collectionListSeparator: ASDisplayNode
     private let collectionListContainer: CollectionListContainerNode
+    
+    private weak var peekController: PeekController?
     
     private let disposable = MetaDisposable()
     
@@ -433,12 +435,13 @@ final class ChatMediaInputNode: ChatInputNode {
     private let gifListView: ListView
     private var searchContainerNode: PaneSearchContainerNode?
     private let searchContainerNodeLoadedDisposable = MetaDisposable()
-    
+
+    private let paneClippingContainer: ASDisplayNode
+    private let panesBackgroundNode: ASDisplayNode
     private let stickerPane: ChatMediaInputStickerPane
     private var animatingStickerPaneOut = false
     private let gifPane: ChatMediaInputGifPane
     private var animatingGifPaneOut = false
-    //private let trendingPane: ChatMediaInputTrendingPane
     private var animatingTrendingPaneOut = false
     
     private var panRecognizer: UIPanGestureRecognizer?
@@ -447,6 +450,8 @@ final class ChatMediaInputNode: ChatInputNode {
     private var currentStickerPacksCollectionPosition: StickerPacksCollectionPosition?
     private var currentView: ItemCollectionsView?
     private let dismissedPeerSpecificStickerPack = Promise<Bool>()
+    
+    var requestDisableStickerAnimations: ((Bool) -> Void)?
     
     private var validLayout: (CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, ChatPresentationInterfaceState, DeviceMetrics, Bool)?
     private var paneArrangement: ChatMediaInputPaneArrangement
@@ -471,17 +476,16 @@ final class ChatMediaInputNode: ChatInputNode {
         self.strings = strings
         self.fontSize = fontSize
         self.gifPaneIsActiveUpdated = gifPaneIsActiveUpdated
+
+        self.paneClippingContainer = ASDisplayNode()
+        self.paneClippingContainer.clipsToBounds = true
+
+        self.panesBackgroundNode = ASDisplayNode()
         
         self.themeAndStringsPromise = Promise((theme, strings))
-        
+
         self.collectionListPanel = ASDisplayNode()
         self.collectionListPanel.clipsToBounds = true
-        
-        if case let .color(color) = chatWallpaper, UIColor(rgb: color).isEqual(theme.chat.inputPanel.panelBackgroundColorNoWallpaper) {
-            self.collectionListPanel.backgroundColor = theme.chat.inputPanel.panelBackgroundColorNoWallpaper
-        } else {
-            self.collectionListPanel.backgroundColor = theme.chat.inputPanel.panelBackgroundColor
-        }
         
         self.collectionListSeparator = ASDisplayNode()
         self.collectionListSeparator.isLayerBacked = true
@@ -493,10 +497,16 @@ final class ChatMediaInputNode: ChatInputNode {
         self.listView = ListView()
         self.listView.transform = CATransform3DMakeRotation(-CGFloat(Double.pi / 2.0), 0.0, 0.0, 1.0)
         self.listView.scroller.panGestureRecognizer.cancelsTouchesInView = false
+        self.listView.accessibilityPageScrolledString = { row, count in
+            return strings.VoiceOver_ScrollStatus(row, count).0
+        }
         
         self.gifListView = ListView()
         self.gifListView.transform = CATransform3DMakeRotation(-CGFloat(Double.pi / 2.0), 0.0, 0.0, 1.0)
         self.gifListView.scroller.panGestureRecognizer.cancelsTouchesInView = false
+        self.gifListView.accessibilityPageScrolledString = { row, count in
+            return strings.VoiceOver_ScrollStatus(row, count).0
+        }
         
         var paneDidScrollImpl: ((ChatMediaInputPane, ChatMediaInputPaneScrollState, ContainedViewLayoutTransition) -> Void)?
         var fixPaneScrollImpl: ((ChatMediaInputPane, ChatMediaInputPaneScrollState) -> Void)?
@@ -507,7 +517,7 @@ final class ChatMediaInputNode: ChatInputNode {
         }, fixPaneScroll: { pane, state in
             fixPaneScrollImpl?(pane, state)
         })
-        self.gifPane = ChatMediaInputGifPane(account: context.account, theme: theme, strings: strings, controllerInteraction: controllerInteraction, paneDidScroll: { pane, state, transition in
+        self.gifPane = ChatMediaInputGifPane(context: context, theme: theme, strings: strings, controllerInteraction: controllerInteraction, paneDidScroll: { pane, state, transition in
             paneDidScrollImpl?(pane, state, transition)
         }, fixPaneScroll: { pane, state in
             fixPaneScrollImpl?(pane, state)
@@ -516,9 +526,6 @@ final class ChatMediaInputNode: ChatInputNode {
         })
         
         var getItemIsPreviewedImpl: ((StickerPackItem) -> Bool)?
-        /*self.trendingPane = ChatMediaInputTrendingPane(context: context, controllerInteraction: controllerInteraction, getItemIsPreviewed: { item in
-            return getItemIsPreviewedImpl?(item) ?? false
-        }, isPane: true)*/
         
         self.paneArrangement = ChatMediaInputPaneArrangement(panes: [.gifs, .stickers, /*.trending*/], currentIndex: 1, indexTransition: 0.0)
         
@@ -535,7 +542,7 @@ final class ChatMediaInputNode: ChatInputNode {
                         sendSticker: {
                             fileReference, sourceNode, sourceRect in
                             if let strongSelf = self {
-                                return strongSelf.controllerInteraction.sendSticker(fileReference, nil, false, sourceNode, sourceRect)
+                                return strongSelf.controllerInteraction.sendSticker(fileReference, false, false, nil, false, sourceNode, sourceRect)
                             } else {
                                 return false
                             }
@@ -681,8 +688,10 @@ final class ChatMediaInputNode: ChatInputNode {
             return false
         }
         
-        self.backgroundColor = theme.chat.inputMediaPanel.stickersBackgroundColor.withAlphaComponent(1.0)
-        
+        self.panesBackgroundNode.backgroundColor = theme.chat.inputMediaPanel.stickersBackgroundColor.withAlphaComponent(1.0)
+
+        self.addSubnode(self.paneClippingContainer)
+        self.paneClippingContainer.addSubnode(panesBackgroundNode)
         self.collectionListPanel.addSubnode(self.listView)
         self.collectionListPanel.addSubnode(self.gifListView)
         self.gifListView.isHidden = true
@@ -775,14 +784,14 @@ final class ChatMediaInputNode: ChatInputNode {
             guard let strongSelf = self, let info = info as? StickerPackCollectionInfo else {
                 return
             }
-            let _ = (loadedStickerPack(postbox: strongSelf.context.account.postbox, network: strongSelf.context.account.network, reference: .id(id: info.id.id, accessHash: info.accessHash), forceActualized: false)
+            let _ = (context.engine.stickers.loadedStickerPack(reference: .id(id: info.id.id, accessHash: info.accessHash), forceActualized: false)
             |> mapToSignal { result -> Signal<Void, NoError> in
                 switch result {
                     case let .result(info, items, installed):
                         if installed {
                             return .complete()
                         } else {
-                            return addStickerPackInteractively(postbox: strongSelf.context.account.postbox, info: info, items: items)
+                            return context.engine.stickers.addStickerPackInteractively(info: info, items: items)
                         }
                     case .fetching:
                         break
@@ -806,7 +815,7 @@ final class ChatMediaInputNode: ChatInputNode {
             let packReference: StickerPackReference = .id(id: info.id.id, accessHash: info.accessHash)
             let controller = StickerPackScreen(context: strongSelf.context, mainStickerPack: packReference, stickerPacks: [packReference], parentNavigationController: strongSelf.controllerInteraction.navigationController(), sendSticker: { fileReference, sourceNode, sourceRect in
                 if let strongSelf = self {
-                    return strongSelf.controllerInteraction.sendSticker(fileReference, nil, false, sourceNode, sourceRect)
+                    return strongSelf.controllerInteraction.sendSticker(fileReference, false, false, nil, false, sourceNode, sourceRect)
                 } else {
                     return false
                 }
@@ -1000,23 +1009,61 @@ final class ChatMediaInputNode: ChatInputNode {
                 return
             }
             
-            let message = Message(stableId: 0, stableVersion: 0, id: MessageId(peerId: PeerId(namespace: 0, id: 0), namespace: Namespaces.Message.Local, id: 0), globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, threadId: nil, timestamp: 0, flags: [], tags: [], globalTags: [], localTags: [], forwardInfo: nil, author: nil, text: "", attributes: [], media: [file.file.media], peers: SimpleDictionary(), associatedMessages: SimpleDictionary(), associatedMessageIds: [])
+            let message = Message(stableId: 0, stableVersion: 0, id: MessageId(peerId: PeerId(0), namespace: Namespaces.Message.Local, id: 0), globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, threadId: nil, timestamp: 0, flags: [], tags: [], globalTags: [], localTags: [], forwardInfo: nil, author: nil, text: "", attributes: [], media: [file.file.media], peers: SimpleDictionary(), associatedMessages: SimpleDictionary(), associatedMessageIds: [])
             
             let gallery = GalleryController(context: strongSelf.context, source: .standaloneMessage(message), streamSingleVideo: true, replaceRootController: { _, _ in
             }, baseNavigationController: nil)
             gallery.setHintWillBePresentedInPreviewingContext(true)
             
             var items: [ContextMenuItem] = []
-            items.append(.action(ContextMenuActionItem(text: strongSelf.strings.MediaPicker_Send, icon: { _ in nil }, action: { _, f in
+            items.append(.action(ContextMenuActionItem(text: strongSelf.strings.MediaPicker_Send, icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Resend"), color: theme.actionSheet.primaryTextColor)
+            }, action: { _, f in
                 f(.default)
                 if isSaved {
-                    let _ = self?.controllerInteraction.sendGif(file.file, sourceNode, sourceRect)
+                    let _ = self?.controllerInteraction.sendGif(file.file, sourceNode, sourceRect, false, false)
                 } else if let (collection, result) = file.contextResult {
-                    let _ = self?.controllerInteraction.sendBotContextResultAsGif(collection, result, sourceNode, sourceRect)
+                    let _ = self?.controllerInteraction.sendBotContextResultAsGif(collection, result, sourceNode, sourceRect, false)
                 }
             })))
+            
+            if let (_, _, _, _, _, _, _, _, interfaceState, _, _) = strongSelf.validLayout {
+                var isScheduledMessages = false
+                if case .scheduledMessages = interfaceState.subject {
+                    isScheduledMessages = true
+                }
+                if !isScheduledMessages {
+                    if case let .peer(peerId) = interfaceState.chatLocation {
+                        if peerId != self?.context.account.peerId && peerId.namespace != Namespaces.Peer.SecretChat  {
+                            items.append(.action(ContextMenuActionItem(text: strongSelf.strings.Conversation_SendMessage_SendSilently, icon: { theme in
+                                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Menu/SilentIcon"), color: theme.actionSheet.primaryTextColor)
+                            }, action: { _, f in
+                                f(.default)
+                                if isSaved {
+                                    let _ = self?.controllerInteraction.sendGif(file.file, sourceNode, sourceRect, true, false)
+                                } else if let (collection, result) = file.contextResult {
+                                    let _ = self?.controllerInteraction.sendBotContextResultAsGif(collection, result, sourceNode, sourceRect, true)
+                                }
+                            })))
+                        }
+                    
+                        if isSaved {
+                            items.append(.action(ContextMenuActionItem(text: strongSelf.strings.Conversation_SendMessage_ScheduleMessage, icon: { theme in
+                                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Menu/ScheduleIcon"), color: theme.actionSheet.primaryTextColor)
+                            }, action: { _, f in
+                                f(.default)
+                                
+                                let _ = self?.controllerInteraction.sendGif(file.file, sourceNode, sourceRect, false, true)
+                            })))
+                        }
+                    }
+                }
+            }
+            
             if isSaved || isGifSaved {
-                items.append(.action(ContextMenuActionItem(text: strongSelf.strings.Conversation_ContextMenuDelete, textColor: .destructive, icon: { _ in nil }, action: { _, f in
+                items.append(.action(ContextMenuActionItem(text: strongSelf.strings.Conversation_ContextMenuDelete, textColor: .destructive, icon: { theme in
+                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.actionSheet.destructiveActionTextColor)
+                }, action: { _, f in
                     f(.dismissWithoutContent)
                     
                     guard let strongSelf = self else {
@@ -1025,7 +1072,9 @@ final class ChatMediaInputNode: ChatInputNode {
                     let _ = removeSavedGif(postbox: strongSelf.context.account.postbox, mediaId: file.file.media.fileId).start()
                 })))
             } else if canSaveGif && !isGifSaved {
-                items.append(.action(ContextMenuActionItem(text: strongSelf.strings.Preview_SaveGif, icon: { _ in nil }, action: { _, f in
+                items.append(.action(ContextMenuActionItem(text: strongSelf.strings.Preview_SaveGif, icon: { theme in
+                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Save"), color: theme.actionSheet.primaryTextColor)
+                }, action: { _, f in
                     f(.dismissWithoutContent)
                     
                     guard let strongSelf = self else {
@@ -1047,20 +1096,13 @@ final class ChatMediaInputNode: ChatInputNode {
             self.theme = theme
             self.strings = strings
             
-            if case let .color(color) = chatWallpaper, UIColor(rgb: color).isEqual(theme.chat.inputPanel.panelBackgroundColorNoWallpaper) {
-                self.collectionListPanel.backgroundColor = theme.chat.inputPanel.panelBackgroundColorNoWallpaper
-            } else {
-                self.collectionListPanel.backgroundColor = theme.chat.inputPanel.panelBackgroundColor
-            }
-            
             self.collectionListSeparator.backgroundColor = theme.chat.inputMediaPanel.panelSeparatorColor
-            self.backgroundColor = theme.chat.inputMediaPanel.stickersBackgroundColor.withAlphaComponent(1.0)
+            self.panesBackgroundNode.backgroundColor = theme.chat.inputMediaPanel.stickersBackgroundColor.withAlphaComponent(1.0)
             
             self.searchContainerNode?.updateThemeAndStrings(theme: theme, strings: strings)
             
             self.stickerPane.updateThemeAndStrings(theme: theme, strings: strings)
             self.gifPane.updateThemeAndStrings(theme: theme, strings: strings)
-            //self.trendingPane.updateThemeAndStrings(theme: theme, strings: strings)
             
             self.themeAndStringsPromise.set(.single((theme, strings)))
         }
@@ -1084,16 +1126,48 @@ final class ChatMediaInputNode: ChatInputNode {
                             |> deliverOnMainQueue
                             |> map { isStarred -> (ASDisplayNode, PeekControllerContent)? in
                                 if let strongSelf = self {
-                                    var menuItems: [PeekControllerMenuItem] = []
-                                    menuItems = [
-                                        PeekControllerMenuItem(title: strongSelf.strings.StickerPack_Send, color: .accent, font: .bold, action: { node, rect in
-                                            if let strongSelf = self {
-                                                return strongSelf.controllerInteraction.sendSticker(.standalone(media: item.file), nil, false, node, rect)
-                                            } else {
-                                                return false
+                                    var menuItems: [ContextMenuItem] = []                                    
+                                    if let (_, _, _, _, _, _, _, _, interfaceState, _, _) = strongSelf.validLayout {
+                                        var isScheduledMessages = false
+                                        if case .scheduledMessages = interfaceState.subject {
+                                            isScheduledMessages = true
+                                        }
+                                        if !isScheduledMessages {
+                                            if case let .peer(peerId) = interfaceState.chatLocation {
+                                                if peerId != self?.context.account.peerId && peerId.namespace != Namespaces.Peer.SecretChat  {
+                                                    menuItems.append(.action(ContextMenuActionItem(text: strongSelf.strings.Conversation_SendMessage_SendSilently, icon: { theme in
+                                                        return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Menu/SilentIcon"), color: theme.actionSheet.primaryTextColor)
+                                                    }, action: { _, f in
+                                                        if let strongSelf = self, let peekController = strongSelf.peekController {
+                                                            if let animationNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.animationNode {
+                                                                let _ = strongSelf.controllerInteraction.sendSticker(.standalone(media: item.file), true, false, nil, false, animationNode, animationNode.bounds)
+                                                            } else if let imageNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.imageNode {
+                                                                let _ = strongSelf.controllerInteraction.sendSticker(.standalone(media: item.file), true, false, nil, false, imageNode, imageNode.bounds)
+                                                            }
+                                                        }
+                                                        f(.default)
+                                                    })))
+                                                }
+                                            
+                                                menuItems.append(.action(ContextMenuActionItem(text: strongSelf.strings.Conversation_SendMessage_ScheduleMessage, icon: { theme in
+                                                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Menu/ScheduleIcon"), color: theme.actionSheet.primaryTextColor)
+                                                }, action: { _, f in
+                                                    if let strongSelf = self, let peekController = strongSelf.peekController {
+                                                        if let animationNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.animationNode {
+                                                            let _ = strongSelf.controllerInteraction.sendSticker(.standalone(media: item.file), false, true, nil, false, animationNode, animationNode.bounds)
+                                                        } else if let imageNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.imageNode {
+                                                            let _ = strongSelf.controllerInteraction.sendSticker(.standalone(media: item.file), false, true, nil, false, imageNode, imageNode.bounds)
+                                                        }
+                                                    }
+                                                    f(.default)
+                                                })))
                                             }
-                                        }),
-                                        PeekControllerMenuItem(title: isStarred ? strongSelf.strings.Stickers_RemoveFromFavorites : strongSelf.strings.Stickers_AddToFavorites, color: isStarred ? .destructive : .accent, action: { _, _ in
+                                        }
+                                    }
+                                    menuItems.append(
+                                        .action(ContextMenuActionItem(text: isStarred ? strongSelf.strings.Stickers_RemoveFromFavorites : strongSelf.strings.Stickers_AddToFavorites, icon: { theme in generateTintedImage(image: isStarred ? UIImage(bundleImageName: "Chat/Context Menu/Unstar") : UIImage(bundleImageName: "Chat/Context Menu/Rate"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
+                                            f(.default)
+                                            
                                             if let strongSelf = self {
                                                 if isStarred {
                                                     let _ = removeSavedSticker(postbox: strongSelf.context.account.postbox, mediaId: item.file.fileId).start()
@@ -1101,9 +1175,13 @@ final class ChatMediaInputNode: ChatInputNode {
                                                     let _ = addSavedSticker(postbox: strongSelf.context.account.postbox, network: strongSelf.context.account.network, file: item.file).start()
                                                 }
                                             }
-                                            return true
-                                        }),
-                                        PeekControllerMenuItem(title: strongSelf.strings.StickerPack_ViewPack, color: .accent, action: { _, _ in
+                                        }))
+                                    )
+                                    menuItems.append(.action(ContextMenuActionItem(text: strongSelf.strings.StickerPack_ViewPack, icon: { theme in
+                                            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Sticker"), color: theme.actionSheet.primaryTextColor)
+                                        }, action: { _, f in
+                                            f(.default)
+                                            
                                             if let strongSelf = self {
                                                 loop: for attribute in item.file.attributes {
                                                     switch attribute {
@@ -1111,7 +1189,7 @@ final class ChatMediaInputNode: ChatInputNode {
                                                         if let packReference = packReference {
                                                             let controller = StickerPackScreen(context: strongSelf.context, mainStickerPack: packReference, stickerPacks: [packReference], parentNavigationController: strongSelf.controllerInteraction.navigationController(), sendSticker: { file, sourceNode, sourceRect in
                                                                 if let strongSelf = self {
-                                                                    return strongSelf.controllerInteraction.sendSticker(file, nil, false, sourceNode, sourceRect)
+                                                                    return strongSelf.controllerInteraction.sendSticker(file, false, false, nil, false, sourceNode, sourceRect)
                                                                 } else {
                                                                     return false
                                                                 }
@@ -1126,10 +1204,7 @@ final class ChatMediaInputNode: ChatInputNode {
                                                     }
                                                 }
                                             }
-                                            return true
-                                        }),
-                                        PeekControllerMenuItem(title: strongSelf.strings.Common_Cancel, color: .accent, font: .bold, action: { _, _ in return true })
-                                    ]
+                                    })))
                                     return (itemNode, StickerPreviewPeekContent(account: strongSelf.context.account, item: item, menu: menuItems))
                                 } else {
                                     return nil
@@ -1168,16 +1243,49 @@ final class ChatMediaInputNode: ChatInputNode {
                                 |> deliverOnMainQueue
                                 |> map { isStarred -> (ASDisplayNode, PeekControllerContent)? in
                                     if let strongSelf = self {
-                                        var menuItems: [PeekControllerMenuItem] = []
-                                        menuItems = [
-                                            PeekControllerMenuItem(title: strongSelf.strings.StickerPack_Send, color: .accent, font: .bold, action: { node, rect in
-                                                if let strongSelf = self {
-                                                    return strongSelf.controllerInteraction.sendSticker(.standalone(media: item.file), nil, false, node, rect)
-                                                } else {
-                                                    return false
+                                        var menuItems: [ContextMenuItem] = []
+                                        if let (_, _, _, _, _, _, _, _, interfaceState, _, _) = strongSelf.validLayout {
+                                            var isScheduledMessages = false
+                                            if case .scheduledMessages = interfaceState.subject {
+                                                isScheduledMessages = true
+                                            }
+                                            if !isScheduledMessages {
+                                                if case let .peer(peerId) = interfaceState.chatLocation {
+                                                    if peerId != self?.context.account.peerId && peerId.namespace != Namespaces.Peer.SecretChat  {
+                                                        menuItems.append(.action(ContextMenuActionItem(text: strongSelf.strings.Conversation_SendMessage_SendSilently, icon: { theme in
+                                                            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Menu/SilentIcon"), color: theme.actionSheet.primaryTextColor)
+                                                        }, action: { _, f in
+                                                            if let strongSelf = self, let peekController = strongSelf.peekController {
+                                                                if let animationNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.animationNode {
+                                                                    let _ = strongSelf.controllerInteraction.sendSticker(.standalone(media: item.file), true, false, nil, false, animationNode, animationNode.bounds)
+                                                                } else if let imageNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.imageNode {
+                                                                    let _ = strongSelf.controllerInteraction.sendSticker(.standalone(media: item.file), true, false, nil, false, imageNode, imageNode.bounds)
+                                                                }
+                                                            }
+                                                            f(.default)
+                                                        })))
+                                                    }
+                                                
+                                                    menuItems.append(.action(ContextMenuActionItem(text: strongSelf.strings.Conversation_SendMessage_ScheduleMessage, icon: { theme in
+                                                        return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Menu/ScheduleIcon"), color: theme.actionSheet.primaryTextColor)
+                                                    }, action: { _, f in
+                                                        if let strongSelf = self, let peekController = strongSelf.peekController {
+                                                            if let animationNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.animationNode {
+                                                                let _ = strongSelf.controllerInteraction.sendSticker(.standalone(media: item.file), false, true, nil, false, animationNode, animationNode.bounds)
+                                                            } else if let imageNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.imageNode {
+                                                                let _ = strongSelf.controllerInteraction.sendSticker(.standalone(media: item.file), false, true, nil, false, imageNode, imageNode.bounds)
+                                                            }
+                                                        }
+                                                        f(.default)
+                                                    })))
                                                 }
-                                            }),
-                                            PeekControllerMenuItem(title: isStarred ? strongSelf.strings.Stickers_RemoveFromFavorites : strongSelf.strings.Stickers_AddToFavorites, color: isStarred ? .destructive : .accent, action: { _, _ in
+                                            }
+                                        }
+                                        
+                                        menuItems.append(
+                                            .action(ContextMenuActionItem(text: isStarred ? strongSelf.strings.Stickers_RemoveFromFavorites : strongSelf.strings.Stickers_AddToFavorites, icon: { theme in generateTintedImage(image: isStarred ? UIImage(bundleImageName: "Chat/Context Menu/Unstar") : UIImage(bundleImageName: "Chat/Context Menu/Rate"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
+                                                f(.default)
+                                                
                                                 if let strongSelf = self {
                                                     if isStarred {
                                                         let _ = removeSavedSticker(postbox: strongSelf.context.account.postbox, mediaId: item.file.fileId).start()
@@ -1185,35 +1293,38 @@ final class ChatMediaInputNode: ChatInputNode {
                                                         let _ = addSavedSticker(postbox: strongSelf.context.account.postbox, network: strongSelf.context.account.network, file: item.file).start()
                                                     }
                                                 }
-                                                return true
-                                            }),
-                                            PeekControllerMenuItem(title: strongSelf.strings.StickerPack_ViewPack, color: .accent, action: { _, _ in
+                                            }))
+                                        )
+                                        menuItems.append(
+                                            .action(ContextMenuActionItem(text: strongSelf.strings.StickerPack_ViewPack, icon: { theme in
+                                                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Sticker"), color: theme.actionSheet.primaryTextColor)
+                                            }, action: { _, f in
+                                                f(.default)
+                                                
                                                 if let strongSelf = self {
                                                     loop: for attribute in item.file.attributes {
                                                         switch attribute {
-                                                            case let .Sticker(_, packReference, _):
-                                                                if let packReference = packReference {
-                                                                    let controller = StickerPackScreen(context: strongSelf.context, mainStickerPack: packReference, stickerPacks: [packReference], parentNavigationController: strongSelf.controllerInteraction.navigationController(), sendSticker: { file, sourceNode, sourceRect in
-                                                                                                                                               if let strongSelf = self {
-                                                                                                                                                   return strongSelf.controllerInteraction.sendSticker(file, nil, false, sourceNode, sourceRect)
-                                                                                                                                               } else {
-                                                                                                                                                   return false
-                                                                                                                                               }
-                                                                    })
-                                                          
-                                                                    strongSelf.controllerInteraction.navigationController()?.view.window?.endEditing(true)
-                                                                    strongSelf.controllerInteraction.presentController(controller, nil)
-                                                                }
-                                                                break loop
-                                                            default:
-                                                                break
+                                                        case let .Sticker(_, packReference, _):
+                                                            if let packReference = packReference {
+                                                                let controller = StickerPackScreen(context: strongSelf.context, mainStickerPack: packReference, stickerPacks: [packReference], parentNavigationController: strongSelf.controllerInteraction.navigationController(), sendSticker: { file, sourceNode, sourceRect in
+                                                                    if let strongSelf = self {
+                                                                        return strongSelf.controllerInteraction.sendSticker(file, false, false, nil, false, sourceNode, sourceRect)
+                                                                    } else {
+                                                                        return false
+                                                                    }
+                                                                })
+                                                                
+                                                                strongSelf.controllerInteraction.navigationController()?.view.window?.endEditing(true)
+                                                                strongSelf.controllerInteraction.presentController(controller, nil)
+                                                            }
+                                                            break loop
+                                                        default:
+                                                            break
                                                         }
                                                     }
                                                 }
-                                                return true
-                                            }),
-                                            PeekControllerMenuItem(title: strongSelf.strings.Common_Cancel, color: .accent, font: .bold, action: { _, _ in return true })
-                                        ]
+                                            }))
+                                        )
                                         return (itemNode, StickerPreviewPeekContent(account: strongSelf.context.account, item: .pack(item), menu: menuItems))
                                     } else {
                                         return nil
@@ -1227,9 +1338,15 @@ final class ChatMediaInputNode: ChatInputNode {
             return nil
         }, present: { [weak self] content, sourceNode in
             if let strongSelf = self {
-                let controller = PeekController(theme: PeekControllerTheme(presentationTheme: strongSelf.theme), content: content, sourceNode: {
+                let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
+                let controller = PeekController(presentationData: presentationData, content: content, sourceNode: {
                     return sourceNode
                 })
+                controller.visibilityUpdated = { [weak self] visible in
+                    self?.requestDisableStickerAnimations?(visible)
+                    self?.simulateUpdateLayout(isVisible: !visible)
+                }
+                strongSelf.peekController = controller
                 strongSelf.controllerInteraction.presentGlobalOverlayController(controller, nil)
                 return controller
             }
@@ -1579,11 +1696,7 @@ final class ChatMediaInputNode: ChatInputNode {
                 case .gifs:
                     if self.gifPane.supernode == nil  {
                         if !displaySearch {
-                            if let searchContainerNode = self.searchContainerNode {
-                                self.insertSubnode(self.gifPane, belowSubnode: searchContainerNode)
-                            } else {
-                                self.insertSubnode(self.gifPane, belowSubnode: self.collectionListContainer)
-                            }
+                            self.paneClippingContainer.addSubnode(self.gifPane)
                             if self.searchContainerNode == nil {
                                 self.gifPane.frame = CGRect(origin: CGPoint(x: -width, y: 0.0), size: CGSize(width: width, height: panelHeight))
                             }
@@ -1595,11 +1708,7 @@ final class ChatMediaInputNode: ChatInputNode {
                     }
                 case .stickers:
                     if self.stickerPane.supernode == nil {
-                        if let searchContainerNode = self.searchContainerNode {
-                            self.insertSubnode(self.stickerPane, belowSubnode: searchContainerNode)
-                        } else {
-                            self.insertSubnode(self.stickerPane, belowSubnode: self.collectionListContainer)
-                        }
+                        self.paneClippingContainer.addSubnode(self.stickerPane)
                         self.stickerPane.frame = CGRect(origin: CGPoint(x: width, y: 0.0), size: CGSize(width: width, height: panelHeight))
                     }
                     if self.stickerPane.frame != paneFrame {
@@ -1741,6 +1850,10 @@ final class ChatMediaInputNode: ChatInputNode {
                 self?.gifPane.initializeIfNeeded()
             })
         }
+
+        self.updatePaneClippingContainer(size: CGSize(width: width, height: panelHeight), offset: self.currentCollectionListPanelOffset(), transition: transition)
+
+        transition.updateFrame(node: self.panesBackgroundNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: width, height: panelHeight)))
         
         return (standardInputHeight, max(0.0, panelHeight - standardInputHeight))
     }
@@ -1884,6 +1997,13 @@ final class ChatMediaInputNode: ChatInputNode {
         transition.updateFrame(node: self.collectionListSeparator, frame: CGRect(origin: CGPoint(x: 0.0, y: 41.0 + collectionListPanelOffset), size: self.collectionListSeparator.bounds.size))
         transition.updatePosition(node: self.listView, position: CGPoint(x: self.listView.position.x, y: (41.0 - collectionListPanelOffset) / 2.0))
         transition.updatePosition(node: self.gifListView, position: CGPoint(x: self.gifListView.position.x, y: (41.0 - collectionListPanelOffset) / 2.0))
+
+        self.updatePaneClippingContainer(size: self.paneClippingContainer.bounds.size, offset: collectionListPanelOffset, transition: transition)
+    }
+
+    private func updatePaneClippingContainer(size: CGSize, offset: CGFloat, transition: ContainedViewLayoutTransition) {
+        transition.updateFrame(node: self.paneClippingContainer, frame: CGRect(origin: CGPoint(x: 0.0, y: offset + 41.0), size: size))
+        transition.updateSublayerTransformOffset(layer: self.paneClippingContainer.layer, offset: CGPoint(x: 0.0, y: -offset - 41.0))
     }
     
     private func fixPaneScroll(pane: ChatMediaInputPane, state: ChatMediaInputPaneScrollState) {
@@ -1905,6 +2025,8 @@ final class ChatMediaInputNode: ChatInputNode {
         transition.updateFrame(node: self.collectionListSeparator, frame: CGRect(origin: CGPoint(x: 0.0, y: 41.0 + collectionListPanelOffset), size: self.collectionListSeparator.bounds.size))
         transition.updatePosition(node: self.listView, position: CGPoint(x: self.listView.position.x, y: (41.0 - collectionListPanelOffset) / 2.0))
         transition.updatePosition(node: self.gifListView, position: CGPoint(x: self.gifListView.position.x, y: (41.0 - collectionListPanelOffset) / 2.0))
+
+        self.updatePaneClippingContainer(size: self.paneClippingContainer.bounds.size, offset: collectionListPanelOffset, transition: transition)
     }
     
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {

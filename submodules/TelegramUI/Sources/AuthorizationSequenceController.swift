@@ -27,7 +27,7 @@ private enum InnerState: Equatable {
 
 public final class AuthorizationSequenceController: NavigationController, MFMailComposeViewControllerDelegate {
     static func navigationBarTheme(_ theme: PresentationTheme) -> NavigationBarTheme {
-        return NavigationBarTheme(buttonColor: theme.intro.accentTextColor, disabledButtonColor: theme.intro.disabledTextColor, primaryTextColor: theme.intro.primaryTextColor, backgroundColor: .clear, separatorColor: .clear, badgeBackgroundColor: theme.rootController.navigationBar.badgeBackgroundColor, badgeStrokeColor: theme.rootController.navigationBar.badgeStrokeColor, badgeTextColor: theme.rootController.navigationBar.badgeTextColor)
+        return NavigationBarTheme(buttonColor: theme.intro.accentTextColor, disabledButtonColor: theme.intro.disabledTextColor, primaryTextColor: theme.intro.primaryTextColor, backgroundColor: .clear, enableBackgroundBlur: false, separatorColor: .clear, badgeBackgroundColor: theme.rootController.navigationBar.badgeBackgroundColor, badgeStrokeColor: theme.rootController.navigationBar.badgeStrokeColor, badgeTextColor: theme.rootController.navigationBar.badgeTextColor)
     }
     
     private let sharedContext: SharedAccountContext
@@ -112,7 +112,7 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
         if let currentController = currentController {
             controller = currentController
         } else {
-            controller = AuthorizationSequenceSplashController(accountManager: self.sharedContext.accountManager, postbox: self.account.postbox, network: self.account.network, theme: self.presentationData.theme)
+            controller = AuthorizationSequenceSplashController(accountManager: self.sharedContext.accountManager, account: self.account, theme: self.presentationData.theme)
             controller.nextPressed = { [weak self] strings in
                 if let strongSelf = self {
                     if let strings = strings {
@@ -179,14 +179,14 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
                             controller.inProgress = false
                             
                             let text: String
-                            var actions: [TextAlertAction] = [
-                                TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Common_OK, action: {})
-                            ]
+                            var actions: [TextAlertAction] = []
                             switch error {
                                 case .limitExceeded:
                                     text = strongSelf.presentationData.strings.Login_CodeFloodError
+                                    actions.append(TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Common_OK, action: {}))
                                 case .invalidPhoneNumber:
                                     text = strongSelf.presentationData.strings.Login_InvalidPhoneError
+                                    actions.append(TextAlertAction(type: .genericAction, title: strongSelf.presentationData.strings.Common_OK, action: {}))
                                     actions.append(TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Login_PhoneNumberHelp, action: { [weak controller] in
                                         guard let strongSelf = self, let controller = controller else {
                                             return
@@ -202,8 +202,10 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
                                     }))
                                 case .phoneLimitExceeded:
                                     text = strongSelf.presentationData.strings.Login_PhoneFloodError
+                                    actions.append(TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Common_OK, action: {}))
                                 case .phoneBanned:
                                     text = strongSelf.presentationData.strings.Login_PhoneBannedError
+                                    actions.append(TextAlertAction(type: .genericAction, title: strongSelf.presentationData.strings.Common_OK, action: {}))
                                     actions.append(TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Login_PhoneNumberHelp, action: { [weak controller] in
                                         guard let strongSelf = self, let controller = controller else {
                                             return
@@ -219,6 +221,7 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
                                     }))
                                 case let .generic(info):
                                     text = strongSelf.presentationData.strings.Login_UnknownError
+                                    actions.append(TextAlertAction(type: .genericAction, title: strongSelf.presentationData.strings.Common_OK, action: {}))
                                     actions.append(TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Login_PhoneNumberHelp, action: { [weak controller] in
                                         guard let strongSelf = self, let controller = controller else {
                                             return
@@ -240,6 +243,7 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
                                     }))
                                 case .timeout:
                                     text = strongSelf.presentationData.strings.Login_NetworkError
+                                    actions.append(TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Common_OK, action: {}))
                                     actions.append(TextAlertAction(type: .genericAction, title: strongSelf.presentationData.strings.ChatSettings_ConnectionType_UseProxy, action: { [weak controller] in
                                         guard let strongSelf = self, let controller = controller else {
                                             return
@@ -716,7 +720,7 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
                                     var value = stat()
                                     if stat(result.fileURL.path, &value) == 0 {
                                         if let data = try? Data(contentsOf: result.fileURL) {
-                                            let resource = LocalFileMediaResource(fileId: arc4random64())
+                                            let resource = LocalFileMediaResource(fileId: Int64.random(in: Int64.min ... Int64.max))
                                             account.postbox.mediaBox.storeResourceData(resource.id, data: data, synchronous: true)
                                             subscriber.putNext(resource)
                                         }
@@ -891,17 +895,17 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
     
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-		
+        
 		//CloudVeil start
 		showFirstRunPopup()
 		//CloudVeil end
-		
+
         if !self.didPlayPresentationAnimation {
             self.didPlayPresentationAnimation = true
             self.animateIn()
         }
     }
-	
+
 	//CloudVeil start
 	func showFirstRunPopup() {
 		let alert = UIAlertController(title: "CloudVeil!", message: "CloudVeil Messenger uses a server based system to control access to Bots, Channels, and Groups and other policy rules. This is used to block unacceptable content. Your Telegram id and list of channels, bots, and groups will be sent to our system to allow this to work. We do not have access to your messages themselves.", preferredStyle: .alert)

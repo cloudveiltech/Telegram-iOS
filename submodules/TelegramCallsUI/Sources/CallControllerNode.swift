@@ -16,6 +16,7 @@ import CallsEmoji
 import TooltipUI
 import AlertUI
 import PresentationDataUtils
+import DeviceAccess
 import CloudVeilSecurityManager
 
 private func interpolateFrame(from fromValue: CGRect, to toValue: CGRect, t: CGFloat) -> CGRect {
@@ -131,6 +132,14 @@ private final class CallVideoNode: ASDisplayNode {
     
     deinit {
         self.isReadyTimer?.invalidate()
+    }
+    
+    override func didLoad() {
+        super.didLoad()
+        
+        if #available(iOS 13.0, *) {
+            self.layer.cornerCurve = .continuous
+        }
     }
     
     func animateRadialMask(from fromRect: CGRect, to toRect: CGRect) {
@@ -552,25 +561,36 @@ final class CallControllerNode: ViewControllerTracingNode, CallControllerNodePro
             switch callState.state {
             case .active:
                 if strongSelf.outgoingVideoNodeValue == nil {
-                    let proceed = {
-                        strongSelf.displayedCameraConfirmation = true
-                        switch callState.videoState {
-                        case .inactive:
-                            strongSelf.isRequestingVideo = true
-                            strongSelf.updateButtonsMode()
-                        default:
-                            break
+                    DeviceAccess.authorizeAccess(to: .camera(.videoCall), onlyCheck: true, presentationData: strongSelf.presentationData, present: { [weak self] c, a in
+                        if let strongSelf = self {
+                            strongSelf.present?(c)
                         }
-                        strongSelf.call.requestVideo()
-                    }
-                    
-                    if strongSelf.displayedCameraConfirmation {
-                        proceed()
-                    } else {
-                        strongSelf.present?(textAlertController(sharedContext: strongSelf.sharedContext, title: nil, text: strongSelf.presentationData.strings.Call_CameraConfirmationText, actions: [TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Call_CameraConfirmationConfirm, action: {
+                    }, openSettings: { [weak self] in
+                        self?.sharedContext.applicationBindings.openSettings()
+                    }, _: { [weak self] ready in
+                        guard let strongSelf = self, ready else {
+                            return
+                        }
+                        let proceed = {
+                            strongSelf.displayedCameraConfirmation = true
+                            switch callState.videoState {
+                            case .inactive:
+                                strongSelf.isRequestingVideo = true
+                                strongSelf.updateButtonsMode()
+                            default:
+                                break
+                            }
+                            strongSelf.call.requestVideo()
+                        }
+                        
+                        if strongSelf.displayedCameraConfirmation {
                             proceed()
-                        })]))
-                    }
+                        } else {
+                            strongSelf.present?(textAlertController(sharedContext: strongSelf.sharedContext, title: nil, text: strongSelf.presentationData.strings.Call_CameraConfirmationText, actions: [TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Call_CameraConfirmationConfirm, action: {
+                                proceed()
+                            })]))
+                        }
+                    })
                 } else {
                     strongSelf.call.disableVideo()
                     strongSelf.cancelScheduledUIHiding()
@@ -669,9 +689,9 @@ final class CallControllerNode: ViewControllerTracingNode, CallControllerNodePro
     func updatePeer(accountPeer: Peer, peer: Peer, hasOther: Bool) {
         if !arePeersEqual(self.peer, peer) {
             self.peer = peer
-			//CloudVeil start
+            //CloudVeil start
 			if !MainController.shared.disableProfilePhoto, let peerReference = PeerReference(peer), !peer.profileImageRepresentations.isEmpty {
-			//CloudVeil end
+            //CloudVeil end
                 let representations: [ImageRepresentationWithReference] = peer.profileImageRepresentations.map({ ImageRepresentationWithReference(representation: $0, reference: .avatar(peer: peerReference, resource: $0.resource)) })
                 self.imageNode.setSignal(chatAvatarGalleryPhoto(account: self.account, representations: representations, immediateThumbnailData: nil, autoFetchFullSize: true))
                 self.dimNode.isHidden = false

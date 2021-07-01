@@ -67,7 +67,7 @@
       "size" : "60x60"
     },
     {
-      "filename" : "Icon-1025.png",
+      "filename" : "Icon-1024.png",
       "idiom" : "ios-marketing",
       "scale" : "1x",
       "size" : "1024x1024"
@@ -143,7 +143,7 @@
       "subtype" : "42mm"
     },
     {
-      "filename" : "Icon-256.png",
+      "filename" : "Icon-257.png",
       "idiom" : "watch",
       "role" : "quickLook",
       "scale" : "2x",
@@ -151,10 +151,16 @@
       "subtype" : "44mm"
     },
     {
-      "filename" : "Icon-1024.png",
+      "filename" : "Icon-1025.png",
       "idiom" : "watch-marketing",
       "scale" : "1x",
       "size" : "1024x1024"
+    },
+    {
+      "filename" : "Icon-256.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "size" : "256x256"
     }
   ],
   "info" : {

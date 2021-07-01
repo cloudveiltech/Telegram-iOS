@@ -40,6 +40,7 @@ const CGFloat TGPhotoEditorSliderViewInternalMargin = 7.0f;
         _startValue = 0.0f;
         _value = _startValue;
         _dotSize = 10.5f;
+        _minimumUndottedValue = -1;
         
         _lineSize = TGPhotoEditorSliderViewLineSize;
         _knobPadding = TGPhotoEditorSliderViewInternalMargin;
@@ -88,7 +89,7 @@ const CGFloat TGPhotoEditorSliderViewInternalMargin = 7.0f;
 - (void)setPositionsCount:(NSInteger)positionsCount
 {
     _positionsCount = positionsCount;
-    _tapGestureRecognizer.enabled = _positionsCount > 1;
+    _tapGestureRecognizer.enabled = !_disableSnapToPositions && _positionsCount > 1;
     _doubleTapGestureRecognizer.enabled = !_tapGestureRecognizer.enabled;
 }
 
@@ -157,7 +158,6 @@ const CGFloat TGPhotoEditorSliderViewInternalMargin = 7.0f;
         knobFrame = CGRectMake(knobFrame.origin.y, knobFrame.origin.x, knobFrame.size.width, knobFrame.size.height);
     }
     
-    CGFloat markPosition = visualMargin + visualTotalLength / (_maximumValue - _minimumValue) * (ABS(_minimumValue) + _startValue);
     if (_markValue > FLT_EPSILON)
     {
         CGContextSetFillColorWithColor(context, _backColor.CGColor);
@@ -173,12 +173,12 @@ const CGFloat TGPhotoEditorSliderViewInternalMargin = 7.0f;
         
         CGContextSetBlendMode(context, kCGBlendModeCopy);
     }
-    
+
     CGContextSetFillColorWithColor(context, _backColor.CGColor);
     [self drawRectangle:backFrame cornerRadius:self.trackCornerRadius context:context];
 
     CGContextSetBlendMode(context, kCGBlendModeNormal);
-    
+
     CGContextSetFillColorWithColor(context, _trackColor.CGColor);
     [self drawRectangle:trackFrame cornerRadius:self.trackCornerRadius context:context];
     
@@ -311,6 +311,13 @@ const CGFloat TGPhotoEditorSliderViewInternalMargin = 7.0f;
 {
     _bordered = bordered;
     [self setNeedsDisplay];
+}
+
+- (void)setMinimumUndottedValue:(int)minimumUndottedValue {
+    if (_minimumUndottedValue != minimumUndottedValue) {
+        _minimumUndottedValue = minimumUndottedValue;
+        [self setNeedsDisplay];
+    }
 }
 
 #pragma mark - Properties
@@ -590,14 +597,14 @@ const CGFloat TGPhotoEditorSliderViewInternalMargin = 7.0f;
     totalLength -= _knobPadding * 2;
     
     CGFloat previousValue = self.value;
-    if (self.positionsCount > 1)
+    if (self.positionsCount > 1 && !self.disableSnapToPositions)
     {
         NSInteger position = (NSInteger)round((_knobDragCenter / totalLength) * (self.positionsCount - 1));
         _knobDragCenter = position * totalLength / (self.positionsCount - 1);
     }
     
     [self setValue:[self valueForCenterPosition:_knobDragCenter totalLength:totalLength knobSize:_knobView.image.size.width vertical:vertical]];
-    if (previousValue != self.value && (self.positionsCount > 1 || self.value == self.minimumValue || self.value == self.maximumValue || (self.minimumValue != self.startValue && self.value == self.startValue)))
+    if (previousValue != self.value && !self.disableSnapToPositions && (self.positionsCount > 1 || self.value == self.minimumValue || self.value == self.maximumValue || (self.minimumValue != self.startValue && self.value == self.startValue)))
     {
         [_feedbackGenerator selectionChanged];
         [_feedbackGenerator prepare];

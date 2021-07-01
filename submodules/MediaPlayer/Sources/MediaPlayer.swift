@@ -123,6 +123,7 @@ private final class MediaPlayerContext {
     fileprivate let videoRenderer: VideoPlayerProxy
     
     private var tickTimer: SwiftSignalKit.Timer?
+    private var fadeTimer: SwiftSignalKit.Timer?
     
     private var lastStatusUpdateTimestamp: Double?
     private let playerStatus: Promise<MediaPlayerStatus>
@@ -224,6 +225,7 @@ private final class MediaPlayerContext {
     deinit {
         assert(self.queue.isCurrent())
         
+        self.fadeTimer?.invalidate()
         self.tickTimer?.invalidate()
         
         if case let .seeking(_, _, _, disposable, _, _) = self.state {
@@ -282,15 +284,11 @@ private final class MediaPlayerContext {
             }
             let currentTimestamp = CMTimeGetSeconds(CMTimebaseGetTime(loadedState.controlTimebase.timebase))
             var duration: Double = 0.0
-            var videoStatus: MediaTrackFrameBufferStatus?
             if let videoTrackFrameBuffer = loadedState.mediaBuffers.videoBuffer {
-                videoStatus = videoTrackFrameBuffer.status(at: currentTimestamp)
                 duration = max(duration, CMTimeGetSeconds(videoTrackFrameBuffer.duration))
             }
-            
-            var audioStatus: MediaTrackFrameBufferStatus?
+
             if let audioTrackFrameBuffer = loadedState.mediaBuffers.audioBuffer {
-                audioStatus = audioTrackFrameBuffer.status(at: currentTimestamp)
                 duration = max(duration, CMTimeGetSeconds(audioTrackFrameBuffer.duration))
             }
             loadedDuration = duration
@@ -383,7 +381,7 @@ private final class MediaPlayerContext {
                                 if strongSelf.continuePlayingWithoutSoundOnLostAudioSession {
                                     strongSelf.continuePlayingWithoutSound()
                                 } else {
-                                    strongSelf.pause(lostAudioSession: true)
+                                    strongSelf.pause(lostAudioSession: true, faded: false)
                                 }
                             } else {
                                 strongSelf.seek(timestamp: 0.0, action: .play)
@@ -440,11 +438,12 @@ private final class MediaPlayerContext {
         }
     }
     
-    fileprivate func play() {
+    fileprivate func play(faded: Bool = false) {
         assert(self.queue.isCurrent())
         
         switch self.state {
             case .empty:
+                self.stoppedAtEnd = false
                 self.lastStatusUpdateTimestamp = nil
                 if self.enableSound {
                     let queue = self.queue
@@ -461,7 +460,7 @@ private final class MediaPlayerContext {
                                     if strongSelf.continuePlayingWithoutSoundOnLostAudioSession {
                                         strongSelf.continuePlayingWithoutSound()
                                     } else {
-                                        strongSelf.pause(lostAudioSession: true)
+                                        strongSelf.pause(lostAudioSession: true, faded: false)
                                     }
                                 } else {
                                     strongSelf.seek(timestamp: 0.0, action: .play)
@@ -474,15 +473,38 @@ private final class MediaPlayerContext {
                 }
                 self.seek(timestamp: 0.0, action: .play)
             case let .seeking(frameSource, timestamp, seekState, disposable, _, enableSound):
+                self.stoppedAtEnd = false
                 self.state = .seeking(frameSource: frameSource, timestamp: timestamp, seekState: seekState, disposable: disposable, action: .play, enableSound: enableSound)
                 self.lastStatusUpdateTimestamp = nil
             case let .paused(loadedState):
-                if loadedState.lostAudioSession {
+                if faded && false {
+                    self.fadeTimer?.invalidate()
+                    
+                    var volume: Double = 0.0
+                    let fadeTimer = SwiftSignalKit.Timer(timeout: 0.025, repeat: true, completion: { [weak self] in
+                        if let strongSelf = self {
+                            volume += 0.1
+                            if volume < 1.0 {
+                                strongSelf.audioRenderer?.renderer.setVolume(volume)
+                            } else {
+                                strongSelf.audioRenderer?.renderer.setVolume(1.0)
+                                strongSelf.fadeTimer?.invalidate()
+                                strongSelf.fadeTimer = nil
+                            }
+                        }
+                    }, queue: self.queue)
+                    self.fadeTimer = fadeTimer
+                    fadeTimer.start()
+                }
+                
+                if loadedState.lostAudioSession && !self.stoppedAtEnd {
+                    self.stoppedAtEnd = false
                     let timestamp = CMTimeGetSeconds(CMTimebaseGetTime(loadedState.controlTimebase.timebase))
                     self.seek(timestamp: timestamp, action: .play)
                 } else {
                     self.lastStatusUpdateTimestamp = nil
                     if self.stoppedAtEnd {
+                        self.stoppedAtEnd = false
                         self.seek(timestamp: 0.0, action: .play)
                     } else {
                         self.state = .playing(loadedState)
@@ -490,10 +512,8 @@ private final class MediaPlayerContext {
                     }
                 }
             case .playing:
-                break
+                self.stoppedAtEnd = false
         }
-        
-        self.stoppedAtEnd = false
     }
     
     fileprivate func playOnceWithSound(playAndRecord: Bool, seek: MediaPlayerSeek = .start) {
@@ -632,7 +652,7 @@ private final class MediaPlayerContext {
         }
     }
     
-    fileprivate func pause(lostAudioSession: Bool) {
+    fileprivate func pause(lostAudioSession: Bool, faded: Bool = false) {
         assert(self.queue.isCurrent())
         
         switch self.state {
@@ -651,31 +671,52 @@ private final class MediaPlayerContext {
                 }
                 self.state = .paused(loadedState)
                 self.lastStatusUpdateTimestamp = nil
+                
+                if faded && false {
+                    self.fadeTimer?.invalidate()
+                    
+                    var volume: Double = 1.0
+                    let fadeTimer = SwiftSignalKit.Timer(timeout: 0.025, repeat: true, completion: { [weak self] in
+                        if let strongSelf = self {
+                            volume -= 0.1
+                            if volume > 0 {
+                                strongSelf.audioRenderer?.renderer.setVolume(volume)
+                            } else {
+                                strongSelf.fadeTimer?.invalidate()
+                                strongSelf.fadeTimer = nil
+                                strongSelf.tick()
+                            }
+                        }
+                    }, queue: self.queue)
+                    self.fadeTimer = fadeTimer
+                    fadeTimer.start()
+                }
+                
                 self.tick()
         }
     }
     
-    fileprivate func togglePlayPause() {
+    fileprivate func togglePlayPause(faded: Bool) {
         assert(self.queue.isCurrent())
         
         switch self.state {
             case .empty:
-                self.play()
+                self.play(faded: false)
             case let .seeking(_, _, _, _, action, _):
                 switch action {
                     case .play:
-                        self.pause(lostAudioSession: false)
+                        self.pause(lostAudioSession: false, faded: faded)
                     case .pause:
-                        self.play()
+                        self.play(faded: faded)
                 }
             case .paused:
                 if !self.enableSound {
                     self.playOnceWithSound(playAndRecord: false, seek: .none)
                 } else {
-                    self.play()
+                    self.play(faded: faded)
                 }
             case .playing:
-                self.pause(lostAudioSession: false)
+                self.pause(lostAudioSession: false, faded: faded)
         }
     }
     
@@ -787,7 +828,13 @@ private final class MediaPlayerContext {
         var bufferingProgress: Float?
         
         if let worstStatus = worstStatus, case let .full(fullUntil) = worstStatus, fullUntil.isFinite {
+            var playing = false
             if case .playing = self.state {
+                playing = true
+            } else if self.fadeTimer != nil {
+                playing = true
+            }
+            if playing {
                 rate = self.baseRate
                 
                 let nextTickDelay = max(0.0, fullUntil - timestamp) / self.baseRate
@@ -805,7 +852,13 @@ private final class MediaPlayerContext {
                 rate = 0.0
                 performActionAtEndNow = true
             } else {
+                var playing = false
                 if case .playing = self.state {
+                    playing = true
+                } else if self.fadeTimer != nil {
+                    playing = true
+                }
+                if playing {
                     rate = self.baseRate
                     
                     let tickTimer = SwiftSignalKit.Timer(timeout: nextTickDelay, repeat: false, completion: { [weak self] in
@@ -871,13 +924,18 @@ private final class MediaPlayerContext {
         var statusTimestamp = CACurrentMediaTime()
         let playbackStatus: MediaPlayerPlaybackStatus
         var isPlaying = false
+        var isPaused = false
         if case .playing = self.state {
             isPlaying = true
+        } else if case .paused = self.state {
+            isPaused = true
         }
         if let bufferingProgress = bufferingProgress {
             playbackStatus = .buffering(initial: false, whilePlaying: isPlaying, progress: Float(bufferingProgress), display: true)
         } else if !rate.isZero {
-            if reportRate.isZero {
+            if isPaused && self.fadeTimer != nil {
+                playbackStatus = .paused
+            } else if reportRate.isZero {
                 //playbackStatus = .buffering(initial: false, whilePlaying: true)
                 playbackStatus = .playing
                 statusTimestamp = 0.0
@@ -902,28 +960,28 @@ private final class MediaPlayerContext {
             self.playerStatus.set(.single(status))
             let _ = self.playerStatusValue.swap(status)
         }
-        
-        if performActionAtEndNow && !self.stoppedAtEnd {
-            switch self.actionAtEnd {
-                case let .loop(f):
-                    self.stoppedAtEnd = false
-                    self.seek(timestamp: 0.0, action: .play)
-                    f?()
-                case .stop:
-                    self.stoppedAtEnd = true
-                    self.pause(lostAudioSession: false)
-                case let .action(f):
-                    self.stoppedAtEnd = true
-                    self.pause(lostAudioSession: false)
-                    f()
-                case let .loopDisablingSound(f):
-                    self.stoppedAtEnd = false
-                    self.enableSound = false
-                    self.seek(timestamp: 0.0, action: .play)
-                    f()
+
+        if performActionAtEndNow {
+            if !self.stoppedAtEnd {
+                switch self.actionAtEnd {
+                    case let .loop(f):
+                        self.stoppedAtEnd = false
+                        self.seek(timestamp: 0.0, action: .play)
+                        f?()
+                    case .stop:
+                        self.stoppedAtEnd = true
+                        self.pause(lostAudioSession: false)
+                    case let .action(f):
+                        self.stoppedAtEnd = true
+                        self.pause(lostAudioSession: false)
+                        f()
+                    case let .loopDisablingSound(f):
+                        self.stoppedAtEnd = false
+                        self.enableSound = false
+                        self.seek(timestamp: 0.0, action: .play)
+                        f()
+                }
             }
-        } else {
-            self.stoppedAtEnd = false
         }
     }
 }
@@ -1076,10 +1134,10 @@ public final class MediaPlayer {
         }
     }
     
-    public func togglePlayPause() {
+    public func togglePlayPause(faded: Bool = false) {
         self.queue.async {
             if let context = self.contextRef?.takeUnretainedValue() {
-                context.togglePlayPause()
+                context.togglePlayPause(faded: faded)
             }
         }
     }

@@ -1,5 +1,7 @@
 #import "TGMediaAssetsPickerController.h"
 
+#import <Photos/Photos.h>
+#import <PhotosUI/PhotosUI.h>
 #import "LegacyComponentsInternal.h"
 
 #import "TGMediaGroupsController.h"
@@ -26,13 +28,144 @@
 #import <LegacyComponents/TGVideoEditAdjustments.h>
 #import <LegacyComponents/TGPaintingData.h>
 
+#import "TGModernButton.h"
 #import "PGPhotoEditor.h"
+
+@interface TGMediaPickerAccessView: UIView
+{
+    TGMediaAssetsPallete *_pallete;
+    
+    UIView *_backgroundView;
+    UIView *_separatorView;
+    UIView *_bottomSeparatorView;
+    UIImageView *_iconView;
+    UILabel *_labelView;
+    UILabel *_titleView;
+    UILabel *_textView;
+    TGModernButton * _buttonView;
+    
+    CGSize _titleSize;
+    CGSize _textSize;
+}
+
+@property (nonatomic, assign) UIEdgeInsets safeAreaInset;
+
+@property (nonatomic, copy) void (^pressed)(void);
+
+@end
+
+@implementation TGMediaPickerAccessView
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self != nil) {
+        _backgroundView = [[UIView alloc] init];
+        _separatorView = [[UIView alloc] init];
+        _bottomSeparatorView = [[UIView alloc] init];
+        _iconView = [[UIImageView alloc] init];
+        _labelView = [[UILabel alloc] init];
+        _titleView = [[UILabel alloc] init];
+        _textView = [[UILabel alloc] init];
+        
+        _labelView.font = TGSystemFontOfSize(14.0);
+        _labelView.text = @"!";
+        _labelView.textAlignment = NSTextAlignmentCenter;
+        
+        _titleView.font = TGSemiboldSystemFontOfSize(17.0);
+        _titleView.text = TGLocalized(@"Media.LimitedAccessTitle");
+        _titleView.numberOfLines = 1;
+        
+        _textView.font = TGSystemFontOfSize(14.0);
+        _textView.text = TGLocalized(@"Media.LimitedAccessText");
+        _textView.numberOfLines = 3;
+        
+        _buttonView = [[TGModernButton alloc] init];
+        _buttonView.adjustsImageWhenHighlighted = false;
+        _buttonView.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+        _buttonView.contentEdgeInsets = UIEdgeInsetsMake(0.0, 15.0, 0.0, 0.0);
+        _buttonView.titleLabel.font = TGSystemFontOfSize(17.0f);
+        _buttonView.highlightBackgroundColor = UIColorRGB(0xebebeb);
+        [_buttonView setTitle:TGLocalized(@"Media.LimitedAccessManage") forState:UIControlStateNormal];
+        [_buttonView addTarget:self action:@selector(buttonPressed) forControlEvents:UIControlEventTouchUpInside];
+        
+        [self addSubview:_backgroundView];
+        [self addSubview:_separatorView];
+        [self addSubview:_bottomSeparatorView];
+        [self addSubview:_iconView];
+        [self addSubview:_labelView];
+        [self addSubview:_titleView];
+        [self addSubview:_textView];
+        [self addSubview:_buttonView];
+    }
+    return self;
+}
+
+- (void)buttonPressed {
+    self.pressed();
+}
+
+- (void)setPallete:(TGMediaAssetsPallete *)pallete {
+    _pallete = pallete;
+    
+    _backgroundView.backgroundColor = pallete.backgroundColor;
+    _separatorView.backgroundColor = pallete.separatorColor;
+    _bottomSeparatorView.backgroundColor = pallete.separatorColor;
+    _titleView.textColor = pallete.textColor;
+    _textView.textColor = pallete.textColor;
+    _iconView.image = TGCircleImage(20.0, pallete.destructiveColor);
+    _labelView.textColor = pallete.badgeTextColor;
+    _buttonView.highlightBackgroundColor = pallete.selectionColor;
+    
+    [_buttonView setTitleColor:pallete.accentColor];
+}
+
+- (CGSize)sizeThatFits:(CGSize)size {
+    CGSize result = CGSizeMake(size.width, 0.0);
+    
+    CGSize constrainedSize = CGSizeMake(size.width - 30.0, size.height);
+    CGSize titleSize = [_titleView sizeThatFits:constrainedSize];
+    CGSize textSize = [_textView sizeThatFits:constrainedSize];
+    
+    result.height += titleSize.height;
+    result.height += textSize.height;
+    result.height += 45.0;
+    result.height += 39.0;
+    result.height = CGFloor(result.height);
+    
+    _titleSize = titleSize;
+    _textSize = textSize;
+    
+    return result;
+}
+
+- (void)setSafeAreaInset:(UIEdgeInsets)safeAreaInset {
+    _safeAreaInset = safeAreaInset;
+    [self layoutSubviews];
+}
+
+- (void)layoutSubviews {
+    _backgroundView.frame = self.bounds;
+    
+    _iconView.frame = CGRectMake(self.safeAreaInset.left + 15.0, 16.0, 20.0, 20.0);
+    _labelView.frame = _iconView.frame;
+    
+    _buttonView.contentEdgeInsets = UIEdgeInsetsMake(0.0, self.safeAreaInset.left + 15.0, 0.0, 0.0);
+    _titleView.frame = CGRectMake(self.safeAreaInset.left + 42.0, 15.0, _titleSize.width, _titleSize.height);
+    _textView.frame = CGRectMake(self.safeAreaInset.left + 15.0, 46.0, _textSize.width, _textSize.height);
+    _separatorView.frame = CGRectMake(self.safeAreaInset.left + 15.0, self.bounds.size.height - 46.0, self.bounds.size.width, TGScreenPixel);
+    _buttonView.frame = CGRectMake(0.0, self.bounds.size.height - 46.0, self.bounds.size.width, 46.0);
+    _bottomSeparatorView.frame = CGRectMake(0.0, self.bounds.size.height - TGScreenPixel, self.bounds.size.width, TGScreenPixel);
+}
+
+@end
 
 @interface TGMediaAssetsController () <UINavigationControllerDelegate, ASWatcher>
 {
     TGMediaAssetsControllerIntent _intent;
     
     TGMediaPickerToolbarView *_toolbarView;
+    
+    TGMediaPickerAccessView *_accessView;
     
     SMetaDisposable *_groupingChangedDisposable;
     SMetaDisposable *_selectionChangedDisposable;
@@ -311,7 +444,7 @@
             bool onlyGroupableMedia = true;
             for (TGMediaAsset *item in strongSelf->_selectionContext.selectedItems)
             {
-                TGMediaAsset *asset = asset;
+                TGMediaAsset *asset = item;
                 if ([asset isKindOfClass:[TGCameraCapturedVideo class]]) {
                     asset = [(TGCameraCapturedVideo *)item originalAsset];
                 }
@@ -445,8 +578,11 @@
     [super loadView];
     
     bool hasOnScreenNavigation = false;
-    if (iosMajorVersion() >= 11)
-        hasOnScreenNavigation = (self.viewLoaded && self.view.safeAreaInsets.bottom > FLT_EPSILON) || _context.safeAreaInset.bottom > FLT_EPSILON;
+    if (iosMajorVersion() >= 11) {
+        if (@available(iOS 11.0, *)) {
+            hasOnScreenNavigation = (self.viewLoaded && self.view.safeAreaInsets.bottom > FLT_EPSILON) || _context.safeAreaInset.bottom > FLT_EPSILON;
+        }
+    }
     
     CGFloat inset = [TGViewController safeAreaInsetForOrientation:self.interfaceOrientation hasOnScreenNavigation:hasOnScreenNavigation].bottom;
     _toolbarView = [[TGMediaPickerToolbarView alloc] initWithFrame:CGRectMake(0, self.view.frame.size.height - TGMediaPickerToolbarHeight - inset, self.view.frame.size.width, TGMediaPickerToolbarHeight + inset)];
@@ -456,6 +592,8 @@
     _toolbarView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
     if ((_intent != TGMediaAssetsControllerSendFileIntent && _intent != TGMediaAssetsControllerSendMediaIntent && _intent != TGMediaAssetsControllerPassportMultipleIntent) || _selectionContext == nil)
         [_toolbarView setRightButtonHidden:true];
+   
+    __weak TGMediaAssetsController *weakSelf = self;
     if (_selectionContext.allowGrouping)
     {
         [_toolbarView setCenterButtonImage:TGTintedImage(TGComponentsImageNamed(@"MediaPickerGroupPhotosIcon"), _pallete != nil ? _pallete.secondaryTextColor : UIColorRGB(0x858e99))];
@@ -463,7 +601,6 @@
         [_toolbarView setCenterButtonHidden:true animated:false];
         [_toolbarView setCenterButtonSelected:_selectionContext.grouping];
         
-        __weak TGMediaAssetsController *weakSelf = self;
         _toolbarView.centerPressed = ^
         {
             __strong TGMediaAssetsController *strongSelf = weakSelf;
@@ -472,6 +609,75 @@
         };
     }
     [self.view addSubview:_toolbarView];
+    
+    if (iosMajorVersion() >= 14 && [PHPhotoLibrary authorizationStatusForAccessLevel:PHAccessLevelReadWrite] == PHAuthorizationStatusLimited) {
+        _accessView = [[TGMediaPickerAccessView alloc] init];
+        _accessView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+        _accessView.safeAreaInset = [TGViewController safeAreaInsetForOrientation:self.interfaceOrientation hasOnScreenNavigation:hasOnScreenNavigation];
+        [_accessView setPallete:_pallete];
+        _accessView.pressed = ^{
+            __strong TGMediaAssetsController *strongSelf = weakSelf;
+            if (strongSelf != nil) {
+                [strongSelf manageAccess];
+            }
+        };
+        [self.view addSubview:_accessView];
+    }
+}
+
+- (void)manageAccess
+{
+    if (iosMajorVersion() < 14) {
+        return;
+    }
+    
+    __weak TGMediaAssetsController *weakSelf = self;
+    
+    TGMenuSheetController *controller = [[TGMenuSheetController alloc] initWithContext:_context dark:false];
+    controller.dismissesByOutsideTap = true;
+    controller.narrowInLandscape = true;
+    __weak TGMenuSheetController *weakController = controller;
+    
+    NSArray *items = @
+    [
+     [[TGMenuSheetButtonItemView alloc] initWithTitle:TGLocalized(@"Media.LimitedAccessSelectMore") type:TGMenuSheetButtonTypeDefault fontSize:20.0 action:^
+      {
+          __strong TGMenuSheetController *strongController = weakController;
+          if (strongController == nil)
+              return;
+          
+          __strong TGMediaAssetsController *strongSelf = weakSelf;
+          if (strongSelf == nil)
+              return;
+
+            [strongController dismissAnimated:true manual:false completion:nil];
+        if (@available(iOS 14, *)) {
+            [[PHPhotoLibrary sharedPhotoLibrary] presentLimitedLibraryPickerFromViewController:strongSelf];
+        }
+      }],
+     [[TGMenuSheetButtonItemView alloc] initWithTitle:TGLocalized(@"Media.LimitedAccessChangeSettings") type:TGMenuSheetButtonTypeDefault fontSize:20.0 action:^
+      {
+          __strong TGMenuSheetController *strongController = weakController;
+          if (strongController == nil)
+              return;
+          
+          __strong TGMediaAssetsController *strongSelf = weakSelf;
+          if (strongSelf == nil)
+              return;
+          
+            [strongController dismissAnimated:true manual:false completion:nil];
+            [[[LegacyComponentsGlobals provider] applicationInstance] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]];
+      }],
+     [[TGMenuSheetButtonItemView alloc] initWithTitle:TGLocalized(@"Common.Cancel") type:TGMenuSheetButtonTypeCancel fontSize:20.0 action:^
+      {
+          __strong TGMenuSheetController *strongController = weakController;
+          if (strongController != nil)
+              [strongController dismissAnimated:true];
+      }]
+     ];
+    
+    [controller setItemViews:items];
+    [controller presentInViewController:self sourceView:self.view animated:true];
 }
 
 - (void)viewDidLoad
@@ -509,6 +715,12 @@
     [_editingContext clearPaintingData];
 }
 
+- (void)setPallete:(TGMediaAssetsPallete *)pallete {
+    _pallete = pallete;
+   
+    [_accessView setPallete:pallete];
+}
+
 - (void)viewDidLayoutSubviews
 {
     [super viewDidLayoutSubviews];
@@ -518,11 +730,27 @@
         orientation = UIInterfaceOrientationLandscapeLeft;
     
     bool hasOnScreenNavigation = false;
-    if (iosMajorVersion() >= 11)
-        hasOnScreenNavigation = (self.viewLoaded && self.view.safeAreaInsets.bottom > FLT_EPSILON) || _context.safeAreaInset.bottom > FLT_EPSILON;
+    if (iosMajorVersion() >= 11) {
+        if (@available(iOS 11.0, *)) {
+            hasOnScreenNavigation = (self.viewLoaded && self.view.safeAreaInsets.bottom > FLT_EPSILON) || _context.safeAreaInset.bottom > FLT_EPSILON;
+        }
+    }
     
     _toolbarView.safeAreaInset = [TGViewController safeAreaInsetForOrientation:orientation hasOnScreenNavigation:hasOnScreenNavigation];
+    _accessView.safeAreaInset = [TGViewController safeAreaInsetForOrientation:orientation hasOnScreenNavigation:hasOnScreenNavigation];
     
+    if (_accessView != nil) {
+        CGSize accessSize = [_accessView sizeThatFits:self.view.frame.size];
+        _accessView.frame = CGRectMake(0.0, self.navigationBar.frame.size.height, self.view.frame.size.width, accessSize.height);
+    
+        for (UIViewController *controller in self.viewControllers) {
+            if ([controller isKindOfClass:[TGMediaGroupsController class]]) {
+                ((TGMediaGroupsController *)controller).topInset = accessSize.height;
+            } else if ([controller isKindOfClass:[TGMediaPickerController class]]) {
+                ((TGMediaPickerController *)controller).topInset = accessSize.height;
+            }
+        }
+    }
     if (_searchController == nil)
         return;
     
@@ -590,7 +818,7 @@
     }
 }
 
-- (NSArray *)resultSignalsWithCurrentItem:(TGMediaAsset *)currentItem descriptionGenerator:(id (^)(id, NSString *, NSArray *, NSString *))descriptionGenerator
+- (NSArray *)resultSignalsWithCurrentItem:(TGMediaAsset *)currentItem descriptionGenerator:(id (^)(id, NSString *, NSArray *, NSString *, NSString *))descriptionGenerator
 {
     bool storeAssets = (_editingContext != nil) && self.shouldStoreAssets;
     
@@ -607,7 +835,7 @@
     return value;
 }
 
-+ (NSArray *)resultSignalsForSelectionContext:(TGMediaSelectionContext *)selectionContext editingContext:(TGMediaEditingContext *)editingContext intent:(TGMediaAssetsControllerIntent)intent currentItem:(TGMediaAsset *)currentItem storeAssets:(bool)storeAssets useMediaCache:(bool)__unused useMediaCache descriptionGenerator:(id (^)(id, NSString *, NSArray *, NSString *))descriptionGenerator saveEditedPhotos:(bool)saveEditedPhotos
++ (NSArray *)resultSignalsForSelectionContext:(TGMediaSelectionContext *)selectionContext editingContext:(TGMediaEditingContext *)editingContext intent:(TGMediaAssetsControllerIntent)intent currentItem:(TGMediaAsset *)currentItem storeAssets:(bool)storeAssets useMediaCache:(bool)__unused useMediaCache descriptionGenerator:(id (^)(id, NSString *, NSArray *, NSString *, NSString *))descriptionGenerator saveEditedPhotos:(bool)saveEditedPhotos
 {
     NSMutableArray *signals = [[NSMutableArray alloc] init];
     NSMutableArray *selectedItems = selectionContext.selectedItems ? [selectionContext.selectedItems mutableCopy] : [[NSMutableArray alloc] init];
@@ -725,7 +953,7 @@
                         if (groupedId != nil)
                             dict[@"groupedId"] = groupedId;
                         
-                        id generatedItem = descriptionGenerator(dict, caption, entities, nil);
+                        id generatedItem = descriptionGenerator(dict, caption, entities, nil, asset.identifier);
                         return generatedItem;
                     }] catch:^SSignal *(id error)
                     {
@@ -751,7 +979,7 @@
                             if (groupedId != nil)
                                 dict[@"groupedId"] = groupedId;
                             
-                            id generatedItem = descriptionGenerator(dict, caption, entities, nil);
+                            id generatedItem = descriptionGenerator(dict, caption, entities, nil, asset.identifier);
                             return generatedItem;
                         }];
                     }]];
@@ -778,7 +1006,7 @@
                         else if (groupedId != nil && !hasAnyTimers)
                             dict[@"groupedId"] = groupedId;
                         
-                        id generatedItem = descriptionGenerator(dict, caption, entities, nil);
+                        id generatedItem = descriptionGenerator(dict, caption, entities, nil, asset.identifier);
                         return generatedItem;
                     }];
                     
@@ -854,7 +1082,7 @@
                                 else if (groupedId != nil && !hasAnyTimers)
                                     dict[@"groupedId"] = groupedId;
                                 
-                                id generatedItem = descriptionGenerator(dict, caption, entities, nil);
+                                id generatedItem = descriptionGenerator(dict, caption, entities, nil, asset.identifier);
                                 return generatedItem;
                             }];
                         }]];
@@ -936,7 +1164,7 @@
                             else if (groupedId != nil && !hasAnyTimers)
                                 dict[@"groupedId"] = groupedId;
                             
-                            id generatedItem = descriptionGenerator(dict, caption, entities, nil);
+                            id generatedItem = descriptionGenerator(dict, caption, entities, nil, asset.identifier);
                             return generatedItem;
                         }] catch:^SSignal *(__unused id error)
                         {
@@ -977,7 +1205,7 @@
                         if (groupedId != nil)
                             dict[@"groupedId"] = groupedId;
                         
-                        id generatedItem = descriptionGenerator(dict, caption, entities, nil);
+                        id generatedItem = descriptionGenerator(dict, caption, entities, nil, asset.identifier);
                         return generatedItem;
                     }]];
                     
@@ -1047,7 +1275,7 @@
                         else if (groupedId != nil && !hasAnyTimers)
                             dict[@"groupedId"] = groupedId;
                         
-                        id generatedItem = descriptionGenerator(dict, caption, entities, nil);
+                        id generatedItem = descriptionGenerator(dict, caption, entities, nil, asset.identifier);
                         return generatedItem;
                     }]];
                     
@@ -1124,10 +1352,8 @@
                         dict[@"stickers"] = adjustments.paintingData.stickers;
                     if (timer != nil)
                         dict[@"timer"] = timer;
-                    else if (groupedId != nil && !hasAnyTimers)
-                        dict[@"groupedId"] = groupedId;
                     
-                    id generatedItem = descriptionGenerator(dict, caption, entities, nil);
+                    id generatedItem = descriptionGenerator(dict, caption, entities, nil, asset.identifier);
                     return generatedItem;
                 }]];
                 
@@ -1165,7 +1391,8 @@
         [searchButton addTarget:self action:@selector(searchButtonPressed) forControlEvents:UIControlEventTouchUpInside];
         return [[UIBarButtonItem alloc] initWithCustomView:searchButton];
     }
-	//CloudVeil disable web search
+    
+    //CloudVeil disable web search
 	return nil;
 	//return [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemSearch target:self action:@selector(searchButtonPressed)];
 }
@@ -1385,7 +1612,7 @@
 
 @implementation TGMediaAssetsPallete
 
-+ (instancetype)palleteWithDark:(bool)dark backgroundColor:(UIColor *)backgroundColor selectionColor:(UIColor *)selectionColor separatorColor:(UIColor *)separatorColor textColor:(UIColor *)textColor secondaryTextColor:(UIColor *)secondaryTextColor accentColor:(UIColor *)accentColor barBackgroundColor:(UIColor *)barBackgroundColor barSeparatorColor:(UIColor *)barSeparatorColor navigationTitleColor:(UIColor *)navigationTitleColor badge:(UIImage *)badge badgeTextColor:(UIColor *)badgeTextColor sendIconImage:(UIImage *)sendIconImage doneIconImage:(UIImage *)doneIconImage maybeAccentColor:(UIColor *)maybeAccentColor
++ (instancetype)palleteWithDark:(bool)dark backgroundColor:(UIColor *)backgroundColor selectionColor:(UIColor *)selectionColor separatorColor:(UIColor *)separatorColor textColor:(UIColor *)textColor secondaryTextColor:(UIColor *)secondaryTextColor accentColor:(UIColor *)accentColor destructiveColor:(UIColor *)destructiveColor barBackgroundColor:(UIColor *)barBackgroundColor barSeparatorColor:(UIColor *)barSeparatorColor navigationTitleColor:(UIColor *)navigationTitleColor badge:(UIImage *)badge badgeTextColor:(UIColor *)badgeTextColor sendIconImage:(UIImage *)sendIconImage doneIconImage:(UIImage *)doneIconImage maybeAccentColor:(UIColor *)maybeAccentColor
 {
     TGMediaAssetsPallete *pallete = [[TGMediaAssetsPallete alloc] init];
     pallete->_isDark = dark;
@@ -1395,6 +1622,7 @@
     pallete->_textColor = textColor;
     pallete->_secondaryTextColor = secondaryTextColor;
     pallete->_accentColor = accentColor;
+    pallete->_destructiveColor = destructiveColor;
     pallete->_barBackgroundColor = barBackgroundColor;
     pallete->_barSeparatorColor = barSeparatorColor;
     pallete->_navigationTitleColor = navigationTitleColor;

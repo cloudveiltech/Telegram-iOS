@@ -80,9 +80,7 @@ def _collect_linkmaps(*, actions, debug_outputs_provider, bundle_name):
     """
     outputs = []
 
-    # TODO(b/36174487): Iterate over .items() once the Map/dict problem is fixed.
-    for arch in debug_outputs_provider.outputs_map:
-        arch_outputs = debug_outputs_provider.outputs_map[arch]
+    for (arch, arch_outputs) in debug_outputs_provider.outputs_map.items():
         linkmap = arch_outputs["linkmap"]
         output_linkmap = actions.declare_file(
             "%s_%s.linkmap" % (bundle_name, arch),
@@ -193,10 +191,8 @@ def _bundle_dsym_files(
 
     return outputs
 
-# TODO(b/161370390): Remove ctx from the args when ctx is removed from all partials.
 def _debug_symbols_partial_impl(
         *,
-        ctx,
         actions,
         bin_root_path,
         bundle_extension,
@@ -253,15 +249,17 @@ def _debug_symbols_partial_impl(
             )
 
             include_symbols = defines.bool_value(
-                ctx,
-                "apple.package_symbols",
-                False,
+                config_vars = platform_prerequisites.config_vars,
+                define_name = "apple.package_symbols",
+                default = False,
             )
 
             if include_symbols:
                 symbols = _generate_symbols(
-                    ctx,
-                    debug_outputs_provider,
+                    actions = actions,
+                    label_name = rule_label.name,
+                    debug_provider = debug_outputs_provider,
+                    platform_prerequisites = platform_prerequisites,
                 )
                 direct_symbols.extend(symbols)
 
@@ -275,9 +273,7 @@ def _debug_symbols_partial_impl(
 
     # Only output dependency debug files if requested.
     # TODO(b/131699846): Remove this.
-    # TODO(b/161370390): Remove ctx from all invocations of defines.bool_value.
     propagate_embedded_extra_outputs = defines.bool_value(
-        ctx = ctx,
         config_vars = platform_prerequisites.config_vars,
         define_name = "apple.propagate_embedded_extra_outputs",
         default = False,
@@ -320,12 +316,17 @@ def _debug_symbols_partial_impl(
         },
     )
 
-def _generate_symbols(ctx, debug_provider):
+def _generate_symbols(
+        *,
+        actions,
+        label_name,
+        debug_provider,
+        platform_prerequisites):
     dsym_binaries = []
 
     symbols_dir = intermediates.directory(
-        ctx.actions,
-        ctx.label.name,
+        actions,
+        label_name,
         "symbols_files",
     )
     outputs = [symbols_dir]
@@ -344,12 +345,13 @@ def _generate_symbols(ctx, debug_provider):
         )
 
     legacy_actions.run_shell(
-        ctx,
+        actions = actions,
         inputs = dsym_binaries,
         outputs = outputs,
         command = "\n".join(commands),
         env = {"OUTPUT_DIR": symbols_dir.path},
         mnemonic = "GenerateSymbolsFiles",
+        platform_prerequisites = platform_prerequisites,
     )
 
     return outputs

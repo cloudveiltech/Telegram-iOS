@@ -175,13 +175,16 @@ private final class MessageReactionListControllerNode: ViewControllerTracingNode
         self.contentHeaderContainerBackgroundNode.displayWithoutProcessing = true
         self.contentHeaderContainerBackgroundNode.image = generateImage(CGSize(width: 10.0, height: 10.0), rotatedContext: { size, context in
             context.clear(CGRect(origin: CGPoint(), size: size))
-            context.setFillColor(presentationData.theme.rootController.navigationBar.backgroundColor.cgColor)
+            context.setFillColor(presentationData.theme.rootController.navigationBar.opaqueBackgroundColor.cgColor)
             context.fillEllipse(in: CGRect(origin: CGPoint(), size: size))
             context.fill(CGRect(origin: CGPoint(x: 0.0, y: size.height / 2.0), size: CGSize(width: size.width, height: size.height / 2.0)))
         })?.stretchableImage(withLeftCapWidth: 5, topCapHeight: 5)
         
         self.listNode = ListView()
         self.listNode.limitHitTestToNodes = true
+        self.listNode.accessibilityPageScrolledString = { row, count in
+            return presentationData.strings.VoiceOver_ScrollStatus(row, count).0
+        }
         
         self.placeholderNode = MessageReactionListLoadingPlaceholder(theme: presentationData.theme, itemHeight: itemHeight)
         self.placeholderNode?.isUserInteractionEnabled = false

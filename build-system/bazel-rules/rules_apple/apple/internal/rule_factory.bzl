@@ -23,6 +23,10 @@ load(
     "apple_product_type",
 )
 load(
+    "@build_bazel_rules_apple//apple/internal:apple_support_toolchain.bzl",
+    "apple_support_toolchain_utils",
+)
+load(
     "@build_bazel_rules_apple//apple/internal:entitlement_rules.bzl",
     "AppleEntitlementsInfo",
 )
@@ -37,6 +41,10 @@ load(
 load(
     "@build_bazel_rules_apple//apple/internal/aspects:swift_static_framework_aspect.bzl",
     "swift_static_framework_aspect",
+)
+load(
+    "@build_bazel_rules_apple//apple/internal/aspects:swift_dynamic_framework_aspect.bzl",
+    "swift_dynamic_framework_aspect",
 )
 load(
     "@build_bazel_rules_apple//apple/internal:transition_support.bzl",
@@ -122,6 +130,7 @@ _COMMON_BINARY_RULE_ATTRS = dicts.add(
         # Needed for the J2ObjC processing code that already exists in the implementation of
         # apple_common.link_multi_arch_binary.
         "_dummy_lib": attr.label(
+            cfg = apple_common.multi_arch_split,
             default = Label("@bazel_tools//tools/objc:dummy_lib"),
         ),
         "_googlemac_proto_compiler": attr.label(
@@ -148,81 +157,6 @@ _COMMON_BINARY_RULE_ATTRS = dicts.add(
             cfg = "host",
             executable = True,
             default = Label("@bazel_tools//tools/objc:xcrunwrapper"),
-        ),
-    },
-)
-
-# Private attributes on every rule that provide access to bundling tools and other file
-# dependencies.
-_COMMON_PRIVATE_TOOL_ATTRS = dicts.add(
-    {
-        "_bundletool": attr.label(
-            cfg = "host",
-            executable = True,
-            default = Label("@build_bazel_rules_apple//tools/bundletool"),
-        ),
-        "_bundletool_experimental": attr.label(
-            cfg = "host",
-            executable = True,
-            default = Label("@build_bazel_rules_apple//tools/bundletool:bundletool_experimental"),
-        ),
-        "_clangrttool": attr.label(
-            cfg = "host",
-            executable = True,
-            default = Label("@build_bazel_rules_apple//tools/clangrttool"),
-        ),
-        "_codesigningtool": attr.label(
-            cfg = "host",
-            executable = True,
-            default = Label("@build_bazel_rules_apple//tools/codesigningtool"),
-        ),
-        "_dsym_info_plist_template": attr.label(
-            cfg = "host",
-            allow_single_file = True,
-            default = Label(
-                "@build_bazel_rules_apple//apple/internal/templates:dsym_info_plist_template",
-            ),
-        ),
-        "_plisttool": attr.label(
-            cfg = "host",
-            default = Label("@build_bazel_rules_apple//tools/plisttool"),
-            executable = True,
-        ),
-        "_process_and_sign_template": attr.label(
-            allow_single_file = True,
-            default = Label("@build_bazel_rules_apple//tools/bundletool:process_and_sign_template"),
-        ),
-        # TODO(b/74731511): Refactor this attribute into being specified for each
-        # platform.
-        "_runner_template": attr.label(
-            cfg = "host",
-            allow_single_file = True,
-            default = Label("@build_bazel_rules_apple//apple/internal/templates:ios_sim_template"),
-        ),
-        "_macos_runner_template": attr.label(
-            cfg = "host",
-            allow_single_file = True,
-            default = Label("@build_bazel_rules_apple//apple/internal/templates:macos_template"),
-        ),
-        "_std_redirect_dylib": attr.label(
-            cfg = "host",
-            allow_single_file = True,
-            default = Label("@bazel_tools//tools/objc:StdRedirect.dylib"),
-        ),
-        "_swift_stdlib_tool": attr.label(
-            cfg = "host",
-            default = Label("@build_bazel_rules_apple//tools/swift_stdlib_tool"),
-            executable = True,
-        ),
-        "_xctoolrunner": attr.label(
-            cfg = "host",
-            executable = True,
-            default = Label("@build_bazel_rules_apple//tools/xctoolrunner"),
-        ),
-        "_imported_dynamic_framework_processor": attr.label(
-            cfg = "host",
-            executable = True,
-            default = Label("@build_bazel_rules_apple//tools/imported_dynamic_framework_processor"),
         ),
     },
 )
@@ -288,6 +222,8 @@ def _common_binary_linking_attrs(default_binary_type, deps_cfg, product_type):
         apple_common.objc_proto_aspect,
         swift_usage_aspect,
     ]
+
+    default_stamp = -1
     if product_type:
         deps_aspects.extend([
             apple_resource_aspect,
@@ -295,8 +231,11 @@ def _common_binary_linking_attrs(default_binary_type, deps_cfg, product_type):
         ])
         if _is_test_product_type(product_type):
             deps_aspects.append(apple_test_info_aspect)
+            default_stamp = 0
         if product_type == apple_product_type.static_framework:
             deps_aspects.append(swift_static_framework_aspect)
+        if product_type == apple_product_type.framework:
+            deps_aspects.append(swift_dynamic_framework_aspect)
 
     return dicts.add(
         _COMMON_ATTRS,
@@ -323,7 +262,7 @@ Do not change its value.
 This attribute is public as an implementation detail while we migrate the architecture of the rules.
 Do not change its value.
     """,
-        ),
+            ),
             "codesignopts": attr.string_list(
                 doc = """
 A list of strings representing extra flags that should be passed to `codesign`.
@@ -334,6 +273,20 @@ A list of strings representing extra flags that should be passed to `codesign`.
 A list of strings representing extra flags that should be passed to the linker.
     """,
             ),
+            "stamp": attr.int(
+                default = default_stamp,
+                doc = """
+Enable link stamping. Whether to encode build information into the binary. Possible values:
+
+*   `stamp = 1`: Stamp the build information into the binary. Stamped binaries are only rebuilt
+    when their dependencies change. Use this if there are tests that depend on the build
+    information.
+*   `stamp = 0`: Always replace build information by constant values. This gives good build
+    result caching.
+*   `stamp = -1`: Embedding of build information is controlled by the `--[no]stamp` flag.
+""",
+                values = [-1, 0, 1],
+            ),
             "deps": attr.label_list(
                 aspects = deps_aspects,
                 cfg = deps_cfg,
@@ -341,7 +294,7 @@ A list of strings representing extra flags that should be passed to the linker.
 A list of dependencies targets that will be linked into this target's binary. Any resources, such as
 asset catalogs, that are referenced by those targets will also be transitively included in the final
 bundle.
-        """,
+""",
             ),
         },
     )
@@ -588,6 +541,13 @@ If true, compiles and links this framework with `-application-extension`, restri
 use only extension-safe APIs.
 """,
             ),
+            "bundle_only": attr.bool(
+                default = False,
+                doc = """
+Avoid linking the dynamic framework, but still include it in the app. This is useful when you want
+to manually dlopen the framework at runtime.
+""",
+            ),
         })
     elif rule_descriptor.product_type == apple_product_type.static_framework:
         attrs.append({
@@ -653,6 +613,11 @@ A `watchos_application` target that represents an Apple Watch application that s
 the application bundle.
 """,
             ),
+            "_runner_template": attr.label(
+                cfg = "host",
+                allow_single_file = True,
+                default = Label("@build_bazel_rules_apple//apple/internal/templates:ios_sim_template"),
+            ),
         })
     elif rule_descriptor.product_type == apple_product_type.app_clip:
         attrs.append({
@@ -664,6 +629,11 @@ provided file will be compiled into the appropriate format (`.storyboardc` or `.
 the root of the final bundle. The generated file will also be registered in the bundle's
 Info.plist under the key `UILaunchStoryboardName`.
 """,
+            ),
+            "_runner_template": attr.label(
+                cfg = "host",
+                allow_single_file = True,
+                default = Label("@build_bazel_rules_apple//apple/internal/templates:ios_sim_template"),
             ),
         })
     elif rule_descriptor.product_type == apple_product_type.app_extension:
@@ -774,6 +744,11 @@ set, then the default extension is determined by the application's product_type.
                 ],
                 doc = "A list of macOS XPC Services to include in the final application bundle.",
             ),
+            "_runner_template": attr.label(
+                cfg = "host",
+                allow_single_file = True,
+                default = Label("@build_bazel_rules_apple//apple/internal/templates:macos_template"),
+            ),
         })
 
     elif rule_descriptor.product_type == apple_product_type.app_extension:
@@ -805,6 +780,13 @@ def _get_tvos_attrs(rule_descriptor):
                     [AppleBundleInfo, TvosExtensionBundleInfo],
                 ],
                 doc = "A list of tvOS extensions to include in the final application bundle.",
+            ),
+            "_runner_template": attr.label(
+                cfg = "host",
+                allow_single_file = True,
+                # Currently using the iOS Simulator template for tvOS, as tvOS does not require
+                # significantly different sim runner logic from iOS.
+                default = Label("@build_bazel_rules_apple//apple/internal/templates:ios_sim_template"),
             ),
         })
     elif rule_descriptor.product_type == apple_product_type.framework:
@@ -895,6 +877,13 @@ def _get_watchos_attrs(rule_descriptor):
     """Returns a list of dictionaries with attributes for the watchOS platform."""
     attrs = []
 
+    if rule_descriptor.product_type == apple_product_type.watch2_extension:
+        attrs.append({"extensions": attr.label_list(
+            providers = [[AppleBundleInfo, WatchosExtensionBundleInfo]],
+            doc = """
+A list of watchOS application extensions to include in the final watch extension bundle.
+""",
+        )})
     if rule_descriptor.product_type == apple_product_type.watch2_application:
         attrs.append({
             "extension": attr.label(
@@ -919,6 +908,64 @@ which case it will be placed under a directory with the same name in the bundle.
 A list of targets whose resources will be included in the final application. Since a watchOS
 application does not contain any code of its own, any code in the dependent libraries will be
 ignored.
+""",
+            ),
+        })
+    elif rule_descriptor.product_type == apple_product_type.framework:
+        attrs.append({
+            "extension_safe": attr.bool(
+                default = False,
+                doc = """
+If true, compiles and links this framework with `-application-extension`, restricting the binary to
+use only extension-safe APIs.
+""",
+            ),
+        })
+
+        if rule_descriptor.requires_deps:
+            extra_args = {}
+            attrs.append({
+                "frameworks": attr.label_list(
+                    providers = [[AppleBundleInfo, IosFrameworkBundleInfo]],
+                    doc = """
+A list of framework targets (see
+[`ios_framework`](https://github.com/bazelbuild/rules_apple/blob/master/doc/rules-ios.md#ios_framework))
+that this target depends on.
+""",
+                    **extra_args
+                ),
+            })
+    elif rule_descriptor.product_type == apple_product_type.static_framework:
+        attrs.append({
+            "hdrs": attr.label_list(
+                allow_files = [".h"],
+                doc = """
+A list of `.h` files that will be publicly exposed by this framework. These headers should have
+framework-relative imports, and if non-empty, an umbrella header named `%{bundle_name}.h` will also
+be generated that imports all of the headers listed here.
+""",
+            ),
+            "umbrella_header": attr.label(
+                allow_single_file = [".h"],
+                doc = """
+An optional single .h file to use as the umbrella header for this framework. Usually, this header
+will have the same name as this target, so that clients can load the header using the #import
+<MyFramework/MyFramework.h> format. If this attribute is not specified (the common use case), an
+umbrella header will be generated under the same name as this target.
+""",
+            ),
+            "avoid_deps": attr.label_list(
+                doc = """
+A list of library targets on which this framework depends in order to compile, but the transitive
+closure of which will not be linked into the framework's binary.
+""",
+            ),
+            "exclude_resources": attr.bool(
+                default = False,
+                doc = """
+Indicates whether resources should be excluded from the bundle. This can be used to avoid
+unnecessarily bundling resources if the static framework is being distributed in a different
+fashion, such as a Cocoapod.
 """,
             ),
         })
@@ -1002,7 +1049,7 @@ dotted version number (for example, "10.11").
     if platform_type:
         rule_attrs.extend([
             _COMMON_ATTRS,
-            _COMMON_PRIVATE_TOOL_ATTRS,
+            apple_support_toolchain_utils.shared_attrs(),
             {
                 # TODO(kaipi): Make this attribute private when a platform_type is
                 # specified. It is required by the native linking API.
@@ -1091,7 +1138,7 @@ def _create_apple_bundling_rule(implementation, platform_type, product_type, doc
     rule_attrs.extend(
         [
             _COMMON_ATTRS,
-            _COMMON_PRIVATE_TOOL_ATTRS,
+            apple_support_toolchain_utils.shared_attrs(),
         ] + _get_common_bundling_attributes(rule_descriptor),
     )
 
@@ -1151,7 +1198,7 @@ def _create_apple_test_rule(implementation, doc, platform_type):
         implementation = implementation,
         attrs = dicts.add(
             _COMMON_ATTRS,
-            _COMMON_PRIVATE_TOOL_ATTRS,
+            apple_support_toolchain_utils.shared_attrs(),
             _COMMON_TEST_ATTRS,
             *extra_attrs
         ),
@@ -1162,7 +1209,7 @@ def _create_apple_test_rule(implementation, doc, platform_type):
 rule_factory = struct(
     common_tool_attributes = dicts.add(
         _COMMON_ATTRS,
-        _COMMON_PRIVATE_TOOL_ATTRS,
+        apple_support_toolchain_utils.shared_attrs(),
     ),
     create_apple_binary_rule = _create_apple_binary_rule,
     create_apple_bundling_rule = _create_apple_bundling_rule,

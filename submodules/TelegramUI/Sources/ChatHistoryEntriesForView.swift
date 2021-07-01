@@ -21,7 +21,7 @@ func chatHistoryEntriesForView(location: ChatLocation, view: MessageHistoryView,
                 if id == cachedChannelAdminRanksEntryId(peerId: peerId), let data = data as? CachedChannelAdminRanks {
                     adminRanks = data.ranks
                 }
-            } else if case let .peer(_, peer) = additionalEntry, let channel = peer as? TelegramChannel {
+            } else if case let .peer(_, peer) = additionalEntry, let channel = peer as? TelegramChannel, !channel.flags.contains(.isGigagroup) {
                 if let defaultBannedRights = channel.defaultBannedRights, defaultBannedRights.flags.contains(.banSendStickers) {
                     stickersEnabled = false
                 }
@@ -203,11 +203,14 @@ func chatHistoryEntriesForView(location: ChatLocation, view: MessageHistoryView,
                 if entries.count <= 3 {
                     loop: for entry in view.entries {
                         var isEmptyMedia = false
+                        var isPeerJoined = false
                         for media in entry.message.media {
                             if let action = media as? TelegramMediaAction {
                                 switch action.action {
                                     case .groupCreated, .photoUpdated, .channelMigratedFromGroup, .groupMigratedToChannel:
                                         isEmptyMedia = true
+                                    case .peerJoined:
+                                        isPeerJoined = true
                                     default:
                                         break
                                 }
@@ -219,7 +222,7 @@ func chatHistoryEntriesForView(location: ChatLocation, view: MessageHistoryView,
                         } else if let peer = entry.message.peers[entry.message.id.peerId] as? TelegramChannel, case .group = peer.info, peer.flags.contains(.isCreator) {
                             isCreator = true
                         }
-                        if isEmptyMedia && isCreator {
+                        if isPeerJoined || (isEmptyMedia && isCreator) {
                         } else {
                             isEmpty = false
                             break loop

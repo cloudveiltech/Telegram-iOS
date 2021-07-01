@@ -27,6 +27,7 @@ private struct CreateChannelArguments {
     let updateEditingDescriptionText: (String) -> Void
     let done: () -> Void
     let changeProfilePhoto: () -> Void
+    let focusOnDescription: () -> Void
 }
 
 private enum CreateChannelSection: Int32 {
@@ -36,12 +37,19 @@ private enum CreateChannelSection: Int32 {
 
 private enum CreateChannelEntryTag: ItemListItemTag {
     case info
+    case description
     
     func isEqual(to other: ItemListItemTag) -> Bool {
         if let other = other as? CreateChannelEntryTag {
             switch self {
                 case .info:
                     if case .info = other {
+                        return true
+                    } else {
+                        return false
+                    }
+                case .description:
+                    if case .description = other {
                         return true
                     } else {
                         return false
@@ -140,21 +148,23 @@ private enum CreateChannelEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! CreateChannelArguments
         switch self {
-            case let .channelInfo(theme, strings, dateTimeFormat, peer, state, avatar):
+            case let .channelInfo(_, _, dateTimeFormat, peer, state, avatar):
                 return ItemListAvatarAndNameInfoItem(accountContext: arguments.context, presentationData: presentationData, dateTimeFormat: dateTimeFormat, mode: .editSettings, peer: peer, presence: nil, cachedData: nil, state: state, sectionId: ItemListSectionId(self.section), style: .blocks(withTopInset: false, withExtendedBottomInset: false), editingNameUpdated: { editingName in
                     arguments.updateEditingName(editingName)
+                }, editingNameCompleted: {
+                    arguments.focusOnDescription()
                 }, avatarTapped: {
                     arguments.changeProfilePhoto()
                 }, updatingImage: avatar, tag: CreateChannelEntryTag.info)
-            case let .setProfilePhoto(theme, text):
+            case let .setProfilePhoto(_, text):
                 return ItemListActionItem(presentationData: presentationData, title: text, kind: .generic, alignment: .natural, sectionId: ItemListSectionId(self.section), style: .blocks, action: {
                     arguments.changeProfilePhoto()
                 })
-            case let .descriptionSetup(theme, text, value):
+            case let .descriptionSetup(_, text, value):
                 return ItemListMultilineInputItem(presentationData: presentationData, text: value, placeholder: text, maxLength: ItemListMultilineInputItemTextLimit(value: 255, display: true), sectionId: self.section, style: .blocks, textUpdated: { updatedText in
                     arguments.updateEditingDescriptionText(updatedText)
-                })
-            case let .descriptionInfo(theme, text):
+                }, tag: CreateChannelEntryTag.description)
+            case let .descriptionInfo(_, text):
                 return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
         }
     }
@@ -188,7 +198,7 @@ private func CreateChannelEntries(presentationData: PresentationData, state: Cre
     
     let groupInfoState = ItemListAvatarAndNameInfoItemState(editingName: state.editingName, updatingName: nil)
     
-    let peer = TelegramGroup(id: PeerId(namespace: -1, id: 0), title: state.editingName.composedTitle, photo: [], participantCount: 0, role: .creator(rank: nil), membership: .Member, flags: [], defaultBannedRights: nil, migrationReference: nil, creationDate: 0, version: 0)
+    let peer = TelegramGroup(id: PeerId(namespace: .max, id: PeerId.Id._internalFromInt32Value(0)), title: state.editingName.composedTitle, photo: [], participantCount: 0, role: .creator(rank: nil), membership: .Member, flags: [], defaultBannedRights: nil, migrationReference: nil, creationDate: 0, version: 0)
     
     entries.append(.channelInfo(presentationData.theme, presentationData.strings, presentationData.dateTimeFormat, peer, groupInfoState, state.avatar))
     
@@ -210,6 +220,7 @@ public func createChannelController(context: AccountContext) -> ViewController {
     var pushControllerImpl: ((ViewController) -> Void)?
     var presentControllerImpl: ((ViewController, Any?) -> Void)?
     var endEditingImpl: (() -> Void)?
+    var focusOnDescriptionImpl: (() -> Void)?
     
     let actionsDisposable = DisposableSet()
     
@@ -316,9 +327,9 @@ public func createChannelController(context: AccountContext) -> ViewController {
             
             let completedChannelPhotoImpl: (UIImage) -> Void = { image in
                 if let data = image.jpegData(compressionQuality: 0.6) {
-                    let resource = LocalFileMediaResource(fileId: arc4random64())
+                    let resource = LocalFileMediaResource(fileId: Int64.random(in: Int64.min ... Int64.max))
                     context.account.postbox.mediaBox.storeResourceData(resource.id, data: data)
-                    let representation = TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 640, height: 640), resource: resource, progressiveSizes: [])
+                    let representation = TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 640, height: 640), resource: resource, progressiveSizes: [], immediateThumbnailData: nil)
                     uploadedAvatar.set(uploadedPeerPhoto(postbox: context.account.postbox, network: context.account.network, resource: resource))
                     uploadedVideoAvatar = nil
                     updateState { current in
@@ -331,9 +342,9 @@ public func createChannelController(context: AccountContext) -> ViewController {
             
             let completedChannelVideoImpl: (UIImage, Any?, TGVideoEditAdjustments?) -> Void = { image, asset, adjustments in
                 if let data = image.jpegData(compressionQuality: 0.6) {
-                    let photoResource = LocalFileMediaResource(fileId: arc4random64())
+                    let photoResource = LocalFileMediaResource(fileId: Int64.random(in: Int64.min ... Int64.max))
                     context.account.postbox.mediaBox.storeResourceData(photoResource.id, data: data)
-                    let representation = TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 640, height: 640), resource: photoResource, progressiveSizes: [])
+                    let representation = TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 640, height: 640), resource: photoResource, progressiveSizes: [], immediateThumbnailData: nil)
                     updateState { state in
                         var state = state
                         state.avatar = .image(representation, true)
@@ -397,7 +408,7 @@ public func createChannelController(context: AccountContext) -> ViewController {
                                         if let liveUploadData = result.liveUploadData as? LegacyLiveUploadInterfaceResult {
                                             resource = LocalFileMediaResource(fileId: liveUploadData.id)
                                         } else {
-                                            resource = LocalFileMediaResource(fileId: arc4random64())
+                                            resource = LocalFileMediaResource(fileId: Int64.random(in: Int64.min ... Int64.max))
                                         }
                                         context.account.postbox.mediaBox.storeResourceData(resource.id, data: data, synchronous: true)
                                         subscriber.putNext(resource)
@@ -442,12 +453,11 @@ public func createChannelController(context: AccountContext) -> ViewController {
                     uploadedVideoAvatar = (promise, videoStartTimestamp)
                 }
             }
-            
+               
 			//CloudVeil start
-			let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: !MainController.SecurityStaticSettings.disableGlobalSearch, hasDeleteButton: stateValue.with({ $0.avatar }) != nil, hasViewButton: false, personalPhoto: false, isVideo: false, saveEditedPhotos: false, saveCapturedMedia: false, signup: false)!
-			//CloudVeil end
-            
-			let _ = currentAvatarMixin.swap(mixin)
+            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: !MainController.SecurityStaticSettings.disableGlobalSearch, hasDeleteButton: stateValue.with({ $0.avatar }) != nil, hasViewButton: false, personalPhoto: false, isVideo: false, saveEditedPhotos: false, saveCapturedMedia: false, signup: false)!
+      	    //CloudVeil end
+            let _ = currentAvatarMixin.swap(mixin)
             mixin.requestSearchController = { assetsController in
                 let controller = WebSearchController(context: context, peer: peer, chatLocation: nil, configuration: searchBotsConfiguration, mode: .avatar(initialQuery: title, completion: { result in
                     assetsController?.dismiss()
@@ -486,6 +496,8 @@ public func createChannelController(context: AccountContext) -> ViewController {
                 }
             }
         })
+    }, focusOnDescription: {
+        focusOnDescriptionImpl?()
     })
     
     let signal = combineLatest(context.sharedContext.presentationData, statePromise.get())
@@ -521,9 +533,18 @@ public func createChannelController(context: AccountContext) -> ViewController {
     controller.willDisappear = { _ in
         endEditingImpl?()
     }
-    endEditingImpl = {
-        [weak controller] in
+    endEditingImpl = { [weak controller] in
         controller?.view.endEditing(true)
+    }
+    focusOnDescriptionImpl = { [weak controller] in
+        guard let controller = controller else {
+            return
+        }
+        controller.forEachItemNode { itemNode in
+            if let itemNode = itemNode as? ItemListMultilineInputItemNode, let itemTag = itemNode.tag, itemTag.isEqual(to: CreateChannelEntryTag.description) {
+                itemNode.focus()
+            }
+        }
     }
     return controller
 }

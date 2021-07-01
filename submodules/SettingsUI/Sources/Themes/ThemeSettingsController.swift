@@ -17,6 +17,7 @@ import WallpaperResources
 import ShareController
 import AccountContext
 import ContextUI
+import UndoUI
 
 private final class ContextControllerContentSourceImpl: ContextControllerContentSource {
     let controller: ViewController
@@ -373,6 +374,19 @@ private enum ThemeSettingsControllerEntry: ItemListNodeEntry {
                     }
                 }
                 colorItems.append(contentsOf: colors.map { .color($0) })
+                if let index = colorItems.firstIndex(where: { item in
+                    if case .default = item {
+                        return true
+                    } else {
+                        return false
+                    }
+                }) {
+                    if index > 0 {
+                        let item = colorItems[index]
+                        colorItems.remove(at: index)
+                        colorItems.insert(item, at: 1)
+                    }
+                }
                 
                 return ThemeSettingsAccentColorItem(theme: theme, sectionId: self.section, generalThemeReference: generalThemeReference, themeReference: currentTheme, colors: colorItems, currentColor: currentColor, updated: { color in
                     if let color = color {
@@ -513,7 +527,8 @@ private func themeSettingsControllerEntries(presentationData: PresentationData, 
     }
     entries.append(.textSize(presentationData.theme, strings.Appearance_TextSizeSetting, textSizeValue))
     entries.append(.bubbleSettings(presentationData.theme, strings.Appearance_BubbleCornersSetting, ""))
-	//CloudVeil disabled
+   
+    //CloudVeil disabled
 	/*
     if !availableAppIcons.isEmpty {
         entries.append(.iconHeader(presentationData.theme, strings.Appearance_AppIcon.uppercased()))
@@ -522,7 +537,7 @@ private func themeSettingsControllerEntries(presentationData: PresentationData, 
     
     entries.append(.otherHeader(presentationData.theme, strings.Appearance_Other.uppercased()))
     entries.append(.largeEmoji(presentationData.theme, strings.Appearance_LargeEmoji, presentationData.largeEmoji))
-    entries.append(.animations(presentationData.theme, strings.Appearance_ReduceMotion, presentationData.disableAnimations))
+    entries.append(.animations(presentationData.theme, strings.Appearance_ReduceMotion, presentationData.reduceMotion))
     entries.append(.animationsInfo(presentationData.theme, strings.Appearance_ReduceMotionInfo))
     
     return entries
@@ -598,9 +613,9 @@ public func themeSettingsController(context: AccountContext, focusOnItemTag: The
         let _ = updatePresentationThemeSettingsInteractively(accountManager: context.sharedContext.accountManager, { current in
             return current.withUpdatedLargeEmoji(largeEmoji)
         }).start()
-    }, disableAnimations: { disableAnimations in
+    }, disableAnimations: { reduceMotion in
         let _ = updatePresentationThemeSettingsInteractively(accountManager: context.sharedContext.accountManager, { current in
-            return current.withUpdatedDisableAnimations(disableAnimations)
+            return current.withUpdatedReduceMotion(reduceMotion)
         }).start()
     }, selectAppIcon: { name in
         currentAppIconName.set(name)
@@ -723,8 +738,12 @@ public func themeSettingsController(context: AccountContext, focusOnItemTag: The
                 }
                 items.append(.action(ContextMenuActionItem(text: presentationData.strings.Appearance_ShareTheme, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Share"), color: theme.contextMenu.primaryColor) }, action: { c, f in
                     c.dismiss(completion: {
-                        let controller = ShareController(context: context, subject: .url("https://t.me/addtheme/\(theme.theme.slug)"), preferredAction: .default)
-                        presentControllerImpl?(controller, nil)
+                        let shareController = ShareController(context: context, subject: .url("https://t.me/addtheme/\(theme.theme.slug)"), preferredAction: .default)
+                        shareController.actionCompleted = {
+                            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                            presentControllerImpl?(UndoOverlayController(presentationData: presentationData, content: .linkCopied(text: presentationData.strings.Conversation_LinkCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), nil)
+                        }
+                        presentControllerImpl?(shareController, nil)
                     })
                 })))
                 items.append(.action(ContextMenuActionItem(text: presentationData.strings.Appearance_RemoveTheme, textColor: .destructive, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.contextMenu.destructiveColor) }, action: { c, f in
@@ -827,7 +846,14 @@ public func themeSettingsController(context: AccountContext, focusOnItemTag: The
                 if let accentColor = accentColor, case let .theme(themeReference) = accentColor {
                     theme = makePresentationTheme(mediaBox: context.sharedContext.accountManager.mediaBox, themeReference: themeReference)
                 } else {
-                    theme = makePresentationTheme(mediaBox: context.sharedContext.accountManager.mediaBox, themeReference: generalThemeReference, accentColor: accentColor?.accentColor, bubbleColors: accentColor?.customBubbleColors, wallpaper: accentColor?.wallpaper)
+                    var wallpaperGradientColors: [UInt32]?
+                    switch accentColor {
+                    case let .accentColor(value):
+                        wallpaperGradientColors = value.baseColor.wallpaperGradientColors
+                    default:
+                        break
+                    }
+                    theme = makePresentationTheme(mediaBox: context.sharedContext.accountManager.mediaBox, themeReference: generalThemeReference, accentColor: accentColor?.accentColor, bubbleColors: accentColor?.customBubbleColors, wallpaper: accentColor?.wallpaper, wallpaperGradientColors: wallpaperGradientColors)
                 }
                 effectiveWallpaper = theme?.chat.defaultWallpaper ?? .builtin(WallpaperSettings())
             }
@@ -945,8 +971,12 @@ public func themeSettingsController(context: AccountContext, focusOnItemTag: The
                     }
                     items.append(.action(ContextMenuActionItem(text: presentationData.strings.Appearance_ShareTheme, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Share"), color: theme.contextMenu.primaryColor) }, action: { c, f in
                         c.dismiss(completion: {
-                            let controller = ShareController(context: context, subject: .url("https://t.me/addtheme/\(cloudTheme.theme.slug)"), preferredAction: .default)
-                            presentControllerImpl?(controller, nil)
+                            let shareController = ShareController(context: context, subject: .url("https://t.me/addtheme/\(cloudTheme.theme.slug)"), preferredAction: .default)
+                            shareController.actionCompleted = {
+                                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                                presentControllerImpl?(UndoOverlayController(presentationData: presentationData, content: .linkCopied(text: presentationData.strings.Conversation_LinkCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), nil)
+                            }
+                            presentControllerImpl?(shareController, nil)
                         })
                     })))
                     if cloudThemeExists {
@@ -1008,17 +1038,10 @@ public func themeSettingsController(context: AccountContext, focusOnItemTag: The
             presentInGlobalOverlayImpl?(contextController, nil)
         })
     })
-    
-    let previousThemeReference = Atomic<PresentationThemeReference?>(value: nil)
-    let previousAccentColor = Atomic<PresentationThemeAccentColor?>(value: nil)
-    
+
     let signal = combineLatest(queue: .mainQueue(), context.sharedContext.presentationData, context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.presentationThemeSettings]), cloudThemes.get(), availableAppIcons, currentAppIconName.get(), removedThemeIndexesPromise.get())
         |> map { presentationData, sharedData, cloudThemes, availableAppIcons, currentAppIconName, removedThemeIndexes -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let settings = (sharedData.entries[ApplicationSpecificSharedDataKeys.presentationThemeSettings] as? PresentationThemeSettings) ?? PresentationThemeSettings.defaultSettings
-        
-        let dateTimeFormat = presentationData.dateTimeFormat
-        let largeEmoji = presentationData.largeEmoji
-        let disableAnimations = presentationData.disableAnimations
     
         let themeReference: PresentationThemeReference
         if presentationData.autoNightModeTriggered {
@@ -1027,18 +1050,21 @@ public func themeSettingsController(context: AccountContext, focusOnItemTag: The
             themeReference = settings.theme
         }
         
-        let accentColor = settings.themeSpecificAccentColors[themeReference.index]
-        
         let rightNavigationButton = ItemListNavigationButton(content: .icon(.add), style: .regular, enabled: true, action: {
             moreImpl?()
         })
         
         var defaultThemes: [PresentationThemeReference] = []
         if presentationData.autoNightModeTriggered {
+            defaultThemes.append(contentsOf: [.builtin(.nightAccent), .builtin(.night)])
         } else {
-            defaultThemes.append(contentsOf: [.builtin(.dayClassic), .builtin(.day)])
+            defaultThemes.append(contentsOf: [
+                .builtin(.dayClassic),
+                .builtin(.nightAccent),
+                .builtin(.day),
+                .builtin(.night)
+            ])
         }
-        defaultThemes.append(contentsOf: [.builtin(.night), .builtin(.nightAccent)])
         
         let cloudThemes: [PresentationThemeReference] = cloudThemes.map { .cloud(PresentationCloudTheme(theme: $0, resolvedWallpaper: nil, creatorAccountId: $0.isCreator ? context.account.id : nil)) }.filter { !removedThemeIndexes.contains($0.index) }
         
@@ -1228,7 +1254,7 @@ public func themeSettingsController(context: AccountContext, focusOnItemTag: The
             |> mapToSignal { cachedWallpaper in
                 if let wallpaper = cachedWallpaper?.wallpaper, case let .file(file) = wallpaper {
                     let resource = file.file.resource
-                    let representation = CachedPatternWallpaperRepresentation(color: file.settings.color ?? 0xd6e2ee, bottomColor: file.settings.bottomColor, intensity: file.settings.intensity ?? 50, rotation: file.settings.rotation)
+                    let representation = CachedPatternWallpaperRepresentation(colors: file.settings.colors.count >= 1 ? file.settings.colors : [0xd6e2ee], intensity: file.settings.intensity ?? 50, rotation: file.settings.rotation)
                             
                     let _ = fetchedMediaResource(mediaBox: context.account.postbox.mediaBox, reference: .wallpaper(wallpaper: .slug(file.slug), resource: file.file.resource)).start()
 
@@ -1277,7 +1303,7 @@ public func themeSettingsController(context: AccountContext, focusOnItemTag: The
                     updatedTheme = generalThemeReference
                 }
                 
-                guard let theme = makePresentationTheme(mediaBox: context.sharedContext.accountManager.mediaBox, themeReference: generalThemeReference, accentColor: accentColor?.color, wallpaper: presetWallpaper) else {
+                guard let theme = makePresentationTheme(mediaBox: context.sharedContext.accountManager.mediaBox, themeReference: generalThemeReference, accentColor: accentColor?.color, wallpaper: presetWallpaper, wallpaperGradientColors: accentColor?.baseColor.wallpaperGradientColors) else {
                     return current
                 }
                 
@@ -1296,7 +1322,7 @@ public func themeSettingsController(context: AccountContext, focusOnItemTag: The
                     }
                 }
                 
-                return PresentationThemeSettings(theme: updatedTheme, themeSpecificAccentColors: themeSpecificAccentColors, themeSpecificChatWallpapers: themeSpecificChatWallpapers, useSystemFont: current.useSystemFont, fontSize: current.fontSize, listsFontSize: current.listsFontSize, chatBubbleSettings: current.chatBubbleSettings, automaticThemeSwitchSetting: updatedAutomaticThemeSwitchSetting, largeEmoji: current.largeEmoji, disableAnimations: current.disableAnimations)
+                return PresentationThemeSettings(theme: updatedTheme, themeSpecificAccentColors: themeSpecificAccentColors, themeSpecificChatWallpapers: themeSpecificChatWallpapers, useSystemFont: current.useSystemFont, fontSize: current.fontSize, listsFontSize: current.listsFontSize, chatBubbleSettings: current.chatBubbleSettings, automaticThemeSwitchSetting: updatedAutomaticThemeSwitchSetting, largeEmoji: current.largeEmoji, reduceMotion: current.reduceMotion)
             }).start()
             
             presentCrossfadeControllerImpl?(true)

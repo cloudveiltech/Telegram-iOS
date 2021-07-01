@@ -441,6 +441,7 @@ void vp9_rc_init(const VP9EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   rc->last_post_encode_dropped_scene_change = 0;
   rc->use_post_encode_drop = 0;
   rc->ext_use_post_encode_drop = 0;
+  rc->disable_overshoot_maxq_cbr = 0;
   rc->arf_active_best_quality_adjustment_factor = 1.0;
   rc->arf_increase_active_best_quality = 0;
   rc->preserve_arf_as_gld = 0;
@@ -2704,18 +2705,18 @@ int vp9_resize_one_pass_cbr(VP9_COMP *cpi) {
   // Force downsize based on per-frame-bandwidth, for extreme case,
   // for HD input.
   if (cpi->resize_state == ORIG && cm->width * cm->height >= 1280 * 720) {
-    if (rc->avg_frame_bandwidth < (int)(300000 / 30)) {
+    if (rc->avg_frame_bandwidth < 300000 / 30) {
       resize_action = DOWN_ONEHALF;
       cpi->resize_state = ONE_HALF;
       force_downsize_rate = 1;
-    } else if (rc->avg_frame_bandwidth < (int)(400000 / 30)) {
+    } else if (rc->avg_frame_bandwidth < 400000 / 30) {
       resize_action = ONEHALFONLY_RESIZE ? DOWN_ONEHALF : DOWN_THREEFOUR;
       cpi->resize_state = ONEHALFONLY_RESIZE ? ONE_HALF : THREE_QUARTER;
       force_downsize_rate = 1;
     }
   } else if (cpi->resize_state == THREE_QUARTER &&
              cm->width * cm->height >= 960 * 540) {
-    if (rc->avg_frame_bandwidth < (int)(300000 / 30)) {
+    if (rc->avg_frame_bandwidth < 300000 / 30) {
       resize_action = DOWN_ONEHALF;
       cpi->resize_state = ONE_HALF;
       force_downsize_rate = 1;
@@ -3262,7 +3263,7 @@ int vp9_encodedframe_overshoot(VP9_COMP *cpi, int frame_size, int *q) {
       int tl = 0;
       int sl = 0;
       SVC *svc = &cpi->svc;
-      for (sl = 0; sl < svc->first_spatial_layer_to_encode; ++sl) {
+      for (sl = 0; sl < VPXMAX(1, svc->first_spatial_layer_to_encode); ++sl) {
         for (tl = 0; tl < svc->number_temporal_layers; ++tl) {
           const int layer =
               LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);

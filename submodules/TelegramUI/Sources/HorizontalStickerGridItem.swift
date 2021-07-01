@@ -49,9 +49,9 @@ final class HorizontalStickerGridItem: GridItem {
 
 final class HorizontalStickerGridItemNode: GridItemNode {
     private var currentState: (Account, HorizontalStickerGridItem, CGSize)?
-    private let imageNode: TransformImageNode
-    private var animationNode: AnimatedStickerNode?
-    private var placeholderNode: StickerShimmerEffectNode?
+    let imageNode: TransformImageNode
+    private(set) var animationNode: AnimatedStickerNode?
+    private(set) var placeholderNode: StickerShimmerEffectNode?
     
     private let stickerFetchedDisposable = MetaDisposable()
     
@@ -187,7 +187,6 @@ final class HorizontalStickerGridItemNode: GridItemNode {
         let boundingSize = bounds.insetBy(dx: 2.0, dy: 2.0).size
         
         if let placeholderNode = self.placeholderNode {
-            let placeholderFrame = CGRect(origin: CGPoint(x: floor((bounds.width - boundingSize.width) / 2.0), y: floor((bounds.height - boundingSize.height) / 2.0)), size: boundingSize)
             placeholderNode.frame = bounds
             
             if let theme = self.currentState?.1.theme, let file = self.currentState?.1.file {

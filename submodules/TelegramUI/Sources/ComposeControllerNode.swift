@@ -44,28 +44,28 @@ final class ComposeControllerNode: ASDisplayNode {
         var openCreateContactImpl: (() -> Void)?
         var openCreateNewChannelImpl: (() -> Void)?
         
-		//CloudVeil start
+        //CloudVeil start
 		var options = [
 			ContactListAdditionalOption(title: self.presentationData.strings.Compose_NewGroup, icon: .generic(UIImage(bundleImageName: "Contact List/CreateGroupActionIcon")!), action: {
-				openCreateNewGroupImpl?()
-			})
+                openCreateNewGroupImpl?()
+            })
 		]
 		if MainController.shared.isSecretChatAvailable {
 			options.append(
 				ContactListAdditionalOption(title: self.presentationData.strings.NewContact_Title, icon: .generic(UIImage(bundleImageName: "Contact List/AddMemberIcon")!), action: {
-				openCreateContactImpl?()
-				})
+                    openCreateContactImpl?()
+                })
 			)
 		}
 		options.append(
 			ContactListAdditionalOption(title: self.presentationData.strings.Compose_NewChannel, icon: .generic(UIImage(bundleImageName: "Contact List/CreateChannelActionIcon")!), action: {
-			openCreateNewChannelImpl?()
-			})
+                openCreateNewChannelImpl?()
+            })
 		)
 		
 		self.contactListNode = ContactListNode(context: context, presentation: .single(.natural(options: options, includeChatList: false)), displayPermissionPlaceholder: false)
 		//CloudVeil end
-		  
+
         super.init()
         
         self.setViewBlock({

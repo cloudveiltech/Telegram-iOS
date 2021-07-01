@@ -14,6 +14,7 @@ import DeviceLocationManager
 import TelegramNotices
 
 enum ChatContextQueryError {
+    case generic
     case inlineBotLocationRequest(PeerId)
 }
 
@@ -65,6 +66,26 @@ func contextQueryResultStateForChatInterfacePresentationState(_ chatPresentation
     return updates
 }
 
+struct StickersSearchConfiguration {
+    static var defaultValue: StickersSearchConfiguration {
+        return StickersSearchConfiguration(disableLocalSuggestions: false)
+    }
+    
+    public let disableLocalSuggestions: Bool
+    
+    fileprivate init(disableLocalSuggestions: Bool) {
+        self.disableLocalSuggestions = disableLocalSuggestions
+    }
+    
+    static func with(appConfiguration: AppConfiguration) -> StickersSearchConfiguration {
+        if let data = appConfiguration.data, let suggestOnlyApi = data["stickers_emoji_suggest_only_api"] as? Bool {
+            return StickersSearchConfiguration(disableLocalSuggestions: suggestOnlyApi)
+        } else {
+            return .defaultValue
+        }
+    }
+}
+
 private func updatedContextQueryResultStateForQuery(context: AccountContext, peer: Peer, chatLocation: ChatLocation, inputQuery: ChatPresentationInputQuery, previousQuery: ChatPresentationInputQuery?, requestBotLocationStatus: @escaping (PeerId) -> Void) -> Signal<(ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult?, ChatContextQueryError> {
     switch inputQuery {
         case let .emoji(query):
@@ -79,22 +100,34 @@ private func updatedContextQueryResultStateForQuery(context: AccountContext, pee
             } else {
                 signal = .single({ _ in return .stickers([]) })
             }
-            let stickers: Signal<(ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult?, ChatContextQueryError> = context.sharedContext.accountManager.transaction { transaction -> StickerSettings in
+            
+            let stickerConfiguration = context.account.postbox.preferencesView(keys: [PreferencesKeys.appConfiguration])
+            |> map { preferencesView -> StickersSearchConfiguration in
+                let appConfiguration: AppConfiguration = preferencesView.values[PreferencesKeys.appConfiguration] as? AppConfiguration ?? .defaultValue
+                return StickersSearchConfiguration.with(appConfiguration: appConfiguration)
+            }
+            let stickerSettings = context.sharedContext.accountManager.transaction { transaction -> StickerSettings in
                 let stickerSettings: StickerSettings = (transaction.getSharedData(ApplicationSpecificSharedDataKeys.stickerSettings) as? StickerSettings) ?? .defaultSettings
                 return stickerSettings
             }
+
+            let stickers: Signal<(ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult?, ChatContextQueryError> = combineLatest(stickerConfiguration, stickerSettings)
             |> castError(ChatContextQueryError.self)
-            |> mapToSignal { stickerSettings -> Signal<[FoundStickerItem], ChatContextQueryError> in
+            |> mapToSignal { stickerConfiguration, stickerSettings -> Signal<[FoundStickerItem], ChatContextQueryError> in
                 let scope: SearchStickersScope
                 switch stickerSettings.emojiStickerSuggestionMode {
                     case .none:
                         scope = []
                     case .all:
-                        scope = [.installed, .remote]
+                        if stickerConfiguration.disableLocalSuggestions {
+                            scope = [.remote]
+                        } else {
+                            scope = [.installed, .remote]
+                        }
                     case .installed:
                         scope = [.installed]
                 }
-                return searchStickers(account: context.account, query: query.basicEmoji.0, scope: scope)
+                return context.engine.stickers.searchStickers(query: query.basicEmoji.0, scope: scope)
                 |> castError(ChatContextQueryError.self)
             }
             |> map { stickers -> (ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult? in
@@ -231,7 +264,7 @@ private func updatedContextQueryResultStateForQuery(context: AccountContext, pee
             }
             
             let chatPeer = peer
-            let contextBot = resolvePeerByName(account: context.account, name: addressName)
+            let contextBot = context.engine.peers.resolvePeerByName(name: addressName)
             |> mapToSignal { peerId -> Signal<Peer?, NoError> in
                 if let peerId = peerId {
                     return context.account.postbox.loadedPeerWithId(peerId)
@@ -264,7 +297,12 @@ private func updatedContextQueryResultStateForQuery(context: AccountContext, pee
                         }
                     } ?? .single(nil), offset: "")
                     |> mapError { error -> ChatContextQueryError in
-                        return .inlineBotLocationRequest(user.id)
+                        switch error {
+                            case .generic:
+                                return .generic
+                            case .locationRequired:
+                                return .inlineBotLocationRequest(user.id)
+                        }
                     }
                     |> map { results -> (ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult? in
                         return { _ in
@@ -300,13 +338,13 @@ private func updatedContextQueryResultStateForQuery(context: AccountContext, pee
             
             return signal |> then(contextBot)
         case let .emojiSearch(query, languageCode, range):
-            var signal = searchEmojiKeywords(postbox: context.account.postbox, inputLanguageCode: languageCode, query: query, completeMatch: query.count < 2)
+            var signal = context.engine.stickers.searchEmojiKeywords(inputLanguageCode: languageCode, query: query, completeMatch: query.count < 2)
             if !languageCode.lowercased().hasPrefix("en") {
                 signal = signal
                 |> mapToSignal { keywords in
                     return .single(keywords)
                     |> then(
-                        searchEmojiKeywords(postbox: context.account.postbox, inputLanguageCode: "en-US", query: query, completeMatch: query.count < 3)
+                        context.engine.stickers.searchEmojiKeywords(inputLanguageCode: "en-US", query: query, completeMatch: query.count < 3)
                         |> map { englishKeywords in
                             return keywords + englishKeywords
                         }
@@ -385,18 +423,10 @@ func searchQuerySuggestionResultStateForChatInterfacePresentationState(_ chatPre
 
 private let dataDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType([.link]).rawValue)
 
-func urlPreviewStateForInputText(_ inputText: NSAttributedString?, context: AccountContext, currentQuery: String?) -> (String?, Signal<(TelegramMediaWebpage?) -> TelegramMediaWebpage?, NoError>)? {
-    guard let text = inputText else {
-        if currentQuery != nil {
-            return (nil, .single({ _ in return nil }))
-        } else {
-            return nil
-        }
-    }
-    if let dataDetector = dataDetector {
+func detectUrl(_ inputText: NSAttributedString?) -> String? {
+    var detectedUrl: String?
+    if let text = inputText, let dataDetector = dataDetector {
         let utf16 = text.string.utf16
-        
-        var detectedUrl: String?
         
         let nsRange = NSRange(location: 0, length: utf16.count)
         let matches = dataDetector.matches(in: text.string, options: [], range: nsRange)
@@ -412,7 +442,20 @@ func urlPreviewStateForInputText(_ inputText: NSAttributedString?, context: Acco
                 }
             })
         }
-        
+    }
+    return detectedUrl
+}
+
+func urlPreviewStateForInputText(_ inputText: NSAttributedString?, context: AccountContext, currentQuery: String?) -> (String?, Signal<(TelegramMediaWebpage?) -> TelegramMediaWebpage?, NoError>)? {
+    guard let _ = inputText else {
+        if currentQuery != nil {
+            return (nil, .single({ _ in return nil }))
+        } else {
+            return nil
+        }
+    }
+    if let _ = dataDetector {
+        let detectedUrl = detectUrl(inputText)
         if detectedUrl != currentQuery {
             if let detectedUrl = detectedUrl {
                 return (detectedUrl, webpagePreview(account: context.account, url: detectedUrl) |> map { value in

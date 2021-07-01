@@ -386,7 +386,7 @@ SRC += \
 webrtc_dsp/rtc_base/logging_mac.mm \
 webrtc_dsp/rtc_base/logging_mac.h
 else
-CFLAGS += -DWEBRTC_LINUX
+CFLAGS += $(if $(filter linux%,@host_os@),-DWEBRTC_LINUX)
 endif
 
 if TARGET_CPU_X86
@@ -752,6 +752,15 @@ CFLAGS += -DTGVOIP_NO_DSP
 endif
 
 libtgvoip_la_CFLAGS = $(CRYPTO_CFLAGS) $(OPUS_CFLAGS)
+
+if WITH_ALSA
+libtgvoip_la_CFLAGS += $(ALSA_CFLAGS)
+endif
+
+if WITH_PULSE
+libtgvoip_la_CFLAGS += $(PULSE_CFLAGS)
+endif
+
 libtgvoip_la_CXXFLAGS = $(libtgvoip_la_CFLAGS)
 libtgvoip_la_LDFLAGS = -version-number @LIBTGVOIP_MAJOR_VERSION@:@LIBTGVOIP_MINOR_VERSION@:@LIBTGVOIP_PATCH_VERSION@ $(CRYPTO_LIBS) $(OPUS_LIBS)
 libtgvoip_la_SOURCES = $(SRC) $(TGVOIP_HDRS)
@@ -760,7 +769,7 @@ nobase_tgvoipinclude_HEADERS = $(TGVOIP_HDRS)
 
 pkgconfig_DATA = tgvoip.pc
 
-CXXFLAGS += -std=gnu++0x $(CFLAGS)
+CXXFLAGS += -std=gnu++17 $(CFLAGS)
 if TARGET_OS_OSX
 OBJCFLAGS = $(CFLAGS)
 OBJCXXFLAGS += -std=gnu++0x $(CFLAGS)

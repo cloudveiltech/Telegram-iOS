@@ -16,8 +16,14 @@ devnull='> /dev/null 2>&1'
 BUILD_ROOT="_iosbuild"
 CONFIGURE_ARGS="--disable-docs
                 --disable-examples
-                --disable-libyuv
-                --disable-unit-tests"
+                --disable-postproc
+                --disable-webm-io
+                --disable-vp9-highbitdepth
+                --disable-vp9-postproc
+                --disable-vp9-temporal-denoising
+                --disable-unit-tests
+                --enable-realtime-only
+                --enable-multi-res-encoding"
 DIST_DIR="_dist"
 FRAMEWORK_DIR="VPX.framework"
 FRAMEWORK_LIB="VPX.framework/VPX"
@@ -34,6 +40,8 @@ if [ "$ARCH" = "armv7" ]; then
   TARGETS="armv7-darwin-gcc"
 elif [ "$ARCH" = "arm64" ]; then
   TARGETS="arm64-darwin-gcc"
+elif [ "$ARCH" = "sim_arm64" ]; then
+  TARGETS="arm64-iphonesimulator-gcc"
 elif [ "$ARCH" = "x86_64" ]; then
   TARGETS="x86_64-iphonesimulator-gcc"
 else
@@ -58,9 +66,9 @@ build_target() {
   cd "${target}"
   eval "${LIBVPX_SOURCE_DIR}/configure" --target="${target}" \
     ${CONFIGURE_ARGS} ${EXTRA_CONFIGURE_ARGS} ${target_specific_flags} \
-    ${devnull}
+
   export DIST_DIR
-  eval make dist ${devnull}
+  eval make dist
   cd "${old_pwd}"
 }
 

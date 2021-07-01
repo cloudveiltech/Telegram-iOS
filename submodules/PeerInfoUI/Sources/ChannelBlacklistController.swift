@@ -151,15 +151,15 @@ private enum ChannelBlacklistEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! ChannelBlacklistControllerArguments
         switch self {
-            case let .add(theme, text):
+            case let .add(_, text):
                 return ItemListActionItem(presentationData: presentationData, title: text, kind: .generic, alignment: .natural, sectionId: self.section, style: .blocks, action: {
                     arguments.addPeer()
                 })
-            case let .addInfo(theme, text):
+            case let .addInfo(_, text):
                 return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
-            case let .bannedHeader(theme, text):
+            case let .bannedHeader(_, text):
                 return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
-            case let .peerItem(theme, strings, dateTimeFormat, nameDisplayOrder, _, participant, editing, enabled):
+            case let .peerItem(_, strings, dateTimeFormat, nameDisplayOrder, _, participant, editing, enabled):
                 var text: ItemListPeerItemText = .none
                 switch participant.participant {
                     case let .member(_, _, _, banInfo, _):
@@ -274,7 +274,8 @@ public func channelBlacklistController(context: AccountContext, peerId: PeerId) 
     let updateState: ((ChannelBlacklistControllerState) -> ChannelBlacklistControllerState) -> Void = { f in
         statePromise.set(stateValue.modify { f($0) })
     }
-    
+
+    var getNavigationControllerImpl: (() -> NavigationController?)?
     var presentControllerImpl: ((ViewController, Any?) -> Void)?
     var pushControllerImpl: ((ViewController) -> Void)?
     var dismissInputImpl: (() -> Void)?
@@ -364,9 +365,19 @@ public func channelBlacklistController(context: AccountContext, peerId: PeerId) 
             if !participant.peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder).isEmpty {
                 items.append(ActionSheetTextItem(title: participant.peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)))
             }
-            items.append(ActionSheetButtonItem(title: presentationData.strings.GroupRemoved_ViewUserInfo, action: { [weak actionSheet] in
+            let viewInfoTitle: String
+            if participant.peer is TelegramChannel {
+                viewInfoTitle = presentationData.strings.GroupRemoved_ViewChannelInfo
+            } else {
+                viewInfoTitle = presentationData.strings.GroupRemoved_ViewUserInfo
+            }
+            items.append(ActionSheetButtonItem(title: viewInfoTitle, action: { [weak actionSheet] in
                 actionSheet?.dismissAnimated()
-                if let infoController = context.sharedContext.makePeerInfoController(context: context, peer: participant.peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
+                if participant.peer is TelegramChannel {
+                    if let navigationController = getNavigationControllerImpl?() {
+                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(participant.peer.id)))
+                    }
+                } else if let infoController = context.sharedContext.makePeerInfoController(context: context, peer: participant.peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
                     pushControllerImpl?(infoController)
                 }
             }))
@@ -519,6 +530,9 @@ public func channelBlacklistController(context: AccountContext, peerId: PeerId) 
         if let controller = controller {
             (controller.navigationController as? NavigationController)?.pushViewController(c)
         }
+    }
+    getNavigationControllerImpl = { [weak controller] in
+        return controller?.navigationController as? NavigationController
     }
     dismissInputImpl = { [weak controller] in
         controller?.view.endEditing(true)

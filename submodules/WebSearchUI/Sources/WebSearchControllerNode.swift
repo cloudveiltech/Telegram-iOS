@@ -218,6 +218,9 @@ class WebSearchControllerNode: ASDisplayNode {
         
         self.recentQueriesNode = ListView()
         self.recentQueriesNode.backgroundColor = theme.list.plainBackgroundColor
+        self.recentQueriesNode.accessibilityPageScrolledString = { row, count in
+            return presentationData.strings.VoiceOver_ScrollStatus(row, count).0
+        }
         
         super.init()
         
@@ -347,10 +350,10 @@ class WebSearchControllerNode: ASDisplayNode {
         }
         
         if themeUpdated {
-            self.segmentedBackgroundNode.backgroundColor = self.theme.rootController.navigationBar.backgroundColor
+            self.segmentedBackgroundNode.backgroundColor = self.theme.rootController.navigationBar.opaqueBackgroundColor
             self.segmentedSeparatorNode.backgroundColor = self.theme.rootController.navigationBar.separatorColor
             self.segmentedControlNode.updateTheme(SegmentedControlTheme(theme: self.theme))
-            self.toolbarBackgroundNode.backgroundColor = self.theme.rootController.navigationBar.backgroundColor
+            self.toolbarBackgroundNode.backgroundColor = self.theme.rootController.navigationBar.opaqueBackgroundColor
             self.toolbarSeparatorNode.backgroundColor = self.theme.rootController.navigationBar.separatorColor
         }
         

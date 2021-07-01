@@ -4,8 +4,10 @@
 #include "VideoCaptureInterfaceImpl.h"
 #include "VideoCapturerInterface.h"
 #include "CodecSelectHelper.h"
+#include "AudioDeviceHelper.h"
 #include "Message.h"
 #include "platform/PlatformInterface.h"
+#include "StaticThreads.h"
 
 #include "api/audio_codecs/audio_decoder_factory_template.h"
 #include "api/audio_codecs/audio_encoder_factory_template.h"
@@ -19,6 +21,7 @@
 #include "modules/rtp_rtcp/source/rtp_utility.h"
 #include "api/call/audio_sink.h"
 #include "modules/audio_processing/audio_buffer.h"
+#include "modules/audio_device/include/audio_device_factory.h"
 
 namespace tgcalls {
 namespace {
@@ -32,12 +35,6 @@ constexpr uint32_t ssrcVideoOutgoing = 4;
 constexpr uint32_t ssrcVideoFecIncoming = 7;
 constexpr uint32_t ssrcVideoFecOutgoing = 8;
 
-rtc::Thread *makeWorkerThread() {
-	static std::unique_ptr<rtc::Thread> value = rtc::Thread::Create();
-	value->SetName("WebRTC-Worker", nullptr);
-	value->Start();
-	return value.get();
-}
 
 VideoCaptureInterfaceObject *GetVideoCaptureAssumingSameThread(VideoCaptureInterface *videoCapture) {
 	return videoCapture
@@ -112,7 +109,7 @@ private:
 class AudioTrackSinkInterfaceImpl: public webrtc::AudioSinkInterface {
 private:
     std::function<void(float)> _update;
-    
+
     int _peakCount = 0;
     uint16_t _peak = 0;
 
@@ -128,7 +125,7 @@ public:
         if (audio.channels == 1) {
             int16_t *samples = (int16_t *)audio.data;
             int numberOfSamplesInFrame = (int)audio.samples_per_channel;
-            
+
             for (int i = 0; i < numberOfSamplesInFrame; i++) {
                 int16_t sample = samples[i];
                 if (sample < 0) {
@@ -139,7 +136,7 @@ public:
                 }
                 _peakCount += 1;
             }
-            
+
             if (_peakCount >= 1200) {
                 float level = ((float)(_peak)) / 4000.0f;
                 _peak = 0;
@@ -149,11 +146,6 @@ public:
         }
     }
 };
-
-rtc::Thread *MediaManager::getWorkerThread() {
-	static rtc::Thread *value = makeWorkerThread();
-	return value;
-}
 
 MediaManager::MediaManager(
 	rtc::Thread *thread,
@@ -165,6 +157,7 @@ MediaManager::MediaManager(
 	std::function<void(Message &&)> sendTransportMessage,
     std::function<void(int)> signalBarsUpdated,
     std::function<void(float)> audioLevelUpdated,
+    std::function<rtc::scoped_refptr<webrtc::AudioDeviceModule>(webrtc::TaskQueueFactory*)> createAudioDeviceModule,
     bool enableHighBitrateVideo,
     std::vector<std::string> preferredCodecs) :
 _thread(thread),
@@ -174,6 +167,7 @@ _sendSignalingMessage(std::move(sendSignalingMessage)),
 _sendTransportMessage(std::move(sendTransportMessage)),
 _signalBarsUpdated(std::move(signalBarsUpdated)),
 _audioLevelUpdated(std::move(audioLevelUpdated)),
+_createAudioDeviceModule(std::move(createAudioDeviceModule)),
 _protocolVersion(protocolVersion),
 _outgoingVideoState(videoCapture ? VideoState::Active : VideoState::Inactive),
 _videoCapture(std::move(videoCapture)),
@@ -205,10 +199,11 @@ _enableHighBitrateVideo(enableHighBitrateVideo) {
 
 	webrtc::field_trial::InitFieldTrialsFromString(
 		"WebRTC-Audio-SendSideBwe/Enabled/"
-		"WebRTC-Audio-Allocation/min:6kbps,max:32kbps/"
+		"WebRTC-Audio-Allocation/min:32kbps,max:32kbps/"
 		"WebRTC-Audio-OpusMinPacketLossRate/Enabled-1/"
 		"WebRTC-FlexFEC-03/Enabled/"
 		"WebRTC-FlexFEC-03-Advertised/Enabled/"
+        "WebRTC-Turn-AllowSystemPorts/Enabled/"
 	);
 
 	PlatformInterface::SharedInstance()->configurePlatformAudio();
@@ -227,7 +222,7 @@ _enableHighBitrateVideo(enableHighBitrateVideo) {
 		mediaDeps.video_encoder_factory->GetSupportedFormats(),
 		mediaDeps.video_decoder_factory->GetSupportedFormats(),
         preferredCodecs);
-    
+
     // [this] should outlive the analyzer
     auto analyzer = new AudioCaptureAnalyzer([this](const webrtc::AudioBuffer* buffer) {
         if (!buffer) {
@@ -250,10 +245,10 @@ _enableHighBitrateVideo(enableHighBitrateVideo) {
             }
             peakCount += 1;
         }
-        
+
         this->_thread->PostTask(RTC_FROM_HERE, [this, peak, peakCount](){
             auto strong = this;
-            
+
             strong->_myAudioLevelPeakCount += peakCount;
             if (strong->_myAudioLevelPeak < peak) {
                 strong->_myAudioLevelPeak = peak;
@@ -272,7 +267,7 @@ _enableHighBitrateVideo(enableHighBitrateVideo) {
 
     mediaDeps.audio_processing = builder.Create();
 
-	_audioDeviceModule = createAudioDeviceModule();
+	_audioDeviceModule = this->createAudioDeviceModule();
 	if (!_audioDeviceModule) {
 		return;
 	}
@@ -336,7 +331,7 @@ _enableHighBitrateVideo(enableHighBitrateVideo) {
 	audioSendPrameters.rtcp.remote_estimate = true;
 	_audioChannel->SetSendParameters(audioSendPrameters);
 	_audioChannel->AddSendStream(cricket::StreamParams::CreateLegacy(_ssrcAudio.outgoing));
-	_audioChannel->SetInterface(_audioNetworkInterface.get(), webrtc::MediaTransportConfig());
+	_audioChannel->SetInterface(_audioNetworkInterface.get());
 
 	cricket::AudioRecvParameters audioRecvParameters;
 	audioRecvParameters.codecs.emplace_back(opusSdpPayload, opusSdpName, opusClockrate, opusSdpBitrate, opusSdpChannels);
@@ -350,31 +345,31 @@ _enableHighBitrateVideo(enableHighBitrateVideo) {
     _audioChannel->AddRecvStream(audioRecvStreamParams);
 	_audioChannel->SetPlayout(true);
 
-	_videoChannel->SetInterface(_videoNetworkInterface.get(), webrtc::MediaTransportConfig());
+	_videoChannel->SetInterface(_videoNetworkInterface.get());
 
     adjustBitratePreferences(true);
 }
 
 rtc::scoped_refptr<webrtc::AudioDeviceModule> MediaManager::createAudioDeviceModule() {
-	const auto check = [&](webrtc::AudioDeviceModule::AudioLayer layer) {
-		auto result = webrtc::AudioDeviceModule::Create(
+	const auto create = [&](webrtc::AudioDeviceModule::AudioLayer layer) {
+		return webrtc::AudioDeviceModule::Create(
 			layer,
-			_taskQueueFactory.get());
-		return (result && (result->Init() == 0)) ? result : nullptr;
+            _taskQueueFactory.get());
 	};
-	if (auto result = check(webrtc::AudioDeviceModule::kPlatformDefaultAudio)) {
-		return result;
-#ifdef WEBRTC_LINUX
-	} else if (auto result = check(webrtc::AudioDeviceModule::kLinuxAlsaAudio)) {
-		return result;
-#endif // WEBRTC_LINUX
+	const auto check = [&](const rtc::scoped_refptr<webrtc::AudioDeviceModule> &result) {
+        return (result && result->Init() == 0) ? result : nullptr;
+	};
+	if (_createAudioDeviceModule) {
+        if (const auto result = check(_createAudioDeviceModule(_taskQueueFactory.get()))) {
+            return result;
+        }
 	}
-	return nullptr;
+    return check(create(webrtc::AudioDeviceModule::kPlatformDefaultAudio));
 }
 
 void MediaManager::start() {
     const auto weak = std::weak_ptr<MediaManager>(shared_from_this());
-    
+
     // Here we hope that thread outlives the sink
     rtc::Thread *thread = _thread;
     std::unique_ptr<AudioTrackSinkInterfaceImpl> incomingSink(new AudioTrackSinkInterfaceImpl([weak, thread](float level) {
@@ -385,15 +380,17 @@ void MediaManager::start() {
         });
     }));
     _audioChannel->SetRawAudioSink(_ssrcAudio.incoming, std::move(incomingSink));
-    
-	_sendSignalingMessage({ _myVideoFormats });
+
+    _sendSignalingMessage({ _myVideoFormats });
 
 	if (_videoCapture != nullptr) {
         setSendVideo(_videoCapture);
     }
 
     beginStatsTimer(3000);
-    beginLevelsTimer(50);
+    if (_audioLevelUpdated != nullptr) {
+        beginLevelsTimer(100);
+    }
 }
 
 MediaManager::~MediaManager() {
@@ -413,7 +410,7 @@ MediaManager::~MediaManager() {
 	_audioChannel->RemoveRecvStream(_ssrcAudio.incoming);
 	_audioChannel->RemoveSendStream(_ssrcAudio.outgoing);
 
-	_audioChannel->SetInterface(nullptr, webrtc::MediaTransportConfig());
+	_audioChannel->SetInterface(nullptr);
 
 	setSendVideo(nullptr);
 
@@ -436,7 +433,9 @@ MediaManager::~MediaManager() {
         }
     }
 
-    _videoChannel->SetInterface(nullptr, webrtc::MediaTransportConfig());
+    _videoChannel->SetInterface(nullptr);
+
+    _audioDeviceModule = nullptr;
 }
 
 void MediaManager::setIsConnected(bool isConnected) {
@@ -502,8 +501,8 @@ void MediaManager::beginLevelsTimer(int timeoutMs) {
 
         float effectiveLevel = fmaxf(strong->_currentAudioLevel, strong->_currentMyAudioLevel);
         strong->_audioLevelUpdated(effectiveLevel);
-        
-        strong->beginLevelsTimer(50);
+
+        strong->beginLevelsTimer(100);
     }, timeoutMs);
 }
 
@@ -745,7 +744,9 @@ void MediaManager::checkIsReceivingVideoChanged(bool wasReceiving) {
         const auto codecs = {
             cricket::kFlexfecCodecName,
             cricket::kH264CodecName,
+#ifndef WEBRTC_DISABLE_H265
             cricket::kH265CodecName,
+#endif
             cricket::kVp8CodecName,
             cricket::kVp9CodecName,
             cricket::kAv1CodecName,
@@ -874,94 +875,14 @@ void MediaManager::fillCallStats(CallStats &callStats) {
 void MediaManager::setAudioInputDevice(std::string id) {
 #if defined(WEBRTC_IOS)
 #else
-	const auto recording = _audioDeviceModule->Recording();
-	if (recording) {
-		_audioDeviceModule->StopRecording();
-	}
-	const auto finish = [&] {
-		if (recording) {
-			_audioDeviceModule->InitRecording();
-			_audioDeviceModule->StartRecording();
-		}
-	};
-	if (id == "default" || id.empty()) {
-		if (const auto result = _audioDeviceModule->SetRecordingDevice(webrtc::AudioDeviceModule::kDefaultCommunicationDevice)) {
-			RTC_LOG(LS_ERROR) << "setAudioInputDevice(" << id << "): SetRecordingDevice(kDefaultCommunicationDevice) failed: " << result << ".";
-		} else {
-			RTC_LOG(LS_INFO) << "setAudioInputDevice(" << id << "): SetRecordingDevice(kDefaultCommunicationDevice) success.";
-		}
-		return finish();
-	}
-	const auto count = _audioDeviceModule
-		? _audioDeviceModule->RecordingDevices()
-		: int16_t(-666);
-	if (count <= 0) {
-		RTC_LOG(LS_ERROR) << "setAudioInputDevice(" << id << "): Could not get recording devices count: " << count << ".";
-		return finish();
-	}
-	for (auto i = 0; i != count; ++i) {
-		char name[webrtc::kAdmMaxDeviceNameSize + 1] = { 0 };
-		char guid[webrtc::kAdmMaxGuidSize + 1] = { 0 };
-		_audioDeviceModule->RecordingDeviceName(i, name, guid);
-		if (id == guid) {
-			const auto result = _audioDeviceModule->SetRecordingDevice(i);
-			if (result != 0) {
-				RTC_LOG(LS_ERROR) << "setAudioInputDevice(" << id << ") name '" << std::string(name) << "' failed: " << result << ".";
-			} else {
-				RTC_LOG(LS_INFO) << "setAudioInputDevice(" << id << ") name '" << std::string(name) << "' success.";
-			}
-			return finish();
-		}
-	}
-	RTC_LOG(LS_ERROR) << "setAudioInputDevice(" << id << "): Could not find recording device.";
-	return finish();
+    SetAudioInputDeviceById(_audioDeviceModule.get(), id);
 #endif
 }
 
 void MediaManager::setAudioOutputDevice(std::string id) {
 #if defined(WEBRTC_IOS)
 #else
-	const auto playing = _audioDeviceModule->Playing();
-	if (playing) {
-		_audioDeviceModule->StopPlayout();
-	}
-	const auto finish = [&] {
-		if (playing) {
-			_audioDeviceModule->InitPlayout();
-			_audioDeviceModule->StartPlayout();
-		}
-	};
-	if (id == "default" || id.empty()) {
-		if (const auto result = _audioDeviceModule->SetPlayoutDevice(webrtc::AudioDeviceModule::kDefaultCommunicationDevice)) {
-			RTC_LOG(LS_ERROR) << "setAudioOutputDevice(" << id << "): SetPlayoutDevice(kDefaultCommunicationDevice) failed: " << result << ".";
-		} else {
-			RTC_LOG(LS_INFO) << "setAudioOutputDevice(" << id << "): SetPlayoutDevice(kDefaultCommunicationDevice) success.";
-		}
-		return finish();
-	}
-	const auto count = _audioDeviceModule
-		? _audioDeviceModule->PlayoutDevices()
-		: int16_t(-666);
-	if (count <= 0) {
-		RTC_LOG(LS_ERROR) << "setAudioOutputDevice(" << id << "): Could not get playout devices count: " << count << ".";
-		return finish();
-	}
-	for (auto i = 0; i != count; ++i) {
-		char name[webrtc::kAdmMaxDeviceNameSize + 1] = { 0 };
-		char guid[webrtc::kAdmMaxGuidSize + 1] = { 0 };
-		_audioDeviceModule->PlayoutDeviceName(i, name, guid);
-		if (id == guid) {
-			const auto result = _audioDeviceModule->SetPlayoutDevice(i);
-			if (result != 0) {
-				RTC_LOG(LS_ERROR) << "setAudioOutputDevice(" << id << ") name '" << std::string(name) << "' failed: " << result << ".";
-			} else {
-				RTC_LOG(LS_INFO) << "setAudioOutputDevice(" << id << ") name '" << std::string(name) << "' success.";
-			}
-			return finish();
-		}
-	}
-	RTC_LOG(LS_ERROR) << "setAudioOutputDevice(" << id << "): Could not find playout device.";
-	return finish();
+    SetAudioOutputDeviceById(_audioDeviceModule.get(), id);
 #endif
 }
 

@@ -10,17 +10,9 @@ def remove_directory(path):
         shutil.rmtree(path)
 
 
-def generate(build_environment: BuildEnvironment, disable_extensions, configuration_path, bazel_app_arguments):
+def generate(build_environment: BuildEnvironment, disable_extensions, disable_provisioning_profiles, generate_dsym, configuration_path, bazel_app_arguments):
     project_path = os.path.join(build_environment.base_path, 'build-input/gen/project')
     app_target = 'Telegram'
-
-    '''
-    TULSI_APP="build-input/gen/project/Tulsi.app"
-    TULSI="$TULSI_APP/Contents/MacOS/Tulsi"
-    
-    rm -rf "$GEN_DIRECTORY/${APP_TARGET}.tulsiproj"
-    rm -rf "$TULSI_APP"
-    '''
 
     os.makedirs(project_path, exist_ok=True)
     remove_directory('{}/Tulsi.app'.format(project_path))
@@ -28,31 +20,28 @@ def generate(build_environment: BuildEnvironment, disable_extensions, configurat
 
     tulsi_path = os.path.join(project_path, 'Tulsi.app/Contents/MacOS/Tulsi')
 
-    if is_apple_silicon():
-        tulsi_build_bazel_path = build_environment.bazel_x86_64_path
-        if tulsi_build_bazel_path is None or not os.path.isfile(tulsi_build_bazel_path):
-            print('Could not find a valid bazel x86_64 binary at {}'.format(tulsi_build_bazel_path))
-            exit(1)
-    else:
-        tulsi_build_bazel_path = build_environment.bazel_path
+    tulsi_build_bazel_path = build_environment.bazel_path
 
     current_dir = os.getcwd()
     os.chdir(os.path.join(build_environment.base_path, 'build-system/tulsi'))
-    call_executable([
-        tulsi_build_bazel_path,
-        'build', '//:tulsi',
-        '--xcode_version={}'.format(build_environment.xcode_version),
-        '--use_top_level_targets_for_symlinks',
-        '--verbose_failures'
-    ])
+
+    tulsi_build_command = []
+    tulsi_build_command += [tulsi_build_bazel_path]
+    tulsi_build_command += ['build', '//:tulsi']
+    if is_apple_silicon():
+        tulsi_build_command += ['--macos_cpus=arm64']
+    tulsi_build_command += ['--xcode_version={}'.format(build_environment.xcode_version)]
+    tulsi_build_command += ['--use_top_level_targets_for_symlinks']
+    tulsi_build_command += ['--verbose_failures']
+
+    call_executable(tulsi_build_command)
+
     os.chdir(current_dir)
 
     bazel_wrapper_path = os.path.abspath('build-input/gen/project/bazel')
 
     bazel_wrapper_arguments = []
     bazel_wrapper_arguments += ['--override_repository=build_configuration={}'.format(configuration_path)]
-    if disable_extensions and False:
-        bazel_wrapper_arguments += ['--//Telegram:disableExtensions']
 
     with open(bazel_wrapper_path, 'wb') as bazel_wrapper:
         bazel_wrapper.write('''#!/bin/sh
@@ -90,6 +79,10 @@ def generate(build_environment: BuildEnvironment, disable_extensions, configurat
     bazel_build_arguments += ['--override_repository=build_configuration={}'.format(configuration_path)]
     if disable_extensions:
         bazel_build_arguments += ['--//Telegram:disableExtensions']
+    if disable_provisioning_profiles:
+        bazel_build_arguments += ['--//Telegram:disableProvisioningProfiles']
+    if generate_dsym:
+        bazel_build_arguments += ['--apple_generate_dsym']
 
     call_executable([
         tulsi_path,

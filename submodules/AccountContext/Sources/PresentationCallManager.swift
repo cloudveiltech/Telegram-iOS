@@ -17,6 +17,11 @@ public enum JoinGroupCallManagerResult {
     case alreadyInProgress(PeerId?)
 }
 
+public enum RequestScheduleGroupCallResult {
+    case success
+    case alreadyInProgress(PeerId?)
+}
+
 public struct CallAuxiliaryServer {
     public enum Connection {
         case stun
@@ -96,6 +101,7 @@ public final class PresentationCallVideoView {
         case rotation270
     }
     
+    public let holder: AnyObject
     public let view: UIView
     public let setOnFirstFrameReceived: (((Float) -> Void)?) -> Void
     
@@ -103,21 +109,26 @@ public final class PresentationCallVideoView {
     public let getAspect: () -> CGFloat
     public let setOnOrientationUpdated: (((Orientation, CGFloat) -> Void)?) -> Void
     public let setOnIsMirroredUpdated: (((Bool) -> Void)?) -> Void
+    public let updateIsEnabled: (Bool) -> Void
     
     public init(
+        holder: AnyObject,
         view: UIView,
         setOnFirstFrameReceived: @escaping (((Float) -> Void)?) -> Void,
         getOrientation: @escaping () -> Orientation,
         getAspect: @escaping () -> CGFloat,
         setOnOrientationUpdated: @escaping (((Orientation, CGFloat) -> Void)?) -> Void,
-        setOnIsMirroredUpdated: @escaping (((Bool) -> Void)?) -> Void
+        setOnIsMirroredUpdated: @escaping (((Bool) -> Void)?) -> Void,
+        updateIsEnabled: @escaping (Bool) -> Void
     ) {
+        self.holder = holder
         self.view = view
         self.setOnFirstFrameReceived = setOnFirstFrameReceived
         self.getOrientation = getOrientation
         self.getAspect = getAspect
         self.setOnOrientationUpdated = setOnOrientationUpdated
         self.setOnIsMirroredUpdated = setOnIsMirroredUpdated
+        self.updateIsEnabled = updateIsEnabled
     }
 }
 
@@ -169,24 +180,45 @@ public struct PresentationGroupCallState: Equatable {
         case muted
     }
     
+    public var myPeerId: PeerId
     public var networkState: NetworkState
     public var canManageCall: Bool
     public var adminIds: Set<PeerId>
     public var muteState: GroupCallParticipantsContext.Participant.MuteState?
     public var defaultParticipantMuteState: DefaultParticipantMuteState?
+    public var recordingStartTimestamp: Int32?
+    public var title: String?
+    public var raisedHand: Bool
+    public var scheduleTimestamp: Int32?
+    public var subscribedToScheduled: Bool
+    public var isVideoEnabled: Bool
     
     public init(
+        myPeerId: PeerId,
         networkState: NetworkState,
         canManageCall: Bool,
         adminIds: Set<PeerId>,
         muteState: GroupCallParticipantsContext.Participant.MuteState?,
-        defaultParticipantMuteState: DefaultParticipantMuteState?
+        defaultParticipantMuteState: DefaultParticipantMuteState?,
+        recordingStartTimestamp: Int32?,
+        title: String?,
+        raisedHand: Bool,
+        scheduleTimestamp: Int32?,
+        subscribedToScheduled: Bool,
+        isVideoEnabled: Bool
     ) {
+        self.myPeerId = myPeerId
         self.networkState = networkState
         self.canManageCall = canManageCall
         self.adminIds = adminIds
         self.muteState = muteState
         self.defaultParticipantMuteState = defaultParticipantMuteState
+        self.recordingStartTimestamp = recordingStartTimestamp
+        self.title = title
+        self.raisedHand = raisedHand
+        self.scheduleTimestamp = scheduleTimestamp
+        self.subscribedToScheduled = subscribedToScheduled
+        self.isVideoEnabled = isVideoEnabled
     }
 }
 
@@ -261,34 +293,148 @@ public struct PresentationGroupCallMembers: Equatable {
     }
 }
 
+public final class PresentationGroupCallMemberEvent {
+    public let peer: Peer
+    public let isContact: Bool
+    public let isInChatList: Bool
+    public let canUnmute: Bool
+    public let joined: Bool
+    
+    public init(peer: Peer, isContact: Bool, isInChatList: Bool, canUnmute: Bool, joined: Bool) {
+        self.peer = peer
+        self.isContact = isContact
+        self.isInChatList = isInChatList
+        self.canUnmute = canUnmute
+        self.joined = joined
+    }
+}
+
+public enum PresentationGroupCallTone {
+    case unmuted
+    case recordingStarted
+}
+
+public struct PresentationGroupCallRequestedVideo {
+    public enum Quality {
+        case thumbnail
+        case medium
+        case full
+    }
+
+    public struct SsrcGroup {
+        public var semantics: String
+        public var ssrcs: [UInt32]
+    }
+
+    public var audioSsrc: UInt32
+    public var endpointId: String
+    public var ssrcGroups: [SsrcGroup]
+    public var minQuality: Quality
+    public var maxQuality: Quality
+}
+
+public extension GroupCallParticipantsContext.Participant {
+    var videoEndpointId: String? {
+        return self.videoDescription?.endpointId
+    }
+
+    var presentationEndpointId: String? {
+        return self.presentationDescription?.endpointId
+    }
+}
+
+public extension GroupCallParticipantsContext.Participant {
+    func requestedVideoChannel(minQuality: PresentationGroupCallRequestedVideo.Quality, maxQuality: PresentationGroupCallRequestedVideo.Quality) -> PresentationGroupCallRequestedVideo? {
+        guard let audioSsrc = self.ssrc else {
+            return nil
+        }
+        guard let videoDescription = self.videoDescription else {
+            return nil
+        }
+        return PresentationGroupCallRequestedVideo(audioSsrc: audioSsrc, endpointId: videoDescription.endpointId, ssrcGroups: videoDescription.ssrcGroups.map { group in
+            PresentationGroupCallRequestedVideo.SsrcGroup(semantics: group.semantics, ssrcs: group.ssrcs)
+        }, minQuality: minQuality, maxQuality: maxQuality)
+    }
+
+    func requestedPresentationVideoChannel(minQuality: PresentationGroupCallRequestedVideo.Quality, maxQuality: PresentationGroupCallRequestedVideo.Quality) -> PresentationGroupCallRequestedVideo? {
+        guard let audioSsrc = self.ssrc else {
+            return nil
+        }
+        guard let presentationDescription = self.presentationDescription else {
+            return nil
+        }
+        return PresentationGroupCallRequestedVideo(audioSsrc: audioSsrc, endpointId: presentationDescription.endpointId, ssrcGroups: presentationDescription.ssrcGroups.map { group in
+            PresentationGroupCallRequestedVideo.SsrcGroup(semantics: group.semantics, ssrcs: group.ssrcs)
+        }, minQuality: minQuality, maxQuality: maxQuality)
+    }
+}
+
 public protocol PresentationGroupCall: class {
     var account: Account { get }
     var accountContext: AccountContext { get }
     var internalId: CallSessionInternalId { get }
     var peerId: PeerId { get }
     
+    var hasVideo: Bool { get }
+    var hasScreencast: Bool { get }
+    
+    var schedulePending: Bool { get }
+    
     var audioOutputState: Signal<([AudioSessionOutput], AudioSessionOutput?), NoError> { get }
     
+    var isSpeaking: Signal<Bool, NoError> { get }
     var canBeRemoved: Signal<Bool, NoError> { get }
     var state: Signal<PresentationGroupCallState, NoError> { get }
+    var stateVersion: Signal<Int, NoError> { get }
     var summaryState: Signal<PresentationGroupCallSummaryState?, NoError> { get }
     var members: Signal<PresentationGroupCallMembers?, NoError> { get }
-    var audioLevels: Signal<[(PeerId, Float, Bool)], NoError> { get }
+    var audioLevels: Signal<[(PeerId, UInt32, Float, Bool)], NoError> { get }
     var myAudioLevel: Signal<Float, NoError> { get }
     var isMuted: Signal<Bool, NoError> { get }
+    var isNoiseSuppressionEnabled: Signal<Bool, NoError> { get }
     
+    var memberEvents: Signal<PresentationGroupCallMemberEvent, NoError> { get }
+    var reconnectedAsEvents: Signal<Peer, NoError> { get }
+    
+    func toggleScheduledSubscription(_ subscribe: Bool)
+    func schedule(timestamp: Int32)
+    func startScheduled()
+    
+    func reconnect(with invite: String)
+    func reconnect(as peerId: PeerId)
     func leave(terminateIfPossible: Bool) -> Signal<Bool, NoError>
     
     func toggleIsMuted()
     func setIsMuted(action: PresentationGroupCallMuteAction)
+    func setIsNoiseSuppressionEnabled(_ isNoiseSuppressionEnabled: Bool)
+    func raiseHand()
+    func lowerHand()
+    func requestVideo()
+    func disableVideo()
+    func disableScreencast()
+    func switchVideoCamera()
     func updateDefaultParticipantsAreMuted(isMuted: Bool)
+    func setVolume(peerId: PeerId, volume: Int32, sync: Bool)
+    func setRequestedVideoList(items: [PresentationGroupCallRequestedVideo])
     func setCurrentAudioOutput(_ output: AudioSessionOutput)
+
+    func playTone(_ tone: PresentationGroupCallTone)
     
-    func updateMuteState(peerId: PeerId, isMuted: Bool)
+    func updateMuteState(peerId: PeerId, isMuted: Bool) -> GroupCallParticipantsContext.Participant.MuteState?
+    func setShouldBeRecording(_ shouldBeRecording: Bool, title: String?)
+    
+    func updateTitle(_ title: String)
     
     func invitePeer(_ peerId: PeerId) -> Bool
     func removedPeer(_ peerId: PeerId)
     var invitedPeers: Signal<[PeerId], NoError> { get }
+    
+    var inviteLinks: Signal<GroupCallInviteLinks?, NoError> { get }
+    
+    func makeIncomingVideoView(endpointId: String, requestClone: Bool, completion: @escaping (PresentationCallVideoView?, PresentationCallVideoView?) -> Void)
+    func makeOutgoingVideoView(requestClone: Bool, completion: @escaping (PresentationCallVideoView?, PresentationCallVideoView?) -> Void)
+    
+    func loadMoreMembers(token: String)
 }
 
 public protocol PresentationCallManager: class {
@@ -296,5 +442,6 @@ public protocol PresentationCallManager: class {
     var currentGroupCallSignal: Signal<PresentationGroupCall?, NoError> { get }
     
     func requestCall(context: AccountContext, peerId: PeerId, isVideo: Bool, endCurrentIfAny: Bool) -> RequestCallResult
-    func joinGroupCall(context: AccountContext, peerId: PeerId, initialCall: CachedChannelData.ActiveCall, endCurrentIfAny: Bool) -> JoinGroupCallManagerResult
+    func joinGroupCall(context: AccountContext, peerId: PeerId, invite: String?, requestJoinAsPeerId: ((@escaping (PeerId?) -> Void) -> Void)?, initialCall: CachedChannelData.ActiveCall, endCurrentIfAny: Bool) -> JoinGroupCallManagerResult
+    func scheduleGroupCall(context: AccountContext, peerId: PeerId, endCurrentIfAny: Bool) -> RequestScheduleGroupCallResult
 }

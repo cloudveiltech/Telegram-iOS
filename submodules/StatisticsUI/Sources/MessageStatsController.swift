@@ -144,7 +144,7 @@ private enum StatsEntry: ItemListNodeEntry {
                 }
                 
                 let text: String = presentationData.strings.Stats_MessageViews(views)
-                return ItemListPeerItem(presentationData: presentationData, dateTimeFormat: PresentationDateTimeFormat(timeFormat: .military, dateFormat: .dayFirst, dateSeparator: ".", decimalSeparator: ",", groupingSeparator: ""), nameDisplayOrder: .firstLast, context: arguments.context, peer: message.peers[message.id.peerId]!, height: .generic, aliasHandling: .standard, nameColor: .primary, nameStyle: .plain, presence: nil, text: .text(text, .secondary), label: .none, editing: ItemListPeerItemEditing(editable: false, editing: false, revealed: nil), revealOptions: nil, switchValue: nil, enabled: true, highlighted: false, selectable: true, sectionId: self.section, action: {
+                return ItemListPeerItem(presentationData: presentationData, dateTimeFormat: PresentationDateTimeFormat(), nameDisplayOrder: .firstLast, context: arguments.context, peer: message.peers[message.id.peerId]!, height: .generic, aliasHandling: .standard, nameColor: .primary, nameStyle: .plain, presence: nil, text: .text(text, .secondary), label: .none, editing: ItemListPeerItemEditing(editable: false, editing: false, revealed: nil), revealOptions: nil, switchValue: nil, enabled: true, highlighted: false, selectable: true, sectionId: self.section, action: {
                     arguments.openMessage(message.id)
                 }, setPeerIdWithRevealedOptions: { _, _ in }, removePeer: { _ in }, toggleUpdated: nil, contextAction: nil)
         }
@@ -215,13 +215,13 @@ public func messageStatsController(context: AccountContext, messageId: MessageId
     
     let previousData = Atomic<MessageStats?>(value: nil)
     
-    let searchSignal = searchMessages(account: context.account, location: .publicForwards(messageId: messageId, datacenterId: Int(datacenterId)), query: "", state: nil)
+    let searchSignal = context.engine.messages.searchMessages(location: .publicForwards(messageId: messageId, datacenterId: Int(datacenterId)), query: "", state: nil)
     |> map(Optional.init)
     |> afterNext { result in
         if let result = result {
             for message in result.0.messages {
                 if let peer = message.peers[message.id.peerId], let peerReference = PeerReference(peer) {
-                    let _ = updatedRemotePeer(postbox: context.account.postbox, network: context.account.network, peer: peerReference).start()
+                    let _ = context.engine.peers.updatedRemotePeer(peer: peerReference).start()
                 }
             }
         }

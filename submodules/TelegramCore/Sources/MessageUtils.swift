@@ -25,6 +25,22 @@ public extension Message {
         }
         return nil
     }
+
+    var visibleReplyMarkupPlaceholder: String? {
+        for attribute in self.attributes {
+            if let attribute = attribute as? ReplyMarkupMessageAttribute {
+                if !attribute.flags.contains(.inline) {
+                    if attribute.flags.contains(.personal) {
+                        if !personal {
+                            return nil
+                        }
+                    }
+                    return attribute.placeholder
+                }
+            }
+        }
+        return nil
+    }
     
     var muted: Bool {
         for attribute in self.attributes {
@@ -75,6 +91,21 @@ public extension Message {
         return false
     }
     
+    var isFake: Bool {
+        if let author = self.author, author.isFake {
+            return true
+        }
+        if let forwardAuthor = self.forwardInfo?.author, forwardAuthor.isFake {
+            return true
+        }
+        for attribute in self.attributes {
+            if let attribute = attribute as? InlineBotMessageAttribute, let peerId = attribute.peerId, let bot = self.peers[peerId] as? TelegramUser, bot.isFake {
+               return true
+            }
+        }
+        return false
+    }
+    
     var sourceReference: SourceReferenceMessageAttribute? {
         for attribute in self.attributes {
             if let attribute = attribute as? SourceReferenceMessageAttribute {
@@ -89,6 +120,8 @@ public extension Message {
             if let peer = self.peers[sourceReference.messageId.peerId] {
                 return peer
             }
+        } else if let forwardInfo = self.forwardInfo, forwardInfo.flags.contains(.isImported), let author = forwardInfo.author {
+            return author
         }
         return self.author
     }
@@ -159,7 +192,7 @@ func locallyRenderedMessage(message: StoreMessage, peers: [PeerId: Peer]) -> Mes
     
     var forwardInfo: MessageForwardInfo?
     if let info = message.forwardInfo {
-        forwardInfo = MessageForwardInfo(author: info.authorId.flatMap({ peers[$0] }), source: info.sourceId.flatMap({ peers[$0] }), sourceMessageId: info.sourceMessageId, date: info.date, authorSignature: info.authorSignature, psaType: info.psaType)
+        forwardInfo = MessageForwardInfo(author: info.authorId.flatMap({ peers[$0] }), source: info.sourceId.flatMap({ peers[$0] }), sourceMessageId: info.sourceMessageId, date: info.date, authorSignature: info.authorSignature, psaType: info.psaType, flags: info.flags)
         if let author = forwardInfo?.author {
             messagePeers[author.id] = author
         }
@@ -167,10 +200,15 @@ func locallyRenderedMessage(message: StoreMessage, peers: [PeerId: Peer]) -> Mes
             messagePeers[source.id] = source
         }
     }
+
+    var hasher = Hasher()
+    hasher.combine(id.id)
+    hasher.combine(id.peerId)
     
-    var hash: Int32 = id.id
-    hash = hash &* 31 &+ id.peerId.id
-    let stableId = UInt32(clamping: hash)
+    let hashValue = Int64(hasher.finalize())
+    let first = UInt32((hashValue >> 32) & 0xffffffff)
+    let second = UInt32(hashValue & 0xffffffff)
+    let stableId = first &+ second
     
     return Message(stableId: stableId, stableVersion: 0, id: id, globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, threadId: message.threadId, timestamp: message.timestamp, flags: MessageFlags(message.flags), tags: message.tags, globalTags: message.globalTags, localTags: message.localTags, forwardInfo: forwardInfo, author: author, text: message.text, attributes: message.attributes, media: message.media, peers: messagePeers, associatedMessages: SimpleDictionary(), associatedMessageIds: [])
 }
@@ -208,6 +246,9 @@ public extension Message {
         var found = false
         for attribute in self.attributes {
             if let _ = attribute as? AutoremoveTimeoutMessageAttribute {
+                found = true
+                break
+            } else if let _ = attribute as? AutoclearTimeoutMessageAttribute {
                 found = true
                 break
             }

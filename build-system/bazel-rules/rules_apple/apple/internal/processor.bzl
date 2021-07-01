@@ -21,8 +21,6 @@ and will return information on how the bundles should be built.
 
 All partials handled by this processor must follow this API:
 
-  - The only expected argument has to be ctx. This argument is deprecated and will be dropped in a
-    future revision to the rules (b/161370390).
   - The expected output is a struct with the following optional fields:
     * bundle_files: Contains tuples of the format
       (location_type, parent_dir, files) where location_type is a field of the
@@ -128,7 +126,11 @@ def _invalid_top_level_directories_for_platform(*, platform_type):
     # codesigning for some reason. With this, we validate that there are no
     # Resources folder going to be created in the bundle, with a message that
     # better explains which files are incorrectly placed.
-    return ["Resources"]
+    #
+    # Since the build may be running on a case-insensitive file-system, which
+    # is the default for macOS, this just lists the lowercased ones, so that we
+    # can check for all other case variants.
+    return ["resources"]
 
 def _is_parent_dir_valid(*, invalid_top_level_dirs, parent_dir):
     """Validates that the files to bundle are not placed in invalid locations.
@@ -148,7 +150,8 @@ def _is_parent_dir_valid(*, invalid_top_level_dirs, parent_dir):
     if not parent_dir:
         return True
     for invalid_dir in invalid_top_level_dirs:
-        if parent_dir == invalid_dir or parent_dir.startswith(invalid_dir + "/"):
+        lowercased_parent_dir = parent_dir.lower()
+        if lowercased_parent_dir == invalid_dir or lowercased_parent_dir.startswith(invalid_dir + "/"):
             return False
     return True
 
@@ -217,43 +220,43 @@ def _archive_paths(
 def _bundle_partial_outputs_files(
         *,
         actions,
+        apple_toolchain_info,
         bundle_extension,
         bundle_name,
         codesigning_command = None,
         embedding = False,
         extra_input_files = [],
+        ipa_post_processor = None,
         label_name,
         partial_outputs,
         platform_prerequisites,
         output_file,
-        rule_descriptor,
-        rule_executables):
+        rule_descriptor):
     """Invokes bundletool to bundle the files specified by the partial outputs.
 
     Args:
       actions: The actions provider from `ctx.actions`.
+      apple_toolchain_info: `struct` of tools from the shared Apple toolchain.
       bundle_extension: The extension for the bundle.
       bundle_name: The name of the output bundle.
       codesigning_command: When building tree artifact outputs, the command to codesign the output
           bundle.
       embedding: Whether outputs are being bundled to be embedded.
       extra_input_files: Extra files to include in the bundling action.
+      ipa_post_processor: A file that acts as a bundle post processing tool. May be `None`.
       label_name: The name of the target being built.
       partial_outputs: List of partial outputs from which to collect the files
         that will be bundled inside the final archive.
       platform_prerequisites: Struct containing information on the platform being targeted.
       output_file: The file where the final zipped bundle should be created.
       rule_descriptor: A rule descriptor for platform and product types from the rule context.
-      rule_executables: List of executables defined by the rule. Typically from `ctx.executable`.
     """
 
     # Autotrim locales here only if the rule supports it and there weren't requested locales.
     config_vars = platform_prerequisites.config_vars
     requested_locales_flag = config_vars.get("apple.locales_to_include")
 
-    # TODO(b/161370390): Remove ctx from all invocations of defines.bool_value.
     trim_locales = defines.bool_value(
-        ctx = None,
         config_vars = config_vars,
         default = None,
         define_name = "apple.trim_lproj_locales",
@@ -312,7 +315,7 @@ def _bundle_partial_outputs_files(
             if (invalid_top_level_dirs and not parent_dir_is_valid):
                 file_paths = "\n".join([f.path for f in files.to_list()])
                 fail(("Error: For %s bundles, the following top level " +
-                      "directories are invalid: %s, check input files:\n%s") %
+                      "directories are invalid (case-insensitive): %s, check input files:\n%s") %
                      (platform_type, ", ".join(invalid_top_level_dirs), file_paths))
 
             sources = files.to_list()
@@ -342,7 +345,7 @@ def _bundle_partial_outputs_files(
             )
             if invalid_top_level_dirs and not parent_dir_is_valid:
                 fail(("Error: For %s bundles, the following top level " +
-                      "directories are invalid: %s") %
+                      "directories are invalid (case-insensitive): %s, check input files:\n%s") %
                      (platform_type, ", ".join(invalid_top_level_dirs)))
 
             sources = zip_files.to_list()
@@ -352,7 +355,7 @@ def _bundle_partial_outputs_files(
                 target_path = paths.join(location_to_paths[location], parent_dir or "")
                 control_zips.append(struct(src = source.path, dest = target_path))
 
-    post_processor = rule_executables.ipa_post_processor
+    post_processor = ipa_post_processor
     post_processor_path = ""
 
     if post_processor:
@@ -381,24 +384,31 @@ def _bundle_partial_outputs_files(
         content = control.to_json(),
     )
 
+    bundletool_inputs = input_files + [control_file] + extra_input_files
+
     action_args = {
-        "inputs": input_files + [control_file] + extra_input_files,
-        "outputs": [output_file],
         "arguments": [control_file.path],
+        "outputs": [output_file],
     }
 
     if tree_artifact_is_enabled:
         # Since the tree artifact bundler also runs the post processor and codesigning, this
         # action needs to run on a macOS machine.
 
-        bundling_tools = [rule_executables._codesigningtool]
+        resolved_bundletool = apple_toolchain_info.resolved_bundletool_experimental
+
+        # Required to satisfy an implicit dependency, when the codesigning commands are executed by
+        # the experimental bundle tool script.
+        resolved_codesigningtool = apple_toolchain_info.resolved_codesigningtool
+
+        bundling_tools = [resolved_bundletool.executable, resolved_codesigningtool.executable]
         if post_processor:
             bundling_tools.append(post_processor)
 
         apple_support.run(
             actions = actions,
             apple_fragment = platform_prerequisites.apple_fragment,
-            executable = rule_executables._bundletool_experimental,
+            executable = resolved_bundletool.executable,
             execution_requirements = {
                 # Added so that the output of this action is not cached remotely, in case multiple
                 # developers sign the same artifact with different identities.
@@ -407,6 +417,12 @@ def _bundle_partial_outputs_files(
                 # $HOME.
                 "no-sandbox": "1",
             },
+            inputs = depset(bundletool_inputs, transitive = [
+                resolved_bundletool.inputs,
+                resolved_codesigningtool.inputs,
+            ]),
+            input_manifests = resolved_bundletool.input_manifests +
+                              resolved_codesigningtool.input_manifests,
             mnemonic = "BundleTreeApp",
             progress_message = "Bundling, processing and signing %s" % label_name,
             tools = bundling_tools,
@@ -415,46 +431,52 @@ def _bundle_partial_outputs_files(
             **action_args
         )
     else:
+        resolved_bundletool = apple_toolchain_info.resolved_bundletool
         actions.run(
-            executable = rule_executables._bundletool,
+            executable = resolved_bundletool.executable,
+            inputs = depset(bundletool_inputs, transitive = [resolved_bundletool.inputs]),
+            input_manifests = resolved_bundletool.input_manifests,
             mnemonic = "BundleApp",
             progress_message = "Bundling %s" % label_name,
             **action_args
         )
 
-# TODO(b/161370390): Remove ctx when codesigning_command no longer depends on ctx.
 def _bundle_post_process_and_sign(
         *,
-        ctx,
         actions,
+        apple_toolchain_info,
         bundle_extension,
         bundle_name,
+        codesignopts,
         entitlements,
         executable_name,
+        ipa_post_processor,
         output_archive,
         partial_outputs,
         platform_prerequisites,
         predeclared_outputs,
+        process_and_sign_template,
         provisioning_profile,
         rule_descriptor,
-        rule_executables,
         rule_label):
     """Bundles, post-processes and signs the files in partial_outputs.
 
     Args:
-        ctx: The rule context. Deprecated.
         actions: The actions provider from `ctx.actions`.
+        apple_toolchain_info: `struct` of tools from the shared Apple toolchain.
         bundle_extension: The extension for the bundle.
         bundle_name: The name of the output bundle.
+        codesignopts: Extra options to pass to the `codesign` tool
         entitlements: The entitlements file to sign with. Can be `None` if one was not provided.
         executable_name: The name of the output executable.
+        ipa_post_processor: A file that acts as a bundle post processing tool. May be `None`.
         output_archive: The file representing the final bundled, post-processed and signed archive.
         partial_outputs: The outputs of the partials used to process this target's bundle.
         platform_prerequisites: Struct containing information on the platform being targeted.
         predeclared_outputs: Outputs declared by the owning context. Typically from `ctx.outputs`.
+        process_and_sign_template: A template for a shell script to process and sign as a file.
         provisioning_profile: File for the provisioning profile.
         rule_descriptor: A rule descriptor for platform and product types from the rule context.
-        rule_executables: List of executables defined by the rule. Typically from `ctx.executable`.
         rule_label: The label of the target being analyzed.
     """
     tree_artifact_is_enabled = is_experimental_tree_artifact_enabled(
@@ -482,26 +504,30 @@ def _bundle_post_process_and_sign(
             extra_input_files.append(provisioning_profile)
 
         # TODO(b/149874635): Don't pass frameworks_path unless the rule has it (*_application).
-        # TODO(b/161370390): Remove ctx from all instances of codesigning_command.
         codesigning_command = codesigning_support.codesigning_command(
-            ctx,
+            codesigningtool = apple_toolchain_info.resolved_codesigningtool.executable,
             entitlements = entitlements,
             frameworks_path = archive_paths[_LOCATION_ENUM.framework],
+            platform_prerequisites = platform_prerequisites,
+            provisioning_profile = provisioning_profile,
+            rule_descriptor = rule_descriptor,
             signed_frameworks = transitive_signed_frameworks,
+            codesignopts = codesignopts,
         )
 
         _bundle_partial_outputs_files(
             actions = actions,
+            apple_toolchain_info = apple_toolchain_info,
             bundle_extension = bundle_extension,
             bundle_name = bundle_name,
             codesigning_command = codesigning_command,
             extra_input_files = extra_input_files,
+            ipa_post_processor = ipa_post_processor,
             label_name = rule_label.name,
             partial_outputs = partial_outputs,
             platform_prerequisites = platform_prerequisites,
             output_file = output_archive,
             rule_descriptor = rule_descriptor,
-            rule_executables = rule_executables,
         )
 
         actions.write(
@@ -518,14 +544,15 @@ def _bundle_post_process_and_sign(
         )
         _bundle_partial_outputs_files(
             actions = actions,
+            apple_toolchain_info = apple_toolchain_info,
             bundle_extension = bundle_extension,
             bundle_name = bundle_name,
+            ipa_post_processor = ipa_post_processor,
             label_name = rule_label.name,
             partial_outputs = partial_outputs,
             platform_prerequisites = platform_prerequisites,
             output_file = unprocessed_archive,
             rule_descriptor = rule_descriptor,
-            rule_executables = rule_executables,
         )
 
         archive_codesigning_path = archive_paths[_LOCATION_ENUM.bundle]
@@ -534,16 +561,23 @@ def _bundle_post_process_and_sign(
         output_archive_root_path = outputs.root_path_from_archive(archive = output_archive)
 
         # TODO(b/149874635): Don't pass frameworks_path unless the rule has it (ios_application).
-        # TODO(b/161370390): Remove ctx from all instances of post_process_and_sign_archive_action.
         codesigning_support.post_process_and_sign_archive_action(
-            ctx,
-            archive_codesigning_path,
-            frameworks_path,
-            unprocessed_archive,
-            output_archive,
-            output_archive_root_path,
-            transitive_signed_frameworks,
+            actions = actions,
+            archive_codesigning_path = archive_codesigning_path,
+            codesignopts = codesignopts,
             entitlements = entitlements,
+            frameworks_path = frameworks_path,
+            input_archive = unprocessed_archive,
+            ipa_post_processor = ipa_post_processor,
+            label_name = rule_label.name,
+            output_archive = output_archive,
+            output_archive_root_path = output_archive_root_path,
+            platform_prerequisites = platform_prerequisites,
+            process_and_sign_template = process_and_sign_template,
+            provisioning_profile = provisioning_profile,
+            resolved_codesigningtool = apple_toolchain_info.resolved_codesigningtool,
+            rule_descriptor = rule_descriptor,
+            signed_frameworks = transitive_signed_frameworks,
         )
 
         has_different_embedding_archive = outputs.has_different_embedding_archive(
@@ -578,64 +612,74 @@ def _bundle_post_process_and_sign(
             )
             _bundle_partial_outputs_files(
                 actions = actions,
+                apple_toolchain_info = apple_toolchain_info,
                 bundle_extension = bundle_extension,
                 bundle_name = bundle_name,
                 embedding = True,
+                ipa_post_processor = ipa_post_processor,
                 label_name = rule_label.name,
                 partial_outputs = partial_outputs,
                 platform_prerequisites = platform_prerequisites,
                 output_file = unprocessed_embedded_archive,
                 rule_descriptor = rule_descriptor,
-                rule_executables = rule_executables,
             )
 
-            # TODO(b/161370390): Remove ctx from all instances of
-            # post_process_and_sign_archive_action.
             codesigning_support.post_process_and_sign_archive_action(
-                ctx,
-                embedding_archive_codesigning_path,
-                embedding_frameworks_path,
-                unprocessed_embedded_archive,
-                embedding_archive,
-                embedding_archive_root_path,
-                transitive_signed_frameworks,
+                actions = actions,
+                archive_codesigning_path = embedding_archive_codesigning_path,
+                codesignopts = codesignopts,
                 entitlements = entitlements,
+                frameworks_path = embedding_frameworks_path,
+                input_archive = unprocessed_embedded_archive,
+                ipa_post_processor = ipa_post_processor,
+                label_name = rule_label.name,
+                output_archive = embedding_archive,
+                output_archive_root_path = embedding_archive_root_path,
+                platform_prerequisites = platform_prerequisites,
+                process_and_sign_template = process_and_sign_template,
+                provisioning_profile = provisioning_profile,
+                resolved_codesigningtool = apple_toolchain_info.resolved_codesigningtool,
+                rule_descriptor = rule_descriptor,
+                signed_frameworks = transitive_signed_frameworks,
             )
 
-# TODO(b/161370390): Remove ctx when codesigning_support no longer depends on ctx.
 def _process(
         *,
-        ctx,
         actions,
+        apple_toolchain_info,
         bundle_extension,
         bundle_name,
         bundle_post_process_and_sign = True,
+        codesignopts = [],
         entitlements,
         executable_name,
+        ipa_post_processor,
         partials,
         platform_prerequisites,
         predeclared_outputs,
+        process_and_sign_template,
         provisioning_profile,
         rule_descriptor,
-        rule_executables,
         rule_label):
     """Processes a list of partials that provide the files to be bundled.
 
     Args:
-      ctx: The ctx object for the target being processed. Deprecated.
       actions: The actions provider from `ctx.actions`.
+      apple_toolchain_info: `struct` of tools from the shared Apple toolchain.
       bundle_extension: The extension for the bundle.
       bundle_name: The name of the output bundle.
       bundle_post_process_and_sign: If the process action should also post process and sign after
           calling the implementation of every partial. Defaults to True.
+      codesignopts: Extra options to pass to the `codesign` tool
       entitlements: The entitlements file to sign with. Can be `None` if one was not provided.
       executable_name: The name of the output executable.
+      ipa_post_processor: A file that acts as a bundle post processing tool. May be `None`.
       partials: The list of partials to process to construct the complete bundle.
       platform_prerequisites: Struct containing information on the platform being targeted.
       predeclared_outputs: Outputs declared by the owning context. Typically from `ctx.outputs`.
+      process_and_sign_template: A template for a shell script to process and sign as a file.
       provisioning_profile: File for the provisioning profile.
       rule_descriptor: A rule descriptor for platform and product types from the rule context.
-      rule_executables: List of executables defined by the rule. Typically from `ctx.executable`.
       rule_label: The label of the target being analyzed.
 
     Returns:
@@ -645,9 +689,7 @@ def _process(
       any additional output groups is in the `output_groups` field.
     """
 
-    # TODO(b/161370390): Remove the ctx kwarg passed to this call once ctx is removed from the args
-    # of all of the partials.
-    partial_outputs = [partial.call(p, ctx = ctx) for p in partials]
+    partial_outputs = [partial.call(p) for p in partials]
 
     if bundle_post_process_and_sign:
         output_archive = outputs.archive(
@@ -658,19 +700,21 @@ def _process(
             predeclared_outputs = predeclared_outputs,
         )
         _bundle_post_process_and_sign(
-            ctx = ctx,
             actions = actions,
+            apple_toolchain_info = apple_toolchain_info,
             bundle_extension = bundle_extension,
             bundle_name = bundle_name,
+            codesignopts = codesignopts,
             executable_name = executable_name,
             entitlements = entitlements,
+            ipa_post_processor = ipa_post_processor,
             output_archive = output_archive,
             partial_outputs = partial_outputs,
             platform_prerequisites = platform_prerequisites,
             predeclared_outputs = predeclared_outputs,
+            process_and_sign_template = process_and_sign_template,
             provisioning_profile = provisioning_profile,
             rule_descriptor = rule_descriptor,
-            rule_executables = rule_executables,
             rule_label = rule_label,
         )
         transitive_output_files = [depset([output_archive])]

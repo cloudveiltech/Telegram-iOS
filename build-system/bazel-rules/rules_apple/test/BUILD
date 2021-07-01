@@ -61,7 +61,7 @@ filegroup(
         "apple_shell_testutils.sh",
         "unittest.bash",
     ],
-    visibility = ["//test/starlark_tests:__subpackages__"],
+    visibility = ["//visibility:public"],
 )
 
 # Gather external dependencies into a target that can be injected into the
@@ -76,7 +76,7 @@ filegroup(
     testonly = 1,
     srcs = [
         "@bazel_skylib//:test_deps",
-        "@xctestrunner//file",
+        "@xctestrunner//:ios_test_runner",
     ],
 )
 
@@ -114,12 +114,21 @@ apple_shell_test(
     size = "medium",
     src = "ios_framework_import_test.sh",
     data = [
-        "//test/testdata/frameworks:ios_framework_generators",
-        "//test/testdata/frameworks:objc_headers",
-        "//test/testdata/frameworks:objc_source",
-        "//test/testdata/frameworks:swift_source",
+        "//test/testdata/fmwk:ios_framework_generators",
+        "//test/testdata/fmwk:objc_headers",
+        "//test/testdata/fmwk:objc_source",
+        "//test/testdata/fmwk:swift_source",
     ],
     shard_count = 4,
+)
+
+apple_shell_test(
+    name = "apple_intent_library_test",
+    size = "medium",
+    src = "apple_intent_library_test.sh",
+    data = [
+        "//test/testdata/resources:intent_srcs",
+    ],
 )
 
 apple_multi_shell_test(

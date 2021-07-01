@@ -136,7 +136,7 @@ void NetworkSocketWinsock::Send(NetworkPacket *packet){
 				LOGE("Got EAGAIN but there's already a pending packet");
 				failed=true;
 			}else{
-				LOGV("Socket %d not ready to send", fd);
+				LOGV("Socket %lld not ready to send", (long long)fd);
 				pendingOutgoingPacket=new Buffer(packet->length);
 				pendingOutgoingPacket->CopyFrom(packet->data, 0, packet->length);
 				readyToSend=false;
@@ -153,7 +153,7 @@ void NetworkSocketWinsock::Send(NetworkPacket *packet){
 			LOGE("send returned less than packet length but there's already a pending packet");
 			failed=true;
 		}else{
-			LOGV("Socket %d not ready to send", fd);
+			LOGV("Socket %lld not ready to send", (long long)fd);
 			pendingOutgoingPacket=new Buffer(packet->length-res);
 			pendingOutgoingPacket->CopyFrom(packet->data+res, 0, packet->length-res);
 			readyToSend=false;
@@ -694,7 +694,7 @@ bool NetworkSocketWinsock::Select(std::vector<NetworkSocket*> &readFds, std::vec
 	}
 	//LOGV("select fds left: read=%d, error=%d", readFds.size(), errorFds.size());
 
-	return readFds.size()>0 || errorFds.size()>0;
+	return readFds.size()>0 || errorFds.size()>0 || writeFds.size()>0;
 }
 
 SocketSelectCancellerWin32::SocketSelectCancellerWin32(){

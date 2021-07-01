@@ -353,7 +353,7 @@ final class ChatImageGalleryItemNode: ZoomableContentGalleryItemNode {
         |> delay(0.15, queue: Queue.mainQueue())
         let progressDisposable = progressSignal.start()
         
-        let signal = stickerPacksAttachedToMedia(account: context.account, media: media)
+        let signal = context.engine.stickers.stickerPacksAttachedToMedia(media: media)
         |> afterDisposed {
             Queue.mainQueue().async {
                 progressDisposable.dispose()
@@ -426,10 +426,10 @@ final class ChatImageGalleryItemNode: ZoomableContentGalleryItemNode {
                         strongSelf.statusNode.alpha = 1.0
                         strongSelf.statusNodeContainer.isUserInteractionEnabled = true
                         let adjustedProgress = max(progress, 0.027)
-                        strongSelf.statusNode.transitionToState(.progress(color: .white, lineWidth: nil, value: CGFloat(adjustedProgress), cancelEnabled: true), completion: {})
+                        strongSelf.statusNode.transitionToState(.progress(color: .white, lineWidth: nil, value: CGFloat(adjustedProgress), cancelEnabled: true, animateRotation: true), completion: {})
                     case .Local:
                         if let previousStatus = previousStatus, case .Fetching = previousStatus {
-                            strongSelf.statusNode.transitionToState(.progress(color: .white, lineWidth: nil, value: 1.0, cancelEnabled: true), completion: {
+                            strongSelf.statusNode.transitionToState(.progress(color: .white, lineWidth: nil, value: 1.0, cancelEnabled: true, animateRotation: true), completion: {
                                 if let strongSelf = self {
                                     strongSelf.statusNode.alpha = 0.0
                                     strongSelf.statusNodeContainer.isUserInteractionEnabled = false
@@ -487,7 +487,7 @@ final class ChatImageGalleryItemNode: ZoomableContentGalleryItemNode {
             surfaceCopyView.frame = transformedSurfaceFrame
         }
         
-        self.view.insertSubview(copyView, belowSubview: self.scrollNode.view)
+        //self.view.insertSubview(copyView, belowSubview: self.scrollNode.view)
         copyView.frame = transformedSelfFrame
         
         copyView.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, removeOnCompletion: false)

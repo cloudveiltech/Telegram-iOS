@@ -345,7 +345,7 @@ private final class VisualMediaItemNode: ASDisplayNode {
                             switch status {
                             case let .Fetching(_, progress):
                                 let adjustedProgress = max(progress, 0.027)
-                                statusState = .progress(color: .white, lineWidth: nil, value: CGFloat(adjustedProgress), cancelEnabled: true)
+                                statusState = .progress(color: .white, lineWidth: nil, value: CGFloat(adjustedProgress), cancelEnabled: true, animateRotation: true)
                             case .Local:
                                 statusState = .none
                             case .Remote:
@@ -402,15 +402,15 @@ private final class VisualMediaItemNode: ASDisplayNode {
             }
             self.item = (item, media, size, mediaDimensions)
             
-            let progressDiameter: CGFloat = 40.0
-            self.statusNode.frame = CGRect(origin: CGPoint(x: floor((size.width - progressDiameter) / 2.0), y: floor((size.height - progressDiameter) / 2.0)), size: CGSize(width: progressDiameter, height: progressDiameter))
-            
-            self.mediaBadgeNode.frame = CGRect(origin: CGPoint(x: size.width - 3.0, y: size.height - 18.0 - 3.0), size: CGSize(width: 50.0, height: 50.0))
-            
-            self.selectionNode?.frame = CGRect(origin: CGPoint(), size: size)
-            
             self.updateHiddenMedia()
         }
+        
+        let progressDiameter: CGFloat = 40.0
+        self.statusNode.frame = CGRect(origin: CGPoint(x: floor((size.width - progressDiameter) / 2.0), y: floor((size.height - progressDiameter) / 2.0)), size: CGSize(width: progressDiameter, height: progressDiameter))
+        
+        self.mediaBadgeNode.frame = CGRect(origin: CGPoint(x: size.width - 3.0, y: size.height - 18.0 - 3.0), size: CGSize(width: 50.0, height: 50.0))
+        
+        self.selectionNode?.frame = CGRect(origin: CGPoint(), size: size)
         
         if let (item, media, _, mediaDimensions) = self.item {
             self.item = (item, media, size, mediaDimensions)
@@ -764,6 +764,8 @@ final class PeerInfoVisualMediaPaneNode: ASDisplayNode, PeerInfoPaneNode, UIScro
     private let chatControllerInteraction: ChatControllerInteraction
     private let contentType: ContentType
     
+    weak var parentController: ViewController?
+    
     private let scrollNode: ASScrollNode
     private let floatingHeaderNode: FloatingHeaderNode
     private var flashHeaderDelayTimer: Foundation.Timer?
@@ -781,9 +783,7 @@ final class PeerInfoVisualMediaPaneNode: ASDisplayNode, PeerInfoPaneNode, UIScro
     var isReady: Signal<Bool, NoError> {
         return self.ready.get()
     }
-    
-    let shouldReceiveExpandProgressUpdates: Bool = false
-    
+        
     private let listDisposable = MetaDisposable()
     private var hiddenMediaDisposable: Disposable?
     private var mediaItems: [VisualMediaItem] = []
@@ -826,7 +826,7 @@ final class PeerInfoVisualMediaPaneNode: ASDisplayNode, PeerInfoPaneNode, UIScro
         
         self.scrollNode.view.delaysContentTouches = false
         self.scrollNode.view.canCancelContentTouches = true
-        self.scrollNode.view.showsVerticalScrollIndicator = true
+        self.scrollNode.view.showsVerticalScrollIndicator = false
         if #available(iOS 11.0, *) {
             self.scrollNode.view.contentInsetAdjustmentBehavior = .never
         }
@@ -870,6 +870,21 @@ final class PeerInfoVisualMediaPaneNode: ASDisplayNode, PeerInfoPaneNode, UIScro
         self.listDisposable.dispose()
         self.hiddenMediaDisposable?.dispose()
         self.animationTimer?.invalidate()
+    }
+    
+    func ensureMessageIsVisible(id: MessageId) {
+        let activeRect = self.scrollNode.bounds
+        for item in self.mediaItems {
+            if item.message.id == id {
+                if let itemNode = self.visibleMediaItems[item.message.stableId] {
+                    if !activeRect.contains(itemNode.frame) {
+                        let targetContentOffset = CGPoint(x: 0.0, y: max(-self.scrollNode.view.contentInset.top, itemNode.frame.minY - (self.scrollNode.frame.height - itemNode.frame.height) / 2.0))
+                        self.scrollNode.view.setContentOffset(targetContentOffset, animated: false)
+                    }
+                }
+                break
+            }
+        }
     }
     
     private func requestHistoryAroundVisiblePosition() {

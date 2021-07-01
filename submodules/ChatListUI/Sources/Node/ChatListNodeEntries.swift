@@ -5,6 +5,7 @@ import TelegramCore
 import SyncCore
 import TelegramPresentationData
 import MergeLists
+import AccountContext
 
 enum ChatListNodeEntryId: Hashable {
     case Header
@@ -50,7 +51,7 @@ enum ChatListNodeEntry: Comparable, Identifiable {
     case HoleEntry(ChatListHole, theme: PresentationTheme)
     case GroupReferenceEntry(index: ChatListIndex, presentationData: ChatListPresentationData, groupId: PeerGroupId, peers: [ChatListGroupReferencePeer], message: Message?, editing: Bool, unreadState: PeerGroupUnreadCountersCombinedSummary, revealed: Bool, hiddenByDefault: Bool)
     case ArchiveIntro(presentationData: ChatListPresentationData)
-    case AdditionalCategory(index: Int, id: Int, title: String, image: UIImage?, selected: Bool, presentationData: ChatListPresentationData)
+    case AdditionalCategory(index: Int, id: Int, title: String, image: UIImage?, appearance: ChatListNodeAdditionalCategory.Appearance, selected: Bool, presentationData: ChatListPresentationData)
     
     var sortIndex: ChatListNodeEntrySortIndex {
         switch self {
@@ -242,8 +243,8 @@ enum ChatListNodeEntry: Comparable, Identifiable {
                 } else {
                     return false
                 }
-            case let .AdditionalCategory(lhsIndex, lhsId, lhsTitle, lhsImage, lhsSelected, lhsPresentationData):
-                if case let .AdditionalCategory(rhsIndex, rhsId, rhsTitle, rhsImage, rhsSelected, rhsPresentationData) = rhs {
+            case let .AdditionalCategory(lhsIndex, lhsId, lhsTitle, lhsImage, lhsAppearance, lhsSelected, lhsPresentationData):
+                if case let .AdditionalCategory(rhsIndex, rhsId, rhsTitle, rhsImage, rhsAppearance, rhsSelected, rhsPresentationData) = rhs {
                     if lhsIndex != rhsIndex {
                         return false
                     }
@@ -254,6 +255,9 @@ enum ChatListNodeEntry: Comparable, Identifiable {
                         return false
                     }
                     if lhsImage !== rhsImage {
+                        return false
+                    }
+                    if lhsAppearance != rhsAppearance {
                         return false
                     }
                     if lhsSelected != rhsSelected {
@@ -356,7 +360,7 @@ func chatListNodeEntriesForView(_ view: ChatListView, state: ChatListNodeState, 
         
         if view.laterIndex == nil, case .chatList = mode {
             for groupReference in view.groupEntries {
-                let messageIndex = MessageIndex(id: MessageId(peerId: PeerId(namespace: 0, id: 0), namespace: 0, id: 0), timestamp: 1)
+                let messageIndex = MessageIndex(id: MessageId(peerId: PeerId(0), namespace: 0, id: 0), timestamp: 1)
                 result.append(.GroupReferenceEntry(index: ChatListIndex(pinningIndex: pinningIndex, messageIndex: messageIndex), presentationData: state.presentationData, groupId: groupReference.groupId, peers: groupReference.renderedPeers, message: groupReference.message, editing: state.editing, unreadState: groupReference.unreadState, revealed: state.archiveShouldBeTemporaryRevealed, hiddenByDefault: hideArchivedFolderByDefault))
                 if pinningIndex != 0 {
                     pinningIndex -= 1
@@ -374,7 +378,7 @@ func chatListNodeEntriesForView(_ view: ChatListView, state: ChatListNodeState, 
             _) = mode {
             var index = 0
             for category in additionalCategories.reversed(){
-                result.append(.AdditionalCategory(index: index, id: category.id, title: category.title, image: category.icon, selected: state.selectedAdditionalCategoryIds.contains(category.id), presentationData: state.presentationData))
+                result.append(.AdditionalCategory(index: index, id: category.id, title: category.title, image: category.icon, appearance: category.appearance, selected: state.selectedAdditionalCategoryIds.contains(category.id), presentationData: state.presentationData))
                 index += 1
             }
         }

@@ -15,22 +15,29 @@ func titlePanelForChatPresentationInterfaceState(_ chatPresentationInterfaceStat
         return nil
     }
     
-    var isScheduledOrPinnedMessages = false
+    var inhibitTitlePanelDisplay = false
     switch chatPresentationInterfaceState.subject {
     case .scheduledMessages, .pinnedMessages:
-        isScheduledOrPinnedMessages = true
+        inhibitTitlePanelDisplay = true
     default:
         break
     }
+    if case .peer = chatPresentationInterfaceState.chatLocation {
+    } else {
+        inhibitTitlePanelDisplay = true
+    }
     
     var selectedContext: ChatTitlePanelContext?
-    if !chatPresentationInterfaceState.titlePanelContexts.isEmpty && !isScheduledOrPinnedMessages {
+    if !chatPresentationInterfaceState.titlePanelContexts.isEmpty {
         loop: for context in chatPresentationInterfaceState.titlePanelContexts.reversed() {
             switch context {
                 case .pinnedMessage:
-                    if let pinnedMessage = chatPresentationInterfaceState.pinnedMessage, pinnedMessage.topMessageId != chatPresentationInterfaceState.interfaceState.messageActionsState.closedPinnedMessageId, !chatPresentationInterfaceState.pendingUnpinnedAllMessages {
-                        selectedContext = context
-                        break loop
+                    if case .pinnedMessages = chatPresentationInterfaceState.subject {
+                    } else {
+                        if let pinnedMessage = chatPresentationInterfaceState.pinnedMessage, pinnedMessage.topMessageId != chatPresentationInterfaceState.interfaceState.messageActionsState.closedPinnedMessageId, !chatPresentationInterfaceState.pendingUnpinnedAllMessages {
+                            selectedContext = context
+                            break loop
+                        }
                     }
                 case .chatInfo, .requestInProgress, .toastAlert:
                     selectedContext = context
@@ -38,9 +45,18 @@ func titlePanelForChatPresentationInterfaceState(_ chatPresentationInterfaceStat
             }
         }
     }
+
+    if inhibitTitlePanelDisplay, let selectedContextValue = selectedContext {
+        switch selectedContextValue {
+        case .pinnedMessage:
+            break
+        default:
+            selectedContext = nil
+        }
+    }
     
     var displayActionsPanel = false
-    if !chatPresentationInterfaceState.peerIsBlocked && !isScheduledOrPinnedMessages, let contactStatus = chatPresentationInterfaceState.contactStatus, let peerStatusSettings = contactStatus.peerStatusSettings {
+    if !chatPresentationInterfaceState.peerIsBlocked && !inhibitTitlePanelDisplay, let contactStatus = chatPresentationInterfaceState.contactStatus, let peerStatusSettings = contactStatus.peerStatusSettings {
         if !peerStatusSettings.flags.isEmpty {
             if contactStatus.canAddContact && peerStatusSettings.contains(.canAddContact) {
                 displayActionsPanel = true
@@ -49,6 +65,8 @@ func titlePanelForChatPresentationInterfaceState(_ chatPresentationInterfaceStat
             } else if peerStatusSettings.contains(.canShareContact) {
                 displayActionsPanel = true
             } else if contactStatus.canReportIrrelevantLocation && peerStatusSettings.contains(.canReportIrrelevantGeoLocation) {
+                displayActionsPanel = true
+            } else if peerStatusSettings.contains(.suggestAddMembers) {
                 displayActionsPanel = true
             }
         }

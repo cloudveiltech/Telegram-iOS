@@ -8,6 +8,7 @@ import ItemListUI
 import PresentationDataUtils
 import ActivityIndicator
 import ChatListSearchItemNode
+import ShimmerEffect
 
 struct LocalizationListItemEditing: Equatable {
     let editable: Bool
@@ -23,6 +24,7 @@ class LocalizationListItem: ListViewItem, ItemListItem {
     let subtitle: String
     let checked: Bool
     let activity: Bool
+    let loading: Bool
     let editing: LocalizationListItemEditing
     let sectionId: ItemListSectionId
     let alwaysPlain: Bool
@@ -30,13 +32,14 @@ class LocalizationListItem: ListViewItem, ItemListItem {
     let setItemWithRevealedOptions: (String?, String?) -> Void
     let removeItem: (String) -> Void
     
-    init(presentationData: ItemListPresentationData, id: String, title: String, subtitle: String, checked: Bool, activity: Bool, editing: LocalizationListItemEditing, sectionId: ItemListSectionId, alwaysPlain: Bool, action: @escaping () -> Void, setItemWithRevealedOptions: @escaping (String?, String?) -> Void, removeItem: @escaping (String) -> Void) {
+    init(presentationData: ItemListPresentationData, id: String, title: String, subtitle: String, checked: Bool, activity: Bool, loading: Bool, editing: LocalizationListItemEditing, sectionId: ItemListSectionId, alwaysPlain: Bool, action: @escaping () -> Void, setItemWithRevealedOptions: @escaping (String?, String?) -> Void, removeItem: @escaping (String) -> Void) {
         self.presentationData = presentationData
         self.id = id
         self.title = title
         self.subtitle = subtitle
         self.checked = checked
         self.activity = activity
+        self.loading = loading
         self.editing = editing
         self.sectionId = sectionId
         self.alwaysPlain = alwaysPlain
@@ -108,14 +111,19 @@ class LocalizationListItemNode: ItemListRevealOptionsItemNode {
     private var item: LocalizationListItem?
     private var layoutParams: (ListViewItemLayoutParams, ItemListNeighbors)?
     
+    private var placeholderNode: ShimmerEffectNode?
+    private var absoluteLocation: (CGRect, CGSize)?
+    
     private var editableControlNode: ItemListEditableControlNode?
     private var reorderControlNode: ItemListEditableReorderControlNode?
+    
+    private let activateArea: AccessibilityAreaNode
     
     override var canBeSelected: Bool {
         if self.editableControlNode != nil {
             return false
         }
-        if let _ = self.layoutParams?.0 {
+        if let _ = self.layoutParams?.0, let item = self.item, !item.loading {
             return super.canBeSelected
         } else {
             return false
@@ -153,12 +161,25 @@ class LocalizationListItemNode: ItemListRevealOptionsItemNode {
         self.highlightedBackgroundNode = ASDisplayNode()
         self.highlightedBackgroundNode.isLayerBacked = true
         
+        self.activateArea = AccessibilityAreaNode()
+        
         super.init(layerBacked: false, dynamicBounce: false, rotated: false, seeThrough: false)
         
         self.addSubnode(self.iconNode)
         self.addSubnode(self.activityNode)
         self.addSubnode(self.titleNode)
         self.addSubnode(self.subtitleNode)
+        
+        self.addSubnode(self.activateArea)
+    }
+    
+    override public func updateAbsoluteRect(_ rect: CGRect, within containerSize: CGSize) {
+        var rect = rect
+        rect.origin.y += self.insets.top
+        self.absoluteLocation = (rect, containerSize)
+        if let shimmerNode = self.placeholderNode {
+            shimmerNode.updateAbsoluteRect(rect, within: containerSize)
+        }
     }
     
     func asyncLayout() -> (_ item: LocalizationListItem, _ params: ListViewItemLayoutParams, _ neighbors: ItemListNeighbors) -> (ListViewItemNodeLayout, (Bool) -> Void) {
@@ -209,6 +230,10 @@ class LocalizationListItemNode: ItemListRevealOptionsItemNode {
                 if let strongSelf = self {
                     strongSelf.item = item
                     strongSelf.layoutParams = (params, neighbors)
+                    
+                    strongSelf.activateArea.frame = CGRect(origin: CGPoint(x: params.leftInset, y: 0.0), size: CGSize(width: params.width - params.leftInset - params.rightInset, height: layout.contentSize.height))
+                    strongSelf.activateArea.accessibilityLabel = item.title
+                    strongSelf.activateArea.accessibilityValue = item.subtitle
                     
                     let revealOffset = strongSelf.revealOffset
                     
@@ -312,6 +337,42 @@ class LocalizationListItemNode: ItemListRevealOptionsItemNode {
                         strongSelf.setRevealOptions((left: [], right: []))
                     }
                     strongSelf.setRevealOptionsOpened(item.editing.revealed, animated: animated)
+                    
+                    if item.loading {
+                        let shimmerNode: ShimmerEffectNode
+                        if let current = strongSelf.placeholderNode {
+                            shimmerNode = current
+                        } else {
+                            shimmerNode = ShimmerEffectNode()
+                            strongSelf.placeholderNode = shimmerNode
+                            if strongSelf.bottomStripeNode.supernode != nil {
+                                strongSelf.insertSubnode(shimmerNode, belowSubnode: strongSelf.bottomStripeNode)
+                            } else {
+                                strongSelf.addSubnode(shimmerNode)
+                            }
+                        }
+                        shimmerNode.frame = CGRect(origin: CGPoint(), size: layout.contentSize)
+                        if let (rect, size) = strongSelf.absoluteLocation {
+                            shimmerNode.updateAbsoluteRect(rect, within: size)
+                        }
+                        
+                        var shapes: [ShimmerEffectNode.Shape] = []
+                        
+                        let titleLineWidth: CGFloat = 80.0
+                        let subtitleLineWidth: CGFloat = 50.0
+                        let lineDiameter: CGFloat = 10.0
+                        
+                        let titleFrame = strongSelf.titleNode.frame
+                        shapes.append(.roundedRectLine(startPoint: CGPoint(x: titleFrame.minX, y: titleFrame.minY + floor((titleFrame.height - lineDiameter) / 2.0)), width: titleLineWidth, diameter: lineDiameter))
+                        
+                        let subtitleFrame = strongSelf.subtitleNode.frame
+                        shapes.append(.roundedRectLine(startPoint: CGPoint(x: subtitleFrame.minX, y: subtitleFrame.minY + floor((subtitleFrame.height - lineDiameter) / 2.0)), width: subtitleLineWidth, diameter: lineDiameter))
+                        
+                        shimmerNode.update(backgroundColor: item.presentationData.theme.list.itemBlocksBackgroundColor, foregroundColor: item.presentationData.theme.list.mediaPlaceholderColor, shimmeringColor: item.presentationData.theme.list.itemBlocksBackgroundColor.withAlphaComponent(0.4), shapes: shapes, size: layout.contentSize)
+                    } else if let shimmerNode = strongSelf.placeholderNode {
+                        strongSelf.placeholderNode = nil
+                        shimmerNode.removeFromSupernode()
+                    }
                 }
             })
         }

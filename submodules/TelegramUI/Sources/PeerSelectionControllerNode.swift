@@ -19,6 +19,7 @@ final class PeerSelectionControllerNode: ASDisplayNode {
     private let present: (ViewController, Any?) -> Void
     private let dismiss: () -> Void
     private let filter: ChatListNodePeersFilter
+    private let hasGlobalSearch: Bool
     
     var inProgress: Bool = false {
         didSet {
@@ -28,7 +29,7 @@ final class PeerSelectionControllerNode: ASDisplayNode {
     
     var navigationBar: NavigationBar?
     
-    private let toolbarBackgroundNode: ASDisplayNode?
+    private let toolbarBackgroundNode: NavigationBackgroundNode?
     private let toolbarSeparatorNode: ASDisplayNode?
     private let segmentedControlNode: SegmentedControlNode?
     
@@ -46,7 +47,7 @@ final class PeerSelectionControllerNode: ASDisplayNode {
     
     var requestActivateSearch: (() -> Void)?
     var requestDeactivateSearch: (() -> Void)?
-    var requestOpenPeer: ((PeerId) -> Void)?
+    var requestOpenPeer: ((Peer) -> Void)?
     var requestOpenDisabledPeer: ((Peer) -> Void)?
     var requestOpenPeerFromSearch: ((Peer) -> Void)?
     var requestOpenMessageFromSearch: ((Peer, MessageId) -> Void)?
@@ -59,17 +60,18 @@ final class PeerSelectionControllerNode: ASDisplayNode {
         return self.readyValue.get()
     }
     
-    init(context: AccountContext, filter: ChatListNodePeersFilter, hasContactSelector: Bool, present: @escaping (ViewController, Any?) -> Void, dismiss: @escaping () -> Void) {
+    init(context: AccountContext, filter: ChatListNodePeersFilter, hasChatListSelector: Bool, hasContactSelector: Bool, hasGlobalSearch: Bool, createNewGroup: (() -> Void)?, present: @escaping (ViewController, Any?) -> Void, dismiss: @escaping () -> Void) {
         self.context = context
         self.present = present
         self.dismiss = dismiss
         self.filter = filter
+        self.hasGlobalSearch = hasGlobalSearch
         
-        self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        self.presentationData = presentationData
         
-        if hasContactSelector {
-            self.toolbarBackgroundNode = ASDisplayNode()
-            self.toolbarBackgroundNode?.backgroundColor = self.presentationData.theme.rootController.navigationBar.backgroundColor
+        if hasChatListSelector && hasContactSelector {
+            self.toolbarBackgroundNode = NavigationBackgroundNode(color: self.presentationData.theme.rootController.navigationBar.blurredBackgroundColor)
             
             self.toolbarSeparatorNode = ASDisplayNode()
             self.toolbarSeparatorNode?.backgroundColor = self.presentationData.theme.rootController.navigationBar.separatorColor
@@ -84,8 +86,14 @@ final class PeerSelectionControllerNode: ASDisplayNode {
             self.toolbarSeparatorNode = nil
             self.segmentedControlNode = nil
         }
+        
+        var chatListcategories: [ChatListNodeAdditionalCategory] = []
+        
+        if let _ = createNewGroup {
+            chatListcategories.append(ChatListNodeAdditionalCategory(id: 0, icon: PresentationResourcesItemList.createGroupIcon(self.presentationData.theme), title: self.presentationData.strings.PeerSelection_ImportIntoNewGroup, appearance: .action))
+        }
        
-        self.chatListNode = ChatListNode(context: context, groupId: .root, previewing: false, fillPreloadItems: false, mode: .peers(filter: filter, isSelecting: false, additionalCategories: [], chatListFilters: nil), theme: presentationData.theme, fontSize: presentationData.listsFontSize, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, nameSortOrder: presentationData.nameSortOrder, nameDisplayOrder: presentationData.nameDisplayOrder, disableAnimations: presentationData.disableAnimations)
+        self.chatListNode = ChatListNode(context: context, groupId: .root, previewing: false, fillPreloadItems: false, mode: .peers(filter: filter, isSelecting: false, additionalCategories: chatListcategories, chatListFilters: nil), theme: self.presentationData.theme, fontSize: presentationData.listsFontSize, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, nameSortOrder: presentationData.nameSortOrder, nameDisplayOrder: presentationData.nameDisplayOrder, disableAnimations: true)
         
         super.init()
         
@@ -93,14 +101,23 @@ final class PeerSelectionControllerNode: ASDisplayNode {
             return UITracingLayerView()
         })
         
+        self.chatListNode.additionalCategorySelected = { _ in
+            createNewGroup?()
+        }
+        
         self.backgroundColor = self.presentationData.theme.chatList.backgroundColor
+        
+        self.chatListNode.accessibilityPageScrolledString = { row, count in
+            return presentationData.strings.VoiceOver_ScrollStatus(row, count).0
+        }
         
         self.chatListNode.activateSearch = { [weak self] in
             self?.requestActivateSearch?()
         }
         
-        self.chatListNode.peerSelected = { [weak self] peer, _, _ in
-            self?.requestOpenPeer?(peer.id)
+        self.chatListNode.peerSelected = { [weak self] peer, _, _, _ in
+            self?.chatListNode.clearHighlightAnimated(true)
+            self?.requestOpenPeer?(peer)
         }
         
         self.chatListNode.disabledPeerSelected = { [weak self] peer in
@@ -133,7 +150,7 @@ final class PeerSelectionControllerNode: ASDisplayNode {
             }
         })
         
-        if hasContactSelector {
+        if hasChatListSelector && hasContactSelector {
             self.segmentedControlNode!.selectedIndexChanged = { [weak self] index in
                 self?.indexChanged(index)
             }
@@ -143,6 +160,9 @@ final class PeerSelectionControllerNode: ASDisplayNode {
             self.addSubnode(self.segmentedControlNode!)
         }
         
+        if !hasChatListSelector && hasContactSelector {
+            self.indexChanged(1)
+        }
         
         self.readyValue.set(self.chatListNode.ready)
     }
@@ -154,9 +174,9 @@ final class PeerSelectionControllerNode: ASDisplayNode {
     private func updateThemeAndStrings() {
         self.backgroundColor = self.presentationData.theme.chatList.backgroundColor
         self.searchDisplayController?.updatePresentationData(self.presentationData)
-        self.chatListNode.updateThemeAndStrings(theme: self.presentationData.theme, fontSize: self.presentationData.listsFontSize, strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, nameSortOrder: self.presentationData.nameSortOrder, nameDisplayOrder: self.presentationData.nameDisplayOrder, disableAnimations: self.presentationData.disableAnimations)
+        self.chatListNode.updateThemeAndStrings(theme: self.presentationData.theme, fontSize: self.presentationData.listsFontSize, strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, nameSortOrder: self.presentationData.nameSortOrder, nameDisplayOrder: self.presentationData.nameDisplayOrder, disableAnimations: true)
         
-        self.toolbarBackgroundNode?.backgroundColor = self.presentationData.theme.rootController.navigationBar.backgroundColor
+        self.toolbarBackgroundNode?.updateColor(color: self.presentationData.theme.rootController.navigationBar.blurredBackgroundColor, transition: .immediate)
         self.toolbarSeparatorNode?.backgroundColor = self.presentationData.theme.rootController.navigationBar.separatorColor
         self.segmentedControlNode?.updateTheme(SegmentedControlTheme(theme: self.presentationData.theme))
     }
@@ -171,9 +191,10 @@ final class PeerSelectionControllerNode: ASDisplayNode {
         if let segmentedControlNode = self.segmentedControlNode, let toolbarBackgroundNode = self.toolbarBackgroundNode, let toolbarSeparatorNode = self.toolbarSeparatorNode {
             toolbarHeight += 44.0
             transition.updateFrame(node: toolbarBackgroundNode, frame: CGRect(origin: CGPoint(x: 0.0, y: layout.size.height - toolbarHeight), size: CGSize(width: layout.size.width, height: toolbarHeight)))
+            toolbarBackgroundNode.update(size: toolbarBackgroundNode.bounds.size, transition: transition)
             transition.updateFrame(node: toolbarSeparatorNode, frame: CGRect(origin: CGPoint(x: 0.0, y: layout.size.height - toolbarHeight), size: CGSize(width: layout.size.width, height: UIScreenPixel)))
             
-            let controlSize = segmentedControlNode.updateLayout(.sizeToFit(maximumWidth: layout.size.width, minimumWidth: 200.0), transition: transition)
+            let controlSize = segmentedControlNode.updateLayout(.sizeToFit(maximumWidth: layout.size.width, minimumWidth: 200.0, height: 32.0), transition: transition)
             transition.updateFrame(node: segmentedControlNode, frame: CGRect(origin: CGPoint(x: floor((layout.size.width - controlSize.width) / 2.0), y: layout.size.height - toolbarHeight + floor((44.0 - controlSize.height) / 2.0)), size: controlSize))
         }
         
@@ -228,7 +249,8 @@ final class PeerSelectionControllerNode: ASDisplayNode {
                 if let requestOpenMessageFromSearch = self?.requestOpenMessageFromSearch {
                     requestOpenMessageFromSearch(peer, messageId)
                 }
-            }, addContact: nil, peerContextAction: nil, present: { _, _ in
+            }, addContact: nil, peerContextAction: nil, present: { [weak self] c, a in
+                self?.present(c, a)
             }, presentInGlobalOverlay: { _, _ in
             }, navigationController: nil), cancel: { [weak self] in
                 if let requestDeactivateSearch = self?.requestDeactivateSearch {
@@ -248,7 +270,11 @@ final class PeerSelectionControllerNode: ASDisplayNode {
             }, placeholder: placeholderNode)
             
         } else if let contactListNode = self.contactListNode, contactListNode.supernode != nil {
-            self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ContactsSearchContainerNode(context: self.context, onlyWriteable: true, categories: [.cloudContacts, .global], addContact: nil, openPeer: { [weak self] peer in
+            var categories: ContactsSearchCategories = [.cloudContacts]
+            if self.hasGlobalSearch {
+                categories.insert(.global)
+            }
+            self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ContactsSearchContainerNode(context: self.context, onlyWriteable: true, categories: categories, addContact: nil, openPeer: { [weak self] peer in
                 if let strongSelf = self {
                     switch peer {
                         case let .peer(peer, _, _):
@@ -303,10 +329,6 @@ final class PeerSelectionControllerNode: ASDisplayNode {
     }
     
     private func indexChanged(_ index: Int) {
-        guard let (layout, navigationHeight, actualNavigationHeight) = self.containerLayout else {
-            return
-        }
-            
         let contactListActive = index == 1
         if contactListActive != self.contactListActive {
             self.contactListActive = contactListActive
@@ -325,7 +347,8 @@ final class PeerSelectionControllerNode: ASDisplayNode {
                     }
                     contactListNode.openPeer = { [weak self] peer, _ in
                         if case let .peer(peer, _, _) = peer {
-                            self?.requestOpenPeer?(peer.id)
+                            self?.contactListNode?.listNode.clearHighlightAnimated(true)
+                            self?.requestOpenPeer?(peer)
                         }
                     }
                     contactListNode.suppressPermissionWarning = { [weak self] in
@@ -347,17 +370,26 @@ final class PeerSelectionControllerNode: ASDisplayNode {
                     contactListNode.contentScrollingEnded = { [weak self] listView in
                         return self?.contentScrollingEnded?(listView) ?? false
                     }
-                    self.containerLayoutUpdated(layout, navigationBarHeight: navigationHeight, actualNavigationBarHeight: actualNavigationHeight, transition: .immediate)
                     
-                    let _ = (contactListNode.ready |> deliverOnMainQueue).start(next: { [weak self] _ in
-                        if let strongSelf = self {
-                            if let contactListNode = strongSelf.contactListNode {
-                                strongSelf.insertSubnode(contactListNode, aboveSubnode: strongSelf.chatListNode)
+                    if let (layout, navigationHeight, actualNavigationHeight) = self.containerLayout {
+                        self.containerLayoutUpdated(layout, navigationBarHeight: navigationHeight, actualNavigationBarHeight: actualNavigationHeight, transition: .immediate)
+                        
+                        let _ = (contactListNode.ready |> deliverOnMainQueue).start(next: { [weak self] _ in
+                            if let strongSelf = self {
+                                if let contactListNode = strongSelf.contactListNode {
+                                    strongSelf.insertSubnode(contactListNode, aboveSubnode: strongSelf.chatListNode)
+                                }
+                                strongSelf.chatListNode.removeFromSupernode()
+                                strongSelf.recursivelyEnsureDisplaySynchronously(true)
                             }
-                            strongSelf.chatListNode.removeFromSupernode()
-                            strongSelf.recursivelyEnsureDisplaySynchronously(true)
+                        })
+                    } else {
+                        if let contactListNode = self.contactListNode {
+                            self.insertSubnode(contactListNode, aboveSubnode: self.chatListNode)
                         }
-                    })
+                        self.chatListNode.removeFromSupernode()
+                        self.recursivelyEnsureDisplaySynchronously(true)
+                    }
                 }
             } else if let contactListNode = self.contactListNode {
                 contactListNode.enableUpdates = false

@@ -6,8 +6,8 @@ swift_library(
     srcs = glob([
         "Sources/**/*.swift",
     ]),
-    deps = [    
-		#CloudVeil start
+    deps = [	
+        #CloudVeil start
 		"//Telegram:CloudVeilSecurityManager",
 		#CloudVeil end
     	"//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
@@ -43,6 +43,14 @@ swift_library(
         "//submodules/PeerInfoUI:PeerInfoUI",
         "//submodules/AnimatedCountLabelNode:AnimatedCountLabelNode",
         "//submodules/DeviceProximity:DeviceProximity",
+        "//submodules/ManagedAnimationNode:ManagedAnimationNode",
+        "//submodules/TemporaryCachedPeerDataManager:TemporaryCachedPeerDataManager",
+        "//submodules/PeerInfoAvatarListNode:PeerInfoAvatarListNode",
+        "//submodules/WebSearchUI:WebSearchUI",
+        "//submodules/MapResourceToAvatarSizes:MapResourceToAvatarSizes",
+        "//submodules/TextFormat:TextFormat",
+        "//submodules/Markdown:Markdown",
+        "//submodules/ChatTitleActivityNode:ChatTitleActivityNode",
     ],
     visibility = [
         "//visibility:public",

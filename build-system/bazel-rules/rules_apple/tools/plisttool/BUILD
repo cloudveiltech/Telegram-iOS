@@ -5,7 +5,7 @@ licenses(["notice"])
 py_binary(
     name = "plisttool",
     srcs = ["plisttool.py"],
-    srcs_version = "PY2AND3",
+    python_version = "PY3",
     # Used by the rule implementations, so it needs to be public; but
     # should be considered an implementation detail of the rules and
     # not used by other things.

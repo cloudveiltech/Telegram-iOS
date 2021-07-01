@@ -1,15 +1,13 @@
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 
-
-
 swift_library(
     name = "AvatarNode",
     module_name = "AvatarNode",
     srcs = glob([
         "Sources/**/*.swift",
     ]),
-    deps = [    
-		#CloudVeil start
+    deps = [
+        #CloudVeil start
 		"//Telegram:CloudVeilSecurityManager",
 		#CloudVeil end
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
@@ -21,6 +19,8 @@ swift_library(
         "//submodules/AppBundle:AppBundle",
         "//submodules/AccountContext:AccountContext",
         "//submodules/Emoji:Emoji",
+        "//submodules/TinyThumbnail:TinyThumbnail",
+        "//submodules/FastBlur:FastBlur",
     ],
     visibility = [
         "//visibility:public",

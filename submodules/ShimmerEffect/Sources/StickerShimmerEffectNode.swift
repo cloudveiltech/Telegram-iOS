@@ -140,6 +140,7 @@ private func decodeStickerThumbnailData(_ data: Data) -> String {
 }
 
 public class StickerShimmerEffectNode: ASDisplayNode {
+    private var backdropNode: ASDisplayNode?
     private let backgroundNode: ASDisplayNode
     private let effectNode: ShimmerEffectForegroundNode
     private let foregroundNode: ASImageNode
@@ -162,6 +163,20 @@ public class StickerShimmerEffectNode: ASDisplayNode {
         self.addSubnode(self.backgroundNode)
         self.addSubnode(self.effectNode)
         self.addSubnode(self.foregroundNode)
+    }
+        
+    public var isEmpty: Bool {
+        return self.currentData == nil
+    }
+    
+    public func addBackdropNode(_ backdropNode: ASDisplayNode) {
+        if let current = self.backdropNode {
+            current.removeFromSupernode()
+        }
+        self.backdropNode = backdropNode
+        self.insertSubnode(backdropNode, at: 0)
+        
+        self.effectNode.layer.compositingFilter = "screenBlendMode"
     }
     
     public func updateAbsoluteRect(_ rect: CGRect, within containerSize: CGSize) {
@@ -186,6 +201,7 @@ public class StickerShimmerEffectNode: ASDisplayNode {
         
         self.effectNode.update(backgroundColor: backgroundColor == nil ? .clear : foregroundColor, foregroundColor: shimmeringColor)
         
+        let bounds = CGRect(origin: CGPoint(), size: size)
         let image = generateImage(size, rotatedContext: { size, context in
             if let backgroundColor = backgroundColor {
                 context.setFillColor(backgroundColor.cgColor)
@@ -215,7 +231,7 @@ public class StickerShimmerEffectNode: ASDisplayNode {
                 UIGraphicsPopContext()
             }
         })
-                
+                        
         if backgroundColor == nil {
             self.foregroundNode.image = nil
             
@@ -224,7 +240,7 @@ public class StickerShimmerEffectNode: ASDisplayNode {
                 maskView = current
             } else {
                 maskView = UIImageView()
-                maskView.frame = CGRect(origin: CGPoint(), size: size)
+                maskView.frame = bounds
                 self.maskView = maskView
                 self.view.mask = maskView
             }
@@ -240,9 +256,10 @@ public class StickerShimmerEffectNode: ASDisplayNode {
         
         self.maskView?.image = image
         
-        self.backgroundNode.frame = CGRect(origin: CGPoint(), size: size)
-        self.foregroundNode.frame = CGRect(origin: CGPoint(), size: size)
-        self.effectNode.frame = CGRect(origin: CGPoint(), size: size)
+        self.backdropNode?.frame = bounds
+        self.backgroundNode.frame = bounds
+        self.foregroundNode.frame = bounds
+        self.effectNode.frame = bounds
     }
 }
 

@@ -115,7 +115,15 @@ final class MessageMediaPlaylistItem: SharedMediaPlaylistItem {
                             if (title ?? "").isEmpty && (performer ?? "").isEmpty {
                                 updatedTitle = file.fileName ?? ""
                             }
-                            return SharedMediaPlaybackDisplayData.music(title: updatedTitle, performer: updatedPerformer, albumArt: SharedMediaPlaybackAlbumArt(thumbnailResource: ExternalMusicAlbumArtResource(title: title ?? "", performer: performer ?? "", isThumbnail: true), fullSizeResource: ExternalMusicAlbumArtResource(title: updatedTitle ?? "", performer: updatedPerformer ?? "", isThumbnail: false)), long: duration > 60 * 20)
+                            
+                            let albumArt: SharedMediaPlaybackAlbumArt?
+                            if file.fileName?.lowercased().hasSuffix(".ogg") == true {
+                                albumArt = nil
+                            } else {
+                                albumArt = SharedMediaPlaybackAlbumArt(thumbnailResource: ExternalMusicAlbumArtResource(title: updatedTitle ?? "", performer: updatedPerformer ?? "", isThumbnail: true), fullSizeResource: ExternalMusicAlbumArtResource(title: updatedTitle ?? "", performer: updatedPerformer ?? "", isThumbnail: false))
+                            }
+                            
+                            return SharedMediaPlaybackDisplayData.music(title: updatedTitle, performer: updatedPerformer, albumArt: albumArt, long: duration > 60 * 20)
                         }
                     case let .Video(_, _, flags):
                         if flags.contains(.instantRoundVideo) {
@@ -736,21 +744,6 @@ final class PeerMessagesMediaPlaylist: SharedMediaPlaylist {
                                         viewIndex = .lowerBound
                                     }
                                     return .single((nil, messages.count, false))
-//                                    return self.postbox.aroundMessageHistoryViewForLocation(.peer(peerId), anchor: viewIndex, count: 10, fixedCombinedReadStates: nil, topTaggedMessageIdNamespaces: [], tagMask: tagMask, namespaces: namespaces, orderStatistics: [])
-//                                        |> mapToSignal { view -> Signal<(Message, [Message])?, NoError> in
-//                                            let position: NavigatedMessageFromViewPosition
-//                                            switch navigation {
-//                                                case .later, .random:
-//                                                    position = .earlier
-//                                                case .earlier:
-//                                                    position = .later
-//                                            }
-//                                            if let (message, aroundMessages, _) = navigatedMessageFromView(view.0, anchorIndex: MessageIndex.absoluteLowerBound(), position: position) {
-//                                                return .single((message, aroundMessages))
-//                                            } else {
-//                                                return .single(nil)
-//                                            }
-//                                    }
                                 } else {
                                     if hasMore {
                                         return .single((nil, messages.count, true))

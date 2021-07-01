@@ -1,5 +1,11 @@
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 
+load(
+    "@build_configuration//:variables.bzl",
+    "telegram_bundle_id",
+)
+
+
 filegroup(
     name = "TelegramUIResources",
     srcs = glob([
@@ -15,6 +21,17 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
+internal_bundle_ids = [
+    "org.telegram.Telegram-iOS",
+]
+
+available_appcenter_targets = [
+    "@appcenter_sdk//:AppCenter",
+    "@appcenter_sdk//:AppCenterCrashes",
+]
+
+appcenter_targets = available_appcenter_targets if telegram_bundle_id in internal_bundle_ids else []
+
 swift_library(
     name = "TelegramUI",
     module_name = "TelegramUI",
@@ -22,7 +39,7 @@ swift_library(
         "Sources/**/*.swift",
     ]),
     deps = [
-		#CloudVeil start
+        #CloudVeil start
 		"//Telegram:CloudVeilSecurityManager",
 		"//Telegram:CloudVeilSentry",
 		#CloudVeil end
@@ -168,10 +185,9 @@ swift_library(
         "//submodules/DeviceProximity:DeviceProximity",
         "//submodules/RaiseToListen:RaiseToListen",
         "//submodules/OpusBinding:OpusBinding",
-        "//submodules/Opus:opus",
+        "//third-party/opus:opus",
         "//submodules/WatchBridgeAudio:WatchBridgeAudio",
         "//submodules/WatchBridge:WatchBridge",
-        "//submodules/LegacyDataImport:LegacyDataImport",
         "//submodules/ShareItems:ShareItems",
         "//submodules/ShareItems/Impl:ShareItemsImpl",
         "//submodules/ReactionSelectionNode:ReactionSelectionNode",
@@ -191,6 +207,7 @@ swift_library(
         "//submodules/Markdown:Markdown",
         "//submodules/SearchPeerMembers:SearchPeerMembers",
         "//submodules/WidgetItems:WidgetItems",
+        "//submodules/WidgetItemsUtils:WidgetItemsUtils",
         "//submodules/OpenSSLEncryptionProvider:OpenSSLEncryptionProvider",
         "//submodules/PhoneNumberFormat:PhoneNumberFormat",
         "//submodules/AppLock:AppLock",
@@ -215,7 +232,24 @@ swift_library(
         "//submodules/SlotMachineAnimationNode:SlotMachineAnimationNode",
         "//submodules/AnimatedNavigationStripeNode:AnimatedNavigationStripeNode",
         "//submodules/AudioBlob:AudioBlob",
-    ],
+        "//Telegram:GeneratedSources",
+        "//third-party/ZipArchive:ZipArchive",
+        "//submodules/ChatImportUI:ChatImportUI",
+        "//submodules/ChatHistoryImportTasks:ChatHistoryImportTasks",
+        "//submodules/DatePickerNode:DatePickerNode",
+        "//submodules/ConfettiEffect:ConfettiEffect",
+        "//submodules/Speak:Speak",
+        "//submodules/PeerInfoAvatarListNode:PeerInfoAvatarListNode",
+        "//submodules/DebugSettingsUI:DebugSettingsUI",
+        "//submodules/ImportStickerPackUI:ImportStickerPackUI",
+        "//submodules/GradientBackground:GradientBackground",
+        "//submodules/WallpaperBackgroundNode:WallpaperBackgroundNode",
+    ] + select({
+        "@build_bazel_rules_apple//apple:ios_armv7": [],
+        "@build_bazel_rules_apple//apple:ios_arm64": appcenter_targets,
+        "//build-system:ios_sim_arm64": [],
+        "@build_bazel_rules_apple//apple:ios_x86_64": [],
+    }),
     visibility = [
         "//visibility:public",
     ],

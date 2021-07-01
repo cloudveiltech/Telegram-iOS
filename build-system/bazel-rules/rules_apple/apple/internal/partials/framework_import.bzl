@@ -59,15 +59,15 @@ load(
     "sets",
 )
 
-# TODO(b/161370390): Remove ctx from the args when ctx is removed from all partials.
 def _framework_import_partial_impl(
         *,
-        ctx,
         actions,
+        apple_toolchain_info,
         label_name,
         package_symbols,
         platform_prerequisites,
-        rule_executables,
+        provisioning_profile,
+        rule_descriptor,
         targets,
         targets_to_avoid):
     """Implementation for the framework import file processing partial."""
@@ -92,12 +92,11 @@ def _framework_import_partial_impl(
             files_to_bundle = [x for x in files_to_bundle if x not in avoid_files]
 
     # Collect the architectures that we are using for the build.
-    build_archs_found = [
-        build_arch
+    build_archs_found = depset(transitive = [
+        x[AppleFrameworkImportInfo].build_archs
         for x in targets
         if AppleFrameworkImportInfo in x
-        for build_arch in x[AppleFrameworkImportInfo].build_archs.to_list()
-    ]
+    ]).to_list()
 
     # Start assembling our partial's outputs.
     bundle_zips = []
@@ -161,38 +160,48 @@ def _framework_import_partial_impl(
         for file in files_by_framework[framework_basename]:
             args.add("--framework_file", file.path)
 
-        # TODO(b/161370390): Remove ctx from all instances of codesigning_support.codesigning_args.
         codesign_args = codesigning_support.codesigning_args(
-            ctx,
             entitlements = None,
             full_archive_path = temp_framework_bundle_path,
             is_framework = True,
+            platform_prerequisites = platform_prerequisites,
+            provisioning_profile = provisioning_profile,
+            rule_descriptor = rule_descriptor,
         )
         args.add_all(codesign_args)
+
+        resolved_codesigningtool = apple_toolchain_info.resolved_codesigningtool
+        resolved_imported_dynamic_framework_processor = apple_toolchain_info.resolved_imported_dynamic_framework_processor
 
         # Inputs of action are all the framework files, plus binaries needed for identifying the
         # current build's preferred architecture, plus a generated list of those binaries to prune
         # their dependencies so that future changes to the app/extension/framework binaries do not
         # force this action to re-run on incremental builds, plus the top-level target's
         # provisioning profile if the current build targets real devices.
-        inputs = files_by_framework[framework_basename] + framework_binaries_by_framework[framework_basename]
+        input_files = files_by_framework[framework_basename] + framework_binaries_by_framework[framework_basename]
 
-        provisioning_profile = codesigning_support.provisioning_profile(ctx)
         execution_requirements = {}
         if provisioning_profile:
-            inputs.append(provisioning_profile)
+            input_files.append(provisioning_profile)
             execution_requirements = {"no-sandbox": "1"}
+
+        transitive_inputs = [
+            resolved_imported_dynamic_framework_processor.inputs,
+            resolved_codesigningtool.inputs,
+        ]
 
         apple_support.run(
             actions = actions,
             apple_fragment = platform_prerequisites.apple_fragment,
             arguments = [args],
-            executable = rule_executables._imported_dynamic_framework_processor,
+            executable = resolved_imported_dynamic_framework_processor.executable,
             execution_requirements = execution_requirements,
-            inputs = inputs,
+            inputs = depset(input_files, transitive = transitive_inputs),
+            input_manifests = resolved_imported_dynamic_framework_processor.input_manifests +
+                              resolved_codesigningtool.input_manifests,
             mnemonic = "ImportedDynamicFrameworkProcessor",
             outputs = [framework_zip],
-            tools = [rule_executables._codesigningtool],
+            tools = [resolved_codesigningtool.executable],
             xcode_config = platform_prerequisites.xcode_version_config,
             xcode_path_wrapper = platform_prerequisites.xcode_path_wrapper,
         )
@@ -203,9 +212,9 @@ def _framework_import_partial_impl(
         signed_frameworks_list.append(framework_basename)
 
     symbols_requested = defines.bool_value(
-        ctx,
-        "apple.package_symbols",
-        False,
+        config_vars = platform_prerequisites.config_vars,
+        define_name = "apple.package_symbols",
+        default = False,
     )
     if package_symbols and symbols_requested:
         transitive_dsyms = [
@@ -214,11 +223,13 @@ def _framework_import_partial_impl(
             if AppleFrameworkImportInfo in x
         ]
         symbols = _generate_symbols(
-            ctx,
+            actions,
             build_archs_found,
             files_by_framework,
             framework_binaries_by_framework,
             transitive_dsyms,
+            label_name,
+            platform_prerequisites,
         )
         bundle_files = [(
             processor.location.archive,
@@ -235,14 +246,17 @@ def _framework_import_partial_impl(
     )
 
 def _generate_symbols(
-    ctx,
-    build_archs_found,
-    files_by_framework,
-    framework_binaries_by_framework,
-    transitive_dsyms):
+        actions,
+        build_archs_found,
+        files_by_framework,
+        framework_binaries_by_framework,
+        transitive_dsyms,
+        label_name,
+        platform_prerequisites):
     # Collect dSYM binaries and framework binaries of frameworks that don't
     # have dSYMs
     all_binaries = []
+
     # Keep track of frameworks that provide dSYM, so that we can avoid
     # unnecessarily extracting symbols from said frameworks' binaries
     has_dsym_framework_basenames = sets.make()
@@ -253,6 +267,7 @@ def _generate_symbols(
         # is packaged.
         if file.basename.lower() != "info.plist":
             all_binaries.append(file)
+
             # Update the set of frameworks that provide dSYMs
             framework_dsym_path = bundle_paths.farthest_parent(
                 file.short_path,
@@ -270,8 +285,8 @@ def _generate_symbols(
 
     temp_path = paths.join("_imported_frameworks", "symbols_files")
     symbols_dir = intermediates.directory(
-        ctx.actions,
-        ctx.label.name,
+        actions,
+        label_name,
         temp_path,
     )
     outputs = [symbols_dir]
@@ -293,7 +308,9 @@ def _generate_symbols(
             )
 
     apple_support.run_shell(
-        ctx,
+        actions = actions,
+        xcode_config = platform_prerequisites.xcode_version_config,
+        apple_fragment = platform_prerequisites.apple_fragment,
         inputs = all_binaries,
         outputs = outputs,
         command = "\n".join(commands),
@@ -306,10 +323,12 @@ def _generate_symbols(
 def framework_import_partial(
         *,
         actions,
+        apple_toolchain_info,
         label_name,
         package_symbols = False,
         platform_prerequisites,
-        rule_executables,
+        provisioning_profile,
+        rule_descriptor,
         targets,
         targets_to_avoid = []):
     """Constructor for the framework import file processing partial.
@@ -319,10 +338,12 @@ def framework_import_partial(
 
     Args:
         actions: The actions provider from `ctx.actions`.
+        apple_toolchain_info: `struct` of tools from the shared Apple toolchain.
         label_name: Name of the target being built.
         package_symbols: Whether the partial should package the symbols files for all binaries.
         platform_prerequisites: Struct containing information on the platform being targeted.
-        rule_executables: List of executables defined by the rule. Typically from `ctx.executable`.
+        provisioning_profile: File for the provisioning profile.
+        rule_descriptor: A rule descriptor for platform and product types from the rule context.
         targets: The list of targets through which to collect the framework import files.
         targets_to_avoid: The list of targets that may already be bundling some of the frameworks,
             to be used when deduplicating frameworks already bundled.
@@ -333,10 +354,12 @@ def framework_import_partial(
     return partial.make(
         _framework_import_partial_impl,
         actions = actions,
+        apple_toolchain_info = apple_toolchain_info,
         label_name = label_name,
         package_symbols = package_symbols,
         platform_prerequisites = platform_prerequisites,
-        rule_executables = rule_executables,
+        provisioning_profile = provisioning_profile,
+        rule_descriptor = rule_descriptor,
         targets = targets,
         targets_to_avoid = targets_to_avoid,
     )

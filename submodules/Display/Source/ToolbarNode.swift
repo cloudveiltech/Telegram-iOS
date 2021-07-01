@@ -5,41 +5,46 @@ import AsyncDisplayKit
 public final class ToolbarNode: ASDisplayNode {
     private var theme: TabBarControllerTheme
     private let displaySeparator: Bool
-    private let left: () -> Void
-    private let right: () -> Void
-    private let middle: () -> Void
-    
+    public var left: () -> Void
+    public var right: () -> Void
+    public var middle: () -> Void
+
+    private let backgroundNode: NavigationBackgroundNode
     private let separatorNode: ASDisplayNode
     private let leftTitle: ImmediateTextNode
-    private let leftButton: HighlightableButtonNode
+    private let leftButton: HighlightTrackingButtonNode
     private let rightTitle: ImmediateTextNode
-    private let rightButton: HighlightableButtonNode
+    private let rightButton: HighlightTrackingButtonNode
     private let middleTitle: ImmediateTextNode
-    private let middleButton: HighlightableButtonNode
+    private let middleButton: HighlightTrackingButtonNode
     
-    public init(theme: TabBarControllerTheme, displaySeparator: Bool = false, left: @escaping () -> Void, right: @escaping () -> Void, middle: @escaping () -> Void) {
+    public init(theme: TabBarControllerTheme, displaySeparator: Bool = false, left: @escaping () -> Void = {}, right: @escaping () -> Void = {}, middle: @escaping () -> Void = {}) {
         self.theme = theme
         self.displaySeparator = displaySeparator
         self.left = left
         self.right = right
         self.middle = middle
+
+        self.backgroundNode = NavigationBackgroundNode(color: theme.tabBarBackgroundColor)
         
         self.separatorNode = ASDisplayNode()
         self.separatorNode.isLayerBacked = true
         
         self.leftTitle = ImmediateTextNode()
         self.leftTitle.displaysAsynchronously = false
-        self.leftButton = HighlightableButtonNode()
+        self.leftButton = HighlightTrackingButtonNode()
         self.rightTitle = ImmediateTextNode()
         self.rightTitle.displaysAsynchronously = false
-        self.rightButton = HighlightableButtonNode()
+        self.rightButton = HighlightTrackingButtonNode()
         self.middleTitle = ImmediateTextNode()
         self.middleTitle.displaysAsynchronously = false
-        self.middleButton = HighlightableButtonNode()
+        self.middleButton = HighlightTrackingButtonNode()
         
         super.init()
         
         self.isAccessibilityContainer = false
+
+        self.addSubnode(self.backgroundNode)
         
         self.addSubnode(self.leftTitle)
         self.addSubnode(self.leftButton)
@@ -47,6 +52,7 @@ public final class ToolbarNode: ASDisplayNode {
         self.addSubnode(self.rightButton)
         self.addSubnode(self.middleTitle)
         self.addSubnode(self.middleButton)
+
         if self.displaySeparator {
             self.addSubnode(self.separatorNode)
         }
@@ -96,10 +102,12 @@ public final class ToolbarNode: ASDisplayNode {
     
     public func updateTheme(_ theme: TabBarControllerTheme) {
         self.separatorNode.backgroundColor = theme.tabBarSeparatorColor
-        self.backgroundColor = theme.tabBarBackgroundColor
+        self.backgroundNode.updateColor(color: theme.tabBarBackgroundColor, transition: .immediate)
     }
     
     public func updateLayout(size: CGSize, leftInset: CGFloat, rightInset: CGFloat, additionalSideInsets: UIEdgeInsets, bottomInset: CGFloat, toolbar: Toolbar, transition: ContainedViewLayoutTransition) {
+        transition.updateFrame(node: self.backgroundNode, frame: CGRect(origin: CGPoint(), size: size))
+        self.backgroundNode.update(size: size, transition: transition)
         transition.updateFrame(node: self.separatorNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: size.width, height: UIScreenPixel)))
         
         var sideInset: CGFloat = 16.0

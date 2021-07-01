@@ -229,7 +229,8 @@ public final class ContactsSearchContainerNode: SearchDisplayControllerContentNo
         self.openPeer = openPeer
         self.contextAction = contextAction
         
-        self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        self.presentationData = presentationData
         
         self.themeAndStringsPromise = Promise((self.presentationData.theme, self.presentationData.strings))
         
@@ -238,6 +239,9 @@ public final class ContactsSearchContainerNode: SearchDisplayControllerContentNo
         self.listNode = ListView()
         self.listNode.backgroundColor = self.presentationData.theme.list.plainBackgroundColor
         self.listNode.isHidden = true
+        self.listNode.accessibilityPageScrolledString = { row, count in
+            return presentationData.strings.VoiceOver_ScrollStatus(row, count).0
+        }
         
         super.init()
         
@@ -263,12 +267,12 @@ public final class ContactsSearchContainerNode: SearchDisplayControllerContentNo
                     foundLocalContacts = .single(([], [:]))
                 }
                 let foundRemoteContacts: Signal<([FoundPeer], [FoundPeer])?, NoError>
-				//CloudVeil start
+                //CloudVeil start
                 if categories.contains(.global) && !MainController.SecurityStaticSettings.disableGlobalSearch {
 				//CloudVeil end
                     foundRemoteContacts = .single(previousFoundRemoteContacts.with({ $0 }))
                     |> then(
-                        searchPeers(account: context.account, query: query)
+                        context.engine.peers.searchPeers(query: query)
                         |> map { ($0.0, $0.1) }
                         |> delay(0.2, queue: Queue.concurrentDefaultQueue())
                     )

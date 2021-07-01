@@ -90,7 +90,7 @@ public final class AuthTransferScanScreen: ViewController {
         
         self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
         
-        let navigationBarTheme = NavigationBarTheme(buttonColor: .white, disabledButtonColor: .white, primaryTextColor: .white, backgroundColor: .clear, separatorColor: .clear, badgeBackgroundColor: .clear, badgeStrokeColor: .clear, badgeTextColor: .clear)
+        let navigationBarTheme = NavigationBarTheme(buttonColor: .white, disabledButtonColor: .white, primaryTextColor: .white, backgroundColor: .clear, enableBackgroundBlur: false, separatorColor: .clear, badgeBackgroundColor: .clear, badgeStrokeColor: .clear, badgeTextColor: .clear)
         
         super.init(navigationBarPresentationData: NavigationBarPresentationData(theme: navigationBarTheme, strings: NavigationBarStrings(back: self.presentationData.strings.Common_Back, close: self.presentationData.strings.Common_Close)))
         
@@ -205,7 +205,7 @@ public final class AuthTransferScanScreen: ViewController {
     override public func containerLayoutUpdated(_ layout: ContainerViewLayout, transition: ContainedViewLayoutTransition) {
         super.containerLayoutUpdated(layout, transition: transition)
         
-        (self.displayNode as! AuthTransferScanScreenNode).containerLayoutUpdated(layout: layout, navigationHeight: self.navigationHeight, transition: transition)
+        (self.displayNode as! AuthTransferScanScreenNode).containerLayoutUpdated(layout: layout, navigationHeight: self.navigationLayout(layout: layout).navigationFrame.maxY, transition: transition)
     }
 }
 
@@ -227,6 +227,7 @@ private final class AuthTransferScanScreenNode: ViewControllerTracingNode, UIScr
     
     private let camera: Camera
     private let codeDisposable = MetaDisposable()
+    private var torchDisposable: Disposable?
     
     fileprivate let focusedCode = ValuePromise<CameraCode?>(ignoreRepeated: true)
     private var focusedRect: CGRect?
@@ -305,6 +306,13 @@ private final class AuthTransferScanScreenNode: ViewControllerTracingNode, UIScr
         
         self.backgroundColor = self.presentationData.theme.list.plainBackgroundColor
         
+        self.torchDisposable = (self.camera.hasTorch
+        |> deliverOnMainQueue).start(next: { [weak self] hasTorch in
+            if let strongSelf = self {
+                strongSelf.torchButtonNode.isHidden = !hasTorch
+            }
+        })
+        
         self.addSubnode(self.previewNode)
         self.addSubnode(self.fadeNode)
         self.addSubnode(self.topDimNode)
@@ -323,6 +331,7 @@ private final class AuthTransferScanScreenNode: ViewControllerTracingNode, UIScr
     
     deinit {
         self.codeDisposable.dispose()
+        self.torchDisposable?.dispose()
         self.camera.stopCapture(invalidate: true)
     }
     

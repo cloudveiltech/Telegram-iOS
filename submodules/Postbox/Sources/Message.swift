@@ -10,7 +10,7 @@ public struct MessageId: Hashable, Comparable, CustomStringConvertible, PostboxC
     
     public var description: String {
         get {
-            return "\(namespace)_\(id)"
+            return "\(peerId):\(namespace)_\(id)"
         }
     }
     
@@ -18,14 +18,16 @@ public struct MessageId: Hashable, Comparable, CustomStringConvertible, PostboxC
         self.peerId = peerId
         self.namespace = namespace
         self.id = id
+        if namespace == 0 && id == 0 {
+            assert(true)
+        }
     }
     
     public init(_ buffer: ReadBuffer) {
-        var peerIdNamespaceValue: Int32 = 0
-        memcpy(&peerIdNamespaceValue, buffer.memory + buffer.offset, 4)
-        var peerIdIdValue: Int32 = 0
-        memcpy(&peerIdIdValue, buffer.memory + (buffer.offset + 4), 4)
-        self.peerId = PeerId(namespace: peerIdNamespaceValue, id: peerIdIdValue)
+        var peerIdInt64Value: Int64 = 0
+        memcpy(&peerIdInt64Value, buffer.memory + buffer.offset, 8)
+
+        self.peerId = PeerId(peerIdInt64Value)
         
         var namespaceValue: Int32 = 0
         memcpy(&namespaceValue, buffer.memory + (buffer.offset + 8), 4)
@@ -50,14 +52,12 @@ public struct MessageId: Hashable, Comparable, CustomStringConvertible, PostboxC
     }
     
     public func encodeToBuffer(_ buffer: WriteBuffer) {
-        var peerIdNamespace = self.peerId.namespace
-        var peerIdId = self.peerId.id
+        var peerIdValue = self.peerId.toInt64()
         var namespace = self.namespace
         var id = self.id
-        buffer.write(&peerIdNamespace, offset: 0, length: 4);
-        buffer.write(&peerIdId, offset: 0, length: 4);
-        buffer.write(&namespace, offset: 0, length: 4);
-        buffer.write(&id, offset: 0, length: 4);
+        buffer.write(&peerIdValue, offset: 0, length: 8)
+        buffer.write(&namespace, offset: 0, length: 4)
+        buffer.write(&id, offset: 0, length: 4)
     }
     
     public static func encodeArrayToBuffer(_ array: [MessageId], buffer: WriteBuffer) {
@@ -103,7 +103,22 @@ public struct MessageIndex: Comparable, Hashable {
         self.timestamp = timestamp
     }
     
-    public func predecessor() -> MessageIndex {
+    public func globalPredecessor() -> MessageIndex {
+        let previousPeerId = self.id.peerId.predecessor
+        if previousPeerId != self.id.peerId {
+            return MessageIndex(id: MessageId(peerId: previousPeerId, namespace: self.id.namespace, id: self.id.id), timestamp: self.timestamp)
+        } else if self.id.id != 0 {
+            return MessageIndex(id: MessageId(peerId: self.id.peerId, namespace: self.id.namespace, id: self.id.id - 1), timestamp: self.timestamp)
+        } else if self.id.namespace != 0 {
+            return MessageIndex(id: MessageId(peerId: self.id.peerId, namespace: self.id.namespace - 1, id: Int32.max - 1), timestamp: self.timestamp)
+        } else if self.timestamp != 0 {
+            return MessageIndex(id: MessageId(peerId: self.id.peerId, namespace: Int32(Int8.max) - 1, id: Int32.max - 1), timestamp: self.timestamp - 1)
+        } else {
+            return self
+        }
+    }
+
+    public func peerLocalPredecessor() -> MessageIndex {
         if self.id.id != 0 {
             return MessageIndex(id: MessageId(peerId: self.id.peerId, namespace: self.id.namespace, id: self.id.id - 1), timestamp: self.timestamp)
         } else if self.id.namespace != 0 {
@@ -115,16 +130,25 @@ public struct MessageIndex: Comparable, Hashable {
         }
     }
     
-    public func successor() -> MessageIndex {
+    public func globalSuccessor() -> MessageIndex {
+        let nextPeerId = self.id.peerId.successor
+        if nextPeerId != self.id.peerId {
+            return MessageIndex(id: MessageId(peerId: nextPeerId, namespace: self.id.namespace, id: self.id.id), timestamp: self.timestamp)
+        } else {
+            return MessageIndex(id: MessageId(peerId: self.id.peerId, namespace: self.id.namespace, id: self.id.id == Int32.max ? self.id.id : (self.id.id + 1)), timestamp: self.timestamp)
+        }
+    }
+
+    public func peerLocalSuccessor() -> MessageIndex {
         return MessageIndex(id: MessageId(peerId: self.id.peerId, namespace: self.id.namespace, id: self.id.id == Int32.max ? self.id.id : (self.id.id + 1)), timestamp: self.timestamp)
     }
     
     public static func absoluteUpperBound() -> MessageIndex {
-        return MessageIndex(id: MessageId(peerId: PeerId(namespace: Int32(Int8.max), id: Int32.max), namespace: Int32(Int8.max), id: Int32.max), timestamp: Int32.max)
+        return MessageIndex(id: MessageId(peerId: PeerId.max, namespace: Int32(Int8.max), id: Int32.max), timestamp: Int32.max)
     }
     
     public static func absoluteLowerBound() -> MessageIndex {
-        return MessageIndex(id: MessageId(peerId: PeerId(namespace: 0, id: 0), namespace: 0, id: 0), timestamp: 0)
+        return MessageIndex(id: MessageId(peerId: PeerId(0), namespace: 0, id: 0), timestamp: 0)
     }
     
     public static func lowerBound(peerId: PeerId) -> MessageIndex {
@@ -209,11 +233,11 @@ public struct ChatListIndex: Comparable, Hashable {
     }
     
     public var predecessor: ChatListIndex {
-        return ChatListIndex(pinningIndex: self.pinningIndex, messageIndex: self.messageIndex.predecessor())
+        return ChatListIndex(pinningIndex: self.pinningIndex, messageIndex: self.messageIndex.globalPredecessor())
     }
     
     public var successor: ChatListIndex {
-        return ChatListIndex(pinningIndex: self.pinningIndex, messageIndex: self.messageIndex.successor())
+        return ChatListIndex(pinningIndex: self.pinningIndex, messageIndex: self.messageIndex.globalSuccessor())
     }
 }
 
@@ -413,36 +437,50 @@ public struct StoreMessageForwardInfo {
     public let date: Int32
     public let authorSignature: String?
     public let psaType: String?
+    public let flags: MessageForwardInfo.Flags
     
-    public init(authorId: PeerId?, sourceId: PeerId?, sourceMessageId: MessageId?, date: Int32, authorSignature: String?, psaType: String?) {
+    public init(authorId: PeerId?, sourceId: PeerId?, sourceMessageId: MessageId?, date: Int32, authorSignature: String?, psaType: String?, flags: MessageForwardInfo.Flags) {
         self.authorId = authorId
         self.sourceId = sourceId
         self.sourceMessageId = sourceMessageId
         self.date = date
         self.authorSignature = authorSignature
         self.psaType = psaType
+        self.flags = flags
     }
     
     public init(_ info: MessageForwardInfo) {
-        self.init(authorId: info.author?.id, sourceId: info.source?.id, sourceMessageId: info.sourceMessageId, date: info.date, authorSignature: info.authorSignature, psaType: info.psaType)
+        self.init(authorId: info.author?.id, sourceId: info.source?.id, sourceMessageId: info.sourceMessageId, date: info.date, authorSignature: info.authorSignature, psaType: info.psaType, flags: info.flags)
     }
 }
 
 public struct MessageForwardInfo: Equatable {
+    public struct Flags: OptionSet {
+        public var rawValue: Int32
+        
+        public init(rawValue: Int32) {
+            self.rawValue = rawValue
+        }
+        
+        public static let isImported = Flags(rawValue: 1 << 0)
+    }
+    
     public let author: Peer?
     public let source: Peer?
     public let sourceMessageId: MessageId?
     public let date: Int32
     public let authorSignature: String?
     public let psaType: String?
+    public let flags: MessageForwardInfo.Flags
     
-    public init(author: Peer?, source: Peer?, sourceMessageId: MessageId?, date: Int32, authorSignature: String?, psaType: String?) {
+    public init(author: Peer?, source: Peer?, sourceMessageId: MessageId?, date: Int32, authorSignature: String?, psaType: String?, flags: MessageForwardInfo.Flags) {
         self.author = author
         self.source = source
         self.sourceMessageId = sourceMessageId
         self.date = date
         self.authorSignature = authorSignature
         self.psaType = psaType
+        self.flags = flags
     }
 
     public static func ==(lhs: MessageForwardInfo, rhs: MessageForwardInfo) -> Bool {
@@ -468,6 +506,9 @@ public struct MessageForwardInfo: Equatable {
         if lhs.psaType != rhs.psaType {
             return false
         }
+        if lhs.flags != rhs.flags {
+            return false
+        }
         
         return true
     }
@@ -476,6 +517,7 @@ public struct MessageForwardInfo: Equatable {
 public protocol MessageAttribute: class, PostboxCoding {
     var associatedPeerIds: [PeerId] { get }
     var associatedMessageIds: [MessageId] { get }
+    var automaticTimestampBasedAttribute: (UInt16, Int32)? { get }
 }
 
 public extension MessageAttribute {
@@ -485,6 +527,10 @@ public extension MessageAttribute {
     
     var associatedMessageIds: [MessageId] {
         return []
+    }
+    
+    var automaticTimestampBasedAttribute: (UInt16, Int32)? {
+        return nil
     }
 }
 

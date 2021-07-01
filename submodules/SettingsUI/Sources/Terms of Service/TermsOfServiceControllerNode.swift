@@ -8,6 +8,7 @@ import Display
 import AsyncDisplayKit
 import TelegramPresentationData
 import TextFormat
+import UndoUI
 
 final class TermsOfServiceControllerNode: ViewControllerTracingNode {
     private let presentationData: PresentationData
@@ -78,7 +79,7 @@ final class TermsOfServiceControllerNode: ViewControllerTracingNode {
         super.init()
         
         self.backgroundColor = self.presentationData.theme.list.blocksBackgroundColor
-        self.toolbarNode.backgroundColor = self.presentationData.theme.rootController.navigationBar.backgroundColor
+        self.toolbarNode.backgroundColor = self.presentationData.theme.rootController.navigationBar.opaqueBackgroundColor
         self.toolbarSeparatorNode.backgroundColor = self.presentationData.theme.rootController.navigationBar.separatorColor
         
         self.contentBackgroundNode.backgroundColor = self.presentationData.theme.list.itemBlocksBackgroundColor
@@ -177,9 +178,13 @@ final class TermsOfServiceControllerNode: ViewControllerTracingNode {
                         actionSheet?.dismissAnimated()
                         self?.openUrl(url)
                     }),
-                    ActionSheetButtonItem(title: strongSelf.presentationData.strings.Conversation_LinkDialogCopy, color: .accent, action: { [weak actionSheet] in
+                    ActionSheetButtonItem(title: strongSelf.presentationData.strings.Conversation_LinkDialogCopy, color: .accent, action: { [weak actionSheet, weak self] in
                         actionSheet?.dismissAnimated()
                         UIPasteboard.general.string = url
+                        
+                        if let strongSelf = self {
+                            strongSelf.present(UndoOverlayController(presentationData: strongSelf.presentationData, content: .linkCopied(text: strongSelf.presentationData.strings.Conversation_LinkCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), nil)
+                        }
                     })
                 ]), ActionSheetItemGroup(items: [
                     ActionSheetButtonItem(title: strongSelf.presentationData.strings.Common_Cancel, color: .accent, font: .bold, action: { [weak actionSheet] in

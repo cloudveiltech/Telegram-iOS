@@ -158,7 +158,7 @@ def _deduplicate(
       owners: The owners map for resources_provider computed by _expand_owners.
       processed_origins: The processed resources map for resources_provider computed by
           _expand_processed_origins.
-      processed_deduplication_map: A dictionary of keys to short paths referencing already-
+      processed_deduplication_map: A dictionary of keys to lists of short paths referencing already-
           deduplicated resources that can be referenced by the resource processing aspect to avoid
           duplicating files referenced by library targets and top level targets.
 
@@ -186,11 +186,11 @@ def _deduplicate(
         multi_architecture_deduplication_set = {}
 
         # Update the deduplication map for this key, representing the domain of this library
-        # processable resource in bundling, and use that as our deduplication set for library
+        # processable resource in bundling, and use that as our deduplication list for library
         # processable resources.
         if not processed_deduplication_map.get(key, None):
-            processed_deduplication_map[key] = {}
-        processed_deduplication_set = processed_deduplication_map[key]
+            processed_deduplication_map[key] = []
+        processed_deduplication_list = processed_deduplication_map[key]
 
         deduped_files = []
         for to_bundle_file in files.to_list():
@@ -216,15 +216,21 @@ def _deduplicate(
             if field == "processed":
                 # Check for duplicates referencing our map of where the processed resources were
                 # based from.
-                found_origin = processed_origins[short_path]
-                if found_origin in processed_deduplication_set:
+                path_origins = processed_origins[short_path]
+                if path_origins in processed_deduplication_list:
                     continue
-                processed_deduplication_set[found_origin] = None
+                processed_deduplication_list.append(path_origins)
             elif field in _PROCESSED_FIELDS:
-                # Check for duplicates across other fields, to avoid dupes across top-level fields.
-                if short_path in processed_deduplication_set:
+                # Check for duplicates across fields that can be processed by a resource aspect, to
+                # avoid dupes between top-level fields and fields processed by the resource aspect.
+                all_path_origins = [
+                    path_origin
+                    for path_origins in processed_deduplication_list
+                    for path_origin in path_origins
+                ]
+                if short_path in all_path_origins:
                     continue
-                processed_deduplication_set[short_path] = None
+                processed_deduplication_list.append([short_path])
 
             deduped_files.append(to_bundle_file)
 
@@ -268,8 +274,8 @@ def _validate_processed_locales(*, label, locales_dropped, locales_included, loc
 
 def _resources_partial_impl(
         *,
-        ctx,
         actions,
+        apple_toolchain_info,
         bundle_extension,
         bundle_id,
         bundle_name,
@@ -281,7 +287,6 @@ def _resources_partial_impl(
         plist_attrs,
         rule_attrs,
         rule_descriptor,
-        rule_executables,
         rule_label,
         targets_to_avoid,
         top_level_attrs,
@@ -298,12 +303,21 @@ def _resources_partial_impl(
 
     # TODO(kaipi): Bucket top_level_attrs directly instead of collecting and
     # splitting.
-    files = resources.collect(rule_attrs, res_attrs = top_level_attrs)
+    files = resources.collect(
+        attr = rule_attrs,
+        res_attrs = top_level_attrs,
+    )
     if files:
-        providers.append(resources.bucketize(files, owner = str(rule_label)))
+        providers.append(resources.bucketize(
+            owner = str(rule_label),
+            resources = files,
+        ))
 
     if plist_attrs:
-        plists = resources.collect(rule_attrs, res_attrs = plist_attrs)
+        plists = resources.collect(
+            attr = rule_attrs,
+            res_attrs = plist_attrs,
+        )
         plist_provider = resources.bucketize_typed(
             plists,
             owner = str(rule_label),
@@ -318,7 +332,10 @@ def _resources_partial_impl(
         # resource.
         return struct()
 
-    final_provider = resources.merge_providers(providers, default_owner = str(rule_label))
+    final_provider = resources.merge_providers(
+        default_owner = str(rule_label),
+        providers = providers,
+    )
 
     avoid_providers = [
         x[AppleResourceInfo]
@@ -331,7 +348,7 @@ def _resources_partial_impl(
         # Call merge_providers with validate_all_resources_owned set, to ensure that all the
         # resources from dependency bundles have an owner.
         avoid_provider = resources.merge_providers(
-            avoid_providers,
+            providers = avoid_providers,
             validate_all_resources_owned = True,
         )
 
@@ -404,8 +421,8 @@ def _resources_partial_impl(
 
             processing_args = {
                 "actions": actions,
+                "apple_toolchain_info": apple_toolchain_info,
                 "bundle_id": bundle_id,
-                "executables": rule_executables,
                 "files": files,
                 "parent_dir": parent_dir,
                 "platform_prerequisites": platform_prerequisites,
@@ -466,7 +483,7 @@ def _resources_partial_impl(
                 launch_storyboard = launch_storyboard,
                 out_infoplist = out_infoplist,
                 platform_prerequisites = platform_prerequisites,
-                plisttool = rule_executables._plisttool,
+                resolved_plisttool = apple_toolchain_info.resolved_plisttool,
                 rule_descriptor = rule_descriptor,
                 rule_label = rule_label,
                 version = getattr(rule_attrs, "version", None),
@@ -479,6 +496,7 @@ def _resources_partial_impl(
 def resources_partial(
         *,
         actions,
+        apple_toolchain_info,
         bundle_extension,
         bundle_id = None,
         bundle_name,
@@ -490,7 +508,6 @@ def resources_partial(
         plist_attrs = [],
         rule_attrs,
         rule_descriptor,
-        rule_executables,
         rule_label,
         targets_to_avoid = [],
         top_level_attrs = [],
@@ -502,6 +519,7 @@ def resources_partial(
 
     Args:
         actions: The actions provider from `ctx.actions`.
+        apple_toolchain_info: `struct` of tools from the shared Apple toolchain.
         bundle_extension: The extension for the bundle.
         bundle_id: Optional bundle ID to use when processing resources. If no bundle ID is given,
             the bundle will not contain a root Info.plist and no embedded bundle verification will
@@ -521,7 +539,6 @@ def resources_partial(
             merged and processed.
         rule_attrs: List of attributes defined by the rule. Typically from `ctx.attr`.
         rule_descriptor: A rule descriptor for platform and product types from the rule context.
-        rule_executables: List of executables defined by the rule. Typically from `ctx.executable`.
         rule_label: The label of the target being analyzed.
         targets_to_avoid: List of targets containing resources that should be deduplicated from the
             target being processed.
@@ -536,6 +553,7 @@ def resources_partial(
     return partial.make(
         _resources_partial_impl,
         actions = actions,
+        apple_toolchain_info = apple_toolchain_info,
         bundle_extension = bundle_extension,
         bundle_id = bundle_id,
         bundle_name = bundle_name,
@@ -547,7 +565,6 @@ def resources_partial(
         plist_attrs = plist_attrs,
         rule_attrs = rule_attrs,
         rule_descriptor = rule_descriptor,
-        rule_executables = rule_executables,
         rule_label = rule_label,
         targets_to_avoid = targets_to_avoid,
         top_level_attrs = top_level_attrs,

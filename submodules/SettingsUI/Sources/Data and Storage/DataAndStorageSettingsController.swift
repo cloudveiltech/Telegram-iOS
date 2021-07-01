@@ -340,12 +340,11 @@ private enum DataAndStorageEntry: ItemListNodeEntry {
             case let .autoplayHeader(theme, text):
                 return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
             case let .autoplayGifs(theme, text, value):
-				//CloudVeil start
+            	//CloudVeil start
 				let v = value && !MainController.SecurityStaticSettings.disableAutoPlayGifs
-				return ItemListSwitchItem(presentationData: presentationData, title: text, value: v, sectionId: self.section, style: .blocks, updated: { value in
-					arguments.toggleAutoplayGifs(value)
+			    return ItemListSwitchItem(presentationData: presentationData, title: text, value: v, sectionId: self.section, style: .blocks, updated: { value in
+                    arguments.toggleAutoplayGifs(value)
 				//CloudVeil end
- 
                 }, tag: DataAndStorageEntryTag.autoplayGifs)
             case let .autoplayVideos(theme, text, value):
                 return ItemListSwitchItem(presentationData: presentationData, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
@@ -643,11 +642,11 @@ public func dataAndStorageController(context: AccountContext, focusOnItemTag: Da
         }).start()
     }, toggleAutoplayGifs: { value in
         let _ = updateMediaDownloadSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
-			var settings = settings
-			//CloudVeil start
+            var settings = settings
+            //CloudVeil start
 			settings.autoplayGifs = value && !MainController.SecurityStaticSettings.disableAutoPlayGifs
 			//CloudVeil end
-			return settings
+            return settings
         }).start()
     }, toggleAutoplayVideos: { value in
         let _ = updateMediaDownloadSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in

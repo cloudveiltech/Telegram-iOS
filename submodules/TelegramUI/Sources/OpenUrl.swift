@@ -12,10 +12,6 @@ import AccountContext
 import UrlEscaping
 import PassportUI
 import UrlHandling
-#if ENABLE_WALLET
-import WalletUI
-import WalletUrl
-#endif
 import OpenInExternalAppUI
 import CloudVeilSecurityManager
 
@@ -101,7 +97,7 @@ public func parseSecureIdUrl(_ url: URL) -> ParsedSecureIdUrl? {
                         return nil
                     }
                     
-                    return ParsedSecureIdUrl(peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: botId), scope: scope, publicKey: publicKey, callbackUrl: callbackUrl, opaquePayload: opaquePayload, opaqueNonce: opaqueNonce)
+                    return ParsedSecureIdUrl(peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(botId)), scope: scope, publicKey: publicKey, callbackUrl: callbackUrl, opaquePayload: opaquePayload, opaqueNonce: opaqueNonce)
                 }
             }
         }
@@ -143,18 +139,6 @@ func formattedConfirmationCode(_ code: Int) -> String {
 }
 
 func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, url: String, forceExternal: Bool, presentationData: PresentationData, navigationController: NavigationController?, dismissInput: @escaping () -> Void) {
-    #if ENABLE_WALLET
-    if url.hasPrefix("ton://") {
-        if let url = URL(string: url), let parsedUrl = parseWalletUrl(url) {
-            context.sharedContext.openWallet(context: context, walletContext: .send(address: parsedUrl.address, amount: parsedUrl.amount, comment: parsedUrl.comment)) { c in
-                navigationController?.pushViewController(c)
-            }
-        }
-        
-        return
-    }
-    #endif
-    
     if forceExternal || url.lowercased().hasPrefix("tel:") || url.lowercased().hasPrefix("calshow:") {
         context.sharedContext.applicationBindings.openUrl(url)
         return
@@ -230,7 +214,10 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                     }
                 }, sendFile: nil,
                 sendSticker: nil,
-                present: { c, a in
+                requestMessageActionUrlAuth: nil,
+                joinVoiceChat: { peerId, invite, call in
+                    
+                }, present: { c, a in
                     context.sharedContext.applicationBindings.dismissNativeController()
                     
                     c.presentationArguments = a
@@ -243,7 +230,7 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
         }
         
         let handleInternalUrl: (String) -> Void = { url in
-            let _ = (context.sharedContext.resolveUrl(account: context.account, url: url)
+            let _ = (context.sharedContext.resolveUrl(context: context, peerId: nil, url: url, skipUrlAuth: true)
             |> deliverOnMainQueue).start(next: handleResolvedUrl)
         }
         
@@ -253,18 +240,21 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                 if parsedUrl.host == "localpeer" {
                      if let components = URLComponents(string: "/?" + query) {
                         var peerId: PeerId?
+                        var accountId: Int64?
                         if let queryItems = components.queryItems {
                             for queryItem in queryItems {
                                 if let value = queryItem.value {
                                     if queryItem.name == "id", let intValue = Int64(value) {
                                         peerId = PeerId(intValue)
+                                    } else if queryItem.name == "accountId", let intValue = Int64(value) {
+                                        accountId = intValue
                                     }
                                 }
                             }
                         }
-                        if let peerId = peerId, let navigationController = navigationController {
+                        if let peerId = peerId, let accountId = accountId {
                             context.sharedContext.applicationBindings.dismissNativeController()
-                            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peerId)))
+                            context.sharedContext.navigateToChat(accountId: AccountRecordId(rawValue: accountId), peerId: peerId, messageId: nil)
                         }
                     }
                 } else if parsedUrl.host == "join" {
@@ -450,7 +440,7 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                         }
                         
                         if valid {
-                            if let botId = botId, let scope = scope, let publicKey = publicKey, let callbackUrl = callbackUrl {
+                            if let botId = botId, let scope = scope, let publicKey = publicKey {
                                 if scope.hasPrefix("{") && scope.hasSuffix("}") {
                                     opaquePayload = Data()
                                     if opaqueNonce.isEmpty {
@@ -462,7 +452,7 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                                 if case .chat = urlContext {
                                     return
                                 }
-                                let controller = SecureIdAuthController(context: context, mode: .form(peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: botId), scope: scope, publicKey: publicKey, callbackUrl: callbackUrl, opaquePayload: opaquePayload, opaqueNonce: opaqueNonce))
+                                let controller = SecureIdAuthController(context: context, mode: .form(peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(botId)), scope: scope, publicKey: publicKey, callbackUrl: callbackUrl, opaquePayload: opaquePayload, opaqueNonce: opaqueNonce))
                                 
                                 if let navigationController = navigationController {
                                     context.sharedContext.applicationBindings.dismissNativeController()
@@ -489,7 +479,7 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                         
                         if let id = id, !id.isEmpty, let idValue = Int32(id), idValue > 0 {
                             let _ = (context.account.postbox.transaction { transaction -> Peer? in
-                                return transaction.getPeer(PeerId(namespace: Namespaces.Peer.CloudUser, id: idValue))
+                                return transaction.getPeer(PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(idValue)))
                             }
                             |> deliverOnMainQueue).start(next: { peer in
                                 if let peer = peer, let controller = context.sharedContext.makePeerInfoController(context: context, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
@@ -594,6 +584,25 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                             convertedUrl = "https://t.me/addtheme/\(parameter)"
                         }
                     }
+                } else if parsedUrl.host == "privatepost" {
+                    if let components = URLComponents(string: "/?" + query) {
+                        var channelId: Int64?
+                        var postId: Int32?
+                        if let queryItems = components.queryItems {
+                            for queryItem in queryItems {
+                                if let value = queryItem.value {
+                                    if queryItem.name == "channel" {
+                                        channelId = Int64(value)
+                                    } else if queryItem.name == "post" {
+                                        postId = Int32(value)
+                                    }
+                                }
+                            }
+                        }
+                        if let channelId = channelId, let postId = postId {
+                            convertedUrl = "https://t.me/c/\(channelId)/\(postId)"
+                        }
+                    }
                 }
                 
                 if parsedUrl.host == "resolve" {
@@ -603,6 +612,7 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                         var startGroup: String?
                         var game: String?
                         var post: String?
+                        var voiceChat: String?
                         if let queryItems = components.queryItems {
                             for queryItem in queryItems {
                                 if let value = queryItem.value {
@@ -616,7 +626,11 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                                         game = value
                                     } else if queryItem.name == "post" {
                                         post = value
+                                    } else if queryItem.name == "voicechat" {
+                                        voiceChat = value
                                     }
+                                } else if queryItem.name == "voicechat" {
+                                    voiceChat = ""
                                 }
                             }
                         }
@@ -632,6 +646,12 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                                 result += "?startgroup=\(startGroup)"
                             } else if let game = game {
                                 result += "?game=\(game)"
+                            } else if let voiceChat = voiceChat {
+                                if !voiceChat.isEmpty {
+                                    result += "?voicechat=\(voiceChat)"
+                                } else {
+                                    result += "?voicechat="
+                                }
                             }
                             convertedUrl = result
                         }
@@ -659,7 +679,9 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                     }
                 }
             } else {
-                if parsedUrl.host == "settings" {
+                if parsedUrl.host == "importStickers" {
+                    handleResolvedUrl(.importStickers)
+                } else if parsedUrl.host == "settings" {
                     if let path = parsedUrl.pathComponents.last {
                         var section: ResolvedUrlSettingsSection?
                         switch path {
@@ -707,16 +729,16 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                 let _ = (settings
                 |> deliverOnMainQueue).start(next: { settings in
                     if settings.defaultWebBrowser == nil {
+                        //CloudVeil start
+                        if MainController.SecurityStaticSettings.disableInAppBrowser {    context.sharedContext.applicationBindings.openUrl(parsedUrl.absoluteString)
+                            return
+                        }
+                        //CloudVeil end
                         if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
-							//CloudVeil start
-							if MainController.SecurityStaticSettings.disableInAppBrowser {    context.sharedContext.applicationBindings.openUrl(parsedUrl.absoluteString)
-								return
-							}
-							//CloudVeil end
                             if let window = navigationController?.view.window {
                                 let controller = SFSafariViewController(url: parsedUrl)
                                 if #available(iOSApplicationExtension 10.0, iOS 10.0, *) {
-                                    controller.preferredBarTintColor = presentationData.theme.rootController.navigationBar.backgroundColor
+                                    controller.preferredBarTintColor = presentationData.theme.rootController.navigationBar.opaqueBackgroundColor
                                     controller.preferredControlTintColor = presentationData.theme.rootController.navigationBar.accentTextColor
                                 }
                                 window.rootViewController?.present(controller, animated: true)

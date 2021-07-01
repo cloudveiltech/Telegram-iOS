@@ -29,7 +29,7 @@ final class ChatSearchNavigationContentNode: NavigationBarContentNode {
         self.chatLocation = chatLocation
         self.interaction = interaction
         
-        self.searchBar = SearchBarNode(theme: SearchBarNodeTheme(theme: theme, hasSeparator: false), strings: strings, fieldStyle: .modern)
+        self.searchBar = SearchBarNode(theme: SearchBarNodeTheme(theme: theme, hasBackground: false, hasSeparator: false), strings: strings, fieldStyle: .modern)
         let placeholderText: String
         switch chatLocation {
             case .peer, .replyThread:
@@ -56,6 +56,12 @@ final class ChatSearchNavigationContentNode: NavigationBarContentNode {
         
         self.searchBar.clearTokens = { [weak self] in
             self?.interaction.toggleMembersSearch(false)
+        }
+        
+        self.searchBar.tokensUpdated = { [weak self] tokens in
+            if tokens.isEmpty {
+                self?.interaction.toggleMembersSearch(false)
+            }
         }
         
         if let statuses = interaction.statuses {
@@ -90,7 +96,7 @@ final class ChatSearchNavigationContentNode: NavigationBarContentNode {
     
     func update(presentationInterfaceState: ChatPresentationInterfaceState) {
         if let search = presentationInterfaceState.search {
-            self.searchBar.updateThemeAndStrings(theme: SearchBarNodeTheme(theme: presentationInterfaceState.theme, hasSeparator: false), strings: presentationInterfaceState.strings)
+            self.searchBar.updateThemeAndStrings(theme: SearchBarNodeTheme(theme: presentationInterfaceState.theme, hasBackground: false, hasSeparator: false), strings: presentationInterfaceState.strings)
             
             switch search.domain {
                 case .everything:

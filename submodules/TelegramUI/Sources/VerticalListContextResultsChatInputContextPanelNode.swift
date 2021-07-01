@@ -141,6 +141,9 @@ final class VerticalListContextResultsChatInputContextPanelNode: ChatInputContex
         self.listView.limitHitTestToNodes = true
         self.listView.isHidden = true
         self.listView.view.disablesInteractiveTransitionGestureRecognizer = true
+        self.listView.accessibilityPageScrolledString = { row, count in
+            return strings.VoiceOver_ScrollStatus(row, count).0
+        }
         
         super.init(context: context, theme: theme, strings: strings, fontSize: fontSize)
         
@@ -254,7 +257,10 @@ final class VerticalListContextResultsChatInputContextPanelNode: ChatInputContex
                     
                     if let topItemOffset = topItemOffset {
                         let position = strongSelf.listView.layer.position
-                        strongSelf.listView.layer.animatePosition(from: CGPoint(x: position.x, y: position.y + (strongSelf.listView.bounds.size.height - topItemOffset)), to: position, duration: 0.3, timingFunction: kCAMediaTimingFunctionSpring)
+                        strongSelf.listView.position = CGPoint(x: position.x, y: position.y + (strongSelf.listView.bounds.size.height - topItemOffset))
+                        ContainedViewLayoutTransition.animated(duration: 0.3, curve: .spring).animateView {
+                            strongSelf.listView.position = position
+                        }
                     }
                     
                     strongSelf.listView.isHidden = false
@@ -359,5 +365,15 @@ final class VerticalListContextResultsChatInputContextPanelNode: ChatInputContex
             strongSelf.currentProcessedResults = mergedResults
             strongSelf.updateInternalResults(mergedResults)
         }))
+    }
+    
+    override var topItemFrame: CGRect? {
+        var topItemFrame: CGRect?
+        self.listView.forEachItemNode { itemNode in
+            if topItemFrame == nil {
+                topItemFrame = itemNode.frame
+            }
+        }
+        return topItemFrame
     }
 }

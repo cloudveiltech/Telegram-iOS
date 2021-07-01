@@ -14,11 +14,14 @@ import UniversalMediaPlayer
 import TelegramBaseController
 import OverlayStatusController
 import ListMessageItem
+import UndoUI
 
 final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
     private let context: AccountContext
     private let peerId: PeerId
     private let chatControllerInteraction: ChatControllerInteraction
+    
+    weak var parentController: ViewController?
     
     private let listNode: ChatHistoryListNode
     
@@ -29,8 +32,6 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
     var isReady: Signal<Bool, NoError> {
         return self.ready.get()
     }
-    
-    let shouldReceiveExpandProgressUpdates: Bool
     
     private let selectedMessagesPromise = Promise<Set<MessageId>?>(nil)
     private var selectedMessages: Set<MessageId>? {
@@ -61,13 +62,8 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
         let chatLocationContextHolder = Atomic<ChatLocationContextHolder?>(value: nil)
         self.listNode = ChatHistoryListNode(context: context, chatLocation: .peer(peerId), chatLocationContextHolder: chatLocationContextHolder, tagMask: tagMask, subject: nil, controllerInteraction: chatControllerInteraction, selectedMessages: self.selectedMessagesPromise.get(), mode: .list(search: false, reversed: false, displayHeaders: .allButLast, hintLinks: tagMask == .webPage, isGlobalSearch: false))
         self.listNode.defaultToSynchronousTransactionWhileScrolling = true
-        
-        if tagMask == .music {
-            self.shouldReceiveExpandProgressUpdates = true
-        } else {
-            self.shouldReceiveExpandProgressUpdates = false
-        }
-        
+        self.listNode.scroller.bounces = false
+                
         self.mediaAccessoryPanelContainer = PassthroughContainerNode()
         self.mediaAccessoryPanelContainer.clipsToBounds = true
         
@@ -81,7 +77,7 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
         |> take(1)
         |> map { _ -> Bool in true })
         
-        if tagMask == .music || tagMask == .voiceOrInstantVideo {
+        if [.file, .music, .voiceOrInstantVideo].contains(tagMask) {
             self.mediaStatusDisposable = (context.sharedContext.mediaManager.globalMediaPlayerState
             |> mapToSignal { playlistStateAndType -> Signal<(Account, SharedMediaPlayerItemPlaybackState, MediaManagerPlayerType)?, NoError> in
                 if let (account, state, type) = playlistStateAndType {
@@ -95,6 +91,10 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
                                 }
                             case .music:
                                 if tagMask != .music {
+                                    return .single(nil) |> delay(0.2, queue: .mainQueue())
+                                }
+                            case .file:
+                                if tagMask != .file {
                                     return .single(nil) |> delay(0.2, queue: .mainQueue())
                                 }
                             }
@@ -136,6 +136,10 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
         self.hiddenMediaDisposable?.dispose()
         self.mediaStatusDisposable?.dispose()
         self.playlistPreloadDisposable?.dispose()
+    }
+    
+    func ensureMessageIsVisible(id: MessageId) {
+        
     }
     
     func scrollToTop() -> Bool {
@@ -201,7 +205,7 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
                     })
                 }
                 
-                let mediaAccessoryPanel = MediaNavigationAccessoryPanel(context: self.context)
+                let mediaAccessoryPanel = MediaNavigationAccessoryPanel(context: self.context, displayBackground: true)
                 mediaAccessoryPanel.containerNode.headerNode.displayScrubber = item.playbackData?.type != .instantVideo
                 mediaAccessoryPanel.close = { [weak self] in
                     if let strongSelf = self, let (_, _, _, _, type, _) = strongSelf.playlistStateAndType {
@@ -222,6 +226,8 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
                                 nextRate = .x2
                             case .x2:
                                 nextRate = .x1
+                            default:
+                                nextRate = .x1
                         }
                         transaction.updateSharedData(ApplicationSpecificSharedDataKeys.musicPlaybackSettings, { _ in
                             return settings.withUpdatedVoicePlaybackRate(nextRate)
@@ -233,6 +239,35 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
                             return
                         }
                         strongSelf.context.sharedContext.mediaManager.playlistControl(.setBaseRate(baseRate), type: type)
+                        
+                        if let controller = strongSelf.parentController {
+                            var hasTooltip = false
+                            controller.forEachController({ controller in
+                                if let controller = controller as? UndoOverlayController {
+                                    hasTooltip = true
+                                    controller.dismissWithCommitAction()
+                                }
+                                return true
+                            })
+                            
+                            let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
+                            let slowdown = baseRate == .x1
+                            controller.present(
+                                UndoOverlayController(
+                                    presentationData: presentationData,
+                                    content: .audioRate(
+                                        slowdown: slowdown,
+                                        text: slowdown ? presentationData.strings.Conversation_AudioRateTooltipNormal : presentationData.strings.Conversation_AudioRateTooltipSpeedUp
+                                    ),
+                                    elevatedLayout: false,
+                                    animateInAsReplacement: hasTooltip,
+                                    action: { action in
+                                        return true
+                                    }
+                                ),
+                                in: .current
+                            )
+                        }
                     })
                 }
                 mediaAccessoryPanel.togglePlayPause = { [weak self] in
@@ -356,7 +391,9 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
         self.listNode.updateLayout(transition: transition, updateSizeAndInsets: ListViewUpdateSizeAndInsets(size: size, insets: UIEdgeInsets(top: topPanelHeight, left: sideInset, bottom: bottomInset, right: sideInset), duration: duration, curve: curve))
         if isScrollingLockedAtTop {
             switch self.listNode.visibleContentOffset() {
-            case .known(0.0), .none:
+            case let .known(value) where value <= CGFloat.ulpOfOne:
+                break
+            case .none:
                 break
             default:
                 self.listNode.scrollToEndOfHistory()

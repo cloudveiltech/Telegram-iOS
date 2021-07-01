@@ -108,6 +108,8 @@
     self = [super initWithFrame:CGRectZero];
     if (self != nil)
     {
+        [[LegacyComponentsGlobals provider] makeViewDisableInteractiveKeyboardGestureRecognizer:self];
+        
         _actionHandle = [[ASHandle alloc] initWithDelegate:self releaseOnMainThread:true];
         
         _context = context;
@@ -138,7 +140,9 @@
             if (strongSelf == nil)
                 return;
             
-            [strongSelf.window endEditing:true];    
+            [strongSelf.window endEditing:true];
+            strongSelf->_portraitToolbarView.doneButton.userInteractionEnabled = false;
+            strongSelf->_landscapeToolbarView.doneButton.userInteractionEnabled = false;
             strongSelf->_donePressed(strongSelf->_currentItem);
         };
         void(^toolbarDoneLongPressed)(id) = ^(id sender)
@@ -591,6 +595,8 @@
     [_muteButton setImage:muteIcon forState:UIControlStateNormal];
     [_muteButton setImage:muteActiveIcon forState:UIControlStateSelected];
     [_muteButton setImage:muteActiveIcon forState:UIControlStateSelected | UIControlStateHighlighted];
+    
+    [self setNeedsLayout];
 }
 
 - (TGPhotoEditorTab)currentTabs

@@ -1,7 +1,0 @@
-per-file adb_profile_chrome=file://systrace/profile_chrome/OWNERS
-per-file adb_profile_chrome_startup=file://systrace/profile_chrome/OWNERS
-
-per-file systrace=file://systrace/OWNERS
-
-ccraik@google.com
-jreck@google.com

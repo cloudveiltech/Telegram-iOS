@@ -6,8 +6,8 @@ swift_library(
     srcs = glob([
 		"Sources/**/*.swift",
     ]),
-    deps = [
-		#CloudVeil start
+    deps = [			
+        #CloudVeil start
 		"//Telegram:CloudVeilSecurityManager",
 		#CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
@@ -90,6 +90,9 @@ swift_library(
         "//submodules/AccountUtils:AccountUtils",
         "//submodules/AuthTransferUI:AuthTransferUI",
         "//submodules/WidgetSetupScreen:WidgetSetupScreen",
+        "//submodules/UIKitRuntimeUtils:UIKitRuntimeUtils",
+        "//submodules/DebugSettingsUI:DebugSettingsUI",
+        "//submodules/WallpaperBackgroundNode:WallpaperBackgroundNode",
     ],
     visibility = [
         "//visibility:public",

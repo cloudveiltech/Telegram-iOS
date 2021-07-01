@@ -12,6 +12,7 @@ import ShareController
 import StickerResources
 import AlertUI
 import PresentationDataUtils
+import UndoUI
 
 public enum StickerPackPreviewControllerMode {
     case `default`
@@ -24,7 +25,9 @@ public final class StickerPackPreviewController: ViewController, StandalonePrese
     }
     
     private var animatedIn = false
-    private var dismissed = false
+    private var isDismissed = false
+        
+    public var dismissed: (() -> Void)?
     
     private let context: AccountContext
     private let mode: StickerPackPreviewControllerMode
@@ -43,7 +46,7 @@ public final class StickerPackPreviewController: ViewController, StandalonePrese
     private let openMentionDisposable = MetaDisposable()
     
     private var presentationDataDisposable: Disposable?
-    
+        
     public var sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)? {
         didSet {
             if self.isNodeLoaded {
@@ -75,10 +78,11 @@ public final class StickerPackPreviewController: ViewController, StandalonePrese
         
         super.init(navigationBarPresentationData: nil)
         
+        self.blocksBackgroundWhenInOverlay = true
         self.acceptsFocusWhenInOverlay = true
         self.statusBar.statusBarStyle = .Ignore
         
-        self.stickerPackContents.set(loadedStickerPack(postbox: context.account.postbox, network: context.account.network, reference: stickerPack, forceActualized: true))
+        self.stickerPackContents.set(context.engine.stickers.loadedStickerPack(reference: stickerPack, forceActualized: true))
         
         self.presentationDataDisposable = (context.sharedContext.presentationData
         |> deliverOnMainQueue).start(next: { [weak self] presentationData in
@@ -108,7 +112,16 @@ public final class StickerPackPreviewController: ViewController, StandalonePrese
                 }
                 
                 if let stickerPackContentsValue = strongSelf.stickerPackContentsValue, case let .result(info, _, _) = stickerPackContentsValue, !info.shortName.isEmpty {
-                    strongSelf.present(ShareController(context: strongSelf.context, subject: .url("https://t.me/addstickers/\(info.shortName)"), externalShare: true), in: .window(.root))
+                    let shareController = ShareController(context: strongSelf.context, subject: .url("https://t.me/addstickers/\(info.shortName)"), externalShare: true)
+                    
+                    let parentNavigationController = strongSelf.parentNavigationController
+                    shareController.actionCompleted = { [weak parentNavigationController] in
+                        if let parentNavigationController = parentNavigationController, let controller = parentNavigationController.topViewController as? ViewController {
+                            let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
+                            controller.present(UndoOverlayController(presentationData: presentationData, content: .linkCopied(text: presentationData.strings.Conversation_LinkCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .window(.root))
+                        }
+                    }
+                    strongSelf.present(shareController, in: .window(.root))
                     strongSelf.dismiss()
                 }
             }
@@ -119,7 +132,7 @@ public final class StickerPackPreviewController: ViewController, StandalonePrese
             }
             
             let account = strongSelf.context.account
-            strongSelf.openMentionDisposable.set((resolvePeerByName(account: strongSelf.context.account, name: mention)
+            strongSelf.openMentionDisposable.set((strongSelf.context.engine.peers.resolvePeerByName(name: mention)
             |> mapToSignal { peerId -> Signal<Peer?, NoError> in
                 if let peerId = peerId {
                     return account.postbox.loadedPeerWithId(peerId)
@@ -139,6 +152,7 @@ public final class StickerPackPreviewController: ViewController, StandalonePrese
             }))
         }, actionPerformed: self.actionPerformed)
         self.controllerNode.dismiss = { [weak self] in
+            self?.dismissed?()
             self?.presentingViewController?.dismiss(animated: false, completion: nil)
         }
         self.controllerNode.cancel = { [weak self] in
@@ -253,8 +267,8 @@ public final class StickerPackPreviewController: ViewController, StandalonePrese
     }
     
     override public func dismiss(completion: (() -> Void)? = nil) {
-        if !self.dismissed {
-            self.dismissed = true
+        if !self.isDismissed {
+            self.isDismissed = true
         } else {
             return
         }
@@ -266,7 +280,7 @@ public final class StickerPackPreviewController: ViewController, StandalonePrese
     override public func containerLayoutUpdated(_ layout: ContainerViewLayout, transition: ContainedViewLayoutTransition) {
         super.containerLayoutUpdated(layout, transition: transition)
         
-        self.controllerNode.containerLayoutUpdated(layout, navigationBarHeight: self.navigationHeight, transition: transition)
+        self.controllerNode.containerLayoutUpdated(layout, navigationBarHeight: self.navigationLayout(layout: layout).navigationFrame.maxY, transition: transition)
     }
 }
 

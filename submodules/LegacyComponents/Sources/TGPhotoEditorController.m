@@ -146,7 +146,6 @@
     {
         _context = context;
         _actionHandle = [[ASHandle alloc] initWithDelegate:self releaseOnMainThread:true];
-        _standaloneEditingContext = [[TGMediaEditingContext alloc] init];
         
         self.automaticallyManageScrollViewInsets = false;
         self.autoManageStatusBarBackground = false;
@@ -978,10 +977,22 @@
     SSignal *imageSignal = nil;
     if (fullSizeImage == nil)
     {
-        imageSignal = [[self.requestOriginalFullSizeImage(_item, 0) filter:^bool(id result)
+        imageSignal = [[[self.requestOriginalFullSizeImage(_item, 0) filter:^bool(id result)
         {
             return [result isKindOfClass:[UIImage class]];
-        }] takeLast];
+        }] takeLast] map:^UIImage *(UIImage *image) {
+            if (avatar) {
+                CGFloat maxSide = [GPUImageContext maximumTextureSizeForThisDevice];
+                if (MAX(image.size.width, image.size.height) > maxSide) {
+                    CGSize fittedSize = TGScaleToFit(image.size, CGSizeMake(maxSide, maxSide));
+                    return TGScaleImageToPixelSize(image, fittedSize);
+                } else {
+                    return image;
+                }
+            } else {
+                return image;
+            }
+        }];
     }
     else
     {
@@ -2170,10 +2181,14 @@
 
 - (TGMediaEditingContext *)editingContext
 {
-    if (_editingContext)
+    if (_editingContext) {
         return _editingContext;
-    else
+    } else {
+        if (_standaloneEditingContext == nil) {
+            _standaloneEditingContext = [[TGMediaEditingContext alloc] init];
+        }
         return _standaloneEditingContext;
+    }
 }
 
 - (void)doneButtonLongPressed:(UIButton *)sender

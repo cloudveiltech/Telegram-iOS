@@ -3,11 +3,10 @@ licenses(["notice"])
 py_binary(
     name = "imported_dynamic_framework_processor",
     srcs = ["imported_dynamic_framework_processor.py"],
-    srcs_version = "PY2AND3",
-    # Used by the rule implementations, so it needs to be public; but
-    # should be considered an implementation detail of the rules and
-    # not used by other things.
-    visibility = ["//visibility:public"],
+    python_version = "PY3",
+    visibility = [
+        "//apple/internal:__pkg__",
+    ],
     deps = [
         "//tools/bitcode_strip",
         "//tools/codesigningtool:codesigningtool_lib",

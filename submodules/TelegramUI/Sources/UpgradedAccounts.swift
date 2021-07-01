@@ -166,8 +166,8 @@ public func upgradedAccounts(accountManager: AccountManager, rootPath: String, e
                                                     accountManager.mediaBox.storeResourceData(file.file.resource.id, data: data)
                                                     let _ = accountManager.mediaBox.cachedResourceRepresentation(file.file.resource, representation: CachedScaledImageRepresentation(size: CGSize(width: 720.0, height: 720.0), mode: .aspectFit), complete: true, fetch: true).start()
                                                     if wallpaper.isPattern {
-                                                        if let color = file.settings.color, let intensity = file.settings.intensity {
-                                                            let _ = accountManager.mediaBox.cachedResourceRepresentation(file.file.resource, representation: CachedPatternWallpaperRepresentation(color: color, bottomColor: file.settings.bottomColor, intensity: intensity, rotation: file.settings.rotation), complete: true, fetch: true).start()
+                                                        if !file.settings.colors.isEmpty, let intensity = file.settings.intensity {
+                                                            let _ = accountManager.mediaBox.cachedResourceRepresentation(file.file.resource, representation: CachedPatternWallpaperRepresentation(colors: file.settings.colors, intensity: intensity, rotation: file.settings.rotation), complete: true, fetch: true).start()
                                                         }
                                                     } else {
                                                         if file.settings.blur {
@@ -290,7 +290,7 @@ public func upgradedAccounts(accountManager: AccountManager, rootPath: String, e
             |> mapToSignal { globalSettings, ids -> Signal<Never, NoError> in
                 var importSignal: Signal<Never, NoError> = .complete()
                 for id in ids {
-                    let importInfoAccounttSignal = accountTransaction(rootPath: rootPath, id: id, encryptionParameters: encryptionParameters, transaction: { transaction -> Void in
+                    let importInfoAccounttSignal = accountTransaction(rootPath: rootPath, id: id, encryptionParameters: encryptionParameters, isReadOnly: false, transaction: { _, transaction -> Void in
                         transaction.updatePreferencesEntry(key: PreferencesKeys.contactsSettings, { current in
                             var settings = current as? ContactsSettings ?? ContactsSettings.defaultSettings
                             settings.synchronizeContacts = globalSettings._legacySynchronizeDeviceContacts
@@ -298,6 +298,9 @@ public func upgradedAccounts(accountManager: AccountManager, rootPath: String, e
                         })
                     })
                     |> ignoreValues
+                    |> `catch` { _ -> Signal<Never, NoError> in
+                        return .complete()
+                    }
                     importSignal = importSignal |> then(importInfoAccounttSignal)
                 }
                 return importSignal

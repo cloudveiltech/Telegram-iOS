@@ -229,7 +229,7 @@ private enum PeersNearbyEntry: ItemListNodeEntry {
                 var text = strings.Map_DistanceAway(shortStringForDistance(strings: strings, distance: peer.distance)).0
                 let isSelfPeer = peer.peer.0.id == arguments.context.account.peerId
                 if isSelfPeer {
-                    text = strings.PeopleNearby_VisibleUntil(humanReadableStringForTimestamp(strings: strings, dateTimeFormat: dateTimeFormat, timestamp: peer.expires)).0
+                    text = strings.PeopleNearby_VisibleUntil(humanReadableStringForTimestamp(strings: strings, dateTimeFormat: dateTimeFormat, timestamp: peer.expires).0).0
                 }
                 return ItemListPeerItem(presentationData: presentationData, dateTimeFormat: dateTimeFormat, nameDisplayOrder: nameDisplayOrder, context: arguments.context, peer: peer.peer.0, aliasHandling: .standard, nameColor: .primary, nameStyle: .distinctBold, presence: nil, text: .text(text, .secondary), label: .none, editing: ItemListPeerItemEditing(editable: false, editing: false, revealed: false), revealOptions: nil, switchValue: nil, enabled: true, selectable: !isSelfPeer, sectionId: self.section, action: {
                     if !isSelfPeer {
@@ -449,7 +449,6 @@ private class PeersNearbyControllerImpl: ItemListController {
     }
 }
 
-
 public func peersNearbyController(context: AccountContext) -> ViewController {
     var pushControllerImpl: ((ViewController) -> Void)?
     var replaceTopControllerImpl: ((ViewController) -> Void)?
@@ -479,14 +478,14 @@ public func peersNearbyController(context: AccountContext) -> ViewController {
                 let _ = (coordinatePromise.get()
                 |> deliverOnMainQueue).start(next: { coordinate in
                     if let coordinate = coordinate {
-                        let _ = updatePeersNearbyVisibility(account: context.account, update: .visible(latitude: coordinate.latitude, longitude: coordinate.longitude), background: false).start()
+                        let _ = context.engine.peersNearby.updatePeersNearbyVisibility(update: .visible(latitude: coordinate.latitude, longitude: coordinate.longitude), background: false).start()
                     }
                 })
             })]), nil)
             
             
         } else {
-            let _ = updatePeersNearbyVisibility(account: context.account, update: .invisible, background: false).start()
+            let _ = context.engine.peersNearby.updatePeersNearbyVisibility(update: .invisible, background: false).start()
         }
     }, openProfile: { peer, distance in
         navigateToProfileImpl?(peer, distance)
@@ -513,7 +512,7 @@ public func peersNearbyController(context: AccountContext) -> ViewController {
         cancelImpl = {
             checkCreationAvailabilityDisposable.set(nil)
         }
-        checkCreationAvailabilityDisposable.set((checkPublicChannelCreationAvailability(account: context.account, location: true)
+        checkCreationAvailabilityDisposable.set((context.engine.peers.checkPublicChannelCreationAvailability(location: true)
         |> afterDisposed {
             Queue.mainQueue().async {
                 progressDisposable.dispose()
@@ -523,7 +522,7 @@ public func peersNearbyController(context: AccountContext) -> ViewController {
             if available {
                 let controller = PermissionController(context: context, splashScreen: true)
                 controller.navigationPresentation = .modalInLargeLayout
-                controller.setState(.custom(icon: PermissionControllerCustomIcon(light: UIImage(bundleImageName: "Location/LocalGroupLightIcon"), dark: UIImage(bundleImageName: "Location/LocalGroupDarkIcon")), title: presentationData.strings.LocalGroup_Title, subtitle: address, text: presentationData.strings.LocalGroup_Text, buttonTitle: presentationData.strings.LocalGroup_ButtonTitle, footerText: presentationData.strings.LocalGroup_IrrelevantWarning), animated: false)
+                controller.setState(.custom(icon: .icon(PermissionControllerCustomIcon(light: UIImage(bundleImageName: "Location/LocalGroupLightIcon"), dark: UIImage(bundleImageName: "Location/LocalGroupDarkIcon"))), title: presentationData.strings.LocalGroup_Title, subtitle: address, text: presentationData.strings.LocalGroup_Text, buttonTitle: presentationData.strings.LocalGroup_ButtonTitle, secondaryButtonTitle: nil, footerText: presentationData.strings.LocalGroup_IrrelevantWarning), animated: false)
                 controller.proceed = { result in
                     let controller = context.sharedContext.makeCreateGroupController(context: context, peerIds: [], initialTitle: nil, mode: .locatedGroup(latitude: latitude, longitude: longitude, address: address), completion: nil)
                     controller.navigationPresentation = .modalInLargeLayout

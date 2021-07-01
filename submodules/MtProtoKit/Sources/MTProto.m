@@ -125,10 +125,6 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
     bool _isProbing;
     MTMetaDisposable *_probingDisposable;
     NSNumber *_probingStatus;
-	
-	//CloudVeil start
-	NSTimeInterval _lastSetTransportCallTime;
-	//CloudVeil end
 }
 
 @end
@@ -153,6 +149,7 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
     NSAssert(context.serialization != nil, @"context serialization should not be nil");
     NSAssert(datacenterId != 0, @"datacenterId should not be 0");
 #endif
+    
     self = [super init];
     if (self != nil)
     {
@@ -168,9 +165,9 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
         _messageServices = [[NSMutableArray alloc] init];
         
         _sessionInfo = [[MTSessionInfo alloc] initWithRandomSessionIdAndContext:_context];
-        //CloudVeil start
-		_lastSetTransportCallTime = 0;
-		//CloudVeil end
+        
+        
+        
         _shouldStayConnected = true;
     }
     return self;
@@ -272,53 +269,36 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
     }];
 }
 
-
-//Cloudveil start
-- (void)setTransportDelayed:(MTTransport *)transport
+- (void)setTransport:(MTTransport *)transport
 {
-		if (MTLogEnabled()) {
-			MTLog(@"[MTProto#%p@%p changing transport %@#%p to %@#%p thread id %@]", self, _context, [_transport class] == nil ? @"" : NSStringFromClass([_transport class]), _transport, [transport class] == nil ? @"" : NSStringFromClass([transport class]), transport, [NSThread currentThread]);
-		}
-		
-		[self allTransactionsMayHaveFailed];
-		
-		MTTransport *previousTransport = _transport;
-		[_transport activeTransactionIds:^(NSArray *transactionIds)
-		{
-			[self transportTransactionsMayHaveFailed:previousTransport transactionIds:transactionIds];
-		}];
-		
-		_timeFixContext = nil;
-		
-		if (_transport != nil)
-			[self removeMessageService:_transport];
-		
-		_transport = transport;
-		[previousTransport stop];
-		
-		if (_transport != nil)
-			[self addMessageService:_transport];
-	
-		[self updateConnectionState];
+    [[MTProto managerQueue] dispatchOnQueue:^
+    {
+        if (MTLogEnabled()) {
+            MTLog(@"[MTProto#%p@%p changing transport %@#%p to %@#%p]", self, _context, [_transport class] == nil ? @"" : NSStringFromClass([_transport class]), _transport, [transport class] == nil ? @"" : NSStringFromClass([transport class]), transport);
+        }
+        
+        [self allTransactionsMayHaveFailed];
+        
+        MTTransport *previousTransport = _transport;
+        [_transport activeTransactionIds:^(NSArray *transactionIds)
+        {
+            [self transportTransactionsMayHaveFailed:previousTransport transactionIds:transactionIds];
+        }];
+        
+        _timeFixContext = nil;
+        
+        if (_transport != nil)
+            [self removeMessageService:_transport];
+        
+        _transport = transport;
+        [previousTransport stop];
+        
+        if (_transport != nil)
+            [self addMessageService:_transport];
+        
+        [self updateConnectionState];
+    }];
 }
-
-- (void)setTransport:(MTTransport *)transport {
-	
-	//[[MTProto managerQueue] dispatchOnQueue:^
-	// {
-	@synchronized (self) {
-		NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
-		if(now - _lastSetTransportCallTime < 1 && transport != nil && _transport != nil) {
-			return;
-		}
-		if(transport != nil) {
-			_lastSetTransportCallTime = now;
-		}
-		[self setTransportDelayed:transport];
-	}
-//	}];
-}
-//Cloudveil end
 
 - (void)resetTransport
 {
@@ -1168,7 +1148,7 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
                     {
                         if (!_useUnauthorizedMode)
                         {
-                            NSMutableArray *currentContainerMessages = [[NSMutableArray alloc] init];
+                            NSMutableArray<MTPreparedMessage *> *currentContainerMessages = [[NSMutableArray alloc] init];
                             NSUInteger currentContainerSize = 0;
                             
                             for (NSUInteger j = i; j < transactionMessageList.count; j++, i++)
@@ -1206,8 +1186,9 @@ static const NSUInteger MTMaxUnacknowledgedMessageCount = 64;
                                 }
                             }
                             
-                            if (currentContainerMessages.count == 1)
+                            if (currentContainerMessages.count == 1 && ![transactionSessionInfo wasMessageSentOnce:currentContainerMessages[0].messageId])
                             {
+                                [transactionSessionInfo setMessageWasSentOnce:currentContainerMessages[0].messageId];
                                 int32_t quickAckId = 0;
                                 NSData *messageData = [self _dataForEncryptedMessage:currentContainerMessages[0] authKey:authKey sessionInfo:transactionSessionInfo quickAckId:&quickAckId address:scheme.address extendedPadding:extendedPadding];
                                 if (messageData != nil)
@@ -1976,9 +1957,6 @@ static NSString *dumpHexString(NSData *data, int maxLength) {
             if (currentTransport == _transport)
                 [self requestSecureTransportReset];
             
-			if(abs(protocolErrorCode) == 429) {//flood - cloudveil
-				[NSThread sleepForTimeInterval:10];
-			}
             return;
         }
         
@@ -2135,6 +2113,19 @@ static NSString *dumpHexString(NSData *data, int maxLength) {
     }
 }
 
+static bool isDataEqualToDataConstTime(NSData *data1, NSData *data2) {
+    if (data1.length != data2.length) {
+        return false;
+    }
+    uint8_t const *bytes1 = data1.bytes;
+    uint8_t const *bytes2 = data2.bytes;
+    int result = 0;
+    for (int i = 0; i < data1.length; i++) {
+        result |= bytes1[i] != bytes2[i];
+    }
+    return result == 0;
+}
+
 - (NSData *)_decryptIncomingTransportData:(NSData *)transportData address:(MTDatacenterAddress *)address authKey:(MTDatacenterAuthKey *)authKey
 {
     MTDatacenterAuthKey *effectiveAuthKey = authKey;
@@ -2161,20 +2152,6 @@ static NSString *dumpHexString(NSData *data, int maxLength) {
     
     NSData *decryptedData = MTAesDecrypt(dataToDecrypt, encryptionKey.key, encryptionKey.iv);
     
-    int32_t messageDataLength = 0;
-    [decryptedData getBytes:&messageDataLength range:NSMakeRange(28, 4)];
-    
-    int32_t paddingLength = ((int32_t)decryptedData.length) - messageDataLength;
-    if (paddingLength < 12 || paddingLength > 1024) {
-        __unused NSData *result = MTSha256(decryptedData);
-        return nil;
-    }
-    
-    if (messageDataLength < 0 || messageDataLength > (int32_t)decryptedData.length) {
-        __unused NSData *result = MTSha256(decryptedData);
-        return nil;
-    }
-    
     int xValue = 8;
     NSMutableData *msgKeyLargeData = [[NSMutableData alloc] init];
     [msgKeyLargeData appendBytes:effectiveAuthKey.authKey.bytes + 88 + xValue length:32];
@@ -2183,8 +2160,21 @@ static NSString *dumpHexString(NSData *data, int maxLength) {
     NSData *msgKeyLarge = MTSha256(msgKeyLargeData);
     NSData *messageKey = [msgKeyLarge subdataWithRange:NSMakeRange(8, 16)];
     
-    if (![messageKey isEqualToData:embeddedMessageKey])
+    if (!isDataEqualToDataConstTime(messageKey, embeddedMessageKey)) {
         return nil;
+    }
+
+    int32_t messageDataLength = 0;
+    [decryptedData getBytes:&messageDataLength range:NSMakeRange(28, 4)];
+
+    int32_t paddingLength = ((int32_t)decryptedData.length) - messageDataLength;
+    if (paddingLength < 12 || paddingLength > 1024) {
+        return nil;
+    }
+
+    if (messageDataLength < 0 || messageDataLength > (int32_t)decryptedData.length) {
+        return nil;
+    }
     
     return decryptedData;
 }

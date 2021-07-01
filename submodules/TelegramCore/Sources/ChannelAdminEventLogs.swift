@@ -58,6 +58,12 @@ public enum AdminLogEventAction {
     case endGroupCall
     case groupCallUpdateParticipantMuteStatus(peerId: PeerId, isMuted: Bool)
     case updateGroupCallSettings(joinMuted: Bool)
+    case groupCallUpdateParticipantVolume(peerId: PeerId, volume: Int32)
+    case deleteExportedInvitation(ExportedInvitation)
+    case revokeExportedInvitation(ExportedInvitation)
+    case editExportedInvitation(previous: ExportedInvitation, updated: ExportedInvitation)
+    case participantJoinedViaInvite(ExportedInvitation)
+    case changeHistoryTTL(previousValue: Int32?, updatedValue: Int32?)
 }
 
 public enum ChannelAdminLogEventError {
@@ -89,12 +95,13 @@ public struct AdminLogEventsFlags: OptionSet {
     public static let editMessages = AdminLogEventsFlags(rawValue: 1 << 12)
     public static let deleteMessages = AdminLogEventsFlags(rawValue: 1 << 13)
     public static let calls = AdminLogEventsFlags(rawValue: 1 << 14)
+    public static let invites = AdminLogEventsFlags(rawValue: 1 << 15)
     
     public static var all: AdminLogEventsFlags {
-        return [.join, .leave, .invite, .ban, .unban, .kick, .unkick, .promote, .demote, .info, .settings, .pinnedMessages, .editMessages, .deleteMessages, .calls]
+        return [.join, .leave, .invite, .ban, .unban, .kick, .unkick, .promote, .demote, .info, .settings, .pinnedMessages, .editMessages, .deleteMessages, .calls, .invites]
     }
     public static var flags: AdminLogEventsFlags {
-        return [.join, .leave, .invite, .ban, .unban, .kick, .unkick, .promote, .demote, .info, .settings, .pinnedMessages, .editMessages, .deleteMessages, .calls]
+        return [.join, .leave, .invite, .ban, .unban, .kick, .unkick, .promote, .demote, .info, .settings, .pinnedMessages, .editMessages, .deleteMessages, .calls, .invites]
     }
 }
 
@@ -213,7 +220,7 @@ public func channelAdminLogEvents(postbox: Postbox, network: Network, peerId: Pe
                                             action = .pollStopped(rendered)
                                         }
                                     case let .channelAdminLogEventActionChangeLinkedChat(prevValue, newValue):
-                                        action = .linkedPeerUpdated(previous: prevValue == 0 ? nil : peers[PeerId(namespace: Namespaces.Peer.CloudChannel, id: prevValue)], updated: newValue == 0 ? nil : peers[PeerId(namespace: Namespaces.Peer.CloudChannel, id: newValue)])
+                                        action = .linkedPeerUpdated(previous: prevValue == 0 ? nil : peers[PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt32Value(prevValue))], updated: newValue == 0 ? nil : peers[PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt32Value(newValue))])
                                     case let .channelAdminLogEventActionChangeLocation(prevValue, newValue):
                                         action = .changeGeoLocation(previous: PeerGeoLocation(apiLocation: prevValue), updated: PeerGeoLocation(apiLocation: newValue))
                                     case let .channelAdminLogEventActionToggleSlowMode(prevValue, newValue):
@@ -230,8 +237,21 @@ public func channelAdminLogEvents(postbox: Postbox, network: Network, peerId: Pe
                                         action = .groupCallUpdateParticipantMuteStatus(peerId: parsedParticipant.peerId, isMuted: false)
                                     case let .channelAdminLogEventActionToggleGroupCallSetting(joinMuted):
                                         action = .updateGroupCallSettings(joinMuted: joinMuted == .boolTrue)
+                                    case let .channelAdminLogEventActionExportedInviteDelete(invite):
+                                        action = .deleteExportedInvitation(ExportedInvitation(apiExportedInvite: invite))
+                                    case let .channelAdminLogEventActionExportedInviteRevoke(invite):
+                                        action = .revokeExportedInvitation(ExportedInvitation(apiExportedInvite: invite))
+                                    case let .channelAdminLogEventActionExportedInviteEdit(prevInvite, newInvite):
+                                        action = .editExportedInvitation(previous: ExportedInvitation(apiExportedInvite: prevInvite), updated: ExportedInvitation(apiExportedInvite: newInvite))
+                                    case let .channelAdminLogEventActionParticipantJoinByInvite(invite):
+                                        action = .participantJoinedViaInvite(ExportedInvitation(apiExportedInvite: invite))
+                                    case let .channelAdminLogEventActionParticipantVolume(participant):
+                                        let parsedParticipant = GroupCallParticipantsContext.Update.StateUpdate.ParticipantUpdate(participant)
+                                        action = .groupCallUpdateParticipantVolume(peerId: parsedParticipant.peerId, volume: parsedParticipant.volume ?? 10000)
+                                    case let .channelAdminLogEventActionChangeHistoryTTL(prevValue, newValue):
+                                        action = .changeHistoryTTL(previousValue: prevValue, updatedValue: newValue)
                                 }
-                                let peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: userId)
+                                let peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(userId))
                                 if let action = action {
                                     events.append(AdminLogEvent(id: id, peerId: peerId, date: date, action: action))
                                 }

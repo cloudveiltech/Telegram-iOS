@@ -23,6 +23,11 @@ swift_library(
         "//submodules/PresentationDataUtils:PresentationDataUtils",
         "//submodules/TelegramNotices:TelegramNotices",
         "//submodules/MergeLists:MergeLists",
+        "//submodules/ChatListSearchItemHeader:ChatListSearchItemHeader",
+        "//submodules/PeerOnlineMarkerNode:PeerOnlineMarkerNode",
+        "//submodules/ContextUI:ContextUI",
+        "//submodules/TelegramBaseController:TelegramBaseController",
+        "//submodules/AnimatedStickerNode:AnimatedStickerNode",
     ],
     visibility = [
         "//visibility:public",

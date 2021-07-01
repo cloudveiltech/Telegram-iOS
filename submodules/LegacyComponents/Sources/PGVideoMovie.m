@@ -1,5 +1,6 @@
 #import "PGVideoMovie.h"
 #import "GPUImageFilter.h"
+#import "LegacyComponentsInternal.h"
 
 GLfloat kColorConversion601Default[] = {
     1.164,  1.164, 1.164,
@@ -118,16 +119,20 @@ NSString *const kYUVVideoRangeConversionForLAFragmentShaderString = SHADER_STRIN
 
 - (GPUImageRotationMode)rotationForTrack:(AVAsset *)asset {
     AVAssetTrack *videoTrack = [[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
-    CGAffineTransform trackTransform = [videoTrack preferredTransform];
+    CGAffineTransform t = [videoTrack preferredTransform];
     
-    if (trackTransform.a == -1 && trackTransform.d == -1) {
+    if (t.a == -1 && t.d == -1) {
         return kGPUImageRotate180;
-    } else if (trackTransform.a == 1 && trackTransform.d == 1)  {
+    } else if (t.a == 1 && t.d == 1)  {
         return kGPUImageNoRotation;
-    } else if (trackTransform.b == -1 && trackTransform.c == 1) {
+    } else if (t.b == -1 && t.c == 1) {
         return kGPUImageRotateLeft;
+    } else if (t.a == -1 && t.d == 1) {
+        return kGPUImageFlipHorizonal;
+    } else if (t.a == 1 && t.d == -1)  {
+        return kGPUImageRotate180FlipHorizontal;
     } else {
-        if (trackTransform.c == 1) {
+        if (t.c == 1) {
             return kGPUImageRotateRightFlipVertical;
         } else {
             return kGPUImageRotateRight;
@@ -206,12 +211,6 @@ NSString *const kYUVVideoRangeConversionForLAFragmentShaderString = SHADER_STRIN
 #pragma mark -
 #pragma mark Movie processing
 
-//- (void)enableSynchronizedEncodingUsingMovieWriter:(GPUImageMovieWriter *)movieWriter;
-//{
-//    synchronizedMovieWriter = movieWriter;
-//    movieWriter.encodingLiveVideo = NO;
-//}
-
 - (void)startProcessing {
     dispatch_sync(dispatch_get_main_queue(), ^{
         displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(displayLinkCallback:)];
@@ -228,7 +227,20 @@ NSString *const kYUVVideoRangeConversionForLAFragmentShaderString = SHADER_STRIN
         else {
             [pixBuffAttributes setObject:@(kCVPixelFormatType_32BGRA) forKey:(id)kCVPixelBufferPixelFormatTypeKey];
         }
-        playerItemOutput = [[AVPlayerItemVideoOutput alloc] initWithPixelBufferAttributes:pixBuffAttributes];
+        if (iosMajorVersion() >= 10) {
+            NSDictionary *hdVideoProperties = @
+            {
+            AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
+            AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
+            AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2,
+            };
+            [pixBuffAttributes setObject:hdVideoProperties forKey:AVVideoColorPropertiesKey];
+            playerItemOutput = [[AVPlayerItemVideoOutput alloc] initWithOutputSettings:pixBuffAttributes];
+            
+            
+        } else {
+            playerItemOutput = [[AVPlayerItemVideoOutput alloc] initWithPixelBufferAttributes:pixBuffAttributes];
+        }
         [playerItemOutput setDelegate:self queue:videoProcessingQueue];
 
         [_playerItem addOutput:playerItemOutput];

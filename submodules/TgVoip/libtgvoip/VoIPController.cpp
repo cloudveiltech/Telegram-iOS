@@ -1166,7 +1166,7 @@ void VoIPController::StartAudio(){
 	if(!micMuted){
 		audioInput->Start();
 		if(!audioInput->IsInitialized()){
-			LOGE("Erorr initializing audio capture");
+			LOGE("Error initializing audio capture");
 			lastError=ERROR_AUDIO_IO;
 
 			SetState(STATE_FAILED);
@@ -3932,7 +3932,7 @@ Endpoint::~Endpoint(){
 #pragma mark - AudioInputTester
 
 AudioInputTester::AudioInputTester(std::string deviceID) : deviceID(std::move(deviceID)){
-	io=audio::AudioIO::Create(deviceID, "default");
+	io=audio::AudioIO::Create(this->deviceID, "default");
 	if(io->Failed()){
 		LOGE("Audio IO failed");
 		return;

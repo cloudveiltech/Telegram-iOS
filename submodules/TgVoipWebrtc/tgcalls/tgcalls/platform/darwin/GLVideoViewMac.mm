@@ -86,7 +86,7 @@ static CGSize aspectFilled(CGSize from, CGSize to) {
     return NSMakeSize(ceil(to.width * scale), ceil(to.height * scale));
 }
 static CGSize aspectFitted(CGSize from, CGSize to) {
-    CGFloat scale = MAX(from.width / MAX(1.0, to.width), from.height / MAX(1.0, to.height));
+    CGFloat scale = MIN(from.width / MAX(1.0, to.width), from.height / MAX(1.0, to.height));
     return NSMakeSize(ceil(to.width * scale), ceil(to.height * scale));
 }
 
@@ -139,8 +139,6 @@ static CVReturn OnDisplayLinkFired(CVDisplayLinkRef displayLink,
     id<RTCVideoViewShading> _shader;
     
     int64_t _lastDrawnFrameTimeStampNs;
-    void (^_onFirstFrameReceived)(float);
-    bool _firstFrameReceivedReported;
 }
 
 @synthesize videoFrame = _videoFrame;
@@ -155,12 +153,21 @@ static CVReturn OnDisplayLinkFired(CVDisplayLinkRef displayLink,
     return self;
 }
 
+-(BOOL)mouseDownCanMoveWindow {
+    if (self.frame.size.width >= self.window.frame.size.width) {
+        return YES;
+    } else {
+        return NO;
+    }
+}
+
 - (void)reshape {
     [super reshape];
     NSRect frame = [self frame];
     [self ensureGLContext];
     CGLLockContext([[self openGLContext] CGLContextObj]);
-    glViewport(0, 0, frame.size.width, frame.size.height);
+    CGFloat scale = MAX([[self window] backingScaleFactor], 1);
+    glViewport(0, 0, frame.size.width * scale, frame.size.height * scale);
     CGLUnlockContext([[self openGLContext] CGLContextObj]);
 }
 
@@ -226,13 +233,6 @@ static CVReturn OnDisplayLinkFired(CVDisplayLinkRef displayLink,
     }
     CGLUnlockContext([context CGLContextObj]);
     
-    if (!_firstFrameReceivedReported && _onFirstFrameReceived) {
-        _firstFrameReceivedReported = true;
-        float aspectRatio = (float)frame.width / (float)frame.height;
-        dispatch_async(dispatch_get_main_queue(), ^{
-            self->_onFirstFrameReceived(aspectRatio);
-        });
-    }
     
 }
 
@@ -282,10 +282,6 @@ static CVReturn OnDisplayLinkFired(CVDisplayLinkRef displayLink,
     [self teardownDisplayLink];
 }
 
-- (void)setOnFirstFrameReceived:(void (^ _Nullable)(float))onFirstFrameReceived {
-    _onFirstFrameReceived = [onFirstFrameReceived copy];
-    _firstFrameReceivedReported = false;
-}
 
 
 @end
@@ -309,6 +305,9 @@ static CVReturn OnDisplayLinkFired(CVDisplayLinkRef displayLink,
     bool _didSetShouldBeMirrored;
     bool _shouldBeMirrored;
     bool _forceMirrored;
+    
+    void (^_onFirstFrameReceived)(float);
+    bool _firstFrameReceivedReported;
 
 }
 
@@ -338,8 +337,8 @@ static CVReturn OnDisplayLinkFired(CVDisplayLinkRef displayLink,
         
         _glView = [[OpenGLVideoView alloc] initWithFrame:frame pixelFormat:format shader:shader];
         _glView.wantsLayer = YES;
-        self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
-        _glView.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
+//        self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
+//        _glView.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
 
         [self addSubview:_glView];
         
@@ -376,6 +375,11 @@ static CVReturn OnDisplayLinkFired(CVDisplayLinkRef displayLink,
                 [strongSelf setInternalOrientation:mappedValue];
                 
                 [strongSelf renderFrame:videoFrame];
+                
+                if (!strongSelf->_firstFrameReceivedReported && strongSelf->_onFirstFrameReceived) {
+                    strongSelf->_firstFrameReceivedReported = true;
+                    strongSelf->_onFirstFrameReceived((float)videoFrame.width / (float)videoFrame.height);
+                }
             });
         }));
     }
@@ -400,7 +404,9 @@ static CVReturn OnDisplayLinkFired(CVDisplayLinkRef displayLink,
         
         NSSize size = _currentSize;
         NSSize frameSize = self.frame.size;
-        if ( self.glView.layer.contentsGravity == kCAGravityResizeAspectFill) {
+        if ( [self.glView.layer.contentsGravity isEqualToString:kCAGravityResizeAspectFill]) {
+            size = aspectFilled(frameSize, _currentSize);
+        } else if ([self.glView.layer.contentsGravity isEqualToString:kCAGravityResizeAspect]) {
             size = aspectFitted(frameSize, _currentSize);
         } else {
             size = aspectFilled(frameSize, _currentSize);
@@ -464,7 +470,8 @@ static CVReturn OnDisplayLinkFired(CVDisplayLinkRef displayLink,
 }
 
 - (void)setOnFirstFrameReceived:(void (^ _Nullable)(float))onFirstFrameReceived {
-    [self.glView setOnFirstFrameReceived:onFirstFrameReceived];
+    _onFirstFrameReceived = [onFirstFrameReceived copy];
+    _firstFrameReceivedReported = false;
 }
 
 - (void)setInternalOrientationAndSize:(int)internalOrientation size:(CGSize)size {

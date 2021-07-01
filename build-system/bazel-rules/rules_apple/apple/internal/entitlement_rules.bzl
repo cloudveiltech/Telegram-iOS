@@ -27,6 +27,10 @@ load(
     "apple_product_type",
 )
 load(
+    "@build_bazel_rules_apple//apple/internal:apple_support_toolchain.bzl",
+    "apple_support_toolchain_utils",
+)
+load(
     "@build_bazel_rules_apple//apple/internal:bundling_support.bzl",
     "bundling_support",
 )
@@ -66,12 +70,12 @@ during code signing. May be `None` if there are no entitlements.
     },
 )
 
-def _tool_validation_mode(rules_mode, is_device):
+def _tool_validation_mode(*, is_device, rules_mode):
     """Returns the tools validation_mode to use.
 
     Args:
-      rules_mode: The validation_mode attribute of the rule.
       is_device: True if this is a device build, False otherwise.
+      rules_mode: The validation_mode attribute of the rule.
 
     Returns:
       The value to use the for the validation_mode in the entitlement
@@ -94,24 +98,25 @@ def _tool_validation_mode(rules_mode, is_device):
 
     return value
 
-def _new_entitlements_artifact(ctx, extension):
+def _new_entitlements_artifact(*, actions, extension, label_name):
     """Returns a new file artifact for entitlements.
 
     This function creates a new file in an "entitlements" directory in the
     target's location whose name is the target's name with the given extension.
 
     Args:
-      ctx: The Starlark context.
+      actions: The actions provider from `ctx.actions`.
       extension: The file extension (including the leading dot).
+      label_name: The name of the target.
 
     Returns:
       The requested file object.
     """
-    return ctx.actions.declare_file(
-        "entitlements/%s%s" % (ctx.label.name, extension),
+    return actions.declare_file(
+        "entitlements/%s%s" % (label_name, extension),
     )
 
-def _include_debug_entitlements(ctx):
+def _include_debug_entitlements(*, platform_prerequisites):
     """Returns a value indicating whether debug entitlements should be used.
 
     Debug entitlements are used if the --device_debug_entitlements command-line
@@ -120,82 +125,104 @@ def _include_debug_entitlements(ctx):
     Debug entitlements are also not used on macOS.
 
     Args:
-      ctx: The Starlark context.
+      platform_prerequisites: Struct containing information on the platform being targeted.
 
     Returns:
       True if the debug entitlements should be included, otherwise False.
     """
-    if platform_support.platform_type(ctx) == apple_common.platform_type.macos:
+    if platform_prerequisites.platform_type == apple_common.platform_type.macos:
         return False
     add_debugger_entitlement = defines.bool_value(
-        ctx,
-        "apple.add_debugger_entitlement",
-        None,
+        config_vars = platform_prerequisites.config_vars,
+        default = None,
+        define_name = "apple.add_debugger_entitlement",
     )
     if add_debugger_entitlement != None:
         return add_debugger_entitlement
-    if not ctx.fragments.objc.uses_device_debug_entitlements:
+    if not platform_prerequisites.objc_fragment.uses_device_debug_entitlements:
         return False
     return True
 
-def _include_app_clip_entitlements(ctx):
+def _include_app_clip_entitlements(*, product_type):
     """Returns a value indicating whether app clip entitlements should be used.
 
     Args:
-      ctx: The Starlark context.
+      product_type: The product type identifier used to describe the current bundle type.
 
     Returns:
       True if the app clip entitlements should be included, otherwise False.
     """
-    return ctx.attr.product_type == apple_product_type.app_clip
+    return product_type == apple_product_type.app_clip
 
-def _extract_signing_info(ctx):
+def _extract_signing_info(
+        *,
+        actions,
+        entitlements,
+        platform_prerequisites,
+        provisioning_profile,
+        provisioning_profile_tool,
+        rule_label):
     """Inspects the current context and extracts the signing information.
 
     Args:
-      ctx: The Starlark context.
+      actions: The actions provider from `ctx.actions`.
+      entitlements: The entitlements file to sign with. Can be `None` if one was not provided.
+      platform_prerequisites: Struct containing information on the platform being targeted.
+      provisioning_profile: File for the provisioning profile.
+      provisioning_profile_tool: A tool used to extract info from a provisioning profile.
+      rule_label: The label of the target being analyzed.
 
     Returns:
       A `struct` with two items: the entitlements file to use, a
       profile_metadata file.
     """
-    entitlements = ctx.file.entitlements
     profile_metadata = None
 
-    provisioning_profile = ctx.file.provisioning_profile
     if provisioning_profile:
-        profile_metadata = _new_entitlements_artifact(ctx, ".profile_metadata")
+        profile_metadata = _new_entitlements_artifact(
+            actions = actions,
+            extension = ".profile_metadata",
+            label_name = rule_label.name,
+        )
         outputs = [profile_metadata]
         control = {
             "profile_metadata": profile_metadata.path,
             "provisioning_profile": provisioning_profile.path,
-            "target": str(ctx.label),
+            "target": str(rule_label),
         }
         if not entitlements:
             # No entitlements, extract the default one from the profile.
-            entitlements = _new_entitlements_artifact(ctx, ".extracted_entitlements")
+            entitlements = _new_entitlements_artifact(
+                actions = actions,
+                extension = ".extracted_entitlements",
+                label_name = rule_label.name,
+            )
             control["entitlements"] = entitlements.path
             outputs.append(entitlements)
 
         control_file = _new_entitlements_artifact(
-            ctx,
-            "provisioning_profile_tool-control",
+            actions = actions,
+            extension = "provisioning_profile_tool-control",
+            label_name = rule_label.name,
         )
-        ctx.actions.write(
+        actions.write(
             output = control_file,
             content = struct(**control).to_json(),
         )
 
         apple_support.run(
-            ctx,
-            inputs = [control_file, provisioning_profile],
-            outputs = outputs,
-            executable = ctx.executable._provisioning_profile_tool,
+            actions = actions,
+            apple_fragment = platform_prerequisites.apple_fragment,
             arguments = [control_file.path],
-            mnemonic = "ExtractFromProvisioningProfile",
+            executable = provisioning_profile_tool,
             # Since the tools spawns openssl and/or security tool, it doesn't
             # support being sandboxed.
             execution_requirements = {"no-sandbox": "1"},
+            inputs = [control_file, provisioning_profile],
+            mnemonic = "ExtractFromProvisioningProfile",
+            outputs = outputs,
+            xcode_config = platform_prerequisites.xcode_version_config,
+            xcode_path_wrapper = platform_prerequisites.xcode_path_wrapper,
         )
 
     return struct(
@@ -259,15 +286,22 @@ def _entitlements_impl(ctx):
         xcode_version_config = ctx.attr._xcode_config[apple_common.XcodeVersionConfig],
     )
 
-    signing_info = _extract_signing_info(ctx)
+    signing_info = _extract_signing_info(
+        actions = actions,
+        entitlements = ctx.file.entitlements,
+        platform_prerequisites = platform_prerequisites,
+        provisioning_profile = ctx.file.provisioning_profile,
+        provisioning_profile_tool = ctx.executable._provisioning_profile_tool,
+        rule_label = ctx.label,
+    )
     plists = []
     forced_plists = []
     if signing_info.entitlements:
         plists.append(signing_info.entitlements)
-    if _include_debug_entitlements(ctx):
+    if _include_debug_entitlements(platform_prerequisites = platform_prerequisites):
         get_task_allow = {"get-task-allow": True}
         forced_plists.append(struct(**get_task_allow))
-    if _include_app_clip_entitlements(ctx):
+    if _include_app_clip_entitlements(product_type = ctx.attr.product_type):
         app_clip = {"com.apple.developer.on-demand-install-capable": True}
         forced_plists.append(struct(**app_clip))
 
@@ -283,7 +317,6 @@ def _entitlements_impl(ctx):
     final_entitlements = ctx.actions.declare_file(
         "%s.entitlements" % ctx.label.name,
     )
-    is_device = platform_support.is_device_build(ctx)
 
     entitlements_options = {
         "bundle_id": bundle_id,
@@ -292,8 +325,8 @@ def _entitlements_impl(ctx):
         inputs.append(signing_info.profile_metadata)
         entitlements_options["profile_metadata_file"] = signing_info.profile_metadata.path
         entitlements_options["validation_mode"] = _tool_validation_mode(
-            ctx.attr.validation_mode,
-            is_device,
+            is_device = platform_prerequisites.platform.is_device,
+            rules_mode = ctx.attr.validation_mode,
         )
 
     control = struct(
@@ -304,7 +337,11 @@ def _entitlements_impl(ctx):
         target = str(ctx.label),
         variable_substitutions = struct(CFBundleIdentifier = ctx.attr.bundle_id),
     )
-    control_file = _new_entitlements_artifact(ctx, "plisttool-control")
+    control_file = _new_entitlements_artifact(
+        actions = actions,
+        extension = "plisttool-control",
+        label_name = ctx.label.name,
+    )
     ctx.actions.write(
         output = control_file,
         content = control.to_json(),
@@ -312,19 +349,22 @@ def _entitlements_impl(ctx):
 
     resource_actions.plisttool_action(
         actions = actions,
+        control_file = control_file,
         inputs = inputs,
+        mnemonic = "ProcessEntitlementsFiles",
         outputs = [final_entitlements],
         platform_prerequisites = platform_prerequisites,
-        plisttool = ctx.executable._plisttool,
-        control_file = control_file,
-        mnemonic = "ProcessEntitlementsFiles",
+        resolved_plisttool = apple_support_toolchain_utils.resolve_tools_for_executable(
+            attr_name = "_plisttool",
+            rule_ctx = ctx,
+        ),
     )
 
     # Only propagate linkopts for simulator builds to embed the entitlements into
     # the binary; for device builds, the entitlements are applied during signing.
-    if not is_device:
+    if not platform_prerequisites.platform.is_device:
         simulator_entitlements = None
-        if _include_debug_entitlements(ctx):
+        if _include_debug_entitlements(platform_prerequisites = platform_prerequisites):
             simulator_entitlements = ctx.actions.declare_file(
                 "%s.simulator.entitlements" % ctx.label.name,
             )
@@ -334,19 +374,26 @@ def _entitlements_impl(ctx):
                 output = simulator_entitlements.path,
                 target = str(ctx.label),
             )
-            simulator_control_file = _new_entitlements_artifact(ctx, "simulator-plisttool-control")
+            simulator_control_file = _new_entitlements_artifact(
+                actions = actions,
+                extension = "simulator-plisttool-control",
+                label_name = ctx.label.name,
+            )
             ctx.actions.write(
                 output = simulator_control_file,
                 content = simulator_control.to_json(),
             )
             resource_actions.plisttool_action(
                 actions = actions,
+                control_file = simulator_control_file,
                 inputs = [],
+                mnemonic = "ProcessSimulatorEntitlementsFile",
                 outputs = [simulator_entitlements],
                 platform_prerequisites = platform_prerequisites,
-                plisttool = ctx.executable._plisttool,
-                control_file = simulator_control_file,
-                mnemonic = "ProcessSimulatorEntitlementsFile",
+                resolved_plisttool = apple_support_toolchain_utils.resolve_tools_for_executable(
+                    attr_name = "_plisttool",
+                    rule_ctx = ctx,
+                ),
             )
 
         return [

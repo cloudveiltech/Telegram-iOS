@@ -22,6 +22,20 @@ enum UploadPartError {
     case invalidMedia
 }
 
+private func wrapMethodBody(_ body: (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>), useCompression: Bool) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+    if useCompression {
+        if let compressed = MTGzip.compress(body.1.makeData()) {
+            if compressed.count < body.1.size {
+                let os = MTOutputStream()
+                os.write(0x3072cfa1 as Int32)
+                os.writeBytes(compressed)
+                return (body.0, Buffer(data: os.currentBytes()), body.2)
+            }
+        }
+    }
+    
+    return body
+}
 
 class Download: NSObject, MTRequestMessageServiceDelegate {
     let datacenterId: Int
@@ -82,11 +96,38 @@ class Download: NSObject, MTRequestMessageServiceDelegate {
         self.context.authTokenForDatacenter(withIdRequired: self.datacenterId, authToken:self.mtProto.requiredAuthToken, masterDatacenterId: self.mtProto.authTokenMasterDatacenterId)
     }
     
-    func uploadPart(fileId: Int64, index: Int, data: Data, asBigPart: Bool, bigTotalParts: Int? = nil) -> Signal<Void, UploadPartError> {
+    static func uploadPart(multiplexedManager: MultiplexedRequestManager, datacenterId: Int, consumerId: Int64, tag: MediaResourceFetchTag?, fileId: Int64, index: Int, data: Data, asBigPart: Bool, bigTotalParts: Int? = nil, useCompression: Bool = false) -> Signal<Void, UploadPartError> {
+        let saveFilePart: (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>)
+        if asBigPart {
+            let totalParts: Int32
+            if let bigTotalParts = bigTotalParts {
+                totalParts = Int32(bigTotalParts)
+            } else {
+                totalParts = -1
+            }
+            saveFilePart = Api.functions.upload.saveBigFilePart(fileId: fileId, filePart: Int32(index), fileTotalParts: totalParts, bytes: Buffer(data: data))
+        } else {
+            saveFilePart = Api.functions.upload.saveFilePart(fileId: fileId, filePart: Int32(index), bytes: Buffer(data: data))
+        }
+        
+        return multiplexedManager.request(to: .main(datacenterId), consumerId: consumerId, data: wrapMethodBody(saveFilePart, useCompression: useCompression), tag: tag, continueInBackground: true)
+        |> mapError { error -> UploadPartError in
+            if error.errorCode == 400 {
+                return .invalidMedia
+            } else {
+               return .generic
+            }
+        }
+        |> mapToSignal { _ -> Signal<Void, UploadPartError> in
+            return .complete()
+        }
+    }
+    
+    func uploadPart(fileId: Int64, index: Int, data: Data, asBigPart: Bool, bigTotalParts: Int? = nil, useCompression: Bool = false) -> Signal<Void, UploadPartError> {
         return Signal<Void, MTRpcError> { subscriber in
             let request = MTRequest()
             
-            let saveFilePart: (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>)
+            var saveFilePart: (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>)
             if asBigPart {
                 let totalParts: Int32
                 if let bigTotalParts = bigTotalParts {
@@ -98,6 +139,8 @@ class Download: NSObject, MTRequestMessageServiceDelegate {
             } else {
                 saveFilePart = Api.functions.upload.saveFilePart(fileId: fileId, filePart: Int32(index), bytes: Buffer(data: data))
             }
+            
+            saveFilePart = wrapMethodBody(saveFilePart, useCompression: useCompression)
             
             request.setPayload(saveFilePart.1.makeData() as Data, metadata: WrappedRequestMetadata(metadata: WrappedFunctionDescription(saveFilePart.0), tag: nil), shortMetadata: WrappedRequestShortMetadata(shortMetadata: WrappedShortFunctionDescription(saveFilePart.0)), responseParser: { response in
                 if let result = saveFilePart.2.parse(Buffer(data: response)) {
@@ -282,7 +325,57 @@ class Download: NSObject, MTRequestMessageServiceDelegate {
         }
     }
     
-    func rawRequest(_ data: (FunctionDescription, Buffer, (Buffer) -> Any?)) -> Signal<Any, MTRpcError> {
+    func requestWithAdditionalData<T>(_ data: (FunctionDescription, Buffer, DeserializeFunctionResponse<T>), automaticFloodWait: Bool = true, failOnServerErrors: Bool = false) -> Signal<(T, Double), (MTRpcError, Double)> {
+        return Signal { subscriber in
+            let request = MTRequest()
+            
+            request.setPayload(data.1.makeData() as Data, metadata: WrappedRequestMetadata(metadata: WrappedFunctionDescription(data.0), tag: nil), shortMetadata: WrappedRequestShortMetadata(shortMetadata: WrappedShortFunctionDescription(data.0)), responseParser: { response in
+                if let result = data.2.parse(Buffer(data: response)) {
+                    return BoxedMessage(result)
+                }
+                return nil
+            })
+            
+            request.dependsOnPasswordEntry = false
+            
+            request.shouldContinueExecutionWithErrorContext = { errorContext in
+                guard let errorContext = errorContext else {
+                    return true
+                }
+                if errorContext.floodWaitSeconds > 0 && !automaticFloodWait {
+                    return false
+                }
+                if errorContext.internalServerErrorCount > 0 && failOnServerErrors {
+                    return false
+                }
+                return true
+            }
+            
+            request.completed = { (boxedResponse, timestamp, error) -> () in
+                if let error = error {
+                    subscriber.putError((error, timestamp))
+                } else {
+                    if let result = (boxedResponse as! BoxedMessage).body as? T {
+                        subscriber.putNext((result, timestamp))
+                        subscriber.putCompletion()
+                    }
+                    else {
+                        subscriber.putError((MTRpcError(errorCode: 500, errorDescription: "TL_VERIFICATION_ERROR"), timestamp))
+                    }
+                }
+            }
+            
+            let internalId: Any! = request.internalId
+            
+            self.requestService.add(request)
+            
+            return ActionDisposable {
+                self.requestService.removeRequest(byInternalId: internalId)
+            }
+        }
+    }
+    
+    func rawRequest(_ data: (FunctionDescription, Buffer, (Buffer) -> Any?), automaticFloodWait: Bool = true, failOnServerErrors: Bool = false) -> Signal<(Any, Double), (MTRpcError, Double)> {
         let requestService = self.requestService
         return Signal { subscriber in
             let request = MTRequest()
@@ -297,14 +390,23 @@ class Download: NSObject, MTRequestMessageServiceDelegate {
             request.dependsOnPasswordEntry = false
             
             request.shouldContinueExecutionWithErrorContext = { errorContext in
+                guard let errorContext = errorContext else {
+                    return true
+                }
+                if errorContext.floodWaitSeconds > 0 && !automaticFloodWait {
+                    return false
+                }
+                if errorContext.internalServerErrorCount > 0 && failOnServerErrors {
+                    return false
+                }
                 return true
             }
             
             request.completed = { (boxedResponse, timestamp, error) -> () in
                 if let error = error {
-                    subscriber.putError(error)
+                    subscriber.putError((error, timestamp))
                 } else {
-                    subscriber.putNext((boxedResponse as! BoxedMessage).body)
+                    subscriber.putNext(((boxedResponse as! BoxedMessage).body, timestamp))
                     subscriber.putCompletion()
                 }
             }

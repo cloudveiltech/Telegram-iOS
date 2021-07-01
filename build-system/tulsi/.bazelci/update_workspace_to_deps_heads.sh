@@ -29,5 +29,19 @@ git_repository(\
 \    remote = "https://github.com/bazelbuild/rules_swift.git",\
 \    branch = "master",\
 )\
+\
+git_repository(\
+\    name = "build_bazel_rules_apple",\
+\    remote = "https://github.com/bazelbuild/rules_apple.git",\
+\    branch = "master",\
+)\
 ' \
   WORKSPACE
+
+# rules_swift at HEAD changed the path of module map.
+# TODO: Remove once rules_swift has a new release.
+file=src/TulsiGeneratorIntegrationTests/Resources/GoldenProjects/SwiftProject.xcodeproj/project.pbxproj
+/usr/bin/sed -i "" -e \
+  's/[.]modulemaps\/module[.]modulemap/.swift.modulemap/' $file
+# sed appends a newline at EOF; remove it.
+/bin/dd if=/dev/null of=$file obs="$(($(wc -c < $file)-1))" seek=1

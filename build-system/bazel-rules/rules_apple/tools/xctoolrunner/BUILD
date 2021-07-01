@@ -5,11 +5,10 @@ licenses(["notice"])
 py_binary(
     name = "xctoolrunner",
     srcs = ["xctoolrunner.py"],
-    srcs_version = "PY2AND3",
-    # Used by the rule implementations, so it needs to be public; but
-    # should be considered an implementation detail of the rules and
-    # not used by other things.
-    visibility = ["//visibility:public"],
+    python_version = "PY3",
+    visibility = [
+        "//apple/internal:__pkg__",
+    ],
     deps = [":xctoolrunner_lib"],
 )
 

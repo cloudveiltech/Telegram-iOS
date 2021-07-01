@@ -71,12 +71,63 @@ public enum ItemListStyle {
     case blocks
 }
 
+open class ItemListToolbarItem {
+    public struct Action {
+        public let title: String
+        public let isEnabled: Bool
+        public let action: () -> Void
+        
+        public init(title: String, isEnabled: Bool, action: @escaping () -> Void) {
+            self.title = title
+            self.isEnabled = isEnabled
+            self.action = action
+        }
+    }
+    
+    let actions: [Action]
+    
+    public init(actions: [Action]) {
+        self.actions = actions
+    }
+    
+    open func isEqual(to: ItemListToolbarItem) -> Bool {
+        return false
+    }
+    
+    var toolbar: Toolbar {
+        var leftAction: ToolbarAction?
+        var middleAction: ToolbarAction?
+        var rightAction: ToolbarAction?
+        
+        if self.actions.count == 1 {
+            if let action = self.actions.first {
+                middleAction = ToolbarAction(title: action.title, isEnabled: action.isEnabled)
+            }
+        } else if self.actions.count == 2 {
+            if let action = self.actions.first {
+                leftAction = ToolbarAction(title: action.title, isEnabled: action.isEnabled)
+            }
+            if let action = self.actions.last {
+                rightAction = ToolbarAction(title: action.title, isEnabled: action.isEnabled)
+            }
+        } else if self.actions.count == 3 {
+            leftAction = ToolbarAction(title: self.actions[0].title, isEnabled: self.actions[0].isEnabled)
+            middleAction = ToolbarAction(title: self.actions[1].title, isEnabled: self.actions[1].isEnabled)
+            rightAction = ToolbarAction(title: self.actions[2].title, isEnabled: self.actions[2].isEnabled)
+        }
+        return Toolbar(leftAction: leftAction, rightAction: rightAction, middleAction: middleAction)
+    }
+    
+}
+
 private struct ItemListNodeTransition {
     let theme: PresentationTheme
+    let strings: PresentationStrings
     let entries: ItemListNodeEntryTransition
     let updateStyle: ItemListStyle?
     let emptyStateItem: ItemListControllerEmptyStateItem?
     let searchItem: ItemListControllerSearch?
+    let toolbarItem: ItemListToolbarItem?
     let focusItemTag: ItemListItemTag?
     let ensureVisibleItemTag: ItemListItemTag?
     let scrollToItem: ListViewScrollToItem?
@@ -94,6 +145,7 @@ public final class ItemListNodeState {
     let style: ItemListStyle
     let emptyStateItem: ItemListControllerEmptyStateItem?
     let searchItem: ItemListControllerSearch?
+    let toolbarItem: ItemListToolbarItem?
     let animateChanges: Bool
     let crossfadeState: Bool
     let scrollEnabled: Bool
@@ -101,12 +153,13 @@ public final class ItemListNodeState {
     let ensureVisibleItemTag: ItemListItemTag?
     let initialScrollToItem: ListViewScrollToItem?
     
-    public init<T: ItemListNodeEntry>(presentationData: ItemListPresentationData, entries: [T], style: ItemListStyle, focusItemTag: ItemListItemTag? = nil, ensureVisibleItemTag: ItemListItemTag? = nil, emptyStateItem: ItemListControllerEmptyStateItem? = nil, searchItem: ItemListControllerSearch? = nil, initialScrollToItem: ListViewScrollToItem? = nil, crossfadeState: Bool = false, animateChanges: Bool = true, scrollEnabled: Bool = true) {
+    public init<T: ItemListNodeEntry>(presentationData: ItemListPresentationData, entries: [T], style: ItemListStyle, focusItemTag: ItemListItemTag? = nil, ensureVisibleItemTag: ItemListItemTag? = nil, emptyStateItem: ItemListControllerEmptyStateItem? = nil, searchItem: ItemListControllerSearch? = nil, toolbarItem: ItemListToolbarItem? = nil, initialScrollToItem: ListViewScrollToItem? = nil, crossfadeState: Bool = false, animateChanges: Bool = true, scrollEnabled: Bool = true) {
         self.presentationData = presentationData
         self.entries = entries.map { $0 }
         self.style = style
         self.emptyStateItem = emptyStateItem
         self.searchItem = searchItem
+        self.toolbarItem = toolbarItem
         self.crossfadeState = crossfadeState
         self.animateChanges = animateChanges
         self.focusItemTag = focusItemTag
@@ -174,7 +227,7 @@ public final class ItemListControllerNodeView: UITracingLayerView {
     weak var controller: ItemListController?
 }
 
-open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
+open class ItemListControllerNode: ASDisplayNode {
     private var _ready = ValuePromise<Bool>()
     open var ready: Signal<Bool, NoError> {
         return self._ready.get()
@@ -189,13 +242,17 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
     private var emptyStateItem: ItemListControllerEmptyStateItem?
     private var emptyStateNode: ItemListControllerEmptyStateItemNode?
     
+    private var toolbarNode: ToolbarNode?
+    
     private var searchItem: ItemListControllerSearch?
     private var searchNode: ItemListControllerSearchNode?
+    
+    private var toolbarItem: ItemListToolbarItem?
     
     private let transitionDisposable = MetaDisposable()
     
     private var enqueuedTransitions: [ItemListNodeTransition] = []
-    private var validLayout: (ContainerViewLayout, CGFloat)?
+    private var validLayout: (ContainerViewLayout, CGFloat, UIEdgeInsets)?
     
     private var theme: PresentationTheme?
     private var listStyle: ItemListStyle?
@@ -204,12 +261,12 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
     private var appliedEnsureVisibleItemTag: ItemListItemTag?
     
     private var afterLayoutActions: [() -> Void] = []
-    
-    public let updateNavigationOffset: (CGFloat) -> Void
+
     public var dismiss: (() -> Void)?
     
     public var visibleEntriesUpdated: ((ItemListNodeVisibleEntries) -> Void)?
     public var visibleBottomContentOffsetChanged: ((ListViewVisibleContentOffset) -> Void)?
+    public var beganInteractiveDragging: (() -> Void)?
     public var contentOffsetChanged: ((ListViewVisibleContentOffset, Bool) -> Void)?
     public var contentScrollingEnded: ((ListView) -> Bool)?
     public var searchActivated: ((Bool) -> Void)?
@@ -224,9 +281,8 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
 
     var alwaysSynchronous = false
     
-    public init(controller: ItemListController?, navigationBar: NavigationBar, updateNavigationOffset: @escaping (CGFloat) -> Void, state: Signal<(ItemListPresentationData, (ItemListNodeState, Any)), NoError>) {
+    public init(controller: ItemListController?, navigationBar: NavigationBar, state: Signal<(ItemListPresentationData, (ItemListNodeState, Any)), NoError>) {
         self.navigationBar = navigationBar
-        self.updateNavigationOffset = updateNavigationOffset
         
         self.listNode = ListView()
         self.leftOverlayNode = ASDisplayNode()
@@ -291,6 +347,12 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
             self?.contentOffsetChanged?(offset, inVoiceOver)
         }
         
+        self.listNode.beganInteractiveDragging = { [weak self] in
+            if let strongSelf = self {
+                strongSelf.beganInteractiveDragging?()
+            }
+        }
+        
         self.listNode.didEndScrolling = { [weak self] in
             if let strongSelf = self {
                 let _ = strongSelf.contentScrollingEnded?(strongSelf.listNode)
@@ -326,7 +388,7 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
                 scrollToItem = state.initialScrollToItem
             }
             
-            return ItemListNodeTransition(theme: presentationData.theme, entries: transition, updateStyle: updatedStyle, emptyStateItem: state.emptyStateItem, searchItem: state.searchItem, focusItemTag: state.focusItemTag, ensureVisibleItemTag: state.ensureVisibleItemTag, scrollToItem: scrollToItem, firstTime: previous == nil, animated: previous != nil && state.animateChanges, animateAlpha: previous != nil && state.animateChanges, crossfade: state.crossfadeState, mergedEntries: state.entries, scrollEnabled: state.scrollEnabled)
+            return ItemListNodeTransition(theme: presentationData.theme, strings: presentationData.strings, entries: transition, updateStyle: updatedStyle, emptyStateItem: state.emptyStateItem, searchItem: state.searchItem, toolbarItem: state.toolbarItem, focusItemTag: state.focusItemTag, ensureVisibleItemTag: state.ensureVisibleItemTag, scrollToItem: scrollToItem, firstTime: previous == nil, animated: previous != nil && state.animateChanges, animateAlpha: previous != nil && state.animateChanges, crossfade: state.crossfadeState, mergedEntries: state.entries, scrollEnabled: state.scrollEnabled)
         })
         |> deliverOnMainQueue).start(next: { [weak self] transition in
             if let strongSelf = self {
@@ -405,11 +467,65 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
             }
         }
         
-        let (duration, curve) = listViewAnimationDurationAndCurve(transition: transition)
-        
+        if let toolbarItem = self.toolbarItem {
+            var tabBarHeight: CGFloat
+            let bottomInset: CGFloat = insets.bottom
+            if !layout.safeInsets.left.isZero {
+                tabBarHeight = 34.0 + bottomInset
+                insets.bottom += 34.0
+            } else {
+                tabBarHeight = 49.0 + bottomInset
+                insets.bottom += 49.0
+            }
+            
+            let toolbarFrame = CGRect(origin: CGPoint(x: 0.0, y: layout.size.height - tabBarHeight), size: CGSize(width: layout.size.width, height: tabBarHeight))
+            
+            if let toolbarNode = self.toolbarNode {
+                transition.updateFrame(node: toolbarNode, frame: toolbarFrame)
+                toolbarNode.updateLayout(size: toolbarFrame.size, leftInset: layout.safeInsets.left, rightInset: layout.safeInsets.right, additionalSideInsets: layout.additionalInsets, bottomInset: layout.intrinsicInsets.bottom, toolbar: toolbarItem.toolbar, transition: transition)
+            } else if let theme = self.theme {
+                let toolbarNode = ToolbarNode(theme: TabBarControllerTheme(rootControllerTheme: theme), displaySeparator: true)
+                toolbarNode.frame = toolbarFrame
+                toolbarNode.updateLayout(size: toolbarFrame.size, leftInset: layout.safeInsets.left, rightInset: layout.safeInsets.right, additionalSideInsets: layout.additionalInsets, bottomInset: layout.intrinsicInsets.bottom, toolbar: toolbarItem.toolbar, transition: .immediate)
+                self.addSubnode(toolbarNode)
+                self.toolbarNode = toolbarNode
+                if case let .animated(duration, curve) = transition {
+                    toolbarNode.layer.animatePosition(from: CGPoint(x: 0.0, y: toolbarFrame.height), to: CGPoint(), duration: duration, mediaTimingFunction: curve.mediaTimingFunction, additive: true)
+                }
+            }
+                
+            self.toolbarNode?.left = {
+                toolbarItem.actions[0].action()
+            }
+            self.toolbarNode?.right = {
+                if toolbarItem.actions.count == 2 {
+                    toolbarItem.actions[1].action()
+                } else if toolbarItem.actions.count == 3 {
+                    toolbarItem.actions[2].action()
+                }
+            }
+            self.toolbarNode?.middle = {
+                if toolbarItem.actions.count == 1 {
+                    toolbarItem.actions[0].action()
+                } else if toolbarItem.actions.count == 3 {
+                    toolbarItem.actions[1].action()
+                }
+            }
+        } else if let toolbarNode = self.toolbarNode {
+            self.toolbarNode = nil
+            if case let .animated(duration, curve) = transition {
+                toolbarNode.layer.animatePosition(from: CGPoint(), to: CGPoint(x: 0.0, y: toolbarNode.frame.size.height), duration: duration, mediaTimingFunction: curve.mediaTimingFunction, removeOnCompletion: false, additive: true, completion: { [weak toolbarNode] _ in
+                    toolbarNode?.removeFromSupernode()
+                })
+            } else {
+                toolbarNode.removeFromSupernode()
+            }
+        }
+    
         self.listNode.bounds = CGRect(x: 0.0, y: 0.0, width: layout.size.width, height: layout.size.height)
         self.listNode.position = CGPoint(x: layout.size.width / 2.0, y: layout.size.height / 2.0)
         
+        let (duration, curve) = listViewAnimationDurationAndCurve(transition: transition)
         self.listNode.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: [.Synchronous, .LowLatency], scrollToItem: nil, updateSizeAndInsets: ListViewUpdateSizeAndInsets(size: layout.size, insets: insets, duration: duration, curve: curve), stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
         
         self.leftOverlayNode.frame = CGRect(x: 0.0, y: 0.0, width: insets.left, height: layout.size.height)
@@ -429,9 +545,9 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
             
             searchNode.updateLayout(layout: layout, navigationBarHeight: navigationBarHeight, transition: transition)
         }
-        
+                
         let dequeue = self.validLayout == nil
-        self.validLayout = (layout, navigationBarHeight)
+        self.validLayout = (layout, navigationBarHeight, additionalInsets)
         if dequeue {
             self.dequeueTransitions()
         }
@@ -588,6 +704,20 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
                 }
             }
             
+            self.listNode.accessibilityPageScrolledString = { row, count in
+                return transition.strings.VoiceOver_ScrollStatus(row, count).0
+            }
+            
+            var updateToolbarItem = false
+            if let toolbarItem = self.toolbarItem, let updatedToolbarItem = transition.toolbarItem {
+                updateToolbarItem = !toolbarItem.isEqual(to: updatedToolbarItem)
+            } else if (self.toolbarItem != nil) != (transition.toolbarItem != nil) {
+                updateToolbarItem = true
+            }
+            if updateToolbarItem {
+                self.toolbarItem = transition.toolbarItem
+            }
+            
             self.listNode.transaction(deleteIndices: transition.entries.deletions, insertIndicesAndItems: transition.entries.insertions, updateIndicesAndItems: transition.entries.updates, options: options, scrollToItem: scrollToItem, updateOpaqueState: ItemListNodeOpaqueState(mergedEntries: transition.mergedEntries), completion: { [weak self] _ in
                 if let strongSelf = self {
                     if !strongSelf.didSetReady {
@@ -677,6 +807,8 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
             
             if updateSearchItem {
                 self.requestLayout?(.animated(duration: 0.3, curve: .spring))
+            } else if updateToolbarItem, let (layout, navigationBarHeight, additionalInsets) = self.validLayout {
+                self.containerLayoutUpdated(layout, navigationBarHeight: navigationBarHeight, transition: .animated(duration: 0.3, curve: .spring), additionalInsets: additionalInsets)
             }
         }
     }
@@ -684,11 +816,6 @@ open class ItemListControllerNode: ASDisplayNode, UIScrollViewDelegate {
     open func scrollToTop() {
         self.listNode.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: [.Synchronous, .LowLatency], scrollToItem: ListViewScrollToItem(index: 0, position: .top(0.0), animated: true, curve: .Default(duration: nil), directionHint: .Up), updateSizeAndInsets: nil, stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
         self.searchNode?.scrollToTop()
-    }
-    
-    open func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        let distanceFromEquilibrium = scrollView.contentOffset.y - scrollView.contentSize.height / 3.0
-        self.updateNavigationOffset(-distanceFromEquilibrium)
     }
     
     open func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {

@@ -60,15 +60,18 @@ def _apple_verification_transition_impl(settings, attr):
             "//command_line_option:tvos_cpus": "arm64",
             "//command_line_option:watchos_cpus": "armv7k",
         })
+    existing_features = settings.get("//command_line_option:features") or []
     if attr.sanitizer != "none":
-        output_dictionary["//command_line_option:features"] = [attr.sanitizer]
+        output_dictionary["//command_line_option:features"] = existing_features + [attr.sanitizer]
     else:
-        output_dictionary["//command_line_option:features"] = []
+        output_dictionary["//command_line_option:features"] = existing_features
     return output_dictionary
 
 apple_verification_transition = transition(
     implementation = _apple_verification_transition_impl,
-    inputs = [],
+    inputs = [
+        "//command_line_option:features",
+    ],
     outputs = [
         "//command_line_option:ios_signing_cert_name",
         "//command_line_option:ios_multi_cpus",
@@ -137,12 +140,17 @@ def _apple_verification_test_impl(ctx):
         fail(("Target %s does not provide AppleBundleInfo or AppleBinaryInfo") %
              target_under_test.label)
 
+    source_dependencies = ""
+    for dep in ctx.attr._test_deps.files.to_list():
+        source_dependencies += "source {}\n".format(dep.short_path)
+
     output_script = ctx.actions.declare_file("{}_test_script".format(ctx.label.name))
     ctx.actions.expand_template(
         template = ctx.file._runner_script,
         output = output_script,
         substitutions = {
             "%{archive}s": archive_short_path,
+            "%{dependencies}s": source_dependencies,
             "%{standalone_binary}s": standalone_binary_short_path,
             "%{archive_relative_binary}s": archive_relative_binary,
             "%{archive_relative_bundle}s": archive_relative_bundle,
@@ -176,6 +184,7 @@ def _apple_verification_test_impl(ctx):
                         ctx.attr._test_deps.files.to_list(),
             ),
         ),
+        target_under_test[OutputGroupInfo],
     ]
 
 apple_verification_test = rule(

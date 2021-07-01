@@ -211,7 +211,7 @@ private enum GroupStickerPackEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! GroupStickerPackSetupControllerArguments
         switch self {
-            case let .search(theme, strings, prefix, placeholder, value):
+            case let .search(theme, _, prefix, placeholder, value):
                 return ItemListSingleLineInputItem(presentationData: presentationData, title: NSAttributedString(string: prefix, textColor: theme.list.itemPrimaryTextColor), text: value, placeholder: placeholder, type: .regular(capitalization: false, autocorrection: false), spacing: 0.0, clearType: .always, tag: nil, sectionId: self.section, textUpdated: { value in
                     arguments.updateSearchText(value)
                 }, processPaste: { text in
@@ -223,12 +223,12 @@ private enum GroupStickerPackEntry: ItemListNodeEntry {
                     }
                     return text
                 }, action: {})
-            case let .searchInfo(theme, text):
+            case let .searchInfo(_, text):
                 return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section, linkAction: nil)
-            case let .packsTitle(theme, text):
+            case let .packsTitle(_, text):
                 return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
-            case let .pack(_, theme, strings, info, topItem, count, playAnimatedStickers, selected):
-                return ItemListStickerPackItem(presentationData: presentationData, account: arguments.account, packInfo: info, itemCount: count, topItem: topItem, unread: false, control: selected ? .selection : .none, editing: ItemListStickerPackItemEditing(editable: false, editing: false, revealed: false, reorderable: false), enabled: true, playAnimatedStickers: playAnimatedStickers, sectionId: self.section, action: {
+            case let .pack(_, _, _, info, topItem, count, playAnimatedStickers, selected):
+                return ItemListStickerPackItem(presentationData: presentationData, account: arguments.account, packInfo: info, itemCount: count, topItem: topItem, unread: false, control: selected ? .selection : .none, editing: ItemListStickerPackItemEditing(editable: false, editing: false, revealed: false, reorderable: false, selectable: false), enabled: true, playAnimatedStickers: playAnimatedStickers, sectionId: self.section, action: {
                     if selected {
                         arguments.openStickerPack(info)
                     } else {
@@ -237,6 +237,7 @@ private enum GroupStickerPackEntry: ItemListNodeEntry {
                 }, setPackIdWithRevealedOptions: { _, _ in
                 }, addPack: {
                 }, removePack: {
+                }, toggleSelected: {
                 })
             case let .currentPack(_, theme, strings, content):
                 return GroupStickerPackCurrentItem(theme: theme, strings: strings, account: arguments.account, content: content, sectionId: self.section, action: {
@@ -322,7 +323,7 @@ public func groupStickerPackSetupController(context: AccountContext, peerId: Pee
     
     let initialData = Promise<InitialStickerPackData?>()
     if let currentPackInfo = currentPackInfo {
-        initialData.set(cachedStickerPack(postbox: context.account.postbox, network: context.account.network, reference: .id(id: currentPackInfo.id.id, accessHash: currentPackInfo.accessHash), forceRemote: false)
+        initialData.set(context.engine.stickers.cachedStickerPack(reference: .id(id: currentPackInfo.id.id, accessHash: currentPackInfo.accessHash), forceRemote: false)
         |> map { result -> InitialStickerPackData? in
             switch result {
                 case .none:
@@ -362,7 +363,7 @@ public func groupStickerPackSetupController(context: AccountContext, peerId: Pee
                     }
                 }
                 return .single((searchText, .searching))
-                |> then((loadedStickerPack(postbox: context.account.postbox, network: context.account.network, reference: .name(searchText.lowercased()), forceActualized: false) |> delay(0.3, queue: Queue.concurrentDefaultQueue()))
+                |> then((context.engine.stickers.loadedStickerPack(reference: .name(searchText.lowercased()), forceActualized: false) |> delay(0.3, queue: Queue.concurrentDefaultQueue()))
                 |> mapToSignal { value -> Signal<(String, GroupStickerPackSearchState), NoError> in
                     switch value {
                         case .fetching:
@@ -401,7 +402,7 @@ public func groupStickerPackSetupController(context: AccountContext, peerId: Pee
     }, updateSearchText: { text in
         searchText.set(text)
     }, openStickersBot: {
-        resolveDisposable.set((resolvePeerByName(account: context.account, name: "stickers") |> deliverOnMainQueue).start(next: { peerId in
+        resolveDisposable.set((context.engine.peers.resolvePeerByName(name: "stickers") |> deliverOnMainQueue).start(next: { peerId in
             if let peerId = peerId {
                 dismissImpl?()
                 navigateToChatControllerImpl?(peerId)

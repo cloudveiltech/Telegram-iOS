@@ -12,14 +12,20 @@ import AccountContext
 import ContextUI
 import AlertUI
 import PresentationDataUtils
+import UndoUI
+import AppBundle
+import TelegramPermissionsUI
+import Markdown
 
 public enum PeerReportSubject {
     case peer(PeerId)
     case messages([MessageId])
+    case profilePhoto(PeerId, Int64)
 }
 
 public enum PeerReportOption {
     case spam
+    case fake
     case violence
     case copyright
     case pornography
@@ -27,36 +33,48 @@ public enum PeerReportOption {
     case other
 }
 
-public func presentPeerReportOptions(context: AccountContext, parent: ViewController, contextController: ContextController?, subject: PeerReportSubject, options: [PeerReportOption] = [.spam, .violence, .pornography, .childAbuse, .copyright, .other], completion: @escaping (Bool) -> Void) {
+public func presentPeerReportOptions(context: AccountContext, parent: ViewController, contextController: ContextControllerProtocol?, backAction: ((ContextControllerProtocol) -> Void)? = nil, subject: PeerReportSubject, options: [PeerReportOption] = [.spam, .violence, .pornography, .childAbuse, .copyright, .other], passthrough: Bool = false, completion: @escaping (ReportReason?, Bool) -> Void) {
     if let contextController = contextController {
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
         var items: [ContextMenuItem] = []
         for option in options {
             let title: String
             let color: ContextMenuActionItemTextColor = .primary
+            var icon: UIImage?
             switch option {
             case .spam:
                 title = presentationData.strings.ReportPeer_ReasonSpam
+                icon = UIImage(bundleImageName: "Chat/Context Menu/Delete")
+            case .fake:
+                title = presentationData.strings.ReportPeer_ReasonFake
+                icon = UIImage(bundleImageName: "Chat/Context Menu/ReportFake")
             case .violence:
                 title = presentationData.strings.ReportPeer_ReasonViolence
+                icon = UIImage(bundleImageName: "Chat/Context Menu/ReportViolence")
             case .pornography:
                 title = presentationData.strings.ReportPeer_ReasonPornography
+                icon = UIImage(bundleImageName: "Chat/Context Menu/ReportXxx")
             case .childAbuse:
                 title = presentationData.strings.ReportPeer_ReasonChildAbuse
+                icon = UIImage(bundleImageName: "Chat/Context Menu/Restrict")
             case .copyright:
                 title = presentationData.strings.ReportPeer_ReasonCopyright
+                icon = UIImage(bundleImageName: "Chat/Context Menu/ReportCopyright")
             case .other:
                 title = presentationData.strings.ReportPeer_ReasonOther
+                icon = UIImage(bundleImageName: "Chat/Context Menu/Report")
             }
-            items.append(.action(ContextMenuActionItem(text: title, textColor: color, icon: { _ in
-                return nil
+            items.append(.action(ContextMenuActionItem(text: title, textColor: color, icon: { theme in
+                return generateTintedImage(image: icon, color: theme.contextMenu.primaryColor)
             }, action: { [weak parent] _, f in
                 let presentationData = context.sharedContext.currentPresentationData.with { $0 }
                 
-                var reportReason: ReportReason?
+                let reportReason: ReportReason
                 switch option {
                 case .spam:
                     reportReason = .spam
+                case .fake:
+                    reportReason = .fake
                 case .violence:
                     reportReason = .violence
                 case .pornography:
@@ -66,34 +84,88 @@ public func presentPeerReportOptions(context: AccountContext, parent: ViewContro
                 case .copyright:
                     reportReason = .copyright
                 case .other:
-                    break
+                    reportReason = .custom
                 }
-                if let reportReason = reportReason {
-                    switch subject {
-                    case let .peer(peerId):
-                        let _ = (reportPeer(account: context.account, peerId: peerId, reason: reportReason)
-                        |> deliverOnMainQueue).start(completed: {
-                            parent?.present(textAlertController(context: context, title: nil, text: presentationData.strings.ReportPeer_AlertSuccess, actions: [TextAlertAction(type: TextAlertActionType.defaultAction, title: presentationData.strings.Common_OK, action: {})]), in: .window(.root))
-                            completion(true)
-                        })
-                    case let .messages(messageIds):
-                        let _ = (reportPeerMessages(account: context.account, messageIds: messageIds, reason: reportReason)
-                        |> deliverOnMainQueue).start(completed: {
-                            parent?.present(textAlertController(context: context, title: nil, text: presentationData.strings.ReportPeer_AlertSuccess, actions: [TextAlertAction.init(type: TextAlertActionType.defaultAction, title: presentationData.strings.Common_OK, action: {})]), in: .window(.root))
-                            completion(true)
-                        })
+                
+                var passthrough = passthrough
+                if [.fake, .custom].contains(reportReason) {
+                    passthrough = false
+                }
+                
+                let displaySuccess = {
+                    if let path = getAppBundle().path(forResource: "PoliceCar", ofType: "tgs") {
+                        parent?.present(UndoOverlayController(presentationData: presentationData, content: .emoji(path: path, text: presentationData.strings.Report_Succeed), elevatedLayout: false, action: { _ in return false }), in: .current)
                     }
+                }
+                
+                if passthrough {
+                    completion(reportReason, true)
                 } else {
-                    parent?.push(peerReportController(context: context, subject: subject, completion: completion))
+                    let action: (String) -> Void = { message in
+                        if passthrough {
+                            completion(reportReason, true)
+                        } else {
+                            switch subject {
+                                case let .peer(peerId):
+                                    let _ = (reportPeer(account: context.account, peerId: peerId, reason: reportReason, message: "")
+                                    |> deliverOnMainQueue).start(completed: {
+                                        displaySuccess()
+                                        completion(nil, false)
+                                    })
+                                case let .messages(messageIds):
+                                    let _ = (reportPeerMessages(account: context.account, messageIds: messageIds, reason: reportReason, message: "")
+                                    |> deliverOnMainQueue).start(completed: {
+                                        displaySuccess()
+                                        completion(nil, false)
+                                    })
+                                case let .profilePhoto(peerId, photoId):
+                                    let _ = (reportPeerPhoto(account: context.account, peerId: peerId, reason: reportReason, message: "")
+                                    |> deliverOnMainQueue).start(completed: {
+                                        displaySuccess()
+                                        completion(nil, false)
+                                    })
+                            }
+                        }
+                    }
+                    
+                    let controller = ActionSheetController(presentationData: presentationData, allowInputInset: true)
+                    let dismissAction: () -> Void = { [weak controller] in
+                        controller?.dismissAnimated()
+                    }
+                    var message = ""
+                    var items: [ActionSheetItem] = []
+                    items.append(ReportPeerHeaderActionSheetItem(context: context, text: presentationData.strings.Report_AdditionalDetailsText))
+                    items.append(ReportPeerDetailsActionSheetItem(context: context, placeholderText: presentationData.strings.Report_AdditionalDetailsPlaceholder, textUpdated: { text in
+                        message = text
+                    }))
+                    items.append(ActionSheetButtonItem(title: presentationData.strings.Report_Report, color: .accent, font: .bold, enabled: true, action: {
+                        dismissAction()
+             
+                        action(message)
+                    }))
+                    
+                    controller.setItemGroups([
+                        ActionSheetItemGroup(items: items),
+                        ActionSheetItemGroup(items: [ActionSheetButtonItem(title: presentationData.strings.Common_Cancel, action: { dismissAction() })])
+                    ])
+                    parent?.present(controller, in: .window(.root))
                 }
                 f(.dismissWithoutContent)
             })))
         }
+        if let backAction = backAction {
+            items.append(.separator)
+            items.append(.action(ContextMenuActionItem(text: presentationData.strings.Common_Back, icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Back"), color: theme.actionSheet.primaryTextColor)
+            }, action: { (c, _) in
+                backAction(c)
+            })))
+        }
         contextController.setItems(.single(items))
     } else {
-        contextController?.dismiss()
+        contextController?.dismiss(completion: nil)
         parent.view.endEditing(true)
-        parent.present(peerReportOptionsController(context: context, subject: subject, present: { [weak parent] c, a in
+        parent.present(peerReportOptionsController(context: context, subject: subject, passthrough: passthrough, present: { [weak parent] c, a in
             parent?.present(c, in: .window(.root), with: a)
         }, push: { [weak parent] c in
             parent?.push(c)
@@ -101,7 +173,7 @@ public func presentPeerReportOptions(context: AccountContext, parent: ViewContro
     }
 }
 
-public func peerReportOptionsController(context: AccountContext, subject: PeerReportSubject, options: [PeerReportOption] = [.spam, .violence, .pornography, .childAbuse, .copyright, .other], present: @escaping (ViewController, Any?) -> Void, push: @escaping (ViewController) -> Void, completion: @escaping (Bool) -> Void) -> ViewController {
+public func peerReportOptionsController(context: AccountContext, subject: PeerReportSubject, options: [PeerReportOption] = [.spam, .violence, .pornography, .childAbuse, .copyright, .other], passthrough: Bool, present: @escaping (ViewController, Any?) -> Void, push: @escaping (ViewController) -> Void, completion: @escaping (ReportReason?, Bool) -> Void) -> ViewController {
     let presentationData = context.sharedContext.currentPresentationData.with { $0 }
     let controller = ActionSheetController(theme: ActionSheetControllerTheme(presentationData: presentationData))
         
@@ -112,6 +184,8 @@ public func peerReportOptionsController(context: AccountContext, subject: PeerRe
         switch option {
             case .spam:
                 title = presentationData.strings.ReportPeer_ReasonSpam
+            case .fake:
+                title = presentationData.strings.ReportPeer_ReasonFake
             case .violence:
                 title = presentationData.strings.ReportPeer_ReasonViolence
             case .pornography:
@@ -128,6 +202,8 @@ public func peerReportOptionsController(context: AccountContext, subject: PeerRe
             switch option {
                 case .spam:
                     reportReason = .spam
+                case .fake:
+                    reportReason = .fake
                 case .violence:
                     reportReason = .violence
                 case .pornography:
@@ -137,25 +213,72 @@ public func peerReportOptionsController(context: AccountContext, subject: PeerRe
                 case .copyright:
                     reportReason = .copyright
                 case .other:
-                    break
+                    reportReason = .custom
             }
             if let reportReason = reportReason {
-                switch subject {
-                    case let .peer(peerId):
-                        let _ = (reportPeer(account: context.account, peerId: peerId, reason: reportReason)
-                        |> deliverOnMainQueue).start(completed: {
-                            present(textAlertController(context: context, title: nil, text: presentationData.strings.ReportPeer_AlertSuccess, actions: [TextAlertAction(type: TextAlertActionType.defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
-                            completion(true)
-                        })
-                    case let .messages(messageIds):
-                        let _ = (reportPeerMessages(account: context.account, messageIds: messageIds, reason: reportReason)
-                        |> deliverOnMainQueue).start(completed: {
-                            present(textAlertController(context: context, title: nil, text: presentationData.strings.ReportPeer_AlertSuccess, actions: [TextAlertAction.init(type: TextAlertActionType.defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
-                            completion(true)
-                        })
+                var passthrough = passthrough
+                if [.fake, .custom].contains(reportReason) {
+                    passthrough = false
                 }
-            } else {
-                push(peerReportController(context: context, subject: subject, completion: completion))
+                
+                let displaySuccess = {
+                    if let path = getAppBundle().path(forResource: "PoliceCar", ofType: "tgs") {
+                        present(UndoOverlayController(presentationData: presentationData, content: .emoji(path: path, text: presentationData.strings.Report_Succeed), elevatedLayout: false, action: { _ in return false }), nil)
+                    }
+                }
+                
+                let action: (String) -> Void = { message in
+                    if passthrough {
+                        completion(reportReason, true)
+                    } else {
+                        switch subject {
+                            case let .peer(peerId):
+                                let _ = (reportPeer(account: context.account, peerId: peerId, reason: reportReason, message: message)
+                                |> deliverOnMainQueue).start(completed: {
+                                    displaySuccess()
+                                    completion(nil, true)
+                                })
+                            case let .messages(messageIds):
+                                let _ = (reportPeerMessages(account: context.account, messageIds: messageIds, reason: reportReason, message: message)
+                                |> deliverOnMainQueue).start(completed: {
+                                    displaySuccess()
+                                    completion(nil, true)
+                                })
+                            case let .profilePhoto(peerId, photoId):
+                                let _ = (reportPeerPhoto(account: context.account, peerId: peerId, reason: reportReason, message: message)
+                                |> deliverOnMainQueue).start(completed: {
+                                    displaySuccess()
+                                    completion(nil, true)
+                                })
+                        }
+                    }
+                }
+                                
+                if [.fake, .custom].contains(reportReason) {
+                    let controller = ActionSheetController(presentationData: presentationData, allowInputInset: true)
+                    let dismissAction: () -> Void = { [weak controller] in
+                        controller?.dismissAnimated()
+                    }
+                    var message = ""
+                    var items: [ActionSheetItem] = []
+                    items.append(ReportPeerHeaderActionSheetItem(context: context, text: presentationData.strings.Report_AdditionalDetailsText))
+                    items.append(ReportPeerDetailsActionSheetItem(context: context, placeholderText: presentationData.strings.Report_AdditionalDetailsPlaceholder, textUpdated: { text in
+                        message = text
+                    }))
+                    items.append(ActionSheetButtonItem(title: presentationData.strings.Report_Report, color: .accent, font: .bold, enabled: true, action: {
+                        dismissAction()
+             
+                        action(message)
+                    }))
+                    
+                    controller.setItemGroups([
+                        ActionSheetItemGroup(items: items),
+                        ActionSheetItemGroup(items: [ActionSheetButtonItem(title: presentationData.strings.Common_Cancel, action: { dismissAction() })])
+                    ])
+                    present(controller, nil)
+                } else {
+                    action("")
+                }
             }
             
             controller?.dismissAnimated()
@@ -167,180 +290,9 @@ public func peerReportOptionsController(context: AccountContext, subject: PeerRe
         ActionSheetItemGroup(items: [
             ActionSheetButtonItem(title: presentationData.strings.Common_Cancel, action: { [weak controller] in
                 controller?.dismissAnimated()
-                completion(false)
+                completion(nil, false)
             })
         ])
     ])
-    return controller
-}
-
-private final class PeerReportControllerArguments {
-    let updateText: (String) -> Void
-    
-    init(updateText: @escaping (String) -> Void) {
-        self.updateText = updateText
-    }
-}
-
-private enum PeerReportControllerSection: Int32 {
-    case text
-}
-
-private enum PeerReportControllerEntryTag: ItemListItemTag {
-    case text
-    
-    func isEqual(to other: ItemListItemTag) -> Bool {
-        if let other = other as? PeerReportControllerEntryTag {
-            switch self {
-                case .text:
-                    if case .text = other {
-                        return true
-                    } else {
-                        return false
-                    }
-            }
-        } else {
-            return false
-        }
-    }
-}
-
-private enum PeerReportControllerEntry: ItemListNodeEntry {
-    case text(PresentationTheme, String, String)
-    
-    var section: ItemListSectionId {
-        switch self {
-            case .text:
-                return PeerReportControllerSection.text.rawValue
-        }
-    }
-    
-    var stableId: Int32 {
-        switch self {
-            case .text:
-                return 0
-        }
-    }
-    
-    static func ==(lhs: PeerReportControllerEntry, rhs: PeerReportControllerEntry) -> Bool {
-        switch lhs {
-            case let .text(lhsTheme, lhsText, lhsValue):
-                if case let .text(rhsTheme, rhsText, rhsValue) = rhs, lhsTheme === rhsTheme, lhsText == rhsText, lhsValue == rhsValue {
-                    return true
-                } else {
-                    return false
-                }
-        }
-    }
-    
-    static func <(lhs: PeerReportControllerEntry, rhs: PeerReportControllerEntry) -> Bool {
-        return lhs.stableId < rhs.stableId
-    }
-    
-    func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
-        let arguments = arguments as! PeerReportControllerArguments
-        switch self {
-            case let .text(theme, title, value):
-                return ItemListMultilineInputItem(presentationData: presentationData, text: value, placeholder: title, maxLength: nil, sectionId: self.section, style: .blocks, textUpdated: { text in
-                    arguments.updateText(text)
-                }, tag: PeerReportControllerEntryTag.text)
-        }
-    }
-}
-
-private struct PeerReportControllerState: Equatable {
-    var isReporting: Bool = false
-    var text: String = ""
-}
-
-private func peerReportControllerEntries(presentationData: PresentationData, state: PeerReportControllerState) -> [PeerReportControllerEntry] {
-    var entries: [PeerReportControllerEntry] = []
-    
-    entries.append(.text(presentationData.theme, presentationData.strings.ReportPeer_ReasonOther_Placeholder, state.text))
-    
-    return entries
-}
-
-private func peerReportController(context: AccountContext, subject: PeerReportSubject, completion: @escaping (Bool) -> Void) -> ViewController {
-    var dismissImpl: (() -> Void)?
-    var presentControllerImpl: ((ViewController, ViewControllerPresentationArguments?) -> Void)?
-    
-    let statePromise = ValuePromise(PeerReportControllerState(), ignoreRepeated: true)
-    let stateValue = Atomic(value: PeerReportControllerState())
-    let updateState: ((PeerReportControllerState) -> PeerReportControllerState) -> Void = { f in
-        statePromise.set(stateValue.modify { f($0) })
-    }
-    
-    let arguments = PeerReportControllerArguments(updateText: { text in
-        updateState { state in
-            var state = state
-            state.text = text
-            return state
-        }
-    })
-    
-    let reportDisposable = MetaDisposable()
-    
-    let signal = combineLatest(context.sharedContext.presentationData, statePromise.get())
-    |> map { presentationData, state -> (ItemListControllerState, (ItemListNodeState, Any)) in
-        let rightButton: ItemListNavigationButton
-        if state.isReporting {
-            rightButton = ItemListNavigationButton(content: .none, style: .activity, enabled: true, action: {})
-        } else {
-            rightButton = ItemListNavigationButton(content: .text(presentationData.strings.Common_Done), style: .bold, enabled: !state.text.isEmpty, action: {
-                var text: String = ""
-                updateState { state in
-                    var state = state
-                    if !state.isReporting && !state.text.isEmpty {
-                        text = state.text
-                        state.isReporting = true
-                    }
-                    return state
-                }
-                
-                if !text.isEmpty {
-                    let completed: () -> Void = {
-                        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-                        presentControllerImpl?(textAlertController(context: context, title: nil, text: presentationData.strings.ReportPeer_AlertSuccess, actions: [TextAlertAction.init(type: TextAlertActionType.defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
-                        completion(true)
-                        dismissImpl?()
-                    }
-                    switch subject {
-                    case let .peer(peerId):
-                        reportDisposable.set((reportPeer(account: context.account, peerId: peerId, reason: .custom(text))
-                        |> deliverOnMainQueue).start(completed: {
-                            completed()
-                        }))
-                    case let .messages(messageIds):
-                        reportDisposable.set((reportPeerMessages(account: context.account, messageIds: messageIds, reason: .custom(text))
-                        |> deliverOnMainQueue).start(completed: {
-                            completed()
-                        }))
-                    }
-                }
-            })
-        }
-        
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text(presentationData.strings.ReportPeer_ReasonOther_Title), leftNavigationButton: ItemListNavigationButton(content: .text(presentationData.strings.Common_Cancel), style: .regular, enabled: true, action: {
-            dismissImpl?()
-            completion(false)
-        }), rightNavigationButton: rightButton, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
-        let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: peerReportControllerEntries(presentationData: presentationData, state: state), style: .blocks, focusItemTag: PeerReportControllerEntryTag.text)
-        
-        return (controllerState, (listState, arguments))
-    }
-    |> afterDisposed {
-        reportDisposable.dispose()
-    }
-    
-    let controller = ItemListController(context: context, state: signal)
-    controller.navigationPresentation = .modal
-    presentControllerImpl = { [weak controller] c, a in
-        controller?.present(c, in: .window(.root), with: a)
-    }
-    dismissImpl = { [weak controller] in
-        controller?.view.endEditing(true)
-        controller?.dismiss()
-    }
     return controller
 }

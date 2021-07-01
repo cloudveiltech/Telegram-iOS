@@ -73,7 +73,7 @@
 - (TGMenuSheetController *)_presentAvatarMenu
 {
     __weak TGMediaAvatarMenuMixin *weakSelf = self;
-    TGMenuSheetController *controller = [[TGMenuSheetController alloc] initWithContext:_context dark:false];
+    TGMenuSheetController *controller = [[TGMenuSheetController alloc] initWithContext:_context dark:self.forceDark];
     controller.dismissesByOutsideTap = true;
     controller.hasSwipeGesture = true;
     controller.didDismiss = ^(bool manual)
@@ -157,7 +157,7 @@
         [strongSelf _displayMediaPicker];
     }];
     [itemViews addObject:galleryItem];
-	/* CloudVeil disabled
+    /* CloudVeil disabled
     if (_hasSearchButton)
     {
         TGMenuSheetButtonItemView *viewItem = [[TGMenuSheetButtonItemView alloc] initWithTitle:TGLocalized(@"ProfilePhoto.SearchWeb") type:TGMenuSheetButtonTypeDefault fontSize:20.0 action:^
@@ -175,8 +175,8 @@
                 strongSelf.requestSearchController(nil);
         }];
         [itemViews addObject:viewItem];
-    }
-	 */
+        
+    }*/
     
     if (_hasViewButton)
     {

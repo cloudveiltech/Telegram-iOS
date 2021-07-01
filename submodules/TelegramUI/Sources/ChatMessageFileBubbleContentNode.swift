@@ -9,7 +9,7 @@ import SyncCore
 import TelegramUIPreferences
 
 class ChatMessageFileBubbleContentNode: ChatMessageBubbleContentNode {
-    private let interactiveFileNode: ChatMessageInteractiveFileNode
+    let interactiveFileNode: ChatMessageInteractiveFileNode
     
     override var visibility: ListViewItemNodeVisibility {
         didSet {
@@ -51,6 +51,19 @@ class ChatMessageFileBubbleContentNode: ChatMessageBubbleContentNode {
                 let _ = item.controllerInteraction.requestMessageUpdate(item.message.id)
             }
         }
+        
+        self.interactiveFileNode.displayImportedTooltip = { [weak self] sourceNode in
+            if let strongSelf = self, let item = strongSelf.item {
+                let _ = item.controllerInteraction.displayImportedMessageTooltip(sourceNode)
+            }
+        }
+    }
+    
+    override func accessibilityActivate() -> Bool {
+        if let item = self.item {
+            let _ = item.controllerInteraction.openMessage(item.message, .default)
+        }
+        return true
     }
     
     required init?(coder aDecoder: NSCoder) {

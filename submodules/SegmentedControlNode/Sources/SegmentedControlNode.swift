@@ -9,7 +9,7 @@ private let selectedTextFont = Font.bold(13.0)
 
 public enum SegmentedControlLayout {
     case stretchToFill(width: CGFloat)
-    case sizeToFit(maximumWidth: CGFloat, minimumWidth: CGFloat)
+    case sizeToFit(maximumWidth: CGFloat, minimumWidth: CGFloat, height: CGFloat)
 }
 
 public final class SegmentedControlTheme: Equatable {
@@ -172,6 +172,8 @@ public final class SegmentedControlNode: ASDisplayNode, UIGestureRecognizerDeleg
             itemNode.contentEdgeInsets = UIEdgeInsets(top: 0.0, left: 8.0, bottom: 0.0, right: 8.0)
             itemNode.titleNode.maximumNumberOfLines = 1
             itemNode.titleNode.truncationMode = .byTruncatingTail
+            itemNode.accessibilityLabel = item.title
+            itemNode.accessibilityTraits = [.button]
             itemNode.setTitle(item.title, with: textFont, with: theme.textColor, for: .normal)
             itemNode.setTitle(item.title, with: selectedTextFont, with: theme.textColor, for: .selected)
             itemNode.setTitle(item.title, with: selectedTextFont, with: theme.textColor, for: [.selected, .highlighted])
@@ -288,15 +290,24 @@ public final class SegmentedControlNode: ASDisplayNode, UIGestureRecognizerDeleg
     
     public func updateLayout(_ layout: SegmentedControlLayout, transition: ContainedViewLayoutTransition) -> CGSize {
         self.validLayout = layout
-        
-        let calculatedWidth: CGFloat = 0.0
-        
+                
         let width: CGFloat
+        let height: CGFloat
         switch layout {
             case let .stretchToFill(targetWidth):
                 width = targetWidth
-            case let .sizeToFit(maximumWidth, minimumWidth):
+                height = 32.0
+            case let .sizeToFit(maximumWidth, minimumWidth, targetHeight):
+                var calculatedWidth: CGFloat = 0.0
+                var maxWidth: CGFloat = 0.0
+                for item in self.itemNodes {
+                    let size = item.calculateSizeThatFits(CGSize(width: maximumWidth, height: targetHeight))
+                    maxWidth = max(maxWidth, size.width)
+                }
+                calculatedWidth = ceil(maxWidth * CGFloat(self.itemNodes.count))
+                
                 width = max(minimumWidth, min(maximumWidth, calculatedWidth))
+                height = targetHeight
         }
 
         let selectedIndex: Int
@@ -306,7 +317,7 @@ public final class SegmentedControlNode: ASDisplayNode, UIGestureRecognizerDeleg
             selectedIndex = self.selectedIndex
         }
         
-        let size = CGSize(width: width, height: 32.0)
+        let size = CGSize(width: width, height: height)
         if !self.itemNodes.isEmpty {
             let itemSize = CGSize(width: floorToScreenPixels(size.width / CGFloat(self.itemNodes.count)), height: size.height)
             

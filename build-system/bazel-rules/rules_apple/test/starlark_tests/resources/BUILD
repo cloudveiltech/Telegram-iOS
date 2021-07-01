@@ -67,9 +67,86 @@ objc_library(
     tags = FIXTURE_TAGS,
 )
 
+objc_library(
+    name = "objc_lib_with_sdk_dylibs",
+    srcs = ["common.m"],
+    hdrs = ["common.h"],
+    sdk_dylibs = ["libz"],
+    tags = FIXTURE_TAGS,
+)
+
+objc_library(
+    name = "objc_lib_with_sdk_fmwks",
+    srcs = ["common.m"],
+    hdrs = ["common.h"],
+    sdk_frameworks = ["CoreData"],
+    tags = FIXTURE_TAGS,
+)
+
 swift_library(
     name = "swift_main_lib",
     srcs = ["//test/testdata/sources:main.swift"],
+    tags = FIXTURE_TAGS,
+)
+
+swift_library(
+    name = "swift_lib_with_resources",
+    module_name = "swift_lib_with_resources",
+    srcs = [
+        "Shared.swift",
+    ],
+    data = [
+        ":structured_resources",
+    ],
+    testonly = True,
+    features = ["swift.no_generated_module_map"],
+    tags = FIXTURE_TAGS,
+)
+
+swift_library(
+    name = "swift_common_lib",
+    module_name = "swift_common_lib",
+    srcs = ["Common.swift"],
+    testonly = True,
+    features = ["swift.no_generated_module_map"],
+    tags = FIXTURE_TAGS,
+)
+
+swift_library(
+    name = "swift_shared_lib",
+    module_name = "swift_shared_lib",
+    srcs = ["Shared.swift"],
+    deps = [
+        "//test/starlark_tests/resources:swift_common_lib",
+    ],
+    testonly = True,
+    features = ["swift.no_generated_module_map"],
+    tags = FIXTURE_TAGS,
+)
+
+swift_library(
+    name = "swift_transitive_lib",
+    module_name = "swift_transitive_lib",
+    srcs = ["Transitives.swift"],
+    deps = [
+        "//test/starlark_tests/resources:swift_common_lib",
+        "//test/starlark_tests/resources:swift_shared_lib",
+    ],
+    testonly = True,
+    features = ["swift.no_generated_module_map"],
+    tags = FIXTURE_TAGS,
+)
+
+swift_library(
+    name = "swift_lib_with_transitives",
+    module_name = "dynamic_framework_with_resources",
+    srcs = ["Shared.swift"],
+    data = [
+        "//test/starlark_tests/targets_under_test/ios:swift_common_lib_framework",
+        "//test/starlark_tests/targets_under_test/ios:swift_shared_lib_framework",
+    ],
+    testonly = True,
+    features = ["swift.no_generated_module_map"],
     tags = FIXTURE_TAGS,
 )
 

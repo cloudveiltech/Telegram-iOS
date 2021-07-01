@@ -67,6 +67,7 @@ private var declaredEncodables: Void = {
     declareEncodable(SecretFileMediaResource.self, f: { SecretFileMediaResource(decoder: $0) })
     declareEncodable(CloudChatRemoveMessagesOperation.self, f: { CloudChatRemoveMessagesOperation(decoder: $0) })
     declareEncodable(AutoremoveTimeoutMessageAttribute.self, f: { AutoremoveTimeoutMessageAttribute(decoder: $0) })
+    declareEncodable(AutoclearTimeoutMessageAttribute.self, f: { AutoclearTimeoutMessageAttribute(decoder: $0) })
     declareEncodable(GlobalNotificationSettings.self, f: { GlobalNotificationSettings(decoder: $0) })
     declareEncodable(CloudChatRemoveChatOperation.self, f: { CloudChatRemoveChatOperation(decoder: $0) })
     declareEncodable(SynchronizePinnedChatsOperation.self, f: { SynchronizePinnedChatsOperation(decoder: $0) })
@@ -169,6 +170,12 @@ private var declaredEncodables: Void = {
     declareEncodable(CountriesList.self, f: { CountriesList(decoder: $0) })
     declareEncodable(ValidationMessageAttribute.self, f: { ValidationMessageAttribute(decoder: $0) })
     declareEncodable(EmojiSearchQueryMessageAttribute.self, f: { EmojiSearchQueryMessageAttribute(decoder: $0) })
+    declareEncodable(CachedPeerInvitationImporters.self, f: { CachedPeerInvitationImporters(decoder: $0) })
+    declareEncodable(CachedPeerExportedInvitations.self, f: { CachedPeerExportedInvitations(decoder: $0) })
+    declareEncodable(ExportedInvitation.self, f: { ExportedInvitation(decoder: $0) })
+    declareEncodable(CachedDisplayAsPeers.self, f: { CachedDisplayAsPeers(decoder: $0) })
+    declareEncodable(WallpapersState.self, f: { WallpapersState(decoder: $0) })
+    declareEncodable(WallpaperDataResource.self, f: { WallpaperDataResource(decoder: $0) })
     
     return
 }()
@@ -183,6 +190,24 @@ public func rootPathForBasePath(_ appGroupPath: String) -> String {
 
 public func performAppGroupUpgrades(appGroupPath: String, rootPath: String) {
     let _ = try? FileManager.default.createDirectory(at: URL(fileURLWithPath: rootPath), withIntermediateDirectories: true, attributes: nil)
+
+    if let items = FileManager.default.enumerator(at: URL(fileURLWithPath: appGroupPath), includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants], errorHandler: nil) {
+        let allowedDirectories: [String] = [
+            "telegram-data",
+            "Library"
+        ]
+
+        for url in items {
+            guard let url = url as? URL else {
+                continue
+            }
+            if let isDirectory = try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory, isDirectory {
+                if !allowedDirectories.contains(url.lastPathComponent) {
+                    let _ = try? FileManager.default.removeItem(at: url)
+                }
+            }
+        }
+    }
     
     do {
         var resourceValues = URLResourceValues()
@@ -210,10 +235,12 @@ public func temporaryAccount(manager: AccountManager, rootPath: String, encrypti
     return manager.allocatedTemporaryAccountId()
     |> mapToSignal { id -> Signal<TemporaryAccount, NoError> in
         let path = "\(rootPath)/\(accountRecordIdPathName(id))"
-        return openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration, encryptionParameters: encryptionParameters, timestampForAbsoluteTimeBasedOperations: Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970))
+        return openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration, encryptionParameters: encryptionParameters, timestampForAbsoluteTimeBasedOperations: Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970), isTemporary: false, isReadOnly: false, useCopy: false)
         |> mapToSignal { result -> Signal<TemporaryAccount, NoError> in
             switch result {
                 case .upgrading:
+                    return .complete()
+                case .error:
                     return .complete()
                 case let .postbox(postbox):
                     return .single(TemporaryAccount(id: id, basePath: path, postbox: postbox))

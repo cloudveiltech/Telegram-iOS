@@ -241,8 +241,8 @@ _RULE_TYPE_DESCRIPTORS = {
             app_icon_extension = ".appiconset",
             archive_extension = ".ipa",
             bundle_extension = ".app",
-            bundle_package_type = bundle_package_type.application,
             bundle_locations = _describe_bundle_locations(archive_relative = "Payload"),
+            bundle_package_type = bundle_package_type.application,
             deps_cfg = apple_common.multi_arch_split,
             expose_non_archive_relative_output = True,
             is_executable = True,
@@ -649,9 +649,9 @@ _RULE_TYPE_DESCRIPTORS = {
         # tvos_framework
         apple_product_type.framework: _describe_rule_type(
             allowed_device_families = ["tv"],
+            binary_type = "dylib",
             bundle_extension = ".framework",
             bundle_package_type = bundle_package_type.framework,
-            binary_type = "dylib",
             codesigning_exceptions = _CODESIGNING_EXCEPTIONS.sign_with_provisioning_profile,
             deps_cfg = apple_common.multi_arch_split,
             product_type = apple_product_type.framework,
@@ -752,6 +752,33 @@ _RULE_TYPE_DESCRIPTORS = {
                 # Frameworks are packaged in Application.app/Frameworks
                 "@executable_path/../../Frameworks",
             ],
+        ),
+        # watchos_framework
+        apple_product_type.framework: _describe_rule_type(
+            allowed_device_families = ["watch"],
+            binary_type = "dylib",
+            bundle_extension = ".framework",
+            bundle_package_type = bundle_package_type.framework,
+            codesigning_exceptions = _CODESIGNING_EXCEPTIONS.sign_with_provisioning_profile,
+            deps_cfg = apple_common.multi_arch_split,
+            product_type = apple_product_type.framework,
+            rpaths = [
+                # Framework binaries live in
+                # Application.app/Frameworks/Framework.framework/Framework
+                # Frameworks are packaged in Application.app/Frameworks
+                "@executable_path/Frameworks",
+            ],
+        ),
+        # watchos_static_framework
+        apple_product_type.static_framework: _describe_rule_type(
+            allowed_device_families = ["watch"],
+            bundle_extension = ".framework",
+            codesigning_exceptions = _CODESIGNING_EXCEPTIONS.skip_signing,
+            deps_cfg = transition_support.static_framework_transition,
+            has_infoplist = False,
+            product_type = apple_product_type.static_framework,
+            requires_bundle_id = False,
+            requires_provisioning_profile = False,
         ),
     },
 }
