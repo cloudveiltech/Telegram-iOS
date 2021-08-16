@@ -377,9 +377,9 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
 
                     //CloudVeil start
 					var isStickerPanelItem = false
-					if case .stickers(let _) = item {
+                    if case .stickers(let _) = item {
 						isStickerPanelItem = true
-					}
+                    }
 					
 					if !MainController.shared.disableStickers || !isStickerPanelItem {
                         if itemAndButton == nil {

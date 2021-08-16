@@ -3,6 +3,7 @@ import Postbox
 import SwiftSignalKit
 
 import SyncCore
+import CloudVeilSecurityManager
 
 public struct PeerCommand: Hashable {
     public let peer: Peer
@@ -32,9 +33,13 @@ public func peerCommands(account: Account, id: PeerId) -> Signal<PeerCommands, N
             if let botInfo = cachedUserData.botInfo {
                 if let botPeer = view.peers[id] {
                     var commands: [PeerCommand] = []
-                    for command in botInfo.commands {
-                        commands.append(PeerCommand(peer: botPeer, command: command))
+                    //CloudVeil start
+                    if MainController.shared.isBotAvailable(botID: NSInteger(botPeer.id.id._internalGetInt32Value())) {
+                        for command in botInfo.commands {
+                            commands.append(PeerCommand(peer: botPeer, command: command))
+                        }
                     }
+                    //CloudVeil end
                     return PeerCommands(commands: commands)
                 }
             }
@@ -43,9 +48,13 @@ public func peerCommands(account: Account, id: PeerId) -> Signal<PeerCommands, N
             var commands: [PeerCommand] = []
             for cachedBotInfo in cachedGroupData.botInfos {
                 if let botPeer = view.peers[cachedBotInfo.peerId] {
-                    for command in cachedBotInfo.botInfo.commands {
-                        commands.append(PeerCommand(peer: botPeer, command: command))
+                    //CloudVeil start
+                    if MainController.shared.isBotAvailable(botID: NSInteger(botPeer.id.id._internalGetInt32Value())) {
+                        for command in cachedBotInfo.botInfo.commands {
+                            commands.append(PeerCommand(peer: botPeer, command: command))
+                        }
                     }
+                    //CloudVeil end
                 }
             }
             return PeerCommands(commands: commands)
@@ -53,9 +62,13 @@ public func peerCommands(account: Account, id: PeerId) -> Signal<PeerCommands, N
             var commands: [PeerCommand] = []
             for cachedBotInfo in cachedChannelData.botInfos {
                 if let botPeer = view.peers[cachedBotInfo.peerId] {
-                    for command in cachedBotInfo.botInfo.commands {
-                        commands.append(PeerCommand(peer: botPeer, command: command))
+                    //CloudVeil start
+                    if MainController.shared.isBotAvailable(botID: NSInteger(botPeer.id.id._internalGetInt32Value())) {
+                        for command in cachedBotInfo.botInfo.commands {
+                            commands.append(PeerCommand(peer: botPeer, command: command))
+                        }
                     }
+                    //CloudVeil end
                 }
             }
             return PeerCommands(commands: commands)

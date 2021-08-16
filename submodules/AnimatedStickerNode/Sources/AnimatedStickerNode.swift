@@ -776,6 +776,10 @@ public final class AnimatedStickerNode: ASDisplayNode {
     
     public var stopAtNearestLoop: Bool = false
     
+    //CloudVeil start
+    public var isEmoji: Bool = false
+    //CloudVeil end
+    
     private let playbackStatus = Promise<AnimatedStickerStatus>()
     public var status: Signal<AnimatedStickerStatus, NoError> {
         return self.playbackStatus.get()
@@ -833,12 +837,14 @@ public final class AnimatedStickerNode: ASDisplayNode {
         self.addSubnode(self.renderer!)
     }
 
-    public func setup(source: AnimatedStickerNodeSource, width: Int, height: Int, playbackMode: AnimatedStickerPlaybackMode = .loop, mode: AnimatedStickerMode) {
+    public func setup(source: AnimatedStickerNodeSource, width: Int, height: Int, playbackMode: AnimatedStickerPlaybackMode = .loop, mode: AnimatedStickerMode, isEmoji: Bool = false) {
         if width < 2 || height < 2 {
             return
         }
+        
         //CloudVeil start
-		if MainController.shared.disableStickers {
+        self.isEmoji = isEmoji
+		if MainController.shared.disableStickers && !isEmoji {
 			self.autoplay = false
 		}
 		//CloudVeil end
@@ -911,7 +917,7 @@ public final class AnimatedStickerNode: ASDisplayNode {
             return
         }
         //CloudVeil start
-		if MainController.shared.disableStickers {
+		if MainController.shared.disableStickers && !self.isEmoji {
 			self.isPlaying = false
 			self.pause()
 			return
@@ -939,7 +945,7 @@ public final class AnimatedStickerNode: ASDisplayNode {
     
     public func play(firstFrame: Bool = false, fromIndex: Int? = nil) {
         //CloudVeil start
-		if MainController.shared.disableStickers {
+        if MainController.shared.disableStickers && !self.isEmoji {
 			return
 		}
 		//CloudVeil end

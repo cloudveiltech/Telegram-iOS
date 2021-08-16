@@ -3185,12 +3185,22 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                         
                         var hasBots: Bool = false
                         var hasBotCommands: Bool = false
+                        //CloudVeil start
+                        var hasAllowedBots = false
+                        //CloudVeil end
                         var autoremoveTimeout: Int32?
                         if let peer = peerView.peers[peerView.peerId] {
                             if let cachedGroupData = peerView.cachedData as? CachedGroupData {
                                 if !cachedGroupData.botInfos.isEmpty {
                                     hasBots = true
                                 }
+                                //CloudVeil start
+                                for cachedBotInfo in cachedGroupData.botInfos {
+                                    if MainController.shared.isBotAvailable(botID: NSInteger(cachedBotInfo.peerId.id._internalGetInt32Value())) {
+                                        hasAllowedBots = true
+                                    }
+                                }
+                                //CloudVeil end
                                 if case let .known(value) = cachedGroupData.autoremoveTimeout {
                                     autoremoveTimeout = value?.effectiveValue
                                 }
@@ -3199,6 +3209,13 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                     if !cachedChannelData.botInfos.isEmpty {
                                         hasBots = true
                                     }
+                                    //CloudVeil start
+                                    for cachedBotInfo in cachedChannelData.botInfos {
+                                        if MainController.shared.isBotAvailable(botID: NSInteger(cachedBotInfo.peerId.id._internalGetInt32Value())) {
+                                            hasAllowedBots = true
+                                        }
+                                    }
+                                    //CloudVeil end
                                 }
                                 if case let .known(value) = cachedChannelData.autoremoveTimeout {
                                     autoremoveTimeout = value?.effectiveValue
@@ -3213,6 +3230,9 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                             }
                         }
                         
+                        //CloudVeil start
+                        hasBots = hasBots && hasAllowedBots
+                        //CloudVeil end
                         let isArchived: Bool = peerView.groupId == Namespaces.PeerGroup.archive
                         
                         var explicitelyCanPinMessages: Bool = false

@@ -2069,6 +2069,7 @@ final class SharedApplicationContext {
                         }
                         notificationCenter.requestAuthorization(options: authorizationOptions, completionHandler: { result, _ in
                             completion(result)
+                            
                             if result {
                                 Queue.mainQueue().async {
                                     let reply = UNTextInputNotificationAction(identifier: "reply", title: replyString, options: [], textInputButtonTitle: replyString, textInputPlaceholder: messagePlaceholderString)

@@ -397,7 +397,7 @@ public func chatMessageStickerPackThumbnail(postbox: Postbox, resource: MediaRes
 
 public func chatMessageSticker(postbox: Postbox, file: TelegramMediaFile, small: Bool, fetched: Bool = false, onlyFullSize: Bool = false, thumbnail: Bool = false, synchronousLoad: Bool = false) -> Signal<(TransformImageArguments) -> DrawingContext?, NoError> {
     let signal: Signal<Tuple3<Data?, Data?, Bool>, NoError>
-
+    
     //CloudVeil start
 	if MainController.shared.disableStickers {
 		signal = loadBlockedImage()

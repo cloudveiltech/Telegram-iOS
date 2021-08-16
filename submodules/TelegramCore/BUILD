@@ -7,6 +7,9 @@ swift_library(
         "Sources/**/*.swift",
     ]),
     deps = [
+        #CloudVeil start
+        "//Telegram:CloudVeilSecurityManager",
+        #CloudVeil end
         "//submodules/TelegramApi:TelegramApi",
         "//submodules/MtProtoKit:MtProtoKit",
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",

@@ -506,7 +506,9 @@ class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                     if let fitz = fitz {
                         fitzModifier = EmojiFitzModifier(emoji: fitz)
                     }
-                    self.imageNode.setSignal(chatMessageAnimatedSticker(postbox: item.context.account.postbox, file: emojiFile, small: false, size: dimensions.cgSize.aspectFilled(CGSize(width: 384.0, height: 384.0)), fitzModifier: fitzModifier, thumbnail: false, synchronousLoad: synchronousLoad), attemptSynchronously: synchronousLoad)
+                    //CloudVeil start
+                    self.imageNode.setSignal(chatMessageAnimatedSticker(postbox: item.context.account.postbox, file: emojiFile, small: false, size: dimensions.cgSize.aspectFilled(CGSize(width: 384.0, height: 384.0)), fitzModifier: fitzModifier, thumbnail: false, synchronousLoad: synchronousLoad, isEmoji: true), attemptSynchronously: synchronousLoad)
+                    //CloudVeil end
                     self.disposable.set(freeMediaFileInteractiveFetched(account: item.context.account, fileReference: .standalone(media: emojiFile)).start())
                 }
                 self.updateVisibility()
@@ -577,7 +579,9 @@ class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                         let pathPrefix = item.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(file.resource.id)
                         let mode: AnimatedStickerMode = .direct(cachePathPrefix: pathPrefix)
                         
-                        animationNode.setup(source: AnimatedStickerResourceSource(account: item.context.account, resource: file.resource, fitzModifier: fitzModifier), width: Int(fittedSize.width), height: Int(fittedSize.height), playbackMode: playbackMode, mode: mode)
+                        //CloudVeil start
+                        animationNode.setup(source: AnimatedStickerResourceSource(account: item.context.account, resource: file.resource, fitzModifier: fitzModifier), width: Int(fittedSize.width), height: Int(fittedSize.height), playbackMode: playbackMode, mode: mode, isEmoji: isEmoji)
+                        //CloudVeil end
                     }
                 }
             }

@@ -6,6 +6,7 @@ import TemporaryCachedPeerDataManager
 import Emoji
 import AccountContext
 import TelegramPresentationData
+import CloudVeilSecurityManager
 
 
 func chatHistoryEntriesForView(location: ChatLocation, view: MessageHistoryView, includeUnreadEntry: Bool, includeEmptyEntry: Bool, includeChatInfoEntry: Bool, includeSearchEntry: Bool, reverse: Bool, groupMessages: Bool, selectedMessages: Set<MessageId>?, presentationData: ChatPresentationData, historyAppearsCleared: Bool, pendingUnpinnedAllMessages: Bool, pendingRemovedMessages: Set<MessageId>, associatedData: ChatMessageItemAssociatedData, updatingMedia: [MessageId: ChatUpdatingMessageMedia], customChannelDiscussionReadState: MessageId?, customThreadOutgoingReadState: MessageId?) -> [ChatHistoryEntry] {
@@ -247,9 +248,27 @@ func chatHistoryEntriesForView(location: ChatLocation, view: MessageHistoryView,
         }
     }
     
-    if reverse {
-        return entries.reversed()
-    } else {
-        return entries
+    //CloudVeil start
+    var entriesFiltered: [ChatHistoryEntry] = []
+    for message in entries {
+        switch message {
+        case let .MessageEntry(messageData, _, _, _, _, _):
+            if let author = messageData.author as? TelegramUser, author.botInfo != nil {
+                if MainController.shared.isBotAvailable(botID: NSInteger(author.id.id._internalGetInt32Value())) {
+                    entriesFiltered.append(message)
+                }
+            } else {
+                entriesFiltered.append(message)
+            }
+        default:
+            entriesFiltered.append(message)
+        }
     }
+    
+    if reverse {
+        return entriesFiltered.reversed()
+    } else {
+        return entriesFiltered
+    }
+    //CloudVeil end
 }
