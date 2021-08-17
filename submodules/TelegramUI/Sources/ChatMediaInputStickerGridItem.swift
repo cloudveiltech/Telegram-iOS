@@ -280,6 +280,9 @@ final class ChatMediaInputStickerGridItemNode: GridItemNode {
                             self.addSubnode(animationNode)
                         }
                     }
+                    
+                    
+                    
                     let dimensions = item.stickerItem.file.dimensions ?? PixelDimensions(width: 512, height: 512)
                     let fittedSize = item.large ? CGSize(width: 384.0, height: 384.0) : CGSize(width: 160.0, height: 160.0)
                     self.imageNode.setSignal(chatMessageAnimatedSticker(postbox: item.account.postbox, file: item.stickerItem.file, small: false, size: dimensions.cgSize.aspectFitted(fittedSize)))

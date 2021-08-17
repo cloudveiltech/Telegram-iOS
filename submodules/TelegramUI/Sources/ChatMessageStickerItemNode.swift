@@ -230,7 +230,20 @@ class ChatMessageStickerItemNode: ChatMessageItemView {
         for media in item.message.media {
             if let telegramFile = media as? TelegramMediaFile {
                 if self.telegramFile != telegramFile {
-                    let signal = chatMessageSticker(account: item.context.account, file: telegramFile, small: false, onlyFullSize: self.telegramFile != nil, synchronousLoad: synchronousLoad)
+                    
+                    //CloudVeil start
+                    var isEmoji = item.presentationData.largeEmoji
+                    for attribute in telegramFile.attributes {
+                        if case let .Sticker(_, reference, _) = attribute {
+                            if let reference = reference {
+                                if case .id(_, _) = reference {
+                                    isEmoji = false
+                                }
+                            }
+                        }
+                    }
+                    let signal = chatMessageSticker(account: item.context.account, file: telegramFile, small: false, onlyFullSize: self.telegramFile != nil, synchronousLoad: synchronousLoad, isEmoji: isEmoji)
+                    //CloudVeil end
                     self.telegramFile = telegramFile
                     self.imageNode.setSignal(signal, attemptSynchronously: synchronousLoad)
                     self.fetchDisposable.set(freeMediaFileInteractiveFetched(account: item.context.account, fileReference: .message(message: MessageReference(item.message), media: telegramFile)).start())
