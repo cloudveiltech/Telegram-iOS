@@ -253,10 +253,10 @@ final class SharedApplicationContext {
 		AppDelegate.shared = self
 		SentrySDK.start(options: [
 			"dsn": "https://ccd3de565659417a9274a5447a1321fc:b2f2c494a1614b91b0817096270e3d91@sentry.cloudveil.org/18",
-			"debug": false // Helpful to see what's going on
+			"debug": true // Helpful to see what's going on
 		])
 		//CloudVeil end
-
+        
         precondition(!testIsLaunched)
         testIsLaunched = true
         
@@ -1406,6 +1406,7 @@ final class SharedApplicationContext {
             sharedApplicationContext.wakeupManager.allowBackgroundTimeExtension(timeout: 2.0, extendNow: extendNow)
         })
         
+    
         self.isInForegroundValue = false
         self.isInForegroundPromise.set(false)
         self.isActiveValue = false

@@ -9,27 +9,27 @@ NS_SWIFT_NAME(User)
 /**
  * Optional: Id of the user
  */
-@property (atomic, copy) NSString *userId;
+@property (nonatomic, copy) NSString *userId;
 
 /**
  * Optional: Email of the user
  */
-@property (atomic, copy) NSString *_Nullable email;
+@property (nonatomic, copy) NSString *_Nullable email;
 
 /**
  * Optional: Username
  */
-@property (atomic, copy) NSString *_Nullable username;
+@property (nonatomic, copy) NSString *_Nullable username;
 
 /**
  * Optional: IP Address
  */
-@property (atomic, copy) NSString *_Nullable ipAddress;
+@property (nonatomic, copy) NSString *_Nullable ipAddress;
 
 /**
  * Optional: Additional data
  */
-@property (atomic, strong) NSDictionary<NSString *, id> *_Nullable data;
+@property (nonatomic, strong) NSDictionary<NSString *, id> *_Nullable data;
 
 /**
  * Initializes a SentryUser with the id
@@ -40,12 +40,6 @@ NS_SWIFT_NAME(User)
 
 - (instancetype)init;
 + (instancetype)new NS_UNAVAILABLE;
-
-- (BOOL)isEqual:(id _Nullable)other;
-
-- (BOOL)isEqualToUser:(SentryUser *)user;
-
-- (NSUInteger)hash;
 
 @end
 

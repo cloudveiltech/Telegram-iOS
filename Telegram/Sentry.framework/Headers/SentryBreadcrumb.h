@@ -11,7 +11,7 @@ NS_SWIFT_NAME(Breadcrumb)
 /**
  * Level of breadcrumb
  */
-@property (nonatomic) SentryLevel level;
+@property (nonatomic) enum SentryLevel level;
 
 /**
  * Category of bookmark, can be any string
@@ -46,17 +46,11 @@ NS_SWIFT_NAME(Breadcrumb)
  * @param category String
  * @return SentryBreadcrumb
  */
-- (instancetype)initWithLevel:(SentryLevel)level category:(NSString *)category;
+- (instancetype)initWithLevel:(enum SentryLevel)level category:(NSString *)category;
 - (instancetype)init;
 + (instancetype)new NS_UNAVAILABLE;
 
 - (NSDictionary<NSString *, id> *)serialize;
-
-- (BOOL)isEqual:(id _Nullable)other;
-
-- (BOOL)isEqualToBreadcrumb:(SentryBreadcrumb *)breadcrumb;
-
-- (NSUInteger)hash;
 
 @end
 
