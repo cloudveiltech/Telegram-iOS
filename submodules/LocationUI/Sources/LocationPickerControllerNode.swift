@@ -4,7 +4,6 @@ import AsyncDisplayKit
 import Display
 import LegacyComponents
 import TelegramCore
-import SyncCore
 import Postbox
 import SwiftSignalKit
 import MergeLists
@@ -286,7 +285,7 @@ final class LocationPickerControllerNode: ViewControllerTracingNode, CLLocationM
         self.listNode.verticalScrollIndicatorColor = UIColor(white: 0.0, alpha: 0.3)
         self.listNode.verticalScrollIndicatorFollowsOverscroll = true
         self.listNode.accessibilityPageScrolledString = { row, count in
-            return presentationData.strings.VoiceOver_ScrollStatus(row, count).0
+            return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
         }
         
         self.emptyResultsTextNode = ImmediateTextNode()
@@ -489,7 +488,7 @@ final class LocationPickerControllerNode: ViewControllerTracingNode, CLLocationM
                             case .pick:
                                 title = presentationData.strings.Map_SetThisLocation
                         }
-                        entries.append(.location(presentationData.theme, title, (userLocation?.horizontalAccuracy).flatMap { presentationData.strings.Map_AccurateTo(stringForDistance(strings: presentationData.strings, distance: $0)).0 } ?? presentationData.strings.Map_Locating, nil, userLocation?.coordinate))
+                        entries.append(.location(presentationData.theme, title, (userLocation?.horizontalAccuracy).flatMap { presentationData.strings.Map_AccurateTo(stringForDistance(strings: presentationData.strings, distance: $0)).string } ?? presentationData.strings.Map_Locating, nil, userLocation?.coordinate))
                 }
                 
                 if case .share(_, _, true) = mode {
@@ -515,7 +514,7 @@ final class LocationPickerControllerNode: ViewControllerTracingNode, CLLocationM
                         entries.append(.attribution(presentationData.theme, attribution))
                     }
                 } else {
-                    for i in 0 ..< 8 {
+                    for _ in 0 ..< 8 {
                         entries.append(.venue(presentationData.theme, nil, index))
                         index += 1
                     }
@@ -640,7 +639,7 @@ final class LocationPickerControllerNode: ViewControllerTracingNode, CLLocationM
             strongSelf.layoutEmptyResultsPlaceholder(transition: listTransition)
         }
         
-        self.listNode.beganInteractiveDragging = { [weak self] in
+        self.listNode.beganInteractiveDragging = { [weak self] _ in
             guard let strongSelf = self else {
                 return
             }

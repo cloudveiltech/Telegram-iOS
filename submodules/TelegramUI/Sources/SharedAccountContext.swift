@@ -3,7 +3,6 @@ import UIKit
 import AsyncDisplayKit
 import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import Display
 import TelegramPresentationData
@@ -43,12 +42,12 @@ private struct AccountAttributes: Equatable {
 
 private enum AddedAccountResult {
     case upgrading(Float)
-    case ready(AccountRecordId, Account?, Int32)
+    case ready(AccountRecordId, Account?, Int32, LimitsConfiguration?, ContentSettings?, AppConfiguration?)
 }
 
 private enum AddedAccountsResult {
     case upgrading(Float)
-    case ready([(AccountRecordId, Account?, Int32)])
+    case ready([(AccountRecordId, Account?, Int32, LimitsConfiguration?, ContentSettings?, AppConfiguration?)])
 }
 
 private var testHasInstance = false
@@ -58,7 +57,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     public let applicationBindings: TelegramApplicationBindings
     public let sharedContainerPath: String
     public let basePath: String
-    public let accountManager: AccountManager
+    public let accountManager: AccountManager<TelegramAccountManagerTypes>
     public let appLockContext: AppLockContext
     
     private let navigateToChatImpl: (AccountRecordId, PeerId, MessageId?) -> Void
@@ -66,9 +65,9 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     private let apsNotificationToken: Signal<Data?, NoError>
     private let voipNotificationToken: Signal<Data?, NoError>
     
-    private var activeAccountsValue: (primary: Account?, accounts: [(AccountRecordId, Account, Int32)], currentAuth: UnauthorizedAccount?)?
-    private let activeAccountsPromise = Promise<(primary: Account?, accounts: [(AccountRecordId, Account, Int32)], currentAuth: UnauthorizedAccount?)>()
-    public var activeAccounts: Signal<(primary: Account?, accounts: [(AccountRecordId, Account, Int32)], currentAuth: UnauthorizedAccount?), NoError> {
+    private var activeAccountsValue: (primary: AccountContext?, accounts: [(AccountRecordId, AccountContext, Int32)], currentAuth: UnauthorizedAccount?)?
+    private let activeAccountsPromise = Promise<(primary: AccountContext?, accounts: [(AccountRecordId, AccountContext, Int32)], currentAuth: UnauthorizedAccount?)>()
+    public var activeAccountContexts: Signal<(primary: AccountContext?, accounts: [(AccountRecordId, AccountContext, Int32)], currentAuth: UnauthorizedAccount?), NoError> {
         return self.activeAccountsPromise.get()
     }
     private let managedAccountDisposables = DisposableDict<AccountRecordId>()
@@ -162,7 +161,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     private var spotlightDataContext: SpotlightDataContext?
     private var widgetDataContext: WidgetDataContext?
     
-    public init(mainWindow: Window1?, sharedContainerPath: String, basePath: String, encryptionParameters: ValueBoxEncryptionParameters, accountManager: AccountManager, appLockContext: AppLockContext, applicationBindings: TelegramApplicationBindings, initialPresentationDataAndSettings: InitialPresentationDataAndSettings, networkArguments: NetworkInitializationArguments, rootPath: String, legacyBasePath: String?, apsNotificationToken: Signal<Data?, NoError>, voipNotificationToken: Signal<Data?, NoError>, setNotificationCall: @escaping (PresentationCall?) -> Void, navigateToChat: @escaping (AccountRecordId, PeerId, MessageId?) -> Void, displayUpgradeProgress: @escaping (Float?) -> Void = { _ in }) {
+    public init(mainWindow: Window1?, sharedContainerPath: String, basePath: String, encryptionParameters: ValueBoxEncryptionParameters, accountManager: AccountManager<TelegramAccountManagerTypes>, appLockContext: AppLockContext, applicationBindings: TelegramApplicationBindings, initialPresentationDataAndSettings: InitialPresentationDataAndSettings, networkArguments: NetworkInitializationArguments, rootPath: String, legacyBasePath: String?, apsNotificationToken: Signal<Data?, NoError>, voipNotificationToken: Signal<Data?, NoError>, setNotificationCall: @escaping (PresentationCall?) -> Void, navigateToChat: @escaping (AccountRecordId, PeerId, MessageId?) -> Void, displayUpgradeProgress: @escaping (Float?) -> Void = { _ in }) {
         assert(Queue.mainQueue().isCurrent())
         
         precondition(!testHasInstance)
@@ -346,13 +345,17 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             var result: [AccountRecordId: AccountAttributes] = [:]
             for record in view.records {
                 let isLoggedOut = record.attributes.contains(where: { attribute in
-                    return attribute is LoggedOutAccountAttribute
+                    if case .loggedOut = attribute {
+                        return true
+                    } else {
+                        return false
+                    }
                 })
                 if isLoggedOut {
                     continue
                 }
                 let isTestingEnvironment = record.attributes.contains(where: { attribute in
-                    if let attribute = attribute as? AccountEnvironmentAttribute, case .test = attribute.environment {
+                    if case let .environment(environment) = attribute, case .test = environment.environment {
                         return true
                     } else {
                         return false
@@ -361,17 +364,17 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                 var backupData: AccountBackupData?
                 var sortIndex: Int32 = 0
                 for attribute in record.attributes {
-                    if let attribute = attribute as? AccountSortOrderAttribute {
-                        sortIndex = attribute.order
-                    } else if let attribute = attribute as? AccountBackupDataAttribute {
-                        backupData = attribute.data
+                    if case let .sortOrder(sortOrder) = attribute {
+                        sortIndex = sortOrder.order
+                    } else if case let .backupData(backupDataValue) = attribute {
+                        backupData = backupDataValue.data
                     }
                 }
                 result[record.id] = AccountAttributes(sortIndex: sortIndex, isTestingEnvironment: isTestingEnvironment, backupData: backupData)
             }
             let authRecord: (AccountRecordId, Bool)? = view.currentAuthAccount.flatMap({ authAccount in
                 let isTestingEnvironment = authAccount.attributes.contains(where: { attribute in
-                    if let attribute = attribute as? AccountEnvironmentAttribute, case .test = attribute.environment {
+                    if case let .environment(environment) = attribute, case .test = environment.environment {
                         return true
                     } else {
                         return false
@@ -402,17 +405,22 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             for (id, attributes) in records {
                 if self.activeAccountsValue?.accounts.firstIndex(where: { $0.0 == id}) == nil {
                     addedSignals.append(accountWithId(accountManager: accountManager, networkArguments: networkArguments, id: id, encryptionParameters: encryptionParameters, supplementary: !applicationBindings.isMainApp, rootPath: rootPath, beginWithTestingEnvironment: attributes.isTestingEnvironment, backupData: attributes.backupData, auxiliaryMethods: telegramAccountAuxiliaryMethods)
-                    |> map { result -> AddedAccountResult in
+                    |> mapToSignal { result -> Signal<AddedAccountResult, NoError> in
                         switch result {
                             case let .authorized(account):
                                 setupAccount(account, fetchCachedResourceRepresentation: fetchCachedResourceRepresentation, transformOutgoingMessageMedia: transformOutgoingMessageMedia, preFetchedResourcePath: { resource in
                                     return nil
                                 })
-                                return .ready(id, account, attributes.sortIndex)
+                                return account.postbox.transaction { transaction -> AddedAccountResult in
+                                    let limitsConfiguration = transaction.getPreferencesEntry(key: PreferencesKeys.limitsConfiguration) as? LimitsConfiguration ?? LimitsConfiguration.defaultValue
+                                    let contentSettings = getContentSettings(transaction: transaction)
+                                    let appConfiguration = getAppConfiguration(transaction: transaction)
+                                    return .ready(id, account, attributes.sortIndex, limitsConfiguration, contentSettings, appConfiguration)
+                                }
                             case let .upgrading(progress):
-                                return .upgrading(progress)
+                                return .single(.upgrading(progress))
                             default:
-                                return .ready(id, nil, attributes.sortIndex)
+                                return .single(.ready(id, nil, attributes.sortIndex, nil, nil, nil))
                         }
                     })
                 }
@@ -433,13 +441,13 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             
             let mappedAddedAccounts = combineLatest(queue: .mainQueue(), addedSignals)
             |> map { results -> AddedAccountsResult in
-                var readyAccounts: [(AccountRecordId, Account?, Int32)] = []
+                var readyAccounts: [(AccountRecordId, Account?, Int32, LimitsConfiguration?, ContentSettings?, AppConfiguration?)] = []
                 var totalProgress: Float = 0.0
                 var hasItemsWithProgress = false
                 for result in results {
                     switch result {
-                        case let .ready(id, account, sortIndex):
-                            readyAccounts.append((id, account, sortIndex))
+                        case let .ready(id, account, sortIndex, limitsConfiguration, contentSettings, appConfiguration):
+                            readyAccounts.append((id, account, sortIndex, limitsConfiguration, contentSettings, appConfiguration))
                             totalProgress += 1.0
                         case let .upgrading(progress):
                             hasItemsWithProgress = true
@@ -457,7 +465,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             |> deliverOnMainQueue).start(next: { mappedAddedAccounts, authAccount in
                 print("SharedAccountContextImpl: accounts processed in \(CFAbsoluteTimeGetCurrent() - startTime)")
                 
-                var addedAccounts: [(AccountRecordId, Account?, Int32)] = []
+                var addedAccounts: [(AccountRecordId, Account?, Int32, LimitsConfiguration?, ContentSettings?, AppConfiguration?)] = []
                 switch mappedAddedAccounts {
                     case let .upgrading(progress):
                         self.displayUpgradeProgress(progress)
@@ -495,7 +503,11 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                                 self.managedAccountDisposables.set(nil, forKey: account.id)
                                 assertionFailure()
                             }
-                            self.activeAccountsValue!.accounts.append((account.id, account, accountRecord.2))
+
+                            let context = AccountContextImpl(sharedContext: self, account: account, limitsConfiguration: accountRecord.3 ?? .defaultValue, contentSettings: accountRecord.4 ?? .default, appConfiguration: accountRecord.5 ?? .defaultValue)
+
+                            self.activeAccountsValue!.accounts.append((account.id, context, accountRecord.2))
+                            
                             self.managedAccountDisposables.set(self.updateAccountBackupData(account: account).start(), forKey: account.id)
                             account.resetStateManagement()
                             hadUpdates = true
@@ -521,7 +533,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                         self.managedAccountDisposables.set(nil, forKey: id)
                     }
                 }
-                var primary: Account?
+                var primary: AccountContext?
                 if let primaryId = primaryId {
                     if let index = self.activeAccountsValue?.accounts.firstIndex(where: { $0.0 == primaryId }) {
                         primary = self.activeAccountsValue?.accounts[index].1
@@ -532,8 +544,8 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                 }
                 if primary !== self.activeAccountsValue!.primary {
                     hadUpdates = true
-                    self.activeAccountsValue!.primary?.postbox.clearCaches()
-                    self.activeAccountsValue!.primary?.resetCachedData()
+                    self.activeAccountsValue!.primary?.account.postbox.clearCaches()
+                    self.activeAccountsValue!.primary?.account.resetCachedData()
                     self.activeAccountsValue!.primary = primary
                 }
                 if self.activeAccountsValue!.currentAuth?.id != authRecord?.0 {
@@ -556,16 +568,16 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             }))
         })
         
-        self.activeAccountsWithInfoPromise.set(self.activeAccounts
+        self.activeAccountsWithInfoPromise.set(self.activeAccountContexts
         |> mapToSignal { primary, accounts, _ -> Signal<(primary: AccountRecordId?, accounts: [AccountWithInfo]), NoError> in
-            return combineLatest(accounts.map { _, account, _ -> Signal<AccountWithInfo?, NoError> in
-                let peerViewKey: PostboxViewKey = .peer(peerId: account.peerId, components: [])
-                return account.postbox.combinedView(keys: [peerViewKey])
+            return combineLatest(accounts.map { _, context, _ -> Signal<AccountWithInfo?, NoError> in
+                let peerViewKey: PostboxViewKey = .peer(peerId: context.account.peerId, components: [])
+                return context.account.postbox.combinedView(keys: [peerViewKey])
                 |> map { view -> AccountWithInfo? in
                     guard let peerView = view.views[peerViewKey] as? PeerView, let peer = peerView.peers[peerView.peerId] else {
                         return nil
                     }
-                    return AccountWithInfo(account: account, peer: peer)
+                    return AccountWithInfo(account: context.account, peer: peer)
                 }
                 |> distinctUntilChanged
             })
@@ -576,7 +588,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                         accountsWithInfoResult.append(info)
                     }
                 }
-                return (primary?.id, accountsWithInfoResult)
+                return (primary?.account.id, accountsWithInfoResult)
             }
         })
         
@@ -605,7 +617,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                     return
                 }
                 strongSelf.mediaManager.playlistControl(.playback(.play), type: nil)
-            }, audioSession: self.mediaManager.audioSession, activeAccounts: self.activeAccounts |> map { _, accounts, _ in
+            }, audioSession: self.mediaManager.audioSession, activeAccounts: self.activeAccountContexts |> map { _, accounts, _ in
                 return Array(accounts.map({ $0.1 }))
             })
             self.callManager = callManager
@@ -620,7 +632,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                         
                         if let call = call {
                             mainWindow.hostView.containerView.endEditing(true)
-                            let callController = CallController(sharedContext: strongSelf, account: call.account, call: call, easyDebugAccess: !GlobalExperimentalSettings.isAppStoreBuild)
+                            let callController = CallController(sharedContext: strongSelf, account: call.context.account, call: call, easyDebugAccess: !GlobalExperimentalSettings.isAppStoreBuild)
                             strongSelf.callController = callController
                             strongSelf.mainWindow?.present(callController, on: .calls)
                             strongSelf.callState.set(call.state
@@ -687,7 +699,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                 if let strongSelf = self {
                     let statusBarContent: CallStatusBarNodeImpl.Content?
                     if let call = call {
-                        statusBarContent = .call(strongSelf, call.account, call)
+                        statusBarContent = .call(strongSelf, call.context.account, call)
                     } else if let groupCall = groupCall, !hasGroupCallOnScreen {
                         statusBarContent = .groupCall(strongSelf, groupCall.account, groupCall)
                     } else {
@@ -749,9 +761,9 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         self.updateNotificationTokensRegistration()
         
         if applicationBindings.isMainApp {
-            self.widgetDataContext = WidgetDataContext(basePath: self.basePath, inForeground: self.applicationBindings.applicationInForeground, activeAccounts: self.activeAccounts
+            self.widgetDataContext = WidgetDataContext(basePath: self.basePath, inForeground: self.applicationBindings.applicationInForeground, activeAccounts: self.activeAccountContexts
             |> map { _, accounts, _ in
-                return accounts.map { $0.1 }
+                return accounts.map { $0.1.account }
             }, presentationData: self.presentationData, appLockContext: self.appLockContext as! AppLockContextImpl)
             
             let enableSpotlight = accountManager.sharedData(keys: Set([ApplicationSpecificSharedDataKeys.intentsSettings]))
@@ -760,10 +772,10 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                 return intentsSettings.contacts
             }
             |> distinctUntilChanged
-            self.spotlightDataContext = SpotlightDataContext(appBasePath: applicationBindings.containerPath, accountManager: accountManager, accounts: combineLatest(enableSpotlight, self.activeAccounts
+            self.spotlightDataContext = SpotlightDataContext(appBasePath: applicationBindings.containerPath, accountManager: accountManager, accounts: combineLatest(enableSpotlight, self.activeAccountContexts
             |> map { _, accounts, _ in
                 return accounts.map { _, account, _ in
-                    return account
+                    return account.account
                 }
             }) |> map { enableSpotlight, accounts in
                 if enableSpotlight {
@@ -799,8 +811,14 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                     guard let record = record else {
                         return nil
                     }
-                    var attributes = record.attributes.filter({ !($0 is AccountBackupDataAttribute) })
-                    attributes.append(AccountBackupDataAttribute(data: backupData))
+                    var attributes: [TelegramAccountManagerTypes.Attribute] = record.attributes.filter { attribute in
+                        if case .backupData = attribute {
+                            return false
+                        } else {
+                            return true
+                        }
+                    }
+                    attributes.append(.backupData(AccountBackupDataAttribute(data: backupData)))
                     return AccountRecord(id: record.id, attributes: attributes, temporarySessionId: record.temporarySessionId)
                 })
             }
@@ -831,24 +849,24 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             return true
         })
         
-        self.registeredNotificationTokensDisposable.set((combineLatest(queue: .mainQueue(), settings, self.activeAccounts)
+        self.registeredNotificationTokensDisposable.set((combineLatest(queue: .mainQueue(), settings, self.activeAccountContexts)
         |> mapToSignal { settings, activeAccountsAndInfo -> Signal<Never, NoError> in
             let (primary, activeAccounts, _) = activeAccountsAndInfo
             var applied: [Signal<Never, NoError>] = []
-            var activeProductionUserIds = activeAccounts.map({ $0.1 }).filter({ !$0.testingEnvironment }).map({ $0.peerId.id })
-            var activeTestingUserIds = activeAccounts.map({ $0.1 }).filter({ $0.testingEnvironment }).map({ $0.peerId.id })
+            var activeProductionUserIds = activeAccounts.map({ $0.1 }).filter({ !$0.account.testingEnvironment }).map({ $0.account.peerId.id })
+            var activeTestingUserIds = activeAccounts.map({ $0.1 }).filter({ $0.account.testingEnvironment }).map({ $0.account.peerId.id })
             
             let allProductionUserIds = activeProductionUserIds
             let allTestingUserIds = activeTestingUserIds
             
             if !settings.allAccounts {
                 if let primary = primary {
-                    if !primary.testingEnvironment {
-                        activeProductionUserIds = [primary.peerId.id]
+                    if !primary.account.testingEnvironment {
+                        activeProductionUserIds = [primary.account.peerId.id]
                         activeTestingUserIds = []
                     } else {
                         activeProductionUserIds = []
-                        activeTestingUserIds = [primary.peerId.id]
+                        activeTestingUserIds = [primary.account.peerId.id]
                     }
                 } else {
                     activeProductionUserIds = []
@@ -860,14 +878,14 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                 let appliedAps: Signal<Never, NoError>
                 let appliedVoip: Signal<Never, NoError>
                 
-                if !activeProductionUserIds.contains(account.peerId.id) && !activeTestingUserIds.contains(account.peerId.id) {
+                if !activeProductionUserIds.contains(account.account.peerId.id) && !activeTestingUserIds.contains(account.account.peerId.id) {
                     appliedAps = self.apsNotificationToken
                     |> distinctUntilChanged(isEqual: { $0 == $1 })
                     |> mapToSignal { token -> Signal<Never, NoError> in
                         guard let token = token else {
                             return .complete()
                         }
-                        return unregisterNotificationToken(account: account, token: token, type: .aps(encrypt: false), otherAccountUserIds: (account.testingEnvironment ? allTestingUserIds : allProductionUserIds).filter({ $0 != account.peerId.id }))
+                        return account.engine.accountData.unregisterNotificationToken(token: token, type: .aps(encrypt: false), otherAccountUserIds: (account.account.testingEnvironment ? allTestingUserIds : allProductionUserIds).filter({ $0 != account.account.peerId.id }))
                     }
                     appliedVoip = self.voipNotificationToken
                     |> distinctUntilChanged(isEqual: { $0 == $1 })
@@ -875,7 +893,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                         guard let token = token else {
                             return .complete()
                         }
-                        return unregisterNotificationToken(account: account, token: token, type: .voip, otherAccountUserIds: (account.testingEnvironment ? allTestingUserIds : allProductionUserIds).filter({ $0 != account.peerId.id }))
+                        return account.engine.accountData.unregisterNotificationToken(token: token, type: .voip, otherAccountUserIds: (account.account.testingEnvironment ? allTestingUserIds : allProductionUserIds).filter({ $0 != account.account.peerId.id }))
                     }
                 } else {
                     appliedAps = self.apsNotificationToken
@@ -890,7 +908,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                         } else {
                             encrypt = false
                         }
-                        return registerNotificationToken(account: account, token: token, type: .aps(encrypt: encrypt), sandbox: sandbox, otherAccountUserIds: (account.testingEnvironment ? activeTestingUserIds : activeProductionUserIds).filter({ $0 != account.peerId.id }), excludeMutedChats: !settings.includeMuted)
+                        return account.engine.accountData.registerNotificationToken(token: token, type: .aps(encrypt: encrypt), sandbox: sandbox, otherAccountUserIds: (account.account.testingEnvironment ? activeTestingUserIds : activeProductionUserIds).filter({ $0 != account.account.peerId.id }), excludeMutedChats: !settings.includeMuted)
                     }
                     appliedVoip = self.voipNotificationToken
                     |> distinctUntilChanged(isEqual: { $0 == $1 })
@@ -898,7 +916,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                         guard let token = token else {
                             return .complete()
                         }
-                        return registerNotificationToken(account: account, token: token, type: .voip, sandbox: sandbox, otherAccountUserIds: (account.testingEnvironment ? activeTestingUserIds : activeProductionUserIds).filter({ $0 != account.peerId.id }), excludeMutedChats: !settings.includeMuted)
+                        return account.engine.accountData.registerNotificationToken(token: token, type: .voip, sandbox: sandbox, otherAccountUserIds: (account.account.testingEnvironment ? activeTestingUserIds : activeProductionUserIds).filter({ $0 != account.account.peerId.id }), excludeMutedChats: !settings.includeMuted)
                     }
                 }
                 
@@ -912,12 +930,12 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     
     public func beginNewAuth(testingEnvironment: Bool) {
         let _ = self.accountManager.transaction({ transaction -> Void in
-            let _ = transaction.createAuth([AccountEnvironmentAttribute(environment: testingEnvironment ? .test : .production)])
+            let _ = transaction.createAuth([.environment(AccountEnvironmentAttribute(environment: testingEnvironment ? .test : .production))])
         }).start()
     }
     
     public func switchToAccount(id: AccountRecordId, fromSettingsController settingsController: ViewController? = nil, withChatListController chatListController: ViewController? = nil) {
-        if self.activeAccountsValue?.primary?.id == id {
+        if self.activeAccountsValue?.primary?.account.id == id {
             return
         }
         
@@ -1085,8 +1103,8 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         handleTextLinkActionImpl(context: context, peerId: peerId, navigateDisposable: navigateDisposable, controller: controller, action: action, itemLink: itemLink)
     }
     
-    public func makePeerInfoController(context: AccountContext, peer: Peer, mode: PeerInfoControllerMode, avatarInitiallyExpanded: Bool, fromChat: Bool) -> ViewController? {
-        let controller = peerInfoControllerImpl(context: context, peer: peer, mode: mode, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: fromChat)
+    public func makePeerInfoController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?, peer: Peer, mode: PeerInfoControllerMode, avatarInitiallyExpanded: Bool, fromChat: Bool) -> ViewController? {
+        let controller = peerInfoControllerImpl(context: context, updatedPresentationData: updatedPresentationData, peer: peer, mode: mode, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: fromChat)
         controller?.navigationPresentation = .modalInLargeLayout
         return controller
     }
@@ -1124,7 +1142,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         
         if !found {
             let controllerParams = LocationViewParams(sendLiveLocation: { location in
-                let outMessage: EnqueueMessage = .message(text: "", attributes: [], mediaReference: .standalone(media: location), replyToMessageId: nil, localGroupingKey: nil, correlationId: nil)
+                //let outMessage: EnqueueMessage = .message(text: "", attributes: [], mediaReference: .standalone(media: location), replyToMessageId: nil, localGroupingKey: nil, correlationId: nil)
 //                params.enqueueMessage(outMessage)
             }, stopLiveLocation: { messageId in
                 if let messageId = messageId {
@@ -1274,6 +1292,10 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         }, displayUndo: { _ in
         }, isAnimatingMessage: { _ in
             return false
+        }, getMessageTransitionNode: {
+            return nil
+        }, updateChoosingSticker: { _ in
+        }, commitEmojiInteraction: { _, _, _, _ in
         }, requestMessageUpdate: { _ in
         }, cancelInteractiveKeyboardGestures: {
         }, automaticMediaDownloadSettings: MediaAutoDownloadSettings.defaultSettings,
@@ -1368,7 +1390,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             let controller = generator(legacyController.context)
             legacyController.bind(controller: controller)
             legacyController.deferScreenEdgeGestures = [.top]
-            controller.selectionBlock = { [weak legacyController, weak controller] asset, _ in
+            controller.selectionBlock = { [weak legacyController] asset, _ in
                 if let asset = asset {
                     let _ = (fetchPhotoLibraryImage(localIdentifier: asset.backingAsset.localIdentifier, thumbnail: false)
                     |> deliverOnMainQueue).start(next: { imageAndFlag in
@@ -1391,7 +1413,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     }
     
     public func makeRecentSessionsController(context: AccountContext, activeSessionsContext: ActiveSessionsContext) -> ViewController & RecentSessionsController {
-        return recentSessionsController(context: context, activeSessionsContext: activeSessionsContext, webSessionsContext: WebSessionsContext(account: context.account), websitesOnly: false)
+        return recentSessionsController(context: context, activeSessionsContext: activeSessionsContext, webSessionsContext: context.engine.privacy.webSessions(), websitesOnly: false)
     }
     
     public func makePrivacyAndSecurityController(context: AccountContext) -> ViewController {
@@ -1401,11 +1423,11 @@ public final class SharedAccountContextImpl: SharedAccountContext {
 
 private let defaultChatControllerInteraction = ChatControllerInteraction.default
 
-private func peerInfoControllerImpl(context: AccountContext, peer: Peer, mode: PeerInfoControllerMode, avatarInitiallyExpanded: Bool, isOpenedFromChat: Bool) -> ViewController? {
+private func peerInfoControllerImpl(context: AccountContext, updatedPresentationData: (PresentationData, Signal<PresentationData, NoError>)?, peer: Peer, mode: PeerInfoControllerMode, avatarInitiallyExpanded: Bool, isOpenedFromChat: Bool) -> ViewController? {
     if let _ = peer as? TelegramGroup {
-        return PeerInfoScreenImpl(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
+        return PeerInfoScreenImpl(context: context, updatedPresentationData: updatedPresentationData, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
     } else if let _ = peer as? TelegramChannel {
-        return PeerInfoScreenImpl(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
+        return PeerInfoScreenImpl(context: context, updatedPresentationData: updatedPresentationData, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
     } else if peer is TelegramUser {
         var nearbyPeerDistance: Int32?
         var callMessages: [Message] = []
@@ -1420,9 +1442,9 @@ private func peerInfoControllerImpl(context: AccountContext, peer: Peer, mode: P
         case let .group(id):
             ignoreGroupInCommon = id
         }
-        return PeerInfoScreenImpl(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nearbyPeerDistance, callMessages: callMessages, ignoreGroupInCommon: ignoreGroupInCommon)
+        return PeerInfoScreenImpl(context: context, updatedPresentationData: updatedPresentationData, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nearbyPeerDistance, callMessages: callMessages, ignoreGroupInCommon: ignoreGroupInCommon)
     } else if peer is TelegramSecretChat {
-        return PeerInfoScreenImpl(context: context, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
+        return PeerInfoScreenImpl(context: context, updatedPresentationData: updatedPresentationData, peerId: peer.id, avatarInitiallyExpanded: avatarInitiallyExpanded, isOpenedFromChat: isOpenedFromChat, nearbyPeerDistance: nil, callMessages: [])
     }
     return nil
 }

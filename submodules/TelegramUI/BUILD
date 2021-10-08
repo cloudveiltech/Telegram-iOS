@@ -40,16 +40,15 @@ swift_library(
     ]),
     deps = [
         #CloudVeil start
-		"//Telegram:CloudVeilSecurityManager",
-		"//Telegram:CloudVeilSentry",
-		#CloudVeil end
+        "//Telegram:CloudVeilSecurityManager",
+        "//Telegram:CloudVeilSentry",
+        #CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/SSignalKit/SSignalKit:SSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
         "//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
-        "//submodules/SyncCore:SyncCore",
         "//submodules/MtProtoKit:MtProtoKit",
         "//submodules/TelegramPresentationData:TelegramPresentationData",
         "//submodules/AccountContext:AccountContext",
@@ -201,7 +200,6 @@ swift_library(
         "//submodules/GridMessageSelectionNode:GridMessageSelectionNode",
         "//submodules/InstantPageCache:InstantPageCache",
         "//submodules/PersistentStringHash:PersistentStringHash",
-        "//submodules/MessageReactionListUI:MessageReactionListUI",
         "//submodules/SegmentedControlNode:SegmentedControlNode",
         "//submodules/AppBundle:AppBundle",
         "//submodules/Markdown:Markdown",
@@ -244,6 +242,8 @@ swift_library(
         "//submodules/ImportStickerPackUI:ImportStickerPackUI",
         "//submodules/GradientBackground:GradientBackground",
         "//submodules/WallpaperBackgroundNode:WallpaperBackgroundNode",
+        "//submodules/ComponentFlow:ComponentFlow",
+        "//submodules/AdUI:AdUI",
     ] + select({
         "@build_bazel_rules_apple//apple:ios_armv7": [],
         "@build_bazel_rules_apple//apple:ios_arm64": appcenter_targets,

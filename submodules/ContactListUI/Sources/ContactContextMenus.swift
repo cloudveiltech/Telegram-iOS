@@ -5,7 +5,6 @@ import ContextUI
 import AccountContext
 import Postbox
 import TelegramCore
-import SyncCore
 import Display
 import AlertUI
 import PresentationDataUtils
@@ -33,8 +32,8 @@ func contactContextMenuItems(context: AccountContext, peerId: PeerId, contactsCo
         }
         
         //CloudVeil start
-		canStartSecretChat = canStartSecretChat && MainController.shared.isSecretChatAvailable
-		//CloudVeil end
+        canStartSecretChat = canStartSecretChat && MainController.shared.isSecretChatAvailable
+        //CloudVeil end
         
         if canStartSecretChat {
             items.append(.action(ContextMenuActionItem(text: strings.ContactList_Context_StartSecretChat, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Timer"), color: theme.contextMenu.primaryColor) }, action: { _, f in

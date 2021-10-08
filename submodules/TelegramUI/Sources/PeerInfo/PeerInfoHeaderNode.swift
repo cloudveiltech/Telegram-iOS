@@ -3,7 +3,6 @@ import UIKit
 import AsyncDisplayKit
 import Display
 import Postbox
-import SyncCore
 import TelegramCore
 import AvatarNode
 import AccountContext
@@ -394,7 +393,7 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                 self.containerNode.isGestureEnabled = false
             }
             
-            self.avatarNode.setPeer(context: self.context, theme: theme, peer: peer, overrideImage: overrideImage, synchronousLoad: self.isFirstAvatarLoading, displayDimensions: CGSize(width: avatarSize, height: avatarSize), storeUnrounded: true)
+            self.avatarNode.setPeer(context: self.context, theme: theme, peer: EnginePeer(peer), overrideImage: overrideImage, synchronousLoad: self.isFirstAvatarLoading, displayDimensions: CGSize(width: avatarSize, height: avatarSize), storeUnrounded: true)
             self.isFirstAvatarLoading = false
             
             self.containerNode.frame = CGRect(origin: CGPoint(x: -avatarSize / 2.0, y: -avatarSize / 2.0), size: CGSize(width: avatarSize, height: avatarSize))
@@ -402,9 +401,9 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
             self.avatarNode.font = avatarPlaceholderFont(size: floor(avatarSize * 16.0 / 37.0))
 
             if let item = item {
-                let representations: [ImageRepresentationWithReference]
-                let videoRepresentations: [VideoRepresentationWithReference]
-                let immediateThumbnailData: Data?
+                var representations: [ImageRepresentationWithReference]
+                var videoRepresentations: [VideoRepresentationWithReference]
+                var immediateThumbnailData: Data?
                 var id: Int64
                 switch item {
                 case .custom:
@@ -416,7 +415,7 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                     representations = topRepresentations
                     videoRepresentations = videoRepresentationsValue
                     immediateThumbnailData = immediateThumbnail
-                    id = Int64(peer.id.id._internalGetInt32Value())
+                    id = peer.id.id._internalGetInt64Value()
                     if let resource = videoRepresentations.first?.representation.resource as? CloudPhotoSizeMediaResource {
                         id = id &+ resource.photoId
                     }
@@ -427,10 +426,19 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                     if case let .cloud(imageId, _, _) = reference {
                         id = imageId
                     } else {
-                        id = Int64(peer.id.id._internalGetInt32Value())
+                        id = peer.id.id._internalGetInt64Value()
                     }
                 }
                 
+                //CloudVeil start
+                if MainController.shared.disableProfilePhoto || (MainController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peer.id] ?? false) {
+                    representations = []
+                    videoRepresentations = []
+                    immediateThumbnailData = nil
+                    id = 0
+                }
+                //CloudVeil end
+    
                 self.containerNode.isGestureEnabled = !isSettings
                 
                 if let video = videoRepresentations.last, let peerReference = PeerReference(peer) {
@@ -693,7 +701,7 @@ final class PeerInfoEditingAvatarNode: ASDisplayNode {
             overrideImage = nil
         }
         self.avatarNode.font = avatarPlaceholderFont(size: floor(avatarSize * 16.0 / 37.0))
-        self.avatarNode.setPeer(context: self.context, theme: theme, peer: peer, overrideImage: overrideImage, synchronousLoad: false, displayDimensions: CGSize(width: avatarSize, height: avatarSize))
+        self.avatarNode.setPeer(context: self.context, theme: theme, peer: EnginePeer(peer), overrideImage: overrideImage, synchronousLoad: false, displayDimensions: CGSize(width: avatarSize, height: avatarSize))
         self.avatarNode.frame = CGRect(origin: CGPoint(x: -avatarSize / 2.0, y: -avatarSize / 2.0), size: CGSize(width: avatarSize, height: avatarSize))
         
         if let item = item {
@@ -711,7 +719,7 @@ final class PeerInfoEditingAvatarNode: ASDisplayNode {
                     representations = topRepresentations
                     videoRepresentations = videoRepresentationsValue
                     immediateThumbnailData = immediateThumbnail
-                    id = Int64(peer.id.id._internalGetInt32Value())
+                    id = peer.id.id._internalGetInt64Value()
                     if let resource = videoRepresentations.first?.representation.resource as? CloudPhotoSizeMediaResource {
                         id = id &+ resource.photoId
                     }
@@ -722,10 +730,10 @@ final class PeerInfoEditingAvatarNode: ASDisplayNode {
                     if case let .cloud(imageId, _, _) = reference {
                         id = imageId
                     } else {
-                        id = Int64(peer.id.id._internalGetInt32Value())
+                        id = peer.id.id._internalGetInt64Value()
                     }
             }
-            	
+            
             //CloudVeil start
             if videoRepresentations.count > 0 && MainController.shared.disableProfileVideo {
                 videoRepresentations = []
@@ -1520,7 +1528,7 @@ final class PeerInfoHeaderEditingContentNode: ASDisplayNode {
         
         //CloudVeil start
         if canEditPeerInfo(context: self.context, peer: peer) && !MainController.shared.disableProfilePhotoChange {
-		//CloudVeil end
+        //CloudVeil end
             if self.avatarButtonNode.supernode == nil {
                 self.addSubnode(self.avatarButtonNode)
             }
@@ -1687,19 +1695,19 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     var navigationTransition: PeerInfoHeaderNavigationTransition?
     
     //CloudVeil start
-	var avatarCanBeExpanded: Bool {
-		get {
-			if MainController.shared.disableProfilePhoto {
-				return false
-			}
-			if MainController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
-				return false
-			}
-			return true
-		}
-	}
-	//CloudVeil end
-
+    var avatarCanBeExpanded: Bool {
+        get {
+            if MainController.shared.disableProfilePhoto {
+                return false
+            }
+            if MainController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
+                return false
+            }
+            return true
+        }
+    }
+    //CloudVeil end
+    
     init(context: AccountContext, avatarInitiallyExpanded: Bool, isOpenedFromChat: Bool, isSettings: Bool) {
         self.context = context
         self.isAvatarExpanded = avatarInitiallyExpanded
@@ -1804,13 +1812,13 @@ final class PeerInfoHeaderNode: ASDisplayNode {
         
         self.editingContentNode.avatarNode.tapped = { [weak self] confirm in
             //CloudVeil start
-			if MainController.shared.disableProfilePhoto {
-				return
-			}
-			if MainController.shared.disableProfileVideo && self?.avatarListNode.listContainerNode.hasVideoAvatar ?? false {
-				return
-			}
-			//CloudVeil end
+            if MainController.shared.disableProfilePhoto {
+                return
+            }
+            if MainController.shared.disableProfileVideo && self?.avatarListNode.listContainerNode.hasVideoAvatar ?? false {
+                return
+            }
+            //CloudVeil end
             self?.initiateAvatarExpansion(gallery: true, first: true)
         }
         self.editingContentNode.requestEditing = { [weak self] in
@@ -2041,13 +2049,25 @@ final class PeerInfoHeaderNode: ASDisplayNode {
         }
         
         if let peer = peer {
+            var title: String
             if peer.id == self.context.account.peerId && !self.isSettings {
-                titleString = NSAttributedString(string: presentationData.strings.Conversation_SavedMessages, font: Font.semibold(24.0), textColor: presentationData.theme.list.itemPrimaryTextColor)
+                title = presentationData.strings.Conversation_SavedMessages
             } else if peer.id == self.context.account.peerId && !self.isSettings {
-                titleString = NSAttributedString(string: presentationData.strings.DialogList_Replies, font: Font.semibold(24.0), textColor: presentationData.theme.list.itemPrimaryTextColor)
+                title = presentationData.strings.DialogList_Replies
             } else {
-                titleString = NSAttributedString(string: peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder), font: Font.semibold(24.0), textColor: presentationData.theme.list.itemPrimaryTextColor)
+                title = peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
             }
+            title = title.replacingOccurrences(of: "\u{1160}", with: "").replacingOccurrences(of: "\u{3164}", with: "")
+            if title.isEmpty {
+                if let peer = peer as? TelegramUser, let phone = peer.phone {
+                    title = formatPhoneNumber(phone)
+                } else if let addressName = peer.addressName {
+                    title = "@\(addressName)"
+                } else {
+                    title = " "
+                }
+            }
+            titleString = NSAttributedString(string: title, font: Font.semibold(24.0), textColor: presentationData.theme.list.itemPrimaryTextColor)
             
             if self.isSettings, let user = peer as? TelegramUser {
                 let formattedPhone = formatPhoneNumber(user.phone ?? "")
@@ -2461,7 +2481,11 @@ final class PeerInfoHeaderNode: ASDisplayNode {
                 buttonText = presentationData.strings.PeerInfo_ButtonVideoCall
                 buttonIcon = .videoCall
             case .voiceChat:
-                buttonText = presentationData.strings.PeerInfo_ButtonVoiceChat
+                if let channel = peer as? TelegramChannel, case .broadcast = channel.info {
+                    buttonText = presentationData.strings.PeerInfo_ButtonLiveStream
+                } else {
+                    buttonText = presentationData.strings.PeerInfo_ButtonVoiceChat
+                }
                 buttonIcon = .voiceChat
             case .mute:
                 if let notificationSettings = notificationSettings, case .muted = notificationSettings.muteState {
@@ -2600,11 +2624,12 @@ final class PeerInfoHeaderNode: ASDisplayNode {
         if self.isAvatarExpanded != isAvatarExpanded {
             //CloudVeil start
             self.isAvatarExpanded = isAvatarExpanded && !MainController.shared.disableProfilePhoto
-			if MainController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
-				self.isAvatarExpanded = false
-			}
-			//CloudVeil end
-
+            if MainController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
+                self.isAvatarExpanded = false
+            }
+            //CloudVeil end
+            
+            self.isAvatarExpanded = isAvatarExpanded
             if isAvatarExpanded {
                 self.avatarListNode.listContainerNode.selectFirstItem()
             }

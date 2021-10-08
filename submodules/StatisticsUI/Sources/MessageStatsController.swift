@@ -4,7 +4,6 @@ import Display
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import TelegramStringFormatting
@@ -235,7 +234,7 @@ public func messageStatsController(context: AccountContext, messageId: MessageId
         var emptyStateItem: ItemListControllerEmptyStateItem?
         if data == nil {
             if longLoading {
-                emptyStateItem = StatsEmptyStateItem(theme: presentationData.theme, strings: presentationData.strings)
+                emptyStateItem = StatsEmptyStateItem(context: context, theme: presentationData.theme, strings: presentationData.strings)
             } else {
                 emptyStateItem = ItemListLoadingIndicatorEmptyStateItem(theme: presentationData.theme)
             }
@@ -264,7 +263,7 @@ public func messageStatsController(context: AccountContext, messageId: MessageId
     }
     navigateToMessageImpl = { [weak controller] messageId in
         if let navigationController = controller?.navigationController as? NavigationController {
-            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(messageId.peerId), subject: .message(id: messageId, highlight: true), keepStack: .always, useExisting: false, purposefulAction: {}, peekData: nil))
+            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(messageId.peerId), subject: .message(id: messageId, highlight: true, timecode: nil), keepStack: .always, useExisting: false, purposefulAction: {}, peekData: nil))
         }
     }
     return controller

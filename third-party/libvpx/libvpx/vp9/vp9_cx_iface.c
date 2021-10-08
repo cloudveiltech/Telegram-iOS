@@ -652,6 +652,7 @@ static vpx_codec_err_t set_encoder_config(
   }
 
   if (get_level_index(oxcf->target_level) >= 0) config_target_level(oxcf);
+  oxcf->use_simple_encode_api = 0;
   // vp9_dump_encoder_config(oxcf, stderr);
   return VPX_CODEC_OK;
 }
@@ -830,6 +831,14 @@ static vpx_codec_err_t ctrl_get_quantizer64(vpx_codec_alg_priv_t *ctx,
   int *const arg = va_arg(args, int *);
   if (arg == NULL) return VPX_CODEC_INVALID_PARAM;
   *arg = vp9_qindex_to_quantizer(vp9_get_quantizer(ctx->cpi));
+  return VPX_CODEC_OK;
+}
+
+static vpx_codec_err_t ctrl_get_loopfilter_level(vpx_codec_alg_priv_t *ctx,
+                                                 va_list args) {
+  int *const arg = va_arg(args, int *);
+  if (arg == NULL) return VPX_CODEC_INVALID_PARAM;
+  *arg = ctx->cpi->common.lf.filter_level;
   return VPX_CODEC_OK;
 }
 
@@ -1966,6 +1975,7 @@ static vpx_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   // Getters
   { VP8E_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { VP8E_GET_LAST_QUANTIZER_64, ctrl_get_quantizer64 },
+  { VP9E_GET_LOOPFILTER_LEVEL, ctrl_get_loopfilter_level },
   { VP9_GET_REFERENCE, ctrl_get_reference },
   { VP9E_GET_SVC_LAYER_ID, ctrl_get_svc_layer_id },
   { VP9E_GET_ACTIVEMAP, ctrl_get_active_map },
@@ -2288,6 +2298,8 @@ void vp9_dump_encoder_config(const VP9EncoderConfig *oxcf, FILE *fp) {
 
   DUMP_STRUCT_VALUE(fp, oxcf, row_mt);
   DUMP_STRUCT_VALUE(fp, oxcf, motion_vector_unit_test);
+  DUMP_STRUCT_VALUE(fp, oxcf, delta_q_uv);
+  DUMP_STRUCT_VALUE(fp, oxcf, use_simple_encode_api);
 }
 
 FRAME_INFO vp9_get_frame_info(const VP9EncoderConfig *oxcf) {

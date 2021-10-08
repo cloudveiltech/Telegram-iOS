@@ -5,7 +5,6 @@ import Display
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import ItemListUI
@@ -322,7 +321,7 @@ private struct InviteLinkEditControllerState: Equatable {
     var updating = false
 }
 
-public func inviteLinkEditController(context: AccountContext, peerId: PeerId, invite: ExportedInvitation?, completion: ((ExportedInvitation?) -> Void)? = nil) -> ViewController {
+public func inviteLinkEditController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, peerId: PeerId, invite: ExportedInvitation?, completion: ((ExportedInvitation?) -> Void)? = nil) -> ViewController {
     var presentControllerImpl: ((ViewController, ViewControllerPresentationArguments?) -> Void)?
     let actionsDisposable = DisposableSet()
 
@@ -375,7 +374,7 @@ public func inviteLinkEditController(context: AccountContext, peerId: PeerId, in
             } else {
                 isGroup = true
             }
-            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+            let presentationData = updatedPresentationData?.initial ?? context.sharedContext.currentPresentationData.with { $0 }
             let controller = ActionSheetController(presentationData: presentationData)
             let dismissAction: () -> Void = { [weak controller] in
                 controller?.dismissAnimated()
@@ -387,7 +386,7 @@ public func inviteLinkEditController(context: AccountContext, peerId: PeerId, in
                         dismissAction()
                         dismissImpl?()
                         
-                        let _ = (revokePeerExportedInvitation(account: context.account, peerId: peerId, link: invite.link)
+                        let _ = (context.engine.peers.revokePeerExportedInvitation(peerId: peerId, link: invite.link)
                         |> timeout(10, queue: Queue.mainQueue(), alternate: .fail(.generic))
                         |> deliverOnMainQueue).start(next: { invite in
                             switch invite {
@@ -407,7 +406,7 @@ public func inviteLinkEditController(context: AccountContext, peerId: PeerId, in
                                 updatedState.updating = false
                                 return updatedState
                             }
-                            presentControllerImpl?(textAlertController(context: context, title: nil, text: presentationData.strings.Login_UnknownError, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
+                            presentControllerImpl?(textAlertController(context: context, updatedPresentationData: updatedPresentationData, title: nil, text: presentationData.strings.Login_UnknownError, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
                         })
                     })
                 ]),
@@ -417,8 +416,10 @@ public func inviteLinkEditController(context: AccountContext, peerId: PeerId, in
         })
     })
     
+    let presentationData = updatedPresentationData?.signal ?? context.sharedContext.presentationData
+    
     let previousState = Atomic<InviteLinkEditControllerState?>(value: nil)
-    let signal = combineLatest(context.sharedContext.presentationData, statePromise.get())
+    let signal = combineLatest(presentationData, statePromise.get())
     |> deliverOnMainQueue
     |> map { presentationData, state -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let leftNavigationButton = ItemListNavigationButton(content: .text(presentationData.strings.Common_Cancel), style: .regular, enabled: true, action: {
@@ -444,7 +445,7 @@ public func inviteLinkEditController(context: AccountContext, peerId: PeerId, in
 
             let usageLimit = state.usage.value
             if invite == nil {
-                let _ = (createPeerExportedInvitation(account: context.account, peerId: peerId, expireDate: expireDate, usageLimit: usageLimit)
+                let _ = (context.engine.peers.createPeerExportedInvitation(peerId: peerId, expireDate: expireDate, usageLimit: usageLimit)
                 |> timeout(10, queue: Queue.mainQueue(), alternate: .fail(.generic))
                 |> deliverOnMainQueue).start(next: { invite in
                     completion?(invite)
@@ -455,10 +456,10 @@ public func inviteLinkEditController(context: AccountContext, peerId: PeerId, in
                         updatedState.updating = false
                         return updatedState
                     }
-                    presentControllerImpl?(textAlertController(context: context, title: nil, text: presentationData.strings.Login_UnknownError, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
+                    presentControllerImpl?(textAlertController(context: context, updatedPresentationData: updatedPresentationData, title: nil, text: presentationData.strings.Login_UnknownError, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
                 })
             } else if let invite = invite {
-                let _ = (editPeerExportedInvitation(account: context.account, peerId: peerId, link: invite.link, expireDate: expireDate, usageLimit: usageLimit)
+                let _ = (context.engine.peers.editPeerExportedInvitation(peerId: peerId, link: invite.link, expireDate: expireDate, usageLimit: usageLimit)
                 |> timeout(10, queue: Queue.mainQueue(), alternate: .fail(.generic))
                 |> deliverOnMainQueue).start(next: { invite in
                     completion?(invite)
@@ -469,7 +470,7 @@ public func inviteLinkEditController(context: AccountContext, peerId: PeerId, in
                         updatedState.updating = false
                         return updatedState
                     }
-                    presentControllerImpl?(textAlertController(context: context, title: nil, text: presentationData.strings.Login_UnknownError, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
+                    presentControllerImpl?(textAlertController(context: context, updatedPresentationData: updatedPresentationData, title: nil, text: presentationData.strings.Login_UnknownError, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
                 })
             }
         })

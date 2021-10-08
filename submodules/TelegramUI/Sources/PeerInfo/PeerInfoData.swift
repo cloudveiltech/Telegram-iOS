@@ -1,7 +1,6 @@
 import Foundation
 import UIKit
 import Postbox
-import SyncCore
 import TelegramCore
 import SwiftSignalKit
 import AccountContext
@@ -113,7 +112,7 @@ final class PeerInfoState {
 final class TelegramGlobalSettings {
     let suggestPhoneNumberConfirmation: Bool
     let suggestPasswordConfirmation: Bool
-    let accountsAndPeers: [(Account, Peer, Int32)]
+    let accountsAndPeers: [(AccountContext, Peer, Int32)]
     let activeSessionsContext: ActiveSessionsContext?
     let webSessionsContext: WebSessionsContext?
     let otherSessionsCount: Int?
@@ -132,7 +131,7 @@ final class TelegramGlobalSettings {
     init(
         suggestPhoneNumberConfirmation: Bool,
         suggestPasswordConfirmation: Bool,
-        accountsAndPeers: [(Account, Peer, Int32)],
+        accountsAndPeers: [(AccountContext, Peer, Int32)],
         activeSessionsContext: ActiveSessionsContext?,
         webSessionsContext: WebSessionsContext?,
         otherSessionsCount: Int?,
@@ -357,7 +356,7 @@ func keepPeerInfoScreenDataHot(context: AccountContext, peerId: PeerId) -> Signa
     }
 }
 
-func peerInfoScreenSettingsData(context: AccountContext, peerId: PeerId, accountsAndPeers: Signal<[(Account, Peer, Int32)], NoError>, activeSessionsContextAndCount: Signal<(ActiveSessionsContext, Int, WebSessionsContext)?, NoError>, notificationExceptions: Signal<NotificationExceptionsList?, NoError>, privacySettings: Signal<AccountPrivacySettings?, NoError>, archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>, hasPassport: Signal<Bool, NoError>) -> Signal<PeerInfoScreenData, NoError> {
+func peerInfoScreenSettingsData(context: AccountContext, peerId: PeerId, accountsAndPeers: Signal<[(AccountContext, Peer, Int32)], NoError>, activeSessionsContextAndCount: Signal<(ActiveSessionsContext, Int, WebSessionsContext)?, NoError>, notificationExceptions: Signal<NotificationExceptionsList?, NoError>, privacySettings: Signal<AccountPrivacySettings?, NoError>, archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>, hasPassport: Signal<Bool, NoError>) -> Signal<PeerInfoScreenData, NoError> {
     let preferences = context.sharedContext.accountManager.sharedData(keys: [
         SharedDataKeys.proxySettings,
         ApplicationSpecificSharedDataKeys.inAppNotificationSettings,
@@ -409,7 +408,6 @@ func peerInfoScreenSettingsData(context: AccountContext, peerId: PeerId, account
             
             let proxySettings: ProxySettings = sharedPreferences.entries[SharedDataKeys.proxySettings] as? ProxySettings ?? ProxySettings.defaultSettings
             let inAppNotificationSettings: InAppNotificationSettings = sharedPreferences.entries[ApplicationSpecificSharedDataKeys.inAppNotificationSettings] as? InAppNotificationSettings ?? InAppNotificationSettings.defaultSettings
-            let experimentalUISettings: ExperimentalUISettings = sharedPreferences.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings] as? ExperimentalUISettings ?? ExperimentalUISettings.defaultSettings
             
             let unreadTrendingStickerPacks = featuredStickerPacks.reduce(0, { count, item -> Int in
                 return item.unread ? count + 1 : count
@@ -645,11 +643,11 @@ func peerInfoScreenData(context: AccountContext, peerId: PeerId, strings: Presen
                 
                 if currentInvitationsContext == nil {
                     var canManageInvitations = false
-                    if let channel = peerViewMainPeer(peerView) as? TelegramChannel, let cachedData = peerView.cachedData as? CachedChannelData, channel.flags.contains(.isCreator) || (channel.adminRights?.rights.contains(.canInviteUsers) == true) {
+                    if let channel = peerViewMainPeer(peerView) as? TelegramChannel, let _ = peerView.cachedData as? CachedChannelData, channel.flags.contains(.isCreator) || (channel.adminRights?.rights.contains(.canInviteUsers) == true) {
                         canManageInvitations = true
                     }
                     if canManageInvitations {
-                        let invitationsContext = PeerExportedInvitationsContext(account: context.account, peerId: peerId, adminId: nil, revoked: false, forceUpdate: true)
+                        let invitationsContext = context.engine.peers.peerExportedInvitations(peerId: peerId, adminId: nil, revoked: false, forceUpdate: true)
                         invitationsContextPromise.set(.single(invitationsContext))
                         invitationsStatePromise.set(invitationsContext.state |> map(Optional.init))
                     }
@@ -695,7 +693,7 @@ func peerInfoScreenData(context: AccountContext, peerId: PeerId, strings: Presen
                             return context.peerChannelMemberCategoriesContextsManager.recentOnline(account: context.account, accountPeerId: context.account.peerId, peerId: peerId)
                             |> map(Optional.init)
                         } else {
-                            return context.peerChannelMemberCategoriesContextsManager.recentOnlineSmall(postbox: context.account.postbox, network: context.account.network, accountPeerId: context.account.peerId, peerId: peerId)
+                            return context.peerChannelMemberCategoriesContextsManager.recentOnlineSmall(engine: context.engine, postbox: context.account.postbox, network: context.account.network, accountPeerId: context.account.peerId, peerId: peerId)
                             |> map(Optional.init)
                         }
                     } else {
@@ -725,7 +723,7 @@ func peerInfoScreenData(context: AccountContext, peerId: PeerId, strings: Presen
                         let timestamp = CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970
                         for participant in participants.participants {
                             if let presence = peerView.peerPresences[participant.peerId] as? TelegramUserPresence {
-                                let relativeStatus = relativeUserPresenceStatus(presence, relativeTo: Int32(timestamp))
+                                let relativeStatus = relativeUserPresenceStatus(EnginePeer.Presence(presence), relativeTo: Int32(timestamp))
                                 switch relativeStatus {
                                 case .online:
                                     onlineCount += 1
@@ -812,7 +810,7 @@ func peerInfoScreenData(context: AccountContext, peerId: PeerId, strings: Presen
                         canManageInvitations = true
                     }
                     if canManageInvitations {
-                        let invitationsContext = PeerExportedInvitationsContext(account: context.account, peerId: peerId, adminId: nil, revoked: false, forceUpdate: true)
+                        let invitationsContext = context.engine.peers.peerExportedInvitations(peerId: peerId, adminId: nil, revoked: false, forceUpdate: true)
                         invitationsContextPromise.set(.single(invitationsContext))
                         invitationsStatePromise.set(invitationsContext.state |> map(Optional.init))
                     }
@@ -1050,7 +1048,7 @@ func peerInfoHeaderButtons(peer: Peer?, cachedData: CachedPeerData?, isOpenedFro
             result.append(.discussion)
         }
         result.append(.search)
-        if displayLeave {
+        if displayLeave && result.count < 4 {
             result.append(.leave)
         }
         var canReport = true
@@ -1064,11 +1062,7 @@ func peerInfoHeaderButtons(peer: Peer?, cachedData: CachedPeerData?, isOpenedFro
             result.append(.more)
         }
     } else if let group = peer as? TelegramGroup {
-        var canEditGroupInfo = false
-        var canEditMembers = false
         var canAddMembers = false
-        var isPublic = false
-        var isCreator = false
         var hasVoiceChat = false
         var canStartVoiceChat = false
         
@@ -1082,20 +1076,12 @@ func peerInfoHeaderButtons(peer: Peer?, cachedData: CachedPeerData?, isOpenedFro
                 canStartVoiceChat = true
             }
         }
-        
-        if case .creator = group.role {
-            isCreator = true
-        }
+
         switch group.role {
             case .admin, .creator:
-                canEditGroupInfo = true
-                canEditMembers = true
                 canAddMembers = true
             case .member:
                 break
-        }
-        if !group.hasBannedPermission(.banChangeInfo) {
-            canEditGroupInfo = true
         }
         if !group.hasBannedPermission(.banAddMembers) {
             canAddMembers = true

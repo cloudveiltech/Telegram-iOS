@@ -3,7 +3,6 @@ import UIKit
 import AsyncDisplayKit
 import Display
 import TelegramCore
-import SyncCore
 import Postbox
 import TextFormat
 import UrlEscaping
@@ -91,7 +90,12 @@ class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
             return (contentProperties, nil, CGFloat.greatestFiniteMagnitude, { constrainedSize, position in
                 let message = item.message
                 
-                let incoming = item.message.effectivelyIncoming(item.context.account.peerId)
+                let incoming: Bool
+                if let subject = item.associatedData.subject, case .forwardedMessages = subject {
+                    incoming = false
+                } else {
+                    incoming = item.message.effectivelyIncoming(item.context.account.peerId)
+                }
                 
                 var maxTextWidth = CGFloat.greatestFiniteMagnitude
                 for media in item.message.media {
@@ -135,7 +139,13 @@ class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
                     }
                 }
                 
-                let dateText = stringForMessageTimestampStatus(accountPeerId: item.context.account.peerId, message: item.message, dateTimeFormat: item.presentationData.dateTimeFormat, nameDisplayOrder: item.presentationData.nameDisplayOrder, strings: item.presentationData.strings, reactionCount: dateReactionCount)
+                let dateFormat: MessageTimestampStatusFormat
+                if let subject = item.associatedData.subject, case .forwardedMessages = subject {
+                    dateFormat = .minimal
+                } else {
+                    dateFormat = .regular
+                }
+                let dateText = stringForMessageTimestampStatus(accountPeerId: item.context.account.peerId, message: item.message, dateTimeFormat: item.presentationData.dateTimeFormat, nameDisplayOrder: item.presentationData.nameDisplayOrder, strings: item.presentationData.strings, format: dateFormat, reactionCount: dateReactionCount)
                 
                 let statusType: ChatMessageDateAndStatusType?
                 var displayStatus = false
@@ -297,11 +307,7 @@ class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
                 
                 var statusFrame: CGRect?
                 if let statusSize = statusSize {
-                    if forceStatusNewline {
-                        statusFrame = CGRect(origin: CGPoint(x: textFrameWithoutInsets.maxX - statusSize.width, y: textFrameWithoutInsets.maxY), size: statusSize)
-                    } else {
-                        statusFrame = CGRect(origin: CGPoint(x: textFrameWithoutInsets.maxX - statusSize.width, y: textFrameWithoutInsets.maxY - statusSize.height), size: statusSize)
-                    }
+                    statusFrame = CGRect(origin: CGPoint(x: textFrameWithoutInsets.maxX - statusSize.width, y: textFrameWithoutInsets.maxY - statusSize.height), size: statusSize)
                 }
                 
                 textFrame = textFrame.offsetBy(dx: layoutConstants.text.bubbleInsets.left, dy: layoutConstants.text.bubbleInsets.top)
@@ -375,7 +381,7 @@ class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
                                 }
                             }
                             
-                            strongSelf.textNode.displaysAsynchronously = !item.presentationData.isPreview
+                            strongSelf.textNode.displaysAsynchronously = !item.presentationData.isPreview && !item.presentationData.theme.theme.forceSync
                             let _ = textApply()
                             
                             if let statusApply = statusApply, let adjustedStatusFrame = adjustedStatusFrame {

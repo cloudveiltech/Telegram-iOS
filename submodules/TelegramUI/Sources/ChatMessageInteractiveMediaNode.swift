@@ -5,7 +5,6 @@ import Postbox
 import SwiftSignalKit
 import Display
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import UniversalMediaPlayer
@@ -738,7 +737,7 @@ final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTransitio
                                                 representations.append(ImageRepresentationWithReference(representation: .init(dimensions: PixelDimensions(width: 1440, height: 2960), resource: file.resource, progressiveSizes: [], immediateThumbnailData: nil), reference: AnyMediaReference.message(message: MessageReference(message), media: file).resourceReference(file.resource)))
                                             }
                                             if ["image/png", "image/svg+xml", "application/x-tgwallpattern"].contains(file.mimeType) {
-                                                return patternWallpaperImage(account: context.account, accountManager: context.sharedContext.accountManager, representations: representations, mode: .thumbnail)
+                                                return patternWallpaperImage(account: context.account, accountManager: context.sharedContext.accountManager, representations: representations, mode: .screen)
                                                 |> mapToSignal { value -> Signal<(TransformImageArguments) -> DrawingContext?, NoError> in
                                                     if let value = value {
                                                         return .single(value)
@@ -900,6 +899,10 @@ final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTransitio
                                     videoNode.ownsContentNodeUpdated = { [weak self] owns in
                                         if let strongSelf = self {
                                             strongSelf.videoNode?.isHidden = !owns
+                                            if owns {
+                                                strongSelf.videoNode?.setBaseRate(1.0)
+                                                strongSelf.videoNode?.continuePlayingWithoutSound()
+                                            }
                                         }
                                     }
                                     strongSelf.videoContent = videoContent
@@ -1058,7 +1061,6 @@ final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTransitio
                                             if visibility {
                                                 return fetchSignal
                                                 |> mapToSignal { _ -> Signal<Void, NoError> in
-                                                    return .complete()
                                                 }
                                             } else {
                                                 return .complete()
@@ -1247,8 +1249,17 @@ final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTransitio
                 automaticPlayback = false
             }
             
-            if let actualFetchStatus = self.actualFetchStatus, automaticPlayback || message.forwardInfo != nil {
-                fetchStatus = actualFetchStatus
+            if let actualFetchStatus = self.actualFetchStatus {
+                if automaticPlayback || message.forwardInfo != nil {
+                    fetchStatus = actualFetchStatus
+                } else {
+                    for attribute in message.attributes {
+                        if let attribute = attribute as? ForwardOptionsMessageAttribute, attribute.hideNames {
+                            fetchStatus = actualFetchStatus
+                            break
+                        }
+                    }
+                }
             }
             
             let gifTitle = game != nil ? strings.Message_Game.uppercased() : strings.Message_Animation.uppercased()

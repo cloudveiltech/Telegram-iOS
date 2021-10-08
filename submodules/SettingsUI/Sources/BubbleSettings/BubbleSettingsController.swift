@@ -5,7 +5,6 @@ import Postbox
 import SwiftSignalKit
 import AsyncDisplayKit
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import AccountContext
@@ -160,7 +159,7 @@ private final class BubbleSettingsControllerNode: ASDisplayNode, UIScrollViewDel
         let headerItem = self.context.sharedContext.makeChatMessageDateHeaderItem(context: self.context, timestamp:  self.referenceTimestamp, theme: self.presentationData.theme, strings: self.presentationData.strings, wallpaper: self.presentationData.chatWallpaper, fontSize: self.presentationData.chatFontSize, chatBubbleCorners: self.presentationData.chatBubbleCorners, dateTimeFormat: self.presentationData.dateTimeFormat, nameOrder: self.presentationData.nameDisplayOrder)
         
         var items: [ListViewItem] = []
-        let peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(1))
+        let peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(1))
         let otherPeerId = self.context.account.peerId
         var peers = SimpleDictionary<PeerId, Peer>()
         var messages = SimpleDictionary<MessageId, Message>()
@@ -247,7 +246,7 @@ private final class BubbleSettingsControllerNode: ASDisplayNode, UIScrollViewDel
             dateHeaderNode = currentDateHeaderNode
             headerItem.updateNode(dateHeaderNode, previous: nil, next: headerItem)
         } else {
-            dateHeaderNode = headerItem.node()
+            dateHeaderNode = headerItem.node(synchronousLoad: true)
             dateHeaderNode.subnodeTransform = CATransform3DMakeScale(-1.0, 1.0, 1.0)
             self.messagesContainerNode.addSubnode(dateHeaderNode)
             self.dateHeaderNode = dateHeaderNode

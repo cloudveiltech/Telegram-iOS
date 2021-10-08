@@ -1,7 +1,6 @@
 import Foundation
 import UIKit
 import TelegramCore
-import SyncCore
 import AccountContext
 import CloudVeilSecurityManager
 
@@ -67,10 +66,10 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
         switch inputQueryResult {
             case .stickers, .contextRequestResult:
                 //CloudVeil start
-				if MainController.shared.disableStickers {
-					return nil
-				}
-				//CloudVeil end
+                if MainController.shared.disableStickers {
+                    return nil
+                }
+                //CloudVeil end
                 if let currentPanel = currentPanel as? DisabledContextResultsChatInputContextPanelNode {
                     return currentPanel
                 } else {
@@ -87,9 +86,9 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
         case let .stickers(results):
             //CloudVeil start
             if MainController.shared.disableStickers {
-				return nil
-			}
-			//CloudVeil end
+                return nil
+            }
+            //CloudVeil end
             if !results.isEmpty {
                 let query = chatPresentationInterfaceState.interfaceState.composeInputState.inputText.string
                 
@@ -97,7 +96,7 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
                     currentPanel.updateResults(results: results.map({ $0.file }), query: query)
                     return currentPanel
                 } else {
-                    let panel = InlineReactionSearchPanel(context: context, theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings, fontSize: chatPresentationInterfaceState.fontSize)
+                    let panel = InlineReactionSearchPanel(context: context, theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings, fontSize: chatPresentationInterfaceState.fontSize, peerId: chatPresentationInterfaceState.renderedPeer?.peerId)
                     panel.controllerInteraction = controllerInteraction
                     panel.interfaceInteraction = interfaceInteraction
                     panel.updateResults(results: results.map({ $0.file }), query: query)
@@ -158,10 +157,11 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
             }
         case let .contextRequestResult(_, results):
             //CloudVeil start
-			if MainController.SecurityStaticSettings.disableInlineBots {
-				return nil
-			}
-			//CloudVeil end
+            if MainController.SecurityStaticSettings.disableInlineBots {
+                return nil
+            }
+            //CloudVeil end
+            
             if let results = results, (!results.results.isEmpty || results.switchPeer != nil) {
                 switch results.presentation {
                     case .list:

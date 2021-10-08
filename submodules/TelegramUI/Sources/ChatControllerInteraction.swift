@@ -1,9 +1,9 @@
 import Foundation
 import UIKit
 import Postbox
+import SwiftSignalKit
 import AsyncDisplayKit
 import TelegramCore
-import SyncCore
 import Display
 import TelegramUIPreferences
 import AccountContext
@@ -12,6 +12,7 @@ import ReactionSelectionNode
 import ContextUI
 import ChatInterfaceState
 import UndoUI
+import TelegramPresentationData
 
 struct ChatInterfaceHighlightedState: Equatable {
     let messageStableId: UInt32
@@ -122,6 +123,9 @@ public final class ChatControllerInteraction {
     let copyText: (String) -> Void
     let displayUndo: (UndoOverlayContent) -> Void
     let isAnimatingMessage: (UInt32) -> Bool
+    let getMessageTransitionNode: () -> ChatMessageTransitionNode?
+    let updateChoosingSticker: (Bool) -> Void
+    let commitEmojiInteraction: (MessageId, String, EmojiInteraction, TelegramMediaFile) -> Void
     
     let requestMessageUpdate: (MessageId) -> Void
     let cancelInteractiveKeyboardGestures: () -> Void
@@ -139,6 +143,7 @@ public final class ChatControllerInteraction {
     var searchTextHighightState: (String, [MessageIndex])?
     var seenOneTimeAnimatedMedia = Set<MessageId>()
     var currentMessageWithLoadingReplyThread: MessageId?
+    var updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?
     let presentationContext: ChatPresentationContext
     
     init(
@@ -215,6 +220,9 @@ public final class ChatControllerInteraction {
         copyText: @escaping (String) -> Void,
         displayUndo: @escaping (UndoOverlayContent) -> Void,
         isAnimatingMessage: @escaping (UInt32) -> Bool,
+        getMessageTransitionNode: @escaping () -> ChatMessageTransitionNode?,
+        updateChoosingSticker: @escaping (Bool) -> Void,
+        commitEmojiInteraction: @escaping (MessageId, String, EmojiInteraction, TelegramMediaFile) -> Void,
         requestMessageUpdate: @escaping (MessageId) -> Void,
         cancelInteractiveKeyboardGestures: @escaping () -> Void,
         automaticMediaDownloadSettings: MediaAutoDownloadSettings,
@@ -295,6 +303,9 @@ public final class ChatControllerInteraction {
         self.copyText = copyText
         self.displayUndo = displayUndo
         self.isAnimatingMessage = isAnimatingMessage
+        self.getMessageTransitionNode = getMessageTransitionNode
+        self.updateChoosingSticker = updateChoosingSticker
+        self.commitEmojiInteraction = commitEmojiInteraction
         self.requestMessageUpdate = requestMessageUpdate
         self.cancelInteractiveKeyboardGestures = cancelInteractiveKeyboardGestures
         
@@ -351,6 +362,10 @@ public final class ChatControllerInteraction {
         }, displayUndo: { _ in
         }, isAnimatingMessage: { _ in
             return false
+        }, getMessageTransitionNode: {
+            return nil
+        }, updateChoosingSticker: { _ in
+        }, commitEmojiInteraction: { _, _, _, _ in  
         }, requestMessageUpdate: { _ in
         }, cancelInteractiveKeyboardGestures: {
         }, automaticMediaDownloadSettings: MediaAutoDownloadSettings.defaultSettings,

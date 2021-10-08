@@ -3,7 +3,6 @@ import Postbox
 import TelegramApi
 import SwiftSignalKit
 
-import SyncCore
 
 extension StickerPackReference {
     init(_ stickerPackInfo: StickerPackCollectionInfo) {
@@ -20,6 +19,8 @@ extension StickerPackReference {
                 return .inputStickerSetAnimatedEmoji
             case let .dice(emoji):
                 return .inputStickerSetDice(emoticon: emoji)
+            case .animatedEmojiAnimations:
+                return .inputStickerSetAnimatedEmojiAnimations
         }
     }
 }

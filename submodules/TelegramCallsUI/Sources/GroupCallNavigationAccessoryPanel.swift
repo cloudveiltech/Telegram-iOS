@@ -3,7 +3,6 @@ import UIKit
 import AsyncDisplayKit
 import Display
 import TelegramCore
-import SyncCore
 import Postbox
 import TelegramPresentationData
 import TelegramUIPreferences
@@ -41,6 +40,7 @@ public enum GroupCallPanelSource {
 
 public final class GroupCallPanelData {
     public let peerId: PeerId
+    public let isChannel: Bool
     public let info: GroupCallInfo
     public let topParticipants: [GroupCallParticipantsContext.Participant]
     public let participantCount: Int
@@ -49,6 +49,7 @@ public final class GroupCallPanelData {
     
     public init(
         peerId: PeerId,
+        isChannel: Bool,
         info: GroupCallInfo,
         topParticipants: [GroupCallParticipantsContext.Participant],
         participantCount: Int,
@@ -56,6 +57,7 @@ public final class GroupCallPanelData {
         groupCall: PresentationGroupCall?
     ) {
         self.peerId = peerId
+        self.isChannel = isChannel
         self.info = info
         self.topParticipants = topParticipants
         self.participantCount = participantCount
@@ -358,7 +360,7 @@ public final class GroupCallNavigationAccessoryPanel: ASDisplayNode {
             }
             self.currentText = membersText
             
-            self.avatarsContent = self.avatarsContext.update(peers: data.topParticipants.map { $0.peer }, animated: false)
+            self.avatarsContent = self.avatarsContext.update(peers: data.topParticipants.map { EnginePeer($0.peer) }, animated: false)
             
             self.textNode.attributedText = NSAttributedString(string: membersText, font: Font.regular(13.0), textColor: self.theme.chat.inputPanel.secondaryTextColor)
             
@@ -382,7 +384,7 @@ public final class GroupCallNavigationAccessoryPanel: ASDisplayNode {
                     }
                     strongSelf.currentText = membersText
                                                             
-                    strongSelf.avatarsContent = strongSelf.avatarsContext.update(peers: summaryState.topParticipants.map { $0.peer }, animated: false)
+                    strongSelf.avatarsContent = strongSelf.avatarsContext.update(peers: summaryState.topParticipants.map { EnginePeer($0.peer) }, animated: false)
                     
                     if let (size, leftInset, rightInset) = strongSelf.validLayout {
                         strongSelf.updateLayout(size: size, leftInset: leftInset, rightInset: rightInset, transition: .immediate)
@@ -459,7 +461,7 @@ public final class GroupCallNavigationAccessoryPanel: ASDisplayNode {
             }
             self.currentText = membersText
             
-            self.avatarsContent = self.avatarsContext.update(peers: data.topParticipants.map { $0.peer }, animated: false)
+            self.avatarsContent = self.avatarsContext.update(peers: data.topParticipants.map { EnginePeer($0.peer) }, animated: false)
             
             updateAudioLevels = true
         }
@@ -524,6 +526,11 @@ public final class GroupCallNavigationAccessoryPanel: ASDisplayNode {
         
         var joinText = self.strings.VoiceChat_PanelJoin
         var title = self.strings.VoiceChat_Title
+        var isChannel = false
+        if let currentData = self.currentData, currentData.isChannel {
+            title = self.strings.VoiceChatChannel_Title
+            isChannel = true
+        }
         var text = self.currentText
         var isScheduled = false
         var isLate = false
@@ -531,10 +538,10 @@ public final class GroupCallNavigationAccessoryPanel: ASDisplayNode {
             isScheduled = true
             if let voiceChatTitle = self.currentData?.info.title {
                 title = voiceChatTitle
-                text = humanReadableStringForTimestamp(strings: self.strings, dateTimeFormat: self.dateTimeFormat, timestamp: scheduleTime, alwaysShowTime: true, format: HumanReadableStringFormat(dateFormatString: { self.strings.Conversation_ScheduledVoiceChatStartsOn($0) }, tomorrowFormatString: { self.strings.Conversation_ScheduledVoiceChatStartsTomorrow($0) }, todayFormatString: { self.strings.Conversation_ScheduledVoiceChatStartsToday($0) })).0
+                text = humanReadableStringForTimestamp(strings: self.strings, dateTimeFormat: self.dateTimeFormat, timestamp: scheduleTime, alwaysShowTime: true, format: HumanReadableStringFormat(dateFormatString: { isChannel ? self.strings.Conversation_ScheduledLiveStreamStartsOn($0) : self.strings.Conversation_ScheduledVoiceChatStartsOn($0) }, tomorrowFormatString: { isChannel ? self.strings.Conversation_ScheduledLiveStreamStartsTomorrow($0) : self.strings.Conversation_ScheduledVoiceChatStartsTomorrow($0) }, todayFormatString: { isChannel ? self.strings.Conversation_ScheduledLiveStreamStartsToday($0) : self.strings.Conversation_ScheduledVoiceChatStartsToday($0) })).string
             } else {
-                title = self.strings.Conversation_ScheduledVoiceChat
-                text = humanReadableStringForTimestamp(strings: self.strings, dateTimeFormat: self.dateTimeFormat, timestamp: scheduleTime, alwaysShowTime: true, format: HumanReadableStringFormat(dateFormatString: { self.strings.Conversation_ScheduledVoiceChatStartsOnShort($0) }, tomorrowFormatString: { self.strings.Conversation_ScheduledVoiceChatStartsTomorrowShort($0) }, todayFormatString: { self.strings.Conversation_ScheduledVoiceChatStartsTodayShort($0) })).0
+                title = isChannel ? self.strings.Conversation_ScheduledLiveStream : self.strings.Conversation_ScheduledVoiceChat
+                text = humanReadableStringForTimestamp(strings: self.strings, dateTimeFormat: self.dateTimeFormat, timestamp: scheduleTime, alwaysShowTime: true, format: HumanReadableStringFormat(dateFormatString: { self.strings.Conversation_ScheduledVoiceChatStartsOnShort($0) }, tomorrowFormatString: { self.strings.Conversation_ScheduledVoiceChatStartsTomorrowShort($0) }, todayFormatString: { self.strings.Conversation_ScheduledVoiceChatStartsTodayShort($0) })).string
             }
             
             let currentTime = Int32(CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970)

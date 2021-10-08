@@ -2,7 +2,6 @@ import UIKit
 import AsyncDisplayKit
 import Display
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import Postbox
 import TelegramPresentationData
@@ -10,6 +9,7 @@ import AccountContext
 import PresentationDataUtils
 import RadialStatusNode
 import AnimatedStickerNode
+import TelegramAnimatedStickerNode
 import AppBundle
 import ZipArchive
 import MimeTypes
@@ -68,16 +68,16 @@ private final class ImportManager {
     
     private let account: Account
     private let archivePath: String?
-    private let entries: [(SSZipEntry, String, ChatHistoryImport.MediaType)]
+    private let entries: [(SSZipEntry, String, TelegramEngine.HistoryImport.MediaType)]
     
-    private var session: ChatHistoryImport.Session?
+    private var session: TelegramEngine.HistoryImport.Session?
     
     private let disposable = MetaDisposable()
     
     private let totalBytes: Int
     private let totalMediaBytes: Int
     private let mainFileSize: Int
-    private var pendingEntries: [(SSZipEntry, String, ChatHistoryImport.MediaType)]
+    private var pendingEntries: [(SSZipEntry, String, TelegramEngine.HistoryImport.MediaType)]
     private var entryProgress: [String: (Int, Int)] = [:]
     private var activeEntries: [String: Disposable] = [:]
     
@@ -91,7 +91,7 @@ private final class ImportManager {
         return self.statePromise.get()
     }
     
-    init(account: Account, peerId: PeerId, mainFile: TempBoxFile, archivePath: String?, entries: [(SSZipEntry, String, ChatHistoryImport.MediaType)]) {
+    init(account: Account, peerId: PeerId, mainFile: TempBoxFile, archivePath: String?, entries: [(SSZipEntry, String, TelegramEngine.HistoryImport.MediaType)]) {
         self.account = account
         self.archivePath = archivePath
         self.entries = entries
@@ -114,7 +114,7 @@ private final class ImportManager {
             Logger.shared.log("ChatImportScreen", "    \(entry.1)")
         }
         
-        self.disposable.set((ChatHistoryImport.initSession(account: self.account, peerId: peerId, file: mainFile, mediaCount: Int32(entries.count))
+        self.disposable.set((TelegramEngine(account: self.account).historyImport.initSession(peerId: peerId, file: mainFile, mediaCount: Int32(entries.count))
         |> mapError { error -> ImportError in
             switch error {
             case .chatAdminRequired:
@@ -180,7 +180,7 @@ private final class ImportManager {
             self.failWithError(.generic)
             return
         }
-        self.disposable.set((ChatHistoryImport.startImport(account: self.account, session: session)
+        self.disposable.set((TelegramEngine(account: self.account).historyImport.startImport(session: session)
         |> deliverOnMainQueue).start(error: { [weak self] _ in
             guard let strongSelf = self else {
                 return
@@ -258,7 +258,7 @@ private final class ImportManager {
                 if !pathExtension.isEmpty, let value = TGMimeTypeMap.mimeType(forExtension: pathExtension) {
                     mimeType = value
                 }
-                return ChatHistoryImport.uploadMedia(account: account, session: session, file: tempFile, disposeFileAfterDone: true, fileName: entry.0.path, mimeType: mimeType, type: entry.2)
+                return TelegramEngine(account: account).historyImport.uploadMedia(session: session, file: tempFile, disposeFileAfterDone: true, fileName: entry.0.path, mimeType: mimeType, type: entry.2)
                 |> mapError { error -> ImportError in
                     switch error {
                     case .chatAdminRequired:
@@ -381,20 +381,17 @@ public final class ChatImportActivityScreen: ViewController {
             
             self.backgroundColor = self.presentationData.theme.list.plainBackgroundColor
             
-            if let path = getAppBundle().path(forResource: "HistoryImport", ofType: "tgs") {
-                self.animationNode.setup(source: AnimatedStickerNodeLocalFileSource(path: path), width: 190 * 2, height: 190 * 2, playbackMode: .loop, mode: .direct(cachePathPrefix: nil))
-                self.animationNode.visibility = true
-            }
-            if let path = getAppBundle().path(forResource: "HistoryImportDone", ofType: "tgs") {
-                self.doneAnimationNode.setup(source: AnimatedStickerNodeLocalFileSource(path: path), width: 190 * 2, height: 190 * 2, playbackMode: .once, mode: .direct(cachePathPrefix: nil))
-                self.doneAnimationNode.started = { [weak self] in
-                    guard let strongSelf = self else {
-                        return
-                    }
-                    strongSelf.animationNode.isHidden = true
+            self.animationNode.setup(source: AnimatedStickerNodeLocalFileSource(name: "HistoryImport"), width: 190 * 2, height: 190 * 2, playbackMode: .loop, mode: .direct(cachePathPrefix: nil))
+            self.animationNode.visibility = true
+            
+            self.doneAnimationNode.setup(source: AnimatedStickerNodeLocalFileSource(name: "HistoryImportDone"), width: 190 * 2, height: 190 * 2, playbackMode: .once, mode: .direct(cachePathPrefix: nil))
+            self.doneAnimationNode.started = { [weak self] in
+                guard let strongSelf = self else {
+                    return
                 }
-                self.doneAnimationNode.visibility = false
+                strongSelf.animationNode.isHidden = true
             }
+            self.doneAnimationNode.visibility = false
             
             self.addSubnode(self.animationNode)
             self.addSubnode(self.doneAnimationNode)
@@ -732,7 +729,7 @@ public final class ChatImportActivityScreen: ViewController {
     private let mainEntry: TempBoxFile
     private let totalBytes: Int
     private let totalMediaBytes: Int
-    private let otherEntries: [(SSZipEntry, String, ChatHistoryImport.MediaType)]
+    private let otherEntries: [(SSZipEntry, String, TelegramEngine.HistoryImport.MediaType)]
     
     private var importManager: ImportManager?
     private var progressEstimator: ProgressEstimator?
@@ -749,14 +746,14 @@ public final class ChatImportActivityScreen: ViewController {
         }
     }
     
-    public init(context: AccountContext, cancel: @escaping () -> Void, peerId: PeerId, archivePath: String?, mainEntry: TempBoxFile, otherEntries: [(SSZipEntry, String, ChatHistoryImport.MediaType)]) {
+    public init(context: AccountContext, cancel: @escaping () -> Void, peerId: PeerId, archivePath: String?, mainEntry: TempBoxFile, otherEntries: [(SSZipEntry, String, TelegramEngine.HistoryImport.MediaType)]) {
         self.context = context
         self.cancel = cancel
         self.peerId = peerId
         self.archivePath = archivePath
         self.mainEntry = mainEntry
         
-        self.otherEntries = otherEntries.map { entry -> (SSZipEntry, String, ChatHistoryImport.MediaType) in
+        self.otherEntries = otherEntries.map { entry -> (SSZipEntry, String, TelegramEngine.HistoryImport.MediaType) in
             return (entry.0, entry.1, entry.2)
         }
         

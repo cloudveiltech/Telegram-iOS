@@ -2,7 +2,6 @@ import Foundation
 import UIKit
 import Display
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import AsyncDisplayKit
 import Postbox
@@ -226,10 +225,8 @@ final class HorizontalStickerGridItemNode: GridItemNode {
     }
     
     func updatePreviewing(animated: Bool) {
-        var isPreviewing = false
-        if let (_, item, _) = self.currentState {
-            //isPreviewing = item.isPreviewed(self.stickerItem)
-        }
+        let isPreviewing = false
+        
         if self.currentIsPreviewing != isPreviewing {
             self.currentIsPreviewing = isPreviewing
             

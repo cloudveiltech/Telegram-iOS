@@ -3,7 +3,6 @@ import Postbox
 import TelegramApi
 import SwiftSignalKit
 
-import SyncCore
 
 func addSynchronizeSavedStickersOperation(transaction: Transaction, operation: SynchronizeSavedStickersOperationContent) {
     let tag: PeerOperationLogTag = OperationLogTags.SynchronizeSavedStickers
@@ -62,7 +61,7 @@ public func addSavedSticker(postbox: Postbox, network: Network, file: TelegramMe
                         if !found {
                             fetchReference = packReference
                         }
-                    case .animatedEmoji, .dice:
+                    case .animatedEmoji, .animatedEmojiAnimations, .dice:
                         break
                 }
                 if let fetchReference = fetchReference {

@@ -5,7 +5,6 @@ import AsyncDisplayKit
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import DeviceAccess
@@ -875,19 +874,22 @@ public final class ContactListNode: ASDisplayNode {
     private var authorizationNode: PermissionContentNode
     private let displayPermissionPlaceholder: Bool
     
-    public init(context: AccountContext, presentation: Signal<ContactListPresentation, NoError>, filters: [ContactListFilter] = [.excludeSelf], selectionState: ContactListNodeGroupSelectionState? = nil, displayPermissionPlaceholder: Bool = true, displaySortOptions: Bool = false, displayCallIcons: Bool = false, contextAction: ((Peer, ASDisplayNode, ContextGesture?) -> Void)? = nil, isSearch: Bool = false, multipleSelection: Bool = false) {
+    public var multipleSelection = false
+    
+    public init(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, presentation: Signal<ContactListPresentation, NoError>, filters: [ContactListFilter] = [.excludeSelf], selectionState: ContactListNodeGroupSelectionState? = nil, displayPermissionPlaceholder: Bool = true, displaySortOptions: Bool = false, displayCallIcons: Bool = false, contextAction: ((Peer, ASDisplayNode, ContextGesture?) -> Void)? = nil, isSearch: Bool = false, multipleSelection: Bool = false) {
         self.context = context
         self.filters = filters
         self.displayPermissionPlaceholder = displayPermissionPlaceholder
         self.contextAction = contextAction
+        self.multipleSelection = multipleSelection
         
-        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        let presentationData = updatedPresentationData?.initial ?? context.sharedContext.currentPresentationData.with { $0 }
         self.presentationData = presentationData
         
         self.listNode = ListView()
         self.listNode.dynamicBounceEnabled = false
         self.listNode.accessibilityPageScrolledString = { row, count in
-            return presentationData.strings.VoiceOver_ScrollStatus(row, count).0
+            return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
         }
         
         self.indexNode = CollectionIndexNode()
@@ -919,7 +921,7 @@ public final class ContactListNode: ASDisplayNode {
         var authorizeImpl: (() -> Void)?
         var openPrivacyPolicyImpl: (() -> Void)?
         
-        self.authorizationNode = PermissionContentNode(theme: self.presentationData.theme, strings: self.presentationData.strings, kind: PermissionKind.contacts.rawValue, icon: .image(UIImage(bundleImageName: "Settings/Permissions/Contacts")), title: self.presentationData.strings.Contacts_PermissionsTitle, text: self.presentationData.strings.Contacts_PermissionsText, buttonTitle: self.presentationData.strings.Contacts_PermissionsAllow, buttonAction: {
+        self.authorizationNode = PermissionContentNode(context: self.context, theme: self.presentationData.theme, strings: self.presentationData.strings, kind: PermissionKind.contacts.rawValue, icon: .image(UIImage(bundleImageName: "Settings/Permissions/Contacts")), title: self.presentationData.strings.Contacts_PermissionsTitle, text: self.presentationData.strings.Contacts_PermissionsText, buttonTitle: self.presentationData.strings.Contacts_PermissionsAllow, buttonAction: {
             authorizeImpl?()
         }, openPrivacyPolicy: {
             openPrivacyPolicyImpl?()
@@ -1092,17 +1094,18 @@ public final class ContactListNode: ASDisplayNode {
                             return (peers.map({ FoundPeer(peer: $0, subscribers: nil) }), presences)
                         }
                     }
+                    
                     //CloudVeil start
                     var foundRemoteContacts: Signal<([FoundPeer], [FoundPeer]), NoError> = .single(([], []))
                     if globalSearch && !MainController.SecurityStaticSettings.disableGlobalSearch {
-						foundRemoteContacts = foundRemoteContacts
-							|> then(
-								context.engine.peers.searchPeers(query: query)
-									|> map { ($0.0, $0.1) }
-									|> delay(0.2, queue: Queue.concurrentDefaultQueue())
-							)
+                        foundRemoteContacts = foundRemoteContacts
+                        |> then(
+                            context.engine.peers.searchPeers(query: query)
+                            |> map { ($0.0, $0.1) }
+                            |> delay(0.2, queue: Queue.concurrentDefaultQueue())
+                        )
                     }
-					//CloudVeil end
+                    //CloudVeil end
                     
                     let foundDeviceContacts: Signal<[DeviceContactStableId: (DeviceContactBasicData, PeerId?)], NoError>
                     if searchDeviceContacts {
@@ -1260,8 +1263,8 @@ public final class ContactListNode: ASDisplayNode {
                             var peers: [(Peer, Int32)] = []
                             for entry in view.entries {
                                 switch entry {
-                                    case let .MessageEntry(messageEntry):
-                                        if let peer = messageEntry.5.peer {
+                                    case let .MessageEntry(_, _, _, _, _, renderedPeer, _, _, _, _):
+                                        if let peer = renderedPeer.peer {
                                             if peer is TelegramGroup {
                                                 peers.append((peer, 0))
                                             } else if let channel = peer as? TelegramChannel, case .group = channel.info {
@@ -1363,7 +1366,7 @@ public final class ContactListNode: ASDisplayNode {
             self?.enqueueTransition(transition)
         }))
         
-        self.presentationDataDisposable = (context.sharedContext.presentationData
+        self.presentationDataDisposable = ((updatedPresentationData?.signal ?? context.sharedContext.presentationData)
         |> deliverOnMainQueue).start(next: { [weak self] presentationData in
             if let strongSelf = self {
                 let previousTheme = strongSelf.presentationData.theme
@@ -1378,7 +1381,7 @@ public final class ContactListNode: ASDisplayNode {
                     
                     let authorizationPreviousHidden = strongSelf.authorizationNode.isHidden
                     strongSelf.authorizationNode.removeFromSupernode()
-                    strongSelf.authorizationNode = PermissionContentNode(theme: strongSelf.presentationData.theme, strings: strongSelf.presentationData.strings, kind: PermissionKind.contacts.rawValue, icon: .image(UIImage(bundleImageName: "Settings/Permissions/Contacts")), title: strongSelf.presentationData.strings.Contacts_PermissionsTitle, text: strongSelf.presentationData.strings.Contacts_PermissionsText, buttonTitle: strongSelf.presentationData.strings.Contacts_PermissionsAllow, buttonAction: {
+                    strongSelf.authorizationNode = PermissionContentNode(context: strongSelf.context, theme: strongSelf.presentationData.theme, strings: strongSelf.presentationData.strings, kind: PermissionKind.contacts.rawValue, icon: .image(UIImage(bundleImageName: "Settings/Permissions/Contacts")), title: strongSelf.presentationData.strings.Contacts_PermissionsTitle, text: strongSelf.presentationData.strings.Contacts_PermissionsText, buttonTitle: strongSelf.presentationData.strings.Contacts_PermissionsAllow, buttonAction: {
                         authorizeImpl?()
                     }, openPrivacyPolicy: {
                         openPrivacyPolicyImpl?()
@@ -1409,7 +1412,7 @@ public final class ContactListNode: ASDisplayNode {
             }
         })
         
-        self.listNode.didEndScrolling = { [weak self] in
+        self.listNode.didEndScrolling = { [weak self] _ in
             if let strongSelf = self {
                 let _ = strongSelf.contentScrollingEnded?(strongSelf.listNode)
             }

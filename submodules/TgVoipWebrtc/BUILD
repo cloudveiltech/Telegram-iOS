@@ -26,6 +26,9 @@ objc_library(
         "tgcalls/tgcalls/platform/darwin/DesktopSharingCapturer.*",
         "tgcalls/tgcalls/platform/darwin/DesktopCaptureSourceViewMac.*",
         "tgcalls/tgcalls/platform/darwin/DesktopCaptureSourceView.*",
+        "tgcalls/tgcalls/platform/darwin/TGCMIODevice.*",
+        "tgcalls/tgcalls/platform/darwin/TGCMIOCapturer.*",
+        "tgcalls/tgcalls/platform/darwin/VideoCMIOCapture.*",
         "tgcalls/tgcalls/desktop_capturer/**",
     ]),
     hdrs = glob([
@@ -41,7 +44,8 @@ objc_library(
         "-Ithird-party/webrtc/webrtc/sdk/objc/components/renderer/metal",
         "-Ithird-party/webrtc/webrtc/sdk/objc/components/renderer/opengl",
         "-Ithird-party/webrtc/webrtc/sdk/objc/components/video_codec",
-        "-Ithird-party/webrtc/dependencies/third_party/libyuv/include",
+        "-Ithird-party/libyuv/third_party/libyuv/include",
+        "-Ithird-party/libyuv",
         "-Ithird-party/webrtc/webrtc/sdk/objc/api/video_codec",
         "-DWEBRTC_IOS",
         "-DWEBRTC_MAC",
@@ -62,6 +66,7 @@ objc_library(
         "//third-party/opusfile:opusfile",
         "//submodules/ffmpeg:ffmpeg",
         "//third-party/rnnoise:rnnoise",
+        "//third-party/libyuv:libyuv",
     ],
     sdk_frameworks = [
         "Foundation",

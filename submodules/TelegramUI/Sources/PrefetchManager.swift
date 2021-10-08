@@ -2,7 +2,6 @@ import Foundation
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramUIPreferences
 import AccountContext
 import PhotoResources
@@ -72,7 +71,7 @@ private final class PrefetchManagerInnerImpl {
                         }
                     }
                     
-                    let popularEmoji = ["\u{2764}", "👍", "😳", "😒", "🥳"]
+                    let popularEmoji = ["\u{2764}", "👍", "👎", "😳", "😒", "🥳", "😡", "😮", "😂", "😘", "😍", "🙄", "😎"]
                     for emoji in popularEmoji {
                         if let sticker = animatedEmojiStickers[emoji] {
                             if let _ = account.postbox.mediaBox.completedResourcePath(sticker.file.resource) {
@@ -246,7 +245,7 @@ private final class PrefetchManagerInnerImpl {
         |> mapToSignal { sticker -> Signal<Void, NoError> in
             if let sticker = sticker {
                 let _ = freeMediaFileInteractiveFetched(account: account, fileReference: .standalone(media: sticker)).start()
-                return chatMessageAnimationData(postbox: account.postbox, resource: sticker.resource, fitzModifier: nil, width: 384, height: 384, synchronousLoad: false)
+                return chatMessageAnimationData(mediaBox: account.postbox.mediaBox, resource: sticker.resource, fitzModifier: nil, width: 384, height: 384, synchronousLoad: false)
                 |> mapToSignal { _ -> Signal<Void, NoError> in
                     return .complete()
                 }

@@ -4,7 +4,6 @@ import Display
 import AsyncDisplayKit
 import UIKit
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import Photos
 import TelegramPresentationData
@@ -21,7 +20,6 @@ final class ChatSecretAutoremoveTimerActionSheetController: ActionSheetControlle
     
     init(context: AccountContext, currentValue: Int32, availableValues: [Int32]? = nil, applyValue: @escaping (Int32) -> Void) {
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-        let theme = presentationData.theme
         let strings = presentationData.strings
         
         super.init(theme: ActionSheetControllerTheme(presentationData: presentationData))
@@ -90,30 +88,30 @@ private final class AutoremoveTimeoutSelectorItem: ActionSheetItem {
 
 //CloudVeil start
 private let timeoutValuesInitial: [Int32] = [
-	0,
-	1,
-	2,
-	3,
-	4,
-	5,
-	6,
-	7,
-	8,
-	9,
-	10,
-	11,
-	12,
-	13,
-	14,
-	15,
-	30,
-	1 * 60,
-	1 * 60 * 60,
-	24 * 60 * 60,
-	7 * 24 * 60 * 60
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    30,
+    1 * 60,
+    1 * 60 * 60,
+    24 * 60 * 60,
+    7 * 24 * 60 * 60
 ]
 
-private var timeoutValues: [Int32] = [
+private var defaultTimeoutValues: [Int32] = [
 //CloudVeil end
     0,
     1,
@@ -157,7 +155,7 @@ private final class AutoremoveTimeoutSelectorItemNode: ActionSheetItemNode, UIPi
         if let availableValues = availableValues {
             self.timeoutValues = [0] + availableValues.filter({ $0 > 0 })
         } else {
-            self.timeoutValues = timeoutValuesInitial
+            self.timeoutValues = defaultTimeoutValues
         }
         
         super.init(theme: theme)
@@ -167,16 +165,15 @@ private final class AutoremoveTimeoutSelectorItemNode: ActionSheetItemNode, UIPi
         self.view.addSubview(self.pickerView)
         
         self.pickerView.reloadAllComponents()
-
         //CloudVeil start
-		timeoutValues.removeAll()
-		for i in 0 ..< timeoutValuesInitial.count {
-			if timeoutValuesInitial[i] >= MainController.shared.secretChatMinimumLength {
-				timeoutValues.append(timeoutValuesInitial[i])
-			}
-		}
-		//CloudVeil end
-        
+        timeoutValues.removeAll()
+        for i in 0 ..< timeoutValuesInitial.count {
+            if timeoutValuesInitial[i] >= MainController.shared.secretChatMinimumLength {
+                timeoutValues.append(timeoutValuesInitial[i])
+            }
+        }
+        //CloudVeil end
+
         var index: Int = 0
         for i in 0 ..< self.timeoutValues.count {
             if currentValue <= self.timeoutValues[i] {

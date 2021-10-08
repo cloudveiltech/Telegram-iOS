@@ -1,8 +1,8 @@
 import Foundation
 import UIKit
 import Display
+import SwiftSignalKit
 import TelegramCore
-import SyncCore
 import Postbox
 import AccountContext
 import GalleryUI
@@ -20,10 +20,10 @@ public func navigateToChatControllerImpl(_ params: NavigateToChatControllerParam
                 if let updateTextInputState = params.updateTextInputState {
                     controller.updateTextInputState(updateTextInputState)
                 }
-                if let subject = params.subject, case let .message(messageId, _) = subject {
+                if let subject = params.subject, case let .message(messageId, _, timecode) = subject {
                     let navigationController = params.navigationController
                     let animated = params.animated
-                    controller.navigateToMessage(messageLocation: .id(messageId), animated: isFirst, completion: { [weak navigationController, weak controller] in
+                    controller.navigateToMessage(messageLocation: .id(messageId, timecode), animated: isFirst, completion: { [weak navigationController, weak controller] in
                         if let navigationController = navigationController, let controller = controller {
                             let _ = navigationController.popToViewController(controller, animated: animated)
                         }
@@ -50,6 +50,9 @@ public func navigateToChatControllerImpl(_ params: NavigateToChatControllerParam
                 if params.activateInput {
                     controller.activateInput()
                 }
+                if params.changeColors {
+                    controller.presentThemeSelection()
+                }
                 if let botStart = params.botStart {
                     controller.updateChatPresentationInterfaceState(interactive: false, { state -> ChatPresentationInterfaceState in
                         return state.updatedBotStartPayload(botStart.payload)
@@ -71,7 +74,7 @@ public func navigateToChatControllerImpl(_ params: NavigateToChatControllerParam
                 })
             }
         } else {
-            controller = ChatControllerImpl(context: params.context, chatLocation: params.chatLocation, chatLocationContextHolder: params.chatLocationContextHolder, subject: params.subject, botStart: params.botStart, peekData: params.peekData, peerNearbyData: params.peerNearbyData)
+            controller = ChatControllerImpl(context: params.context, chatLocation: params.chatLocation, chatLocationContextHolder: params.chatLocationContextHolder, subject: params.subject, botStart: params.botStart, peekData: params.peekData, peerNearbyData: params.peerNearbyData, chatListFilter: params.chatListFilter)
         }
         controller.purposefulAction = params.purposefulAction
         if let search = params.activateMessageSearch {
@@ -116,6 +119,11 @@ public func navigateToChatControllerImpl(_ params: NavigateToChatControllerParam
         }
         if params.activateInput {
             controller.activateInput()
+        }
+        if params.changeColors {
+            Queue.mainQueue().after(0.1) {
+                controller.presentThemeSelection()
+            }
         }
     }
     

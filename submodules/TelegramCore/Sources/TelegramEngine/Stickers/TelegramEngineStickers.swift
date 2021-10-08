@@ -1,5 +1,4 @@
 import SwiftSignalKit
-import SyncCore
 import Postbox
 
 public extension TelegramEngine {
@@ -68,6 +67,10 @@ public extension TelegramEngine {
 
         public func stickerPacksAttachedToMedia(media: AnyMediaReference) -> Signal<[StickerPackReference], NoError> {
             return _internal_stickerPacksAttachedToMedia(account: self.account, media: media)
+        }
+        
+        public func uploadSticker(peer: Peer, resource: MediaResource, alt: String, dimensions: PixelDimensions, isAnimated: Bool) -> Signal<UploadStickerStatus, UploadStickerError> {
+            return _internal_uploadSticker(account: self.account, peer: peer, resource: resource, alt: alt, dimensions: dimensions, isAnimated: isAnimated)
         }
         
         public func createStickerSet(title: String, shortName: String, stickers: [ImportSticker], thumbnail: ImportSticker?, isAnimated: Bool, software: String?) -> Signal<CreateStickerSetStatus, CreateStickerSetError> {

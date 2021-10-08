@@ -3,7 +3,6 @@ import UIKit
 import AsyncDisplayKit
 import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import TelegramPresentationData
 import AccountContext
@@ -40,32 +39,31 @@ final class ComposeControllerNode: ASDisplayNode {
         self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
         
         var openCreateNewGroupImpl: (() -> Void)?
-        var openCreateNewSecretChatImpl: (() -> Void)?
         var openCreateContactImpl: (() -> Void)?
         var openCreateNewChannelImpl: (() -> Void)?
-        
+                        
         //CloudVeil start
-		var options = [
-			ContactListAdditionalOption(title: self.presentationData.strings.Compose_NewGroup, icon: .generic(UIImage(bundleImageName: "Contact List/CreateGroupActionIcon")!), action: {
+        var options = [
+            ContactListAdditionalOption(title: self.presentationData.strings.Compose_NewGroup, icon: .generic(UIImage(bundleImageName: "Contact List/CreateGroupActionIcon")!), action: {
                 openCreateNewGroupImpl?()
             })
-		]
-		if MainController.shared.isSecretChatAvailable {
-			options.append(
-				ContactListAdditionalOption(title: self.presentationData.strings.NewContact_Title, icon: .generic(UIImage(bundleImageName: "Contact List/AddMemberIcon")!), action: {
+        ]
+        if MainController.shared.isSecretChatAvailable {
+            options.append(
+                ContactListAdditionalOption(title: self.presentationData.strings.NewContact_Title, icon: .generic(UIImage(bundleImageName: "Contact List/AddMemberIcon")!), action: {
                     openCreateContactImpl?()
                 })
-			)
-		}
-		options.append(
-			ContactListAdditionalOption(title: self.presentationData.strings.Compose_NewChannel, icon: .generic(UIImage(bundleImageName: "Contact List/CreateChannelActionIcon")!), action: {
+            )
+        }
+        options.append(
+            ContactListAdditionalOption(title: self.presentationData.strings.Compose_NewChannel, icon: .generic(UIImage(bundleImageName: "Contact List/CreateChannelActionIcon")!), action: {
                 openCreateNewChannelImpl?()
             })
-		)
-		
-		self.contactListNode = ContactListNode(context: context, presentation: .single(.natural(options: options, includeChatList: false)), displayPermissionPlaceholder: false)
-		//CloudVeil end
-
+        )
+        
+        self.contactListNode = ContactListNode(context: context, presentation: .single(.natural(options: options, includeChatList: false)), displayPermissionPlaceholder: false)
+        //CloudVeil end
+        
         super.init()
         
         self.setViewBlock({
@@ -78,9 +76,6 @@ final class ComposeControllerNode: ASDisplayNode {
         
         openCreateNewGroupImpl = { [weak self] in
             self?.openCreateNewGroup?()
-        }
-        openCreateNewSecretChatImpl = { [weak self] in
-            self?.openCreateNewSecretChat?()
         }
         openCreateContactImpl = { [weak self] in
             self?.contactListNode.listNode.clearHighlightAnimated(true)

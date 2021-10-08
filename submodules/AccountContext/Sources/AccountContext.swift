@@ -3,7 +3,6 @@ import UIKit
 import AsyncDisplayKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import SwiftSignalKit
@@ -117,7 +116,7 @@ public final class AccountWithInfo: Equatable {
 
 public enum OpenURLContext {
     case generic
-    case chat
+    case chat(updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?)
 }
 
 public struct ChatAvailableMessageActionOptions: OptionSet {
@@ -146,10 +145,12 @@ public struct ChatAvailableMessageActionOptions: OptionSet {
 public struct ChatAvailableMessageActions {
     public var options: ChatAvailableMessageActionOptions
     public var banAuthor: Peer?
+    public var disableDelete: Bool
     
-    public init(options: ChatAvailableMessageActionOptions, banAuthor: Peer?) {
+    public init(options: ChatAvailableMessageActionOptions, banAuthor: Peer?, disableDelete: Bool) {
         self.options = options
         self.banAuthor = banAuthor
+        self.disableDelete = disableDelete
     }
 }
 
@@ -171,7 +172,7 @@ public enum ResolvedUrl {
     case inaccessiblePeer
     case botStart(peerId: PeerId, payload: String)
     case groupBotStart(peerId: PeerId, payload: String)
-    case channelMessage(peerId: PeerId, messageId: MessageId)
+    case channelMessage(peerId: PeerId, messageId: MessageId, timecode: Double?)
     case replyThreadMessage(replyThreadMessage: ChatReplyThreadMessage, messageId: MessageId)
     case stickerPack(name: String)
     case instantView(TelegramMediaWebpage, String?)
@@ -288,9 +289,11 @@ public final class NavigateToChatControllerParams {
     public let animated: Bool
     public let options: NavigationAnimationOptions
     public let parentGroupId: PeerGroupId?
+    public let chatListFilter: Int32?
+    public let changeColors: Bool
     public let completion: (ChatController) -> Void
     
-    public init(navigationController: NavigationController, chatController: ChatController? = nil, context: AccountContext, chatLocation: ChatLocation, chatLocationContextHolder: Atomic<ChatLocationContextHolder?> = Atomic<ChatLocationContextHolder?>(value: nil), subject: ChatControllerSubject? = nil, botStart: ChatControllerInitialBotStart? = nil, updateTextInputState: ChatTextInputState? = nil, activateInput: Bool = false, keepStack: NavigateToChatKeepStack = .default, useExisting: Bool = true, purposefulAction: (() -> Void)? = nil, scrollToEndIfExists: Bool = false, activateMessageSearch: (ChatSearchDomain, String)? = nil, peekData: ChatPeekTimeout? = nil, peerNearbyData: ChatPeerNearbyData? = nil, reportReason: ReportReason? = nil, animated: Bool = true, options: NavigationAnimationOptions = [], parentGroupId: PeerGroupId? = nil, completion: @escaping (ChatController) -> Void = { _ in }) {
+    public init(navigationController: NavigationController, chatController: ChatController? = nil, context: AccountContext, chatLocation: ChatLocation, chatLocationContextHolder: Atomic<ChatLocationContextHolder?> = Atomic<ChatLocationContextHolder?>(value: nil), subject: ChatControllerSubject? = nil, botStart: ChatControllerInitialBotStart? = nil, updateTextInputState: ChatTextInputState? = nil, activateInput: Bool = false, keepStack: NavigateToChatKeepStack = .default, useExisting: Bool = true, purposefulAction: (() -> Void)? = nil, scrollToEndIfExists: Bool = false, activateMessageSearch: (ChatSearchDomain, String)? = nil, peekData: ChatPeekTimeout? = nil, peerNearbyData: ChatPeerNearbyData? = nil, reportReason: ReportReason? = nil, animated: Bool = true, options: NavigationAnimationOptions = [], parentGroupId: PeerGroupId? = nil, chatListFilter: Int32? = nil, changeColors: Bool = false, completion: @escaping (ChatController) -> Void = { _ in }) {
         self.navigationController = navigationController
         self.chatController = chatController
         self.chatLocationContextHolder = chatLocationContextHolder
@@ -311,6 +314,8 @@ public final class NavigateToChatControllerParams {
         self.animated = animated
         self.options = options
         self.parentGroupId = parentGroupId
+        self.chatListFilter = chatListFilter
+        self.changeColors = changeColors
         self.completion = completion
     }
 }
@@ -466,6 +471,7 @@ public enum ContactListPeer: Equatable {
 
 public final class ContactSelectionControllerParams {
     public let context: AccountContext
+    public let updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?
     public let autoDismiss: Bool
     public let title: (PresentationStrings) -> String
     public let options: [ContactListAdditionalOption]
@@ -474,8 +480,9 @@ public final class ContactSelectionControllerParams {
     public let multipleSelection: Bool
     public let confirmation: (ContactListPeer) -> Signal<Bool, NoError>
     
-    public init(context: AccountContext, autoDismiss: Bool = true, title: @escaping (PresentationStrings) -> String, options: [ContactListAdditionalOption] = [], displayDeviceContacts: Bool = false, displayCallIcons: Bool = false, multipleSelection: Bool = false, confirmation: @escaping (ContactListPeer) -> Signal<Bool, NoError> = { _ in .single(true) }) {
+    public init(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, autoDismiss: Bool = true, title: @escaping (PresentationStrings) -> String, options: [ContactListAdditionalOption] = [], displayDeviceContacts: Bool = false, displayCallIcons: Bool = false, multipleSelection: Bool = false, confirmation: @escaping (ContactListPeer) -> Signal<Bool, NoError> = { _ in .single(true) }) {
         self.context = context
+        self.updatedPresentationData = updatedPresentationData
         self.autoDismiss = autoDismiss
         self.title = title
         self.options = options
@@ -496,7 +503,7 @@ public enum ChatListSearchFilter: Equatable {
     case peer(PeerId, Bool, String, String)
     case date(Int32?, Int32, String)
     
-    public var id: Int32 {
+    public var id: Int64 {
         switch self {
             case .chats:
                 return 0
@@ -511,9 +518,9 @@ public enum ChatListSearchFilter: Equatable {
             case .voice:
                 return 5
             case let .peer(peerId, _, _, _):
-                return peerId.id._internalGetInt32Value()
+                return peerId.id._internalGetInt64Value()
             case let .date(_, date, _):
-                return date
+                return Int64(date)
         }
     }
 }
@@ -533,7 +540,7 @@ public enum CreateGroupMode {
     case locatedGroup(latitude: Double, longitude: Double, address: String?)
 }
 
-public protocol AppLockContext: class {
+public protocol AppLockContext: AnyObject {
     var invalidAttempts: Signal<AccessChallengeAttempts?, NoError> { get }
     var autolockDeadline: Signal<Int32?, NoError> { get }
     
@@ -542,14 +549,14 @@ public protocol AppLockContext: class {
     func failedUnlockAttempt()
 }
 
-public protocol RecentSessionsController: class {
+public protocol RecentSessionsController: AnyObject {
 }
 
-public protocol SharedAccountContext: class {
+public protocol SharedAccountContext: AnyObject {
     var sharedContainerPath: String { get }
     var basePath: String { get }
     var mainWindow: Window1? { get }
-    var accountManager: AccountManager { get }
+    var accountManager: AccountManager<TelegramAccountManagerTypes> { get }
     var appLockContext: AppLockContext { get }
     
     var currentPresentationData: Atomic<PresentationData> { get }
@@ -569,10 +576,11 @@ public protocol SharedAccountContext: class {
     var callManager: PresentationCallManager? { get }
     var contactDataManager: DeviceContactDataManager? { get }
     
-    var activeAccounts: Signal<(primary: Account?, accounts: [(AccountRecordId, Account, Int32)], currentAuth: UnauthorizedAccount?), NoError> { get }
+    var activeAccountContexts: Signal<(primary: AccountContext?, accounts: [(AccountRecordId, AccountContext, Int32)], currentAuth: UnauthorizedAccount?), NoError> { get }
     var activeAccountsWithInfo: Signal<(primary: AccountRecordId?, accounts: [AccountWithInfo]), NoError> { get }
     
     var presentGlobalController: (ViewController, Any?) -> Void { get }
+    var presentCrossfadeController: () -> Void { get }
     
     func makeTempAccountContext(account: Account) -> AccountContext
     
@@ -584,7 +592,7 @@ public protocol SharedAccountContext: class {
     func openChatMessage(_ params: OpenChatMessageParams) -> Bool
     func messageFromPreloadedChatHistoryViewForLocation(id: MessageId, location: ChatHistoryLocationInput, context: AccountContext, chatLocation: ChatLocation, subject: ChatControllerSubject?, chatLocationContextHolder: Atomic<ChatLocationContextHolder?>, tagMask: MessageTags?) -> Signal<(MessageIndex?, Bool), NoError>
     func makeOverlayAudioPlayerController(context: AccountContext, peerId: PeerId, type: MediaManagerPlayerType, initialMessageId: MessageId, initialOrder: MusicPlaybackSettingsOrder, playlistLocation: SharedMediaPlaylistLocation?, parentNavigationController: NavigationController?) -> ViewController & OverlayAudioPlayerController
-    func makePeerInfoController(context: AccountContext, peer: Peer, mode: PeerInfoControllerMode, avatarInitiallyExpanded: Bool, fromChat: Bool) -> ViewController?
+    func makePeerInfoController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?, peer: Peer, mode: PeerInfoControllerMode, avatarInitiallyExpanded: Bool, fromChat: Bool) -> ViewController?
     func makeChannelAdminController(context: AccountContext, peerId: PeerId, adminId: PeerId, initialParticipant: ChannelParticipant) -> ViewController?
     func makeDeviceContactInfoController(context: AccountContext, subject: DeviceContactInfoSubject, completed: (() -> Void)?, cancelled: (() -> Void)?) -> ViewController
     func makePeersNearbyController(context: AccountContext) -> ViewController
@@ -700,16 +708,16 @@ public final class TonContext {
 public protocol ComposeController: ViewController {
 }
 
-public protocol ChatLocationContextHolder: class {
+public protocol ChatLocationContextHolder: AnyObject {
 }
 
-public protocol AccountGroupCallContext: class {
+public protocol AccountGroupCallContext: AnyObject {
 }
 
-public protocol AccountGroupCallContextCache: class {
+public protocol AccountGroupCallContextCache: AnyObject {
 }
 
-public protocol AccountContext: class {
+public protocol AccountContext: AnyObject {
     var sharedContext: SharedAccountContext { get }
     var account: Account { get }
     var engine: TelegramEngine { get }
@@ -734,9 +742,10 @@ public protocol AccountContext: class {
     
     func chatLocationInput(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>) -> ChatLocationInput
     func chatLocationOutgoingReadState(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>) -> Signal<MessageId?, NoError>
+    func chatLocationUnreadCount(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>) -> Signal<Int, NoError>
     func applyMaxReadIndex(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>, messageIndex: MessageIndex)
     
     func scheduleGroupCall(peerId: PeerId)
-    func joinGroupCall(peerId: PeerId, invite: String?, requestJoinAsPeerId: ((@escaping (PeerId?) -> Void) -> Void)?, activeCall: CachedChannelData.ActiveCall)
+    func joinGroupCall(peerId: PeerId, invite: String?, requestJoinAsPeerId: ((@escaping (PeerId?) -> Void) -> Void)?, activeCall: EngineGroupCallDescription)
     func requestCall(peerId: PeerId, isVideo: Bool, completion: @escaping () -> Void)
 }

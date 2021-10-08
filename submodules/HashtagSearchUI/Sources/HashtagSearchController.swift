@@ -2,7 +2,6 @@ import Foundation
 import UIKit
 import Display
 import TelegramCore
-import SyncCore
 import Postbox
 import SwiftSignalKit
 import TelegramPresentationData
@@ -49,15 +48,16 @@ public final class HashtagSearchController: TelegramBaseController {
             return result.messages.map({ .message($0, RenderedPeer(message: $0), result.readStates[$0.id.peerId], chatListPresentationData, result.totalCount, nil, false) })
         }
         let interaction = ChatListNodeInteraction(activateSearch: {
-        }, peerSelected: { _, _ in
+        }, peerSelected: { _, _, _ in
         }, disabledPeerSelected: { _ in
         }, togglePeerSelected: { _ in
+        }, togglePeersSelection: { _, _ in
         }, additionalCategorySelected: { _ in
         }, messageSelected: { [weak self] peer, message, _ in
             if let strongSelf = self {
                 strongSelf.openMessageFromSearchDisposable.set((storedMessageFromSearchPeer(account: strongSelf.context.account, peer: peer) |> deliverOnMainQueue).start(next: { actualPeerId in
                     if let strongSelf = self, let navigationController = strongSelf.navigationController as? NavigationController {
-                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(actualPeerId), subject: message.id.peerId == actualPeerId ? .message(id: message.id, highlight: true) : nil, keepStack: .always))
+                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(actualPeerId), subject: message.id.peerId == actualPeerId ? .message(id: message.id, highlight: true, timecode: nil) : nil, keepStack: .always))
                     }
                 }))
                 strongSelf.controllerNode.listNode.clearHighlightAnimated(true)

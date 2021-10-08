@@ -8,6 +8,7 @@ swift_library(
     ]),
     deps = [
     	"//submodules/Postbox:Postbox",
+        "//submodules/TelegramCore:TelegramCore",
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/TelegramPermissions:TelegramPermissions",
     ],

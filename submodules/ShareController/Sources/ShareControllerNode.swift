@@ -5,7 +5,6 @@ import AsyncDisplayKit
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import AccountContext
 import TelegramIntents
@@ -81,9 +80,9 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
     
     private let presetText: String?
     
-    init(sharedContext: SharedAccountContext, presetText: String?, defaultAction: ShareControllerAction?, requestLayout: @escaping (ContainedViewLayoutTransition) -> Void, presentError: @escaping (String?, String) -> Void, externalShare: Bool, immediateExternalShare: Bool, immediatePeerId: PeerId?, fromForeignApp: Bool, forceTheme: PresentationTheme?, segmentedValues: [ShareControllerSegmentedValue]?) {
+    init(sharedContext: SharedAccountContext, presentationData: PresentationData, presetText: String?, defaultAction: ShareControllerAction?, requestLayout: @escaping (ContainedViewLayoutTransition) -> Void, presentError: @escaping (String?, String) -> Void, externalShare: Bool, immediateExternalShare: Bool, immediatePeerId: PeerId?, fromForeignApp: Bool, forceTheme: PresentationTheme?, segmentedValues: [ShareControllerSegmentedValue]?) {
         self.sharedContext = sharedContext
-        self.presentationData = sharedContext.currentPresentationData.with { $0 }
+        self.presentationData = presentationData
         self.forceTheme = forceTheme
         self.externalShare = externalShare
         self.immediateExternalShare = immediateExternalShare
@@ -379,7 +378,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
                         let animation = contentNode.layer.makeAnimation(from: 0.0 as NSNumber, to: 1.0 as NSNumber, keyPath: "opacity", timingFunction: CAMediaTimingFunctionName.easeInEaseOut.rawValue, duration: 0.35)
                         animation.fillMode = .both
                         if !fastOut {
-                            animation.beginTime = CACurrentMediaTime() + 0.1
+                            animation.beginTime = contentNode.layer.convertTime(CACurrentMediaTime(), from: nil) + 0.1
                         }
                         contentNode.layer.add(animation, forKey: "opacity")
                     }
@@ -743,7 +742,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
         }, extendedInitialReveal: self.presetText != nil, segmentedValues: self.segmentedValues)
         self.peersContentNode = peersContentNode
         peersContentNode.openSearch = { [weak self] in
-            let _ = (recentlySearchedPeers(postbox: context.account.postbox)
+            let _ = (context.engine.peers.recentlySearchedPeers()
             |> take(1)
             |> deliverOnMainQueue).start(next: { peers in
                 if let strongSelf = self {
@@ -926,48 +925,60 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
         }))
     }
     
-    func transitionToProgressWithValue(signal: Signal<Float?, NoError>) {
+    func transitionToProgressWithValue(signal: Signal<Float?, NoError>, dismissImmediately: Bool = false) {
         self.inputFieldNode.deactivateInput()
-        let transition = ContainedViewLayoutTransition.animated(duration: 0.12, curve: .easeInOut)
-        transition.updateAlpha(node: self.actionButtonNode, alpha: 0.0)
-        transition.updateAlpha(node: self.inputFieldNode, alpha: 0.0)
-        transition.updateAlpha(node: self.actionSeparatorNode, alpha: 0.0)
-        transition.updateAlpha(node: self.actionsBackgroundNode, alpha: 0.0)
         
-        self.transitionToContentNode(ShareLoadingContainerNode(theme: self.presentationData.theme, forceNativeAppearance: true), fastOut: true)
-        
-        let timestamp = CACurrentMediaTime()
-        var wasDone = false
-        let doneImpl: (Bool) -> Void = { [weak self] shouldDelay in
-            let minDelay: Double = shouldDelay ? 0.9 : 0.6
-            let delay = max(minDelay, (timestamp + minDelay) - CACurrentMediaTime())
-            Queue.mainQueue().after(delay, {
+        if dismissImmediately {
+            self.animateOut(shared: true, completion: {})
+            
+            self.shareDisposable.set((signal
+            |> deliverOnMainQueue).start(next: { _ in
+
+            }, completed: { [weak self] in
                 if let strongSelf = self {
-                    strongSelf.animateOut(shared: true, completion: {
-                        self?.dismiss?(true)
-                    })
+                    strongSelf.dismiss?(true)
                 }
-            })
+            }))
+        } else {
+            let transition = ContainedViewLayoutTransition.animated(duration: 0.12, curve: .easeInOut)
+            transition.updateAlpha(node: self.actionButtonNode, alpha: 0.0)
+            transition.updateAlpha(node: self.inputFieldNode, alpha: 0.0)
+            transition.updateAlpha(node: self.actionSeparatorNode, alpha: 0.0)
+            transition.updateAlpha(node: self.actionsBackgroundNode, alpha: 0.0)
+            
+            self.transitionToContentNode(ShareLoadingContainerNode(theme: self.presentationData.theme, forceNativeAppearance: true), fastOut: true)
+            
+            let timestamp = CACurrentMediaTime()
+            var wasDone = false
+            let doneImpl: (Bool) -> Void = { [weak self] shouldDelay in
+                let minDelay: Double = shouldDelay ? 0.9 : 0.6
+                let delay = max(minDelay, (timestamp + minDelay) - CACurrentMediaTime())
+                Queue.mainQueue().after(delay, {
+                    if let strongSelf = self {
+                        strongSelf.animateOut(shared: true, completion: {
+                            self?.dismiss?(true)
+                        })
+                    }
+                })
+            }
+            self.shareDisposable.set((signal
+            |> deliverOnMainQueue).start(next: { [weak self] status in
+                guard let strongSelf = self, let contentNode = strongSelf.contentNode as? ShareLoadingContainerNode else {
+                    return
+                }
+                if let status = status {
+                    contentNode.state = .progress(status)
+                }
+            }, completed: { [weak self] in
+                guard let strongSelf = self, let contentNode = strongSelf.contentNode as? ShareLoadingContainerNode else {
+                    return
+                }
+                contentNode.state = .done
+                if !wasDone {
+                    wasDone = true
+                    doneImpl(true)
+                }
+            }))
         }
-        self.shareDisposable.set((signal
-        |> deliverOnMainQueue).start(next: { [weak self] status in
-            guard let strongSelf = self, let contentNode = strongSelf.contentNode as? ShareLoadingContainerNode else {
-                return
-            }
-            if let status = status {
-                contentNode.state = .progress(status)
-            } else {
-                
-            }
-        }, completed: { [weak self] in
-            guard let strongSelf = self, let contentNode = strongSelf.contentNode as? ShareLoadingContainerNode else {
-                return
-            }
-            contentNode.state = .done
-            if !wasDone {
-                wasDone = true
-                doneImpl(true)
-            }
-        }))
     }
 }

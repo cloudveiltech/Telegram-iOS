@@ -916,7 +916,7 @@ public struct account {
     }
     public enum Themes: TypeConstructorDescription {
         case themesNotModified
-        case themes(hash: Int32, themes: [Api.Theme])
+        case themes(hash: Int64, themes: [Api.Theme])
     
     public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
     switch self {
@@ -928,9 +928,9 @@ public struct account {
                     break
                 case .themes(let hash, let themes):
                     if boxed {
-                        buffer.appendInt32(2137482273)
+                        buffer.appendInt32(-1707242387)
                     }
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     buffer.appendInt32(481674261)
                     buffer.appendInt32(Int32(themes.count))
                     for item in themes {
@@ -953,8 +953,8 @@ public struct account {
             return Api.account.Themes.themesNotModified
         }
         public static func parse_themes(_ reader: BufferReader) -> Themes? {
-            var _1: Int32?
-            _1 = reader.readInt32()
+            var _1: Int64?
+            _1 = reader.readInt64()
             var _2: [Api.Theme]?
             if let _ = reader.readInt32() {
                 _2 = Api.parseVector(reader, elementSignature: 0, elementType: Api.Theme.self)
@@ -972,7 +972,7 @@ public struct account {
     }
     public enum WallPapers: TypeConstructorDescription {
         case wallPapersNotModified
-        case wallPapers(hash: Int32, wallpapers: [Api.WallPaper])
+        case wallPapers(hash: Int64, wallpapers: [Api.WallPaper])
     
     public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
     switch self {
@@ -984,9 +984,9 @@ public struct account {
                     break
                 case .wallPapers(let hash, let wallpapers):
                     if boxed {
-                        buffer.appendInt32(1881892265)
+                        buffer.appendInt32(-842824308)
                     }
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     buffer.appendInt32(481674261)
                     buffer.appendInt32(Int32(wallpapers.count))
                     for item in wallpapers {
@@ -1009,8 +1009,8 @@ public struct account {
             return Api.account.WallPapers.wallPapersNotModified
         }
         public static func parse_wallPapers(_ reader: BufferReader) -> WallPapers? {
-            var _1: Int32?
-            _1 = reader.readInt32()
+            var _1: Int64?
+            _1 = reader.readInt64()
             var _2: [Api.WallPaper]?
             if let _ = reader.readInt32() {
                 _2 = Api.parseVector(reader, elementSignature: 0, elementType: Api.WallPaper.self)
@@ -1172,6 +1172,72 @@ public struct account {
         }
     
     }
+    public enum ResetPasswordResult: TypeConstructorDescription {
+        case resetPasswordFailedWait(retryDate: Int32)
+        case resetPasswordRequestedWait(untilDate: Int32)
+        case resetPasswordOk
+    
+    public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
+    switch self {
+                case .resetPasswordFailedWait(let retryDate):
+                    if boxed {
+                        buffer.appendInt32(-478701471)
+                    }
+                    serializeInt32(retryDate, buffer: buffer, boxed: false)
+                    break
+                case .resetPasswordRequestedWait(let untilDate):
+                    if boxed {
+                        buffer.appendInt32(-370148227)
+                    }
+                    serializeInt32(untilDate, buffer: buffer, boxed: false)
+                    break
+                case .resetPasswordOk:
+                    if boxed {
+                        buffer.appendInt32(-383330754)
+                    }
+                    
+                    break
+    }
+    }
+    
+    public func descriptionFields() -> (String, [(String, Any)]) {
+        switch self {
+                case .resetPasswordFailedWait(let retryDate):
+                return ("resetPasswordFailedWait", [("retryDate", retryDate)])
+                case .resetPasswordRequestedWait(let untilDate):
+                return ("resetPasswordRequestedWait", [("untilDate", untilDate)])
+                case .resetPasswordOk:
+                return ("resetPasswordOk", [])
+    }
+    }
+    
+        public static func parse_resetPasswordFailedWait(_ reader: BufferReader) -> ResetPasswordResult? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            let _c1 = _1 != nil
+            if _c1 {
+                return Api.account.ResetPasswordResult.resetPasswordFailedWait(retryDate: _1!)
+            }
+            else {
+                return nil
+            }
+        }
+        public static func parse_resetPasswordRequestedWait(_ reader: BufferReader) -> ResetPasswordResult? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            let _c1 = _1 != nil
+            if _c1 {
+                return Api.account.ResetPasswordResult.resetPasswordRequestedWait(untilDate: _1!)
+            }
+            else {
+                return nil
+            }
+        }
+        public static func parse_resetPasswordOk(_ reader: BufferReader) -> ResetPasswordResult? {
+            return Api.account.ResetPasswordResult.resetPasswordOk
+        }
+    
+    }
     public enum ContentSettings: TypeConstructorDescription {
         case contentSettings(flags: Int32)
     
@@ -1199,6 +1265,62 @@ public struct account {
             let _c1 = _1 != nil
             if _c1 {
                 return Api.account.ContentSettings.contentSettings(flags: _1!)
+            }
+            else {
+                return nil
+            }
+        }
+    
+    }
+    public enum ChatThemes: TypeConstructorDescription {
+        case chatThemesNotModified
+        case chatThemes(hash: Int32, themes: [Api.ChatTheme])
+    
+    public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
+    switch self {
+                case .chatThemesNotModified:
+                    if boxed {
+                        buffer.appendInt32(-535699004)
+                    }
+                    
+                    break
+                case .chatThemes(let hash, let themes):
+                    if boxed {
+                        buffer.appendInt32(-28524867)
+                    }
+                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(themes.count))
+                    for item in themes {
+                        item.serialize(buffer, true)
+                    }
+                    break
+    }
+    }
+    
+    public func descriptionFields() -> (String, [(String, Any)]) {
+        switch self {
+                case .chatThemesNotModified:
+                return ("chatThemesNotModified", [])
+                case .chatThemes(let hash, let themes):
+                return ("chatThemes", [("hash", hash), ("themes", themes)])
+    }
+    }
+    
+        public static func parse_chatThemesNotModified(_ reader: BufferReader) -> ChatThemes? {
+            return Api.account.ChatThemes.chatThemesNotModified
+        }
+        public static func parse_chatThemes(_ reader: BufferReader) -> ChatThemes? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            var _2: [Api.ChatTheme]?
+            if let _ = reader.readInt32() {
+                _2 = Api.parseVector(reader, elementSignature: 0, elementType: Api.ChatTheme.self)
+            }
+            let _c1 = _1 != nil
+            let _c2 = _2 != nil
+            if _c1 && _c2 {
+                return Api.account.ChatThemes.chatThemes(hash: _1!, themes: _2!)
             }
             else {
                 return nil
@@ -1325,13 +1447,13 @@ public struct account {
     
     }
     public enum Password: TypeConstructorDescription {
-        case password(flags: Int32, currentAlgo: Api.PasswordKdfAlgo?, srpB: Buffer?, srpId: Int64?, hint: String?, emailUnconfirmedPattern: String?, newAlgo: Api.PasswordKdfAlgo, newSecureAlgo: Api.SecurePasswordKdfAlgo, secureRandom: Buffer)
+        case password(flags: Int32, currentAlgo: Api.PasswordKdfAlgo?, srpB: Buffer?, srpId: Int64?, hint: String?, emailUnconfirmedPattern: String?, newAlgo: Api.PasswordKdfAlgo, newSecureAlgo: Api.SecurePasswordKdfAlgo, secureRandom: Buffer, pendingResetDate: Int32?)
     
     public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
     switch self {
-                case .password(let flags, let currentAlgo, let srpB, let srpId, let hint, let emailUnconfirmedPattern, let newAlgo, let newSecureAlgo, let secureRandom):
+                case .password(let flags, let currentAlgo, let srpB, let srpId, let hint, let emailUnconfirmedPattern, let newAlgo, let newSecureAlgo, let secureRandom, let pendingResetDate):
                     if boxed {
-                        buffer.appendInt32(-1390001672)
+                        buffer.appendInt32(408623183)
                     }
                     serializeInt32(flags, buffer: buffer, boxed: false)
                     if Int(flags) & Int(1 << 2) != 0 {currentAlgo!.serialize(buffer, true)}
@@ -1342,14 +1464,15 @@ public struct account {
                     newAlgo.serialize(buffer, true)
                     newSecureAlgo.serialize(buffer, true)
                     serializeBytes(secureRandom, buffer: buffer, boxed: false)
+                    if Int(flags) & Int(1 << 5) != 0 {serializeInt32(pendingResetDate!, buffer: buffer, boxed: false)}
                     break
     }
     }
     
     public func descriptionFields() -> (String, [(String, Any)]) {
         switch self {
-                case .password(let flags, let currentAlgo, let srpB, let srpId, let hint, let emailUnconfirmedPattern, let newAlgo, let newSecureAlgo, let secureRandom):
-                return ("password", [("flags", flags), ("currentAlgo", currentAlgo), ("srpB", srpB), ("srpId", srpId), ("hint", hint), ("emailUnconfirmedPattern", emailUnconfirmedPattern), ("newAlgo", newAlgo), ("newSecureAlgo", newSecureAlgo), ("secureRandom", secureRandom)])
+                case .password(let flags, let currentAlgo, let srpB, let srpId, let hint, let emailUnconfirmedPattern, let newAlgo, let newSecureAlgo, let secureRandom, let pendingResetDate):
+                return ("password", [("flags", flags), ("currentAlgo", currentAlgo), ("srpB", srpB), ("srpId", srpId), ("hint", hint), ("emailUnconfirmedPattern", emailUnconfirmedPattern), ("newAlgo", newAlgo), ("newSecureAlgo", newSecureAlgo), ("secureRandom", secureRandom), ("pendingResetDate", pendingResetDate)])
     }
     }
     
@@ -1378,6 +1501,8 @@ public struct account {
             }
             var _9: Buffer?
             _9 = parseBytes(reader)
+            var _10: Int32?
+            if Int(_1!) & Int(1 << 5) != 0 {_10 = reader.readInt32() }
             let _c1 = _1 != nil
             let _c2 = (Int(_1!) & Int(1 << 2) == 0) || _2 != nil
             let _c3 = (Int(_1!) & Int(1 << 2) == 0) || _3 != nil
@@ -1387,8 +1512,9 @@ public struct account {
             let _c7 = _7 != nil
             let _c8 = _8 != nil
             let _c9 = _9 != nil
-            if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 && _c7 && _c8 && _c9 {
-                return Api.account.Password.password(flags: _1!, currentAlgo: _2, srpB: _3, srpId: _4, hint: _5, emailUnconfirmedPattern: _6, newAlgo: _7!, newSecureAlgo: _8!, secureRandom: _9!)
+            let _c10 = (Int(_1!) & Int(1 << 5) == 0) || _10 != nil
+            if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 && _c7 && _c8 && _c9 && _c10 {
+                return Api.account.Password.password(flags: _1!, currentAlgo: _2, srpB: _3, srpId: _4, hint: _5, emailUnconfirmedPattern: _6, newAlgo: _7!, newSecureAlgo: _8!, secureRandom: _9!, pendingResetDate: _10)
             }
             else {
                 return nil
@@ -1953,16 +2079,16 @@ public extension Api {
                     })
                 }
             
-                public static func getDialogs(flags: Int32, folderId: Int32?, offsetDate: Int32, offsetId: Int32, offsetPeer: Api.InputPeer, limit: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Dialogs>) {
+                public static func getDialogs(flags: Int32, folderId: Int32?, offsetDate: Int32, offsetId: Int32, offsetPeer: Api.InputPeer, limit: Int32, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Dialogs>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-1594999949)
+                    buffer.appendInt32(-1594569905)
                     serializeInt32(flags, buffer: buffer, boxed: false)
                     if Int(flags) & Int(1 << 1) != 0 {serializeInt32(folderId!, buffer: buffer, boxed: false)}
                     serializeInt32(offsetDate, buffer: buffer, boxed: false)
                     serializeInt32(offsetId, buffer: buffer, boxed: false)
                     offsetPeer.serialize(buffer, true)
                     serializeInt32(limit, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getDialogs", parameters: [("flags", flags), ("folderId", folderId), ("offsetDate", offsetDate), ("offsetId", offsetId), ("offsetPeer", offsetPeer), ("limit", limit), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Dialogs? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.Dialogs?
@@ -1973,9 +2099,9 @@ public extension Api {
                     })
                 }
             
-                public static func getHistory(peer: Api.InputPeer, offsetId: Int32, offsetDate: Int32, addOffset: Int32, limit: Int32, maxId: Int32, minId: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Messages>) {
+                public static func getHistory(peer: Api.InputPeer, offsetId: Int32, offsetDate: Int32, addOffset: Int32, limit: Int32, maxId: Int32, minId: Int32, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Messages>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-591691168)
+                    buffer.appendInt32(1143203525)
                     peer.serialize(buffer, true)
                     serializeInt32(offsetId, buffer: buffer, boxed: false)
                     serializeInt32(offsetDate, buffer: buffer, boxed: false)
@@ -1983,7 +2109,7 @@ public extension Api {
                     serializeInt32(limit, buffer: buffer, boxed: false)
                     serializeInt32(maxId, buffer: buffer, boxed: false)
                     serializeInt32(minId, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getHistory", parameters: [("peer", peer), ("offsetId", offsetId), ("offsetDate", offsetDate), ("addOffset", addOffset), ("limit", limit), ("maxId", maxId), ("minId", minId), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Messages? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.Messages?
@@ -1994,9 +2120,9 @@ public extension Api {
                     })
                 }
             
-                public static func search(flags: Int32, peer: Api.InputPeer, q: String, fromId: Api.InputPeer?, topMsgId: Int32?, filter: Api.MessagesFilter, minDate: Int32, maxDate: Int32, offsetId: Int32, addOffset: Int32, limit: Int32, maxId: Int32, minId: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Messages>) {
+                public static func search(flags: Int32, peer: Api.InputPeer, q: String, fromId: Api.InputPeer?, topMsgId: Int32?, filter: Api.MessagesFilter, minDate: Int32, maxDate: Int32, offsetId: Int32, addOffset: Int32, limit: Int32, maxId: Int32, minId: Int32, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Messages>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(204812012)
+                    buffer.appendInt32(-1593989278)
                     serializeInt32(flags, buffer: buffer, boxed: false)
                     peer.serialize(buffer, true)
                     serializeString(q, buffer: buffer, boxed: false)
@@ -2010,7 +2136,7 @@ public extension Api {
                     serializeInt32(limit, buffer: buffer, boxed: false)
                     serializeInt32(maxId, buffer: buffer, boxed: false)
                     serializeInt32(minId, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.search", parameters: [("flags", flags), ("peer", peer), ("q", q), ("fromId", fromId), ("topMsgId", topMsgId), ("filter", filter), ("minDate", minDate), ("maxDate", maxDate), ("offsetId", offsetId), ("addOffset", addOffset), ("limit", limit), ("maxId", maxId), ("minId", minId), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Messages? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.Messages?
@@ -2229,13 +2355,13 @@ public extension Api {
                     })
                 }
             
-                public static func getChats(id: [Int32]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Chats>) {
+                public static func getChats(id: [Int64]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Chats>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(1013621127)
+                    buffer.appendInt32(1240027791)
                     buffer.appendInt32(481674261)
                     buffer.appendInt32(Int32(id.count))
                     for item in id {
-                        serializeInt32(item, buffer: buffer, boxed: false)
+                        serializeInt64(item, buffer: buffer, boxed: false)
                     }
                     return (FunctionDescription(name: "messages.getChats", parameters: [("id", id)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Chats? in
                         let reader = BufferReader(buffer)
@@ -2247,10 +2373,10 @@ public extension Api {
                     })
                 }
             
-                public static func getFullChat(chatId: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.ChatFull>) {
+                public static func getFullChat(chatId: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.ChatFull>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(998448230)
-                    serializeInt32(chatId, buffer: buffer, boxed: false)
+                    buffer.appendInt32(-1364194508)
+                    serializeInt64(chatId, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getFullChat", parameters: [("chatId", chatId)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.ChatFull? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.ChatFull?
@@ -2261,10 +2387,10 @@ public extension Api {
                     })
                 }
             
-                public static func editChatTitle(chatId: Int32, title: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
+                public static func editChatTitle(chatId: Int64, title: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-599447467)
-                    serializeInt32(chatId, buffer: buffer, boxed: false)
+                    buffer.appendInt32(1937260541)
+                    serializeInt64(chatId, buffer: buffer, boxed: false)
                     serializeString(title, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.editChatTitle", parameters: [("chatId", chatId), ("title", title)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
                         let reader = BufferReader(buffer)
@@ -2276,10 +2402,10 @@ public extension Api {
                     })
                 }
             
-                public static func editChatPhoto(chatId: Int32, photo: Api.InputChatPhoto) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
+                public static func editChatPhoto(chatId: Int64, photo: Api.InputChatPhoto) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-900957736)
-                    serializeInt32(chatId, buffer: buffer, boxed: false)
+                    buffer.appendInt32(903730804)
+                    serializeInt64(chatId, buffer: buffer, boxed: false)
                     photo.serialize(buffer, true)
                     return (FunctionDescription(name: "messages.editChatPhoto", parameters: [("chatId", chatId), ("photo", photo)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
                         let reader = BufferReader(buffer)
@@ -2291,10 +2417,10 @@ public extension Api {
                     })
                 }
             
-                public static func addChatUser(chatId: Int32, userId: Api.InputUser, fwdLimit: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
+                public static func addChatUser(chatId: Int64, userId: Api.InputUser, fwdLimit: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-106911223)
-                    serializeInt32(chatId, buffer: buffer, boxed: false)
+                    buffer.appendInt32(-230206493)
+                    serializeInt64(chatId, buffer: buffer, boxed: false)
                     userId.serialize(buffer, true)
                     serializeInt32(fwdLimit, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.addChatUser", parameters: [("chatId", chatId), ("userId", userId), ("fwdLimit", fwdLimit)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
@@ -2307,11 +2433,11 @@ public extension Api {
                     })
                 }
             
-                public static func deleteChatUser(flags: Int32, chatId: Int32, userId: Api.InputUser) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
+                public static func deleteChatUser(flags: Int32, chatId: Int64, userId: Api.InputUser) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-986430054)
+                    buffer.appendInt32(-1575461717)
                     serializeInt32(flags, buffer: buffer, boxed: false)
-                    serializeInt32(chatId, buffer: buffer, boxed: false)
+                    serializeInt64(chatId, buffer: buffer, boxed: false)
                     userId.serialize(buffer, true)
                     return (FunctionDescription(name: "messages.deleteChatUser", parameters: [("flags", flags), ("chatId", chatId), ("userId", userId)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
                         let reader = BufferReader(buffer)
@@ -2531,11 +2657,11 @@ public extension Api {
                     })
                 }
             
-                public static func getStickers(emoticon: String, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Stickers>) {
+                public static func getStickers(emoticon: String, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Stickers>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(71126828)
+                    buffer.appendInt32(-710552671)
                     serializeString(emoticon, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getStickers", parameters: [("emoticon", emoticon), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Stickers? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.Stickers?
@@ -2546,10 +2672,10 @@ public extension Api {
                     })
                 }
             
-                public static func getAllStickers(hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.AllStickers>) {
+                public static func getAllStickers(hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.AllStickers>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(479598769)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    buffer.appendInt32(-1197432408)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getAllStickers", parameters: [("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.AllStickers? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.AllStickers?
@@ -2705,10 +2831,10 @@ public extension Api {
                     })
                 }
             
-                public static func editChatAdmin(chatId: Int32, userId: Api.InputUser, isAdmin: Api.Bool) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+                public static func editChatAdmin(chatId: Int64, userId: Api.InputUser, isAdmin: Api.Bool) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-1444503762)
-                    serializeInt32(chatId, buffer: buffer, boxed: false)
+                    buffer.appendInt32(-1470377534)
+                    serializeInt64(chatId, buffer: buffer, boxed: false)
                     userId.serialize(buffer, true)
                     isAdmin.serialize(buffer, true)
                     return (FunctionDescription(name: "messages.editChatAdmin", parameters: [("chatId", chatId), ("userId", userId), ("isAdmin", isAdmin)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
@@ -2721,10 +2847,10 @@ public extension Api {
                     })
                 }
             
-                public static func migrateChat(chatId: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
+                public static func migrateChat(chatId: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(363051235)
-                    serializeInt32(chatId, buffer: buffer, boxed: false)
+                    buffer.appendInt32(-1568189671)
+                    serializeInt64(chatId, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.migrateChat", parameters: [("chatId", chatId)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
                         let reader = BufferReader(buffer)
                         var result: Api.Updates?
@@ -2793,10 +2919,10 @@ public extension Api {
                     })
                 }
             
-                public static func getSavedGifs(hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.SavedGifs>) {
+                public static func getSavedGifs(hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.SavedGifs>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-2084618926)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    buffer.appendInt32(1559270965)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getSavedGifs", parameters: [("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.SavedGifs? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.SavedGifs?
@@ -3037,10 +3163,10 @@ public extension Api {
                     })
                 }
             
-                public static func getFeaturedStickers(hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.FeaturedStickers>) {
+                public static func getFeaturedStickers(hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.FeaturedStickers>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(766298703)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    buffer.appendInt32(1685588756)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getFeaturedStickers", parameters: [("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.FeaturedStickers? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.FeaturedStickers?
@@ -3069,11 +3195,11 @@ public extension Api {
                     })
                 }
             
-                public static func getRecentStickers(flags: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.RecentStickers>) {
+                public static func getRecentStickers(flags: Int32, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.RecentStickers>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(1587647177)
+                    buffer.appendInt32(-1649852357)
                     serializeInt32(flags, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getRecentStickers", parameters: [("flags", flags), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.RecentStickers? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.RecentStickers?
@@ -3130,10 +3256,10 @@ public extension Api {
                     })
                 }
             
-                public static func getMaskStickers(hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.AllStickers>) {
+                public static func getMaskStickers(hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.AllStickers>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(1706608543)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    buffer.appendInt32(1678738104)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getMaskStickers", parameters: [("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.AllStickers? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.AllStickers?
@@ -3224,11 +3350,11 @@ public extension Api {
                     })
                 }
             
-                public static func getCommonChats(userId: Api.InputUser, maxId: Int32, limit: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Chats>) {
+                public static func getCommonChats(userId: Api.InputUser, maxId: Int64, limit: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Chats>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(218777796)
+                    buffer.appendInt32(-468934396)
                     userId.serialize(buffer, true)
-                    serializeInt32(maxId, buffer: buffer, boxed: false)
+                    serializeInt64(maxId, buffer: buffer, boxed: false)
                     serializeInt32(limit, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getCommonChats", parameters: [("userId", userId), ("maxId", maxId), ("limit", limit)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Chats? in
                         let reader = BufferReader(buffer)
@@ -3240,13 +3366,13 @@ public extension Api {
                     })
                 }
             
-                public static func getAllChats(exceptIds: [Int32]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Chats>) {
+                public static func getAllChats(exceptIds: [Int64]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Chats>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-341307408)
+                    buffer.appendInt32(-2023787330)
                     buffer.appendInt32(481674261)
                     buffer.appendInt32(Int32(exceptIds.count))
                     for item in exceptIds {
-                        serializeInt32(item, buffer: buffer, boxed: false)
+                        serializeInt64(item, buffer: buffer, boxed: false)
                     }
                     return (FunctionDescription(name: "messages.getAllChats", parameters: [("exceptIds", exceptIds)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Chats? in
                         let reader = BufferReader(buffer)
@@ -3390,10 +3516,10 @@ public extension Api {
                     })
                 }
             
-                public static func getFavedStickers(hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.FavedStickers>) {
+                public static func getFavedStickers(hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.FavedStickers>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(567151374)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    buffer.appendInt32(82946729)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getFavedStickers", parameters: [("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.FavedStickers? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.FavedStickers?
@@ -3452,12 +3578,12 @@ public extension Api {
                     })
                 }
             
-                public static func getRecentLocations(peer: Api.InputPeer, limit: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Messages>) {
+                public static func getRecentLocations(peer: Api.InputPeer, limit: Int32, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Messages>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-1144759543)
+                    buffer.appendInt32(1881817312)
                     peer.serialize(buffer, true)
                     serializeInt32(limit, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getRecentLocations", parameters: [("peer", peer), ("limit", limit), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Messages? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.Messages?
@@ -3505,12 +3631,12 @@ public extension Api {
                     })
                 }
             
-                public static func searchStickerSets(flags: Int32, q: String, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.FoundStickerSets>) {
+                public static func searchStickerSets(flags: Int32, q: String, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.FoundStickerSets>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-1028140917)
+                    buffer.appendInt32(896555914)
                     serializeInt32(flags, buffer: buffer, boxed: false)
                     serializeString(q, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.searchStickerSets", parameters: [("flags", flags), ("q", q), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.FoundStickerSets? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.FoundStickerSets?
@@ -3819,11 +3945,11 @@ public extension Api {
                     })
                 }
             
-                public static func getScheduledHistory(peer: Api.InputPeer, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Messages>) {
+                public static func getScheduledHistory(peer: Api.InputPeer, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Messages>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-490575781)
+                    buffer.appendInt32(-183077365)
                     peer.serialize(buffer, true)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getScheduledHistory", parameters: [("peer", peer), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Messages? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.Messages?
@@ -3991,12 +4117,12 @@ public extension Api {
                     })
                 }
             
-                public static func getOldFeaturedStickers(offset: Int32, limit: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.FeaturedStickers>) {
+                public static func getOldFeaturedStickers(offset: Int32, limit: Int32, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.FeaturedStickers>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(1608974939)
+                    buffer.appendInt32(2127598753)
                     serializeInt32(offset, buffer: buffer, boxed: false)
                     serializeInt32(limit, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getOldFeaturedStickers", parameters: [("offset", offset), ("limit", limit), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.FeaturedStickers? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.FeaturedStickers?
@@ -4007,9 +4133,9 @@ public extension Api {
                     })
                 }
             
-                public static func getReplies(peer: Api.InputPeer, msgId: Int32, offsetId: Int32, offsetDate: Int32, addOffset: Int32, limit: Int32, maxId: Int32, minId: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Messages>) {
+                public static func getReplies(peer: Api.InputPeer, msgId: Int32, offsetId: Int32, offsetDate: Int32, addOffset: Int32, limit: Int32, maxId: Int32, minId: Int32, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Messages>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(615875002)
+                    buffer.appendInt32(584962828)
                     peer.serialize(buffer, true)
                     serializeInt32(msgId, buffer: buffer, boxed: false)
                     serializeInt32(offsetId, buffer: buffer, boxed: false)
@@ -4018,7 +4144,7 @@ public extension Api {
                     serializeInt32(limit, buffer: buffer, boxed: false)
                     serializeInt32(maxId, buffer: buffer, boxed: false)
                     serializeInt32(minId, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.getReplies", parameters: [("peer", peer), ("msgId", msgId), ("offsetId", offsetId), ("offsetDate", offsetDate), ("addOffset", addOffset), ("limit", limit), ("maxId", maxId), ("minId", minId), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Messages? in
                         let reader = BufferReader(buffer)
                         var result: Api.messages.Messages?
@@ -4074,10 +4200,10 @@ public extension Api {
                     })
                 }
             
-                public static func deleteChat(chatId: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+                public static func deleteChat(chatId: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-2094760687)
-                    serializeInt32(chatId, buffer: buffer, boxed: false)
+                    buffer.appendInt32(1540419152)
+                    serializeInt64(chatId, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "messages.deleteChat", parameters: [("chatId", chatId)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
                         let reader = BufferReader(buffer)
                         var result: Api.Bool?
@@ -4306,6 +4432,36 @@ public extension Api {
                         return result
                     })
                 }
+            
+                public static func setChatTheme(peer: Api.InputPeer, emoticon: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(-432283329)
+                    peer.serialize(buffer, true)
+                    serializeString(emoticon, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "messages.setChatTheme", parameters: [("peer", peer), ("emoticon", emoticon)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.Updates?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.Updates
+                        }
+                        return result
+                    })
+                }
+            
+                public static func getMessageReadParticipants(peer: Api.InputPeer, msgId: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<[Int64]>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(745510839)
+                    peer.serialize(buffer, true)
+                    serializeInt32(msgId, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "messages.getMessageReadParticipants", parameters: [("peer", peer), ("msgId", msgId)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> [Int64]? in
+                        let reader = BufferReader(buffer)
+                        var result: [Int64]?
+                        if let _ = reader.readInt32() {
+                            result = Api.parseVector(reader, elementSignature: 570911930, elementType: Int64.self)
+                        }
+                        return result
+                    })
+                }
             }
             public struct channels {
                 public static func readHistory(channel: Api.InputChannel, maxId: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
@@ -4396,14 +4552,14 @@ public extension Api {
                     })
                 }
             
-                public static func getParticipants(channel: Api.InputChannel, filter: Api.ChannelParticipantsFilter, offset: Int32, limit: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.channels.ChannelParticipants>) {
+                public static func getParticipants(channel: Api.InputChannel, filter: Api.ChannelParticipantsFilter, offset: Int32, limit: Int32, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.channels.ChannelParticipants>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(306054633)
+                    buffer.appendInt32(2010044880)
                     channel.serialize(buffer, true)
                     filter.serialize(buffer, true)
                     serializeInt32(offset, buffer: buffer, boxed: false)
                     serializeInt32(limit, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "channels.getParticipants", parameters: [("channel", channel), ("filter", filter), ("offset", offset), ("limit", limit), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.channels.ChannelParticipants? in
                         let reader = BufferReader(buffer)
                         var result: Api.channels.ChannelParticipants?
@@ -4884,6 +5040,35 @@ public extension Api {
                         return result
                     })
                 }
+            
+                public static func viewSponsoredMessage(channel: Api.InputChannel, randomId: Buffer) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(-1095836780)
+                    channel.serialize(buffer, true)
+                    serializeBytes(randomId, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "channels.viewSponsoredMessage", parameters: [("channel", channel), ("randomId", randomId)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.Bool?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.Bool
+                        }
+                        return result
+                    })
+                }
+            
+                public static func getSponsoredMessages(channel: Api.InputChannel) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.SponsoredMessages>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(-333377601)
+                    channel.serialize(buffer, true)
+                    return (FunctionDescription(name: "channels.getSponsoredMessages", parameters: [("channel", channel)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.SponsoredMessages? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.messages.SponsoredMessages?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.messages.SponsoredMessages
+                        }
+                        return result
+                    })
+                }
             }
             public struct payments {
                 public static func getPaymentForm(flags: Int32, peer: Api.InputPeer, msgId: Int32, themeParams: Api.DataJSON?) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.payments.PaymentForm>) {
@@ -5173,10 +5358,10 @@ public extension Api {
                     })
                 }
             
-                public static func importAuthorization(id: Int32, bytes: Buffer) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.auth.Authorization>) {
+                public static func importAuthorization(id: Int64, bytes: Buffer) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.auth.Authorization>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-470837741)
-                    serializeInt32(id, buffer: buffer, boxed: false)
+                    buffer.appendInt32(-1518699091)
+                    serializeInt64(id, buffer: buffer, boxed: false)
                     serializeBytes(bytes, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "auth.importAuthorization", parameters: [("id", id), ("bytes", bytes)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.auth.Authorization? in
                         let reader = BufferReader(buffer)
@@ -5250,11 +5435,13 @@ public extension Api {
                     })
                 }
             
-                public static func recoverPassword(code: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.auth.Authorization>) {
+                public static func recoverPassword(flags: Int32, code: String, newSettings: Api.account.PasswordInputSettings?) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.auth.Authorization>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(1319464594)
+                    buffer.appendInt32(923364464)
+                    serializeInt32(flags, buffer: buffer, boxed: false)
                     serializeString(code, buffer: buffer, boxed: false)
-                    return (FunctionDescription(name: "auth.recoverPassword", parameters: [("code", code)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.auth.Authorization? in
+                    if Int(flags) & Int(1 << 0) != 0 {newSettings!.serialize(buffer, true)}
+                    return (FunctionDescription(name: "auth.recoverPassword", parameters: [("flags", flags), ("code", code), ("newSettings", newSettings)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.auth.Authorization? in
                         let reader = BufferReader(buffer)
                         var result: Api.auth.Authorization?
                         if let signature = reader.readInt32() {
@@ -5312,15 +5499,15 @@ public extension Api {
                     })
                 }
             
-                public static func exportLoginToken(apiId: Int32, apiHash: String, exceptIds: [Int32]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.auth.LoginToken>) {
+                public static func exportLoginToken(apiId: Int32, apiHash: String, exceptIds: [Int64]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.auth.LoginToken>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-1313598185)
+                    buffer.appendInt32(-1210022402)
                     serializeInt32(apiId, buffer: buffer, boxed: false)
                     serializeString(apiHash, buffer: buffer, boxed: false)
                     buffer.appendInt32(481674261)
                     buffer.appendInt32(Int32(exceptIds.count))
                     for item in exceptIds {
-                        serializeInt32(item, buffer: buffer, boxed: false)
+                        serializeInt64(item, buffer: buffer, boxed: false)
                     }
                     return (FunctionDescription(name: "auth.exportLoginToken", parameters: [("apiId", apiId), ("apiHash", apiHash), ("exceptIds", exceptIds)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.auth.LoginToken? in
                         let reader = BufferReader(buffer)
@@ -5355,6 +5542,20 @@ public extension Api {
                         var result: Api.Authorization?
                         if let signature = reader.readInt32() {
                             result = Api.parse(reader, signature: signature) as? Api.Authorization
+                        }
+                        return result
+                    })
+                }
+            
+                public static func checkRecoveryPassword(code: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(221691769)
+                    serializeString(code, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "auth.checkRecoveryPassword", parameters: [("code", code)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.Bool?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.Bool
                         }
                         return result
                     })
@@ -5402,6 +5603,21 @@ public extension Api {
                         item.serialize(buffer, true)
                     }
                     return (FunctionDescription(name: "bots.setBotCommands", parameters: [("scope", scope), ("langCode", langCode), ("commands", commands)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.Bool?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.Bool
+                        }
+                        return result
+                    })
+                }
+            
+                public static func resetBotCommands(scope: Api.BotCommandScope, langCode: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(1032708345)
+                    scope.serialize(buffer, true)
+                    serializeString(langCode, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "bots.resetBotCommands", parameters: [("scope", scope), ("langCode", langCode)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
                         let reader = BufferReader(buffer)
                         var result: Api.Bool?
                         if let signature = reader.readInt32() {
@@ -5479,10 +5695,10 @@ public extension Api {
                 }
             }
             public struct contacts {
-                public static func getContactIDs(hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<[Int32]>) {
+                public static func getContactIDs(hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<[Int32]>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(749357634)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    buffer.appendInt32(2061264541)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "contacts.getContactIDs", parameters: [("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> [Int32]? in
                         let reader = BufferReader(buffer)
                         var result: [Int32]?
@@ -5507,10 +5723,10 @@ public extension Api {
                     })
                 }
             
-                public static func getContacts(hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.contacts.Contacts>) {
+                public static func getContacts(hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.contacts.Contacts>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-1071414113)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    buffer.appendInt32(1574346258)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "contacts.getContacts", parameters: [("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.contacts.Contacts? in
                         let reader = BufferReader(buffer)
                         var result: Api.contacts.Contacts?
@@ -5647,13 +5863,13 @@ public extension Api {
                     })
                 }
             
-                public static func getTopPeers(flags: Int32, offset: Int32, limit: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.contacts.TopPeers>) {
+                public static func getTopPeers(flags: Int32, offset: Int32, limit: Int32, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.contacts.TopPeers>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-728224331)
+                    buffer.appendInt32(-1758168906)
                     serializeInt32(flags, buffer: buffer, boxed: false)
                     serializeInt32(offset, buffer: buffer, boxed: false)
                     serializeInt32(limit, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "contacts.getTopPeers", parameters: [("flags", flags), ("offset", offset), ("limit", limit), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.contacts.TopPeers? in
                         let reader = BufferReader(buffer)
                         var result: Api.contacts.TopPeers?
@@ -6445,9 +6661,9 @@ public extension Api {
                 }
             }
             public struct account {
-                public static func registerDevice(flags: Int32, tokenType: Int32, token: String, appSandbox: Api.Bool, secret: Buffer, otherUids: [Int32]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+                public static func registerDevice(flags: Int32, tokenType: Int32, token: String, appSandbox: Api.Bool, secret: Buffer, otherUids: [Int64]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(1754754159)
+                    buffer.appendInt32(-326762118)
                     serializeInt32(flags, buffer: buffer, boxed: false)
                     serializeInt32(tokenType, buffer: buffer, boxed: false)
                     serializeString(token, buffer: buffer, boxed: false)
@@ -6456,7 +6672,7 @@ public extension Api {
                     buffer.appendInt32(481674261)
                     buffer.appendInt32(Int32(otherUids.count))
                     for item in otherUids {
-                        serializeInt32(item, buffer: buffer, boxed: false)
+                        serializeInt64(item, buffer: buffer, boxed: false)
                     }
                     return (FunctionDescription(name: "account.registerDevice", parameters: [("flags", flags), ("tokenType", tokenType), ("token", token), ("appSandbox", appSandbox), ("secret", secret), ("otherUids", otherUids)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
                         let reader = BufferReader(buffer)
@@ -6468,15 +6684,15 @@ public extension Api {
                     })
                 }
             
-                public static func unregisterDevice(tokenType: Int32, token: String, otherUids: [Int32]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+                public static func unregisterDevice(tokenType: Int32, token: String, otherUids: [Int64]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(813089983)
+                    buffer.appendInt32(1779249670)
                     serializeInt32(tokenType, buffer: buffer, boxed: false)
                     serializeString(token, buffer: buffer, boxed: false)
                     buffer.appendInt32(481674261)
                     buffer.appendInt32(Int32(otherUids.count))
                     for item in otherUids {
-                        serializeInt32(item, buffer: buffer, boxed: false)
+                        serializeInt64(item, buffer: buffer, boxed: false)
                     }
                     return (FunctionDescription(name: "account.unregisterDevice", parameters: [("tokenType", tokenType), ("token", token), ("otherUids", otherUids)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
                         let reader = BufferReader(buffer)
@@ -6562,10 +6778,10 @@ public extension Api {
                     })
                 }
             
-                public static func getWallPapers(hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.account.WallPapers>) {
+                public static func getWallPapers(hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.account.WallPapers>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-1430579357)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    buffer.appendInt32(127302966)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "account.getWallPapers", parameters: [("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.account.WallPapers? in
                         let reader = BufferReader(buffer)
                         var result: Api.account.WallPapers?
@@ -6963,10 +7179,10 @@ public extension Api {
                     })
                 }
             
-                public static func getAuthorizationForm(botId: Int32, scope: String, publicKey: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.account.AuthorizationForm>) {
+                public static func getAuthorizationForm(botId: Int64, scope: String, publicKey: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.account.AuthorizationForm>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-1200903967)
-                    serializeInt32(botId, buffer: buffer, boxed: false)
+                    buffer.appendInt32(-1456907910)
+                    serializeInt64(botId, buffer: buffer, boxed: false)
                     serializeString(scope, buffer: buffer, boxed: false)
                     serializeString(publicKey, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "account.getAuthorizationForm", parameters: [("botId", botId), ("scope", scope), ("publicKey", publicKey)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.account.AuthorizationForm? in
@@ -6979,10 +7195,10 @@ public extension Api {
                     })
                 }
             
-                public static func acceptAuthorization(botId: Int32, scope: String, publicKey: String, valueHashes: [Api.SecureValueHash], credentials: Api.SecureCredentialsEncrypted) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+                public static func acceptAuthorization(botId: Int64, scope: String, publicKey: String, valueHashes: [Api.SecureValueHash], credentials: Api.SecureCredentialsEncrypted) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-419267436)
-                    serializeInt32(botId, buffer: buffer, boxed: false)
+                    buffer.appendInt32(-202552205)
+                    serializeInt64(botId, buffer: buffer, boxed: false)
                     serializeString(scope, buffer: buffer, boxed: false)
                     serializeString(publicKey, buffer: buffer, boxed: false)
                     buffer.appendInt32(481674261)
@@ -7382,11 +7598,11 @@ public extension Api {
                     })
                 }
             
-                public static func getThemes(format: String, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.account.Themes>) {
+                public static func getThemes(format: String, hash: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.account.Themes>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(676939512)
+                    buffer.appendInt32(1913054296)
                     serializeString(format, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    serializeInt64(hash, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "account.getThemes", parameters: [("format", format), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.account.Themes? in
                         let reader = BufferReader(buffer)
                         var result: Api.account.Themes?
@@ -7483,6 +7699,48 @@ public extension Api {
                         var result: Api.Bool?
                         if let signature = reader.readInt32() {
                             result = Api.parse(reader, signature: signature) as? Api.Bool
+                        }
+                        return result
+                    })
+                }
+            
+                public static func resetPassword() -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.account.ResetPasswordResult>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(-1828139493)
+                    
+                    return (FunctionDescription(name: "account.resetPassword", parameters: []), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.account.ResetPasswordResult? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.account.ResetPasswordResult?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.account.ResetPasswordResult
+                        }
+                        return result
+                    })
+                }
+            
+                public static func declinePasswordReset() -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(1284770294)
+                    
+                    return (FunctionDescription(name: "account.declinePasswordReset", parameters: []), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.Bool?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.Bool
+                        }
+                        return result
+                    })
+                }
+            
+                public static func getChatThemes(hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.account.ChatThemes>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(-690545285)
+                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "account.getChatThemes", parameters: [("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.account.ChatThemes? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.account.ChatThemes?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.account.ChatThemes
                         }
                         return result
                     })
@@ -7881,11 +8139,12 @@ public extension Api {
                     })
                 }
             
-                public static func getGroupCall(call: Api.InputGroupCall) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.phone.GroupCall>) {
+                public static func getGroupCall(call: Api.InputGroupCall, limit: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.phone.GroupCall>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(209498135)
+                    buffer.appendInt32(68699611)
                     call.serialize(buffer, true)
-                    return (FunctionDescription(name: "phone.getGroupCall", parameters: [("call", call)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.phone.GroupCall? in
+                    serializeInt32(limit, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "phone.getGroupCall", parameters: [("call", call), ("limit", limit)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.phone.GroupCall? in
                         let reader = BufferReader(buffer)
                         var result: Api.phone.GroupCall?
                         if let signature = reader.readInt32() {
@@ -7940,13 +8199,14 @@ public extension Api {
                     })
                 }
             
-                public static func toggleGroupCallRecord(flags: Int32, call: Api.InputGroupCall, title: String?) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
+                public static func toggleGroupCallRecord(flags: Int32, call: Api.InputGroupCall, title: String?, videoPortrait: Api.Bool?) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-1070962985)
+                    buffer.appendInt32(-248985848)
                     serializeInt32(flags, buffer: buffer, boxed: false)
                     call.serialize(buffer, true)
                     if Int(flags) & Int(1 << 1) != 0 {serializeString(title!, buffer: buffer, boxed: false)}
-                    return (FunctionDescription(name: "phone.toggleGroupCallRecord", parameters: [("flags", flags), ("call", call), ("title", title)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
+                    if Int(flags) & Int(1 << 2) != 0 {videoPortrait!.serialize(buffer, true)}
+                    return (FunctionDescription(name: "phone.toggleGroupCallRecord", parameters: [("flags", flags), ("call", call), ("title", title), ("videoPortrait", videoPortrait)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
                         let reader = BufferReader(buffer)
                         var result: Api.Updates?
                         if let signature = reader.readInt32() {

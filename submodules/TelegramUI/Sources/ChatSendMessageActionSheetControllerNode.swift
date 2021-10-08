@@ -5,7 +5,6 @@ import SwiftSignalKit
 import Display
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import AccountContext
 import AppBundle
@@ -182,9 +181,9 @@ final class ChatSendMessageActionSheetControllerNode: ViewControllerTracingNode,
         return self.sourceSendButton.view.convert(self.sourceSendButton.bounds, to: nil)
     }
     
-    init(context: AccountContext, reminders: Bool, gesture: ContextGesture, sourceSendButton: ASDisplayNode, textInputNode: EditableTextNode, forwardedCount: Int?, send: (() -> Void)?, sendSilently: (() -> Void)?, schedule: (() -> Void)?, cancel: (() -> Void)?) {
+    init(context: AccountContext, presentationData: PresentationData, reminders: Bool, gesture: ContextGesture, sourceSendButton: ASDisplayNode, textInputNode: EditableTextNode, forwardedCount: Int?, send: (() -> Void)?, sendSilently: (() -> Void)?, schedule: (() -> Void)?, cancel: (() -> Void)?) {
         self.context = context
-        self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        self.presentationData = presentationData
         self.sourceSendButton = sourceSendButton
         self.textFieldFrame = textInputNode.convert(textInputNode.bounds, to: nil)
         self.textInputNode = textInputNode
@@ -247,9 +246,9 @@ final class ChatSendMessageActionSheetControllerNode: ViewControllerTracingNode,
         self.contentNodes = contentNodes
         
         super.init()
-                
-        self.sendButtonNode.setImage(PresentationResourcesChat.chatInputPanelSendButtonImage(self.presentationData.theme), for: [])
-        self.sendButtonNode.addTarget(self, action: #selector(sendButtonPressed), forControlEvents: .touchUpInside)
+                        
+//        self.sendButtonNode.setImage(PresentationResourcesChat.chatInputPanelSendButtonImage(self.presentationData.theme), for: [])
+        self.sendButtonNode.addTarget(self, action: #selector(self.sendButtonPressed), forControlEvents: .touchUpInside)
         
         if let attributedText = textInputNode.attributedText, !attributedText.string.isEmpty {
             self.fromMessageTextNode.attributedText = attributedText
@@ -268,7 +267,7 @@ final class ChatSendMessageActionSheetControllerNode: ViewControllerTracingNode,
         let outgoing: PresentationThemeBubbleColorComponents = self.presentationData.chatWallpaper.isEmpty ? self.presentationData.theme.chat.message.outgoing.bubble.withoutWallpaper : self.presentationData.theme.chat.message.outgoing.bubble.withWallpaper
         
         let maxCornerRadius = self.presentationData.chatBubbleCorners.mainRadius
-        self.messageBackgroundNode.image = messageBubbleImage(maxCornerRadius: maxCornerRadius, minCornerRadius: maxCornerRadius, incoming: false, fillColor: outgoing.gradientFill, strokeColor: outgoing.fill == outgoing.gradientFill ? outgoing.stroke : .clear, neighbors: .none, theme: self.presentationData.theme.chat, wallpaper: self.presentationData.chatWallpaper, knockout: false)
+        self.messageBackgroundNode.image = messageBubbleImage(maxCornerRadius: maxCornerRadius, minCornerRadius: maxCornerRadius, incoming: false, fillColor: outgoing.fill.last ?? outgoing.fill[0], strokeColor: outgoing.fill.count > 1 ? outgoing.stroke : .clear, neighbors: .none, theme: self.presentationData.theme.chat, wallpaper: self.presentationData.chatWallpaper, knockout: false)
         
         self.view.addSubview(self.effectView)
         self.addSubnode(self.dimNode)
@@ -342,6 +341,10 @@ final class ChatSendMessageActionSheetControllerNode: ViewControllerTracingNode,
         if #available(iOSApplicationExtension 11.0, iOS 11.0, *) {
             self.scrollNode.view.contentInsetAdjustmentBehavior = .never
         }
+        
+        if let snapshotView = self.sourceSendButton.view.snapshotView(afterScreenUpdates: false) {
+            self.sendButtonNode.view.addSubview(snapshotView)
+        }
     }
     
     func updatePresentationData(_ presentationData: PresentationData) {
@@ -362,7 +365,7 @@ final class ChatSendMessageActionSheetControllerNode: ViewControllerTracingNode,
         self.dimNode.backgroundColor = presentationData.theme.contextMenu.dimColor
         
         self.contentContainerNode.backgroundColor = self.presentationData.theme.contextMenu.backgroundColor
-        self.sendButtonNode.setImage(PresentationResourcesChat.chatInputPanelSendButtonImage(self.presentationData.theme), for: [])
+//        self.sendButtonNode.setImage(PresentationResourcesChat.chatInputPanelSendButtonImage(self.presentationData.theme), for: [])
         
         if let toAttributedText = self.textInputNode.attributedText?.mutableCopy() as? NSMutableAttributedString {
             toAttributedText.addAttribute(NSAttributedString.Key.foregroundColor, value: self.presentationData.theme.chat.message.outgoing.primaryTextColor, range: NSMakeRange(0, (toAttributedText.string as NSString).length))
@@ -371,8 +374,7 @@ final class ChatSendMessageActionSheetControllerNode: ViewControllerTracingNode,
         
         let outgoing: PresentationThemeBubbleColorComponents = self.presentationData.chatWallpaper.isEmpty ? self.presentationData.theme.chat.message.outgoing.bubble.withoutWallpaper : self.presentationData.theme.chat.message.outgoing.bubble.withWallpaper
         let maxCornerRadius = self.presentationData.chatBubbleCorners.mainRadius
-        let minCornerRadius = self.presentationData.chatBubbleCorners.auxiliaryRadius
-        self.messageBackgroundNode.image = messageBubbleImage(maxCornerRadius: maxCornerRadius, minCornerRadius: maxCornerRadius, incoming: false, fillColor: outgoing.gradientFill, strokeColor: outgoing.fill == outgoing.gradientFill ? outgoing.stroke : .clear, neighbors: .none, theme: self.presentationData.theme.chat, wallpaper: self.presentationData.chatWallpaper, knockout: false)
+        self.messageBackgroundNode.image = messageBubbleImage(maxCornerRadius: maxCornerRadius, minCornerRadius: maxCornerRadius, incoming: false, fillColor: outgoing.fill.last ?? outgoing.fill[0], strokeColor: outgoing.fill.count > 1 ? outgoing.stroke : .clear, neighbors: .none, theme: self.presentationData.theme.chat, wallpaper: self.presentationData.chatWallpaper, knockout: false)
         
         for node in self.contentNodes {
             node.updateTheme(presentationData.theme)

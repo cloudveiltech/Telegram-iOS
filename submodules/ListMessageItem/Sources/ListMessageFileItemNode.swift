@@ -4,7 +4,6 @@ import AsyncDisplayKit
 import Display
 import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import TelegramPresentationData
 import ItemListUI
@@ -900,6 +899,8 @@ public final class ListMessageFileItemNode: ListMessageNode {
         if isVoice {
             iconStatusBackgroundColor = item.presentationData.theme.theme.list.itemAccentColor
             iconStatusForegroundColor = item.presentationData.theme.theme.list.itemCheckColors.foregroundColor
+        } else if isAudio {
+            iconStatusForegroundColor = item.presentationData.theme.theme.list.itemCheckColors.foregroundColor
         }
         
         if !isAudio && !isInstantVideo {
@@ -930,6 +931,7 @@ public final class ListMessageFileItemNode: ListMessageNode {
         }
         self.iconStatusNode.backgroundNodeColor = iconStatusBackgroundColor
         self.iconStatusNode.foregroundNodeColor = iconStatusForegroundColor
+        self.iconStatusNode.overlayForegroundNodeColor = .white
         self.iconStatusNode.transitionToState(iconStatusState)
     }
     
@@ -1118,8 +1120,8 @@ public final class ListMessageFileItemNode: ListMessageNode {
         }
     }
     
-    override public func header() -> ListViewItemHeader? {
-        return self.item?.header
+    override public func headers() -> [ListViewItemHeader]? {
+        return self.item?.header.flatMap { [$0] }
     }
     
     override public func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {

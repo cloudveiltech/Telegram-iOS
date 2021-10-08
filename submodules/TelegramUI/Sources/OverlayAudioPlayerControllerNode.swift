@@ -5,7 +5,6 @@ import AsyncDisplayKit
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import AccountContext
@@ -146,6 +145,10 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, UIGestu
         }, displayUndo: { _ in
         }, isAnimatingMessage: { _ in
             return false
+        }, getMessageTransitionNode: {
+            return nil
+        }, updateChoosingSticker: { _ in
+        }, commitEmojiInteraction: { _, _, _, _ in
         }, requestMessageUpdate: { _ in
         }, cancelInteractiveKeyboardGestures: {
         }, automaticMediaDownloadSettings: MediaAutoDownloadSettings.defaultSettings, pollActionState: ChatInterfacePollActionState(), stickerSettings: ChatInterfaceStickerSettings(loopAnimatedStickers: false), presentationContext: ChatPresentationContext(backgroundNode: nil))
@@ -187,7 +190,8 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, UIGestu
             self.isGlobalSearch = false
         }
         
-        self.historyNode = ChatHistoryListNode(context: context, chatLocation: .peer(peerId), chatLocationContextHolder: chatLocationContextHolder, tagMask: tagMask, source: source,  subject: .message(id: initialMessageId, highlight: true), controllerInteraction: self.controllerInteraction, selectedMessages: .single(nil), mode: .list(search: false, reversed: self.currentIsReversed, displayHeaders: .none, hintLinks: false, isGlobalSearch: self.isGlobalSearch))
+        self.historyNode = ChatHistoryListNode(context: context, updatedPresentationData: (context.sharedContext.currentPresentationData.with({ $0 }), context.sharedContext.presentationData), chatLocation: .peer(peerId), chatLocationContextHolder: chatLocationContextHolder, tagMask: tagMask, source: source,  subject: .message(id: initialMessageId, highlight: true, timecode: nil), controllerInteraction: self.controllerInteraction, selectedMessages: .single(nil), mode: .list(search: false, reversed: self.currentIsReversed, displayHeaders: .none, hintLinks: false, isGlobalSearch: self.isGlobalSearch))
+        self.historyNode.clipsToBounds = true
         
         super.init()
         
@@ -202,7 +206,7 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, UIGestu
             }
         }
         
-        self.historyNode.endedInteractiveDragging = { [weak self] in
+        self.historyNode.endedInteractiveDragging = { [weak self] _ in
             guard let strongSelf = self else {
                 return
             }
@@ -263,7 +267,7 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, UIGestu
         self.contentNode.addSubnode(self.historyNode)
         self.contentNode.addSubnode(self.controlsNode)
         
-        self.historyNode.beganInteractiveDragging = { [weak self] in
+        self.historyNode.beganInteractiveDragging = { [weak self] _ in
             self?.controlsNode.collapse()
         }
         
@@ -528,7 +532,8 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, UIGestu
         }
         
         let chatLocationContextHolder = Atomic<ChatLocationContextHolder?>(value: nil)
-        let historyNode = ChatHistoryListNode(context: self.context, chatLocation: .peer(self.peerId), chatLocationContextHolder: chatLocationContextHolder, tagMask: tagMask, subject: .message(id: messageId, highlight: true), controllerInteraction: self.controllerInteraction, selectedMessages: .single(nil), mode: .list(search: false, reversed: self.currentIsReversed, displayHeaders: .none, hintLinks: false, isGlobalSearch: self.isGlobalSearch))
+        let historyNode = ChatHistoryListNode(context: self.context, updatedPresentationData: (self.context.sharedContext.currentPresentationData.with({ $0 }), self.context.sharedContext.presentationData), chatLocation: .peer(self.peerId), chatLocationContextHolder: chatLocationContextHolder, tagMask: tagMask, subject: .message(id: messageId, highlight: true, timecode: nil), controllerInteraction: self.controllerInteraction, selectedMessages: .single(nil), mode: .list(search: false, reversed: self.currentIsReversed, displayHeaders: .none, hintLinks: false, isGlobalSearch: self.isGlobalSearch))
+        historyNode.clipsToBounds = true
         historyNode.preloadPages = true
         historyNode.stackFromBottom = true
         historyNode.updateFloatingHeaderOffset = { [weak self] offset, _ in
@@ -614,7 +619,7 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, UIGestu
                 }
             }
             
-            self.historyNode.endedInteractiveDragging = { [weak self] in
+            self.historyNode.endedInteractiveDragging = { [weak self] _ in
                 guard let strongSelf = self else {
                     return
                 }
@@ -628,7 +633,7 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, UIGestu
                 }
             }
             
-            self.historyNode.beganInteractiveDragging = { [weak self] in
+            self.historyNode.beganInteractiveDragging = { [weak self] _ in
                 self?.controlsNode.collapse()
             }
             

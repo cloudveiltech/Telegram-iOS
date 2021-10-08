@@ -8,14 +8,13 @@ swift_library(
     ]),
     deps = [
         #CloudVeil start
-		"//Telegram:CloudVeilSecurityManager",
-		#CloudVeil end
+        "//Telegram:CloudVeilSecurityManager",
+        #CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
         "//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
-        "//submodules/SyncCore:SyncCore",
         "//submodules/TelegramPresentationData:TelegramPresentationData",
         "//submodules/AvatarNode:AvatarNode",
         "//submodules/PhotoResources:PhotoResources",

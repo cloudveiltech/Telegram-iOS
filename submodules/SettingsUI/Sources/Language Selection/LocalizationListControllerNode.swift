@@ -4,7 +4,6 @@ import Display
 import AsyncDisplayKit
 import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import TelegramPresentationData
 import MergeLists
@@ -111,7 +110,7 @@ private final class LocalizationListSearchContainerNode: SearchDisplayController
         
         self.listNode = ListView()
         self.listNode.accessibilityPageScrolledString = { row, count in
-            return presentationData.strings.VoiceOver_ScrollStatus(row, count).0
+            return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
         }
         
         super.init()
@@ -174,7 +173,7 @@ private final class LocalizationListSearchContainerNode: SearchDisplayController
                 }
             })
         
-        self.listNode.beganInteractiveDragging = { [weak self] in
+        self.listNode.beganInteractiveDragging = { [weak self] _ in
             self?.dismissInput?()
         }
     }
@@ -315,7 +314,7 @@ final class LocalizationListControllerNode: ViewControllerTracingNode {
         self.listNode = ListView()
         self.listNode.keepTopItemOverscrollBackground = ListViewKeepTopItemOverscrollBackground(color: presentationData.theme.chatList.backgroundColor, direction: true)
         self.listNode.accessibilityPageScrolledString = { row, count in
-            return presentationData.strings.VoiceOver_ScrollStatus(row, count).0
+            return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
         }
         
         super.init()

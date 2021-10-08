@@ -210,7 +210,7 @@ public class BoxedMessage: NSObject {
 
 public class Serialization: NSObject, MTSerialization {
     public func currentLayer() -> UInt {
-        return 130
+        return 133
     }
     
     public func parseMessage(_ data: Data!) -> Any! {
@@ -236,7 +236,7 @@ public class Serialization: NSObject, MTSerialization {
         }
     }
     
-    public func importAuthorization(_ authId: Int32, bytes: Data!) -> Data! {
+    public func importAuthorization(_ authId: Int64, bytes: Data!) -> Data! {
         return Api.functions.auth.importAuthorization(id: authId, bytes: Buffer(data: bytes)).1.makeData()
     }
     
@@ -258,7 +258,7 @@ public class Serialization: NSObject, MTSerialization {
                                     let restrictToTcp = (flags & (1 << 2)) != 0
                                     let isCdn = (flags & (1 << 3)) != 0
                                     let preferForProxy = (flags & (1 << 4)) != 0
-                                    addressDict[id as NSNumber]!.append(MTDatacenterAddress(ip: ipAddress, port: UInt16(port), preferForMedia: preferForMedia, restrictToTcp: restrictToTcp, cdn: isCdn, preferForProxy: preferForProxy, secret: secret?.makeData())!)
+                                    addressDict[id as NSNumber]!.append(MTDatacenterAddress(ip: ipAddress, port: UInt16(port), preferForMedia: preferForMedia, restrictToTcp: restrictToTcp, cdn: isCdn, preferForProxy: preferForProxy, secret: secret?.makeData()))
                                     break
                             }
                         }

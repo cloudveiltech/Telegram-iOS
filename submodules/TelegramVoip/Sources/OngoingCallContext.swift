@@ -2,7 +2,6 @@ import Foundation
 import UIKit
 import SwiftSignalKit
 import TelegramCore
-import SyncCore
 import Postbox
 import TelegramUIPreferences
 
@@ -253,20 +252,7 @@ private func ongoingDataSavingForTypeWebrtc(_ type: VoiceCallDataSaving) -> Ongo
     }
 }
 
-/*private func ongoingDataSavingForTypeWebrtcCustom(_ type: VoiceCallDataSaving) -> OngoingCallDataSavingWebrtcCustom {
-    switch type {
-        case .never:
-            return .never
-        case .cellular:
-            return .cellular
-        case .always:
-            return .always
-        default:
-            return .never
-    }
-}*/
-
-private protocol OngoingCallThreadLocalContextProtocol: class {
+private protocol OngoingCallThreadLocalContextProtocol: AnyObject {
     func nativeSetNetworkType(_ type: NetworkType)
     func nativeSetIsMuted(_ value: Bool)
     func nativeSetIsLowBatteryLevel(_ value: Bool)
@@ -278,6 +264,7 @@ private protocol OngoingCallThreadLocalContextProtocol: class {
     func nativeDebugInfo() -> String
     func nativeVersion() -> String
     func nativeGetDerivedState() -> Data
+    func addExternalAudioData(data: Data)
 }
 
 private final class OngoingCallThreadLocalContextHolder {
@@ -329,6 +316,9 @@ extension OngoingCallThreadLocalContext: OngoingCallThreadLocalContextProtocol {
     
     func nativeGetDerivedState() -> Data {
         return self.getDerivedState()
+    }
+
+    func addExternalAudioData(data: Data) {
     }
 }
 
@@ -435,10 +425,6 @@ public final class OngoingCallVideoCapturer {
         self.impl.setIsVideoEnabled(value)
     }
 
-    public func injectSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
-        self.impl.submitSampleBuffer(sampleBuffer)
-    }
-
     public func injectPixelBuffer(_ pixelBuffer: CVPixelBuffer, rotation: CGImagePropertyOrientation) {
         var videoRotation: OngoingCallVideoOrientation = .rotation0
         switch rotation {
@@ -454,6 +440,27 @@ public final class OngoingCallVideoCapturer {
                 videoRotation = .rotation0
         }
         self.impl.submitPixelBuffer(pixelBuffer, rotation: videoRotation.orientation)
+    }
+
+    public func video() -> Signal<OngoingGroupCallContext.VideoFrameData, NoError> {
+        let queue = Queue.mainQueue()
+        return Signal { [weak self] subscriber in
+            let disposable = MetaDisposable()
+
+            queue.async {
+                guard let strongSelf = self else {
+                    return
+                }
+                let innerDisposable = strongSelf.impl.addVideoOutput { videoFrameData in
+                    subscriber.putNext(OngoingGroupCallContext.VideoFrameData(frameData: videoFrameData))
+                }
+                disposable.set(ActionDisposable {
+                    innerDisposable.dispose()
+                })
+            }
+
+            return disposable
+        }
     }
 }
 
@@ -500,6 +507,10 @@ extension OngoingCallThreadLocalContextWebrtc: OngoingCallThreadLocalContextProt
     
     func nativeGetDerivedState() -> Data {
         return self.getDerivedState()
+    }
+
+    func addExternalAudioData(data: Data) {
+        self.addExternalAudioData(data)
     }
 }
 
@@ -570,8 +581,6 @@ extension OngoingCallVideoOrientation {
             return .orientation180
         case  .rotation270:
             return .orientation270
-        @unknown default:
-            return .orientation0
         }
     }
 }
@@ -908,7 +917,7 @@ public final class OngoingCallContext {
                 if let callId = callId, !statsLogPath.isEmpty, let data = try? Data(contentsOf: URL(fileURLWithPath: statsLogPath)), let dataString = String(data: data, encoding: .utf8) {
                     debugLogValue.set(.single(dataString))
                     if sendDebugLogs {
-                        let _ = saveCallDebugLog(network: self.account.network, callId: callId, log: dataString).start()
+                        let _ = TelegramEngine(account: self.account).calls.saveCallDebugLog(callId: callId, log: dataString).start()
                     }
                 }
             }
@@ -1008,6 +1017,12 @@ public final class OngoingCallContext {
             } else {
                 completion(nil)
             }
+        }
+    }
+
+    public func addExternalAudioData(data: Data) {
+        self.withContext { context in
+            context.addExternalAudioData(data: data)
         }
     }
 }

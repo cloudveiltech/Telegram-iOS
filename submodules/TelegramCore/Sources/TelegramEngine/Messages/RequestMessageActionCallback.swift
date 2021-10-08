@@ -3,7 +3,6 @@ import Postbox
 import SwiftSignalKit
 import TelegramApi
 import MtProtoKit
-import SyncCore
 
 public enum MessageActionCallbackResult {
     case none
@@ -92,7 +91,7 @@ func _internal_requestMessageActionCallback(account: Account, messageId: Message
             if let password = password, !password.isEmpty {
                 flags |= Int32(1 << 2)
                 
-                checkPassword = twoStepAuthData(account.network)
+                checkPassword = _internal_twoStepAuthData(account.network)
                 |> mapError { error -> MessageActionCallbackError in
                     if error.errorDescription.hasPrefix("FLOOD_WAIT") {
                         return .limitExceeded

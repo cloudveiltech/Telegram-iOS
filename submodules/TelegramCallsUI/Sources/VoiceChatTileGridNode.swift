@@ -133,14 +133,11 @@ final class VoiceChatTileGridNode: ASDisplayNode {
             }
             if let itemNode = itemNode {
                 itemNode.visibility = self.visibility
-                if wasAdded {
-                    itemNode.frame = itemFrame
-                    if !isFirstTime {
-                        itemNode.layer.animateScale(from: 0.0, to: 1.0, duration: wasEmpty ? 0.4 : 0.3)
-                        itemNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2)
-                    }
-                } else {
-                    transition.updateFrame(node: itemNode, frame: itemFrame)
+                let itemTransition: ContainedViewLayoutTransition = wasAdded ? .immediate : transition
+                itemTransition.updateFrameAsPositionAndBounds(node: itemNode, frame: itemFrame)
+                if wasAdded && !isFirstTime {
+                    itemNode.layer.animateScale(from: 0.0, to: 1.0, duration: wasEmpty ? 0.4 : 0.3)
+                    itemNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2)
                 }
                 
                 if let (rect, containerSize) = self.absoluteLocation {
@@ -160,7 +157,7 @@ final class VoiceChatTileGridNode: ASDisplayNode {
         }
         for id in removeIds {
             if let itemNode = self.itemNodes.removeValue(forKey: id) {
-                itemNode.layer.animateScale(from: 1.0, to: 0.0, duration: 0.3, removeOnCompletion: false)
+                itemNode.layer.animateScale(from: 1.0, to: 0.0, duration: 0.3, removeOnCompletion: false, additive: true)
                 itemNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, removeOnCompletion: false, completion: { [weak itemNode] _ in
                     itemNode?.removeFromSupernode()
                 })
@@ -184,12 +181,16 @@ final class VoiceChatTilesGridItem: ListViewItem {
     let context: AccountContext
     let tiles: [VoiceChatTileItem]
     let layoutMode: VoiceChatTileLayoutMode
+    let videoLimit: Int32
+    let reachedLimit: Bool
     let getIsExpanded: () -> Bool
     
-    init(context: AccountContext, tiles: [VoiceChatTileItem], layoutMode: VoiceChatTileLayoutMode, getIsExpanded: @escaping () -> Bool) {
+    init(context: AccountContext, tiles: [VoiceChatTileItem], layoutMode: VoiceChatTileLayoutMode, videoLimit: Int32, reachedLimit: Bool, getIsExpanded: @escaping () -> Bool) {
         self.context = context
         self.tiles = tiles
         self.layoutMode = layoutMode
+        self.videoLimit = videoLimit
+        self.reachedLimit = reachedLimit
         self.getIsExpanded = getIsExpanded
     }
     
@@ -234,6 +235,8 @@ final class VoiceChatTilesGridItemNode: ListViewItemNode {
     let backgroundNode: ASDisplayNode
     let cornersNode: ASImageNode
     
+    let limitLabel: TextNode
+    
     private var absoluteLocation: (CGRect, CGSize)?
     
     var tileNodes: [VoiceChatTileItemNode] {
@@ -251,10 +254,14 @@ final class VoiceChatTilesGridItemNode: ListViewItemNode {
         self.cornersNode.displaysAsynchronously = false
         self.cornersNode.image = decorationCornersImage(top: true, bottom: false, dark: false)
         
+        self.limitLabel = TextNode()
+        self.limitLabel.alpha = 0.0
+        
         super.init(layerBacked: false, dynamicBounce: false)
                 
         self.addSubnode(self.backgroundNode)
         self.addSubnode(self.cornersNode)
+        self.addSubnode(self.limitLabel)
     }
     
     override func animateFrameTransition(_ progress: CGFloat, _ currentValue: CGFloat) {
@@ -277,14 +284,24 @@ final class VoiceChatTilesGridItemNode: ListViewItemNode {
     
     func asyncLayout() -> (_ item: VoiceChatTilesGridItem, _ params: ListViewItemLayoutParams) -> (ListViewItemNodeLayout, () -> Void) {
         let currentItem = self.item
+        let makeLabelLayout = TextNode.asyncLayout(self.limitLabel)
+        
         return { item, params in
+            let presentationData = item.context.sharedContext.currentPresentationData.with { $0 }
+            let (textLayout, textApply) = makeLabelLayout(TextNodeLayoutArguments(attributedString: NSAttributedString(string: presentationData.strings.VoiceChat_VideoParticipantsLimitExceededExtended(String(item.videoLimit)).string, font: Font.regular(13.0), textColor: UIColor(rgb: 0x8e8e93), paragraphAlignment: .center), maximumNumberOfLines: 3, truncationType: .end, constrainedSize: CGSize(width: params.width - 32.0, height: CGFloat.greatestFiniteMagnitude), lineSpacing: 0.25))
+
             let rowCount = ceil(CGFloat(item.tiles.count) / 2.0)
-            let contentSize = CGSize(width: params.width, height: rowCount * (tileHeight + tileSpacing))
+            let gridSize = CGSize(width: params.width, height: rowCount * (tileHeight + tileSpacing))
+            var contentSize = gridSize
+            if item.reachedLimit {
+                contentSize.height += 10.0 + textLayout.size.height + 10.0
+            }
             let layout = ListViewItemNodeLayout(contentSize: contentSize, insets: UIEdgeInsets())
+            
             return (layout, { [weak self] in
                 if let strongSelf = self {
                     strongSelf.item = item
-                    
+                                        
                     let tileGridNode: VoiceChatTileGridNode
                     if let current = strongSelf.tileGridNode {
                         tileGridNode = current
@@ -298,22 +315,33 @@ final class VoiceChatTilesGridItemNode: ListViewItemNode {
                         strongSelf.tileGridNode = tileGridNode
                     }
 
-                    
                     if let (rect, size) = strongSelf.absoluteLocation {
                         tileGridNode.updateAbsoluteRect(rect, within: size)
                     }
                     
                     let transition: ContainedViewLayoutTransition = currentItem == nil ? .immediate : .animated(duration: 0.3, curve: .easeInOut)
                     let tileGridSize = tileGridNode.update(size: CGSize(width: params.width - params.leftInset - params.rightInset, height: params.availableHeight), layoutMode: item.layoutMode, items: item.tiles, transition: transition)
+                    var backgroundSize = tileGridSize
+                    if item.reachedLimit {
+                        backgroundSize.height += 10.0 + textLayout.size.height + 10.0
+                    }
                     if currentItem == nil {
                         tileGridNode.frame = CGRect(x: params.leftInset, y: 0.0, width: tileGridSize.width, height: tileGridSize.height)
-                        strongSelf.backgroundNode.frame = tileGridNode.frame
+                        strongSelf.backgroundNode.frame = CGRect(origin: tileGridNode.frame.origin, size: backgroundSize)
                         strongSelf.cornersNode.frame = CGRect(x: params.leftInset, y: layout.size.height, width: tileGridSize.width, height: 50.0)
                     } else {
                         transition.updateFrame(node: tileGridNode, frame: CGRect(origin: CGPoint(x: params.leftInset, y: 0.0), size: tileGridSize))
-                        transition.updateFrame(node: strongSelf.backgroundNode, frame: CGRect(origin: CGPoint(x: params.leftInset, y: 0.0), size: tileGridSize))
+                        transition.updateFrame(node: strongSelf.backgroundNode, frame: CGRect(origin: tileGridNode.frame.origin, size: backgroundSize))
                         strongSelf.cornersNode.frame = CGRect(x: params.leftInset, y: layout.size.height, width: tileGridSize.width, height: 50.0)
                     }
+                    
+                    let _ = textApply()
+                    if !transition.isAnimated && currentItem?.reachedLimit != item.reachedLimit {
+                        strongSelf.backgroundNode.layer.removeAllAnimations()
+                        strongSelf.limitLabel.layer.removeAllAnimations()
+                    }
+                    transition.updateFrame(node: strongSelf.limitLabel, frame: CGRect(origin: CGPoint(x: floorToScreenPixels((params.width - textLayout.size.width) / 2.0), y: gridSize.height + 10.0), size: textLayout.size))
+                    transition.updateAlpha(node: strongSelf.limitLabel, alpha: item.reachedLimit ? 1.0 : 0.0)
                 }
             })
         }

@@ -2,7 +2,6 @@ import Foundation
 import UIKit
 import AsyncDisplayKit
 import TelegramCore
-import SyncCore
 import AccountContext
 
 func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState: ChatPresentationInterfaceState, context: AccountContext, currentPanel: ChatInputPanelNode?, currentSecondaryPanel: ChatInputPanelNode?, textInputPanelNode: ChatTextInputPanelNode?, interfaceInteraction: ChatPanelInterfaceInteraction?) -> (primary: ChatInputPanelNode?, secondary: ChatInputPanelNode?) {
@@ -10,6 +9,10 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
         return (nil, nil)
     }
     if chatPresentationInterfaceState.isNotAccessible {
+        return (nil, nil)
+    }
+    
+    if case .forwardedMessages = chatPresentationInterfaceState.subject {
         return (nil, nil)
     }
     
@@ -291,7 +294,7 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
                 textInputPanelNode.context = context
                 return (textInputPanelNode, nil)
             } else {
-                let panel = ChatTextInputPanelNode(presentationInterfaceState: chatPresentationInterfaceState, presentController: { [weak interfaceInteraction] controller in
+                let panel = ChatTextInputPanelNode(presentationInterfaceState: chatPresentationInterfaceState, presentationContext: nil, presentController: { [weak interfaceInteraction] controller in
                     interfaceInteraction?.presentController(controller, nil)
                 })
                 

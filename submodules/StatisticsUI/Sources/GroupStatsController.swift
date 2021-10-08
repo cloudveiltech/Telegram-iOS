@@ -4,7 +4,6 @@ import Display
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import TelegramStringFormatting
@@ -709,7 +708,7 @@ private func canEditAdminRights(accountPeerId: PeerId, channelPeer: Peer, initia
     }
 }
 
-public func groupStatsController(context: AccountContext, peerId: PeerId, cachedPeerData: CachedPeerData) -> ViewController {
+public func groupStatsController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, peerId: PeerId, cachedPeerData: CachedPeerData) -> ViewController {
     let statePromise = ValuePromise(GroupStatsState())
     let stateValue = Atomic(value: GroupStatsState())
     let updateState: ((GroupStatsState) -> GroupStatsState) -> Void = { f in
@@ -834,15 +833,15 @@ public func groupStatsController(context: AccountContext, peerId: PeerId, cached
     
     let previousData = Atomic<GroupStats?>(value: nil)
     
-    
-    let signal = combineLatest(statePromise.get(), context.sharedContext.presentationData, dataPromise.get(), context.account.postbox.loadedPeerWithId(peerId), peersPromise.get(), longLoadingSignal)
+    let presentationData = updatedPresentationData?.signal ?? context.sharedContext.presentationData
+    let signal = combineLatest(statePromise.get(), presentationData, dataPromise.get(), context.account.postbox.loadedPeerWithId(peerId), peersPromise.get(), longLoadingSignal)
     |> deliverOnMainQueue
     |> map { state, presentationData, data, channelPeer, peers, longLoading -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let previous = previousData.swap(data)
         var emptyStateItem: ItemListControllerEmptyStateItem?
         if data == nil {
             if longLoading {
-                emptyStateItem = StatsEmptyStateItem(theme: presentationData.theme, strings: presentationData.strings)
+                emptyStateItem = StatsEmptyStateItem(context: context, theme: presentationData.theme, strings: presentationData.strings)
             } else {
                 emptyStateItem = ItemListLoadingIndicatorEmptyStateItem(theme: presentationData.theme)
             }
@@ -874,7 +873,7 @@ public func groupStatsController(context: AccountContext, peerId: PeerId, cached
             let _ = (context.account.postbox.loadedPeerWithId(peerId)
             |> take(1)
             |> deliverOnMainQueue).start(next: { peer in
-                if let controller = context.sharedContext.makePeerInfoController(context: context, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
+                if let controller = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
                     navigationController.pushViewController(controller)
                 }
             })
@@ -901,7 +900,7 @@ public func groupStatsController(context: AccountContext, peerId: PeerId, cached
     }
     promotePeerImpl = { [weak controller] participantPeerId in
         if let navigationController = controller?.navigationController as? NavigationController {
-            let _ = (fetchChannelParticipant(account: context.account, peerId: peerId, participantId: participantPeerId)
+            let _ = (context.engine.peers.fetchChannelParticipant(peerId: peerId, participantId: participantPeerId)
             |> take(1)
             |> deliverOnMainQueue).start(next: { participant in
                 if let participant = participant, let controller = context.sharedContext.makeChannelAdminController(context: context, peerId: peerId, adminId: participantPeerId, initialParticipant: participant) {

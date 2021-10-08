@@ -5,7 +5,6 @@ import AsyncDisplayKit
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import ItemListUI
@@ -938,7 +937,7 @@ class VoiceChatParticipantItemNode: ItemListRevealOptionsItemNode {
                     strongSelf.containerNode.isGestureEnabled = item.contextAction != nil
                         
                     strongSelf.accessibilityLabel = titleAttributedString?.string
-                    var combinedValueString = ""
+                    let combinedValueString = ""
 //                    if let statusString = statusAttributedString?.string, !statusString.isEmpty {
 //                        combinedValueString.append(statusString)
 //                    }
@@ -1106,7 +1105,7 @@ class VoiceChatParticipantItemNode: ItemListRevealOptionsItemNode {
                     if item.peer.isDeleted {
                         overrideImage = .deletedIcon
                     }
-                    strongSelf.avatarNode.setPeer(context: item.context, theme: item.presentationData.theme, peer: item.peer, overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, synchronousLoad: synchronousLoad, storeUnrounded: true)
+                    strongSelf.avatarNode.setPeer(context: item.context, theme: item.presentationData.theme, peer: EnginePeer(item.peer), overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, synchronousLoad: synchronousLoad, storeUnrounded: true)
                 
                     strongSelf.highlightContainerNode.frame = CGRect(origin: CGPoint(x: params.leftInset, y: -UIScreenPixel), size: CGSize(width: params.width - params.leftInset - params.rightInset, height: layout.contentSize.height + UIScreenPixel + UIScreenPixel + 11.0))
                     
@@ -1273,7 +1272,7 @@ class VoiceChatParticipantItemNode: ItemListRevealOptionsItemNode {
         self.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.15, removeOnCompletion: false)
     }
     
-    override func header() -> ListViewItemHeader? {
+    override func headers() -> [ListViewItemHeader]? {
         return nil
     }
     

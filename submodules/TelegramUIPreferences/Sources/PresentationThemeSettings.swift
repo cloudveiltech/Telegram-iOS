@@ -2,7 +2,6 @@ import Foundation
 import UIKit
 import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import Display
 
@@ -211,7 +210,7 @@ public enum PresentationThemeReference: PostboxCoding, Equatable {
             let high = UInt32((UInt64(bitPattern: id) >> 32) & (0xffffffff as UInt64))
             acc = (acc &* 20261) &+ high
             acc = (acc &* 20261) &+ low
-            
+
             return Int32(bitPattern: acc & UInt32(0x7fffffff))
         }
         
@@ -243,7 +242,7 @@ public enum PresentationThemeReference: PostboxCoding, Equatable {
 
 public func coloredThemeIndex(reference: PresentationThemeReference, accentColor: PresentationThemeAccentColor?) -> Int64 {
     if let accentColor = accentColor {
-        if case let .builtin(theme) = reference {
+        if case .builtin = reference {
             return reference.index * 1000 &+ Int64(accentColor.index)
         } else {
             return reference.index &+ Int64(accentColor.index)
@@ -404,47 +403,17 @@ public enum PresentationThemeBaseColor: Int32, CaseIterable {
         }
         return UIColor(rgb: value)
     }
-
-
-    public var wallpaperGradientColors: [UInt32]? {
-        switch self {
-        case .blue:
-            return [0x1b2836, 0x121a22, 0x1b2836, 0x121a22]
-        case .cyan:
-            return [0x152b32, 0x0c181c, 0x152b32, 0x0c181c]
-        case .green:
-            return [0x142615, 0x0b160c, 0x142615, 0x0b160c]
-        case .pink:
-            return [0x2d1f23, 0x22171a, 0x2d1f23, 0x22171a]
-        case .orange:
-            return [0x2e2213, 0x221b0f, 0x2e2213, 0x221b0f]
-        case .purple:
-            return [0x25212e, 0x1b1822, 0x25212e, 0x1b1822]
-        case .red:
-            return [0x281613, 0x1e110e, 0x281613, 0x1e110e]
-        case .yellow:
-            return [0x2d2813, 0x221d0e, 0x2d2813, 0x221d0e]
-        case .gray:
-            return [0x1b1d21, 0x111315, 0x1b1d21, 0x111315]
-        case .black:
-            return nil
-        case .white:
-            return nil
-        case .custom, .preset, .theme:
-            return nil
-        }
-    }
 }
 
 public struct PresentationThemeAccentColor: PostboxCoding, Equatable {
     public static func == (lhs: PresentationThemeAccentColor, rhs: PresentationThemeAccentColor) -> Bool {
-        return lhs.index == rhs.index && lhs.baseColor == rhs.baseColor && lhs.accentColor == rhs.accentColor && lhs.bubbleColors?.0 == rhs.bubbleColors?.0 && lhs.bubbleColors?.1 == rhs.bubbleColors?.1
+        return lhs.index == rhs.index && lhs.baseColor == rhs.baseColor && lhs.accentColor == rhs.accentColor && lhs.bubbleColors == rhs.bubbleColors
     }
     
     public var index: Int32
     public var baseColor: PresentationThemeBaseColor
     public var accentColor: UInt32?
-    public var bubbleColors: (UInt32, UInt32?)?
+    public var bubbleColors: [UInt32]
     public var wallpaper: TelegramWallpaper?
     public var themeIndex: Int64?
     
@@ -456,11 +425,11 @@ public struct PresentationThemeAccentColor: PostboxCoding, Equatable {
         }
         self.baseColor = baseColor
         self.accentColor = nil
-        self.bubbleColors = nil
+        self.bubbleColors = []
         self.wallpaper = nil
     }
     
-    public init(index: Int32, baseColor: PresentationThemeBaseColor, accentColor: UInt32? = nil, bubbleColors: (UInt32, UInt32?)? = nil, wallpaper: TelegramWallpaper? = nil) {
+    public init(index: Int32, baseColor: PresentationThemeBaseColor, accentColor: UInt32? = nil, bubbleColors: [UInt32] = [], wallpaper: TelegramWallpaper? = nil) {
         self.index = index
         self.baseColor = baseColor
         self.accentColor = accentColor
@@ -472,7 +441,7 @@ public struct PresentationThemeAccentColor: PostboxCoding, Equatable {
         self.index = -1
         self.baseColor = .theme
         self.accentColor = nil
-        self.bubbleColors = nil
+        self.bubbleColors = []
         self.wallpaper = nil
         self.themeIndex = themeIndex
     }
@@ -481,15 +450,22 @@ public struct PresentationThemeAccentColor: PostboxCoding, Equatable {
         self.index = decoder.decodeInt32ForKey("i", orElse: -1)
         self.baseColor = PresentationThemeBaseColor(rawValue: decoder.decodeInt32ForKey("b", orElse: 0)) ?? .blue
         self.accentColor = decoder.decodeOptionalInt32ForKey("c").flatMap { UInt32(bitPattern: $0) }
-        if let bubbleTopColor = decoder.decodeOptionalInt32ForKey("bt") {
-            if let bubbleBottomColor = decoder.decodeOptionalInt32ForKey("bb") {
-                self.bubbleColors = (UInt32(bitPattern: bubbleTopColor), UInt32(bitPattern: bubbleBottomColor))
-            } else {
-                self.bubbleColors = (UInt32(bitPattern: bubbleTopColor), nil)
-            }
+
+        let bubbleColors = decoder.decodeInt32ArrayForKey("bubbleColors")
+        if !bubbleColors.isEmpty {
+            self.bubbleColors = bubbleColors.map(UInt32.init(bitPattern:))
         } else {
-            self.bubbleColors = nil
+            if let bubbleTopColor = decoder.decodeOptionalInt32ForKey("bt") {
+                if let bubbleBottomColor = decoder.decodeOptionalInt32ForKey("bb") {
+                    self.bubbleColors = [UInt32(bitPattern: bubbleTopColor), UInt32(bitPattern: bubbleBottomColor)]
+                } else {
+                    self.bubbleColors = [UInt32(bitPattern: bubbleTopColor)]
+                }
+            } else {
+                self.bubbleColors = []
+            }
         }
+
         self.wallpaper = decoder.decodeObjectForKey("w", decoder: { TelegramWallpaper(decoder: $0) }) as? TelegramWallpaper
         self.themeIndex = decoder.decodeOptionalInt64ForKey("t")
     }
@@ -502,17 +478,7 @@ public struct PresentationThemeAccentColor: PostboxCoding, Equatable {
         } else {
             encoder.encodeNil(forKey: "c")
         }
-        if let bubbleColors = self.bubbleColors {
-            encoder.encodeInt32(Int32(bitPattern: bubbleColors.0), forKey: "bt")
-            if let bubbleBottomColor = bubbleColors.1 {
-                encoder.encodeInt32(Int32(bitPattern: bubbleBottomColor), forKey: "bb")
-            } else {
-                encoder.encodeNil(forKey: "bb")
-            }
-        } else {
-            encoder.encodeNil(forKey: "bt")
-            encoder.encodeNil(forKey: "bb")
-        }
+        encoder.encodeInt32Array(self.bubbleColors.map(Int32.init(bitPattern:)), forKey: "bubbleColors")
         if let wallpaper = self.wallpaper {
             encoder.encodeObject(wallpaper, forKey: "w")
         } else {
@@ -533,28 +499,12 @@ public struct PresentationThemeAccentColor: PostboxCoding, Equatable {
         }
     }
     
-    public var customBubbleColors: (UIColor, UIColor?)? {
-        if let bubbleColors = self.bubbleColors {
-            if let bottomColor = bubbleColors.1 {
-                return (UIColor(rgb: UInt32(bitPattern: bubbleColors.0)), UIColor(rgb: UInt32(bitPattern: bottomColor)))
-            } else {
-                return (UIColor(rgb: UInt32(bitPattern: bubbleColors.0)), nil)
-            }
-       } else {
-            return nil
-       }
+    public var customBubbleColors: [UInt32] {
+        return self.bubbleColors
     }
     
-    public var plainBubbleColors: (UIColor, UIColor)? {
-        if let bubbleColors = self.bubbleColors {
-            if let bottomColor = bubbleColors.1 {
-                return (UIColor(rgb: UInt32(bitPattern: bubbleColors.0)), UIColor(rgb: UInt32(bitPattern: bottomColor)))
-            } else {
-                return (UIColor(rgb: UInt32(bitPattern: bubbleColors.0)), UIColor(rgb: UInt32(bitPattern: bubbleColors.0)))
-            }
-       } else {
-            return nil
-       }
+    public var plainBubbleColors: [UInt32] {
+        return self.bubbleColors
     }
     
     public func withUpdatedWallpaper(_ wallpaper: TelegramWallpaper?) -> PresentationThemeAccentColor {
@@ -604,10 +554,10 @@ public struct PresentationThemeSettings: PreferencesEntry {
         switch wallpaper {
             case let .image(representations, _):
                 return representations.map { $0.resource.id }
-            case let .file(_, _, _, _, _, _, _, file, _):
+            case let .file(file):
                 var resources: [MediaResourceId] = []
-                resources.append(file.resource.id)
-                resources.append(contentsOf: file.previewRepresentations.map { $0.resource.id })
+                resources.append(file.file.resource.id)
+                resources.append(contentsOf: file.file.previewRepresentations.map { $0.resource.id })
                 return resources
             default:
                 return []
@@ -743,7 +693,7 @@ public struct PresentationThemeSettings: PreferencesEntry {
     }
 }
 
-public func updatePresentationThemeSettingsInteractively(accountManager: AccountManager, _ f: @escaping (PresentationThemeSettings) -> PresentationThemeSettings) -> Signal<Void, NoError> {
+public func updatePresentationThemeSettingsInteractively(accountManager: AccountManager<TelegramAccountManagerTypes>, _ f: @escaping (PresentationThemeSettings) -> PresentationThemeSettings) -> Signal<Void, NoError> {
     return accountManager.transaction { transaction -> Void in
         transaction.updateSharedData(ApplicationSpecificSharedDataKeys.presentationThemeSettings, { entry in
             let currentSettings: PresentationThemeSettings

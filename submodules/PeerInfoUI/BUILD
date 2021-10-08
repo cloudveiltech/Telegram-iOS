@@ -6,16 +6,15 @@ swift_library(
     srcs = glob([
 		"Sources/**/*.swift",
     ]),
-    deps = [		
+    deps = [
         #CloudVeil start
-		"//Telegram:CloudVeilSecurityManager",
-		#CloudVeil end
+        "//Telegram:CloudVeilSecurityManager",
+        #CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
         "//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
-        "//submodules/SyncCore:SyncCore",
         "//submodules/TelegramPresentationData:TelegramPresentationData",
         "//submodules/AccountContext:AccountContext",
         "//submodules/ItemListUI:ItemListUI",
@@ -72,6 +71,8 @@ swift_library(
         "//submodules/ChatListFilterSettingsHeaderItem:ChatListFilterSettingsHeaderItem",
         "//submodules/InviteLinksUI:InviteLinksUI",
         "//submodules/UIKitRuntimeUtils:UIKitRuntimeUtils",
+        "//submodules/AnimatedStickerNode:AnimatedStickerNode",
+        "//submodules/TelegramAnimatedStickerNode:TelegramAnimatedStickerNode",
     ],
     visibility = [
         "//visibility:public",

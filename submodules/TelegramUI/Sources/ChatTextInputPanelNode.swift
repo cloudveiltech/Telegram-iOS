@@ -5,7 +5,6 @@ import AsyncDisplayKit
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import MobileCoreServices
 import TelegramPresentationData
 import TextFormat
@@ -104,7 +103,7 @@ private final class AccessoryItemIconButtonNode: HighlightTrackingButtonNode {
                 }
             case let .messageAutoremoveTimeout(timeout):
                 if let timeout = timeout {
-                    return (nil, shortTimeIntervalString(strings: strings, value: timeout), strings.VoiceOver_SelfDestructTimerOn(timeIntervalString(strings: strings, value: timeout)).0, 1.0, UIEdgeInsets())
+                    return (nil, shortTimeIntervalString(strings: strings, value: timeout), strings.VoiceOver_SelfDestructTimerOn(timeIntervalString(strings: strings, value: timeout)).string, 1.0, UIEdgeInsets())
                 } else {
                     return (PresentationResourcesChat.chatInputTextFieldTimerImage(theme), nil, strings.VoiceOver_SelfDestructTimerOff, 1.0, UIEdgeInsets(top: 0.0, left: 0.0, bottom: 0.0, right: 0.0))
                 }
@@ -232,6 +231,7 @@ enum ChatTextInputPanelPasteData {
 }
 
 class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
+    let clippingNode: ASDisplayNode
     var textPlaceholderNode: ImmediateTextNode
     var contextPlaceholderNode: TextNode?
     var slowmodePlaceholderNode: ChatTextInputSlowmodePlaceholderNode?
@@ -374,14 +374,14 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                             break
                         }
                     }
-
+                    
                     //CloudVeil start
-					var isStickerPanelItem = false
+                    var isStickerPanelItem = false
                     if case .stickers(let _) = item {
-						isStickerPanelItem = true
+                        isStickerPanelItem = true
                     }
-					
-					if !MainController.shared.disableStickers || !isStickerPanelItem {
+                    
+                    if !MainController.shared.disableStickers || !isStickerPanelItem {
                         if itemAndButton == nil {
                             let button = AccessoryItemIconButtonNode(item: item, theme: currentState.theme, strings: currentState.strings)
                             button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
@@ -389,7 +389,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                         }
                         updatedButtons.append(itemAndButton!)
                     }
-					//CloudVeil end
+                    //CloudVeil end
                 }
                 for (_, button) in self.accessoryItemButtons {
                     button.removeFromSupernode()
@@ -443,9 +443,12 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
     private let accessoryButtonSpacing: CGFloat = 0.0
     private let accessoryButtonInset: CGFloat = 2.0
     
-    init(presentationInterfaceState: ChatPresentationInterfaceState, presentController: @escaping (ViewController) -> Void) {
+    init(presentationInterfaceState: ChatPresentationInterfaceState, presentationContext: ChatPresentationContext?, presentController: @escaping (ViewController) -> Void) {
         self.presentationInterfaceState = presentationInterfaceState
 
+        self.clippingNode = ASDisplayNode()
+        self.clippingNode.clipsToBounds = true
+        
         self.textInputContainerBackgroundNode = ASImageNode()
         self.textInputContainerBackgroundNode.isUserInteractionEnabled = false
         self.textInputContainerBackgroundNode.displaysAsynchronously = false
@@ -464,10 +467,12 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         self.menuButton = HighlightTrackingButtonNode()
         self.menuButton.clipsToBounds = true
         self.menuButton.cornerRadius = 16.0
+        self.menuButton.accessibilityLabel = presentationInterfaceState.strings.Conversation_InputMenu
         self.menuButtonBackgroundNode = ASDisplayNode()
         self.menuButtonClippingNode = ASDisplayNode()
         self.menuButtonClippingNode.clipsToBounds = true
-        self.menuButtonIconNode = AnimationNode(animation: "anim_menuclose", colors: [:])
+        
+        self.menuButtonIconNode = AnimationNode(animation: "anim_menuclose", colors: ["1.1.Обводка 1": presentationInterfaceState.theme.chat.inputPanel.actionControlForegroundColor, "2.2.Обводка 1": presentationInterfaceState.theme.chat.inputPanel.actionControlForegroundColor, "3.1.Обводка 1": presentationInterfaceState.theme.chat.inputPanel.actionControlForegroundColor])
         self.menuButtonTextNode = ImmediateTextNode()
         
         self.attachmentButton = HighlightableButtonNode(pointerStyle: .circle)
@@ -480,23 +485,23 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         self.searchLayoutClearImageNode.isUserInteractionEnabled = false
         self.searchLayoutClearButton.addSubnode(self.searchLayoutClearImageNode)
         
-        self.actionButtons = ChatTextInputActionButtonsNode(theme: presentationInterfaceState.theme, strings: presentationInterfaceState.strings, presentController: presentController)
+        self.actionButtons = ChatTextInputActionButtonsNode(presentationInterfaceState: presentationInterfaceState, presentationContext: presentationContext, presentController: presentController)
         self.counterTextNode = ImmediateTextNode()
         self.counterTextNode.textAlignment = .center
         
         super.init()
         
+        self.addSubnode(self.clippingNode)
+        
         self.menuButton.addTarget(self, action: #selector(self.menuButtonPressed), forControlEvents: .touchUpInside)
         self.menuButton.highligthedChanged = { [weak self] highlighted in
             if let strongSelf = self {
-                if let strongSelf = self {
-                    if highlighted {
-                        let transition: ContainedViewLayoutTransition = .animated(duration: 0.3, curve: .spring)
-                        transition.updateTransformScale(node: strongSelf.menuButton, scale: 0.85)
-                    } else {
-                        let transition: ContainedViewLayoutTransition = .animated(duration: 0.5, curve: .spring)
-                        transition.updateTransformScale(node: strongSelf.menuButton, scale: 1.0)
-                    }
+                if highlighted {
+                    let transition: ContainedViewLayoutTransition = .animated(duration: 0.3, curve: .spring)
+                    transition.updateTransformScale(node: strongSelf.menuButton, scale: 0.85)
+                } else {
+                    let transition: ContainedViewLayoutTransition = .animated(duration: 0.5, curve: .spring)
+                    transition.updateTransformScale(node: strongSelf.menuButton, scale: 1.0)
                 }
             }
         }
@@ -568,7 +573,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         }
         
         self.actionButtons.sendButton.addTarget(self, action: #selector(self.sendButtonPressed), forControlEvents: .touchUpInside)
-        self.actionButtons.sendButton.alpha = 0.0
+        self.actionButtons.sendContainerNode.alpha = 0.0
         self.actionButtons.updateAccessibility()
         
         self.actionButtons.expandMediaInputButton.addTarget(self, action: #selector(self.expandButtonPressed), forControlEvents: .touchUpInside)
@@ -577,24 +582,24 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         self.searchLayoutClearButton.addTarget(self, action: #selector(self.searchLayoutClearButtonPressed), for: .touchUpInside)
         self.searchLayoutClearButton.alpha = 0.0
         
-        self.addSubnode(self.textInputContainer)
-        self.addSubnode(self.textInputBackgroundNode)
+        self.clippingNode.addSubnode(self.textInputContainer)
+        self.clippingNode.addSubnode(self.textInputBackgroundNode)
         
-        self.addSubnode(self.textPlaceholderNode)
+        self.clippingNode.addSubnode(self.textPlaceholderNode)
         
         self.menuButton.addSubnode(self.menuButtonBackgroundNode)
         self.menuButton.addSubnode(self.menuButtonClippingNode)
         self.menuButtonClippingNode.addSubnode(self.menuButtonTextNode)
         self.menuButton.addSubnode(self.menuButtonIconNode)
         
-        self.addSubnode(self.menuButton)
-        self.addSubnode(self.attachmentButton)
-        self.addSubnode(self.attachmentButtonDisabledNode)
+        self.clippingNode.addSubnode(self.menuButton)
+        self.clippingNode.addSubnode(self.attachmentButton)
+        self.clippingNode.addSubnode(self.attachmentButtonDisabledNode)
           
-        self.addSubnode(self.actionButtons)
-        self.addSubnode(self.counterTextNode)
+        self.clippingNode.addSubnode(self.actionButtons)
+        self.clippingNode.addSubnode(self.counterTextNode)
         
-        self.view.addSubview(self.searchLayoutClearButton)
+        self.clippingNode.view.addSubview(self.searchLayoutClearButton)
         
         self.textInputBackgroundNode.clipsToBounds = true
         let recognizer = TouchDownGestureRecognizer(target: self, action: #selector(self.textInputBackgroundViewTap(_:)))
@@ -763,6 +768,15 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         return minimalHeight
     }
     
+    private var absoluteRect: (CGRect, CGSize)?
+    override func updateAbsoluteRect(_ rect: CGRect, within containerSize: CGSize, transition: ContainedViewLayoutTransition) {
+        self.absoluteRect = (rect, containerSize)
+
+        if !self.actionButtons.frame.width.isZero {
+            self.actionButtons.updateAbsoluteRect(CGRect(origin: rect.origin.offsetBy(dx: self.actionButtons.frame.minX, dy: self.actionButtons.frame.minY), size: self.actionButtons.frame.size), within: containerSize, transition: transition)
+        }
+    }
+    
     override func updateLayout(width: CGFloat, leftInset: CGFloat, rightInset: CGFloat, additionalSideInsets: UIEdgeInsets, maxHeight: CGFloat, isSecondary: Bool, transition: ContainedViewLayoutTransition, interfaceState: ChatPresentationInterfaceState, metrics: LayoutMetrics) -> CGFloat {
         let previousAdditionalSideInsets = self.validLayout?.3
         self.validLayout = (width, leftInset, rightInset, additionalSideInsets, maxHeight, metrics, isSecondary)
@@ -794,6 +808,10 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                 isMediaEnabled = false
             }
         }
+        var isRecording = false
+        if let _ = interfaceState.inputTextPanelState.mediaRecordingState {
+            isRecording = true
+        }
         
         var isScheduledMessages = false
         if case .scheduledMessages = interfaceState.subject {
@@ -808,7 +826,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
             }
         }
         transition.updateAlpha(layer: self.attachmentButton.layer, alpha: isMediaEnabled ? 1.0 : 0.4)
-        self.attachmentButton.isEnabled = isMediaEnabled
+        self.attachmentButton.isEnabled = isMediaEnabled && !isRecording
         self.attachmentButton.accessibilityTraits = (!isSlowmodeActive || isMediaEnabled) ? [.button] : [.button, .notEnabled]
         self.attachmentButtonDisabledNode.isHidden = !isSlowmodeActive || isMediaEnabled
         
@@ -821,9 +839,9 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
             
             if let previousShowCommands = previousState?.showCommands, previousShowCommands != interfaceState.showCommands {
                 if interfaceState.showCommands {
-                    self.menuButtonIconNode.setAnimation(name: "anim_menuclose", colors: [:])
+                    self.menuButtonIconNode.setAnimation(name: "anim_menuclose", colors: ["1.1.Обводка 1": interfaceState.theme.chat.inputPanel.actionControlForegroundColor, "2.2.Обводка 1": interfaceState.theme.chat.inputPanel.actionControlForegroundColor, "3.1.Обводка 1": interfaceState.theme.chat.inputPanel.actionControlForegroundColor])
                 } else {
-                    self.menuButtonIconNode.setAnimation(name: "anim_closemenu", colors: [:])
+                    self.menuButtonIconNode.setAnimation(name: "anim_closemenu", colors: ["1.1.Обводка 1": interfaceState.theme.chat.inputPanel.actionControlForegroundColor, "2.2.Обводка 1": interfaceState.theme.chat.inputPanel.actionControlForegroundColor, "3.1.Обводка 1": interfaceState.theme.chat.inputPanel.actionControlForegroundColor])
                 }
                 self.menuButtonIconNode.playOnce()
             }
@@ -837,6 +855,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                 
                 if self.theme == nil || !self.theme!.chat.inputPanel.inputTextColor.isEqual(interfaceState.theme.chat.inputPanel.inputTextColor) {
                     let textColor = interfaceState.theme.chat.inputPanel.inputTextColor
+                    let tintColor = interfaceState.theme.list.itemAccentColor
                     let baseFontSize = max(minInputFontSize, interfaceState.fontSize.baseDisplaySize)
                     
                     if let textInputNode = self.textInputNode {
@@ -846,6 +865,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                             textInputNode.selectedRange = range
                         }
                         textInputNode.typingAttributes = [NSAttributedString.Key.font.rawValue: Font.regular(baseFontSize), NSAttributedString.Key.foregroundColor.rawValue: textColor]
+                        textInputNode.tintColor = tintColor
                     }
                 }
                 
@@ -862,6 +882,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                 
                 self.menuButtonBackgroundNode.backgroundColor = interfaceState.theme.chat.inputPanel.actionControlFillColor
                 self.menuButtonTextNode.attributedText = NSAttributedString(string: interfaceState.strings.Conversation_InputMenu, font: Font.with(size: 16.0, design: .round, weight: .medium, traits: []), textColor: interfaceState.theme.chat.inputPanel.actionControlForegroundColor)
+                self.menuButton.accessibilityLabel = interfaceState.strings.Conversation_InputMenu
                 menuTextSize = self.menuButtonTextNode.updateLayout(CGSize(width: width, height: 44.0))
                 
                 if isEditingMedia {
@@ -870,7 +891,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                     self.attachmentButton.setImage(PresentationResourcesChat.chatInputPanelAttachmentButtonImage(interfaceState.theme), for: [])
                 }
                
-                self.actionButtons.updateTheme(theme: interfaceState.theme)
+                self.actionButtons.updateTheme(theme: interfaceState.theme, wallpaper: interfaceState.chatWallpaper)
                 
                 let textFieldMinHeight = calclulateTextFieldMinHeight(interfaceState, metrics: metrics)
                 let minimalInputHeight: CGFloat = 2.0 + textFieldMinHeight
@@ -972,7 +993,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                 if !self.actionButtons.animatingSendButton {
                     let imageNode = self.actionButtons.sendButton.imageNode
                     
-                    if transition.isAnimated && !self.actionButtons.sendButton.alpha.isZero && self.actionButtons.sendButton.layer.animation(forKey: "opacity") == nil, let previousImage = imageNode.image {
+                    if transition.isAnimated && !self.actionButtons.sendContainerNode.alpha.isZero && self.actionButtons.sendButton.layer.animation(forKey: "opacity") == nil, let previousImage = imageNode.image {
                         let tempView = UIImageView(image: previousImage)
                         self.actionButtons.sendButton.view.addSubview(tempView)
                         tempView.frame = imageNode.frame
@@ -986,12 +1007,12 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                     }
                     self.actionButtons.sendButtonHasApplyIcon = sendButtonHasApplyIcon
                     if self.actionButtons.sendButtonHasApplyIcon {
-                        self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelApplyButtonImage(interfaceState.theme), for: [])
+                        self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelApplyIconImage(interfaceState.theme), for: [])
                     } else {
                         if isScheduledMessages {
                             self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelScheduleButtonImage(interfaceState.theme), for: [])
                         } else {
-                            self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelSendButtonImage(interfaceState.theme), for: [])
+                            self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelSendIconImage(interfaceState.theme), for: [])
                         }
                     }
                 }
@@ -1034,21 +1055,22 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                         break
                     }
                 }
+                
                 //CloudVeil start
-				var isStickerPanelItem = false
-				if case .stickers(let _) = item {
-					isStickerPanelItem = true
-				}
-				
-				if !MainController.shared.disableStickers || !isStickerPanelItem {
+                var isStickerPanelItem = false
+                if case .stickers(let _) = item {
+                    isStickerPanelItem = true
+                }
+                
+                if !MainController.shared.disableStickers || !isStickerPanelItem {
                     if itemAndButton == nil {
                         let button = AccessoryItemIconButtonNode(item: item, theme: interfaceState.theme, strings: interfaceState.strings)
                         button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
                         itemAndButton = (item, button)
                     }
                     updatedButtons.append(itemAndButton!)
-				}
-				//CloudVeil end
+                }
+                //CloudVeil end
             }
             for (_, button) in self.accessoryItemButtons {
                 if animatedTransition {
@@ -1065,16 +1087,16 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         
         let mediaRecordingState = interfaceState.inputTextPanelState.mediaRecordingState
         
+        var inputHasText = false
+        if let textInputNode = self.textInputNode, let attributedText = textInputNode.attributedText, attributedText.length != 0 {
+            inputHasText = true
+        }
+        
         var hasMenuButton = false
         var menuButtonExpanded = false
         if let peer = interfaceState.renderedPeer?.peer as? TelegramUser, let _ = peer.botInfo, interfaceState.hasBotCommands && interfaceState.editMessageState == nil {
             hasMenuButton = true
             
-            var inputHasText = false
-            if let textInputNode = self.textInputNode, let attributedText = textInputNode.attributedText, attributedText.length != 0 {
-                inputHasText = true
-            }
-
             if !inputHasText {
                 switch interfaceState.inputMode {
                 case .none, .inputButtons:
@@ -1134,7 +1156,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
             } else {
                 audioRecordingInfoContainerNode = ASDisplayNode()
                 self.audioRecordingInfoContainerNode = audioRecordingInfoContainerNode
-                self.insertSubnode(audioRecordingInfoContainerNode, at: 0)
+                self.clippingNode.insertSubnode(audioRecordingInfoContainerNode, at: 0)
             }
             
             var animateTimeSlideIn = false
@@ -1162,7 +1184,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                     self?.interfaceInteraction?.finishMediaRecording(.dismiss)
                 })
                 self.audioRecordingCancelIndicator = audioRecordingCancelIndicator
-                self.insertSubnode(audioRecordingCancelIndicator, at: 0)
+                self.clippingNode.insertSubnode(audioRecordingCancelIndicator, at: 0)
             }
             
             let isLocked = mediaRecordingState?.isLocked ?? (interfaceState.recordedMediaPreview != nil)
@@ -1271,7 +1293,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                 audioRecordingDotNode = AnimationNode(animation: "BinRed")
                 self.audioRecordingDotNode = audioRecordingDotNode
                 self.audioRecordingDotNodeDismissed = false
-                self.insertSubnode(audioRecordingDotNode, belowSubnode: self.menuButton)
+                self.clippingNode.insertSubnode(audioRecordingDotNode, belowSubnode: self.menuButton)
                 self.animatingBinNode?.removeFromSupernode()
                 self.animatingBinNode = nil
             }
@@ -1405,6 +1427,9 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
        
         let actionButtonsFrame = CGRect(origin: CGPoint(x: width - rightInset - 43.0 - UIScreenPixel + composeButtonsOffset, y: panelHeight - minimalHeight), size: CGSize(width: 44.0, height: minimalHeight))
         transition.updateFrame(node: self.actionButtons, frame: actionButtonsFrame)
+        if let (rect, containerSize) = self.absoluteRect {
+            self.actionButtons.updateAbsoluteRect(CGRect(x: rect.origin.x + actionButtonsFrame.origin.x, y: rect.origin.y + actionButtonsFrame.origin.y, width: actionButtonsFrame.width, height: actionButtonsFrame.height), within: containerSize, transition: transition)
+        }
         
         if let presentationInterfaceState = self.presentationInterfaceState {
             self.actionButtons.updateLayout(size: CGSize(width: 44.0, height: minimalHeight), transition: transition, interfaceState: presentationInterfaceState)
@@ -1426,7 +1451,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                     self?.interfaceInteraction?.finishMediaRecording(.send)
                     return true
                 }
-                self.insertSubnode(mediaRecordingAccessibilityArea, aboveSubnode: self.actionButtons)
+                self.clippingNode.insertSubnode(mediaRecordingAccessibilityArea, aboveSubnode: self.actionButtons)
             }
             self.actionButtons.isAccessibilityElement = false
             let size: CGFloat = 120.0
@@ -1489,7 +1514,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                 contextPlaceholderNode.displaysAsynchronously = false
                 contextPlaceholderNode.isUserInteractionEnabled = false
                 self.contextPlaceholderNode = contextPlaceholderNode
-                self.insertSubnode(contextPlaceholderNode, aboveSubnode: self.textPlaceholderNode)
+                self.clippingNode.insertSubnode(contextPlaceholderNode, aboveSubnode: self.textPlaceholderNode)
             }
             
             let _ = placeholderApply()
@@ -1509,7 +1534,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
             } else {
                 slowmodePlaceholderNode = ChatTextInputSlowmodePlaceholderNode(theme: interfaceState.theme)
                 self.slowmodePlaceholderNode = slowmodePlaceholderNode
-                self.insertSubnode(slowmodePlaceholderNode, aboveSubnode: self.textPlaceholderNode)
+                self.clippingNode.insertSubnode(slowmodePlaceholderNode, aboveSubnode: self.textPlaceholderNode)
             }
             let placeholderFrame = CGRect(origin: CGPoint(x: leftInset + textFieldInsets.left + self.textInputViewInternalInsets.left, y: textFieldInsets.top + self.textInputViewInternalInsets.top + textInputViewRealInsets.top + UIScreenPixel), size: CGSize(width: width - leftInset - rightInset - textFieldInsets.left - textFieldInsets.right - self.textInputViewInternalInsets.left - self.textInputViewInternalInsets.right - accessoryButtonsWidth, height: 30.0))
             slowmodePlaceholderNode.updateState(slowmodeState)
@@ -1520,12 +1545,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
             self.slowmodePlaceholderNode = nil
             slowmodePlaceholderNode.removeFromSupernode()
         }
-        
-        var inputHasText = false
-        if let textInputNode = self.textInputNode, let attributedText = textInputNode.attributedText, attributedText.length != 0 {
-            inputHasText = true
-        }
-        
+
         if (interfaceState.slowmodeState != nil && !isScheduledMessages && interfaceState.editMessageState == nil) || interfaceState.inputTextPanelState.contextPlaceholder != nil {
             self.textPlaceholderNode.isHidden = true
             self.slowmodePlaceholderNode?.isHidden = inputHasText
@@ -1546,7 +1566,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
             button.updateLayout(size: buttonSize)
             let buttonFrame = CGRect(origin: CGPoint(x: nextButtonTopRight.x - buttonSize.width, y: nextButtonTopRight.y + floor((minimalInputHeight - buttonSize.height) / 2.0)), size: buttonSize)
             if button.supernode == nil {
-                self.addSubnode(button)
+                self.clippingNode.addSubnode(button)
                 button.frame = buttonFrame.offsetBy(dx: -additionalOffset, dy: 0.0)
                 transition.updateFrame(layer: button.layer, frame: buttonFrame)
                 if animatedTransition {
@@ -1571,13 +1591,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
             }
         }
         
-        var hasText = false
-        if let textInputNode = self.textInputNode, let attributedText = textInputNode.attributedText, attributedText.length != 0 {
-            hasText = true
-            hideMicButton = true
-        }
-        
-        if self.extendedSearchLayout {
+        if inputHasText || self.extendedSearchLayout {
             hideMicButton = true
         }
         
@@ -1593,7 +1607,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         }
         self.actionButtons.micButton.fadeDisabled = mediaInputDisabled
         
-        self.updateActionButtons(hasText: hasText, hideMicButton: hideMicButton, animated: transition.isAnimated)
+        self.updateActionButtons(hasText: inputHasText, hideMicButton: hideMicButton, animated: transition.isAnimated)
         
         if let prevInputPanelNode = self.prevInputPanelNode {
             prevInputPanelNode.frame = CGRect(origin: .zero, size: prevInputPanelNode.frame.size)
@@ -1671,10 +1685,14 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                 self.menuButton.transform = CATransform3DIdentity
                 self.menuButton.layer.animateScale(from: 0.3, to: 1.0, duration: 0.15, delay: 0, removeOnCompletion: false)
             }
-            
-            prevPreviewInputPanelNode.sendButton.layer.animateScale(from: 1.0, to: 0.3, duration: 0.15, removeOnCompletion: false)
-            prevPreviewInputPanelNode.sendButton.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.15, removeOnCompletion: false)
         }
+        
+        var clippingDelta: CGFloat = 0.0
+        if case let .media(_, _, focused) = interfaceState.inputMode, focused {
+            clippingDelta = -panelHeight
+        }
+        transition.updateFrame(node: self.clippingNode, frame: CGRect(origin: CGPoint(), size: CGSize(width: width, height: panelHeight)))
+        transition.updateSublayerTransformOffset(layer: self.clippingNode.layer, offset: CGPoint(x: 0.0, y: clippingDelta))
         
         return panelHeight
     }
@@ -1778,23 +1796,22 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         if self.extendedSearchLayout {
             hideMicButton = true
             
-            if !self.actionButtons.sendButton.alpha.isZero {
-                self.actionButtons.sendButton.alpha = 0.0
+            if !self.actionButtons.sendContainerNode.alpha.isZero {
+                self.actionButtons.sendContainerNode.alpha = 0.0
                 self.actionButtons.sendButtonRadialStatusNode?.alpha = 0.0
                 self.actionButtons.updateAccessibility()
                 if animated {
                     self.actionButtons.animatingSendButton = true
-                    self.actionButtons.sendButton.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, completion: { [weak self] _ in
+                    self.actionButtons.sendContainerNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, completion: { [weak self] _ in
                         if let strongSelf = self {
                             strongSelf.actionButtons.animatingSendButton = false
                             strongSelf.applyUpdateSendButtonIcon()
                         }
                     })
-                    self.actionButtons.sendButton.layer.animateScale(from: 1.0, to: 0.2, duration: 0.2)
-                    self.actionButtons.sendButtonRadialStatusNode?.layer.animateScale(from: 1.0, to: 0.2, duration: 0.2)
-                   
-                    self.actionButtons.sendButtonRadialStatusNode?.alpha = 0.0
+                    self.actionButtons.sendContainerNode.layer.animateScale(from: 1.0, to: 0.2, duration: 0.2)
+                    
                     self.actionButtons.sendButtonRadialStatusNode?.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2)
+                    self.actionButtons.sendButtonRadialStatusNode?.layer.animateScale(from: 1.0, to: 0.2, duration: 0.2)
                 }
             }
             if self.searchLayoutClearButton.alpha.isZero {
@@ -1817,30 +1834,30 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
             
             if (hasText || self.keepSendButtonEnabled && !mediaInputIsActive) {
                 hideMicButton = true
-                if self.actionButtons.sendButton.alpha.isZero {
-                    self.actionButtons.sendButton.alpha = 1.0
+                if self.actionButtons.sendContainerNode.alpha.isZero {
+                    self.actionButtons.sendContainerNode.alpha = 1.0
                     self.actionButtons.sendButtonRadialStatusNode?.alpha = 1.0
                     self.actionButtons.updateAccessibility()
                     if animated {
-                        self.actionButtons.sendButton.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.1)
+                        self.actionButtons.sendContainerNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.1)
                         self.actionButtons.sendButtonRadialStatusNode?.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.1)
                         if animateWithBounce {
-                            self.actionButtons.sendButton.layer.animateSpring(from: NSNumber(value: Float(0.1)), to: NSNumber(value: Float(1.0)), keyPath: "transform.scale", duration: 0.6)
+                            self.actionButtons.sendContainerNode.layer.animateSpring(from: NSNumber(value: Float(0.1)), to: NSNumber(value: Float(1.0)), keyPath: "transform.scale", duration: 0.6)
                             self.actionButtons.sendButtonRadialStatusNode?.layer.animateSpring(from: NSNumber(value: Float(0.1)), to: NSNumber(value: Float(1.0)), keyPath: "transform.scale", duration: 0.6)
                         } else {
-                            self.actionButtons.sendButton.layer.animateScale(from: 0.2, to: 1.0, duration: 0.25)
+                            self.actionButtons.sendContainerNode.layer.animateScale(from: 0.2, to: 1.0, duration: 0.25)
                             self.actionButtons.sendButtonRadialStatusNode?.layer.animateScale(from: 0.2, to: 1.0, duration: 0.25)
                         }
                     }
                 }
             } else {
-                if !self.actionButtons.sendButton.alpha.isZero {
-                    self.actionButtons.sendButton.alpha = 0.0
+                if !self.actionButtons.sendContainerNode.alpha.isZero {
+                    self.actionButtons.sendContainerNode.alpha = 0.0
                     self.actionButtons.sendButtonRadialStatusNode?.alpha = 0.0
                     self.actionButtons.updateAccessibility()
                     if animated {
                         self.actionButtons.animatingSendButton = true
-                        self.actionButtons.sendButton.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, completion: { [weak self] _ in
+                        self.actionButtons.sendContainerNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, completion: { [weak self] _ in
                             if let strongSelf = self {
                                 strongSelf.actionButtons.animatingSendButton = false
                                 strongSelf.applyUpdateSendButtonIcon()
@@ -1932,7 +1949,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
     }
     
     @objc func editableTextNodeShouldReturn(_ editableTextNode: ASEditableTextNode) -> Bool {
-        if self.actionButtons.sendButton.supernode != nil && !self.actionButtons.sendButton.isHidden && !self.actionButtons.sendButton.alpha.isZero {
+        if self.actionButtons.sendButton.supernode != nil && !self.actionButtons.sendButton.isHidden && !self.actionButtons.sendContainerNode.alpha.isZero {
             self.sendButtonPressed()
         }
         return false
@@ -1945,12 +1962,12 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
             if sendButtonHasApplyIcon != self.actionButtons.sendButtonHasApplyIcon {
                 self.actionButtons.sendButtonHasApplyIcon = sendButtonHasApplyIcon
                 if self.actionButtons.sendButtonHasApplyIcon {
-                    self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelApplyButtonImage(interfaceState.theme), for: [])
+                    self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelApplyIconImage(interfaceState.theme), for: [])
                 } else {
                     if case .scheduledMessages = interfaceState.subject {
-                        self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelScheduleButtonImage(interfaceState.theme), for: [])
+                        self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelScheduleIconImage(interfaceState.theme), for: [])
                     } else {
-                        self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelSendButtonImage(interfaceState.theme), for: [])
+                        self.actionButtons.sendButton.setImage(PresentationResourcesChat.chatInputPanelSendIconImage(interfaceState.theme), for: [])
                     }
                 }
             }
@@ -2279,11 +2296,11 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
     
     @objc func expandButtonPressed() {
         self.interfaceInteraction?.updateInputModeAndDismissedButtonKeyboardMessageId({ state in
-            if case let .media(mode, expanded) = state.inputMode {
+            if case let .media(mode, expanded, focused) = state.inputMode {
                 if let _ = expanded {
-                    return (.media(mode: mode, expanded: nil), state.interfaceState.messageActionsState.closedButtonKeyboardMessageId)
+                    return (.media(mode: mode, expanded: nil, focused: focused), state.interfaceState.messageActionsState.closedButtonKeyboardMessageId)
                 } else {
-                    return (.media(mode: mode, expanded: .content), state.interfaceState.messageActionsState.closedButtonKeyboardMessageId)
+                    return (.media(mode: mode, expanded: .content, focused: focused), state.interfaceState.messageActionsState.closedButtonKeyboardMessageId)
                 }
             } else {
                 return (state.inputMode, state.interfaceState.messageActionsState.closedButtonKeyboardMessageId)
@@ -2383,14 +2400,6 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
         backgroundView.frame = self.textInputBackgroundNode.frame
 
         func updateIsCaretHidden(view: UIView, isHidden: Bool) {
-            return;
-            if String(describing: type(of: view)).contains("TextSelectionView") {
-                view.isHidden = isHidden
-            } else {
-                for subview in view.subviews {
-                    updateIsCaretHidden(view: subview, isHidden: isHidden)
-                }
-            }
         }
 
         updateIsCaretHidden(view: textInputNode.view, isHidden: true)

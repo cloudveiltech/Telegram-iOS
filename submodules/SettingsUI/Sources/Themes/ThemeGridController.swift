@@ -4,7 +4,6 @@ import Display
 import AsyncDisplayKit
 import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import LegacyComponents
 import TelegramPresentationData
@@ -78,13 +77,13 @@ final class ThemeGridController: ViewController {
             }
         })
         //CloudVeil start disable theme search
-		/*
+               /*
         self.searchContentNode = NavigationBarSearchContentNode(theme: self.presentationData.theme, placeholder: self.presentationData.strings.Wallpaper_Search, activate: { [weak self] in
             self?.activateSearch()
         })
         self.navigationBar?.setContentNode(self.searchContentNode, animated: false)
-        */
-        //CloudVeil end
+                */
+                //CloudVeil end
     }
     
     required public init(coder aDecoder: NSCoder) {
@@ -347,13 +346,13 @@ final class ThemeGridController: ViewController {
         for wallpaper in wallpapers {
             var item: String?
             switch wallpaper {
-                case let .file(_, _, _, _, isPattern, _, slug, _, settings):
+                case let .file(file):
                     var options: [String] = []
-                    if isPattern {
-                        if settings.colors.count >= 1 {
-                            options.append("bg_color=\(UIColor(rgb: settings.colors[0]).hexString)")
+                    if file.isPattern {
+                        if file.settings.colors.count >= 1 {
+                            options.append("bg_color=\(UIColor(rgb: file.settings.colors[0]).hexString)")
                         }
-                        if let intensity = settings.intensity {
+                        if let intensity = file.settings.intensity {
                             options.append("intensity=\(intensity)")
                         }
                     }
@@ -362,7 +361,7 @@ final class ThemeGridController: ViewController {
                     if !options.isEmpty {
                         optionsString = "?\(options.joined(separator: "&"))"
                     }
-                    item = slug + optionsString
+                    item = file.slug + optionsString
                 case let .color(color):
                     item = "\(UIColor(rgb: color).hexString)"
                 default:

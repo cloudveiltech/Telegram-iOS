@@ -300,18 +300,23 @@ public func generateGradientTintedImage(image: UIImage?, colors: [UIColor]) -> U
         context.scaleBy(x: 1.0, y: -1.0)
         context.translateBy(x: -imageRect.midX, y: -imageRect.midY)
         context.clip(to: imageRect, mask: image.cgImage!)
-        
-        let gradientColors = colors.map { $0.cgColor } as CFArray
-        let delta: CGFloat = 1.0 / (CGFloat(colors.count) - 1.0)
-        
-        var locations: [CGFloat] = []
-        for i in 0 ..< colors.count {
-            locations.append(delta * CGFloat(i))
+
+        if colors.count >= 2 {
+            let gradientColors = colors.map { $0.cgColor } as CFArray
+
+            var locations: [CGFloat] = []
+            for i in 0 ..< colors.count {
+                let t = CGFloat(i) / CGFloat(colors.count - 1)
+                locations.append(t)
+            }
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let gradient = CGGradient(colorsSpace: colorSpace, colors: gradientColors, locations: &locations)!
+
+            context.drawLinearGradient(gradient, start: CGPoint(x: 0.0, y: imageRect.height), end: CGPoint(x: 0.0, y: 0.0), options: CGGradientDrawingOptions())
+        } else if !colors.isEmpty {
+            context.setFillColor(colors[0].cgColor)
+            context.fill(imageRect)
         }
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        let gradient = CGGradient(colorsSpace: colorSpace, colors: gradientColors, locations: &locations)!
-        
-        context.drawLinearGradient(gradient, start: CGPoint(x: 0.0, y: imageRect.height), end: CGPoint(x: 0.0, y: 0.0), options: CGGradientDrawingOptions())
         
         context.restoreGState()
     }
@@ -372,33 +377,88 @@ public enum DrawingContextBltMode {
     case Alpha
 }
 
-public struct DeviceGraphicsContextSettings {
-    public static let shared: DeviceGraphicsContextSettings = {
+public func getSharedDevideGraphicsContextSettings() -> DeviceGraphicsContextSettings {
+    struct OpaqueSettings {
+        let rowAlignment: Int
+        let bitsPerPixel: Int
+        let bitsPerComponent: Int
+        let opaqueBitmapInfo: CGBitmapInfo
+        let colorSpace: CGColorSpace
+
+        init(context: CGContext) {
+            self.rowAlignment = context.bytesPerRow
+            self.bitsPerPixel = context.bitsPerPixel
+            self.bitsPerComponent = context.bitsPerComponent
+            self.opaqueBitmapInfo = context.bitmapInfo
+            if #available(iOS 10.0, *) {
+                if UIScreen.main.traitCollection.displayGamut == .P3 {
+                    self.colorSpace = CGColorSpace(name: CGColorSpace.displayP3) ?? context.colorSpace!
+                } else {
+                    self.colorSpace = context.colorSpace!
+                }
+            } else {
+                self.colorSpace = context.colorSpace!
+            }
+            assert(self.rowAlignment == 32)
+            assert(self.bitsPerPixel == 32)
+            assert(self.bitsPerComponent == 8)
+        }
+    }
+
+    struct TransparentSettings {
+        let transparentBitmapInfo: CGBitmapInfo
+
+        init(context: CGContext) {
+            self.transparentBitmapInfo = context.bitmapInfo
+        }
+    }
+
+    var opaqueSettings: OpaqueSettings?
+    var transparentSettings: TransparentSettings?
+
+    if #available(iOS 10.0, *) {
+        let opaqueFormat = UIGraphicsImageRendererFormat()
+        let transparentFormat = UIGraphicsImageRendererFormat()
+        if #available(iOS 12.0, *) {
+            opaqueFormat.preferredRange = .standard
+            transparentFormat.preferredRange = .standard
+        }
+        opaqueFormat.opaque = true
+        transparentFormat.opaque = false
+
+        let opaqueRenderer = UIGraphicsImageRenderer(bounds: CGRect(origin: CGPoint(), size: CGSize(width: 1.0, height: 1.0)), format: opaqueFormat)
+        let _ = opaqueRenderer.image(actions: { context in
+            opaqueSettings = OpaqueSettings(context: context.cgContext)
+        })
+
+        let transparentRenderer = UIGraphicsImageRenderer(bounds: CGRect(origin: CGPoint(), size: CGSize(width: 1.0, height: 1.0)), format: transparentFormat)
+        let _ = transparentRenderer.image(actions: { context in
+            transparentSettings = TransparentSettings(context: context.cgContext)
+        })
+    } else {
         UIGraphicsBeginImageContextWithOptions(CGSize(width: 1.0, height: 1.0), true, 1.0)
         let refContext = UIGraphicsGetCurrentContext()!
-        let bytesPerRow = refContext.bytesPerRow
-        let bitsPerPixel = refContext.bitsPerPixel
-        let bitsPerComponent = refContext.bitsPerComponent
-        let opaqueBitmapInfo = refContext.bitmapInfo
-        let image = UIGraphicsGetImageFromCurrentImageContext()!
-        let colorSpace = image.cgImage!.colorSpace!
-        assert(bytesPerRow == 32)
+        opaqueSettings = OpaqueSettings(context: refContext)
         UIGraphicsEndImageContext()
 
         UIGraphicsBeginImageContextWithOptions(CGSize(width: 1.0, height: 1.0), false, 1.0)
         let refCtxTransparent = UIGraphicsGetCurrentContext()!
-        let transparentBitmapInfo = refCtxTransparent.bitmapInfo
+        transparentSettings = TransparentSettings(context: refCtxTransparent)
         UIGraphicsEndImageContext()
+    }
 
-        return DeviceGraphicsContextSettings(
-            rowAlignment: bytesPerRow,
-            bitsPerPixel: bitsPerPixel,
-            bitsPerComponent: bitsPerComponent,
-            opaqueBitmapInfo: opaqueBitmapInfo,
-            transparentBitmapInfo: transparentBitmapInfo,
-            colorSpace: colorSpace
-        )
-    }()
+    return DeviceGraphicsContextSettings(
+        rowAlignment: opaqueSettings!.rowAlignment,
+        bitsPerPixel: opaqueSettings!.bitsPerPixel,
+        bitsPerComponent: opaqueSettings!.bitsPerComponent,
+        opaqueBitmapInfo: opaqueSettings!.opaqueBitmapInfo,
+        transparentBitmapInfo: transparentSettings!.transparentBitmapInfo,
+        colorSpace: opaqueSettings!.colorSpace
+    )
+}
+
+public struct DeviceGraphicsContextSettings {
+    public static let shared: DeviceGraphicsContextSettings = getSharedDevideGraphicsContextSettings()
 
     public let rowAlignment: Int
     public let bitsPerPixel: Int
@@ -498,7 +558,6 @@ public class DrawingContext {
         }
         if self.hasGeneratedImage {
             preconditionFailure()
-            return nil
         }
         self.hasGeneratedImage = true
 

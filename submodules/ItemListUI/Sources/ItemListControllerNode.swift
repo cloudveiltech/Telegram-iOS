@@ -4,11 +4,10 @@ import AsyncDisplayKit
 import Display
 import SwiftSignalKit
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import MergeLists
 
-public protocol ItemListHeaderItemNode: class {
+public protocol ItemListHeaderItemNode: AnyObject {
     func updateTheme(theme: PresentationTheme)
 }
 
@@ -347,13 +346,13 @@ open class ItemListControllerNode: ASDisplayNode {
             self?.contentOffsetChanged?(offset, inVoiceOver)
         }
         
-        self.listNode.beganInteractiveDragging = { [weak self] in
+        self.listNode.beganInteractiveDragging = { [weak self] _ in
             if let strongSelf = self {
                 strongSelf.beganInteractiveDragging?()
             }
         }
         
-        self.listNode.didEndScrolling = { [weak self] in
+        self.listNode.didEndScrolling = { [weak self] _ in
             if let strongSelf = self {
                 let _ = strongSelf.contentScrollingEnded?(strongSelf.listNode)
             }
@@ -705,7 +704,7 @@ open class ItemListControllerNode: ASDisplayNode {
             }
             
             self.listNode.accessibilityPageScrolledString = { row, count in
-                return transition.strings.VoiceOver_ScrollStatus(row, count).0
+                return transition.strings.VoiceOver_ScrollStatus(row, count).string
             }
             
             var updateToolbarItem = false

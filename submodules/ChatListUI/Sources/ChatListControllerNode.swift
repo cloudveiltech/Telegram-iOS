@@ -4,7 +4,6 @@ import AsyncDisplayKit
 import Display
 import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import TelegramPresentationData
 import MergeLists
@@ -179,10 +178,10 @@ private final class ChatListShimmerNode: ASDisplayNode {
                         
             let chatListPresentationData = ChatListPresentationData(theme: presentationData.theme, fontSize: presentationData.chatFontSize, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, nameSortOrder: presentationData.nameSortOrder, nameDisplayOrder: presentationData.nameDisplayOrder, disableAnimations: true)
             
-            let peer1 = TelegramUser(id: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(0)), accessHash: nil, firstName: "FirstName", lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [])
+            let peer1 = TelegramUser(id: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "FirstName", lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [])
             let timestamp1: Int32 = 100000
             let peers = SimpleDictionary<PeerId, Peer>()
-            let interaction = ChatListNodeInteraction(activateSearch: {}, peerSelected: { _, _ in }, disabledPeerSelected: { _ in }, togglePeerSelected: { _ in }, additionalCategorySelected: { _ in
+            let interaction = ChatListNodeInteraction(activateSearch: {}, peerSelected: { _, _, _ in }, disabledPeerSelected: { _ in }, togglePeerSelected: { _ in }, togglePeersSelection: { _, _ in }, additionalCategorySelected: { _ in
             }, messageSelected: { _, _, _ in}, groupSelected: { _ in }, addContact: { _ in }, setPeerIdWithRevealedOptions: { _, _ in }, setItemPinned: { _, _ in }, setPeerMuted: { _, _ in }, deletePeer: { _, _ in }, updatePeerGrouping: { _, _ in }, togglePeerMarkedUnread: { _, _ in}, toggleArchivedFolderHiddenByDefault: {}, hidePsa: { _ in }, activateChatPreview: { _, _, gesture in
                 gesture?.cancel()
             }, present: { _ in })
@@ -305,7 +304,7 @@ private final class ChatListContainerItemNode: ASDisplayNode {
                     if let currentNode = strongSelf.emptyNode {
                         currentNode.updateIsLoading(isLoading)
                     } else {
-                        let emptyNode = ChatListEmptyNode(isFilter: filter != nil, isLoading: isLoading, theme: strongSelf.presentationData.theme, strings: strongSelf.presentationData.strings, action: {
+                        let emptyNode = ChatListEmptyNode(context: context, isFilter: filter != nil, isLoading: isLoading, theme: strongSelf.presentationData.theme, strings: strongSelf.presentationData.strings, action: {
                             self?.emptyAction(filter)
                         })
                         strongSelf.emptyNode = emptyNode
@@ -369,7 +368,7 @@ private final class ChatListContainerItemNode: ASDisplayNode {
         self.presentationData = presentationData
         
         self.listNode.accessibilityPageScrolledString = { row, count in
-            return presentationData.strings.VoiceOver_ScrollStatus(row, count).0
+            return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
         }
         
         self.listNode.updateThemeAndStrings(theme: presentationData.theme, fontSize: presentationData.listsFontSize, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, nameSortOrder: presentationData.nameSortOrder, nameDisplayOrder: presentationData.nameDisplayOrder, disableAnimations: true)
@@ -1166,12 +1165,9 @@ final class ChatListControllerNode: ASDisplayNode {
             return nil
         }
         
-        var filter: ChatListNodePeersFilter = []
-        if false, case .group = self.groupId {
-            filter.insert(.excludeRecent)
-        }
+        let filter: ChatListNodePeersFilter = []
         
-        let contentNode = ChatListSearchContainerNode(context: self.context, filter: filter, groupId: self.groupId, displaySearchFilters: displaySearchFilters, initialFilter: initialFilter, openPeer: { [weak self] peer, dismissSearch in
+        let contentNode = ChatListSearchContainerNode(context: self.context, filter: filter, groupId: self.groupId, displaySearchFilters: displaySearchFilters, initialFilter: initialFilter, openPeer: { [weak self] peer, _, dismissSearch in
             self?.requestOpenPeerFromSearch?(peer, dismissSearch)
         }, openDisabledPeer: { _ in
         }, openRecentPeerOptions: { [weak self] peer in

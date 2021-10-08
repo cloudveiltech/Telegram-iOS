@@ -401,11 +401,11 @@
         _context = context;
         _saveEditedPhotos = saveEditedPhotos;
      
-        if ([[LegacyComponentsGlobals provider] respondsToSelector:@selector(navigationBarPallete)])
-            [((TGNavigationBar *)self.navigationBar) setPallete:[[LegacyComponentsGlobals provider] navigationBarPallete]];
+        if ([context respondsToSelector:@selector(navigationBarPallete)])
+            [((TGNavigationBar *)self.navigationBar) setPallete:[context navigationBarPallete]];
         
-        if ([[LegacyComponentsGlobals provider] respondsToSelector:@selector(mediaAssetsPallete)])
-            [self setPallete:[[LegacyComponentsGlobals provider] mediaAssetsPallete]];
+        if ([context respondsToSelector:@selector(mediaAssetsPallete)])
+            [self setPallete:[context mediaAssetsPallete]];
         
         _actionHandle = [[ASHandle alloc] initWithDelegate:self releaseOnMainThread:true];
         
@@ -583,12 +583,15 @@
             hasOnScreenNavigation = (self.viewLoaded && self.view.safeAreaInsets.bottom > FLT_EPSILON) || _context.safeAreaInset.bottom > FLT_EPSILON;
         }
     }
-    
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     CGFloat inset = [TGViewController safeAreaInsetForOrientation:self.interfaceOrientation hasOnScreenNavigation:hasOnScreenNavigation].bottom;
     _toolbarView = [[TGMediaPickerToolbarView alloc] initWithFrame:CGRectMake(0, self.view.frame.size.height - TGMediaPickerToolbarHeight - inset, self.view.frame.size.width, TGMediaPickerToolbarHeight + inset)];
     if (_pallete != nil)
         _toolbarView.pallete = _pallete;
     _toolbarView.safeAreaInset = [TGViewController safeAreaInsetForOrientation:self.interfaceOrientation hasOnScreenNavigation:hasOnScreenNavigation];
+#pragma clang diagnostic pop
     _toolbarView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
     if ((_intent != TGMediaAssetsControllerSendFileIntent && _intent != TGMediaAssetsControllerSendMediaIntent && _intent != TGMediaAssetsControllerPassportMultipleIntent) || _selectionContext == nil)
         [_toolbarView setRightButtonHidden:true];
@@ -609,19 +612,24 @@
         };
     }
     [self.view addSubview:_toolbarView];
-    
-    if (iosMajorVersion() >= 14 && [PHPhotoLibrary authorizationStatusForAccessLevel:PHAccessLevelReadWrite] == PHAuthorizationStatusLimited) {
-        _accessView = [[TGMediaPickerAccessView alloc] init];
-        _accessView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-        _accessView.safeAreaInset = [TGViewController safeAreaInsetForOrientation:self.interfaceOrientation hasOnScreenNavigation:hasOnScreenNavigation];
-        [_accessView setPallete:_pallete];
-        _accessView.pressed = ^{
-            __strong TGMediaAssetsController *strongSelf = weakSelf;
-            if (strongSelf != nil) {
-                [strongSelf manageAccess];
-            }
-        };
-        [self.view addSubview:_accessView];
+
+    if (@available(iOS 14.0, *)) {
+        if ([PHPhotoLibrary authorizationStatusForAccessLevel:PHAccessLevelReadWrite] == PHAuthorizationStatusLimited) {
+            _accessView = [[TGMediaPickerAccessView alloc] init];
+            _accessView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            _accessView.safeAreaInset = [TGViewController safeAreaInsetForOrientation:self.interfaceOrientation hasOnScreenNavigation:hasOnScreenNavigation];
+    #pragma clang diagnostic pop
+            [_accessView setPallete:_pallete];
+            _accessView.pressed = ^{
+                __strong TGMediaAssetsController *strongSelf = weakSelf;
+                if (strongSelf != nil) {
+                    [strongSelf manageAccess];
+                }
+            };
+            [self.view addSubview:_accessView];
+        }
     }
 }
 
@@ -1393,8 +1401,8 @@
     }
     
     //CloudVeil disable web search
-	return nil;
-	//return [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemSearch target:self action:@selector(searchButtonPressed)];
+    return nil;
+    //return [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemSearch target:self action:@selector(searchButtonPressed)];
 }
 
 - (void)searchButtonPressed
@@ -1409,8 +1417,8 @@
     if (_searchController == nil)
         return;
     
-    UIView *backArrow = [self _findBackArrow:self.navigationBar];
-    UIView *backButton = [self _findBackButton:self.navigationBar parentView:self.navigationBar];
+    UIView *backArrow = nil;
+    UIView *backButton = nil;
     
     if ([viewController isKindOfClass:[TGPhotoEditorController class]])
     {
@@ -1442,48 +1450,11 @@
         _searchSnapshotView = nil;
         _searchController.view.hidden = false;
         
-        UIView *backArrow = [self _findBackArrow:self.navigationBar];
-        UIView *backButton = [self _findBackButton:self.navigationBar parentView:self.navigationBar];
+        UIView *backArrow = nil;
+        UIView *backButton = nil;
         backArrow.alpha = 1.0f;
         backButton.alpha = 1.0f;
     }
-}
-
-- (UIView *)_findBackArrow:(UIView *)view
-{
-    Class backArrowClass = NSClassFromString(TGEncodeText(@"`VJObwjhbujpoCbsCbdlJoejdbupsWjfx", -1));
-    
-    if ([view isKindOfClass:backArrowClass])
-        return view;
-    
-    for (UIView *subview in view.subviews)
-    {
-        UIView *result = [self _findBackArrow:subview];
-        if (result != nil)
-            return result;
-    }
-    
-    return nil;
-}
-
-- (UIView *)_findBackButton:(UIView *)view parentView:(UIView *)parentView
-{
-    Class backButtonClass = NSClassFromString(TGEncodeText(@"VJObwjhbujpoJufnCvuupoWjfx", -1));
-    
-    if ([view isKindOfClass:backButtonClass])
-    {
-        if (view.center.x < parentView.frame.size.width / 2.0f)
-            return view;
-    }
-    
-    for (UIView *subview in view.subviews)
-    {
-        UIView *result = [self _findBackButton:subview parentView:parentView];
-        if (result != nil)
-            return result;
-    }
-    
-    return nil;
 }
 
 #pragma mark -

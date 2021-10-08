@@ -5,7 +5,6 @@ import AsyncDisplayKit
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import ItemListUI
 import PresentationDataUtils
@@ -245,7 +244,7 @@ private final class OldChannelsActionPanelNode: ASDisplayNode {
         
         transition.updateFrame(node: self.separatorNode, frame: CGRect(origin: CGPoint(), size: CGSize(width: layout.size.width, height: UIScreenPixel)))
         
-        self.buttonNode.updateLayout(width: layout.size.width - sideInset * 2.0, transition: transition)
+        let _ = self.buttonNode.updateLayout(width: layout.size.width - sideInset * 2.0, transition: transition)
         transition.updateFrame(node: self.buttonNode, frame: CGRect(origin: CGPoint(x: sideInset, y: verticalInset), size: CGSize(width: layout.size.width, height: buttonHeight)))
         
         return buttonHeight + verticalInset * 2.0 + insets.bottom
@@ -338,7 +337,7 @@ public enum OldChannelsControllerIntent {
     case upgrade
 }
 
-public func oldChannelsController(context: AccountContext, intent: OldChannelsControllerIntent, completed: @escaping (Bool) -> Void = { _ in }) -> ViewController {
+public func oldChannelsController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, intent: OldChannelsControllerIntent, completed: @escaping (Bool) -> Void = { _ in }) -> ViewController {
     let initialState = OldChannelsState()
     let statePromise = ValuePromise(initialState, ignoreRepeated: true)
     let stateValue = Atomic(value: initialState)
@@ -397,9 +396,10 @@ public func oldChannelsController(context: AccountContext, intent: OldChannelsCo
     
     var previousPeersWereEmpty = true
     
+    let presentationData = updatedPresentationData?.signal ?? context.sharedContext.presentationData
     let signal = combineLatest(
         queue: Queue.mainQueue(),
-        context.sharedContext.presentationData,
+        presentationData,
         statePromise.get(),
         peersPromise.get()
     )
@@ -455,21 +455,21 @@ public func oldChannelsController(context: AccountContext, intent: OldChannelsCo
         let state = stateValue.with { $0 }
         let _ = (peersPromise.get()
         |> take(1)
-        |> mapToSignal { peers in
+        |> mapToSignal { peers -> Signal<Never, NoError> in
+            let peers = peers ?? []
             return context.account.postbox.transaction { transaction -> Void in
-                if let peers = peers {
-                    for peer in peers {
-                        if state.selectedPeers.contains(peer.peer.id) {
-                            if transaction.getPeer(peer.peer.id) == nil {
-                                updatePeers(transaction: transaction, peers: [peer.peer], update: { _, updated in
-                                    return updated
-                                })
-                            }
-                            removePeerChat(account: context.account, transaction: transaction, mediaBox: context.account.postbox.mediaBox, peerId: peer.peer.id, reportChatSpam: false, deleteGloballyIfPossible: false)
+                for peer in peers {
+                    if state.selectedPeers.contains(peer.peer.id) {
+                        if transaction.getPeer(peer.peer.id) == nil {
+                            updatePeers(transaction: transaction, peers: [peer.peer], update: { _, updated in
+                                return updated
+                            })
                         }
                     }
                 }
             }
+            |> ignoreValues
+            |> then(context.engine.peers.removePeerChats(peerIds: Array(peers.map(\.peer.id))))
         }
         |> deliverOnMainQueue).start(completed: {
             completed(true)

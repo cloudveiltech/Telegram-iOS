@@ -4,7 +4,6 @@ import UserNotifications
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import TelegramCallsUI
@@ -41,7 +40,7 @@ public final class SharedNotificationManager {
     private var inForeground: Bool = false
     private var inForegroundDisposable: Disposable?
     
-    private var accountManager: AccountManager?
+    private var accountManager: AccountManager<TelegramAccountManagerTypes>?
     private var accountsAndKeys: [(Account, Bool, MasterNotificationKey)]?
     private var accountsAndKeysDisposable: Disposable?
     
@@ -250,13 +249,13 @@ public final class SharedNotificationManager {
                     var peerId: PeerId?
                     if let fromId = payload["from_id"] {
                         let fromIdValue = fromId as! NSString
-                        peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(Int32(fromIdValue.intValue)))
+                        peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(Int64(fromIdValue as String) ?? 0))
                     } else if let fromId = payload["chat_id"] {
                         let fromIdValue = fromId as! NSString
-                        peerId = PeerId(namespace: Namespaces.Peer.CloudGroup, id: PeerId.Id._internalFromInt32Value(Int32(fromIdValue.intValue)))
+                        peerId = PeerId(namespace: Namespaces.Peer.CloudGroup, id: PeerId.Id._internalFromInt64Value(Int64(fromIdValue as String) ?? 0))
                     } else if let fromId = payload["channel_id"] {
                         let fromIdValue = fromId as! NSString
-                        peerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt32Value(Int32(fromIdValue.intValue)))
+                        peerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(Int64(fromIdValue as String) ?? 0))
                     }
                     if let peerId = peerId {
                         if let messageIds = payload["messages"] as? String {
@@ -314,13 +313,13 @@ public final class SharedNotificationManager {
                     
                     if let fromId = payload["from_id"] {
                         let fromIdValue = fromId as! NSString
-                        peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(Int32(fromIdValue.intValue)))
+                        peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(Int64(fromIdValue as String) ?? 0))
                     } else if let fromId = payload["chat_id"] {
                         let fromIdValue = fromId as! NSString
-                        peerId = PeerId(namespace: Namespaces.Peer.CloudGroup, id: PeerId.Id._internalFromInt32Value(Int32(fromIdValue.intValue)))
+                        peerId = PeerId(namespace: Namespaces.Peer.CloudGroup, id: PeerId.Id._internalFromInt64Value(Int64(fromIdValue as String) ?? 0))
                     } else if let fromId = payload["channel_id"] {
                         let fromIdValue = fromId as! NSString
-                        peerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt32Value(Int32(fromIdValue.intValue)))
+                        peerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(Int64(fromIdValue as String) ?? 0))
                     }
                     
                     if let msgId = payload["msg_id"] {
@@ -331,8 +330,8 @@ public final class SharedNotificationManager {
                     } else if let randomId = payload["random_id"] {
                         let randomIdValue = randomId as! NSString
                         var peerId: PeerId?
-                        if let encryptionIdString = payload["encryption_id"] as? String, let encryptionId = Int32(encryptionIdString) {
-                            peerId = PeerId(namespace: Namespaces.Peer.SecretChat, id: PeerId.Id._internalFromInt32Value(encryptionId))
+                        if let encryptionIdString = payload["encryption_id"] as? String, let encryptionId = Int64(encryptionIdString) {
+                            peerId = PeerId(namespace: Namespaces.Peer.SecretChat, id: PeerId.Id._internalFromInt64Value(encryptionId))
                         }
                         notificationRequestId = .globallyUniqueId(randomIdValue.longLongValue, peerId)
                     } else {
@@ -344,13 +343,13 @@ public final class SharedNotificationManager {
                 
                 if let fromId = payload["from_id"] {
                     let fromIdValue = fromId as! NSString
-                    peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(Int32(fromIdValue.intValue)))
+                    peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(Int64(fromIdValue as String) ?? 0))
                 } else if let fromId = payload["chat_id"] {
                     let fromIdValue = fromId as! NSString
-                    peerId = PeerId(namespace: Namespaces.Peer.CloudGroup, id: PeerId.Id._internalFromInt32Value(Int32(fromIdValue.intValue)))
+                    peerId = PeerId(namespace: Namespaces.Peer.CloudGroup, id: PeerId.Id._internalFromInt64Value(Int64(fromIdValue as String) ?? 0))
                 } else if let fromId = payload["channel_id"] {
                     let fromIdValue = fromId as! NSString
-                    peerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt32Value(Int32(fromIdValue.intValue)))
+                    peerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(Int64(fromIdValue as String) ?? 0))
                 }
                 
                 if let peerId = peerId {
@@ -430,7 +429,7 @@ public final class SharedNotificationManager {
         self.currentNotificationCall = call
         
         if let notificationCall = call {
-            let rawText = strings.PUSH_PHONE_CALL_REQUEST(notificationCall.peer?.displayTitle(strings: strings, displayOrder: nameOrder) ?? "").0
+            let rawText = strings.PUSH_PHONE_CALL_REQUEST(notificationCall.peer?.displayTitle(strings: strings, displayOrder: nameOrder) ?? "").string
             let title: String?
             let body: String
             if let index = rawText.firstIndex(of: "|") {

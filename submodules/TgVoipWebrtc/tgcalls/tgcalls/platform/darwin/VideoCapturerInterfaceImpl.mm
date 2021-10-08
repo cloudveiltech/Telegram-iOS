@@ -28,6 +28,7 @@
 #import "tgcalls/platform/darwin/DesktopSharingCapturer.h"
 #import "tgcalls/desktop_capturer/DesktopCaptureSourceHelper.h"
 #import "CustomExternalCapturer.h"
+#import "VideoCMIOCapture.h"
 #else
 #import "VideoCameraCapturer.h"
 #import "CustomExternalCapturer.h"
@@ -109,9 +110,10 @@
         if (deviceComponents.count == 2) {
             deviceId = deviceComponents[0];
         }
+    //&& [devices[i] hasMediaType:AVMediaTypeVideo]
         NSArray<AVCaptureDevice *> *devices = [VideoCameraCapturer captureDevices];
         for (int i = 0; i < devices.count; i++) {
-            if (devices[i].isConnected && !devices[i].isSuspended) {
+            if (devices[i].isConnected && !devices[i].isSuspended ) {
                 if ([deviceId isEqualToString:@""] || [deviceId isEqualToString:devices[i].uniqueID]) {
                     selectedCamera = devices[i];
                     break;
@@ -173,18 +175,6 @@
         return nil;
     }
 
-    AVFrameRateRange *frameRateRange = [[bestFormat.videoSupportedFrameRateRanges sortedArrayUsingComparator:^NSComparisonResult(AVFrameRateRange *lhs, AVFrameRateRange *rhs) {
-        if (lhs.maxFrameRate < rhs.maxFrameRate) {
-            return NSOrderedAscending;
-        } else {
-            return NSOrderedDescending;
-        }
-    }] lastObject];
-
-    if (frameRateRange == nil) {
-        assert(false);
-        return nil;
-    }
 
     return bestFormat;
 }
@@ -225,8 +215,16 @@
             DesktopSharingCapturer *sharing = [[DesktopSharingCapturer alloc] initWithSource:source captureSource:desktopCaptureSource];
             _videoCapturer = sharing;
         } else if (!tgcalls::ShouldBeDesktopCapture([sourceDescription.deviceId UTF8String])) {
-            VideoCameraCapturer *camera = [[VideoCameraCapturer alloc] initWithSource:source isActiveUpdated:isActiveUpdated];
-            [camera setupCaptureWithDevice:sourceDescription.device format:sourceDescription.format fps:30];
+            id<CapturerInterface> camera;
+            if ([sourceDescription.device hasMediaType:AVMediaTypeMuxed]) {
+                VideoCMIOCapture *value = [[VideoCMIOCapture alloc] initWithSource:source];
+                [value setupCaptureWithDevice:sourceDescription.device];
+                camera = value;
+            } else {
+                VideoCameraCapturer *value = [[VideoCameraCapturer alloc] initWithSource:source isActiveUpdated:isActiveUpdated];
+                [value setupCaptureWithDevice:sourceDescription.device format:sourceDescription.format fps:30];
+                camera = value;
+            }
             _videoCapturer = camera;
         } else {
             _videoCapturer = nil;

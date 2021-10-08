@@ -63,12 +63,6 @@ NSString *TGMentionBoldAttributeName = @"TGMentionBoldAttributeName";
 
 - (void)commonInitialiser
 {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^
-    {
-        [HPTextViewInternal addTextViewMethods];
-    });
-    
     CGRect frame = self.frame;
     frame.origin = CGPointZero;
     _internalTextView = [[HPTextViewInternal alloc] initWithKeyCommandController:_keyCommandController];
@@ -811,7 +805,7 @@ NSString *TGMentionBoldAttributeName = @"TGMentionBoldAttributeName";
     return string.string;
 }
 
-+ (void)replaceMention:(NSString *)mention inputField:(HPGrowingTextView *)inputField username:(bool)username userId:(int32_t)userId
++ (void)replaceMention:(NSString *)mention inputField:(HPGrowingTextView *)inputField username:(bool)username userId:(int64_t)userId
 {
     NSString *replacementText = [mention stringByAppendingString:@" "];
     

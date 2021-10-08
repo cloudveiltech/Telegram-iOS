@@ -3,8 +3,6 @@ import Postbox
 import TelegramApi
 import SwiftSignalKit
 
-import SyncCore
-
 private struct SearchStickersConfiguration {
     static var defaultValue: SearchStickersConfiguration {
         return SearchStickersConfiguration(cacheTimeout: 86400)
@@ -17,8 +15,8 @@ private struct SearchStickersConfiguration {
     }
     
     static func with(appConfiguration: AppConfiguration) -> SearchStickersConfiguration {
-        if let data = appConfiguration.data, let value = data["stickers_emoji_cache_time"] as? Int32 {
-            return SearchStickersConfiguration(cacheTimeout: value)
+        if let data = appConfiguration.data, let value = data["stickers_emoji_cache_time"] as? Double {
+            return SearchStickersConfiguration(cacheTimeout: Int32(value))
         } else {
             return .defaultValue
         }
@@ -346,7 +344,7 @@ func _internal_searchGifs(account: Account, query: String, nextOffset: String = 
         return account.postbox.loadedPeerWithId(peerId)
     }
     |> mapToSignal { peer -> Signal<ChatContextResultCollection?, NoError> in
-        return requestChatContextResults(account: account, botId: peer.id, peerId: account.peerId, query: query, offset: nextOffset)
+        return _internal_requestChatContextResults(account: account, botId: peer.id, peerId: account.peerId, query: query, offset: nextOffset)
         |> map { results -> ChatContextResultCollection? in
             return results?.results
         }

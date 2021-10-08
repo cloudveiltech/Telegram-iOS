@@ -6,14 +6,11 @@ swift_library(
     srcs = glob([
         "Sources/**/*.swift",
     ]),
-    copts = [
-    ],
     deps = [
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
         "//submodules/GradientBackground:GradientBackground",
         "//submodules/TelegramPresentationData:TelegramPresentationData",
-        "//submodules/SyncCore:SyncCore",
         "//submodules/TelegramCore:TelegramCore",
         "//submodules/Postbox:Postbox",
         "//submodules/AccountContext:AccountContext",

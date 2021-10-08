@@ -9,9 +9,9 @@ swift_library(
     deps = [
     	"//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
-        "//submodules/SyncCore:SyncCore",
         "//submodules/StickerResources:StickerResources",
         "//submodules/MediaResources:MediaResources",
+        "//submodules/LocalMediaResources:LocalMediaResources",
         "//submodules/Tuples:Tuples",
         "//submodules/AnimatedStickerNode:AnimatedStickerNode",
         "//submodules/rlottie:RLottieBinding",

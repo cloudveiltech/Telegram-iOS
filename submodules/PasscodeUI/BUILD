@@ -12,7 +12,6 @@ swift_library(
         "//submodules/Display:Display",
         "//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
-        "//submodules/SyncCore:SyncCore",
         "//submodules/TelegramPresentationData:TelegramPresentationData",
         "//submodules/TelegramUIPreferences:TelegramUIPreferences",
         "//submodules/AccountContext:AccountContext",
@@ -23,6 +22,7 @@ swift_library(
         "//submodules/AppBundle:AppBundle",
         "//submodules/PasscodeInputFieldNode:PasscodeInputFieldNode",
         "//submodules/MonotonicTime:MonotonicTime",
+        "//submodules/GradientBackground:GradientBackground",
     ],
     visibility = [
         "//visibility:public",

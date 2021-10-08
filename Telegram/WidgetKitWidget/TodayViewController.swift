@@ -12,7 +12,6 @@ import Intents
 import OpenSSLEncryptionProvider
 import SwiftSignalKit
 import Postbox
-import SyncCore
 import TelegramCore
 import OpenSSLEncryptionProvider
 import WidgetItemsUtils
@@ -51,9 +50,7 @@ private func setupSharedLogger(rootPath: String, path: String) {
     }
 }
 
-private let accountAuxiliaryMethods = AccountAuxiliaryMethods(updatePeerChatInputState: { interfaceState, inputState -> PeerChatInterfaceState? in
-    return interfaceState
-}, fetchResource: { account, resource, ranges, _ in
+private let accountAuxiliaryMethods = AccountAuxiliaryMethods(fetchResource: { account, resource, ranges, _ in
     return nil
 }, fetchResourceMediaReferenceHash: { resource in
     return .single(nil)

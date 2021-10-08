@@ -4,7 +4,6 @@ import SwiftSignalKit
 import TelegramApi
 import MtProtoKit
 
-import SyncCore
 
 public struct PendingMessageStatus: Equatable {
     public let isRunning: Bool
@@ -698,6 +697,8 @@ public final class PendingMessageManager {
                 return .complete()
             } else if let peer = transaction.getPeer(peerId), let inputPeer = apiInputPeer(peer) {
                 var isForward = false
+                var hideSendersNames = false
+                var hideCaptions = false
                 var replyMessageId: Int32?
                 var scheduleTime: Int32?
                 
@@ -715,6 +716,9 @@ public final class PendingMessageManager {
                     } else if let attribute = attribute as? OutgoingScheduleInfoMessageAttribute {
                         flags |= Int32(1 << 10)
                         scheduleTime = attribute.scheduleTime
+                    } else if let attribute = attribute as? ForwardOptionsMessageAttribute {
+                        hideSendersNames = attribute.hideNames
+                        hideCaptions = attribute.hideCaptions
                     }
                 }
                 
@@ -722,6 +726,12 @@ public final class PendingMessageManager {
                 if isForward {
                     if messages.contains(where: { $0.0.groupingKey != nil }) {
                         flags |= (1 << 9)
+                    }
+                    if hideSendersNames {
+                        flags |= (1 << 11)
+                    }
+                    if hideCaptions {
+                        flags |= (1 << 12)
                     }
                     
                     var forwardIds: [(MessageId, Int64)] = []

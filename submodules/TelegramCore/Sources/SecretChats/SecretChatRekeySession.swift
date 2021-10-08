@@ -2,7 +2,6 @@ import Foundation
 import Postbox
 import MtProtoKit
 
-import SyncCore
 import EncryptionProvider
 
 private let keyUseCountThreshold: Int32 = 100
@@ -60,7 +59,7 @@ func secretChatAdvanceRekeySessionIfNeeded(encryptionProvider: EncryptionProvide
                             }
                         }
                         
-                        let keyHash = MTSha1(key)!
+                        let keyHash = MTSha1(key)
                         
                         var keyFingerprint: Int64 = 0
                         keyHash.withUnsafeBytes { (bytes: UnsafePointer<UInt8>) -> Void in

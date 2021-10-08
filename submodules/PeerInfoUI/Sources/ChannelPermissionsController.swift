@@ -4,7 +4,6 @@ import Display
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import ItemListUI
@@ -451,7 +450,7 @@ private func channelPermissionsControllerEntries(context: AccountContext, presen
         if channel.flags.contains(.isCreator) && !channel.flags.contains(.isGigagroup), let memberCount = cachedData.participantsSummary.memberCount, memberCount > participantsLimit - 1000 {
             entries.append(.conversionHeader(presentationData.theme, presentationData.strings.GroupInfo_Permissions_BroadcastTitle.uppercased()))
             entries.append(.conversion(presentationData.theme, presentationData.strings.GroupInfo_Permissions_BroadcastConvert))
-            entries.append(.conversionInfo(presentationData.theme, presentationData.strings.GroupInfo_Permissions_BroadcastConvertInfo(presentationStringsFormattedNumber(participantsLimit, presentationData.dateTimeFormat.groupingSeparator)).0))
+            entries.append(.conversionInfo(presentationData.theme, presentationData.strings.GroupInfo_Permissions_BroadcastConvertInfo(presentationStringsFormattedNumber(participantsLimit, presentationData.dateTimeFormat.groupingSeparator)).string))
         }
         
         entries.append(.slowmodeHeader(presentationData.theme, presentationData.strings.GroupInfo_Permissions_SlowmodeHeader))
@@ -495,7 +494,7 @@ private func channelPermissionsControllerEntries(context: AccountContext, presen
     return entries
 }
 
-public func channelPermissionsController(context: AccountContext, peerId originalPeerId: PeerId, loadCompleted: @escaping () -> Void = {}) -> ViewController {
+public func channelPermissionsController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, peerId originalPeerId: PeerId, loadCompleted: @escaping () -> Void = {}) -> ViewController {
     let statePromise = ValuePromise(ChannelPermissionsControllerState(), ignoreRepeated: true)
     let stateValue = Atomic(value: ChannelPermissionsControllerState())
     let updateState: ((ChannelPermissionsControllerState) -> ChannelPermissionsControllerState) -> Void = { f in
@@ -536,7 +535,7 @@ public func channelPermissionsController(context: AccountContext, peerId origina
             peersPromise.set(.single((peerId, nil)))
         } else {
             var loadCompletedCalled = false
-            let disposableAndLoadMoreControl = context.peerChannelMemberCategoriesContextsManager.restricted(postbox: context.account.postbox, network: context.account.network, accountPeerId: context.account.peerId, peerId: peerId, updated: { state in
+            let disposableAndLoadMoreControl = context.peerChannelMemberCategoriesContextsManager.restricted(engine: context.engine, postbox: context.account.postbox, network: context.account.network, accountPeerId: context.account.peerId, peerId: peerId, updated: { state in
                 if case .loading(true) = state.loadingState, !updated {
                     peersPromise.set(.single((peerId, nil)))
                 } else {
@@ -594,7 +593,7 @@ public func channelPermissionsController(context: AccountContext, peerId origina
                 }
                 let state = stateValue.with { $0 }
                 if let modifiedRightsFlags = state.modifiedRightsFlags {
-                    updateDefaultRightsDisposable.set((updateDefaultChannelMemberBannedRights(account: context.account, peerId: view.peerId, rights: TelegramChatBannedRights(flags: completeRights(modifiedRightsFlags), untilDate: Int32.max))
+                    updateDefaultRightsDisposable.set((context.engine.peers.updateDefaultChannelMemberBannedRights(peerId: view.peerId, rights: TelegramChatBannedRights(flags: completeRights(modifiedRightsFlags), untilDate: Int32.max))
                     |> deliverOnMainQueue).start())
                 }
             } else if let group = view.peers[view.peerId] as? TelegramGroup, let _ = view.cachedData as? CachedGroupData {
@@ -624,7 +623,7 @@ public func channelPermissionsController(context: AccountContext, peerId origina
                 }
                 let state = stateValue.with { $0 }
                 if let modifiedRightsFlags = state.modifiedRightsFlags {
-                    updateDefaultRightsDisposable.set((updateDefaultChannelMemberBannedRights(account: context.account, peerId: view.peerId, rights: TelegramChatBannedRights(flags: completeRights(modifiedRightsFlags), untilDate: Int32.max))
+                    updateDefaultRightsDisposable.set((context.engine.peers.updateDefaultChannelMemberBannedRights(peerId: view.peerId, rights: TelegramChatBannedRights(flags: completeRights(modifiedRightsFlags), untilDate: Int32.max))
                         |> deliverOnMainQueue).start())
                 }
             }
@@ -644,13 +643,13 @@ public func channelPermissionsController(context: AccountContext, peerId origina
             var dismissController: (() -> Void)?
             let controller = ChannelMembersSearchController(context: context, peerId: peerId, mode: .ban, openPeer: { peer, participant in
                 if let participant = participant {
-                    let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                    let presentationData = updatedPresentationData?.initial ?? context.sharedContext.currentPresentationData.with { $0 }
                     switch participant.participant {
                         case .creator:
                             return
                         case let .member(_, _, adminInfo, _, _):
                             if let adminInfo = adminInfo, adminInfo.promotedBy != context.account.peerId {
-                                presentControllerImpl?(textAlertController(context: context, title: nil, text: presentationData.strings.Channel_Members_AddBannedErrorAdmin, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
+                                presentControllerImpl?(textAlertController(context: context, updatedPresentationData: updatedPresentationData, title: nil, text: presentationData.strings.Channel_Members_AddBannedErrorAdmin, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
                                 return
                             }
                     }
@@ -679,13 +678,8 @@ public func channelPermissionsController(context: AccountContext, peerId origina
                 return state
             }
             
-            removePeerDisposable.set((context.peerChannelMemberCategoriesContextsManager.updateMemberBannedRights(account: context.account, peerId: peerId, memberId: memberId, bannedRights: nil)
+            removePeerDisposable.set((context.peerChannelMemberCategoriesContextsManager.updateMemberBannedRights(engine: context.engine, peerId: peerId, memberId: memberId, bannedRights: nil)
             |> deliverOnMainQueue).start(error: { _ in
-                updateState { state in
-                    var state = state
-                    state.removingPeerId = nil
-                    return state
-                }
             }, completed: {
                 updateState { state in
                     var state = state
@@ -704,7 +698,7 @@ public func channelPermissionsController(context: AccountContext, peerId origina
             }), ViewControllerPresentationArguments(presentationAnimation: .modalSheet))
         })
     }, openPeerInfo: { peer in
-        if let controller = context.sharedContext.makePeerInfoController(context: context, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
+        if let controller = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
             pushControllerImpl?(controller)
         }
     }, openKicked: {
@@ -723,7 +717,7 @@ public func channelPermissionsController(context: AccountContext, peerId origina
             for (listRight, permission) in allGroupPermissionList {
                 if listRight == right {
                     let text: String
-                    let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                    let presentationData = updatedPresentationData?.initial ?? context.sharedContext.currentPresentationData.with { $0 }
                     if !channel.hasPermission(permission) {
                         text = presentationData.strings.GroupInfo_Permissions_EditingDisabled
                     } else if right.contains(.banAddMembers) {
@@ -731,13 +725,13 @@ public func channelPermissionsController(context: AccountContext, peerId origina
                     } else {
                         text = presentationData.strings.GroupPermission_NotAvailableInPublicGroups
                     }
-                    presentControllerImpl?(textAlertController(context: context, title: nil, text: text, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
+                    presentControllerImpl?(textAlertController(context: context, updatedPresentationData: updatedPresentationData, title: nil, text: text, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
                     break
                 }
             }
         })
     }, presentConversionToBroadcastGroup: {
-        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        let presentationData = updatedPresentationData?.initial ?? context.sharedContext.currentPresentationData.with { $0 }
         let controller = PermissionController(context: context, splashScreen: true)
         controller.navigationPresentation = .modal
         controller.setState(.custom(icon: .animation("BroadcastGroup"), title: presentationData.strings.BroadcastGroups_IntroTitle, subtitle: nil, text: presentationData.strings.BroadcastGroups_IntroText, buttonTitle: presentationData.strings.BroadcastGroups_Convert, secondaryButtonTitle: presentationData.strings.BroadcastGroups_Cancel, footerText: nil), animated: false)
@@ -753,7 +747,7 @@ public func channelPermissionsController(context: AccountContext, peerId origina
                 let _ = (convertGroupToGigagroup(account: context.account, peerId: originalPeerId)
                 |> deliverOnMainQueue).start(completed: {
                     let participantsLimit = context.currentLimitsConfiguration.with { $0 }.maxSupergroupMemberCount
-                    presentControllerImpl?(UndoOverlayController(presentationData: presentationData, content: .gigagroupConversion(text: presentationData.strings.BroadcastGroups_Success(presentationStringsFormattedNumber(participantsLimit, presentationData.dateTimeFormat.decimalSeparator)).0), elevatedLayout: true, action: { _ in return false }), nil)
+                    presentControllerImpl?(UndoOverlayController(presentationData: presentationData, content: .gigagroupConversion(text: presentationData.strings.BroadcastGroups_Success(presentationStringsFormattedNumber(participantsLimit, presentationData.dateTimeFormat.decimalSeparator)).string), elevatedLayout: true, action: { _ in return false }), nil)
                     
                     dismissToChatController?()
                 })
@@ -762,9 +756,9 @@ public func channelPermissionsController(context: AccountContext, peerId origina
         }
         pushControllerImpl?(controller)
     }, openChannelExample: {
-        resolveDisposable.set((context.engine.peers.resolvePeerByName(name: "durov") |> deliverOnMainQueue).start(next: { peerId in
-            if let peerId = peerId {
-                navigateToChatControllerImpl?(peerId)
+        resolveDisposable.set((context.engine.peers.resolvePeerByName(name: "durov") |> deliverOnMainQueue).start(next: { peer in
+            if let peer = peer {
+                navigateToChatControllerImpl?(peer.id)
             }
         }))
     }, updateSlowmode: { value in
@@ -779,7 +773,7 @@ public func channelPermissionsController(context: AccountContext, peerId origina
                 }
                 let state = stateValue.with { $0 }
                 if let modifiedSlowmodeTimeout = state.modifiedSlowmodeTimeout {
-                    updateDefaultRightsDisposable.set(updateChannelSlowModeInteractively(postbox: context.account.postbox, network: context.account.network, accountStateManager: context.account.stateManager, peerId: view.peerId, timeout: modifiedSlowmodeTimeout == 0 ? nil : value).start())
+                    updateDefaultRightsDisposable.set(context.engine.peers.updateChannelSlowModeInteractively(peerId: view.peerId, timeout: modifiedSlowmodeTimeout == 0 ? nil : value).start())
                 }
             } else if let _ = view.peers[view.peerId] as? TelegramGroup, let _ = view.cachedData as? CachedGroupData {
                 updateState { state in
@@ -793,7 +787,7 @@ public func channelPermissionsController(context: AccountContext, peerId origina
                     return
                 }
                 
-                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                let presentationData = updatedPresentationData?.initial ?? context.sharedContext.currentPresentationData.with { $0 }
                 let progress = OverlayStatusController(theme: presentationData.theme, type: .loading(cancelled: nil))
                 presentControllerImpl?(progress, nil)
                 
@@ -815,7 +809,7 @@ public func channelPermissionsController(context: AccountContext, peerId origina
                     }
                 }
                 |> mapToSignal { upgradedPeerId -> Signal<PeerId?, UpdateChannelSlowModeError> in
-                    return updateChannelSlowModeInteractively(postbox: context.account.postbox, network: context.account.network, accountStateManager: context.account.stateManager, peerId: upgradedPeerId, timeout: modifiedSlowmodeTimeout == 0 ? nil : value)
+                    return context.engine.peers.updateChannelSlowModeInteractively(peerId: upgradedPeerId, timeout: modifiedSlowmodeTimeout == 0 ? nil : value)
                     |> mapToSignal { _ -> Signal<PeerId?, UpdateChannelSlowModeError> in
                         return .complete()
                     }
@@ -861,7 +855,8 @@ public func channelPermissionsController(context: AccountContext, peerId origina
         return .single((view, peers.1))
     }
     
-    let signal = combineLatest(queue: .mainQueue(), context.sharedContext.presentationData, statePromise.get(), viewAndParticipants)
+    let presentationData = updatedPresentationData?.signal ?? context.sharedContext.presentationData
+    let signal = combineLatest(queue: .mainQueue(), presentationData, statePromise.get(), viewAndParticipants)
     |> deliverOnMainQueue
     |> map { presentationData, state, viewAndParticipants -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let (view, participants) = viewAndParticipants

@@ -3,7 +3,6 @@ import Postbox
 import TelegramApi
 import SwiftSignalKit
 
-import SyncCore
 
 private enum PeerReadStateMarker: Equatable {
     case Global(Int32)
@@ -190,7 +189,21 @@ private func validatePeerReadState(network: Network, postbox: Postbox, stateMana
                     }
                 }
             }
-            transaction.resetIncomingReadStates([peerId: [Namespaces.Message.Cloud: readState]])
+            var updatedReadState = readState
+            if case let .idBased(updatedMaxIncomingReadId, updatedMaxOutgoingReadId, updatedMaxKnownId, updatedCount, updatedMarkedUnread) = readState, let readStates = transaction.getPeerReadStates(peerId) {
+                for (namespace, state) in readStates {
+                    if namespace == Namespaces.Message.Cloud {
+                        switch state {
+                        case let .idBased(_, maxOutgoingReadId, _, _, _):
+                            updatedReadState = .idBased(maxIncomingReadId: updatedMaxIncomingReadId, maxOutgoingReadId: max(updatedMaxOutgoingReadId, maxOutgoingReadId), maxKnownId: updatedMaxKnownId, count: updatedCount, markedUnread: updatedMarkedUnread)
+                        case .indexBased:
+                            break
+                        }
+                        break
+                    }
+                }
+            }
+            transaction.resetIncomingReadStates([peerId: [Namespaces.Message.Cloud: updatedReadState]])
             return nil
         }
         |> mapToSignalPromotingError { error -> Signal<Never, PeerReadStateValidationError> in
@@ -206,10 +219,6 @@ private func validatePeerReadState(network: Network, postbox: Postbox, stateMana
 }
 
 private func pushPeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, readState: PeerReadState) -> Signal<PeerReadState, PeerReadStateValidationError> {
-    if !GlobalTelegramCoreConfiguration.readMessages {
-        return .single(readState)
-    }
-    
     if peerId.namespace == Namespaces.Peer.SecretChat {
         return inputSecretChat(postbox: postbox, peerId: peerId)
         |> mapToSignal { inputPeer -> Signal<PeerReadState, PeerReadStateValidationError> in
@@ -218,8 +227,10 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
                 return .single(readState)
             case let .indexBased(maxIncomingReadIndex, _, _, _):
                 return network.request(Api.functions.messages.readEncryptedHistory(peer: inputPeer, maxDate: maxIncomingReadIndex.timestamp))
-                |> retryRequest
-                |> mapToSignalPromotingError { _ -> Signal<PeerReadState, PeerReadStateValidationError> in
+                    |> mapError { _ in
+                        return PeerReadStateValidationError.retry
+                    }
+                |> mapToSignal { _ -> Signal<PeerReadState, PeerReadStateValidationError> in
                     return .single(readState)
                 }
             }

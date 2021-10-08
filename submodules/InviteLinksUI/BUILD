@@ -12,7 +12,6 @@ swift_library(
         "//submodules/Display:Display",
         "//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
-        "//submodules/SyncCore:SyncCore",
         "//submodules/TelegramPresentationData:TelegramPresentationData",
         "//submodules/AccountContext:AccountContext",
         "//submodules/ItemListUI:ItemListUI",
@@ -50,6 +49,8 @@ swift_library(
         "//submodules/SectionHeaderItem:SectionHeaderItem",
         "//submodules/DirectionalPanGesture:DirectionalPanGesture",
         "//submodules/ShimmerEffect:ShimmerEffect",
+        "//submodules/AnimatedStickerNode:AnimatedStickerNode",
+        "//submodules/TelegramAnimatedStickerNode:TelegramAnimatedStickerNode",
     ],
     visibility = [
         "//visibility:public",

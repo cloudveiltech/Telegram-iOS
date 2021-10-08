@@ -8,7 +8,6 @@ swift_library(
     ]),
     deps = [
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
-        "//submodules/Postbox:Postbox",
         "//submodules/MtProtoKit:MtProtoKit",
         "//submodules/EncryptionProvider:EncryptionProvider",
     ],

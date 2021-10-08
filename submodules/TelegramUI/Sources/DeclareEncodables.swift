@@ -15,8 +15,6 @@ import ChatInterfaceState
 
 private var telegramUIDeclaredEncodables: Void = {
     declareEncodable(InAppNotificationSettings.self, f: { InAppNotificationSettings(decoder: $0) })
-    declareEncodable(ChatInterfaceState.self, f: { ChatInterfaceState(decoder: $0) })
-    declareEncodable(ChatEmbeddedInterfaceState.self, f: { ChatEmbeddedInterfaceState(decoder: $0) })
     declareEncodable(VideoLibraryMediaResource.self, f: { VideoLibraryMediaResource(decoder: $0) })
     declareEncodable(LocalFileVideoMediaResource.self, f: { LocalFileVideoMediaResource(decoder: $0) })
     declareEncodable(LocalFileGifMediaResource.self, f: { LocalFileGifMediaResource(decoder: $0) })
@@ -30,6 +28,8 @@ private var telegramUIDeclaredEncodables: Void = {
     declareEncodable(ApplicationSpecificVariantNotice.self, f: { ApplicationSpecificVariantNotice(decoder: $0) })
     declareEncodable(ApplicationSpecificCounterNotice.self, f: { ApplicationSpecificCounterNotice(decoder: $0) })
     declareEncodable(ApplicationSpecificTimestampNotice.self, f: { ApplicationSpecificTimestampNotice(decoder: $0) })
+    declareEncodable(ApplicationSpecificTimestampAndCounterNotice.self, f: { ApplicationSpecificTimestampAndCounterNotice(decoder: $0) })
+    declareEncodable(ApplicationSpecificInt64ArrayNotice.self, f: { ApplicationSpecificInt64ArrayNotice(decoder: $0) })
     declareEncodable(CallListSettings.self, f: { CallListSettings(decoder: $0) })
     declareEncodable(VoiceCallSettings.self, f: { VoiceCallSettings(decoder: $0) })
     declareEncodable(ExperimentalSettings.self, f: { ExperimentalSettings(decoder: $0) })

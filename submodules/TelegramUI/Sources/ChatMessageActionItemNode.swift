@@ -5,7 +5,6 @@ import Display
 import SwiftSignalKit
 import Postbox
 import TelegramCore
-import SyncCore
 import AccountContext
 import TelegramPresentationData
 import TelegramUIPreferences
@@ -178,8 +177,6 @@ class ChatMessageActionBubbleContentNode: ChatMessageBubbleContentNode {
                     labelRects[i].size.height = 20.0
                     labelRects[i].origin.x = floor((labelLayout.size.width - labelRects[i].width) / 2.0)
                 }
-            
-                let serviceColor = serviceMessageColorComponents(theme: item.presentationData.theme.theme, wallpaper: item.presentationData.theme.wallpaper)
 
                 let backgroundMaskImage: (CGPoint, UIImage)?
                 var backgroundMaskUpdated = false
@@ -234,12 +231,12 @@ class ChatMessageActionBubbleContentNode: ChatMessageBubbleContentNode {
                                 strongSelf.imageNode = nil
                             }
                             strongSelf.mediaBackgroundNode.image = backgroundImage
-                            
+
                             //CloudVeil start
-							if let imageNode = strongSelf.imageNode {
-								imageNode.isHidden = MainController.shared.disableProfilePhoto
-							}//CloudVeil end
-                            
+                            if let imageNode = strongSelf.imageNode {
+                                imageNode.isHidden = MainController.shared.disableProfilePhoto
+                            }//CloudVeil end
+
                             if let image = image, let video = image.videoRepresentations.last, let id = image.id?.id {
                                 let videoFileReference = FileMediaReference.message(message: MessageReference(item.message), media: TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: 0), partialReference: nil, resource: video.resource, previewRepresentations: image.representations, videoThumbnails: [], immediateThumbnailData: image.immediateThumbnailData, mimeType: "video/mp4", size: nil, attributes: [.Animated, .Video(duration: 0, size: video.dimensions, flags: [])]))
                                 let videoContent = NativeVideoContent(id: .profileVideo(id, "action"), fileReference: videoFileReference, streamVideo: isMediaStreamable(resource: video.resource) ? .conservative : .none, loopVideo: true, enableSound: false, fetchAutomatically: true, onlyFullSizeThumbnail: false, useLargeThumbnail: true, autoFetchFullSizeThumbnail: true, continuePlayingWithoutSoundOnLostAudioSession: false, placeholderColor: .clear)
@@ -427,7 +424,7 @@ class ChatMessageActionBubbleContentNode: ChatMessageBubbleContentNode {
             return .openMessage
         }
         
-        if let backgroundNode = self.backgroundNode, backgroundNode.frame.contains(point.offsetBy(dx: 0.0, dy: -10.0)) {
+        if let backgroundNode = self.backgroundNode, backgroundNode.frame.contains(point) {
             return .openMessage
         } else {
             return .none

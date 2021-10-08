@@ -1,7 +1,6 @@
 import Foundation
 import UIKit
 import TelegramCore
-import SyncCore
 import AccountContext
 
 func titlePanelForChatPresentationInterfaceState(_ chatPresentationInterfaceState: ChatPresentationInterfaceState, context: AccountContext, currentPanel: ChatTitleAccessoryPanelNode?, interfaceInteraction: ChatPanelInterfaceInteraction?) -> ChatTitleAccessoryPanelNode? {
@@ -17,6 +16,8 @@ func titlePanelForChatPresentationInterfaceState(_ chatPresentationInterfaceStat
     
     var inhibitTitlePanelDisplay = false
     switch chatPresentationInterfaceState.subject {
+    case .forwardedMessages:
+        return nil
     case .scheduledMessages, .pinnedMessages:
         inhibitTitlePanelDisplay = true
     default:

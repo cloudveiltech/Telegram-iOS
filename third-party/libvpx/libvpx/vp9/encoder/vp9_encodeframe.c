@@ -1842,7 +1842,8 @@ static void update_state(VP9_COMP *cpi, ThreadData *td, PICK_MODE_CONTEXT *ctx,
     }
     // Else for cyclic refresh mode update the segment map, set the segment id
     // and then update the quantizer.
-    if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ) {
+    if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ &&
+        cpi->cyclic_refresh->content_mode) {
       vp9_cyclic_refresh_update_segment(cpi, xd->mi[0], mi_row, mi_col, bsize,
                                         ctx->rate, ctx->dist, x->skip, p);
     }
@@ -2539,7 +2540,8 @@ static void update_state_rt(VP9_COMP *cpi, ThreadData *td,
 
   if (seg->enabled && (cpi->oxcf.aq_mode != NO_AQ || cpi->roi.enabled)) {
     // Setting segmentation map for cyclic_refresh.
-    if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ) {
+    if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ &&
+        cpi->cyclic_refresh->content_mode) {
       vp9_cyclic_refresh_update_segment(cpi, mi, mi_row, mi_col, bsize,
                                         ctx->rate, ctx->dist, x->skip, p);
     } else {
@@ -4603,15 +4605,18 @@ static int rd_pick_partition(VP9_COMP *cpi, ThreadData *td,
     encode_sb(cpi, td, tile_info, tp, mi_row, mi_col, output_enabled, bsize,
               pc_tree);
 #if CONFIG_RATE_CTRL
-    // Store partition, motion vector of the superblock.
-    if (output_enabled) {
-      const int num_unit_rows = get_num_unit_4x4(cpi->frame_info.frame_height);
-      const int num_unit_cols = get_num_unit_4x4(cpi->frame_info.frame_width);
-      store_superblock_info(pc_tree, cm->mi_grid_visible, cm->mi_stride,
-                            num_4x4_blocks_wide_lookup[BLOCK_64X64],
-                            num_unit_rows, num_unit_cols, mi_row << 1,
-                            mi_col << 1, cpi->partition_info,
-                            cpi->motion_vector_info);
+    if (oxcf->use_simple_encode_api) {
+      // Store partition, motion vector of the superblock.
+      if (output_enabled) {
+        const int num_unit_rows =
+            get_num_unit_4x4(cpi->frame_info.frame_height);
+        const int num_unit_cols = get_num_unit_4x4(cpi->frame_info.frame_width);
+        store_superblock_info(pc_tree, cm->mi_grid_visible, cm->mi_stride,
+                              num_4x4_blocks_wide_lookup[BLOCK_64X64],
+                              num_unit_rows, num_unit_cols, mi_row << 1,
+                              mi_col << 1, cpi->partition_info,
+                              cpi->motion_vector_info);
+      }
     }
 #endif  // CONFIG_RATE_CTRL
   }
@@ -5981,9 +5986,14 @@ void vp9_init_tile_data(VP9_COMP *cpi) {
         for (i = 0; i < BLOCK_SIZES; ++i) {
           for (j = 0; j < MAX_MODES; ++j) {
             tile_data->thresh_freq_fact[i][j] = RD_THRESH_INIT_FACT;
-#if CONFIG_CONSISTENT_RECODE || CONFIG_RATE_CTRL
+#if CONFIG_RATE_CTRL
+            if (cpi->oxcf.use_simple_encode_api) {
+              tile_data->thresh_freq_fact_prev[i][j] = RD_THRESH_INIT_FACT;
+            }
+#endif  // CONFIG_RATE_CTRL
+#if CONFIG_CONSISTENT_RECODE
             tile_data->thresh_freq_fact_prev[i][j] = RD_THRESH_INIT_FACT;
-#endif  // CONFIG_CONSISTENT_RECODE || CONFIG_RATE_CTRL
+#endif  // CONFIG_CONSISTENT_RECODE
             tile_data->mode_map[i][j] = j;
           }
         }
@@ -6406,7 +6416,12 @@ static void restore_encode_params(VP9_COMP *cpi) {
 void vp9_encode_frame(VP9_COMP *cpi) {
   VP9_COMMON *const cm = &cpi->common;
 
-#if CONFIG_CONSISTENT_RECODE || CONFIG_RATE_CTRL
+#if CONFIG_RATE_CTRL
+  if (cpi->oxcf.use_simple_encode_api) {
+    restore_encode_params(cpi);
+  }
+#endif  // CONFIG_RATE_CTRL
+#if CONFIG_CONSISTENT_RECODE
   restore_encode_params(cpi);
 #endif
 
@@ -6703,7 +6718,8 @@ static void encode_superblock(VP9_COMP *cpi, ThreadData *td, TOKENEXTRA **t,
 
     ++td->counts->tx.tx_totals[mi->tx_size];
     ++td->counts->tx.tx_totals[get_uv_tx_size(mi, &xd->plane[1])];
-    if (cm->seg.enabled && cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ)
+    if (cm->seg.enabled && cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ &&
+        cpi->cyclic_refresh->content_mode)
       vp9_cyclic_refresh_update_sb_postencode(cpi, mi, mi_row, mi_col, bsize);
     if (cpi->oxcf.pass == 0 && cpi->svc.temporal_layer_id == 0 &&
         (!cpi->use_svc ||

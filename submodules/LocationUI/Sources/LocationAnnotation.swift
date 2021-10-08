@@ -4,7 +4,6 @@ import MapKit
 import Display
 import SwiftSignalKit
 import Postbox
-import SyncCore
 import TelegramCore
 import AvatarNode
 import AppBundle
@@ -555,7 +554,7 @@ class LocationPinAnnotationView: MKAnnotationView {
         
         if self.previousPeerId != peer.id {
             self.previousPeerId = peer.id
-            avatarNode.setPeer(context: context, theme: theme, peer: peer)
+            avatarNode.setPeer(context: context, theme: theme, peer: EnginePeer(peer))
         }
     }
     
@@ -708,7 +707,7 @@ class LocationPinAnnotationView: MKAnnotationView {
         
         var arguments: VenueIconArguments?
         if let annotation = self.annotation as? LocationPinAnnotation {
-            arguments = VenueIconArguments(defaultForegroundColor: annotation.theme.chat.inputPanel.actionControlForegroundColor)
+            arguments = VenueIconArguments(defaultBackgroundColor: annotation.theme.chat.inputPanel.actionControlFillColor, defaultForegroundColor: annotation.theme.chat.inputPanel.actionControlForegroundColor)
         }
         
         let iconLayout = self.iconNode.asyncLayout()

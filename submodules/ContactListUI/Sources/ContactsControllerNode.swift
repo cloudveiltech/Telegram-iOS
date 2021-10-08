@@ -4,7 +4,6 @@ import AsyncDisplayKit
 import UIKit
 import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import TelegramPresentationData
 import TelegramUIPreferences
@@ -177,7 +176,7 @@ final class ContactsControllerNode: ASDisplayNode {
         }
         let chatController = self.context.sharedContext.makeChatController(context: self.context, chatLocation: .peer(peer.id), subject: nil, botStart: nil, mode: .standard(previewing: true))
         chatController.canReadHistory.set(false)
-        let contextController = ContextController(account: self.context.account, presentationData: self.presentationData, source: .controller(ContextControllerContentSourceImpl(controller: chatController, sourceNode: node)), items: contactContextMenuItems(context: self.context, peerId: peer.id, contactsController: contactsController), reactionItems: [], gesture: gesture)
+        let contextController = ContextController(account: self.context.account, presentationData: self.presentationData, source: .controller(ContextControllerContentSourceImpl(controller: chatController, sourceNode: node)), items: contactContextMenuItems(context: self.context, peerId: peer.id, contactsController: contactsController) |> map { ContextController.Items(items: $0) }, reactionItems: [], gesture: gesture)
         contactsController.presentInGlobalOverlay(contextController)
     }
     

@@ -5,7 +5,6 @@ import Display
 import SwiftSignalKit
 import TelegramPresentationData
 import Postbox
-import SyncCore
 import TelegramCore
 import AccountContext
 import ContextUI
@@ -39,7 +38,7 @@ final class PeerInfoPaneWrapper {
     }
     
     func update(size: CGSize, sideInset: CGFloat, bottomInset: CGFloat, visibleHeight: CGFloat, isScrollingLockedAtTop: Bool, expandProgress: CGFloat, presentationData: PresentationData, synchronous: Bool, transition: ContainedViewLayoutTransition) {
-        if let (currentSize, currentSideInset, currentBottomInset, visibleHeight, currentIsScrollingLockedAtTop, currentExpandProgress, currentPresentationData) = self.appliedParams {
+        if let (currentSize, currentSideInset, currentBottomInset, _, currentIsScrollingLockedAtTop, currentExpandProgress, currentPresentationData) = self.appliedParams {
             if currentSize == size && currentSideInset == sideInset && currentBottomInset == bottomInset, currentIsScrollingLockedAtTop == isScrollingLockedAtTop && currentExpandProgress == expandProgress && currentPresentationData === presentationData {
                 return
             }
@@ -181,11 +180,9 @@ final class PeerInfoPaneTabsContainerNode: ASDisplayNode {
             self.currentParams = (paneList, selectedPane, presentationData)
             for specifier in paneList {
                 let paneNode: PeerInfoPaneTabsContainerPaneNode
-                var wasAdded = false
                 if let current = self.paneNodes[specifier.key] {
                     paneNode = current
                 } else {
-                    wasAdded = true
                     paneNode = PeerInfoPaneTabsContainerPaneNode(pressed: { [weak self] in
                         self?.paneSelected(specifier.key)
                     })
@@ -378,6 +375,7 @@ private final class PeerInfoPendingPane {
     
     init(
         context: AccountContext,
+        updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?,
         chatControllerInteraction: ChatControllerInteraction,
         data: PeerInfoScreenData,
         openPeerContextAction: @escaping (Peer, ASDisplayNode, ContextGesture?) -> Void,
@@ -392,13 +390,13 @@ private final class PeerInfoPendingPane {
         case .media:
             paneNode = PeerInfoVisualMediaPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, contentType: .photoOrVideo)
         case .files:
-            paneNode = PeerInfoListPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, tagMask: .file)
+            paneNode = PeerInfoListPaneNode(context: context, updatedPresentationData: updatedPresentationData, chatControllerInteraction: chatControllerInteraction, peerId: peerId, tagMask: .file)
         case .links:
-            paneNode = PeerInfoListPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, tagMask: .webPage)
+            paneNode = PeerInfoListPaneNode(context: context, updatedPresentationData: updatedPresentationData, chatControllerInteraction: chatControllerInteraction, peerId: peerId, tagMask: .webPage)
         case .voice:
-            paneNode = PeerInfoListPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, tagMask: .voiceOrInstantVideo)
+            paneNode = PeerInfoListPaneNode(context: context, updatedPresentationData: updatedPresentationData, chatControllerInteraction: chatControllerInteraction, peerId: peerId, tagMask: .voiceOrInstantVideo)
         case .music:
-            paneNode = PeerInfoListPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, tagMask: .music)
+            paneNode = PeerInfoListPaneNode(context: context, updatedPresentationData: updatedPresentationData, chatControllerInteraction: chatControllerInteraction, peerId: peerId, tagMask: .music)
         case .gifs:
             paneNode = PeerInfoVisualMediaPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, contentType: .gifs)
         case .groupsInCommon:
@@ -469,9 +467,11 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, UIGestureRecognizerDelegat
     var requestExpandTabs: (() -> Bool)?
     
     private var currentAvailablePanes: [PeerInfoPaneKey]?
+    private let updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?
     
-    init(context: AccountContext, peerId: PeerId) {
+    init(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?, peerId: PeerId) {
         self.context = context
+        self.updatedPresentationData = updatedPresentationData
         self.peerId = peerId
         
         self.separatorNode = ASDisplayNode()
@@ -598,7 +598,6 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, UIGestureRecognizerDelegat
                         directionIsToRight = translation.x > size.width / 2.0
                     }
                 }
-                var updated = false
                 if let directionIsToRight = directionIsToRight {
                     var updatedIndex = currentIndex
                     if directionIsToRight {
@@ -609,7 +608,6 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, UIGestureRecognizerDelegat
                     let switchToKey = availablePanes[updatedIndex]
                     if switchToKey != self.currentPaneKey && self.currentPanes[switchToKey] != nil{
                         self.currentPaneKey = switchToKey
-                        updated = true
                     }
                 }
                 self.transitionFraction = 0.0
@@ -737,6 +735,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, UIGestureRecognizerDelegat
                 var leftScope = false
                 let pane = PeerInfoPendingPane(
                     context: self.context,
+                    updatedPresentationData: self.updatedPresentationData,
                     chatControllerInteraction: self.chatControllerInteraction!,
                     data: data!,
                     openPeerContextAction: { [weak self] peer, node, gesture in
@@ -788,8 +787,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, UIGestureRecognizerDelegat
         var paneSwitchAnimationOffset: CGFloat = 0.0
         
         var updatedCurrentIndex = currentIndex
-        var animatePaneTransitionOffset: CGFloat?
-        if let pendingSwitchToPaneKey = self.pendingSwitchToPaneKey, let pane = self.currentPanes[pendingSwitchToPaneKey] {
+        if let pendingSwitchToPaneKey = self.pendingSwitchToPaneKey, let _ = self.currentPanes[pendingSwitchToPaneKey] {
             self.pendingSwitchToPaneKey = nil
             previousPaneKey = self.currentPaneKey
             self.currentPaneKey = pendingSwitchToPaneKey
@@ -822,7 +820,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, UIGestureRecognizerDelegat
                         return
                     }
                     pane.isAnimatingOut = false
-                    if let (size, sideInset, bottomInset, visibleHeight, expansionFraction, presentationData, data) = strongSelf.currentParams {
+                    if let (_, _, _, _, _, _, data) = strongSelf.currentParams {
                         if let availablePanes = data?.availablePanes, let currentPaneKey = strongSelf.currentPaneKey, let currentIndex = availablePanes.firstIndex(of: currentPaneKey), let paneIndex = availablePanes.firstIndex(of: key), abs(paneIndex - currentIndex) <= 1 {
                         } else {
                             if let pane = strongSelf.currentPanes.removeValue(forKey: key) {
@@ -839,7 +837,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, UIGestureRecognizerDelegat
                     transition.animateFrame(node: pane.node, from: paneFrame, to: paneFrame.offsetBy(dx: -paneSwitchAnimationOffset, dy: 0.0), completion: isAnimatingOut ? nil : { _ in
                         paneCompletion()
                     })
-                } else if let previousPaneKey = previousPaneKey, key == self.currentPaneKey {
+                } else if let _ = previousPaneKey, key == self.currentPaneKey {
                     pane.node.frame = adjustedFrame
                     let isAnimatingOut = pane.isAnimatingOut
                     pane.isAnimatingOut = true

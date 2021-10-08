@@ -2,7 +2,6 @@ import Foundation
 import Postbox
 import TelegramApi
 
-import SyncCore
 
 func dimensionsForFileAttributes(_ attributes: [TelegramMediaFileAttribute]) -> PixelDimensions? {
     for attribute in attributes {
@@ -61,6 +60,8 @@ extension StickerPackReference {
                 self = .animatedEmoji
             case let .inputStickerSetDice(emoticon):
                 self = .dice(emoticon)
+            case .inputStickerSetAnimatedEmojiAnimations:
+                self = .animatedEmojiAnimations
         }
     }
 }

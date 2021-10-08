@@ -4,7 +4,6 @@ import MtProtoKit
 import SwiftSignalKit
 import TelegramApi
 
-import SyncCore
 
 private let minLayer: Int32 = 65
 
@@ -563,7 +562,7 @@ private final class CallSessionManagerContext {
                                 |> timeout(5.0, queue: strongSelf.queue, alternate: .single(nil))
                                 |> deliverOnMainQueue).start(next: { debugLog in
                                     if let debugLog = debugLog {
-                                        let _ = saveCallDebugLog(network: network, callId: CallId(id: id, accessHash: accessHash), log: debugLog).start()
+                                        _internal_saveCallDebugLog(network: network, callId: CallId(id: id, accessHash: accessHash), log: debugLog).start()
                                     }
                                 })
                             }
@@ -686,14 +685,14 @@ private final class CallSessionManagerContext {
                                 }
                             }
                             
-                            let keyHash = MTSha1(key)!
+                            let keyHash = MTSha1(key)
                             
                             var keyId: Int64 = 0
                             keyHash.withUnsafeBytes { (bytes: UnsafePointer<UInt8>) -> Void in
                                 memcpy(&keyId, bytes.advanced(by: keyHash.count - 8), 8)
                             }
                             
-                            let keyVisualHash = MTSha256(key + gA)!
+                            let keyVisualHash = MTSha256(key + gA)
                             
                             context.state = .confirming(id: id, accessHash: accessHash, key: key, keyId: keyId, keyVisualHash: keyVisualHash, disposable: (confirmCallSession(network: self.network, stableId: id, accessHash: accessHash, gA: gA, keyFingerprint: keyId, maxLayer: self.maxLayer, versions: selectedVersions) |> deliverOnMainQueue).start(next: { [weak self] updatedCall in
                                 if let strongSelf = self, let context = strongSelf.contexts[internalId], case .confirming = context.state {
@@ -820,7 +819,7 @@ private final class CallSessionManagerContext {
                 versions = libraryVersions
             }
             if self.contextIdByStableId[id] == nil {
-                let internalId = self.addIncoming(peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(adminId)), stableId: id, accessHash: accessHash, timestamp: date, gAHash: gAHash.makeData(), versions: versions, isVideo: isVideo)
+                let internalId = self.addIncoming(peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(adminId)), stableId: id, accessHash: accessHash, timestamp: date, gAHash: gAHash.makeData(), versions: versions, isVideo: isVideo)
                 if let internalId = internalId {
                     var resultRingingStateValue: CallSessionRingingState?
                     for ringingState in self.ringingStatesValue() {
@@ -889,18 +888,18 @@ private final class CallSessionManagerContext {
             }
         }
         
-        let keyHash = MTSha1(key)!
+        let keyHash = MTSha1(key)
         
         var keyId: Int64 = 0
         keyHash.withUnsafeBytes { (bytes: UnsafePointer<UInt8>) -> Void in
             memcpy(&keyId, bytes.advanced(by: keyHash.count - 8), 8)
         }
         
-        if MTSha256(gA)! != gAHash {
+        if MTSha256(gA) != gAHash {
             return nil
         }
         
-        let keyVisualHash = MTSha256(key + gA)!
+        let keyVisualHash = MTSha256(key + gA)
         
         return (key, keyId, keyVisualHash)
     }
@@ -1162,7 +1161,7 @@ private func requestCallSession(postbox: Postbox, network: Network, peerId: Peer
                     return .single(.failed(.generic))
                 }
                 
-                let gAHash = MTSha256(ga)!
+                let gAHash = MTSha256(ga)
                 
                 var callFlags: Int32 = 0
                 if isVideo {

@@ -4,7 +4,6 @@ import AsyncDisplayKit
 import Display
 import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import TelegramPresentationData
 import ItemListUI
@@ -292,7 +291,7 @@ public final class ListMessageSnippetItemNode: ListMessageNode {
                                     switch wallpaper {
                                     case let .slug(slug, _, colors, intensity, angle):
                                         previewWallpaperFileReference = .message(message: MessageReference(item.message), media: file)
-                                        previewWallpaper = .file(id: file.fileId.id, accessHash: 0, isCreator: false, isDefault: false, isPattern: true, isDark: false, slug: slug, file: file, settings: WallpaperSettings(blur: false, motion: false, colors: colors, intensity: intensity, rotation: angle))
+                                        previewWallpaper = .file(TelegramWallpaper.File(id: file.fileId.id, accessHash: 0, isCreator: false, isDefault: false, isPattern: true, isDark: false, slug: slug, file: file, settings: WallpaperSettings(blur: false, motion: false, colors: colors, intensity: intensity, rotation: angle)))
                                     default:
                                         break
                                     }
@@ -759,8 +758,12 @@ public final class ListMessageSnippetItemNode: ListMessageNode {
         }
     }
     
-    override public func header() -> ListViewItemHeader? {
-        return self.item?.header
+    override public func headers() -> [ListViewItemHeader]? {
+        if let item = self.item {
+            return item.header.flatMap { [$0] }
+        } else {
+            return nil
+        }
     }
     
     override public func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {

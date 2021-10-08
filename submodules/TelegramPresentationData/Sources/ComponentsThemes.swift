@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import Display
 import TelegramUIPreferences
+import PresentationStrings
 
 public extension PresentationFontSize {
     init(systemFontSize: CGFloat) {
@@ -114,5 +115,19 @@ public extension NavigationControllerTheme {
             navigationStatusBar = .white
         }
         self.init(statusBar: navigationStatusBar, navigationBar: NavigationBarTheme(rootControllerTheme: presentationTheme), emptyAreaColor: presentationTheme.chatList.backgroundColor)
+    }
+}
+
+public extension PresentationThemeBubbleColorComponents {
+    var hasSingleFillColor: Bool {
+        if self.fill.count == 1 {
+            return true
+        }
+        for i in 0 ..< self.fill.count - 1 {
+            if self.fill[i].argb != self.fill[i + 1].argb {
+                return false
+            }
+        }
+        return true
     }
 }

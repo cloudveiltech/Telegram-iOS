@@ -1,7 +1,6 @@
 import Foundation
 import Postbox
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import TelegramUIPreferences
 import TelegramStringFormatting
@@ -101,7 +100,15 @@ public func chatListItemStrings(strings: PresentationStrings, nameDisplayOrder: 
                     textIsReady = true
                 }
             case .generic:
-                break
+                var messageTypes = Set<MessageGroupType>()
+                for message in messages {
+                    messageTypes.insert(singleMessageType(message: message))
+                }
+                if messageTypes.count == 2 && messageTypes.contains(.photos) && messageTypes.contains(.videos) {
+                    if !messageText.isEmpty {
+                        textIsReady = true
+                    }
+                }
             }
         }
         
@@ -159,7 +166,7 @@ public func chatListItemStrings(strings: PresentationStrings, nameDisplayOrder: 
                                         processed = true
                                         break inner
                                     } else {
-                                        messageText = strings.Message_StickerText(displayText).0
+                                        messageText = strings.Message_StickerText(displayText).string
                                         processed = true
                                         break inner
                                     }
@@ -288,16 +295,16 @@ public func chatListItemStrings(strings: PresentationStrings, nameDisplayOrder: 
                     case .active:
                         switch secretChat.role {
                             case .creator:
-                                messageText = strings.DialogList_EncryptedChatStartedOutgoing(peer?.compactDisplayTitle ?? "").0
+                                messageText = strings.DialogList_EncryptedChatStartedOutgoing(peer?.compactDisplayTitle ?? "").string
                             case .participant:
-                                messageText = strings.DialogList_EncryptedChatStartedIncoming(peer?.compactDisplayTitle ?? "").0
+                                messageText = strings.DialogList_EncryptedChatStartedIncoming(peer?.compactDisplayTitle ?? "").string
                         }
                     case .terminated:
                         messageText = strings.DialogList_EncryptionRejected
                     case .handshake:
                         switch secretChat.role {
                             case .creator:
-                                messageText = strings.DialogList_AwaitingEncryption(peer?.compactDisplayTitle ?? "").0
+                                messageText = strings.DialogList_AwaitingEncryption(peer?.compactDisplayTitle ?? "").string
                             case .participant:
                                 messageText = strings.DialogList_EncryptionProcessing
                         }

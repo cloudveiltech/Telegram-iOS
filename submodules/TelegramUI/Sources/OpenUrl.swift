@@ -2,7 +2,6 @@ import Foundation
 import Display
 import SafariServices
 import TelegramCore
-import SyncCore
 import Postbox
 import SwiftSignalKit
 import MtProtoKit
@@ -43,7 +42,7 @@ public func parseSecureIdUrl(_ url: URL) -> ParsedSecureIdUrl? {
     if url.host == "passport" || url.host == "resolve" {
         if let components = URLComponents(string: "/?" + query) {
             var domain: String?
-            var botId: Int32?
+            var botId: Int64?
             var scope: String?
             var publicKey: String?
             var callbackUrl: String?
@@ -55,7 +54,7 @@ public func parseSecureIdUrl(_ url: URL) -> ParsedSecureIdUrl? {
                         if queryItem.name == "domain" {
                             domain = value
                         } else if queryItem.name == "bot_id" {
-                            botId = Int32(value)
+                            botId = Int64(value)
                         } else if queryItem.name == "scope" {
                             scope = value
                         } else if queryItem.name == "public_key" {
@@ -97,7 +96,7 @@ public func parseSecureIdUrl(_ url: URL) -> ParsedSecureIdUrl? {
                         return nil
                     }
                     
-                    return ParsedSecureIdUrl(peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(botId)), scope: scope, publicKey: publicKey, callbackUrl: callbackUrl, opaquePayload: opaquePayload, opaqueNonce: opaqueNonce)
+                    return ParsedSecureIdUrl(peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(botId)), scope: scope, publicKey: publicKey, callbackUrl: callbackUrl, opaquePayload: opaquePayload, opaqueNonce: opaqueNonce)
                 }
             }
         }
@@ -194,7 +193,7 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                         case .info:
                             let _ = (context.account.postbox.loadedPeerWithId(peerId)
                             |> deliverOnMainQueue).start(next: { peer in
-                                if let infoController = context.sharedContext.makePeerInfoController(context: context, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
+                                if let infoController = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
                                     context.sharedContext.applicationBindings.dismissNativeController()
                                     navigationController?.pushViewController(infoController)
                                 }
@@ -396,7 +395,7 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                 } else if parsedUrl.host == "passport" || parsedUrl.host == "resolve" {
                     if let components = URLComponents(string: "/?" + query) {
                         var domain: String?
-                        var botId: Int32?
+                        var botId: Int64?
                         var scope: String?
                         var publicKey: String?
                         var callbackUrl: String?
@@ -408,7 +407,7 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                                     if queryItem.name == "domain" {
                                         domain = value
                                     } else if queryItem.name == "bot_id" {
-                                        botId = Int32(value)
+                                        botId = Int64(value)
                                     } else if queryItem.name == "scope" {
                                         scope = value
                                     } else if queryItem.name == "public_key" {
@@ -452,7 +451,7 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                                 if case .chat = urlContext {
                                     return
                                 }
-                                let controller = SecureIdAuthController(context: context, mode: .form(peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(botId)), scope: scope, publicKey: publicKey, callbackUrl: callbackUrl, opaquePayload: opaquePayload, opaqueNonce: opaqueNonce))
+                                let controller = SecureIdAuthController(context: context, mode: .form(peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(botId)), scope: scope, publicKey: publicKey, callbackUrl: callbackUrl, opaquePayload: opaquePayload, opaqueNonce: opaqueNonce))
                                 
                                 if let navigationController = navigationController {
                                     context.sharedContext.applicationBindings.dismissNativeController()
@@ -477,12 +476,12 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                             }
                         }
                         
-                        if let id = id, !id.isEmpty, let idValue = Int32(id), idValue > 0 {
+                        if let id = id, !id.isEmpty, let idValue = Int64(id), idValue > 0 {
                             let _ = (context.account.postbox.transaction { transaction -> Peer? in
-                                return transaction.getPeer(PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt32Value(idValue)))
+                                return transaction.getPeer(PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(idValue)))
                             }
                             |> deliverOnMainQueue).start(next: { peer in
-                                if let peer = peer, let controller = context.sharedContext.makePeerInfoController(context: context, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
+                                if let peer = peer, let controller = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
                                     navigationController?.pushViewController(controller)
                                 }
                             })
@@ -626,10 +625,10 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                                         game = value
                                     } else if queryItem.name == "post" {
                                         post = value
-                                    } else if queryItem.name == "voicechat" {
+                                    } else if ["voicechat", "videochat", "livestream"].contains(queryItem.name) {
                                         voiceChat = value
                                     }
-                                } else if queryItem.name == "voicechat" {
+                                } else if ["voicechat", "videochat", "livestream"].contains(queryItem.name) {
                                     voiceChat = ""
                                 }
                             }
@@ -730,10 +729,12 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                 |> deliverOnMainQueue).start(next: { settings in
                     if settings.defaultWebBrowser == nil {
                         //CloudVeil start
-                        if MainController.SecurityStaticSettings.disableInAppBrowser {    context.sharedContext.applicationBindings.openUrl(parsedUrl.absoluteString)
+                        if MainController.SecurityStaticSettings.disableInAppBrowser {
+                            context.sharedContext.applicationBindings.openUrl(parsedUrl.absoluteString)
                             return
                         }
                         //CloudVeil end
+
                         if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
                             if let window = navigationController?.view.window {
                                 let controller = SFSafariViewController(url: parsedUrl)

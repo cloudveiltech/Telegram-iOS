@@ -4,23 +4,24 @@ import Display
 import AsyncDisplayKit
 import AvatarNode
 import SwiftSignalKit
-import Postbox
 import TelegramCore
-import SyncCore
 import AccountContext
 import AudioBlob
 
 public final class AnimatedAvatarSetContext {
     public final class Content {
         fileprivate final class Item {
-            fileprivate struct Key: Hashable {
-                var peerId: PeerId
+            fileprivate enum Key: Hashable {
+                case peer(EnginePeer.Id)
+                case placeholder(Int)
             }
             
-            fileprivate let peer: Peer
+            fileprivate let peer: EnginePeer?
+            fileprivate let placeholderColor: UIColor
             
-            fileprivate init(peer: Peer) {
+            fileprivate init(peer: EnginePeer?, placeholderColor: UIColor) {
                 self.peer = peer
+                self.placeholderColor = placeholderColor
             }
         }
         
@@ -32,23 +33,31 @@ public final class AnimatedAvatarSetContext {
     }
     
     private final class ItemState {
-        let peer: Peer
+        let peer: EnginePeer
         
-        init(peer: Peer) {
+        init(peer: EnginePeer) {
             self.peer = peer
         }
     }
     
-    private var peers: [Peer] = []
-    private var itemStates: [PeerId: ItemState] = [:]
+    private var peers: [EnginePeer] = []
+    private var itemStates: [EnginePeer.Id: ItemState] = [:]
     
     public init() {
     }
     
-    public func update(peers: [Peer], animated: Bool) -> Content {
+    public func update(peers: [EnginePeer], animated: Bool) -> Content {
         var items: [(Content.Item.Key, Content.Item)] = []
         for peer in peers {
-            items.append((Content.Item.Key(peerId: peer.id), Content.Item(peer: peer)))
+            items.append((.peer(peer.id), Content.Item(peer: peer, placeholderColor: .white)))
+        }
+        return Content(items: items)
+    }
+
+    public func updatePlaceholder(color: UIColor, count: Int, animated: Bool) -> Content {
+        var items: [(Content.Item.Key, Content.Item)] = []
+        for i in 0 ..< count {
+            items.append((.placeholder(i), Content.Item(peer: nil, placeholderColor: color)))
         }
         return Content(items: items)
     }
@@ -61,10 +70,16 @@ private final class ContentNode: ASDisplayNode {
     private var audioLevelBlobOverlay: UIImageView?
     private let unclippedNode: ASImageNode
     private let clippedNode: ASImageNode
+
+    private var size: CGSize
+    private var spacing: CGFloat
     
     private var disposable: Disposable?
     
-    init(context: AccountContext, peer: Peer, synchronousLoad: Bool) {
+    init(context: AccountContext, peer: EnginePeer?, placeholderColor: UIColor, synchronousLoad: Bool, size: CGSize, spacing: CGFloat) {
+        self.size = size
+        self.spacing = spacing
+
         self.unclippedNode = ASImageNode()
         self.clippedNode = ASImageNode()
         
@@ -72,38 +87,47 @@ private final class ContentNode: ASDisplayNode {
         
         self.addSubnode(self.unclippedNode)
         self.addSubnode(self.clippedNode)
-        
-        if let representation = peer.smallProfileImage, let signal = peerAvatarImage(account: context.account, peerReference: PeerReference(peer), authorOfMessage: nil, representation: representation, displayDimensions: CGSize(width: 30.0, height: 30.0), synchronousLoad: synchronousLoad) {
-            let image = generateImage(CGSize(width: 30.0, height: 30.0), rotatedContext: { size, context in
+
+        if let peer = peer {
+            if let representation = peer.smallProfileImage, let signal = peerAvatarImage(account: context.account, peerReference: PeerReference(peer._asPeer()), authorOfMessage: nil, representation: representation, displayDimensions: size, synchronousLoad: synchronousLoad) {
+                let image = generateImage(size, rotatedContext: { size, context in
+                    context.clear(CGRect(origin: CGPoint(), size: size))
+                    context.setFillColor(UIColor.lightGray.cgColor)
+                    context.fillEllipse(in: CGRect(origin: CGPoint(), size: size))
+                })!
+                self.updateImage(image: image, size: size, spacing: spacing)
+
+                let disposable = (signal
+                |> deliverOnMainQueue).start(next: { [weak self] imageVersions in
+                    guard let strongSelf = self else {
+                        return
+                    }
+                    let image = imageVersions?.0
+                    if let image = image {
+                        strongSelf.updateImage(image: image, size: size, spacing: spacing)
+                    }
+                })
+                self.disposable = disposable
+            } else {
+                let image = generateImage(size, rotatedContext: { size, context in
+                    context.clear(CGRect(origin: CGPoint(), size: size))
+                    drawPeerAvatarLetters(context: context, size: size, font: avatarFont, letters: peer.displayLetters, peerId: peer.id)
+                })!
+                self.updateImage(image: image, size: size, spacing: spacing)
+            }
+        } else {
+            let image = generateImage(size, rotatedContext: { size, context in
                 context.clear(CGRect(origin: CGPoint(), size: size))
-                context.setFillColor(UIColor.lightGray.cgColor)
+                context.setFillColor(placeholderColor.cgColor)
                 context.fillEllipse(in: CGRect(origin: CGPoint(), size: size))
             })!
-            self.updateImage(image: image)
-            
-            let disposable = (signal
-            |> deliverOnMainQueue).start(next: { [weak self] imageVersions in
-                guard let strongSelf = self else {
-                    return
-                }
-                let image = imageVersions?.0
-                if let image = image {
-                    strongSelf.updateImage(image: image)
-                }
-            })
-            self.disposable = disposable
-        } else {
-            let image = generateImage(CGSize(width: 30.0, height: 30.0), rotatedContext: { size, context in
-                context.clear(CGRect(origin: CGPoint(), size: size))
-                drawPeerAvatarLetters(context: context, size: size, font: avatarFont, letters: peer.displayLetters, peerId: peer.id)
-            })!
-            self.updateImage(image: image)
+            self.updateImage(image: image, size: size, spacing: spacing)
         }
     }
     
-    private func updateImage(image: UIImage) {
+    private func updateImage(image: UIImage, size: CGSize, spacing: CGFloat) {
         self.unclippedNode.image = image
-        self.clippedNode.image = generateImage(CGSize(width: 30.0, height: 30.0), rotatedContext: { size, context in
+        self.clippedNode.image = generateImage(size, rotatedContext: { size, context in
             context.clear(CGRect(origin: CGPoint(), size: size))
             context.translateBy(x: size.width / 2.0, y: size.height / 2.0)
             context.scaleBy(x: 1.0, y: -1.0)
@@ -115,7 +139,7 @@ private final class ContentNode: ASDisplayNode {
             
             context.setBlendMode(.copy)
             context.setFillColor(UIColor.clear.cgColor)
-            context.fillEllipse(in: CGRect(origin: CGPoint(), size: size).insetBy(dx: -1.5, dy: -1.5).offsetBy(dx: -20.0, dy: 0.0))
+            context.fillEllipse(in: CGRect(origin: CGPoint(), size: size).insetBy(dx: -1.5, dy: -1.5).offsetBy(dx: spacing - size.width, dy: 0.0))
         })
     }
     
@@ -194,9 +218,16 @@ public final class AnimatedAvatarSetNode: ASDisplayNode {
         super.init()
     }
     
-    public func update(context: AccountContext, content: AnimatedAvatarSetContext.Content, itemSize: CGSize = CGSize(width: 30.0, height: 30.0), animated: Bool, synchronousLoad: Bool) -> CGSize {
+    public func update(context: AccountContext, content: AnimatedAvatarSetContext.Content, itemSize: CGSize = CGSize(width: 30.0, height: 30.0), customSpacing: CGFloat? = nil, animated: Bool, synchronousLoad: Bool) -> CGSize {
         var contentWidth: CGFloat = 0.0
         let contentHeight: CGFloat = itemSize.height
+
+        let spacing: CGFloat
+        if let customSpacing = customSpacing {
+            spacing = customSpacing
+        } else {
+            spacing = 10.0
+        }
         
         let transition: ContainedViewLayoutTransition
         if animated {
@@ -220,7 +251,7 @@ public final class AnimatedAvatarSetNode: ASDisplayNode {
                 itemNode.updateLayout(size: itemSize, isClipped: index != 0, animated: animated)
                 transition.updateFrame(node: itemNode, frame: itemFrame)
             } else {
-                itemNode = ContentNode(context: context, peer: item.peer, synchronousLoad: synchronousLoad)
+                itemNode = ContentNode(context: context, peer: item.peer, placeholderColor: item.placeholderColor, synchronousLoad: synchronousLoad, size: itemSize, spacing: spacing)
                 self.addSubnode(itemNode)
                 self.contentNodes[key] = itemNode
                 itemNode.updateLayout(size: itemSize, isClipped: index != 0, animated: false)
@@ -231,7 +262,7 @@ public final class AnimatedAvatarSetNode: ASDisplayNode {
                 }
             }
             itemNode.zPosition = CGFloat(100 - i)
-            contentWidth += itemSize.width - 10.0
+            contentWidth += itemSize.width - spacing
             index += 1
         }
         var removeKeys: [AnimatedAvatarSetContext.Content.Item.Key] = []
@@ -253,10 +284,9 @@ public final class AnimatedAvatarSetNode: ASDisplayNode {
         return CGSize(width: contentWidth, height: contentHeight)
     }
     
-    public func updateAudioLevels(color: UIColor, backgroundColor: UIColor, levels: [PeerId: Float]) {
-        //print("updateAudioLevels visible: \(self.contentNodes.keys.map(\.peerId.id)) data: \(levels)")
+    public func updateAudioLevels(color: UIColor, backgroundColor: UIColor, levels: [EnginePeer.Id: Float]) {
         for (key, itemNode) in self.contentNodes {
-            if let value = levels[key.peerId] {
+            if case let .peer(peerId) = key, let value = levels[peerId] {
                 itemNode.updateAudioLevel(color: color, backgroundColor: backgroundColor, value: value)
             } else {
                 itemNode.updateAudioLevel(color: color, backgroundColor: backgroundColor, value: 0.0)

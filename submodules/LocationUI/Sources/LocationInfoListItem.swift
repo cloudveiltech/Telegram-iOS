@@ -5,7 +5,6 @@ import Postbox
 import Display
 import SwiftSignalKit
 import TelegramCore
-import SyncCore
 import TelegramPresentationData
 import ItemListUI
 import LocationResources
@@ -191,11 +190,12 @@ final class LocationInfoListItemNode: ListViewItemNode {
                             strongSelf.directionsButtonNode?.updateTheme(SolidRoundedButtonTheme(theme: item.presentationData.theme))
                         }
                         
+                        let arguments = VenueIconArguments(defaultBackgroundColor: item.presentationData.theme.chat.inputPanel.actionControlFillColor, defaultForegroundColor: item.presentationData.theme.chat.inputPanel.actionControlForegroundColor)
                         if let updatedLocation = updatedLocation {
                             strongSelf.venueIconNode.setSignal(venueIcon(postbox: item.account.postbox, type: updatedLocation.venue?.type ?? "", background: true))
                         }
                         
-                        let iconApply = iconLayout(TransformImageArguments(corners: ImageCorners(), imageSize: CGSize(width: iconSize, height: iconSize), boundingSize: CGSize(width: iconSize, height: iconSize), intrinsicInsets: UIEdgeInsets()))
+                        let iconApply = iconLayout(TransformImageArguments(corners: ImageCorners(), imageSize: CGSize(width: iconSize, height: iconSize), boundingSize: CGSize(width: iconSize, height: iconSize), intrinsicInsets: UIEdgeInsets(), custom: arguments))
                         iconApply()
                         
                         let titleNode = titleApply()
@@ -231,8 +231,6 @@ final class LocationInfoListItemNode: ListViewItemNode {
                         
                         let subtitleFrame = CGRect(origin: CGPoint(x: leftInset, y: verticalInset + titleLayout.size.height + titleSpacing), size: subtitleLayout.size)
                         subtitleNode.frame = subtitleFrame
-
-                        let separatorHeight = UIScreenPixel
                         
                         let iconNodeFrame = CGRect(origin: CGPoint(x: params.leftInset + inset, y: 10.0), size: CGSize(width: iconSize, height: iconSize))
                         strongSelf.venueIconNode.frame = iconNodeFrame

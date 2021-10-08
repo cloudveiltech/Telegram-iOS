@@ -4,7 +4,6 @@ import AsyncDisplayKit
 import Display
 import SwiftSignalKit
 import Postbox
-import SyncCore
 import TelegramCore
 import TelegramPresentationData
 import TextFormat
@@ -79,6 +78,7 @@ final class UndoOverlayControllerNode: ViewControllerTracingNode {
         var displayUndo = true
         var undoText = presentationData.strings.Undo_Undo
         var undoTextColor = UIColor(rgb: 0x5ac8fa)
+        undoTextColor = presentationData.theme.list.itemAccentColor.withMultiplied(hue: 1.0, saturation: 0.64, brightness: 1.08)
         
         if presentationData.theme.overallDarkAppearance {
             self.animationBackgroundColor = presentationData.theme.rootController.tabBar.backgroundColor
@@ -242,11 +242,11 @@ final class UndoOverlayControllerNode: ViewControllerTracingNode {
                 self.animationNode = AnimationNode(animation: "anim_success", colors: ["info1.info1.stroke": self.animationBackgroundColor, "info2.info2.Fill": self.animationBackgroundColor], scale: 1.0)
                 self.animatedStickerNode = nil
                 
-                let (rawString, attributes) = presentationData.strings.ChatList_AddedToFolderTooltip(chatTitle, folderTitle)
+                let formattedString = presentationData.strings.ChatList_AddedToFolderTooltip(chatTitle, folderTitle)
                 
-                let string = NSMutableAttributedString(attributedString: NSAttributedString(string: rawString, font: Font.regular(14.0), textColor: .white))
-                for (_, range) in attributes {
-                    string.addAttribute(.font, value: Font.regular(14.0), range: range)
+                let string = NSMutableAttributedString(attributedString: NSAttributedString(string: formattedString.string, font: Font.regular(14.0), textColor: .white))
+                for range in formattedString.ranges {
+                    string.addAttribute(.font, value: Font.regular(14.0), range: range.range)
                 }
                 
                 self.textNode.attributedText = string
@@ -259,11 +259,11 @@ final class UndoOverlayControllerNode: ViewControllerTracingNode {
                 self.animationNode = AnimationNode(animation: "anim_success", colors: ["info1.info1.stroke": self.animationBackgroundColor, "info2.info2.Fill": self.animationBackgroundColor], scale: 1.0)
                 self.animatedStickerNode = nil
                 
-                let (rawString, attributes) = presentationData.strings.ChatList_RemovedFromFolderTooltip(chatTitle, folderTitle)
+                let formattedString = presentationData.strings.ChatList_RemovedFromFolderTooltip(chatTitle, folderTitle)
                 
-                let string = NSMutableAttributedString(attributedString: NSAttributedString(string: rawString, font: Font.regular(14.0), textColor: .white))
-                for (_, range) in attributes {
-                    string.addAttribute(.font, value: Font.regular(14.0), range: range)
+                let string = NSMutableAttributedString(attributedString: NSAttributedString(string: formattedString.string, font: Font.regular(14.0), textColor: .white))
+                for range in formattedString.ranges {
+                    string.addAttribute(.font, value: Font.regular(14.0), range: range.range)
                 }
                 
                 self.textNode.attributedText = string
@@ -276,11 +276,11 @@ final class UndoOverlayControllerNode: ViewControllerTracingNode {
                 self.animationNode = AnimationNode(animation: "anim_payment", colors: ["info1.info1.stroke": self.animationBackgroundColor, "info2.info2.Fill": self.animationBackgroundColor], scale: 1.0)
                 self.animatedStickerNode = nil
 
-                let (rawString, attributes) = presentationData.strings.Checkout_SuccessfulTooltip(currencyValue, itemTitle)
+                let formattedString = presentationData.strings.Checkout_SuccessfulTooltip(currencyValue, itemTitle)
 
-                let string = NSMutableAttributedString(attributedString: NSAttributedString(string: rawString, font: Font.regular(14.0), textColor: .white))
-                for (_, range) in attributes {
-                    string.addAttribute(.font, value: Font.semibold(14.0), range: range)
+                let string = NSMutableAttributedString(attributedString: NSAttributedString(string: formattedString.string, font: Font.regular(14.0), textColor: .white))
+                for range in formattedString.ranges {
+                    string.addAttribute(.font, value: Font.semibold(14.0), range: range.range)
                 }
 
                 self.textNode.attributedText = string
@@ -304,14 +304,14 @@ final class UndoOverlayControllerNode: ViewControllerTracingNode {
                 
                 displayUndo = undo
                 self.originalRemainingSeconds = 5
-            case let .emoji(path, text):
+            case let .emoji(name, text):
                 self.avatarNode = nil
                 self.iconNode = nil
                 self.iconCheckNode = nil
                 self.animationNode = nil
                 self.animatedStickerNode = AnimatedStickerNode()
                 self.animatedStickerNode?.visibility = true
-                self.animatedStickerNode?.setup(source: AnimatedStickerNodeLocalFileSource(path: path), width: 100, height: 100, playbackMode: .once, mode: .direct(cachePathPrefix: nil))
+                self.animatedStickerNode?.setup(source: AnimatedStickerNodeLocalFileSource(name: name), width: 100, height: 100, playbackMode: .once, mode: .direct(cachePathPrefix: nil))
                 
                 let body = MarkdownAttributeSet(font: Font.regular(14.0), textColor: .white)
                 let bold = MarkdownAttributeSet(font: Font.semibold(14.0), textColor: .white)
@@ -448,7 +448,7 @@ final class UndoOverlayControllerNode: ViewControllerTracingNode {
                 }
                 
                 if dice.emoji == "🎰" {
-                    let slotMachineNode = SlotMachineAnimationNode(size: CGSize(width: 42.0, height: 42.0))
+                    let slotMachineNode = SlotMachineAnimationNode(account: context.account, size: CGSize(width: 42.0, height: 42.0))
                     self.slotMachineNode = slotMachineNode
                     
                     slotMachineNode.setState(.rolling)
@@ -505,7 +505,7 @@ final class UndoOverlayControllerNode: ViewControllerTracingNode {
                 let attributedText = parseMarkdownIntoAttributedString(text, attributes: MarkdownAttributes(body: body, bold: bold, link: link, linkAttribute: { _ in return nil }), textAlignment: .natural)
                 self.textNode.attributedText = attributedText
                 
-                self.avatarNode?.setPeer(context: context, theme: presentationData.theme, peer: peer, overrideImage: nil, emptyColor: presentationData.theme.list.mediaPlaceholderColor, synchronousLoad: true)
+                self.avatarNode?.setPeer(context: context, theme: presentationData.theme, peer: EnginePeer(peer), overrideImage: nil, emptyColor: presentationData.theme.list.mediaPlaceholderColor, synchronousLoad: true)
                 
                 displayUndo = false
                 self.originalRemainingSeconds = 3
@@ -715,10 +715,9 @@ final class UndoOverlayControllerNode: ViewControllerTracingNode {
                 
                 let animatedStickerNode = AnimatedStickerNode()
                 self.animatedStickerNode = animatedStickerNode
-                if let path = getAppBundle().path(forResource: "anim_savemedia", ofType: "tgs") {
-                    animatedStickerNode.setup(source: AnimatedStickerNodeLocalFileSource(path: path), width: 80, height: 80, playbackMode: .once, mode: .direct(cachePathPrefix: nil))
-                    animatedStickerNode.visibility = true
-                }
+                
+                animatedStickerNode.setup(source: AnimatedStickerNodeLocalFileSource(name: "anim_savemedia"), width: 80, height: 80, playbackMode: .once, mode: .direct(cachePathPrefix: nil))
+                animatedStickerNode.visibility = true
                 
                 let body = MarkdownAttributeSet(font: Font.regular(14.0), textColor: .white)
                 let bold = MarkdownAttributeSet(font: Font.semibold(14.0), textColor: .white)

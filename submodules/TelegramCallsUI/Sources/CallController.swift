@@ -4,7 +4,6 @@ import Display
 import AsyncDisplayKit
 import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import TelegramPresentationData
 import TelegramUIPreferences
@@ -15,7 +14,7 @@ import TelegramNotices
 import AppBundle
 import TooltipUI
 
-protocol CallControllerNodeProtocol: class {
+protocol CallControllerNodeProtocol: AnyObject {
     var isMuted: Bool { get set }
     
     var toggleMute: (() -> Void)? { get set }

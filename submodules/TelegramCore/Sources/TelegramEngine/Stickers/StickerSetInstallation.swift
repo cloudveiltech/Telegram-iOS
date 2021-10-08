@@ -3,7 +3,6 @@ import Postbox
 import TelegramApi
 import SwiftSignalKit
 
-import SyncCore
 
 public enum RequestStickerSetError {
     case generic
@@ -41,6 +40,9 @@ func _internal_requestStickerSet(postbox: Postbox, network: Network, reference: 
         case let .dice(emoji):
             collectionId = nil
             input = .inputStickerSetDice(emoticon: emoji)
+        case .animatedEmojiAnimations:
+            collectionId = nil
+            input = .inputStickerSetAnimatedEmojiAnimations
     }
     
     let localSignal: (ItemCollectionId) -> Signal<(ItemCollectionInfo, [ItemCollectionItem])?, NoError> = { collectionId in

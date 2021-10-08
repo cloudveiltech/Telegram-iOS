@@ -2,9 +2,7 @@ import Foundation
 import UIKit
 import Display
 import AsyncDisplayKit
-import Postbox
 import TelegramCore
-import SyncCore
 import SwiftSignalKit
 import TelegramPresentationData
 import ItemListUI
@@ -206,10 +204,11 @@ public final class CallListController: TelegramBaseController {
             }
         }, openInfo: { [weak self] peerId, messages in
             if let strongSelf = self {
-                let _ = (strongSelf.context.account.postbox.loadedPeerWithId(peerId)
-                |> take(1)
+                let _ = (strongSelf.context.engine.data.get(
+                    TelegramEngine.EngineData.Item.Peer.Peer(id: peerId)
+                )
                 |> deliverOnMainQueue).start(next: { peer in
-                    if let strongSelf = self, let controller = strongSelf.context.sharedContext.makePeerInfoController(context: strongSelf.context, peer: peer, mode: .calls(messages: messages), avatarInitiallyExpanded: false, fromChat: false) {
+                    if let strongSelf = self, let peer = peer, let controller = strongSelf.context.sharedContext.makePeerInfoController(context: strongSelf.context, updatedPresentationData: nil, peer: peer._asPeer(), mode: .calls(messages: messages.map({ $0._asMessage() })), avatarInitiallyExpanded: false, fromChat: false) {
                         (strongSelf.navigationController as? NavigationController)?.pushViewController(controller)
                     }
                 })
@@ -359,7 +358,7 @@ public final class CallListController: TelegramBaseController {
             }
         }
     
-        let contextController = ContextController(account: self.context.account, presentationData: self.presentationData, source: .extracted(ExtractedContentSourceImpl(controller: self, sourceNode: buttonNode.contentNode, keepInPlace: false, blurBackground: false)), items: .single(items), reactionItems: [], gesture: nil)
+        let contextController = ContextController(account: self.context.account, presentationData: self.presentationData, source: .extracted(ExtractedContentSourceImpl(controller: self, sourceNode: buttonNode.contentNode, keepInPlace: false, blurBackground: false)), items: .single(ContextController.Items(items: items)), reactionItems: [], gesture: nil)
         self.presentInGlobalOverlay(contextController)
     }
     
@@ -437,7 +436,7 @@ public final class CallListController: TelegramBaseController {
         }
     }
     
-    private func call(_ peerId: PeerId, isVideo: Bool, began: (() -> Void)? = nil) {
+    private func call(_ peerId: EnginePeer.Id, isVideo: Bool, began: (() -> Void)? = nil) {
         self.peerViewDisposable.set((self.context.account.viewTracker.peerView(peerId)
             |> take(1)
             |> deliverOnMainQueue).start(next: { [weak self] view in
@@ -449,7 +448,7 @@ public final class CallListController: TelegramBaseController {
                 if let cachedUserData = view.cachedData as? CachedUserData, cachedUserData.callsPrivate {
                     let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
                     
-                    strongSelf.present(textAlertController(context: strongSelf.context, title: presentationData.strings.Call_ConnectionErrorTitle, text: presentationData.strings.Call_PrivacyErrorMessage(peer.compactDisplayTitle).0, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), in: .window(.root))
+                    strongSelf.present(textAlertController(context: strongSelf.context, title: presentationData.strings.Call_ConnectionErrorTitle, text: presentationData.strings.Call_PrivacyErrorMessage(peer.compactDisplayTitle).string, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), in: .window(.root))
                     return
                 }
                 
