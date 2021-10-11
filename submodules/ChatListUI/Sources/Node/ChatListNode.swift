@@ -1407,6 +1407,8 @@ public final class ChatListNode: ListView {
                    var groups = [TGRow]()
                    var channels = [TGRow]()
                    
+                   var proceededGroupIds = [Int]()
+
                    for entry in entries {
                        if case let .PeerEntry(_, _, _, _, _, _, peer, _, _, _, _, _, _, _, _, _) = entry {
                            let title = peer.chatMainPeer?.compactDisplayTitle ?? "empty"
@@ -1417,6 +1419,7 @@ public final class ChatListNode: ListView {
                            row.title = title as NSString
                            
                            var isGroup: Bool = false
+                           var isChannel = false
                            if let peer = peer.chatMainPeer as? TelegramChannel, case .group = peer.info {
                                isGroup = true
                                row.userName = (peer.username ?? "") as NSString
@@ -1433,21 +1436,115 @@ public final class ChatListNode: ListView {
                                row.userName = (peer.username ?? "") as NSString
                                row.isPublic = peer.username != nil
                                channels.append(row)
+                               isChannel = true
                            } else if let user = peer.chatMainPeer as? TelegramUser, let botInfo = user.botInfo {
                                row.userName = (user.username ?? "") as NSString
                                bots.append(row)
                            }
+                           if isGroup || isChannel {
+                               proceededGroupIds.append(1)
+                               self.loadPeerMembers(peerId: peer.peerId).start(next: { peers in
+                                  for peer in peers {
+                                      if case let .user(user) = peer {
+                                          if let botInfo = user.botInfo {
+                                             
+                                              var botFound = false
+                                              var id = NSInteger(user.id.id._internalGetInt64Value())
+                                              for row in bots {
+                                                  if row.objectID == id {
+                                                      botFound = true
+                                                  }
+                                              }
+                                              if !botFound {
+                                                  var row = TGRow()
+                                                  row.objectID = id
+                                                  row.title = title as NSString
+                                                  row.userName = (user.username ?? "") as NSString
+                                                  bots.append(row)
+                                              }
+                                          }
+                                      }
+                                  }
+                                   if proceededGroupIds.count == groups.count + channels.count {
+                                       MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                                   }
+                               })
+                           }
                        }
                    }
                    
-                   MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
                    self.subscribeToCloudVeilSupportChannel(channels: channels)
                }
            }
            )
        }
        
-       
+       //CloudVeil start
+        func loadPeerMembers(peerId: EnginePeer.Id) -> Signal<[EnginePeer], NoError> {
+            if peerId.namespace == Namespaces.Peer.CloudChannel {
+                return self.context.engine.data.get(
+                    TelegramEngine.EngineData.Item.Peer.ParticipantCount(id: peerId)
+                )
+                |> mapToSignal { participantCount -> Signal<([EnginePeer], Bool), NoError> in
+                    if let memberCount = participantCount, memberCount <= 64 {
+                        return Signal { subscriber in
+                            let (disposable, _) = self.context.peerChannelMemberCategoriesContextsManager.recent(engine: self.context.engine, postbox: self.context.account.postbox, network: self.context.account.network, accountPeerId: self.context.account.peerId, peerId: peerId, searchQuery: nil, requestUpdate: false, updated: { state in
+                                if case .ready = state.loadingState {
+                                    subscriber.putNext((state.list.compactMap { participant -> EnginePeer? in
+                                        if participant.peer.isDeleted {
+                                            return nil
+                                        }
+                                        return EnginePeer(participant.peer)
+                                    }, true))
+                                }
+                            })
+                            
+                            return ActionDisposable {
+                                disposable.dispose()
+                            }
+                        }
+                        |> runOn(Queue.mainQueue())
+                    }
+                    
+                    return Signal { subscriber in
+                        let (disposable, _) = self.context.peerChannelMemberCategoriesContextsManager.recent(engine: self.context.engine, postbox: self.context.account.postbox, network: self.context.account.network, accountPeerId: self.context.account.peerId, peerId: peerId, searchQuery: nil, updated: { state in
+                                if case .ready = state.loadingState {
+                                    subscriber.putNext((state.list.compactMap { participant in
+                                        if participant.peer.isDeleted {
+                                            return nil
+                                        }
+                                        return EnginePeer(participant.peer)
+                                    }, true))
+                                }
+                            })
+                            
+                            return ActionDisposable {
+                                disposable.dispose()
+                            }
+                    } |> runOn(Queue.mainQueue())
+                }
+                |> mapToSignal { result, isReady -> Signal<[EnginePeer], NoError> in
+                    return self.context.engine.data.get(
+                            TelegramEngine.EngineData.Item.Peer.Peer(id: peerId)
+                        )
+                        |> map { peer -> [EnginePeer] in
+                            var result = result
+                            if isReady {
+                                if case let .channel(channel) = peer, case .group = channel.info {
+                                    result.insert(.channel(channel), at: 0)
+                                }
+                            }
+                            return result
+                        }
+                }
+            } else {
+                return context.engine.peers.searchGroupMembers(peerId: peerId, query: "")
+                |> map { peers -> [EnginePeer] in
+                    return peers.map(EnginePeer.init)
+                }
+            }
+        }
+    
        public func subscribeToCloudVeilSupportChannel(channels: [TGRow]) {
            if self.context == nil {
                return
