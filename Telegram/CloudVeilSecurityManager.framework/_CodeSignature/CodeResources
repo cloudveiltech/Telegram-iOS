@@ -6,7 +6,7 @@
 	<dict>
 		<key>Headers/CloudVeilSecurityManager-Swift.h</key>
 		<data>
-		6flzCvhw+IYklX55+PFrqQixHHA=
+		fy9pWAPFeD/C99VrUJNai/TgezU=
 		</data>
 		<key>Headers/CloudVeilSecurityManager.h</key>
 		<data>
@@ -14,47 +14,47 @@
 		</data>
 		<key>Info.plist</key>
 		<data>
-		/+ut5WDuhyZb56creGbo1TSanLM=
+		AgnQbwA67+2xERwKYFHFVQUYnQA=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm.swiftdoc</key>
 		<data>
-		Q2qmsVQlcYtA+Ac2SJIuYZgBq50=
+		xfOX4127EiLydk8G5B3srWFwwcE=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm.swiftmodule</key>
 		<data>
-		TMg1+ecA1rqZGykZTL/6U/ayJok=
+		Ln/cimOhQpSvN3qo1zhXBO7ob9I=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm64-apple-ios.swiftdoc</key>
 		<data>
-		D4u6ZMhtnuXGq2SAFAXeOSCkNJk=
+		t3su7aAlKYuIeUKhCMSNMxoiO1w=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm64-apple-ios.swiftmodule</key>
 		<data>
-		56BvBtlrMqpczXHbLTPguDskGg4=
+		HO0NceVS81xRwpCb2G/cFvL2Qzc=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm64.swiftdoc</key>
 		<data>
-		D4u6ZMhtnuXGq2SAFAXeOSCkNJk=
+		t3su7aAlKYuIeUKhCMSNMxoiO1w=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm64.swiftmodule</key>
 		<data>
-		56BvBtlrMqpczXHbLTPguDskGg4=
+		HO0NceVS81xRwpCb2G/cFvL2Qzc=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7-apple-ios.swiftdoc</key>
 		<data>
-		Q2qmsVQlcYtA+Ac2SJIuYZgBq50=
+		xfOX4127EiLydk8G5B3srWFwwcE=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7-apple-ios.swiftmodule</key>
 		<data>
-		TMg1+ecA1rqZGykZTL/6U/ayJok=
+		Ln/cimOhQpSvN3qo1zhXBO7ob9I=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7.swiftdoc</key>
 		<data>
-		Q2qmsVQlcYtA+Ac2SJIuYZgBq50=
+		xfOX4127EiLydk8G5B3srWFwwcE=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7.swiftmodule</key>
 		<data>
-		TMg1+ecA1rqZGykZTL/6U/ayJok=
+		Ln/cimOhQpSvN3qo1zhXBO7ob9I=
 		</data>
 		<key>Modules/module.modulemap</key>
 		<data>
@@ -67,11 +67,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			6flzCvhw+IYklX55+PFrqQixHHA=
+			fy9pWAPFeD/C99VrUJNai/TgezU=
 			</data>
 			<key>hash2</key>
 			<data>
-			Xcw1Yg2hWjxK5OzuJ9z+eXvKKx+CVPXeq65KjWX4vM8=
+			DxlYUtvEOSPsHFZMLR+aN/dpig/SNE/W5PK0wiKsnYg=
 			</data>
 		</dict>
 		<key>Headers/CloudVeilSecurityManager.h</key>
@@ -89,110 +89,110 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			Q2qmsVQlcYtA+Ac2SJIuYZgBq50=
+			xfOX4127EiLydk8G5B3srWFwwcE=
 			</data>
 			<key>hash2</key>
 			<data>
-			gAqWmLoIt3Br8R8PC2QcPsJXEdqwTXL5Fb/K/KoY81M=
+			OVfa4JuMVDg94OVujw1w5hTgldO/Gniby+AATL4LCHY=
 			</data>
 		</dict>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm.swiftmodule</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			TMg1+ecA1rqZGykZTL/6U/ayJok=
+			Ln/cimOhQpSvN3qo1zhXBO7ob9I=
 			</data>
 			<key>hash2</key>
 			<data>
-			7qdXPqN1rqJ+XpMj5rN15wyUYx+V/0B5eBylO9K/aQ8=
+			9Tlmimu6HYhrZYLLdN02Ze1LocBYSDrkQqRQEj+ioTQ=
 			</data>
 		</dict>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm64-apple-ios.swiftdoc</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			D4u6ZMhtnuXGq2SAFAXeOSCkNJk=
+			t3su7aAlKYuIeUKhCMSNMxoiO1w=
 			</data>
 			<key>hash2</key>
 			<data>
-			fcxT5rIp9e2k6Vy6+XJKGO2nuDJlAsoPWbYLv3DGYaM=
+			OH5kOAJMIDk4VawkzBPJMmS5M/bZZON+Pr/m9krCqz8=
 			</data>
 		</dict>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm64-apple-ios.swiftmodule</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			56BvBtlrMqpczXHbLTPguDskGg4=
+			HO0NceVS81xRwpCb2G/cFvL2Qzc=
 			</data>
 			<key>hash2</key>
 			<data>
-			4GfWQhSUQf9K0kIKYllkEVMpqPa/p7YxY2wa0kAp8KY=
+			i5BPrcMv8yV6SSFSU/psPG0y2u7xPflIeNiX5QFrRKc=
 			</data>
 		</dict>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm64.swiftdoc</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			D4u6ZMhtnuXGq2SAFAXeOSCkNJk=
+			t3su7aAlKYuIeUKhCMSNMxoiO1w=
 			</data>
 			<key>hash2</key>
 			<data>
-			fcxT5rIp9e2k6Vy6+XJKGO2nuDJlAsoPWbYLv3DGYaM=
+			OH5kOAJMIDk4VawkzBPJMmS5M/bZZON+Pr/m9krCqz8=
 			</data>
 		</dict>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm64.swiftmodule</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			56BvBtlrMqpczXHbLTPguDskGg4=
+			HO0NceVS81xRwpCb2G/cFvL2Qzc=
 			</data>
 			<key>hash2</key>
 			<data>
-			4GfWQhSUQf9K0kIKYllkEVMpqPa/p7YxY2wa0kAp8KY=
+			i5BPrcMv8yV6SSFSU/psPG0y2u7xPflIeNiX5QFrRKc=
 			</data>
 		</dict>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7-apple-ios.swiftdoc</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			Q2qmsVQlcYtA+Ac2SJIuYZgBq50=
+			xfOX4127EiLydk8G5B3srWFwwcE=
 			</data>
 			<key>hash2</key>
 			<data>
-			gAqWmLoIt3Br8R8PC2QcPsJXEdqwTXL5Fb/K/KoY81M=
+			OVfa4JuMVDg94OVujw1w5hTgldO/Gniby+AATL4LCHY=
 			</data>
 		</dict>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7-apple-ios.swiftmodule</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			TMg1+ecA1rqZGykZTL/6U/ayJok=
+			Ln/cimOhQpSvN3qo1zhXBO7ob9I=
 			</data>
 			<key>hash2</key>
 			<data>
-			7qdXPqN1rqJ+XpMj5rN15wyUYx+V/0B5eBylO9K/aQ8=
+			9Tlmimu6HYhrZYLLdN02Ze1LocBYSDrkQqRQEj+ioTQ=
 			</data>
 		</dict>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7.swiftdoc</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			Q2qmsVQlcYtA+Ac2SJIuYZgBq50=
+			xfOX4127EiLydk8G5B3srWFwwcE=
 			</data>
 			<key>hash2</key>
 			<data>
-			gAqWmLoIt3Br8R8PC2QcPsJXEdqwTXL5Fb/K/KoY81M=
+			OVfa4JuMVDg94OVujw1w5hTgldO/Gniby+AATL4LCHY=
 			</data>
 		</dict>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7.swiftmodule</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			TMg1+ecA1rqZGykZTL/6U/ayJok=
+			Ln/cimOhQpSvN3qo1zhXBO7ob9I=
 			</data>
 			<key>hash2</key>
 			<data>
-			7qdXPqN1rqJ+XpMj5rN15wyUYx+V/0B5eBylO9K/aQ8=
+			9Tlmimu6HYhrZYLLdN02Ze1LocBYSDrkQqRQEj+ioTQ=
 			</data>
 		</dict>
 		<key>Modules/module.modulemap</key>
