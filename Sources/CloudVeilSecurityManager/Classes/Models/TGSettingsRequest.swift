@@ -18,23 +18,22 @@ open class TGSettingsRequest: NSObject, Mappable {
     public var id: Int?
     public var phoneNumber: String?
     public var userName: String?
-    public var groups: [TGRow] = []
-    public var channels: [TGRow] = []
-    public var bots: [TGRow] = []
+    public var groups = SyncArray<TGRow>()
+    public var channels = SyncArray<TGRow>()
+    public var bots = SyncArray<TGRow>()
     
     
     // MARK: Mappable
     
     public required init?(map: Map) { }
     
-    public func mapping(map: Map) {
-        
+    public func mapping(map: Map) {        
         id <- map["user_id"]
         phoneNumber <- map["user_phone"]
         userName <- map["user_name"]
-        groups <- map["groups"]
-        channels <- map["channels"]
-        bots <- map["bots"]
+        groups.array <- map["groups"]
+        channels.array <- map["channels"]
+        bots.array <- map["bots"]
     }
     
     static func compareRequests(lhs: TGSettingsRequest, rhs: TGSettingsRequest) -> Bool {

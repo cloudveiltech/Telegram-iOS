@@ -23,7 +23,7 @@ class SecurityManager: ObjectManager {
     func getSettings(withRequest tgRequest: TGSettingsRequest,_ completion: @escaping (TGSettingsResponse?) -> ()) {
         
         let params: Parameters = tgRequest.toJSON()
-        
+        print("CloudVeil request: \(params)")
         request(.post, serverConstant: .settings, parameters: params).responseJSON { (response) in
             
             if let json = response.JSON() {

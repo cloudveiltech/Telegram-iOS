@@ -25,6 +25,7 @@
 		6389DF77245BEDBE00450397 /* DataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C415245BE11700BFFC2B /* DataSource.swift */; };
 		6389DF7B245BEDC700450397 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF7A245BEDC700450397 /* Alamofire */; };
 		6389DF7D245BEDC700450397 /* ObjectMapper in Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF7C245BEDC700450397 /* ObjectMapper */; };
+		6566A6AA273A7DC30099B566 /* SyncArray.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6566A6A9273A7DC30099B566 /* SyncArray.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +48,7 @@
 		6389DF62245BEDAA00450397 /* CloudVeilSecurityManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CloudVeilSecurityManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6389DF64245BEDAA00450397 /* CloudVeilSecurityManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CloudVeilSecurityManager.h; sourceTree = "<group>"; };
 		6389DF65245BEDAA00450397 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6566A6A9273A7DC30099B566 /* SyncArray.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncArray.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -76,7 +78,7 @@
 			children = (
 				6356C401245BE11700BFFC2B /* Managers */,
 				6356C406245BE11700BFFC2B /* Models */,
-				6356C40B245BE11700BFFC2B /* Extansions */,
+				6356C40B245BE11700BFFC2B /* Extensions */,
 				6356C411245BE11700BFFC2B /* Controllers */,
 				6356C414245BE11700BFFC2B /* Helpers */,
 			);
@@ -112,7 +114,7 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
-		6356C40B245BE11700BFFC2B /* Extansions */ = {
+		6356C40B245BE11700BFFC2B /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
 				6356C40C245BE11700BFFC2B /* NSAttributedString+Ext.swift */,
@@ -120,8 +122,9 @@
 				6356C40E245BE11700BFFC2B /* NSError+Ext.swift */,
 				6356C40F245BE11700BFFC2B /* DataResponse + Ext.swift */,
 				6356C410245BE11700BFFC2B /* Array+Ext.swift */,
+				6566A6A9273A7DC30099B566 /* SyncArray.swift */,
 			);
-			path = Extansions;
+			path = Extensions;
 			sourceTree = "<group>";
 		};
 		6356C411245BE11700BFFC2B /* Controllers */ = {
@@ -277,6 +280,7 @@
 				6389DF6C245BEDBE00450397 /* TGSettingsRequest.swift in Sources */,
 				6389DF6D245BEDBE00450397 /* TGSettingsResponse.swift in Sources */,
 				6389DF6E245BEDBE00450397 /* TGRow.swift in Sources */,
+				6566A6AA273A7DC30099B566 /* SyncArray.swift in Sources */,
 				6389DF6F245BEDBE00450397 /* TGUserModel.swift in Sources */,
 				6389DF70245BEDBE00450397 /* NSAttributedString+Ext.swift in Sources */,
 				6389DF71245BEDBE00450397 /* String+Ext.swift in Sources */,
@@ -345,7 +349,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
-				ONLY_ACTIVE_ARCH = YES;
+				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -407,7 +411,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = CloudVeilSecurityManager/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

@@ -28,26 +28,32 @@ open class MainController: NSObject {
 	
 	
 	// MARK: - Properties
-	private var blockedImageDataCache: Data?
 	private let mapper = Mapper<TGSettingsResponse>()
 	private var observers: [() -> ()] = []
 	internal var lastRequest: TGSettingsRequest? = nil
 	private var lastRequestTime: TimeInterval = 0.0
 	private let UPADTE_INTERVAL = 10*60.0 //10min
 	
-	private let kWasFirstLoaded = "wasFirstLoaded"
+	private let kWasFirstLoaded = "wasFirstLoaded" 
 	private var wasFirstLoaded: Bool {
 		get { return UserDefaults.standard.bool(forKey: kWasFirstLoaded) }
 		set { UserDefaults.standard.set(newValue, forKey: kWasFirstLoaded) }
 	}
 	
+    
+    private let accessQueue = DispatchQueue(label: "TGSettingsResponseAccess", attributes: .concurrent)
 	private var settingsCache: TGSettingsResponse?
-	private var settings: TGSettingsResponse? {
-		if settingsCache != nil {
-			return settingsCache
-		}
-		settingsCache = DataSource<TGSettingsResponse>.value(mapper: mapper)
-		return settingsCache
+	private var settings: TGSettingsResponse? {        
+        var resp: TGSettingsResponse?
+        self.accessQueue.sync {
+            if settingsCache != nil {
+                resp = settingsCache
+            } else {
+                settingsCache = DataSource<TGSettingsResponse>.value(mapper: mapper)
+                resp = settingsCache
+            }
+        }
+		return resp
 	}
 	
 	public var disableStickers: Bool {
@@ -79,11 +85,7 @@ open class MainController: NSObject {
 	public var isInChatVideoRecordingEnabled: Bool {
 		return settings?.inputToggleVoiceVideo ?? false
 	}
-	
-	public var blockedImageUrl: String {
-		return settings?.blockedImageResourceUrl ?? ""
-	}
-	
+		
 	public var profilePhotoLimit: Int {
 		var v = Int(settings?.profilePhotoLimit ?? "-1")!
 		if v < 0 {
@@ -93,21 +95,7 @@ open class MainController: NSObject {
 		}
 		return v
 	}
-	
-	public var blockedImageData: Data? {
-		if blockedImageDataCache != nil {
-			return blockedImageDataCache
-		}
-		if let url = URL(string: blockedImageUrl) {
-			if let data = try? Data(contentsOf:url) {
-				blockedImageDataCache = data
-				return data
-			}
-		}
-		return nil
-	}
-	
-	
+		
 	
 	public var secretChatMinimumLength: NSInteger {
 		
@@ -122,7 +110,6 @@ open class MainController: NSObject {
 		NSLog("Downloading settings")
 		SecurityManager.shared.getSettings(withRequest: MainController.shared.lastRequest!) { (resp) in
 			MainController.shared.saveSettings(resp)
-			let _ = MainController.shared.blockedImageData
 		}
 	}
 	
@@ -131,9 +118,9 @@ open class MainController: NSObject {
 		request.id = TGUserController.shared.getUserID()
 		request.userName = TGUserController.shared.getUserName() as String
 		request.phoneNumber = TGUserController.shared.getUserPhoneNumber() as String
-		request.groups = groups
-		request.bots = bots
-		request.channels = channels
+        request.groups = SyncArray<TGRow>(groups)
+		request.bots = SyncArray<TGRow>(bots)
+		request.channels = SyncArray<TGRow>(channels)
 		
 		if let lastReq = self.lastRequest, TGSettingsRequest.compareRequests(lhs: lastReq, rhs: request) {
 			let now = Date().timeIntervalSince1970
@@ -165,17 +152,27 @@ open class MainController: NSObject {
 	
 	open func isGroupAvailable(groupID: NSInteger) -> Bool {
 		if let dictArray = settings?.access?.groups {
-			if let index = dictArray.flatMap({ $0.keys }).index(where: { $0 == "\(groupID)" }) {
+            if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(groupID)" }) {
 				return dictArray[index]["\(groupID)"] ?? false
 			}
 		}
 		
 		return true
 	}
+    
+    open func isStickerAvailable(stickerId: NSInteger) -> Bool {
+        if let dictArray = settings?.access?.stickers {
+            if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(stickerId)" }) {
+                return dictArray[index]["\(stickerId)"] ?? false
+            }
+        }
+        
+        return true
+    }
 	
 	open func isChannelAvailable(channelID: NSInteger) -> Bool {
 		if let dictArray = settings?.access?.channels {
-			if let index = dictArray.flatMap({ $0.keys }).index(where: { $0 == "\(channelID)" }) {
+            if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(channelID)" }) {
 				return dictArray[index]["\(channelID)"] ?? false
 			}
 		}
@@ -187,9 +184,11 @@ open class MainController: NSObject {
 		if SecurityStaticSettings.disableBots {
 			return false
 		}
-		
+        
+        print("BOT ID IS \(botID)")
 		if let dictArray = settings?.access?.bots {
-			if let index = dictArray.flatMap({ $0.keys }).index(where: { $0 == "\(botID)" }) {
+            if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(botID)" }) {
+                print("BOT ID IS 1111111 \(botID)")
 				return dictArray[index]["\(botID)"] ?? false
 			}
 		}
@@ -243,7 +242,7 @@ open class MainController: NSObject {
 	}
 	
 	private func isIdInDict(dictArray: [[String:Bool]], conversationId: NSInteger) -> Bool {
-		if let index = dictArray.flatMap({ $0.keys }).index(where: { $0 == "\(conversationId)" }) {
+        if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(conversationId)" }) {
 			return true
 		}
 		return false
@@ -251,7 +250,7 @@ open class MainController: NSObject {
 	
 	open func replayRequestWithGroup(group: TGRow) {
 		if let dictArray = lastRequest?.groups {
-			if let index = dictArray.index(where: {$0.objectID == group.objectID}) {
+            if let index = dictArray.firstIndex(where: {$0.objectID == group.objectID}) {
 				return
 			}
 		}
@@ -263,7 +262,7 @@ open class MainController: NSObject {
 	
 	open func replayRequestWithChannel(channel: TGRow) {
 		if let dictArray = lastRequest?.channels {
-			if let index = dictArray.index(where: {$0.objectID == channel.objectID}) {
+            if let index = dictArray.firstIndex(where: {$0.objectID == channel.objectID}) {
 				return
 			}
 		}
@@ -275,7 +274,7 @@ open class MainController: NSObject {
 	
 	open func replayRequestWithBot(bot: TGRow) {
 		if let dictArray = lastRequest?.bots {
-			if let index = dictArray.index(where: {$0.objectID == bot.objectID}) {
+			if let index = dictArray.firstIndex(where: {$0.objectID == bot.objectID}) {
 				return
 			}
 		}

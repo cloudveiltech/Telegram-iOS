@@ -32,7 +32,7 @@ import ObjectMapper
         isPublic <- map["is_public"]
     }
     
-    static func compareArrays(lhs: [TGRow], rhs: [TGRow]) -> Bool {
+    static func compareArrays(lhs: SyncArray<TGRow>, rhs: SyncArray<TGRow>) -> Bool {
         if lhs.count == 0 && rhs.count == 0 {
             return true
         }
@@ -42,8 +42,21 @@ import ObjectMapper
         if lhs.count != 0 && rhs.count == 0 {
             return false
         }
-        let l = lhs.sorted(by: { $0.objectID > $1.objectID })
-        let r = rhs.sorted(by: { $0.objectID > $1.objectID })
-        return l.elementsEqual(r, by: { $0.objectID == $1.objectID })
+        
+        for i in 0...lhs.count-1 {
+            var found = false
+            let itemL = lhs[i]
+            for j in 0...rhs.count-1 {
+                let itemR = rhs[j]
+                if itemR.objectID == itemL.objectID {
+                    found = true
+                    break
+                }
+            }
+            if !found {
+                return false
+            }
+        }
+        return true
     }
 }
