@@ -16,61 +16,6 @@ import SearchUI
 import ChatListSearchItemHeader
 import CloudVeilSecurityManager
 
-//CloudVeil start
-extension DispatchQueue {
-    /**
-     - parameters:
-        - target: Object used as the sentinel for de-duplication.
-        - delay: The time window for de-duplication to occur
-        - work: The work item to be invoked on the queue.
-     Performs work only once for the given target, given the time window. The last added work closure
-     is the work that will finally execute.
-     Note: This is currently only safe to call from the main thread.
-     Example usage:
-     ```
-     DispatchQueue.main.asyncDeduped(target: self, after: 1.0) { [weak self] in
-         self?.doTheWork()
-     }
-     ```
-     */
-    public func asyncDeduped(target: AnyObject, after delay: TimeInterval, execute work: @escaping @convention(block) () -> Void) {
-        let dedupeIdentifier = DispatchQueue.dedupeIdentifierFor(target)
-        if let existingWorkItem = DispatchQueue.workItems.removeValue(forKey: dedupeIdentifier) {
-            existingWorkItem.cancel()
-            NSLog("Deduped work item: \(dedupeIdentifier)")
-        }
-        let workItem = DispatchWorkItem {
-            DispatchQueue.workItems.removeValue(forKey: dedupeIdentifier)
-
-            for ptr in DispatchQueue.weakTargets.allObjects {
-                if dedupeIdentifier == DispatchQueue.dedupeIdentifierFor(ptr as AnyObject) {
-                    work()
-                    NSLog("Ran work item: \(dedupeIdentifier)")
-                    break
-                }
-            }
-        }
-
-        DispatchQueue.workItems[dedupeIdentifier] = workItem
-        DispatchQueue.weakTargets.addPointer(Unmanaged.passUnretained(target).toOpaque())
-
-        asyncAfter(deadline: .now() + delay, execute: workItem)
-    }
-
-}
-
-// MARK: - Static Properties for De-Duping
-private extension DispatchQueue {
-
-    static var workItems = [AnyHashable : DispatchWorkItem]()
-
-    static var weakTargets = NSPointerArray.weakObjects()
-
-    static func dedupeIdentifierFor(_ object: AnyObject) -> String {
-        return "\(Unmanaged.passUnretained(object).toOpaque())." + String(describing: object)
-    }
-}
-//CloudVeil end
 
 public enum ChatListNodeMode {
     case chatList
@@ -897,6 +842,9 @@ public final class ChatListNode: ListView {
         
         let currentPeerId: PeerId = context.account.peerId
         
+        //CloudVeil start
+        var cloudVeilWorkItem: DispatchWorkItem  = DispatchWorkItem {}
+        //CloudVeil end
         let chatListNodeViewTransition = combineLatest(queue: viewProcessingQueue, hideArchivedFolderByDefault, displayArchiveIntro, savedMessagesPeer, chatListViewUpdate, self.statePromise.get())
         |> mapToQueue { (hideArchivedFolderByDefault, displayArchiveIntro, savedMessagesPeer, updateAndFilter, state) -> Signal<ChatListNodeListViewTransition, NoError> in
             let (update, filter) = updateAndFilter
@@ -905,7 +853,8 @@ public final class ChatListNode: ListView {
             
             let (rawEntries, isLoading) = chatListNodeEntriesForView(update.view, state: state, savedMessagesPeer: savedMessagesPeer, foundPeers: state.foundPeers, hideArchivedFolderByDefault: hideArchivedFolderByDefault, displayArchiveIntro: displayArchiveIntro, mode: mode)
             //CloudVeil start
-            DispatchQueue.main.asyncDeduped(target: self, after: 0.5) {
+            cloudVeilWorkItem.cancel()
+            cloudVeilWorkItem = DispatchWorkItem() {
                 let appState = UIApplication.shared.applicationState
                 if appState != UIApplication.State.background {
                     self.backgroundQueue.async {
@@ -916,6 +865,8 @@ public final class ChatListNode: ListView {
                     NSLog("App is in background, skip checking on cv server\n")
                 }
             }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: cloudVeilWorkItem)
             //CloudVeil end
             
             let entries = rawEntries.filter { entry in
@@ -1411,6 +1362,7 @@ public final class ChatListNode: ListView {
                         revealHiddenItems = value <= -60.0
                     }
             }
+            
             strongSelf.scrolledAtTopValue = atTop
             strongSelf.contentOffsetChanged?(offset)
             if revealHiddenItems && !strongSelf.currentState.archiveShouldBeTemporaryRevealed {
@@ -1451,9 +1403,24 @@ public final class ChatListNode: ListView {
     }
     
     //CloudVeil start
+    
+    var rawEntriesCountCache = 0
        func cloudVeilCheckDialogsOnServer(entries: [ChatListNodeEntry]) {
-           let peerView = self.context.account.viewTracker.peerView(self.context.account.peerId)
-           peerView.start(next: { peerView in
+           var entriesCount = 0
+           for entry in entries {
+               if case .PeerEntry(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = entry {
+                   entriesCount += 1
+               }
+           }
+           if entriesCount == rawEntriesCountCache {
+               return
+           }
+           rawEntriesCountCache = entriesCount
+           let peerViewSignal = self.context.account.viewTracker.peerView(self.context.account.peerId)
+           peerViewSignal.start(next: { peerView in
+               if entriesCount == self.rawEntriesCountCache {
+                   return
+               }
                if let peer = peerViewMainPeer(peerView) as? TelegramUser {
                    TGUserController.shared.set(userID: NSInteger(peer.id.toInt64()))
                    TGUserController.shared.set(userName: (peer.username ?? "") as NSString)
