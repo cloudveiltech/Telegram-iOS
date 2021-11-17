@@ -891,6 +891,8 @@ public final class ChatListNode: ListView {
                                 if !isGroup {
                                     return false
                                 }
+                                
+                                
                             }
                             
                             if filter.contains(.onlyChannels) {

@@ -423,13 +423,19 @@ public final class AvatarNode: ASDisplayNode {
         }
     }
     
+    private let accessQueue = DispatchQueue(label: "videoAvatarsCacheAccessQueue", attributes: .concurrent)
     public static var videoAvatarsCache: [EnginePeer.Id:Bool] = [:]
+    
     private func isVideoAvatarCached(context: AccountContext, peer: EnginePeer?) -> Bool? {
         guard let id = peer?.id else {
             return false
         }
-        if let cachedValue = AvatarNode.videoAvatarsCache[id] {
-            return cachedValue
+        var cachedValue: Bool?
+        accessQueue.sync {
+            cachedValue = AvatarNode.videoAvatarsCache[id]
+        }
+        if let v = cachedValue {
+            return v
         }
         if !MainController.shared.disableProfilePhoto && !MainController.shared.disableProfileVideo {
             return false
@@ -450,7 +456,10 @@ public final class AvatarNode: ASDisplayNode {
                     return
                 }
             }
-            AvatarNode.videoAvatarsCache[id] = false
+            
+            self.accessQueue.async(flags: .barrier) {
+                AvatarNode.videoAvatarsCache[id] = false
+            }
             callback(false)
         })
     }
