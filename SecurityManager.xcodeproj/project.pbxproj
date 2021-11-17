@@ -24,7 +24,31 @@
 		6389DF76245BEDBE00450397 /* TGUserController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C413245BE11700BFFC2B /* TGUserController.swift */; };
 		6389DF77245BEDBE00450397 /* DataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C415245BE11700BFFC2B /* DataSource.swift */; };
 		6389DF7B245BEDC700450397 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF7A245BEDC700450397 /* Alamofire */; };
-		6389DF7D245BEDC700450397 /* ObjectMapper in Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF7C245BEDC700450397 /* ObjectMapper */; };
+		654C728B273BC67600678AB6 /* Mapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7271273BC67600678AB6 /* Mapper.swift */; };
+		654C728C273BC67600678AB6 /* ISO8601DateTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7272273BC67600678AB6 /* ISO8601DateTransform.swift */; };
+		654C728D273BC67600678AB6 /* URLTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7273273BC67600678AB6 /* URLTransform.swift */; };
+		654C728E273BC67600678AB6 /* CodableTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7274273BC67600678AB6 /* CodableTransform.swift */; };
+		654C728F273BC67600678AB6 /* IntegerOperators.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7275273BC67600678AB6 /* IntegerOperators.swift */; };
+		654C7290273BC67600678AB6 /* TransformOf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7276273BC67600678AB6 /* TransformOf.swift */; };
+		654C7291273BC67600678AB6 /* EnumTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7277273BC67600678AB6 /* EnumTransform.swift */; };
+		654C7292273BC67600678AB6 /* Operators.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7278273BC67600678AB6 /* Operators.swift */; };
+		654C7293273BC67600678AB6 /* HexColorTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7279273BC67600678AB6 /* HexColorTransform.swift */; };
+		654C7294273BC67600678AB6 /* Mappable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C727A273BC67600678AB6 /* Mappable.swift */; };
+		654C7295273BC67600678AB6 /* CustomDateFormatTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C727B273BC67600678AB6 /* CustomDateFormatTransform.swift */; };
+		654C7296273BC67600678AB6 /* DateFormatterTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C727C273BC67600678AB6 /* DateFormatterTransform.swift */; };
+		654C7298273BC67600678AB6 /* MapError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C727E273BC67600678AB6 /* MapError.swift */; };
+		654C7299273BC67600678AB6 /* DictionaryTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C727F273BC67600678AB6 /* DictionaryTransform.swift */; };
+		654C729A273BC67600678AB6 /* Map.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7280273BC67600678AB6 /* Map.swift */; };
+		654C729B273BC67600678AB6 /* TransformOperators.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7281273BC67600678AB6 /* TransformOperators.swift */; };
+		654C729C273BC67600678AB6 /* ObjectMapper.h in Headers */ = {isa = PBXBuildFile; fileRef = 654C7282273BC67600678AB6 /* ObjectMapper.h */; };
+		654C729D273BC67600678AB6 /* FromJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7283273BC67600678AB6 /* FromJSON.swift */; };
+		654C729E273BC67600678AB6 /* TransformType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7284273BC67600678AB6 /* TransformType.swift */; };
+		654C729F273BC67600678AB6 /* DataTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7285273BC67600678AB6 /* DataTransform.swift */; };
+		654C72A0273BC67600678AB6 /* ImmutableMappable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7286273BC67600678AB6 /* ImmutableMappable.swift */; };
+		654C72A1273BC67600678AB6 /* ToJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7287273BC67600678AB6 /* ToJSON.swift */; };
+		654C72A2273BC67600678AB6 /* NSDecimalNumberTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7288273BC67600678AB6 /* NSDecimalNumberTransform.swift */; };
+		654C72A3273BC67600678AB6 /* DateTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C7289273BC67600678AB6 /* DateTransform.swift */; };
+		654C72A4273BC67600678AB6 /* EnumOperators.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C728A273BC67600678AB6 /* EnumOperators.swift */; };
 		6566A6AA273A7DC30099B566 /* SyncArray.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6566A6A9273A7DC30099B566 /* SyncArray.swift */; };
 /* End PBXBuildFile section */
 
@@ -48,6 +72,31 @@
 		6389DF62245BEDAA00450397 /* CloudVeilSecurityManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CloudVeilSecurityManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6389DF64245BEDAA00450397 /* CloudVeilSecurityManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CloudVeilSecurityManager.h; sourceTree = "<group>"; };
 		6389DF65245BEDAA00450397 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		654C7271273BC67600678AB6 /* Mapper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Mapper.swift; sourceTree = "<group>"; };
+		654C7272273BC67600678AB6 /* ISO8601DateTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ISO8601DateTransform.swift; sourceTree = "<group>"; };
+		654C7273273BC67600678AB6 /* URLTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = URLTransform.swift; sourceTree = "<group>"; };
+		654C7274273BC67600678AB6 /* CodableTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CodableTransform.swift; sourceTree = "<group>"; };
+		654C7275273BC67600678AB6 /* IntegerOperators.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IntegerOperators.swift; sourceTree = "<group>"; };
+		654C7276273BC67600678AB6 /* TransformOf.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TransformOf.swift; sourceTree = "<group>"; };
+		654C7277273BC67600678AB6 /* EnumTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EnumTransform.swift; sourceTree = "<group>"; };
+		654C7278273BC67600678AB6 /* Operators.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Operators.swift; sourceTree = "<group>"; };
+		654C7279273BC67600678AB6 /* HexColorTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HexColorTransform.swift; sourceTree = "<group>"; };
+		654C727A273BC67600678AB6 /* Mappable.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Mappable.swift; sourceTree = "<group>"; };
+		654C727B273BC67600678AB6 /* CustomDateFormatTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CustomDateFormatTransform.swift; sourceTree = "<group>"; };
+		654C727C273BC67600678AB6 /* DateFormatterTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DateFormatterTransform.swift; sourceTree = "<group>"; };
+		654C727E273BC67600678AB6 /* MapError.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MapError.swift; sourceTree = "<group>"; };
+		654C727F273BC67600678AB6 /* DictionaryTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DictionaryTransform.swift; sourceTree = "<group>"; };
+		654C7280273BC67600678AB6 /* Map.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Map.swift; sourceTree = "<group>"; };
+		654C7281273BC67600678AB6 /* TransformOperators.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TransformOperators.swift; sourceTree = "<group>"; };
+		654C7282273BC67600678AB6 /* ObjectMapper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ObjectMapper.h; sourceTree = "<group>"; };
+		654C7283273BC67600678AB6 /* FromJSON.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FromJSON.swift; sourceTree = "<group>"; };
+		654C7284273BC67600678AB6 /* TransformType.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TransformType.swift; sourceTree = "<group>"; };
+		654C7285273BC67600678AB6 /* DataTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataTransform.swift; sourceTree = "<group>"; };
+		654C7286273BC67600678AB6 /* ImmutableMappable.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImmutableMappable.swift; sourceTree = "<group>"; };
+		654C7287273BC67600678AB6 /* ToJSON.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToJSON.swift; sourceTree = "<group>"; };
+		654C7288273BC67600678AB6 /* NSDecimalNumberTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NSDecimalNumberTransform.swift; sourceTree = "<group>"; };
+		654C7289273BC67600678AB6 /* DateTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DateTransform.swift; sourceTree = "<group>"; };
+		654C728A273BC67600678AB6 /* EnumOperators.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EnumOperators.swift; sourceTree = "<group>"; };
 		6566A6A9273A7DC30099B566 /* SyncArray.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncArray.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -56,7 +105,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6389DF7D245BEDC700450397 /* ObjectMapper in Frameworks */,
 				6389DF7B245BEDC700450397 /* Alamofire in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -147,6 +195,7 @@
 		6362A24C244EED3B00FCB5B3 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				654C72A5273BC68D00678AB6 /* ObjectMapper */,
 				6356C3FF245BE11700BFFC2B /* CloudVeilSecurityManager */,
 			);
 			path = Sources;
@@ -166,6 +215,38 @@
 			children = (
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		654C72A5273BC68D00678AB6 /* ObjectMapper */ = {
+			isa = PBXGroup;
+			children = (
+				654C7274273BC67600678AB6 /* CodableTransform.swift */,
+				654C727B273BC67600678AB6 /* CustomDateFormatTransform.swift */,
+				654C7285273BC67600678AB6 /* DataTransform.swift */,
+				654C727C273BC67600678AB6 /* DateFormatterTransform.swift */,
+				654C7289273BC67600678AB6 /* DateTransform.swift */,
+				654C727F273BC67600678AB6 /* DictionaryTransform.swift */,
+				654C728A273BC67600678AB6 /* EnumOperators.swift */,
+				654C7277273BC67600678AB6 /* EnumTransform.swift */,
+				654C7283273BC67600678AB6 /* FromJSON.swift */,
+				654C7279273BC67600678AB6 /* HexColorTransform.swift */,
+				654C7286273BC67600678AB6 /* ImmutableMappable.swift */,
+				654C7275273BC67600678AB6 /* IntegerOperators.swift */,
+				654C7272273BC67600678AB6 /* ISO8601DateTransform.swift */,
+				654C7280273BC67600678AB6 /* Map.swift */,
+				654C727E273BC67600678AB6 /* MapError.swift */,
+				654C727A273BC67600678AB6 /* Mappable.swift */,
+				654C7271273BC67600678AB6 /* Mapper.swift */,
+				654C7288273BC67600678AB6 /* NSDecimalNumberTransform.swift */,
+				654C7282273BC67600678AB6 /* ObjectMapper.h */,
+				654C7278273BC67600678AB6 /* Operators.swift */,
+				654C7287273BC67600678AB6 /* ToJSON.swift */,
+				654C7276273BC67600678AB6 /* TransformOf.swift */,
+				654C7281273BC67600678AB6 /* TransformOperators.swift */,
+				654C7284273BC67600678AB6 /* TransformType.swift */,
+				654C7273273BC67600678AB6 /* URLTransform.swift */,
+			);
+			name = ObjectMapper;
 			sourceTree = "<group>";
 		};
 		723FFF3B20496F980027A9BC = {
@@ -193,6 +274,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				654C729C273BC67600678AB6 /* ObjectMapper.h in Headers */,
 				6389DF66245BEDAA00450397 /* CloudVeilSecurityManager.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -216,7 +298,6 @@
 			name = CloudVeilSecurityManager;
 			packageProductDependencies = (
 				6389DF7A245BEDC700450397 /* Alamofire */,
-				6389DF7C245BEDC700450397 /* ObjectMapper */,
 			);
 			productName = CloudVeilSecurityManager;
 			productReference = 6389DF62245BEDAA00450397 /* CloudVeilSecurityManager.framework */;
@@ -248,7 +329,6 @@
 			mainGroup = 723FFF3B20496F980027A9BC;
 			packageReferences = (
 				63723E35245BDFBB0098B805 /* XCRemoteSwiftPackageReference "Alamofire" */,
-				63723E38245BDFD80098B805 /* XCRemoteSwiftPackageReference "ObjectMapper" */,
 			);
 			productRefGroup = 723FFF4620496F980027A9BC /* Products */;
 			projectDirPath = "";
@@ -274,21 +354,45 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				654C72A0273BC67600678AB6 /* ImmutableMappable.swift in Sources */,
 				6389DF69245BEDBE00450397 /* SecurityManager.swift in Sources */,
 				6389DF6A245BEDBE00450397 /* ObjectManager.swift in Sources */,
 				6389DF6B245BEDBE00450397 /* ServerConstant.swift in Sources */,
+				654C7298273BC67600678AB6 /* MapError.swift in Sources */,
 				6389DF6C245BEDBE00450397 /* TGSettingsRequest.swift in Sources */,
 				6389DF6D245BEDBE00450397 /* TGSettingsResponse.swift in Sources */,
 				6389DF6E245BEDBE00450397 /* TGRow.swift in Sources */,
 				6566A6AA273A7DC30099B566 /* SyncArray.swift in Sources */,
+				654C729F273BC67600678AB6 /* DataTransform.swift in Sources */,
+				654C7294273BC67600678AB6 /* Mappable.swift in Sources */,
+				654C728F273BC67600678AB6 /* IntegerOperators.swift in Sources */,
 				6389DF6F245BEDBE00450397 /* TGUserModel.swift in Sources */,
 				6389DF70245BEDBE00450397 /* NSAttributedString+Ext.swift in Sources */,
 				6389DF71245BEDBE00450397 /* String+Ext.swift in Sources */,
+				654C7290273BC67600678AB6 /* TransformOf.swift in Sources */,
+				654C729B273BC67600678AB6 /* TransformOperators.swift in Sources */,
+				654C7299273BC67600678AB6 /* DictionaryTransform.swift in Sources */,
+				654C72A4273BC67600678AB6 /* EnumOperators.swift in Sources */,
+				654C728B273BC67600678AB6 /* Mapper.swift in Sources */,
 				6389DF72245BEDBE00450397 /* NSError+Ext.swift in Sources */,
 				6389DF73245BEDBE00450397 /* DataResponse + Ext.swift in Sources */,
+				654C7291273BC67600678AB6 /* EnumTransform.swift in Sources */,
 				6389DF74245BEDBE00450397 /* Array+Ext.swift in Sources */,
+				654C7292273BC67600678AB6 /* Operators.swift in Sources */,
+				654C72A2273BC67600678AB6 /* NSDecimalNumberTransform.swift in Sources */,
+				654C7293273BC67600678AB6 /* HexColorTransform.swift in Sources */,
+				654C729D273BC67600678AB6 /* FromJSON.swift in Sources */,
+				654C729A273BC67600678AB6 /* Map.swift in Sources */,
+				654C72A1273BC67600678AB6 /* ToJSON.swift in Sources */,
 				6389DF75245BEDBE00450397 /* MainController.swift in Sources */,
+				654C728E273BC67600678AB6 /* CodableTransform.swift in Sources */,
+				654C728C273BC67600678AB6 /* ISO8601DateTransform.swift in Sources */,
+				654C72A3273BC67600678AB6 /* DateTransform.swift in Sources */,
 				6389DF76245BEDBE00450397 /* TGUserController.swift in Sources */,
+				654C7295273BC67600678AB6 /* CustomDateFormatTransform.swift in Sources */,
+				654C729E273BC67600678AB6 /* TransformType.swift in Sources */,
+				654C7296273BC67600678AB6 /* DateFormatterTransform.swift in Sources */,
+				654C728D273BC67600678AB6 /* URLTransform.swift in Sources */,
 				6389DF77245BEDBE00450397 /* DataSource.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -464,14 +568,6 @@
 				minimumVersion = 4.9.0;
 			};
 		};
-		63723E38245BDFD80098B805 /* XCRemoteSwiftPackageReference "ObjectMapper" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/patriciy/ObjectMapper.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.5.5;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -479,11 +575,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 63723E35245BDFBB0098B805 /* XCRemoteSwiftPackageReference "Alamofire" */;
 			productName = Alamofire;
-		};
-		6389DF7C245BEDC700450397 /* ObjectMapper */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 63723E38245BDFD80098B805 /* XCRemoteSwiftPackageReference "ObjectMapper" */;
-			productName = ObjectMapper;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

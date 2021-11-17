@@ -8,9 +8,6 @@
 
 import UIKit
 
-import ObjectMapper
-
-
 open class TGSettingsRequest: NSObject, Mappable {
  
     // MARK: - Properties

@@ -1,7 +1,5 @@
 
 import Foundation
-import ObjectMapper
-
 public class SyncArray<T> {
     public var array: [T] = []
     private let accessQueue = DispatchQueue(label: "SynchronizedArrayAccess", attributes: .concurrent)
@@ -63,17 +61,10 @@ public class SyncArray<T> {
     }
     
     public func firstIndex(where predicate: ((T) -> Bool)) -> Int? {
-        var index: Int? = nil
+        var index: Int?
         self.accessQueue.sync {
-            for i in 0...array.count {
-                let whereResult = predicate(array[i])
-                if  whereResult {
-                    index = i
-                    break
-                }
-            }
+            index = array.firstIndex(where: predicate)
         }
-        
         return index
     }
 }

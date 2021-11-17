@@ -8,7 +8,6 @@
 
 import UIKit
 
-import ObjectMapper
 
 class TGSettingsResponse: Mappable {
     

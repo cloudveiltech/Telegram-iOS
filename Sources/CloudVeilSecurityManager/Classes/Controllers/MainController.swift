@@ -8,7 +8,6 @@
 
 import Foundation
 
-import ObjectMapper
 import Alamofire
 import UIKit
 
@@ -107,6 +106,9 @@ open class MainController: NSObject {
 	}
 	
 	private func sengSettingsRequest() {
+        if MainController.shared.lastRequest == nil {
+            return
+        }
 		NSLog("Downloading settings")
 		SecurityManager.shared.getSettings(withRequest: MainController.shared.lastRequest!) { (resp) in
 			MainController.shared.saveSettings(resp)
@@ -185,10 +187,8 @@ open class MainController: NSObject {
 			return false
 		}
         
-        print("BOT ID IS \(botID)")
 		if let dictArray = settings?.access?.bots {
             if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(botID)" }) {
-                print("BOT ID IS 1111111 \(botID)")
 				return dictArray[index]["\(botID)"] ?? false
 			}
 		}
