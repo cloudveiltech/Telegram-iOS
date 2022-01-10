@@ -1,4 +1,7 @@
-#import "SentryEvent.h"
+#import "SentryDefines.h"
+#import "SentrySerializable.h"
+
+@class SentryUser;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -9,11 +12,22 @@ typedef NS_ENUM(NSUInteger, SentrySessionStatus) {
     kSentrySessionStatusAbnormal = 3,
 };
 
-@interface SentrySession : NSObject
+/**
+ * The SDK uses SentrySession to inform Sentry about release and project associated project health.
+ */
+@interface SentrySession : NSObject <SentrySerializable, NSCopying>
 SENTRY_NO_INIT
 
 - (instancetype)initWithReleaseName:(NSString *)releaseName;
-- (instancetype)initWithJSONObject:(NSDictionary *)jsonObject;
+
+/**
+ * Initializes SentrySession from a JSON object.
+ *
+ * @param jsonObject The jsonObject containing the session.
+ *
+ * @return The SentrySession or nil if the JSONObject contains an error.
+ */
+- (nullable instancetype)initWithJSONObject:(NSDictionary *)jsonObject;
 
 - (void)endSessionExitedWithTimestamp:(NSDate *)timestamp;
 - (void)endSessionCrashedWithTimestamp:(NSDate *)timestamp;

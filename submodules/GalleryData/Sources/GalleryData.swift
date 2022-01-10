@@ -120,6 +120,11 @@ public func chatMessageGalleryControllerData(context: AccountContext, chatLocati
                     galleryMedia = image
                 }
             }
+            //CloudVeil start
+            if content.websiteName == "YouTube" {
+                return .url(content.url)
+            }
+            //CloudVeil end
             
             if let instantPage = content.instantPage, let galleryMedia = galleryMedia {
                 switch instantPageType(of: content) {

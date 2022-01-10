@@ -1,15 +1,20 @@
-#import "SentryBreadcrumb.h"
 #import "SentryDefines.h"
-#import "SentryOptions.h"
 #import "SentrySerializable.h"
-#import "SentrySession.h"
+#import "SentrySpanProtocol.h"
 
-@class SentryUser;
+@class SentryUser, SentrySession, SentryOptions, SentryBreadcrumb, SentryAttachment;
 
 NS_ASSUME_NONNULL_BEGIN
 
 NS_SWIFT_NAME(Scope)
 @interface SentryScope : NSObject <SentrySerializable>
+
+/**
+ * Returns current Span or Transaction.
+ *
+ * @return current Span or Transaction or null if transaction has not been set.
+ */
+@property (nullable, nonatomic, strong) id<SentrySpan> span;
 
 - (instancetype)initWithMaxBreadcrumbs:(NSInteger)maxBreadcrumbs NS_DESIGNATED_INITIALIZER;
 - (instancetype)init;
@@ -45,7 +50,8 @@ NS_SWIFT_NAME(Scope)
 /**
  * Set global extra -> these will be sent with every event
  */
-- (void)setExtraValue:(id)value forKey:(NSString *)key NS_SWIFT_NAME(setExtra(value:key:));
+- (void)setExtraValue:(id _Nullable)value
+               forKey:(NSString *)key NS_SWIFT_NAME(setExtra(value:key:));
 
 /**
  * Remove the extra for the specified key.
@@ -97,7 +103,7 @@ NS_SWIFT_NAME(Scope)
 
 /**
  * Sets context values which will overwrite SentryEvent.context when event is
- * "enrichted" with scope before sending event.
+ * "enriched" with scope before sending event.
  */
 - (void)setContextValue:(NSDictionary<NSString *, id> *)value
                  forKey:(NSString *)key NS_SWIFT_NAME(setContext(value:key:));
@@ -108,9 +114,29 @@ NS_SWIFT_NAME(Scope)
 - (void)removeContextForKey:(NSString *)key NS_SWIFT_NAME(removeContext(key:));
 
 /**
+ * Adds an attachment to the Scope's list of attachments. The SDK adds the attachment to every event
+ * sent to Sentry.
+ *
+ * @param attachment The attachment to add to the Scope's list of attachments.
+ */
+- (void)addAttachment:(SentryAttachment *)attachment;
+
+/**
+ * Clears all attachments in the scope.
+ */
+- (void)clearAttachments;
+
+/**
  * Clears the current Scope
  */
 - (void)clear;
+
+/**
+ * Mutates the current transaction atomically.
+ *
+ * @param callback the SentrySpanCallback.
+ */
+- (void)useSpan:(SentrySpanCallback)callback;
 
 @end
 
