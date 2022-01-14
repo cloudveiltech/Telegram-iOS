@@ -34,6 +34,7 @@ import LightweightAccountData
 import TelegramAudio
 import DebugSettingsUI
 import BackgroundTasks
+import os
 
 import Sentry
 import CloudVeilSecurityManager
@@ -1336,11 +1337,13 @@ final class SharedApplicationContext {
             UIApplication.shared.setStatusBarHidden(false, with: .none)
         }
         
-        /*if #available(iOS 13.0, *) {
+        //CloudVeil uncommented
+        if #available(iOS 13.0, *) {
             BGTaskScheduler.shared.register(forTaskWithIdentifier: baseAppBundleId + ".refresh", using: nil, launchHandler: { task in
                 let _ = (self.sharedContextPromise.get()
                 |> take(1)
                 |> deliverOnMainQueue).start(next: { sharedApplicationContext in
+                    Logger.shared.log("CloudVeil", "Update task begin")
                     
                     sharedApplicationContext.wakeupManager.replaceCurrentExtensionWithExternalTime(completion: {
                         task.setTaskCompleted(success: true)
@@ -1354,9 +1357,12 @@ final class SharedApplicationContext {
                         sharedApplicationContext.notificationManager.beginPollingState(account: context.context.account)
                     })
                 })
+                
+                self.scheduleUpdateTask(baseAppBundleId)
             })
-        }*/
-        
+        }
+        scheduleUpdateTask(baseAppBundleId)
+        //CloudVeil end
         self.maybeCheckForUpdates()
 
         #if canImport(AppCenter)
@@ -1370,6 +1376,17 @@ final class SharedApplicationContext {
         return true
     }
 
+    //CloudVeil start
+    func scheduleUpdateTask(_ baseAppBundleId: String) {
+        if #available(iOS 13.0, *) {
+            Logger.shared.log("CloudVeil", "Update task set")
+            let request = BGAppRefreshTaskRequest(identifier: baseAppBundleId + ".refresh")
+            request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+            try? BGTaskScheduler.shared.submit(request)
+        }
+    }
+    //CloudVeil end
+    
     func applicationWillResignActive(_ application: UIApplication) {
         self.isActiveValue = false
         self.isActivePromise.set(false)
