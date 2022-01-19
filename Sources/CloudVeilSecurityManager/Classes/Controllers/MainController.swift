@@ -151,6 +151,16 @@ open class MainController: NSObject {
 		}
 		observers.removeAll()
 	}
+    
+    open func isUrlWhitelisted(_ url: String) -> Bool {
+        let parsedUrl = URL(string: url)
+        if let host = parsedUrl?.host {
+            if host.contains("telegram.org") || host.contains("cloudveil.org") {
+                return true
+            }
+        }
+        return false
+    }
 	
 	open func isGroupAvailable(groupID: NSInteger) -> Bool {
 		if let dictArray = settings?.access?.groups {
