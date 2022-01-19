@@ -729,7 +729,7 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                 |> deliverOnMainQueue).start(next: { settings in
                     if settings.defaultWebBrowser == nil {
                         //CloudVeil start
-                        if MainController.SecurityStaticSettings.disableInAppBrowser {
+                        if MainController.SecurityStaticSettings.disableInAppBrowser && !MainController.shared.isUrlWhitelisted(url) {
                             context.sharedContext.applicationBindings.openUrl(parsedUrl.absoluteString)
                             return
                         }

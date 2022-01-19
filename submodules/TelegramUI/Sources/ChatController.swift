@@ -12661,7 +12661,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     if let parsedUrl = parsedUrlValue {
                         if parsedUrl.scheme == "http" || parsedUrl.scheme == "https" {
                             //CloudVeil start
-                           if MainController.SecurityStaticSettings.disableInAppBrowser {
+                           if MainController.SecurityStaticSettings.disableInAppBrowser && !MainController.shared.isUrlWhitelisted(string)  {
                                return nil
                            }
                            //CloudVeil end

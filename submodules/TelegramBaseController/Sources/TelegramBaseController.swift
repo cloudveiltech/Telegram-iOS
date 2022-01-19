@@ -15,6 +15,7 @@ import TelegramCallsUI
 import UndoUI
 import CloudVeilSecurityManager
 import MessageUI
+import SafariServices
 
 public enum MediaAccessoryPanelVisibility {
     case none
@@ -473,67 +474,37 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             type = "bot"
         }
         
-        let message = "This \(type) is blocked by our server policy. Please contact CloudVeil Support at support@cloudveil.org to request it be unblocked."
+        let message = "This \(type) is blocked by our server policy. Please contact CloudVeil Support to request it be unblocked."
         
         let alert = standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData), title: "CloudVeil", text: message,
                                                 actions: [TextAlertAction(type: .defaultAction, title: "Cancel", action: {
                                                     
                                                 }),
                                                 TextAlertAction(type: .defaultAction, title: "Contact", action: {
-                                                    TelegramBaseController.showMailDialog(peerView: peerView, controller: controller.navigationController?.view.window?.rootViewController ?? controller)
+                                                    TelegramBaseController.openUnblockRequest(peerView: peerView, controller: controller, presentationData: presentationData)
                                                 })
                                                 ])
         
         controller.present(alert, in: .window(.root))
     }
     
-    private static func showMailDialog(peerView: Peer, controller: UIViewController) {
-        if !MFMailComposeViewController.canSendMail() {
-            return
-        }
-        
-        var title = peerView.compactDisplayTitle
-        var userName = ""
-        var type = "secret chat"
-        var conversationId = peerView.id.id._internalGetInt64Value()
-        if let peer = peerView as? TelegramChannel, case .group = peer.info {
-            type = "megagroup"
-            title = peer.title
-            userName = peer.username ?? ""
-            conversationId = -conversationId
-        } else if peerView.id.namespace == Namespaces.Peer.CloudGroup {
-            type = "group"
-            conversationId = -conversationId
-        } else if let peer = peerView as? TelegramChannel, case .broadcast = peer.info {
-            type = "channel"
-            title = peer.title
-            userName = peer.username ?? ""
-            conversationId = -conversationId
-        } else if let user = peerView as? TelegramUser {
-            if let _ = user.botInfo {
-                type = "bot"
-            }
-            userName = user.username ?? ""
-        }
+    private static func openUnblockRequest(peerView: Peer, controller: UIViewController, presentationData: PresentationData) {
+        let conversationId = peerView.id.id._internalGetInt64Value()
         
         let userId = TGUserController.shared.getUserID()
-        let message = "User ID: \(userId)\nConversation ID: \(conversationId)\nUsername: \(userName)\nType: \(type)\nTitle: \(title)"
-        let mail = MFMailComposeViewController()
-        mail.setSubject("Unblock Request for \(type): \(title)")
-        mail.setMessageBody(message, isHTML: false)
-        mail.setToRecipients(["support@cloudveil.org"])
-        
-        mail.mailComposeDelegate = mailDelegate
-        controller.present(mail, animated: true)
-    }
-    
-    private static let mailDelegate = MailDelegate()
-    private class MailDelegate: NSObject, MFMailComposeViewControllerDelegate {
-        public func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
-            // Dismiss the mail compose view controller.
-            controller.dismiss(animated: true, completion: {
+        let url = "https://messenger.cloudveil.org/unblock/\(userId)/\(conversationId)"
                 
-            })
+        if let baseController = controller as? TelegramBaseController {
+            if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
+                if let parsed = URL(string: url) {
+                    let safariController = SFSafariViewController(url: parsed)
+                    if #available(iOSApplicationExtension 10.0, iOS 10.0, *) {
+                        safariController.preferredBarTintColor = presentationData.theme.rootController.navigationBar.opaqueBackgroundColor
+                        safariController.preferredControlTintColor = presentationData.theme.rootController.navigationBar.accentTextColor
+                    }
+                    controller.present(safariController, animated: true)
+                }
+            }
         }
     }
     
