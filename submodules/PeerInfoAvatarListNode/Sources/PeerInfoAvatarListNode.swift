@@ -1064,6 +1064,11 @@ public final class PeerInfoAvatarListContainerNode: ASDisplayNode {
                             items.append(item)
                         }
                     }
+                    
+                    //CloudVeil start
+                    entries = Array(entries.prefix(MainController.shared.profilePhotoLimit))
+                    items = Array(items.prefix(MainController.shared.profilePhotoLimit))
+                    //CloudVeil end
                     strongSelf.galleryEntries = entries
                     strongSelf.items = items
                     strongSelf.itemsUpdated?(items)
@@ -1074,7 +1079,7 @@ public final class PeerInfoAvatarListContainerNode: ASDisplayNode {
                     strongSelf.galleryEntries = []
                     strongSelf.items = []
                 }
-                //CloudVeil endß
+                //CloudVeil end
                 if items.isEmpty {
                     if !strongSelf.didSetReady {
                         strongSelf.didSetReady = true

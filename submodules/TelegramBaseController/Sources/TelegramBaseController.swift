@@ -474,13 +474,13 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             type = "bot"
         }
         
-        let message = "This \(type) is blocked by our server policy. Please contact CloudVeil Support to request it be unblocked."
+        let message = "This \(type) is blocked by server policy. Please fill out the form to request it be unblocked."
         
         let alert = standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData), title: "CloudVeil", text: message,
                                                 actions: [TextAlertAction(type: .defaultAction, title: "Cancel", action: {
                                                     
                                                 }),
-                                                TextAlertAction(type: .defaultAction, title: "Contact", action: {
+                                                TextAlertAction(type: .defaultAction, title: "Continue", action: {
                                                     TelegramBaseController.openUnblockRequest(peerView: peerView, controller: controller, presentationData: presentationData)
                                                 })
                                                 ])

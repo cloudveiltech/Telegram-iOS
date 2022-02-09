@@ -1689,7 +1689,7 @@
 
 "Group.Management.AddModeratorHelp" = "You can add admins to help you manage your group.";
 
-"Watch.AppName" = "Telegram";
+"Watch.AppName" = "CloudVeil Messenger";
 "Watch.Compose.AddContact" = "Choose Contact";
 "Watch.Compose.CreateMessage" = "Create Message";
 "Watch.Compose.CurrentLocation" = "Current Location";
@@ -1724,7 +1724,7 @@
 
 "Watch.Message.ForwardedFrom" = "Forwarded from";
 
-"Watch.Notification.Joined" = "Joined Telegram";
+"Watch.Notification.Joined" = "Joined CloudVeil Messenger";
 
 "Watch.MessageView.Title" = "Message";
 "Watch.MessageView.Forward" = "Forward";
@@ -1738,9 +1738,9 @@
 "Watch.Stickers.StickerPacks" = "Sticker Sets";
 
 "Watch.Location.Current" = "Current Location";
-"Watch.Location.Access" = "Allow Telegram to access location on your phone";
+"Watch.Location.Access" = "Allow CloudVeil Messenger to access location on your phone";
 
-"Watch.AuthRequired" = "Log in to Telegram on your phone to get started";
+"Watch.AuthRequired" = "Log in to CloudVeil Messenger on your phone to get started";
 
 "Watch.NoConnection" = "No Connection";
 "Watch.ConnectionDescription" = "Your Watch needs to be connected for the app to work";
@@ -1868,7 +1868,7 @@
 "PrivacyLastSeenSettings.GroupsAndChannelsHelp" = "Change who can add you to groups and channels.";
 "MusicPlayer.VoiceNote" = "Voice Message";
 
-"Watch.Microphone.Access" = "Allow Telegram to access the microphone on your phone";
+"Watch.Microphone.Access" = "Allow CloudVeil Messenger to access the microphone on your phone";
 
 "Settings.AppleWatch" = "Apple Watch";
 "AppleWatch.Title" = "Apple Watch";

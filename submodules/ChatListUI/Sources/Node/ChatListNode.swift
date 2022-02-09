@@ -1417,12 +1417,12 @@ public final class ChatListNode: ListView {
            if entriesCount == rawEntriesCountCache {
                return
            }
-           rawEntriesCountCache = entriesCount
            let peerViewSignal = self.context.account.viewTracker.peerView(self.context.account.peerId)
            peerViewSignal.start(next: { peerView in
                if entriesCount == self.rawEntriesCountCache {
                    return
                }
+               self.rawEntriesCountCache = entriesCount
                if let peer = peerViewMainPeer(peerView) as? TelegramUser {
                    TGUserController.shared.set(userID: NSInteger(peer.id.toInt64()))
                    TGUserController.shared.set(userName: (peer.username ?? "") as NSString)
