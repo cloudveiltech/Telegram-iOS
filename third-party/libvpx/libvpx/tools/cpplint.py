@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python
 #
 # Copyright (c) 2009 Google Inc. All rights reserved.
 #

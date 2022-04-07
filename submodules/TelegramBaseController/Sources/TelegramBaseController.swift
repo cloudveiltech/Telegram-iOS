@@ -446,7 +446,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                             MainController.shared.replayRequestWithGroup(group: row)
                         }
                         
-                        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(1000), execute: task)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(10000), execute: task)
                         
                         return
                     }

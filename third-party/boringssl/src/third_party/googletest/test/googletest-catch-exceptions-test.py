@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python
 #
 # Copyright 2010 Google Inc.  All Rights Reserved.
 #

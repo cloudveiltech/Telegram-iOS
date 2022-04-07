@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python
 #
 # Copyright (c) 2005 Niels Provos <provos@citi.umich.edu>
 # All rights reserved.

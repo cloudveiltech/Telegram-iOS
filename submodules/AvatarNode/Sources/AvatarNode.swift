@@ -337,7 +337,8 @@ public final class AvatarNode: ASDisplayNode {
             representation = peer?.smallProfileImage
         }
         
-        //CloudVeil start
+        
+         //CloudVeil start
         if MainController.shared.disableProfilePhoto {
             representation = nil
             setAvatar(icon: icon, representation: representation, context: context, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
@@ -348,6 +349,7 @@ public final class AvatarNode: ASDisplayNode {
                 }
                 setAvatar(icon: icon, representation: representation, context: context, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
             } else {
+                self.setAvatar(icon: icon, representation: nil, context: context, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
                 isVideoAvatar(context: context, peer: peer) { result in
                     if result {
                         representation = nil
