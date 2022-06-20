@@ -36,13 +36,12 @@ load(
     "linkmap_test",
 )
 
-def watchos_extension_test_suite(name = "watchos_extension"):
+def watchos_extension_test_suite(name):
     """Test suite for watchos_extension.
 
     Args:
-        name: The name prefix for all the nested tests
+      name: the base name to be used in things created by this macro
     """
-
     apple_verification_test(
         name = "{}_codesign_test".format(name),
         build_type = "simulator",
@@ -81,6 +80,7 @@ def watchos_extension_test_suite(name = "watchos_extension"):
         contains = [
             "$RESOURCE_ROOT/resource_bundle.bundle/Info.plist",
             "$RESOURCE_ROOT/Another.plist",
+            "$RESOURCE_ROOT/Assets.car",
         ],
         target_under_test = "//test/starlark_tests/targets_under_test/watchos:ext",
         tags = [name],

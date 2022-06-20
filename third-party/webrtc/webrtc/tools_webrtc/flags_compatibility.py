@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 
 # Copyright (c) 2019 The WebRTC project authors. All Rights Reserved.
 #

@@ -31,6 +31,8 @@ load(
     "paths",
 )
 
+# TODO: Investigate if executable_name is needed here
+# buildifier: disable=unused-variable
 def _archive(
         *,
         actions,
@@ -72,21 +74,33 @@ def _archive_for_embedding(
             actions = actions,
             bundle_extension = bundle_extension,
             bundle_name = bundle_name,
+            executable_name = executable_name,
             platform_prerequisites = platform_prerequisites,
             predeclared_outputs = predeclared_outputs,
         )
 
-def _binary(ctx = None, *, actions = None, executable_name = None, label_name = None):
+def _binary(*, actions, bundle_name, executable_name, label_name, output_discriminator):
     """Returns a file reference for the binary that will be packaged into this target's archive. """
-    return intermediates.file(actions, label_name, executable_name)
+    file_name = executable_name if executable_name else bundle_name
+    return intermediates.file(
+        actions = actions,
+        target_name = label_name,
+        output_discriminator = output_discriminator,
+        file_name = file_name,
+    )
 
 def _executable(*, actions, label_name):
     """Returns a file reference for the executable that would be invoked with `bazel run`."""
     return actions.declare_file(label_name)
 
-def _infoplist(*, actions, label_name):
+def _infoplist(*, actions, label_name, output_discriminator):
     """Returns a file reference for this target's Info.plist file."""
-    return intermediates.file(actions, label_name, "Info.plist")
+    return intermediates.file(
+        actions = actions,
+        target_name = label_name,
+        output_discriminator = output_discriminator,
+        file_name = "Info.plist",
+    )
 
 def _has_different_embedding_archive(*, platform_prerequisites, rule_descriptor):
     """Returns True if this target exposes a different archive when embedded in another target."""

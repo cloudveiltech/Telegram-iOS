@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 # Copyright 2017 The LibYuv Project Authors. All rights reserved.
 #
 # Use of this source code is governed by a BSD-style license

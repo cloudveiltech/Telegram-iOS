@@ -33,7 +33,6 @@ load(
     ":compiling.bzl",
     "compile",
     "derive_module_name",
-    "get_implicit_deps",
     "precompile_clang_module",
 )
 load(
@@ -42,7 +41,7 @@ load(
     "get_cc_feature_configuration",
     "is_feature_enabled",
 )
-load(":linking.bzl", "swift_runtime_linkopts")
+load(":linking.bzl", "create_linking_context_from_compilation_outputs")
 load(
     ":providers.bzl",
     "create_clang_module",
@@ -50,7 +49,7 @@ load(
     "create_swift_info",
     "create_swift_module",
 )
-load(":swift_clang_module_aspect.bzl", "swift_clang_module_aspect")
+load(":swift_clang_module_aspect.bzl", "create_swift_interop_info")
 
 # The exported `swift_common` module, which defines the public API for directly
 # invoking actions that compile Swift code from other rules.
@@ -60,15 +59,14 @@ swift_common = struct(
     compile = compile,
     configure_features = configure_features,
     create_clang_module = create_clang_module,
+    create_linking_context_from_compilation_outputs = create_linking_context_from_compilation_outputs,
     create_module = create_module,
     create_swift_info = create_swift_info,
+    create_swift_interop_info = create_swift_interop_info,
     create_swift_module = create_swift_module,
     derive_module_name = derive_module_name,
-    get_implicit_deps = get_implicit_deps,
     is_enabled = is_feature_enabled,
     library_rule_attrs = swift_library_rule_attrs,
     precompile_clang_module = precompile_clang_module,
-    swift_clang_module_aspect = swift_clang_module_aspect,
-    swift_runtime_linkopts = swift_runtime_linkopts,
     toolchain_attrs = swift_toolchain_attrs,
 )

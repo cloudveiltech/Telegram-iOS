@@ -100,11 +100,11 @@ xcode_remap_command_line_test = make_action_command_line_test_rule(
     },
 )
 
-def debug_settings_test_suite(name = "debug_settings"):
+def debug_settings_test_suite(name):
     """Test suite for serializing debugging options.
 
     Args:
-        name: The name prefix for all the nested tests
+      name: the base name to be used in things created by this macro
     """
 
     # Verify that `-c dbg` builds serialize debugging options, remap paths, and
@@ -225,13 +225,11 @@ def debug_settings_test_suite(name = "debug_settings"):
 
     xcode_remap_command_line_test(
         name = "{}_remap_xcode_path".format(name),
-        expected_argv = select({
-            "//test:linux": [],
-            "//conditions:default": [
-                "-debug-prefix-map",
-                "__BAZEL_XCODE_DEVELOPER_DIR__=DEVELOPER_DIR",
-            ],
-        }),
+        expected_argv = [
+            "-debug-prefix-map",
+            "__BAZEL_XCODE_DEVELOPER_DIR__=DEVELOPER_DIR",
+        ],
+        target_compatible_with = ["@platforms//os:macos"],
         mnemonic = "SwiftCompile",
         tags = [name],
         target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",

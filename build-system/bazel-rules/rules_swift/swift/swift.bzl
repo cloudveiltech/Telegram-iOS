@@ -16,6 +16,15 @@
 
 This file is the public interface that users should import to use the Swift
 rules. Do not import definitions from the `internal` subdirectory directly.
+
+To use the Swift build rules in your BUILD files, load them from
+`@build_bazel_rules_swift//swift:swift.bzl`.
+
+For example:
+
+```build
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+```
 """
 
 load(
@@ -35,8 +44,16 @@ load(
     _swift_c_module = "swift_c_module",
 )
 load(
+    "@build_bazel_rules_swift//swift/internal:swift_clang_module_aspect.bzl",
+    _swift_clang_module_aspect = "swift_clang_module_aspect",
+)
+load(
     "@build_bazel_rules_swift//swift/internal:swift_common.bzl",
     _swift_common = "swift_common",
+)
+load(
+    "@build_bazel_rules_swift//swift/internal:swift_feature_allowlist.bzl",
+    _swift_feature_allowlist = "swift_feature_allowlist",
 )
 load(
     "@build_bazel_rules_swift//swift/internal:swift_grpc_library.bzl",
@@ -53,6 +70,10 @@ load(
 load(
     "@build_bazel_rules_swift//swift/internal:swift_module_alias.bzl",
     _swift_module_alias = "swift_module_alias",
+)
+load(
+    "@build_bazel_rules_swift//swift/internal:swift_package_configuration.bzl",
+    _swift_package_configuration = "swift_package_configuration",
 )
 load(
     "@build_bazel_rules_swift//swift/internal:swift_proto_library.bzl",
@@ -75,12 +96,15 @@ swift_common = _swift_common
 # Re-export rules.
 swift_binary = _swift_binary
 swift_c_module = _swift_c_module
+swift_feature_allowlist = _swift_feature_allowlist
 swift_grpc_library = _swift_grpc_library
 swift_import = _swift_import
 swift_library = _swift_library
-swift_test = _swift_test
 swift_module_alias = _swift_module_alias
+swift_package_configuration = _swift_package_configuration
 swift_proto_library = _swift_proto_library
+swift_test = _swift_test
 
 # Re-export public aspects.
+swift_clang_module_aspect = _swift_clang_module_aspect
 swift_usage_aspect = _swift_usage_aspect

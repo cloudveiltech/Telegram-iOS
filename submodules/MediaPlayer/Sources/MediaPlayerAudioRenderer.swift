@@ -95,12 +95,7 @@ private func rendererInputProc(refCon: UnsafeMutableRawPointer, ioActionFlags: U
                         
                         if !didSetRate {
                             context.state = .playing(rate: rate, didSetRate: true)
-                            let masterClock: CMClockOrTimebase
-                            if #available(iOS 9.0, *) {
-                                masterClock = CMTimebaseCopySource(context.timebase)
-                            } else {
-                                masterClock = CMTimebaseGetMaster(context.timebase)!
-                            }
+                            let masterClock = CMTimebaseCopySource(context.timebase)
                             CMTimebaseSetRateAndAnchorTime(context.timebase, rate: rate, anchorTime: CMTimeMake(value: sampleIndex, timescale: 44100), immediateSourceTime: CMSyncGetTime(masterClock))
                             updatedRate = context.updatedRate
                         } else {

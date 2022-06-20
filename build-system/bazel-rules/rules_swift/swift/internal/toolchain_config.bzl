@@ -39,11 +39,12 @@ _ConfigResultInfo = provider(
 _ToolConfigInfo = provider(
     doc = "A tool used by the Swift toolchain and its requirements.",
     fields = [
-        "additional_tools",
         "args",
         "env",
         "executable",
         "execution_requirements",
+        "tool_input_manifests",
+        "tool_inputs",
         "use_param_file",
         "worker_mode",
     ],
@@ -153,7 +154,7 @@ def _action_config(
 def _add_arg_impl(
         arg_name_or_value,
         value,
-        prerequisites,
+        _prerequisites,
         args,
         format = None):
     """Implementation function for the `add_arg` convenience configurator.
@@ -163,12 +164,11 @@ def _add_arg_impl(
             at partial creation time.
         value: The `value` passed to `Args.add`. Bound at partial creation
             time.
-        prerequisites: Unused by this function.
+        _prerequisites: Unused by this function.
         args: The `Args` object to which flags will be added.
         format: The `format` passed to `Args.add`. Bound at partial creation
             time.
     """
-    _unused = [prerequisites]
 
     # `Args.add` doesn't permit the `value` argument to be `None`, only
     # "unbound", so we have to check for this and not pass it *at all* if it
@@ -293,10 +293,11 @@ def _validate_worker_mode(worker_mode):
 
 def _tool_config(
         executable,
-        additional_tools = [],
         args = [],
         env = {},
         execution_requirements = {},
+        tool_input_manifests = [],
+        tool_inputs = depset(),
         use_param_file = False,
         worker_mode = None):
     """Returns a new Swift toolchain tool configuration.
@@ -306,16 +307,19 @@ def _tool_config(
             executed. This will be used as the `executable` argument of spawned
             actions unless `worker_mode` is set, in which case it will be used
             as the first argument to the worker.
-        additional_tools: A list of `File`s denoting additional tools that
-            should be passed as inputs to actions that use this tool. This
-            should be used if `executable` is, for example, a symlink that
-            points to another executable or if it is a driver that launches
-            other executables as subprocesses.
         args: A list of arguments that are always passed to the tool.
         env: A dictionary of environment variables that should be set when
             invoking actions using this tool.
         execution_requirements: A dictionary of execution requirements that
             should be passed when creating actions with this tool.
+        tool_input_manifests: A list of input runfiles metadata for tools that
+            should be passed into the `input_manifests` argument of the
+            `ctx.actions.run` call that registers actions using this tool (see
+            also Bazel's `ctx.resolve_tools`).
+        tool_inputs: A `depset` of additional inputs for tools that should be
+            passed into the `tools` argument of the `ctx.actions.run` call that
+            registers actions using this tool (see also Bazel's
+            `ctx.resolve_tools`).
         use_param_file: If True, actions invoked using this tool will have their
             arguments written to a param file.
         worker_mode: A string, or `None`, describing how the tool is invoked
@@ -331,11 +335,12 @@ def _tool_config(
         A new tool configuration.
     """
     return _ToolConfigInfo(
-        additional_tools = additional_tools,
         args = args,
         env = env,
         executable = executable,
         execution_requirements = execution_requirements,
+        tool_input_manifests = tool_input_manifests,
+        tool_inputs = tool_inputs,
         use_param_file = use_param_file,
         worker_mode = _validate_worker_mode(worker_mode),
     )

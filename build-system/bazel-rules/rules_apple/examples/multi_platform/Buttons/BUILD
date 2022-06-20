@@ -1,4 +1,3 @@
-load("@rules_cc//cc:defs.bzl", "objc_library")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load(
     "//apple:ios.bzl",
@@ -111,7 +110,7 @@ ios_extension(
 
 ios_static_framework(
     name = "ButtonsStaticFramework",
-    bundle_name = "ButtonsStaticFramework",
+    bundle_name = "Buttons",
     minimum_os_version = "8.0",
     deps = [":ButtonsLib"],
 )
@@ -258,7 +257,7 @@ tvos_extension(
 
 tvos_static_framework(
     name = "ButtonsTVStaticFramework",
-    bundle_name = "ButtonsTVStaticFramework",
+    bundle_name = "ButtonsTV",
     minimum_os_version = "10.0",
     deps = [":ButtonsTVLib"],
 )
@@ -319,6 +318,7 @@ macos_unit_test(
     name = "ButtonsMacLogicTests",
     bundle_id = "com.google.logic",
     minimum_os_version = "10.10",
+    tags = ["manual"],  # https://github.com/bazelbuild/continuous-integration/issues/1273
     deps = [":ButtonsMacTestsLib"],
 )
 
@@ -341,7 +341,7 @@ macos_unit_test(
 test_suite(
     name = "macOSButtonsTestSuite",
     tests = [
-        ":ButtonsMacLogicTests",
+        # ":ButtonsMacLogicTests",
         # ":ButtonsMacTests",
         # ":ButtonsMacUITests",
     ],
@@ -358,9 +358,12 @@ build_test(
     name = "ExamplesBuildTest",
     targets = [
         ":Buttons",
+        ":ButtonsStaticFramework",
+        ":ButtonsExtension",
         ":ButtonsMac",
         ":ButtonsTV",
         ":ButtonsTVExtension",
+        ":ButtonsTVStaticFramework",
         ":ButtonsWatch",
         ":ButtonsWatchExtension",
     ],

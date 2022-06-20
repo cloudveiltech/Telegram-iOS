@@ -15,7 +15,6 @@ import GalleryData
 import TelegramPresentationData
 import CloudVeilSecurityManager
 
-
 private let titleFont: UIFont = Font.semibold(15.0)
 
 final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
@@ -51,14 +50,13 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                         return
                     }
                 }
-
                 //CloudVeil start
                 let isYoutubeForbidden = self?.isYoutubeMessage(message: item.message) ?? false && MainController.SecurityStaticSettings.disableYoutubeVideoEmbedding
                 if isYoutubeForbidden  {
                     return
                 }
                 //CloudVeil end
-
+                
                 let openChatMessageMode: ChatControllerInteractionOpenMessageMode
                 switch mode {
                     case .default:
@@ -73,14 +71,23 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
         }
         self.contentNode.activateAction = { [weak self] in
             if let strongSelf = self, let item = strongSelf.item {
-                if let adAttribute = item.message.adAttribute, let author = item.message.author {
-                    let navigationData: ChatControllerInteractionNavigateToPeer
-                    if let bot = author as? TelegramUser, bot.botInfo != nil, let startParam = adAttribute.startParam {
-                        navigationData = .withBotStartPayload(ChatControllerInitialBotStart(payload: startParam, behavior: .interactive))
-                    } else {
-                        navigationData = .chat(textInputState: nil, subject: nil, peekData: nil)
+                if let adAttribute = item.message.adAttribute {
+                    switch adAttribute.target {
+                    case let .peer(id, messageId, startParam):
+                        let navigationData: ChatControllerInteractionNavigateToPeer
+                        if let bot = item.message.author as? TelegramUser, bot.botInfo != nil, let startParam = startParam {
+                            navigationData = .withBotStartPayload(ChatControllerInitialBotStart(payload: startParam, behavior: .interactive))
+                        } else {
+                            var subject: ChatControllerSubject?
+                            if let messageId = messageId {
+                                subject = .message(id: .id(messageId), highlight: true, timecode: nil)
+                            }
+                            navigationData = .chat(textInputState: nil, subject: subject, peekData: nil)
+                        }
+                        item.controllerInteraction.openPeer(id, navigationData, nil, nil)
+                    case let .join(_, joinHash):
+                        item.controllerInteraction.openJoinLink(joinHash)
                     }
-                    item.controllerInteraction.openPeer(author.id, navigationData, nil)
                 } else {
                     var webPageContent: TelegramMediaWebpageLoadedContent?
                     for media in item.message.media {
@@ -98,106 +105,104 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
             }
         }
     }
-    
     //CloudVeil start
-      private func isYoutubeMessage(message: Message) -> Bool {
-          for media in message.media {
-              if let webpage = media as? TelegramMediaWebpage {
-                  switch webpage.content {
-                      case let .Loaded(content):
-                          if let embedUrl = content.embedUrl, !embedUrl.isEmpty {
-                              if isYoutube(url: embedUrl) {
-                                  return true
-                              }
-                          }
-                      case .Pending:
-                          break
-                  }
-              }
-          }
-          return false
-      }
-      
-      func isYoutube(url: String) -> Bool {
-          guard let url = URL(string: url), let host = url.host?.lowercased() else {
-              return false
-          }
-          
-          let match = ["youtube.com", "youtu.be"].contains(where: { (domain) -> Bool in
-              return host == domain || host.contains(".\(domain)")
-          })
-          
-          guard match else {
-              return false
-          }
-          
-          var videoId: String?
-          var timestamp = 0
-          
-          if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
-              if let queryItems = components.queryItems {
-                  for queryItem in queryItems {
-                      if let value = queryItem.value {
-                          if queryItem.name == "v" {
-                              videoId = value
-                          } else if queryItem.name == "t" || queryItem.name == "time_continue" {
-                              if value.contains("s") {
-                                  var range = value.startIndex..<value.endIndex
-                                  if let hoursRange = value.range(of: "h", options: .caseInsensitive, range: range, locale: nil) {
-                                      let subvalue = String(value[range.lowerBound ..< hoursRange.lowerBound])
-                                      if let hours = Int(subvalue) {
-                                          timestamp = timestamp + hours * 3600
-                                      }
-                                      range = hoursRange.upperBound..<value.endIndex
-                                  }
-                                  
-                                  if let minutesRange = value.range(of: "m", options: .caseInsensitive, range: range, locale: nil) {
-                                      let subvalue = String(value[range.lowerBound ..< minutesRange.lowerBound])
-                                      if let minutes = Int(subvalue) {
-                                          timestamp = timestamp + minutes * 60
-                                      }
-                                      range = minutesRange.upperBound..<value.endIndex
-                                  }
-                                  
-                                  if let secondsRange = value.range(of: "s", options: .caseInsensitive, range: range, locale: nil) {
-                                      let subvalue = String(value[range.lowerBound ..< secondsRange.lowerBound])
-                                      if let seconds = Int(subvalue) {
-                                          timestamp = timestamp + seconds
-                                      }
-                                  }
-                              } else {
-                                  if let seconds = Int(value) {
-                                      timestamp = seconds
-                                  }
-                              }
-                          }
-                      }
-                  }
-              }
-              
-              if videoId == nil {
-                  let pathComponents = components.path.components(separatedBy: "/")
-                  var nextComponentIsVideoId = host.contains("youtu.be")
-                  
-                  for component in pathComponents {
-                      if component.count > 0 && nextComponentIsVideoId {
-                          videoId = component
-                          break
-                      } else if component == "embed" {
-                          nextComponentIsVideoId = true
-                      }
-                  }
-              }
-          }
-          
-          if let videoId = videoId {
-              return true
-          }
-          
-          return false
-      }
-      //CloudVeil end
-
+    private func isYoutubeMessage(message: Message) -> Bool {
+        for media in message.media {
+            if let webpage = media as? TelegramMediaWebpage {
+                switch webpage.content {
+                case let .Loaded(content):
+                    if let embedUrl = content.embedUrl, !embedUrl.isEmpty {
+                        if isYoutube(url: embedUrl) {
+                            return true
+                        }
+                    }
+                case .Pending:
+                    break
+                }
+            }
+        }
+        return false
+    }
+    
+    func isYoutube(url: String) -> Bool {
+        guard let url = URL(string: url), let host = url.host?.lowercased() else {
+            return false
+        }
+        
+        let match = ["youtube.com", "youtu.be"].contains(where: { (domain) -> Bool in
+            return host == domain || host.contains(".\(domain)")
+        })
+        
+        guard match else {
+            return false
+        }
+        
+        var videoId: String?
+        var timestamp = 0
+        
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            if let queryItems = components.queryItems {
+                for queryItem in queryItems {
+                    if let value = queryItem.value {
+                        if queryItem.name == "v" {
+                            videoId = value
+                        } else if queryItem.name == "t" || queryItem.name == "time_continue" {
+                            if value.contains("s") {
+                                var range = value.startIndex..<value.endIndex
+                                if let hoursRange = value.range(of: "h", options: .caseInsensitive, range: range, locale: nil) {
+                                    let subvalue = String(value[range.lowerBound ..< hoursRange.lowerBound])
+                                    if let hours = Int(subvalue) {
+                                        timestamp = timestamp + hours * 3600
+                                    }
+                                    range = hoursRange.upperBound..<value.endIndex
+                                }
+                                
+                                if let minutesRange = value.range(of: "m", options: .caseInsensitive, range: range, locale: nil) {
+                                    let subvalue = String(value[range.lowerBound ..< minutesRange.lowerBound])
+                                    if let minutes = Int(subvalue) {
+                                        timestamp = timestamp + minutes * 60
+                                    }
+                                    range = minutesRange.upperBound..<value.endIndex
+                                }
+                                
+                                if let secondsRange = value.range(of: "s", options: .caseInsensitive, range: range, locale: nil) {
+                                    let subvalue = String(value[range.lowerBound ..< secondsRange.lowerBound])
+                                    if let seconds = Int(subvalue) {
+                                        timestamp = timestamp + seconds
+                                    }
+                                }
+                            } else {
+                                if let seconds = Int(value) {
+                                    timestamp = seconds
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if videoId == nil {
+                let pathComponents = components.path.components(separatedBy: "/")
+                var nextComponentIsVideoId = host.contains("youtu.be")
+                
+                for component in pathComponents {
+                    if component.count > 0 && nextComponentIsVideoId {
+                        videoId = component
+                        break
+                    } else if component == "embed" {
+                        nextComponentIsVideoId = true
+                    }
+                }
+            }
+        }
+        
+        if let _ = videoId {
+            return true
+        }
+        
+        return false
+    }
+    //CloudVeil end
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -285,13 +290,13 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                             mainMedia = webpage.image ?? webpage.file
                         }
                     default:
-                        //CloudVeil start
-                        if automaticPlayback {
-                            mainMedia = webpage.file ?? webpage.image
-                        } else {
-                            mainMedia = webpage.image ?? webpage.file
-                        }
-                        //CloudVeil end
+                    //CloudVeil start
+                    if automaticPlayback {
+                        mainMedia = webpage.file ?? webpage.image
+                    } else {
+                        mainMedia = webpage.image ?? webpage.file
+                    }
+                    //CloudVeil end
                 }
                 
                 let themeMimeType = "application/x-tgtheme-ios"
@@ -404,6 +409,16 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                     }
                 } else if let type = webpage.type {
                     switch type {
+                        case "photo":
+                            if webpage.displayUrl.hasPrefix("t.me/") {
+                                actionTitle = item.presentationData.strings.Conversation_ViewMessage
+                            }
+                        case "telegram_user":
+                            actionTitle = item.presentationData.strings.Conversation_UserSendMessage
+                        case "telegram_channel_request":
+                            actionTitle = item.presentationData.strings.Conversation_RequestToJoinChannel
+                        case "telegram_chat_request", "telegram_megagroup_request":
+                            actionTitle = item.presentationData.strings.Conversation_RequestToJoinGroup
                         case "telegram_channel":
                             actionTitle = item.presentationData.strings.Conversation_ViewChannel
                         case "telegram_chat", "telegram_megagroup":
@@ -434,7 +449,7 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                             break
                     }
                 }
-            } else if let _ = item.message.adAttribute {
+            } else if let adAttribute = item.message.adAttribute {
                 title = nil
                 subtitle = nil
                 text = item.message.text
@@ -455,9 +470,17 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                 if let author = item.message.author as? TelegramUser, author.botInfo != nil {
                     actionTitle = item.presentationData.strings.Conversation_ViewBot
                 } else if let author = item.message.author as? TelegramChannel, case .group = author.info {
-                    actionTitle = item.presentationData.strings.Conversation_ViewGroup
+                    if case let .peer(_, messageId, _) = adAttribute.target, messageId != nil {
+                        actionTitle = item.presentationData.strings.Conversation_ViewPost
+                    } else {
+                        actionTitle = item.presentationData.strings.Conversation_ViewGroup
+                    }
                 } else {
-                    actionTitle = item.presentationData.strings.Conversation_ViewChannel
+                    if case let .peer(_, messageId, _) = adAttribute.target, messageId != nil {
+                        actionTitle = item.presentationData.strings.Conversation_ViewMessage
+                    } else {
+                        actionTitle = item.presentationData.strings.Conversation_ViewChannel
+                    }
                 }
                 displayLine = false
             }
@@ -648,7 +671,7 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
         self.contentNode.updateTouchesAtPoint(point.flatMap { $0.offsetBy(dx: -contentNodeFrame.minX, dy: -contentNodeFrame.minY) })
     }
     
-    override func reactionTargetNode(value: String) -> (ASDisplayNode, ASDisplayNode)? {
-        return self.contentNode.reactionTargetNode(value: value)
+    override func reactionTargetView(value: String) -> UIView? {
+        return self.contentNode.reactionTargetView(value: value)
     }
 }

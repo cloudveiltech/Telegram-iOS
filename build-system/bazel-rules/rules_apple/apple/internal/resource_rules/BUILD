@@ -36,7 +36,6 @@ bzl_library(
     ],
 )
 
-
 bzl_library(
     name = "apple_core_ml_library",
     srcs = ["apple_core_ml_library.bzl"],
@@ -48,6 +47,24 @@ bzl_library(
         "//apple/internal:platform_support",
         "//apple/internal:resource_actions",
         "//apple/internal:swift_support",
+        "@bazel_skylib//lib:dicts",
+        "@bazel_skylib//lib:paths",
+        "@build_bazel_apple_support//lib:apple_support",
+    ],
+)
+
+bzl_library(
+    name = "apple_core_data_model",
+    srcs = ["apple_core_data_model.bzl"],
+    visibility = [
+        "//apple:__subpackages__",
+    ],
+    deps = [
+        "//apple:providers",
+        "//apple:utils",
+        "//apple/internal:platform_support",
+        "//apple/internal:resource_actions",
+        "//apple/internal:rule_factory",
         "@bazel_skylib//lib:dicts",
         "@bazel_skylib//lib:paths",
         "@build_bazel_apple_support//lib:apple_support",

@@ -1,73 +1,81 @@
 import Postbox
 
-public struct ExportedInvitation: PostboxCoding, Equatable {
-    public let link: String
-    public let isPermanent: Bool
-    public let isRevoked: Bool
-    public let adminId: PeerId
-    public let date: Int32
-    public let startDate: Int32?
-    public let expireDate: Int32?
-    public let usageLimit: Int32?
-    public let count: Int32?
+public enum ExportedInvitation: Codable, Equatable {
+    case link(link: String, title: String?, isPermanent: Bool, requestApproval: Bool, isRevoked: Bool, adminId: PeerId, date: Int32, startDate: Int32?, expireDate: Int32?, usageLimit: Int32?, count: Int32?, requestedCount: Int32?)
+    case publicJoinRequest
     
-    public init(link: String, isPermanent: Bool, isRevoked: Bool, adminId: PeerId, date: Int32, startDate: Int32?, expireDate: Int32?, usageLimit: Int32?, count: Int32?) {
-        self.link = link
-        self.isPermanent = isPermanent
-        self.isRevoked = isRevoked
-        self.adminId = adminId
-        self.date = date
-        self.startDate = startDate
-        self.expireDate = expireDate
-        self.usageLimit = usageLimit
-        self.count = count
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: StringCodingKey.self)
+
+        let type = try container.decodeIfPresent(Int32.self, forKey: "t") ?? 0
+        if type == 0 {
+            let link = try container.decode(String.self, forKey: "l")
+            let title = try container.decodeIfPresent(String.self, forKey: "title")
+            let isPermanent = try container.decode(Bool.self, forKey: "permanent")
+            let requestApproval = try container.decodeIfPresent(Bool.self, forKey: "requestApproval") ?? false
+            let isRevoked = try container.decode(Bool.self, forKey: "revoked")
+            let adminId = PeerId(try container.decode(Int64.self, forKey: "adminId"))
+            let date = try container.decode(Int32.self, forKey: "date")
+            let startDate = try container.decodeIfPresent(Int32.self, forKey: "startDate")
+            let expireDate = try container.decodeIfPresent(Int32.self, forKey: "expireDate")
+            let usageLimit = try container.decodeIfPresent(Int32.self, forKey: "usageLimit")
+            let count = try container.decodeIfPresent(Int32.self, forKey: "count")
+            let requestedCount = try? container.decodeIfPresent(Int32.self, forKey: "requestedCount")
+            
+            self = .link(link: link, title: title, isPermanent: isPermanent, requestApproval: requestApproval, isRevoked: isRevoked, adminId: adminId, date: date, startDate: startDate, expireDate: expireDate, usageLimit: usageLimit, count: count, requestedCount: requestedCount)
+        } else {
+            self = .publicJoinRequest
+        }
     }
     
-    public init(decoder: PostboxDecoder) {
-        self.link = decoder.decodeStringForKey("l", orElse: "")
-        self.isPermanent = decoder.decodeBoolForKey("permanent", orElse: false)
-        self.isRevoked = decoder.decodeBoolForKey("revoked", orElse: false)
-        self.adminId = PeerId(decoder.decodeInt64ForKey("adminId", orElse: 0))
-        self.date = decoder.decodeInt32ForKey("date", orElse: 0)
-        self.startDate = decoder.decodeOptionalInt32ForKey("startDate")
-        self.expireDate = decoder.decodeOptionalInt32ForKey("expireDate")
-        self.usageLimit = decoder.decodeOptionalInt32ForKey("usageLimit")
-        self.count = decoder.decodeOptionalInt32ForKey("count")
-    }
-    
-    public func encode(_ encoder: PostboxEncoder) {
-        encoder.encodeString(self.link, forKey: "l")
-        encoder.encodeBool(self.isPermanent, forKey: "permanent")
-        encoder.encodeBool(self.isRevoked, forKey: "revoked")
-        encoder.encodeInt64(self.adminId.toInt64(), forKey: "adminId")
-        encoder.encodeInt32(self.date, forKey: "date")
-        if let startDate = self.startDate {
-            encoder.encodeInt32(startDate, forKey: "startDate")
-        } else {
-            encoder.encodeNil(forKey: "startDate")
-        }
-        if let expireDate = self.expireDate {
-            encoder.encodeInt32(expireDate, forKey: "expireDate")
-        } else {
-            encoder.encodeNil(forKey: "expireDate")
-        }
-        if let usageLimit = self.usageLimit {
-            encoder.encodeInt32(usageLimit, forKey: "usageLimit")
-        } else {
-            encoder.encodeNil(forKey: "usageLimit")
-        }
-        if let count = self.count {
-            encoder.encodeInt32(count, forKey: "count")
-        } else {
-            encoder.encodeNil(forKey: "count")
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: StringCodingKey.self)
+
+        switch self {
+            case let .link(link, title, isPermanent, requestApproval, isRevoked, adminId, date, startDate, expireDate, usageLimit, count, requestedCount):
+                let type: Int32 = 0
+                try container.encode(type, forKey: "t")
+                try container.encode(link, forKey: "l")
+                try container.encodeIfPresent(title, forKey: "title")
+                try container.encode(isPermanent, forKey: "permanent")
+                try container.encode(requestApproval, forKey: "requestApproval")
+                try container.encode(isRevoked, forKey: "revoked")
+                try container.encode(adminId.toInt64(), forKey: "adminId")
+                try container.encode(date, forKey: "date")
+                try container.encodeIfPresent(startDate, forKey: "startDate")
+                try container.encodeIfPresent(expireDate, forKey: "expireDate")
+                try container.encodeIfPresent(usageLimit, forKey: "usageLimit")
+                try container.encodeIfPresent(count, forKey: "count")
+                try container.encodeIfPresent(requestedCount, forKey: "requestedCount")
+            case .publicJoinRequest:
+                let type: Int32 = 1
+                try container.encode(type, forKey: "t")
         }
     }
     
     public static func ==(lhs: ExportedInvitation, rhs: ExportedInvitation) -> Bool {
-        return lhs.link == rhs.link && lhs.isPermanent == rhs.isPermanent && lhs.isRevoked == rhs.isRevoked && lhs.adminId == rhs.adminId && lhs.date == rhs.date && lhs.startDate == rhs.startDate && lhs.expireDate == rhs.expireDate && lhs.usageLimit == rhs.usageLimit && lhs.count == rhs.count
+        switch lhs {
+            case let .link(link, title, isPermanent, requestApproval, isRevoked, adminId, date, startDate, expireDate, usageLimit, count, requestedCount):
+                if case .link(link, title, isPermanent, requestApproval, isRevoked, adminId, date, startDate, expireDate, usageLimit, count, requestedCount) = rhs {
+                    return true
+                } else {
+                    return false
+                }
+            case .publicJoinRequest:
+                if case .publicJoinRequest = rhs {
+                    return true
+                } else {
+                    return false
+                }
+        }
     }
     
     public func withUpdated(isRevoked: Bool) -> ExportedInvitation {
-        return ExportedInvitation(link: self.link, isPermanent: self.isPermanent, isRevoked: isRevoked, adminId: self.adminId, date: self.date, startDate: self.startDate, expireDate: self.expireDate, usageLimit: self.usageLimit, count: self.count)
+        switch self {
+            case let .link(link, title, isPermanent, requestApproval, _, adminId, date, startDate, expireDate, usageLimit, count, requestedCount):
+                return .link(link: link, title: title, isPermanent: isPermanent, requestApproval: requestApproval, isRevoked: isRevoked, adminId: adminId, date: date, startDate: startDate, expireDate: expireDate, usageLimit: usageLimit, count: count, requestedCount: requestedCount)
+            case .publicJoinRequest:
+                return .publicJoinRequest
+        }
     }
 }

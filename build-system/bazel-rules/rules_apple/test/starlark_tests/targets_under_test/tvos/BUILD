@@ -1,4 +1,3 @@
-load("@rules_cc//cc:defs.bzl", "objc_library")
 load(
     "//apple:tvos.bzl",
     "tvos_application",
@@ -398,19 +397,20 @@ objc_library(
 
 swift_library(
     name = "basic_framework_lib",
-    module_name = "BasicFramework",
     srcs = [
         "//test/starlark_tests/resources:BasicFramework.swift",
     ],
-    visibility = ["//visibility:public"],
     features = ["swift.no_generated_module_map"],
+    generates_header = True,
+    module_name = "BasicFramework",
     tags = FIXTURE_TAGS,
+    visibility = ["//visibility:public"],
 )
 
 tvos_dynamic_framework(
     name = "basic_framework",
-    bundle_name = "BasicFramework",
     bundle_id = "com.google.example.framework",
+    bundle_name = "BasicFramework",
     infoplists = [
         "//test/starlark_tests/resources:Info.plist",
     ],
@@ -423,22 +423,23 @@ tvos_dynamic_framework(
 
 swift_library(
     name = "basic_framework_with_direct_dependency_lib",
-    module_name = "DirectDependencyTest",
     srcs = [
         "//test/starlark_tests/resources:DirectDependencyTest.swift",
     ],
+    features = ["swift.no_generated_module_map"],
+    generates_header = True,
+    module_name = "DirectDependencyTest",
+    tags = FIXTURE_TAGS,
     visibility = ["//visibility:public"],
     deps = [
         ":basic_framework_lib",
     ],
-    features = ["swift.no_generated_module_map"],
-    tags = FIXTURE_TAGS,
 )
 
 tvos_dynamic_framework(
     name = "basic_framework_with_direct_dependency",
-    bundle_name = "DirectDependencyTest",
     bundle_id = "com.google.example.framework",
+    bundle_name = "DirectDependencyTest",
     infoplists = [
         "//test/starlark_tests/resources:Info.plist",
     ],
@@ -451,23 +452,24 @@ tvos_dynamic_framework(
 
 swift_library(
     name = "basic_framework_with_transitive_dependency_lib",
-    module_name = "TransitiveDependencyTest",
     srcs = [
         "//test/starlark_tests/resources:TransitiveDependencyTest.swift",
     ],
+    features = ["swift.no_generated_module_map"],
+    generates_header = True,
+    module_name = "TransitiveDependencyTest",
+    tags = FIXTURE_TAGS,
     visibility = ["//visibility:public"],
     deps = [
         ":basic_framework_lib",
         ":basic_framework_with_direct_dependency_lib",
     ],
-    features = ["swift.no_generated_module_map"],
-    tags = FIXTURE_TAGS,
 )
 
 tvos_dynamic_framework(
     name = "basic_framework_with_transitive_dependency",
-    bundle_name = "TransitiveDependencyTest",
     bundle_id = "com.google.example.framework",
+    bundle_name = "TransitiveDependencyTest",
     infoplists = [
         "//test/starlark_tests/resources:Info.plist",
     ],
@@ -503,4 +505,53 @@ tvos_dynamic_framework(
     deps = [
         "//test/starlark_tests/resources:objc_lib_with_resources",
     ],
+)
+
+# ---------------------------------------------------------------------------------------
+
+tvos_application(
+    name = "app_with_objc_library_dep_with_tvos_framework_runtime_dep",
+    bundle_id = "com.google.example",
+    infoplists = [
+        "//test/starlark_tests/resources:Info.plist",
+    ],
+    minimum_os_version = "9.0",
+    tags = FIXTURE_TAGS,
+    deps = [":objc_lib_with_runtime_dep_fmwk"],
+)
+
+tvos_application(
+    name = "app_with_objc_lib_dep_with_inner_lib_with_runtime_dep_fmwk",
+    bundle_id = "com.google.example",
+    infoplists = [
+        "//test/starlark_tests/resources:Info.plist",
+    ],
+    minimum_os_version = "9.0",
+    tags = FIXTURE_TAGS,
+    deps = [":objc_lib_with_inner_lib_with_runtime_dep_fmwk"],
+)
+
+tvos_application(
+    name = "app_with_load_and_runtime_framework_dep",
+    bundle_id = "com.google.example",
+    frameworks = [":fmwk"],
+    infoplists = [
+        "//test/starlark_tests/resources:Info.plist",
+    ],
+    minimum_os_version = "9.0",
+    tags = FIXTURE_TAGS,
+    deps = [":objc_lib_with_runtime_dep_fmwk"],
+)
+
+objc_library(
+    name = "objc_lib_with_inner_lib_with_runtime_dep_fmwk",
+    srcs = ["//test/starlark_tests/resources:main.m"],
+    runtime_deps = [":fmwk_with_fmwk"],
+    deps = [":objc_lib_with_runtime_dep_fmwk"],
+)
+
+objc_library(
+    name = "objc_lib_with_runtime_dep_fmwk",
+    srcs = ["//test/starlark_tests/resources:main.m"],
+    runtime_deps = [":fmwk_with_provisioning"],
 )

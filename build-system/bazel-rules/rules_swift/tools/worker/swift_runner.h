@@ -22,7 +22,12 @@
 #include <string>
 #include <vector>
 
+#include "tools/common/bazel_substitutions.h"
 #include "tools/common/temp_file.h"
+
+// Returns true if the given command line argument enables whole-module
+// optimization in the compiler.
+extern bool ArgumentEnablesWMO(const std::string &arg);
 
 // Handles spawning the Swift compiler driver, making any required substitutions
 // of the command line arguments (for example, Bazel's magic Xcode placeholder
@@ -96,8 +101,14 @@ class SwiftRunner {
   //
   // This method has file system side effects, creating temporary files and
   // directories as needed for a particular substitution.
-  bool ProcessArgument(const std::string &arg,
+  template <typename Iterator>
+  bool ProcessArgument(Iterator &itr, const std::string &arg,
                        std::function<void(const std::string &)> consumer);
+
+  // Parses arguments to ivars and returns a vector of strings from the
+  // iterator. This method doesn't actually mutate any of the arguments.
+  template <typename Iterator>
+  std::vector<std::string> ParseArguments(Iterator itr);
 
   // Applies substitutions to the given command line arguments, returning the
   // results in a new vector.
@@ -106,7 +117,8 @@ class SwiftRunner {
 
   // A mapping of Bazel placeholder strings to the actual paths that should be
   // substituted for them. Supports Xcode resolution on Apple OSes.
-  std::map<std::string, std::string> bazel_placeholder_substitutions_;
+  bazel_rules_swift::BazelPlaceholderSubstitutions
+      bazel_placeholder_substitutions_;
 
   // The arguments, post-substitution, passed to the spawner.
   std::vector<std::string> args_;
@@ -122,6 +134,26 @@ class SwiftRunner {
   // Arguments will be unconditionally written into a response file and passed
   // to the tool that way.
   bool force_response_file_;
+
+  // Whether the invocation is being used to dump ast files.
+  // This is used to avoid implicitly adding incompatible flags.
+  bool is_dump_ast_;
+
+  // The path to the generated header rewriter tool, if one is being used for
+  // this compilation.
+  std::string generated_header_rewriter_path_;
+
+  // The path of the output map file
+  std::string output_file_map_path_;
+
+  // The index store path argument passed to the runner
+  std::string index_store_path_;
+
+  // The path of the global index store  when using
+  // swift.use_global_index_store. When set, this is passed to `swiftc` as the
+  // `-index-store-path`. After running `swiftc` `index-import` copies relevant
+  // index outputs into the `index_store_path` to integrate outputs with Bazel.
+  std::string global_index_store_import_path_;
 };
 
 #endif  // BUILD_BAZEL_RULES_SWIFT_TOOLS_WORKER_SWIFT_RUNNER_H_

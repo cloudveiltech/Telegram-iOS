@@ -8,7 +8,7 @@
 #import "TGRTCCVPixelBuffer.h"
 #import "sdk/objc/native/src/objc_video_track_source.h"
 #import "sdk/objc/native/src/objc_frame_buffer.h"
-#import "api/video_track_source_proxy.h"
+#import "pc/video_track_source_proxy.h"
 
 #import "helpers/UIDevice+RTCDevice.h"
 
@@ -428,7 +428,7 @@ static UIDeviceOrientation deviceOrientation(UIInterfaceOrientation orientation)
         case kCVPixelFormatType_32ARGB: {
             return nullptr;
         }
-        default: { RTC_NOTREACHED() << "Unsupported pixel format."; }
+        default: { RTC_DCHECK_NOTREACHED() << "Unsupported pixel format."; }
     }
 
     CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
@@ -479,7 +479,7 @@ static UIDeviceOrientation deviceOrientation(UIInterfaceOrientation orientation)
             CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
             return nullptr;
         }
-        default: { RTC_NOTREACHED() << "Unsupported pixel format."; }
+        default: { RTC_DCHECK_NOTREACHED() << "Unsupported pixel format."; }
     }
 
     return nullptr;

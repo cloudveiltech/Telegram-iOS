@@ -1,9 +1,12 @@
 # Apple Support for [Bazel](https://bazel.build)
 
-[![Build Status](https://badge.buildkite.com/6739ca70cb485ecec4ec403f4d6775269728aece4bb984127f.svg?branch=master)](https://buildkite.com/bazel/apple-support-darwin)
-
-This repository contains helper methods that support building rules that target
-Apple platforms.
+This repository contains helper methods that support building rules that
+target Apple platforms. See [the
+docs](https://github.com/bazelbuild/apple_support/tree/master/doc) for
+how you can use these helpers. Also see
+[rules_apple](https://github.com/bazelbuild/rules_apple) and
+[rules_swift](https://github.com/bazelbuild/rules_swift) for more Apple
+platform rules.
 
 ## Quick setup
 
@@ -14,8 +17,8 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "build_bazel_apple_support",
-    sha256 = "02ac04ff0a0de1e891a1fa8839cc6a5957e3c4a80856545aa35a786d15aad108",
-    url = "https://github.com/bazelbuild/apple_support/releases/download/0.9.1/apple_support.0.9.1.tar.gz",
+    sha256 = "5bbce1b2b9a3d4b03c0697687023ef5471578e76f994363c641c5f50ff0c7268",
+    url = "https://github.com/bazelbuild/apple_support/releases/download/0.13.0/apple_support.0.13.0.tar.gz",
 )
 
 load(

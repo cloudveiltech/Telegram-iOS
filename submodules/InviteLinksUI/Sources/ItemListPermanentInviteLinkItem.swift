@@ -3,7 +3,6 @@ import UIKit
 import Display
 import AsyncDisplayKit
 import SwiftSignalKit
-import Postbox
 import AccountContext
 import TelegramPresentationData
 import ItemListUI
@@ -31,7 +30,7 @@ public class ItemListPermanentInviteLinkItem: ListViewItem, ItemListItem {
     let presentationData: ItemListPresentationData
     let invite: ExportedInvitation?
     let count: Int32
-    let peers: [Peer]
+    let peers: [EnginePeer]
     let displayButton: Bool
     let displayImporters: Bool
     let buttonColor: UIColor?
@@ -48,7 +47,7 @@ public class ItemListPermanentInviteLinkItem: ListViewItem, ItemListItem {
         presentationData: ItemListPresentationData,
         invite: ExportedInvitation?,
         count: Int32,
-        peers: [Peer],
+        peers: [EnginePeer],
         displayButton: Bool,
         displayImporters: Bool,
         buttonColor: UIColor?,
@@ -301,14 +300,14 @@ public class ItemListPermanentInviteLinkItemNode: ListViewItemNode, ItemListItem
             let titleColor: UIColor
             titleColor = item.presentationData.theme.list.itemInputField.primaryColor
             
-            let alignCentrally = !(item.invite?.link.contains("joinchat") ?? true)
+            let alignCentrally = !(item.invite?.link?.contains("joinchat") ?? true)
             
             let addressFont = Font.regular(!alignCentrally && params.width == 320 ? floor(item.presentationData.fontSize.itemListBaseFontSize * 15.0 / 17.0) : item.presentationData.fontSize.itemListBaseFontSize)
             let titleFont = Font.regular(item.presentationData.fontSize.itemListBaseFontSize)
             
             let constrainedWidth = alignCentrally ? params.width - leftInset - rightInset - 90.0 : params.width - leftInset - rightInset - 60.0
             
-            let (addressLayout, addressApply) = makeAddressLayout(TextNodeLayoutArguments(attributedString: NSAttributedString(string: item.invite.flatMap({ $0.link.replacingOccurrences(of: "https://", with: "") }) ?? "", font: addressFont, textColor: titleColor), backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .middle, constrainedSize: CGSize(width: constrainedWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
+            let (addressLayout, addressApply) = makeAddressLayout(TextNodeLayoutArguments(attributedString: NSAttributedString(string: item.invite.flatMap({ $0.link?.replacingOccurrences(of: "https://", with: "") }) ?? "", font: addressFont, textColor: titleColor), backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .middle, constrainedSize: CGSize(width: constrainedWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
             
             let subtitle: String
             let subtitleColor: UIColor
@@ -322,7 +321,7 @@ public class ItemListPermanentInviteLinkItemNode: ListViewItemNode, ItemListItem
             
             let (invitedPeersLayout, invitedPeersApply) = makeInvitedPeersLayout(TextNodeLayoutArguments(attributedString: NSAttributedString(string: subtitle, font: titleFont, textColor: subtitleColor), backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: params.width - params.rightInset - 20.0 - leftInset - rightInset, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
             
-            let avatarsContent = avatarsContext.update(peers: item.peers.map(EnginePeer.init), animated: false)
+            let avatarsContent = avatarsContext.update(peers: item.peers, animated: false)
             
             let verticalInset: CGFloat = 16.0
             let fieldHeight: CGFloat = 52.0
@@ -339,7 +338,7 @@ public class ItemListPermanentInviteLinkItemNode: ListViewItemNode, ItemListItem
             case .blocks:
                 itemBackgroundColor = item.presentationData.theme.list.itemBlocksBackgroundColor
                 itemSeparatorColor = item.presentationData.theme.list.itemBlocksSeparatorColor
-                insets = itemListNeighborsGroupedInsets(neighbors)
+                insets = itemListNeighborsGroupedInsets(neighbors, params)
             }
             
             if !item.displayImporters {
@@ -417,6 +416,7 @@ public class ItemListPermanentInviteLinkItemNode: ListViewItemNode, ItemListItem
                         switch neighbors.bottom {
                             case .sameSection(false):
                                 bottomStripeInset = leftInset
+                                strongSelf.bottomStripeNode.isHidden = false
                             default:
                                 bottomStripeInset = 0.0
                                 hasBottomCorners = true

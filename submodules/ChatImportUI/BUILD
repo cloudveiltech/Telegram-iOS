@@ -6,6 +6,9 @@ swift_library(
     srcs = glob([
 		"Sources/**/*.swift",
     ]),
+    copts = [
+        "-warnings-as-errors",
+    ],
     deps = [
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
@@ -19,7 +22,6 @@ swift_library(
         "//submodules/PresentationDataUtils:PresentationDataUtils",
         "//submodules/RadialStatusNode:RadialStatusNode",
         "//submodules/AnimatedStickerNode:AnimatedStickerNode",
-        "//submodules/ChatHistoryImportTasks:ChatHistoryImportTasks",
         "//submodules/MimeTypes:MimeTypes",
         "//submodules/ConfettiEffect:ConfettiEffect",
         "//submodules/TelegramUniversalVideoContent:TelegramUniversalVideoContent",

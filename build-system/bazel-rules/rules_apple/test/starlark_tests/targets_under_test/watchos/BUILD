@@ -1,4 +1,3 @@
-load("@rules_cc//cc:defs.bzl", "objc_library")
 load(
     "//apple:ios.bzl",
     "ios_application",
@@ -9,6 +8,8 @@ load(
     "watchos_dynamic_framework",
     "watchos_extension",
     "watchos_static_framework",
+    "watchos_ui_test",
+    "watchos_unit_test",
 )
 load(
     "//apple:apple.bzl",
@@ -66,6 +67,7 @@ watchos_extension(
     minimum_os_version = "4.0",
     provisioning_profile = "//test/testdata/provisioning:integration_testing_ios.mobileprovision",
     resources = [
+        "//test/starlark_tests/resources:complications_watchos",
         "//test/starlark_tests/resources:example_filegroup",
         "//test/starlark_tests/resources:localization",
         "//test/starlark_tests/resources:resource_bundle",
@@ -393,20 +395,21 @@ swift_library(
 
 swift_library(
     name = "basic_framework_lib",
-    module_name = "BasicFramework",
     srcs = [
         "//test/starlark_tests/resources:BasicFramework.swift",
         "//test/starlark_tests/resources:main.swift",
     ],
-    visibility = ["//visibility:public"],
     features = ["swift.no_generated_module_map"],
+    generates_header = True,
+    module_name = "BasicFramework",
     tags = FIXTURE_TAGS,
+    visibility = ["//visibility:public"],
 )
 
 watchos_dynamic_framework(
     name = "basic_framework",
-    bundle_name = "BasicFramework",
     bundle_id = "com.google.example.framework",
+    bundle_name = "BasicFramework",
     infoplists = [
         "//test/starlark_tests/resources:Info-watchos.plist",
     ],
@@ -419,22 +422,23 @@ watchos_dynamic_framework(
 
 swift_library(
     name = "basic_framework_with_direct_dependency_lib",
-    module_name = "DirectDependencyTest",
     srcs = [
         "//test/starlark_tests/resources:DirectDependencyTest.swift",
     ],
+    features = ["swift.no_generated_module_map"],
+    generates_header = True,
+    module_name = "DirectDependencyTest",
+    tags = FIXTURE_TAGS,
     visibility = ["//visibility:public"],
     deps = [
         ":basic_framework_lib",
     ],
-    features = ["swift.no_generated_module_map"],
-    tags = FIXTURE_TAGS,
 )
 
 watchos_dynamic_framework(
     name = "basic_framework_with_direct_dependency",
-    bundle_name = "DirectDependencyTest",
     bundle_id = "com.google.example.framework",
+    bundle_name = "DirectDependencyTest",
     infoplists = [
         "//test/starlark_tests/resources:Info-watchos.plist",
     ],
@@ -447,23 +451,24 @@ watchos_dynamic_framework(
 
 swift_library(
     name = "basic_framework_with_transitive_dependency_lib",
-    module_name = "TransitiveDependencyTest",
     srcs = [
         "//test/starlark_tests/resources:TransitiveDependencyTest.swift",
     ],
+    features = ["swift.no_generated_module_map"],
+    generates_header = True,
+    module_name = "TransitiveDependencyTest",
+    tags = FIXTURE_TAGS,
     visibility = ["//visibility:public"],
     deps = [
         ":basic_framework_lib",
         ":basic_framework_with_direct_dependency_lib",
     ],
-    features = ["swift.no_generated_module_map"],
-    tags = FIXTURE_TAGS,
 )
 
 watchos_dynamic_framework(
     name = "basic_framework_with_transitive_dependency",
-    bundle_name = "TransitiveDependencyTest",
     bundle_id = "com.google.example.framework",
+    bundle_name = "TransitiveDependencyTest",
     infoplists = [
         "//test/starlark_tests/resources:Info-watchos.plist",
     ],
@@ -498,5 +503,30 @@ watchos_dynamic_framework(
     tags = FIXTURE_TAGS,
     deps = [
         "//test/starlark_tests/resources:objc_lib_with_resources",
+    ],
+)
+
+watchos_ui_test(
+    name = "ui_test",
+    infoplists = [
+        "//test/starlark_tests/resources:WatchosAppInfo.plist",
+    ],
+    minimum_os_version = "7.4",
+    tags = FIXTURE_TAGS,
+    test_host = ":app",
+    deps = [
+        "//test/starlark_tests/resources:objc_test_lib",
+    ],
+)
+
+watchos_unit_test(
+    name = "unit_test",
+    infoplists = [
+        "//test/starlark_tests/resources:WatchosAppInfo.plist",
+    ],
+    minimum_os_version = "7.4",
+    tags = FIXTURE_TAGS,
+    deps = [
+        "//test/starlark_tests/resources:objc_test_lib",
     ],
 )

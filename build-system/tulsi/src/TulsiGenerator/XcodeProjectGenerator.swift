@@ -44,6 +44,10 @@ final class XcodeProjectGenerator {
     let stubWatchOS2InfoPlist: URL  // Stub Info.plist (needed for watchOS2 app targets).
     let stubWatchOS2AppExInfoPlist: URL  // Stub Info.plist (needed for watchOS2 appex targets).
 
+    let stubClang: URL   // Stub clang to create expected .d output files.
+    let stubSwiftc: URL  // Stub swiftc to create expected swift output files.
+    let stubLd: URL      // Stub ld to create expected .dat output files.
+
     // In order to load tulsi_aspects, Tulsi constructs a Bazel repository inside of the generated
     // Xcode project. Its structure looks like this:
     // ├── Bazel
@@ -70,6 +74,7 @@ final class XcodeProjectGenerator {
   private static let SettingsScript = "bazel_build_settings.py"
   private static let CleanScript = "bazel_clean.sh"
   private static let ShellCommandsUtil = "bazel_cache_reader"
+  private static let ModuleCachePrunerUtil = "module_cache_pruner"
   private static let ShellCommandsCleanScript = "clean_symbol_cache"
   private static let LLDBInitBootstrapScript = "bootstrap_lldbinit"
   private static let CustomLLDBInit = "lldbinit"
@@ -79,6 +84,11 @@ final class XcodeProjectGenerator {
   private static let StubInfoPlistFilename = "StubInfoPlist.plist"
   private static let StubWatchOS2InfoPlistFilename = "StubWatchOS2InfoPlist.plist"
   private static let StubWatchOS2AppExInfoPlistFilename = "StubWatchOS2AppExInfoPlist.plist"
+
+  private static let StubClang = "clang_stub.sh"
+  private static let StubSwiftc = "swiftc_stub.py"
+  private static let StubLd = "ld_stub.sh"
+
   private static let CachedExecutionRootFilename = "execroot_path.py"
   private static let DefaultSwiftVersion = "4"
   private static let SupportScriptsPath = "Library/Application Support/Tulsi/Scripts"
@@ -108,10 +118,13 @@ final class XcodeProjectGenerator {
 
   /// Exposed for testing. Instead of writing the real workspace name into the generated project,
   /// write a stub value that will be the same regardless of the execution environment.
-  var redactWorkspaceSymlink = false
+  var redactSymlinksToBazelOutput = false
 
   /// Exposed for testing. Do not attempt to update/install files related to DBGShellCommands.
   var suppressUpdatingShellCommands = false
+
+  /// Exposed for testing. Do not install the module cache pruning tool.
+  var suppressModuleCachePrunerInstallation = false
 
   /// Exposed for testing. Do not modify user defaults.
   var suppressModifyingUserDefaults = false
@@ -206,8 +219,15 @@ final class XcodeProjectGenerator {
       watchOSStub: "\(projectResourcesDirectory)/\(XcodeProjectGenerator.StubWatchOS2InfoPlistFilename)",
       watchOSAppExStub: "\(projectResourcesDirectory)/\(XcodeProjectGenerator.StubWatchOS2AppExInfoPlistFilename)")
 
+    let stubBinaryDirectory = "$(PROJECT_FILE_PATH)/\(XcodeProjectGenerator.ScriptDirectorySubpath)"
+    let binaryPaths = StubBinaryPaths(
+      clang: "\(stubBinaryDirectory)/\(XcodeProjectGenerator.StubClang)",
+      swiftc: "\(stubBinaryDirectory)/\(XcodeProjectGenerator.StubSwiftc)",
+      ld: "\(stubBinaryDirectory)/\(XcodeProjectGenerator.StubLd)")
+
     let projectInfo = try buildXcodeProjectWithMainGroup(mainGroup,
-                                                         stubInfoPlistPaths: plistPaths)
+                                                         stubInfoPlistPaths: plistPaths,
+                                                         stubBinaryPaths: binaryPaths)
 
     let serializingProgressNotifier = ProgressNotifier(name: SerializingXcodeProject,
                                                        maxValue: 1,
@@ -335,6 +355,10 @@ final class XcodeProjectGenerator {
 
     /// Mapping from label to top-level build target.
     let topLevelBuildTargetsByLabel: [BuildLabel: PBXNativeTarget]
+
+    /// Test targets from `test_suite` rules which were silently dropped since
+    /// their rule kind is unsupported.
+    let ignoredTestTargets: Set<BuildLabel>
   }
 
   /// Throws an exception if the Xcode project path is found to be in a forbidden location,
@@ -345,6 +369,21 @@ final class XcodeProjectGenerator {
         throw ProjectGeneratorError.invalidXcodeProjectPath(path: outputPath.path, reason: reason +
             " (\"\(invalidPath)\")")
       }
+    }
+
+    let usingProjectLldbinit = self.config.options[.DisableCustomLLDBInit].commonValueAsBool != true
+    let projectPathHasWhiteSpace =
+      outputPath.path.rangeOfCharacter(from: NSCharacterSet.whitespaces) != nil
+    // TODO(b/179704044): Project level lldbinit files are generated inside the Xcode project bundle
+    // and Xcode has issues with loading lldbinit files containing spaces. Without the lldbinit,
+    // debugging will not work properly so fail generation and offer alternatives.
+    if usingProjectLldbinit, projectPathHasWhiteSpace {
+      throw ProjectGeneratorError.invalidXcodeProjectPath(
+        path: outputPath.path,
+        reason: "a path that has white space which will break debugging. Select a new "
+          + "destination without whitespace OR enable the 'Disable project-level lldbinit' setting "
+          + "in the Shared options tab of your Tulsi project and regenerate with the chosen path"
+      )
     }
   }
 
@@ -399,7 +438,8 @@ final class XcodeProjectGenerator {
 
   // Generates a PBXProject and a returns it along with a set of build, test and indexer targets.
   private func buildXcodeProjectWithMainGroup(_ mainGroup: PBXGroup,
-                                              stubInfoPlistPaths: StubInfoPlistPaths) throws -> GeneratedProjectInfo {
+                                              stubInfoPlistPaths: StubInfoPlistPaths,
+                                              stubBinaryPaths: StubBinaryPaths) throws -> GeneratedProjectInfo {
     let xcodeProject = PBXProject(name: config.projectName, mainGroup: mainGroup)
 
     if let enabled = config.options[.SuppressSwiftUpdateCheck].commonValueAsBool, enabled {
@@ -414,12 +454,12 @@ final class XcodeProjectGenerator {
                                                 project: xcodeProject,
                                                 buildScriptPath: buildScriptPath,
                                                 stubInfoPlistPaths: stubInfoPlistPaths,
+                                                stubBinaryPaths: stubBinaryPaths,
                                                 tulsiVersion: tulsiVersion,
                                                 options: config.options,
                                                 localizedMessageLogger: localizedMessageLogger,
                                                 workspaceRootURL: workspaceRootURL,
-                                                suppressCompilerDefines: suppressCompilerDefines,
-                                                redactWorkspaceSymlink: redactWorkspaceSymlink)
+                                                suppressCompilerDefines: suppressCompilerDefines)
 
     if let additionalFilePaths = config.additionalFilePaths {
       generator.generateFileReferencesForFilePaths(additionalFilePaths)
@@ -428,15 +468,23 @@ final class XcodeProjectGenerator {
     let ruleEntryMap = try loadRuleEntryMap()
     try validateConfigReferences(ruleEntryMap)
 
+    // Expand test_suites recursively into their respective tests, ignoring
+    // unsupported target types.
+    var ignoredTests = Set<BuildLabel>()
     var expandedTargetLabels = Set<BuildLabel>()
     var testSuiteRules = [BuildLabel: RuleEntry]()
-    func expandTargetLabels<T: Sequence>(_ labels: T) where T.Iterator.Element == BuildLabel {
+    func expandTargetLabels<T: Sequence>(_ labels: T, inTestSuite: Bool) where T.Iterator.Element == BuildLabel {
       for label in labels {
         // Effectively we will only be using the last RuleEntry in the case of duplicates.
         // We could log about duplicates here, but this would only lead to duplicate logging.
         let ruleEntries = ruleEntryMap.ruleEntries(buildLabel: label)
         for ruleEntry in ruleEntries {
           if ruleEntry.type != "test_suite" {
+            // Ignore unsupported target types in `test_suite`s.
+            guard !inTestSuite || ruleEntry.pbxTargetType != nil else {
+              ignoredTests.insert(label)
+              continue
+            }
             // Add the RuleEntry itself and any registered extensions + app clips so they are
             // automatically added as buildable schemes in the project.
             expandedTargetLabels.insert(label)
@@ -444,16 +492,16 @@ final class XcodeProjectGenerator {
             expandedTargetLabels.formUnion(ruleEntry.appClips)
 
             // Recursively expand extensions. Currently used by App -> Watch App -> Watch Extension.
-            expandTargetLabels(ruleEntry.extensions)
+            expandTargetLabels(ruleEntry.extensions, inTestSuite: false)
           } else {
             // Expand the test_suite to its set of tests.
             testSuiteRules[ruleEntry.label] = ruleEntry
-            expandTargetLabels(ruleEntry.testSuiteDependencies)
+            expandTargetLabels(ruleEntry.testSuiteDependencies, inTestSuite: true)
           }
         }
       }
     }
-    expandTargetLabels(config.buildTargetLabels)
+    expandTargetLabels(config.buildTargetLabels, inTestSuite: false)
 
     var targetRules = Set<RuleEntry>()
     var hostTargetLabels = [BuildLabel: BuildLabel]()
@@ -532,6 +580,7 @@ final class XcodeProjectGenerator {
       generator.generateBazelCleanTarget(cleanScriptPath, workingDirectory: workingDirectory,
                                          startupOptions: startupOptions)
     }
+    let useBazelCacheReader = config.options[.UseBazelCacheReader].commonValueAsBool == true
     profileAction("generating_top_level_build_configs") {
       var buildSettings = [String: String]()
       if let sdkroot = XcodeProjectGenerator.projectSDKROOT(targetRules) {
@@ -558,6 +607,10 @@ final class XcodeProjectGenerator {
         buildSettings["TULSI_LLDBINIT_FILE"] = customLLDBInitFile
       }
 
+      if useBazelCacheReader {
+        buildSettings["TULSI_USE_BAZEL_CACHE_READER"] = "YES"
+      }
+
       buildSettings["TULSI_PROJECT"] = config.projectName
       generator.generateTopLevelBuildConfigurations(buildSettings)
     }
@@ -579,7 +632,7 @@ final class XcodeProjectGenerator {
     }
     profileAction("updating_dbgshellcommands") {
       do {
-        try updateShellCommands()
+        try updateShellCommands(useBazelCacheReader: useBazelCacheReader)
       } catch {
         self.localizedMessageLogger.warning("UpdatingDBGShellCommandsFailed",
                                             comment: LocalizedMessageLogger.bugWorthyComment("Failed to update the script to find cached dSYM bundles via DBGShellCommands."),
@@ -596,11 +649,24 @@ final class XcodeProjectGenerator {
         bootstrapLLDBInit()
       }
     }
+
+    if !suppressModuleCachePrunerInstallation {
+      do {
+        _ = try installAuxiliaryExecutable(XcodeProjectGenerator.ModuleCachePrunerUtil)
+      } catch {
+        self.localizedMessageLogger.warning("InstallModuleCachePrunerFailed",
+                                            comment: LocalizedMessageLogger.bugWorthyComment("Failed to install the module cache pruner executable."),
+                                            context: self.config.projectName,
+                                            values: "\(error)")
+      }
+    }
+
     return GeneratedProjectInfo(project: xcodeProject,
                                 buildRuleEntries: targetRules,
                                 testSuiteRuleEntries: testSuiteRules,
                                 indexerTargets: indexerTargets,
-                                topLevelBuildTargetsByLabel: targetsByLabel)
+                                topLevelBuildTargetsByLabel: targetsByLabel,
+                                ignoredTestTargets: ignoredTests)
   }
 
   private func installWorkspaceSettings(_ projectURL: URL) throws {
@@ -622,11 +688,16 @@ final class XcodeProjectGenerator {
 
 
     let workspaceSharedDataURL = projectURL.appendingPathComponent("project.xcworkspace/xcshareddata")
-    let sharedWorkspaceSettings: [String: Any] = [
-      "BuildSystemType": "Original",
-      "DisableBuildSystemDeprecationWarning": true as AnyObject,
+    var sharedWorkspaceSettings: [String: Any] = [
       "IDEWorkspaceSharedSettings_AutocreateContextsIfNeeded": false as AnyObject,
     ]
+    if config.options.useLegacyBuildSystem {
+      sharedWorkspaceSettings["BuildSystemType"] = "Original"
+      // Disable legacy build system warning in Xcode 12.
+      sharedWorkspaceSettings["DisableBuildSystemDeprecationWarning"] = true as AnyObject
+      // Disable legacy build system error in Xcode 13.
+      sharedWorkspaceSettings["DisableBuildSystemDeprecationDiagnostic"] = true as AnyObject
+    }
     try writeWorkspaceSettings(sharedWorkspaceSettings,
                                toDirectoryAtURL: workspaceSharedDataURL,
                                replaceIfExists: true)
@@ -656,55 +727,62 @@ final class XcodeProjectGenerator {
     }
   }
 
-  // Links tulsi-workspace to the current Bazel execution root. This may be overwritten during
-  // builds, but is useful to include in project generation for users who have local_repository
-  // references.
+  // Create symlinks into to the current Bazel output directories. This may be overwritten during
+  // builds, but is useful to include in project generation for users who have external workspaces
+  // or prior builds.
   private func linkTulsiWorkspace(_ projectURL: URL) {
-    // Don't create the tulsi-workspace symlink for tests.
-    guard !self.redactWorkspaceSymlink else { return }
+    // Don't create symlinks for tests.
+    guard !self.redactSymlinksToBazelOutput else { return }
 
-    let path = projectURL.appendingPathComponent(".tulsi/\(PBXTargetGenerator.TulsiWorkspacePath)",
-                                                 isDirectory: false).path
-    let bazelExecRoot = self.workspaceInfoExtractor.bazelExecutionRoot;
+    func createLink(from: String, to: String) {
+      let from = projectURL.appendingPathComponent(from, isDirectory: false).path
 
-    // See if tulsi-includes is already present.
-    if let attributes = try? fileManager.attributesOfItem(atPath: path) {
-      // If tulsi-includes is already a symlink, we only need to change it if it points to the wrong
-      // Bazel exec root.
-      if attributes[FileAttributeKey.type] as? FileAttributeType == FileAttributeType.typeSymbolicLink {
+      // See if symlink is already present.
+      if let attributes = try? self.fileManager.attributesOfItem(atPath: from) {
+        // If there is already a symlink, we only need to change it if it points to the wrong place
+        if attributes[FileAttributeKey.type] as? FileAttributeType == FileAttributeType.typeSymbolicLink {
+          do {
+            let oldDestination = try self.fileManager.destinationOfSymbolicLink(atPath: from)
+            guard oldDestination != to else { return }
+          } catch {
+            self.localizedMessageLogger.warning("UpdatingTulsiSymlinksFailed",
+                                                comment: "Warning shown when failing to update the tulsi symlinks into the Bazel output files. symlink path is in %1$@, symlink destination is in %2$@, additional error context in %3$@.",
+                                                context: self.config.projectName,
+                                                values: from, to, "Unable to read old symlink. Was it modified?")
+            return
+          }
+        }
+
+        // The symlink exists but points to the wrong path or is a different file type. Remove it.
         do {
-          let oldBazelExecRoot = try self.fileManager.destinationOfSymbolicLink(atPath: path)
-          guard oldBazelExecRoot != bazelExecRoot else { return }
+          try self.fileManager.removeItem(atPath: from)
         } catch {
-          self.localizedMessageLogger.warning("UpdatingTulsiWorkspaceSymlinkFailed",
-                                              comment: "Warning shown when failing to update the tulsi-workspace symlink in %1$@ to the Bazel execution root, additional context %2$@.",
-                                              context: config.projectName,
-                                              values: path, "Unable to read old symlink. Was it modified?")
+          self.localizedMessageLogger.warning("UpdatingTulsiSymlinksFailed",
+                                              comment: "Warning shown when failing to update the tulsi symlinks into the Bazel output files. symlink path is in %1$@, symlink destination is in %2$@, additional error context in %3$@.",
+                                              context: self.config.projectName,
+                                              values: from, to, "Unable to remove the old symlink. Trying removing it and try again.")
           return
         }
       }
 
-      // The symlink exists but points to the wrong path or is a different file type. Remove it.
+      // Create symlink
       do {
-        try fileManager.removeItem(atPath: path)
+        try self.fileManager.createSymbolicLink(atPath: from, withDestinationPath: to)
       } catch {
-        self.localizedMessageLogger.warning("UpdatingTulsiWorkspaceSymlinkFailed",
-                                            comment: "Warning shown when failing to update the tulsi-workspace symlink in %1$@ to the Bazel execution root, additional context %2$@.",
-                                            context: config.projectName,
-                                            values: path, "Unable to remove the old tulsi-workspace symlink. Trying removing it and try again.")
-        return
+        self.localizedMessageLogger.warning("UpdatingTulsiSymlinksFailed",
+                                            comment: "Warning shown when failing to update the tulsi symlinks into the Bazel output files. symlink path is in %1$@, symlink destination is in %2$@, additional error context in %3$@.",
+                                            context: self.config.projectName,
+                                            values: from, to, "Creating symlink failed. Is it already present?")
       }
+
     }
 
-    // Symlink tulsi-workspace ->  Bazel exec root.
-    do {
-      try self.fileManager.createSymbolicLink(atPath: path, withDestinationPath: bazelExecRoot)
-    } catch {
-      self.localizedMessageLogger.warning("UpdatingTulsiWorkspaceSymlinkFailed",
-                                          comment: "Warning shown when failing to update the tulsi-workspace symlink in %1$@ to the Bazel execution root, additional context %2$@.",
-                                          context: config.projectName,
-                                          values: path, "Creating symlink failed. Is it already present?")
-    }
+    createLink(from: PBXTargetGenerator.TulsiExecutionRootSymlinkPath,
+               to: self.workspaceInfoExtractor.bazelExecutionRoot)
+    createLink(from: PBXTargetGenerator.TulsiExecutionRootSymlinkLegacyPath,
+               to: self.workspaceInfoExtractor.bazelExecutionRoot)
+    createLink(from: PBXTargetGenerator.TulsiOutputBaseSymlinkPath,
+               to: self.workspaceInfoExtractor.bazelOutputBase)
   }
 
   // Writes Xcode schemes for non-indexer targets if they don't already exist.
@@ -904,6 +982,11 @@ final class XcodeProjectGenerator {
       var suiteHostTarget: PBXTarget? = nil
       var validTests = Set<PBXTarget>()
       for testEntryLabel in testSuite.testSuiteDependencies {
+        // Skip over tests which were dropped since they were unsupported.
+        guard !info.ignoredTestTargets.contains(testEntryLabel) else {
+          continue
+        }
+
         if let recursiveTestSuite = info.testSuiteRuleEntries[testEntryLabel] {
           let (recursiveTests, recursiveSuiteHostTarget) = extractTestTargets(recursiveTestSuite)
           validTests.formUnion(recursiveTests)
@@ -1042,9 +1125,11 @@ final class XcodeProjectGenerator {
 
     let bazelSettingsProvider = workspaceInfoExtractor.bazelSettingsProvider
     let bazelExecRoot = workspaceInfoExtractor.bazelExecutionRoot
+    let bazelOutputBase = workspaceInfoExtractor.bazelOutputBase
     let features = BazelBuildSettingsFeatures.enabledFeatures(options: config.options)
     let bazelBuildSettings = bazelSettingsProvider.buildSettings(bazel: config.bazelURL.path,
                                                                  bazelExecRoot: bazelExecRoot,
+                                                                 bazelOutputBase: bazelOutputBase,
                                                                  options: config.options,
                                                                  features: features,
                                                                  buildRuleEntries: buildRuleEntries)
@@ -1094,8 +1179,11 @@ final class XcodeProjectGenerator {
     }
   }
 
-  /// Copy the bazel_cache_reader to a subfolder in the user's Library, return the absolute path.
-  private func installShellCommands(atURL supportScriptsAbsoluteURL: URL) throws -> String {
+  /// Copy an auxiliary executable to a subfolder in the user's Library, return the absolute path.
+  private func installAuxiliaryExecutable(_ auxiliaryExecutable: String) throws -> String {
+    // Construct a URL to ~/Library/Application Support/Tulsi/Scripts.
+    let supportScriptsAbsoluteURL = fileManager.homeDirectoryForCurrentUser.appendingPathComponent(
+      XcodeProjectGenerator.SupportScriptsPath, isDirectory: true)
 
     // Create all intermediate directories if they aren't present.
     var isDir = ObjCBool(false)
@@ -1105,20 +1193,48 @@ final class XcodeProjectGenerator {
                                       attributes: nil)
     }
 
-    // Find bazel_cache_reader in Tulsi.app's Utilities folder.
+    // Find the executable in Tulsi.app's Utilities folder.
     let bundle = Bundle(for: type(of: self))
-    let symbolCacheSourceURL = bundle.url(forAuxiliaryExecutable: XcodeProjectGenerator.ShellCommandsUtil)!
+    let sourceURL = bundle.url(forAuxiliaryExecutable: auxiliaryExecutable)!
 
-    // Copy bazel_cache_reader to ~/Library/Application Support/Tulsi/Scripts
-    installFiles([(symbolCacheSourceURL, XcodeProjectGenerator.ShellCommandsUtil)],
-                 toDirectory: supportScriptsAbsoluteURL)
+    // Copy the executable to ~/Library/Application Support/Tulsi/Scripts
+    installFiles([(sourceURL, auxiliaryExecutable)], toDirectory: supportScriptsAbsoluteURL)
 
-    // Return the absolute path to ~/Library/Application Support/Tulsi/Scripts/bazel_cache_reader.
-    let shellCommandsURL =
-        supportScriptsAbsoluteURL.appendingPathComponent(XcodeProjectGenerator.ShellCommandsUtil,
+    // Return the absolute path to the installed executable.
+    let auxiliaryBinaryURL =
+        supportScriptsAbsoluteURL.appendingPathComponent(auxiliaryExecutable,
                                                          isDirectory: false)
 
-    return shellCommandsURL.path
+    return auxiliaryBinaryURL.path
+  }
+
+  /// Update the global user defaults to remove any reference to bazel_cache_reader
+  private func removeShellCommandsFromGlobalUserDefaults(shellCommandsBasename: String) {
+    // Find if there is an existing entry for com.apple.DebugSymbols.
+    let dbgDefaults = UserDefaults.standard.persistentDomain(forName: "com.apple.DebugSymbols")
+
+    guard var currentDBGDefaults = dbgDefaults else {
+      // No com.apple.DebugSymbols exists, nothing to remove.
+      return
+    }
+
+    var newShellCommands : [String] = []
+
+    if let currentShellCommands = currentDBGDefaults["DBGShellCommands"] as? [String] {
+      // Copy all the current shell commands to the new DBGShellCommands array excluding the
+      // bazel_cache_reader command.
+      newShellCommands = currentShellCommands.filter { !$0.contains(shellCommandsBasename) }
+    } else if let currentShellCommand = currentDBGDefaults["DBGShellCommands"] as? String {
+      // Check that the single path at DBGShellCommands contains the shellCommandsBasename.
+      guard currentShellCommand.contains(shellCommandsBasename) else {
+        // Otherwise there is no need to remove anything.
+        return
+      }
+    }
+
+    // Replace DBGShellCommands in the existing com.apple.DebugSymbols defaults.
+    currentDBGDefaults["DBGShellCommands"] = newShellCommands.isEmpty ? nil : newShellCommands
+    UserDefaults.standard.setPersistentDomain(currentDBGDefaults, forName: "com.apple.DebugSymbols")
   }
 
   /// Update the global user defaults to reference bazel_cache_reader
@@ -1171,19 +1287,19 @@ final class XcodeProjectGenerator {
     UserDefaults.standard.setPersistentDomain(currentDBGDefaults, forName: "com.apple.DebugSymbols")
   }
 
-  /// Install the latest bazel_cache_reader.
-  private func updateShellCommands() throws {
+  /// Install or remove bazel_cache_reader.
+  private func updateShellCommands(useBazelCacheReader: Bool) throws {
     guard !suppressUpdatingShellCommands else { return }
 
-    // Construct a URL to ~/Library/Application Support/Tulsi/Scripts.
-    let supportScriptsAbsoluteURL = fileManager.homeDirectoryForCurrentUser.appendingPathComponent(
-      XcodeProjectGenerator.SupportScriptsPath, isDirectory: true)
+    if useBazelCacheReader {
+      // Install the latest version of the app to ~/Library/Application Support/Tulsi/Scripts/.
+      let shellCommandsAppPath = try installAuxiliaryExecutable(XcodeProjectGenerator.ShellCommandsUtil)
 
-    // Install the latest version of the app to ~/Library/Application Support/Tulsi/Scripts/.
-    let shellCommandsAppPath = try installShellCommands(atURL: supportScriptsAbsoluteURL)
-
-    // Add a reference to it in global user defaults.
-    updateGlobalUserDefaultsWithShellCommands(shellCommandsPath: shellCommandsAppPath)
+      // Add a reference to it in global user defaults.
+      updateGlobalUserDefaultsWithShellCommands(shellCommandsPath: shellCommandsAppPath)
+    } else {
+      removeShellCommandsFromGlobalUserDefaults(shellCommandsBasename: XcodeProjectGenerator.ShellCommandsUtil)
+    }
   }
 
   private func executePythonProcess(_ scriptFileName: String, onError: @escaping (Int32, String) -> Void) {
@@ -1249,6 +1365,11 @@ final class XcodeProjectGenerator {
                     (resourceURLs.cleanScript, XcodeProjectGenerator.CleanScript),
                    ],
                    toDirectory: scriptDirectoryURL)
+      installFiles([
+        (resourceURLs.stubClang, XcodeProjectGenerator.StubClang),
+        (resourceURLs.stubSwiftc, XcodeProjectGenerator.StubSwiftc),
+        (resourceURLs.stubLd, XcodeProjectGenerator.StubLd),
+      ], toDirectory: scriptDirectoryURL)
       installFiles(resourceURLs.extraBuildScripts.map { ($0, $0.lastPathComponent) },
                    toDirectory: scriptDirectoryURL)
       generateBuildSettingsFile(projectInfo.buildRuleEntries, scriptDirectoryURL)
@@ -1419,7 +1540,7 @@ final class XcodeProjectGenerator {
         // Only over-write if needed.
         if fileManager.fileExists(atPath: targetURL.path) {
           guard !fileManager.contentsEqual(atPath: sourceURL.path, andPath: targetURL.path) else {
-            continue;
+            continue
           }
           print("Overwriting \(targetURL.path) as its contents changed.")
           try fileManager.removeItem(at: targetURL)

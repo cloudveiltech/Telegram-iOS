@@ -6,6 +6,9 @@ swift_library(
     srcs = glob([
 		"Sources/**/*.swift",
     ]),
+    copts = [
+        "-warnings-as-errors",
+    ],
     deps = [
         #CloudVeil start
         "//Telegram:CloudVeilSecurityManager",
@@ -88,10 +91,17 @@ swift_library(
         "//submodules/OpenInExternalAppUI:OpenInExternalAppUI",
         "//submodules/AccountUtils:AccountUtils",
         "//submodules/AuthTransferUI:AuthTransferUI",
-        "//submodules/WidgetSetupScreen:WidgetSetupScreen",
         "//submodules/UIKitRuntimeUtils:UIKitRuntimeUtils",
         "//submodules/DebugSettingsUI:DebugSettingsUI",
         "//submodules/WallpaperBackgroundNode:WallpaperBackgroundNode",
+        "//submodules/WebPBinding:WebPBinding",
+        "//submodules/Components/ReactionImageComponent:ReactionImageComponent",
+        "//submodules/TranslateUI:TranslateUI",
+        "//submodules/QrCodeUI:QrCodeUI",
+        "//submodules/AnimatedStickerNode:AnimatedStickerNode",
+        "//submodules/TelegramAnimatedStickerNode:TelegramAnimatedStickerNode",
+        "//submodules/FetchManagerImpl:FetchManagerImpl",
+        "//submodules/ListMessageItem:ListMessageItem",
     ],
     visibility = [
         "//visibility:public",

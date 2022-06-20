@@ -31,11 +31,6 @@ load(
     "paths",
 )
 
-def _get_header_imports(framework_imports):
-    """Get the header files from the list of framework imports"""
-
-    return [file for file in framework_imports if file.short_path.endswith(".h")]
-
 # TODO(b/161370390): Remove ctx from the args when ctx is removed from all partials.
 def _swift_dynamic_framework_partial_impl(
         *,
@@ -61,26 +56,42 @@ frameworks expect a single swift_library dependency with `module_name` set to th
     modules_parent = paths.join("Modules", "{}.swiftmodule".format(bundle_name))
 
     for arch, swiftdoc in swiftdocs.items():
-        bundle_doc = intermediates.file(actions, label_name, "{}.swiftdoc".format(arch))
+        bundle_doc = intermediates.file(
+            actions = actions,
+            file_name = "{}.swiftdoc".format(arch),
+            output_discriminator = None,
+            target_name = label_name,
+        )
         actions.symlink(target_file = swiftdoc, output = bundle_doc)
         bundle_files.append((processor.location.bundle, modules_parent, depset([bundle_doc])))
 
     for arch, swiftmodule in swiftmodules.items():
-        bundle_doc = intermediates.file(actions, label_name, "{}.swiftmodule".format(arch))
+        bundle_doc = intermediates.file(
+            actions = actions,
+            file_name = "{}.swiftmodule".format(arch),
+            output_discriminator = None,
+            target_name = label_name,
+        )
         actions.symlink(target_file = swiftmodule, output = bundle_doc)
         bundle_files.append((processor.location.bundle, modules_parent, depset([bundle_doc])))
 
     if generated_header:
         bundle_header = intermediates.file(
-            actions,
-            label_name,
-            "{}.h".format(bundle_name),
+            actions = actions,
+            file_name = "{}.h".format(bundle_name),
+            output_discriminator = None,
+            target_name = label_name,
         )
         actions.symlink(target_file = generated_header, output = bundle_header)
         bundle_files.append((processor.location.bundle, "Headers", depset([bundle_header])))
 
     if modulemap_file:
-        modulemap = intermediates.file(actions, label_name, "module.modulemap")
+        modulemap = intermediates.file(
+            actions = actions,
+            file_name = "module.modulemap",
+            output_discriminator = None,
+            target_name = label_name,
+        )
         actions.symlink(target_file = modulemap_file, output = modulemap)
         bundle_files.append((processor.location.bundle, "Modules", depset([modulemap])))
 

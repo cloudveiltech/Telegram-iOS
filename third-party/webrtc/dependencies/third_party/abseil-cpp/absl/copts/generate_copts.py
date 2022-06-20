@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python3
 """Generate Abseil compile compile option configs.
 
 Usage: <path_to_absl>/copts/generate_copts.py

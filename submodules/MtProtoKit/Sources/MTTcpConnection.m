@@ -689,7 +689,7 @@ struct ctr_state {
     return queue;
 }
 
-- (instancetype)initWithContext:(MTContext *)context datacenterId:(NSInteger)datacenterId scheme:(MTTransportScheme *)scheme interface:(NSString *)interface usageCalculationInfo:(MTNetworkUsageCalculationInfo *)usageCalculationInfo
+- (instancetype)initWithContext:(MTContext *)context datacenterId:(NSInteger)datacenterId scheme:(MTTransportScheme *)scheme interface:(NSString *)interface usageCalculationInfo:(MTNetworkUsageCalculationInfo *)usageCalculationInfo getLogPrefix:(NSString *(^)())getLogPrefix
 {
 #ifdef DEBUG
     NSAssert(scheme != nil, @"scheme should not be nil");
@@ -699,6 +699,8 @@ struct ctr_state {
     if (self != nil)
     {
         _internalId = [[MTInternalId(MTTcpConnection) alloc] init];
+        
+        _getLogPrefix = [getLogPrefix copy];
         
         _encryptionProvider = context.encryptionProvider;
         
@@ -799,6 +801,7 @@ struct ctr_state {
         if (_socket == nil)
         {
             _socket = [[GCDAsyncSocket alloc] initWithDelegate:self delegateQueue:[[MTTcpConnection tcpQueue] nativeQueue]];
+            _socket.getLogPrefix = _getLogPrefix;
             _socket.usageCalculationInfo = _usageCalculationInfo;
             
             NSString *addressIp = _scheme.address.ip;
@@ -873,7 +876,7 @@ struct ctr_state {
                     }
                     
                     __autoreleasing NSError *error = nil;
-                    if (![strongSelf->_socket connectToHost:connectionData.ip onPort:connectionData.port viaInterface:strongSelf->_interface withTimeout:24 error:&error] || error != nil) {
+                    if (![strongSelf->_socket connectToHost:connectionData.ip onPort:connectionData.port viaInterface:strongSelf->_interface withTimeout:12 error:&error] || error != nil) {
                         [strongSelf closeAndNotifyWithError:true];
                     } else if (strongSelf->_socksIp == nil) {
                         if (strongSelf->_mtpIp != nil && [strongSelf->_mtpSecret isKindOfClass:[MTProxySecretType2 class]]) {
@@ -885,6 +888,9 @@ struct ctr_state {
                             int result;
                             result = SecRandomCopyBytes(nil, greaseData.length, greaseData.mutableBytes);
                             assert(result == errSecSuccess);
+                            if(result != errSecSuccess) {
+                                MTLog(@"SecRandomCopyBytes err");
+                            }
                             
                             for (int i = 0; i < greaseData.length; i++) {
                                 uint8_t c = greaseBytes[i];

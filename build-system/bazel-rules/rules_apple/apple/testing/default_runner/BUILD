@@ -10,6 +10,10 @@ load(
     "//apple/testing/default_runner:tvos_test_runner.bzl",
     "tvos_test_runner",
 )
+load(
+    "//apple/testing/default_runner:watchos_test_runner.bzl",
+    "watchos_test_runner",
+)
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 licenses(["notice"])
@@ -39,12 +43,32 @@ bzl_library(
     ],
 )
 
+bzl_library(
+    name = "watchos_test_runner",
+    srcs = ["watchos_test_runner.bzl"],
+    deps = [
+        "//apple/testing:apple_test_rules",
+    ],
+)
+
 exports_files([
     "ios_test_runner.template.sh",
     "macos_test_runner.template.sh",
     "macos_test_runner.template.xctestrun",
     "tvos_test_runner.template.sh",
+    "watchos_test_runner.template.sh",
 ])
+
+py_binary(
+    name = "simulator_creator",
+    srcs = ["simulator_creator.py"],
+    python_version = "PY3",
+    srcs_version = "PY3",
+    # Used by the rule implementations, so it needs to be public; but
+    # should be considered an implementation detail of the rules and
+    # not used by other things.
+    visibility = ["//visibility:public"],
+)
 
 ios_test_runner(
     name = "ios_default_runner",
@@ -64,6 +88,14 @@ macos_test_runner(
 
 tvos_test_runner(
     name = "tvos_default_runner",
+    # Used by the rule implementations, so it needs to be public; but
+    # should be considered an implementation detail of the rules and
+    # not used by other things.
+    visibility = ["//visibility:public"],
+)
+
+watchos_test_runner(
+    name = "watchos_default_runner",
     # Used by the rule implementations, so it needs to be public; but
     # should be considered an implementation detail of the rules and
     # not used by other things.

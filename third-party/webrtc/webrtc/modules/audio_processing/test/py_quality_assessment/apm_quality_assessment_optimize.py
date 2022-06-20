@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 # Copyright (c) 2017 The WebRTC project authors. All Rights Reserved.
 #
 # Use of this source code is governed by a BSD-style license
@@ -133,7 +133,7 @@ def _FindOptimalParameter(configs_and_scores, score_weighting):
                                 {score1: value1, ...}}] into a numeric
                      value
   Returns:
-    the config that has the largest values of |score_weighting| applied
+    the config that has the largest values of `score_weighting` applied
     to its scores.
   """
 

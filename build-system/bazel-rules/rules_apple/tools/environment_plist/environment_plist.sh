@@ -47,7 +47,7 @@ shift
 done
 
 set +e
-PLATFORM_DIR=$(/usr/bin/xcrun --sdk "${PLATFORM}" --show-sdk-platform-path)
+PLATFORM_DIR=$(/usr/bin/xcrun --sdk "${PLATFORM}" --show-sdk-platform-path 2>/dev/null)
 XCRUN_EXITCODE=$?
 set -e
 if [[ ${XCRUN_EXITCODE} -ne 0 ]] ; then
@@ -63,10 +63,10 @@ TEMPDIR=$(mktemp -d "${TMPDIR:-/tmp}/bazel_environment.XXXXXX")
 PLIST="${TEMPDIR}/env.plist"
 trap 'rm -rf "${TEMPDIR}"' ERR EXIT
 
-os_build=$(/usr/bin/sw_vers -buildVersion)
-compiler=$(/usr/libexec/PlistBuddy -c "print :DefaultProperties:DEFAULT_COMPILER" "${PLATFORM_PLIST}")
-xcodebuild_version_sdk_output=$(/usr/bin/xcodebuild -version -sdk "${PLATFORM}")
-xcodebuild_version_output=$(/usr/bin/xcodebuild -version)
+os_build=$(sw_vers -buildVersion)
+compiler=$(/usr/libexec/PlistBuddy -c "Print :DefaultProperties:DEFAULT_COMPILER" "${PLATFORM_PLIST}")
+xcodebuild_version_sdk_output=$(/usr/bin/xcrun xcodebuild -version -sdk "${PLATFORM}" 2>/dev/null)
+xcodebuild_version_output=$(/usr/bin/xcrun xcodebuild -version 2>/dev/null)
 # Parses 'PlatformVersion N.N' into N.N.
 platform_version=$(echo "${xcodebuild_version_sdk_output}" | grep PlatformVersion | cut -d ' ' -f2)
 # Parses 'ProductBuildVersion NNNN' into NNNN.

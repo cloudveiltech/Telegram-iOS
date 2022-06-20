@@ -6,6 +6,9 @@ swift_library(
     srcs = glob([
 		"Sources/**/*.swift",
     ]),
+    copts = [
+        "-warnings-as-errors",
+    ],
     deps = [
         #CloudVeil start
         "//Telegram:CloudVeilSecurityManager",
@@ -25,6 +28,7 @@ swift_library(
         "//submodules/AppBundle:AppBundle",
         "//submodules/LocationResources:LocationResources",
         "//submodules/UndoUI:UndoUI",
+        "//submodules/TranslateUI:TranslateUI",
     ],
     visibility = [
         "//visibility:public",

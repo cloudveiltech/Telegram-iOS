@@ -21,8 +21,8 @@ load(
     "rule_factory",
 )
 load(
-    "@build_bazel_rules_apple//apple/internal/utils:legacy_actions.bzl",
-    "legacy_actions",
+    "@build_bazel_apple_support//lib:apple_support.bzl",
+    "apple_support",
 )
 load(
     "@build_bazel_rules_apple//apple/internal:platform_support.bzl",
@@ -40,7 +40,10 @@ def _environment_plist(ctx):
         apple_fragment = ctx.fragments.apple,
         config_vars = ctx.var,
         device_families = None,
+        disabled_features = ctx.disabled_features,
+        explicit_minimum_deployment_os = None,
         explicit_minimum_os = None,
+        features = ctx.features,
         objc_fragment = None,
         platform_type_string = str(ctx.fragments.apple.single_arch_platform.platform_type),
         uses_swift = False,
@@ -49,8 +52,9 @@ def _environment_plist(ctx):
     )
     platform = platform_prerequisites.platform
     sdk_version = platform_prerequisites.sdk_version
-    legacy_actions.run(
+    apple_support.run(
         actions = ctx.actions,
+        apple_fragment = platform_prerequisites.apple_fragment,
         arguments = [
             "--platform",
             platform.name_in_plist.lower() + str(sdk_version),
@@ -59,7 +63,7 @@ def _environment_plist(ctx):
         ],
         executable = ctx.executable._environment_plist_tool,
         outputs = [ctx.outputs.plist],
-        platform_prerequisites = platform_prerequisites,
+        xcode_config = platform_prerequisites.xcode_version_config,
     )
 
 environment_plist = rule(
@@ -67,7 +71,7 @@ environment_plist = rule(
         rule_factory.common_tool_attributes,
         {
             "_environment_plist_tool": attr.label(
-                cfg = "host",
+                cfg = "exec",
                 executable = True,
                 default = Label("@build_bazel_rules_apple//tools/environment_plist"),
             ),

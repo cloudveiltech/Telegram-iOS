@@ -20,9 +20,7 @@
 #include "api/video_codecs/video_encoder.h"
 #include "common_video/generic_frame_descriptor/generic_frame_info.h"
 #include "modules/video_coding/codecs/h264/include/h264_globals.h"
-#ifndef DISABLE_H265
 #include "modules/video_coding/codecs/h265/include/h265_globals.h"
-#endif
 #include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/system/rtc_export.h"
@@ -39,12 +37,12 @@ struct CodecSpecificInfoVP8 {
   int8_t keyIdx;  // Negative value to skip keyIdx.
 
   // Used to generate the list of dependency frames.
-  // |referencedBuffers| and |updatedBuffers| contain buffer IDs.
+  // `referencedBuffers` and `updatedBuffers` contain buffer IDs.
   // Note that the buffer IDs here have a one-to-one mapping with the actual
   // codec buffers, but the exact mapping (i.e. whether 0 refers to Last,
   // to Golden or to Arf) is not pre-determined.
   // More references may be specified than are strictly necessary, but not less.
-  // TODO(bugs.webrtc.org/10242): Remove |useExplicitDependencies| once all
+  // TODO(bugs.webrtc.org/10242): Remove `useExplicitDependencies` once all
   // encoder-wrappers are updated.
   bool useExplicitDependencies;
   static constexpr size_t kBuffersCount = 3;
@@ -93,23 +91,18 @@ struct CodecSpecificInfoH264 {
   bool base_layer_sync;
   bool idr_frame;
 };
+static_assert(std::is_pod<CodecSpecificInfoH264>::value, "");
 
-#ifndef DISABLE_H265
 struct CodecSpecificInfoH265 {
   H265PacketizationMode packetization_mode;
   bool idr_frame;
 };
-#endif
-
-static_assert(std::is_pod<CodecSpecificInfoH264>::value, "");
 
 union CodecSpecificInfoUnion {
   CodecSpecificInfoVP8 VP8;
   CodecSpecificInfoVP9 VP9;
   CodecSpecificInfoH264 H264;
-#ifndef DISABLE_H265
   CodecSpecificInfoH265 H265;
-#endif
 };
 static_assert(std::is_pod<CodecSpecificInfoUnion>::value, "");
 

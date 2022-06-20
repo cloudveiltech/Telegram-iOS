@@ -341,6 +341,12 @@ apple_multi_shell_test(
     shard_count = 6,
 )
 
+apple_shell_test(
+    name = "ios_coverage_test",
+    size = "medium",
+    src = "ios_coverage_test.sh",
+)
+
 apple_multi_shell_test(
     name = "ios_ui_test_test",
     size = "medium",
@@ -411,12 +417,7 @@ apple_shell_test(
     args = [
         "--ios_multi_cpus=i386,x86_64",
     ],
-    shard_count = 10,
-    tags = [
-        # Disable these tests on BuildKite because we can't guarantee that it
-        # has a version of Xcode installed that has 32-bit iOS simulators.
-        "manual",  # disabled in oss
-    ],
+    shard_count = 9,
 )
 
 apple_shell_test(

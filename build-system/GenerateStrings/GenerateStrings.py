@@ -484,6 +484,7 @@ static NSString * _Nonnull getSingle(_PresentationStrings * _Nullable strings, N
             *isFound = true;
         }
     }
+    
     return [result stringByReplacingOccurrencesOfString:@"Telegram" withString:@"CloudVeil Messenger"];
 }
 

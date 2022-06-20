@@ -47,15 +47,6 @@ SWIFT_FEATURE_COVERAGE = "swift.coverage"
 # `swift_test` output just a binary.
 SWIFT_FEATURE_BUNDLED_XCTESTS = "swift.bundled_xctests"
 
-# If enabled, the Swift compiler will emit a directory containing JSON files
-# with timing information about the driver/frontend's actions. This directory
-# will be emitted as a default output when a Swift target is built directly, and
-# it will also be propagated in an output group named
-# `swift_compile_stats_direct`. Typically this output group will not be accessed
-# directly, but used by the `collect_swift_compile_stats` aspect to gather the
-# transitive stats for the entire build.
-SWIFT_FEATURE_COMPILE_STATS = "swift.compile_stats"
-
 # If enabled, debug builds will use the `-debug-prefix-map` feature to remap the
 # current working directory to `.`, which permits debugging remote or sandboxed
 # builds.
@@ -75,10 +66,18 @@ SWIFT_FEATURE_EMIT_C_MODULE = "swift.emit_c_module"
 # If enabled, when compiling an explicit C or Objectve-C module, every header
 # included by the module being compiled must belong to one of the modules listed
 # in its dependencies. This is ignored for system modules.
-SWIFT_FEATURE_STRICT_MODULES = "swift.strict_modules"
+SWIFT_FEATURE_LAYERING_CHECK = "swift.layering_check"
 
 # If enabled, the C or Objective-C target should be compiled as a system module.
 SWIFT_FEATURE_SYSTEM_MODULE = "swift.system_module"
+
+# If enabled, the `-Xcc -fsystem-module` flag will be passed when compiling a
+# system C/Objective-C module (with feature `swift.system_module`) because the
+# compiler is new enough to honor it correctly. If disabled, we attempt to mimic
+# this by disabling certain warnings; however, this unfortunately causes `UInt`
+# APIs to be imported by ClangImporter as `UInt` instead of `Int` because
+# ClangImporter doesn't recognize them as true system modules.
+SWIFT_FEATURE_SUPPORTS_SYSTEM_MODULE_FLAG = "swift.supports_system_module_flag"
 
 # If enabled, Swift compilation actions will use batch mode by passing
 # `-enable-batch-mode` to `swiftc`. This is a new compilation mode as of
@@ -100,17 +99,14 @@ SWIFT_FEATURE_ENABLE_TESTING = "swift.enable_testing"
 SWIFT_FEATURE_FULL_DEBUG_INFO = "swift.full_debug_info"
 
 # If enabled, the compilation action for a target will produce an index store.
+# https://docs.google.com/document/d/1cH2sTpgSnJZCkZtJl1aY-rzy4uGPcrI-6RrUpdATO2Q/
 SWIFT_FEATURE_INDEX_WHILE_BUILDING = "swift.index_while_building"
 
 # If enabled the compilation action will not produce indexes for system modules.
 SWIFT_FEATURE_DISABLE_SYSTEM_INDEX = "swift.disable_system_index"
 
-# If enabled, Swift libraries, binaries, and tests will only have automatic
-# dependencies on the targets provided by the toolchain's
-# `required_implicit_deps` field but not those in the `optional_implicit_deps`
-# field. Users may still explicitly list the latter in the `deps` of their
-# targets if they are needed.
-SWIFT_FEATURE_MINIMAL_DEPS = "swift.minimal_deps"
+# Index while building - using a global index store cache
+SWIFT_FEATURE_USE_GLOBAL_INDEX_STORE = "swift.use_global_index_store"
 
 # If enabled, compilation actions and module map generation will assume that the
 # header paths in module maps are relative to the current working directory
@@ -126,14 +122,16 @@ SWIFT_FEATURE_MODULE_MAP_NO_PRIVATE_HEADERS = (
     "swift.module_map_no_private_headers"
 )
 
-# If enabled, the compilation action for a library target will not generate an
-# Objective-C header for the module. This feature also implies
-# `swift.no_generated_module_map`.
-SWIFT_FEATURE_NO_GENERATED_HEADER = "swift.no_generated_header"
+# When code is compiled with ASAN enabled, a reference to a versioned symbol is
+# emitted that ensures that the object files are linked to a version of the ASAN
+# runtime library that is known to be compatible. If this feature is enabled,
+# the versioned symbol reference will be omitted, allowing the object files to
+# link to any version of the ASAN runtime library.
+SWIFT_FEATURE_NO_ASAN_VERSION_CHECK = "swift.no_asan_version_check"
 
 # If enabled, the compilation action for a library target will not generate a
-# module map for the Objective-C generated header. Note that this feature
-# is ignored if `swift.no_generated_header` is present.
+# module map for the Objective-C generated header. This feature is ignored if
+# the target is not generating a header.
 SWIFT_FEATURE_NO_GENERATED_MODULE_MAP = "swift.no_generated_module_map"
 
 # If enabled, builds using the "opt" compilation mode will invoke `swiftc` with
@@ -143,6 +141,11 @@ SWIFT_FEATURE_OPT_USES_WMO = "swift.opt_uses_wmo"
 # If enabled, builds using the "opt" compilation mode will invoke `swiftc` with
 # the `-Osize` flag instead of `-O`.
 SWIFT_FEATURE_OPT_USES_OSIZE = "swift.opt_uses_osize"
+
+# If enabled, and if the toolchain specifies a generated header rewriting tool,
+# that tool will be invoked after compilation to rewrite the generated header in
+# place.
+SWIFT_FEATURE_REWRITE_GENERATED_HEADER = "swift.rewrite_generated_header"
 
 # If enabled, Swift compiler invocations will use precompiled modules from
 # dependencies instead of module maps and headers, if those dependencies provide
@@ -157,6 +160,34 @@ SWIFT_FEATURE_USE_C_MODULES = "swift.use_c_modules"
 # so it can be explicitly re-enabled by users who are not affected by those
 # crashes.
 SWIFT_FEATURE_USE_GLOBAL_MODULE_CACHE = "swift.use_global_module_cache"
+
+# If enabled, and Swift compilation actions will use the shared Clang module
+# cache path written to
+# `/private/tmp/__build_bazel_rules_swift/swift_module_cache/REPOSITORY_NAME`.
+# This makes the embedded Clang module breadcrumbs deterministic between Bazel
+# instances, because they are always embedded as absolute paths. Note that the
+# use of this cache is non-hermetic--the cached modules are not wiped between
+# builds, and won't be cleaned when invoking `bazel clean`; the user is
+# responsible for manually cleaning them.
+#
+# Additionally, this can be used as a workaround for a bug in the Swift
+# compiler that causes the module breadcrumbs to be embedded even though the
+# `-no-clang-module-breadcrumbs` flag is passed
+# (https://bugs.swift.org/browse/SR-13275).
+#
+# Since the source path of modulemaps might be different for the same module,
+# (i.e. multiple checkouts of the same repository, or remote execution),
+# multiple modules with different hashes can end up in the cache. This can
+# result in build failures. Don't use this feature with sandboxing (or
+# probably remote execution as well).
+#
+# This feature requires `swift.use_global_module_cache` to be enabled.
+SWIFT_FEATURE_GLOBAL_MODULE_CACHE_USES_TMPDIR = "swift.global_module_cache_uses_tmpdir"
+
+# If enabled, actions invoking the Swift driver will use the legacy driver
+# instead of the new driver (https://github.com/apple/swift-driver) that
+# launched in Xcode 13/Swift 5.5.
+SWIFT_FEATURE_USE_OLD_DRIVER = "swift.use_old_driver"
 
 # If enabled, actions invoking the Swift driver or frontend may write argument
 # lists into response files (i.e., "@args.txt") to avoid passing command lines
@@ -191,6 +222,10 @@ SWIFT_FEATURE_SUPPORTS_LIBRARY_EVOLUTION = "swift.supports_library_evolution"
 # `SWIFT_FEATURES_SUPPORTS_LIBRARY_EVOLUTION` feature is not enabled, this
 # feature is a noop.
 SWIFT_FEATURE_ENABLE_LIBRARY_EVOLUTION = "swift.enable_library_evolution"
+
+# If enabled the compiler will produce an LLVM Bitcode BC file instead of an
+# Mach-O object file using -emit-bc instead of -emit-object.
+SWIFT_FEATURE_EMIT_BC = "swift.emit_bc"
 
 # If enabled, requests the swiftinterface file to be built on the swiftc
 # invocation. If the `SWIFT_FEATURES_SUPPORTS_LIBRARY_EVOLUTION` feature is not
@@ -237,3 +272,17 @@ SWIFT_FEATURE_ENABLE_SKIP_FUNCTION_BODIES = "swift.skip_function_bodies_for_deri
 # If enabled remap the absolute path to Xcode in debug info. When used with
 # swift.coverage_prefix_map also remap the path in coverage data.
 SWIFT_FEATURE_REMAP_XCODE_PATH = "swift.remap_xcode_path"
+
+# A private feature that is set by the toolchain if a flag enabling WMO was
+# passed on the command line using `--swiftcopt`. Users should never manually
+# enable, disable, or query this feature.
+SWIFT_FEATURE__WMO_IN_SWIFTCOPTS = "swift._wmo_in_swiftcopts"
+
+# A private feature that is set by the toolchain if the flags `-num-threads 0`
+# were passed on the command line using `--swiftcopt`. Users should never
+# manually enable, disable, or query this feature.
+SWIFT_FEATURE__NUM_THREADS_0_IN_SWIFTCOPTS = "swift._num_threads_0_in_swiftcopts"
+
+# A feature to enable setting pch-output-dir
+# This is a directory to persist automatically created precompiled bridging headers
+SWIFT_FEATURE_USE_PCH_OUTPUT_DIR = "swift.use_pch_output_dir"

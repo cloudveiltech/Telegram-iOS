@@ -1,4 +1,3 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//swift:swift.bzl", "swift_library")
 load("//test/fixtures:common.bzl", "FIXTURE_TAGS")
 
@@ -14,18 +13,21 @@ licenses(["notice"])
 swift_library(
     name = "private_swift",
     srcs = ["Empty.swift"],
+    generates_header = True,
     tags = FIXTURE_TAGS,
 )
 
 swift_library(
     name = "public_swift",
     srcs = ["Empty.swift"],
+    generates_header = True,
     tags = FIXTURE_TAGS,
 )
 
 swift_library(
     name = "client_swift_deps",
     srcs = ["Empty.swift"],
+    generates_header = True,
     private_deps = [
         ":private_swift",
     ],
@@ -68,13 +70,11 @@ cc_library(
 swift_library(
     name = "client_cc_deps",
     srcs = ["Empty.swift"],
-    features = [
-        # Suppress the generated header/module map on platforms that support
-        # Objective-C interop so that we don't have to worry about
-        # conditionally checking for it in the transitive modules on just those
-        # platforms.
-        "swift.no_generated_header",
-    ],
+    # Suppress the generated header/module map on platforms that support
+    # Objective-C interop so that we don't have to worry about
+    # conditionally checking for it in the transitive modules on just those
+    # platforms.
+    generates_header = False,
     private_deps = [
         ":private_cc",
     ],

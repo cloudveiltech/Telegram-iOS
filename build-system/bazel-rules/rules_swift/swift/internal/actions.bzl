@@ -41,6 +41,9 @@ swift_action_names = struct(
     # Produces files that are usually fallout of the compilation such as
     # .swiftmodule, -Swift.h and more.
     DERIVE_FILES = "SwiftDeriveFiles",
+
+    # Produces an AST file for each swift source file in a module.
+    DUMP_AST = "SwiftDumpAST",
 )
 
 def _apply_configurator(configurator, prerequisites, args):
@@ -135,7 +138,17 @@ def _apply_action_configs(
                     prerequisites,
                     args,
                 )
-                if action_inputs:
+
+                # If we create an action configurator from a lambda that calls
+                # `Args.add*`, the result will be the `Args` objects (rather
+                # than `None`) because those methods return the same `Args`
+                # object for chaining. We can guard against this (and possibly
+                # other errors) by checking that the value is a struct. If it
+                # is, then it's not `None` and it probably came from the
+                # provider used by `swift_toolchain_config.config_result`. If
+                # it's some other kind of struct, then we'll error out trying to
+                # access the fields.
+                if type(action_inputs) == "struct":
                     inputs.extend(action_inputs.inputs)
                     transitive_inputs.extend(action_inputs.transitive_inputs)
 
@@ -224,7 +237,6 @@ def run_toolchain_action(
             tools.append(tool_config.executable)
     else:
         executable = tool_config.executable
-    tools.extend(tool_config.additional_tools)
 
     # If the tool configuration has any required arguments, add those first.
     if tool_config.args:
@@ -246,11 +258,12 @@ def run_toolchain_action(
         env = tool_config.env,
         executable = executable,
         execution_requirements = execution_requirements,
+        input_manifests = tool_config.tool_input_manifests,
         inputs = depset(
             action_inputs.inputs,
             transitive = action_inputs.transitive_inputs,
         ),
         mnemonic = mnemonic if mnemonic else action_name,
-        tools = tools,
+        tools = depset(tools, transitive = [tool_config.tool_inputs]),
         **kwargs
     )

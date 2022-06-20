@@ -1,4 +1,3 @@
-# Lint as: python2, python3
 # Copyright 2020 The Bazel Authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -122,7 +121,7 @@ def main():
   args = parser.parse_args()
 
   all_binary_archs = args.slice
-  framework_archs = lipo.find_archs_for_binaries(args.framework_binary)
+  framework_archs, _ = lipo.find_archs_for_binaries(args.framework_binary)
 
   if not framework_archs:
     return 1

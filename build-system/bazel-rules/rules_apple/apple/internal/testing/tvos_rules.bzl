@@ -62,7 +62,7 @@ def _tvos_unit_test_impl(ctx):
 # Declare it with an underscore so it shows up that way in queries.
 _tvos_internal_ui_test_bundle = rule_factory.create_apple_bundling_rule(
     implementation = _tvos_ui_test_bundle_impl,
-    platform_type = str(apple_common.platform_type.tvos),
+    platform_type = "tvos",
     product_type = apple_product_type.ui_test_bundle,
     doc = "Builds and bundles an tvOS UI Test Bundle.  Internal target not to be depended upon.",
 )
@@ -72,14 +72,25 @@ tvos_internal_ui_test_bundle = _tvos_internal_ui_test_bundle
 
 tvos_ui_test = rule_factory.create_apple_test_rule(
     implementation = _tvos_ui_test_impl,
-    doc = "tvOS UI Test rule.",
-    platform_type = str(apple_common.platform_type.tvos),
+    doc = """
+Builds and bundles a tvOS UI `.xctest` test bundle. Runs the tests using the
+provided test runner when invoked with `bazel test`. When using Tulsi to run
+tests built with this target, `runner` will not be used since Xcode is the test
+runner in that case.
+
+Note: tvOS UI tests are not currently supported in the default test runner.
+
+The following is a list of the `tvos_ui_test` specific attributes; for a list of
+the attributes inherited by all test rules, please check the
+[Bazel documentation](https://bazel.build/reference/be/common-definitions#common-attributes-tests).
+""",
+    platform_type = "tvos",
 )
 
 # Declare it with an underscore so it shows up that way in queries.
 _tvos_internal_unit_test_bundle = rule_factory.create_apple_bundling_rule(
     implementation = _tvos_unit_test_bundle_impl,
-    platform_type = str(apple_common.platform_type.tvos),
+    platform_type = "tvos",
     product_type = apple_product_type.unit_test_bundle,
     doc = "Builds and bundles an tvOS Unit Test Bundle. Internal target not to be depended upon.",
 )
@@ -89,6 +100,25 @@ tvos_internal_unit_test_bundle = _tvos_internal_unit_test_bundle
 
 tvos_unit_test = rule_factory.create_apple_test_rule(
     implementation = _tvos_unit_test_impl,
-    doc = "tvOS Unit Test rule.",
-    platform_type = str(apple_common.platform_type.tvos),
+    doc = """
+Builds and bundles a tvOS Unit `.xctest` test bundle. Runs the tests using the
+provided test runner when invoked with `bazel test`. When using Tulsi to run
+tests built with this target, `runner` will not be used since Xcode is the test
+runner in that case.
+
+Note: tvOS unit tests are not currently supported in the default test runner.
+
+`tvos_unit_test` targets can work in two modes: as app or library tests. If the
+`test_host` attribute is set to an `tvos_application` target, the tests will run
+within that application's context. If no `test_host` is provided, the tests will
+run outside the context of a tvOS application. Because of this, certain
+functionalities might not be present (e.g. UI layout, NSUserDefaults). You can
+find more information about app and library testing for Apple platforms
+[here](https://developer.apple.com/library/content/documentation/DeveloperTools/Conceptual/testing_with_xcode/chapters/03-testing_basics.html).
+
+The following is a list of the `tvos_unit_test` specific attributes; for a list
+of the attributes inherited by all test rules, please check the
+[Bazel documentation](https://bazel.build/reference/be/common-definitions#common-attributes-tests).
+""",
+    platform_type = "tvos",
 )

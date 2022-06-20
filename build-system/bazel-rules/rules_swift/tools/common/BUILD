@@ -1,5 +1,3 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
-
 package(
     default_visibility = [
         "//tools/worker:__pkg__",
@@ -7,6 +5,12 @@ package(
 )
 
 licenses(["notice"])
+
+cc_library(
+    name = "bazel_substitutions",
+    srcs = ["bazel_substitutions.cc"],
+    hdrs = ["bazel_substitutions.h"],
+)
 
 cc_library(
     name = "file_system",
@@ -30,12 +34,6 @@ cc_library(
     deps = [
         ":path_utils",
     ],
-)
-
-cc_library(
-    name = "string_utils",
-    srcs = ["string_utils.cc"],
-    hdrs = ["string_utils.h"],
 )
 
 cc_library(

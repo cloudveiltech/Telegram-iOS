@@ -19,15 +19,13 @@ load("@bazel_skylib//lib:dicts.bzl", "dicts")
 load(
     ":compiling.bzl",
     "new_objc_provider",
-    "output_groups_from_compilation_outputs",
+    "output_groups_from_other_compilation_outputs",
 )
 load(
     ":feature_names.bzl",
     "SWIFT_FEATURE_ENABLE_TESTING",
     "SWIFT_FEATURE_GENERATE_FROM_RAW_PROTO_FILES",
-    "SWIFT_FEATURE_NO_GENERATED_HEADER",
 )
-load(":linking.bzl", "create_linker_input")
 load(
     ":proto_gen_utils.bzl",
     "declare_generated_files",
@@ -37,12 +35,7 @@ load(
 )
 load(":providers.bzl", "SwiftInfo", "SwiftProtoInfo", "SwiftToolchainInfo")
 load(":swift_common.bzl", "swift_common")
-load(
-    ":utils.bzl",
-    "compact",
-    "create_cc_info",
-    "get_providers",
-)
+load(":utils.bzl", "compact", "get_providers")
 
 def _register_grpcswift_generate_action(
         label,
@@ -189,7 +182,7 @@ def _register_grpcswift_generate_action(
         ],
         mnemonic = "ProtocGenSwiftGRPC",
         outputs = generated_files,
-        progress_message = "Generating Swift sources for {}".format(label),
+        progress_message = "Generating Swift sources for %{label}",
     )
 
     return generated_files
@@ -214,7 +207,7 @@ def _swift_grpc_library_impl(ctx):
 
     feature_configuration = swift_common.configure_features(
         ctx = ctx,
-        requested_features = ctx.features + [SWIFT_FEATURE_NO_GENERATED_HEADER],
+        requested_features = ctx.features,
         swift_toolchain = swift_toolchain,
         unsupported_features = unsupported_features,
     )
@@ -280,78 +273,70 @@ def _swift_grpc_library_impl(ctx):
 
     module_name = swift_common.derive_module_name(ctx.label)
 
-    compilation_outputs = swift_common.compile(
+    module_context, cc_compilation_outputs, other_compilation_outputs = swift_common.compile(
         actions = ctx.actions,
-        bin_dir = ctx.bin_dir,
         copts = ["-parse-as-library"],
         deps = compile_deps,
         feature_configuration = feature_configuration,
-        genfiles_dir = ctx.genfiles_dir,
         module_name = module_name,
         srcs = generated_files,
         swift_toolchain = swift_toolchain,
         target_name = ctx.label.name,
+        workspace_name = ctx.workspace_name,
     )
 
-    linker_input, library_to_link = create_linker_input(
-        actions = ctx.actions,
-        alwayslink = False,
-        cc_feature_configuration = swift_common.cc_feature_configuration(
+    linking_context, linking_output = (
+        swift_common.create_linking_context_from_compilation_outputs(
+            actions = ctx.actions,
+            compilation_outputs = cc_compilation_outputs,
             feature_configuration = feature_configuration,
-        ),
-        compilation_outputs = compilation_outputs,
-        is_dynamic = False,
-        is_static = True,
-        library_name = ctx.label.name,
-        objects = compilation_outputs.object_files,
-        owner = ctx.label,
-        swift_toolchain = swift_toolchain,
+            label = ctx.label,
+            linking_contexts = [
+                dep[CcInfo].linking_context
+                for dep in compile_deps
+                if CcInfo in dep
+            ],
+            module_context = module_context,
+            swift_toolchain = swift_toolchain,
+        )
     )
 
     providers = [
         DefaultInfo(
             files = depset(direct = generated_files + compact([
-                compilation_outputs.swiftdoc,
-                compilation_outputs.swiftmodule,
-                library_to_link.pic_static_library,
+                module_context.swift.swiftdoc,
+                module_context.swift.swiftmodule,
+                linking_output.library_to_link.pic_static_library,
+                linking_output.library_to_link.static_library,
             ])),
         ),
-        OutputGroupInfo(**output_groups_from_compilation_outputs(
-            compilation_outputs = compilation_outputs,
+        OutputGroupInfo(**output_groups_from_other_compilation_outputs(
+            other_compilation_outputs = other_compilation_outputs,
         )),
-        create_cc_info(
-            cc_infos = get_providers(compile_deps, CcInfo),
-            compilation_outputs = compilation_outputs,
-            linker_inputs = [linker_input],
+        CcInfo(
+            compilation_context = module_context.clang.compilation_context,
+            linking_context = linking_context,
         ),
         deps[0][SwiftProtoInfo],
         swift_common.create_swift_info(
-            modules = [
-                swift_common.create_module(
-                    name = module_name,
-                    swift = swift_common.create_swift_module(
-                        swiftdoc = compilation_outputs.swiftdoc,
-                        swiftmodule = compilation_outputs.swiftmodule,
-                    ),
-                ),
-            ],
+            modules = [module_context],
             swift_infos = get_providers(compile_deps, SwiftInfo),
         ),
     ]
 
-    # Propagate an `objc` provider if the toolchain supports Objective-C
-    # interop, which ensures that the libraries get linked into `apple_binary`
-    # targets properly.
-    if swift_toolchain.supports_objc_interop:
-        providers.append(new_objc_provider(
-            deps = compile_deps,
-            link_inputs = compilation_outputs.linker_inputs,
-            linkopts = compilation_outputs.linker_flags,
-            module_map = compilation_outputs.generated_module_map,
-            static_archives = compact([library_to_link.pic_static_library]),
-            swiftmodules = [compilation_outputs.swiftmodule],
-            objc_header = compilation_outputs.generated_header,
-        ))
+    # Propagate an `apple_common.Objc` provider with linking info about the
+    # library so that linking with Apple Starlark APIs/rules works correctly.
+    # TODO(b/171413861): This can be removed when the Obj-C rules are migrated
+    # to use `CcLinkingContext`.
+    providers.append(new_objc_provider(
+        additional_objc_infos = (
+            swift_toolchain.implicit_deps_providers.objc_infos
+        ),
+        deps = compile_deps,
+        feature_configuration = feature_configuration,
+        module_context = module_context,
+        libraries_to_link = [linking_output.library_to_link],
+    ))
 
     return providers
 
@@ -391,7 +376,7 @@ The kind of definitions that should be generated:
 """,
             ),
             "_mkdir_and_run": attr.label(
-                cfg = "host",
+                cfg = "exec",
                 default = Label(
                     "@build_bazel_rules_swift//tools/mkdir_and_run",
                 ),
@@ -402,16 +387,16 @@ The kind of definitions that should be generated:
                 default = [Label("@com_github_grpc_grpc_swift//:SwiftGRPC")],
             ),
             "_protoc": attr.label(
-                cfg = "host",
+                cfg = "exec",
                 default = Label(
                     "@com_google_protobuf//:protoc",
                 ),
                 executable = True,
             ),
             "_protoc_gen_swiftgrpc": attr.label(
-                cfg = "host",
+                cfg = "exec",
                 default = Label(
-                    "@com_github_grpc_grpc_swift//:protoc-gen-swiftgrpc",
+                    "@com_github_grpc_grpc_swift//:protoc-gen-swiftgrpc_wrapper",
                 ),
                 executable = True,
             ),

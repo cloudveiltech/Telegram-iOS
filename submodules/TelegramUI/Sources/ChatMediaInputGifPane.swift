@@ -8,6 +8,7 @@ import SwiftSignalKit
 import TelegramPresentationData
 import ContextUI
 import AccountContext
+import ChatPresentationInterfaceState
 
 private func fixListScrolling(_ multiplexedNode: MultiplexedVideoNode) {
     let searchBarHeight: CGFloat = 56.0
@@ -300,7 +301,7 @@ final class ChatMediaInputGifPane: ChatMediaInputPane, UIScrollViewDelegate {
                 
                 if let recentGifs = recentGifs {
                     saved = recentGifs.items.map { item in
-                        let file = (item.contents as! RecentMediaItem).media as! TelegramMediaFile
+                        let file = item.contents.get(RecentMediaItem.self)!.media
                         return MultiplexedVideoNodeFile(file: .savedGif(media: file), contextResult: nil)
                     }
                 } else {

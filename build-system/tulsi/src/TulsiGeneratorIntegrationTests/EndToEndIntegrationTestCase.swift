@@ -34,10 +34,10 @@ class EndToEndIntegrationTestCase : BazelIntegrationTestCase {
   let fakeBazelURL = URL(fileURLWithPath: "/fake/tulsi_test_bazel", isDirectory: false)
   let testTulsiVersion = "9.99.999.9999"
 
-  final func validateDiff(_ diffLines: [String], file: StaticString = #file, line: UInt = #line) {
-    for diff in diffLines {
-      XCTFail(diff, file: file, line: line)
-    }
+  final func validateDiff(_ diffLines: [String], for resourceName: String, file: StaticString = #file, line: UInt = #line) {
+    guard !diffLines.isEmpty else { return }
+    let message = "\(resourceName) xcodeproj does not match its golden. Diff output:\n\(diffLines.joined(separator: "\n"))"
+    XCTFail(message, file: file, line: line)
   }
 
   final func diffProjectAt(_ projectURL: URL,
@@ -49,7 +49,6 @@ class EndToEndIntegrationTestCase : BazelIntegrationTestCase {
       XCTFail("Must define environment variable \"SWIFT_DETERMINISTIC_HASHING=1\", or golden tests will fail.")
       return []
     }
-    let bundle = Bundle(for: type(of: self))
     let goldenProjectURL = workspaceRootURL.appendingPathComponent(fakeBazelWorkspace
                                                                        .resourcesPathBase,
                                                                    isDirectory: true)
@@ -248,10 +247,12 @@ class EndToEndIntegrationTestCase : BazelIntegrationTestCase {
     projectGenerator.xcodeProjectGenerator.suppressCompilerDefines = true
     // Don't update shell command utilities.
     projectGenerator.xcodeProjectGenerator.suppressUpdatingShellCommands = true
+    // Don't install module cache pruner tool.
+    projectGenerator.xcodeProjectGenerator.suppressModuleCachePrunerInstallation = true
     // The username is forced to a known value.
     projectGenerator.xcodeProjectGenerator.usernameFetcher = { "_TEST_USER_" }
-    // The workspace symlink is forced to a known value.
-    projectGenerator.xcodeProjectGenerator.redactWorkspaceSymlink = true
+    // Omit bazel output symlinks so they don't have unknown values.
+    projectGenerator.xcodeProjectGenerator.redactSymlinksToBazelOutput = true
     let errorInfo: String
     do {
       let generatedProjURL = try projectGenerator.generateXcodeProjectInFolder(outputFolderURL)

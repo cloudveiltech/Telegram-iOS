@@ -6,6 +6,7 @@ import TelegramCore
 import Postbox
 import SwiftSignalKit
 import LocalizedPeerData
+import ChatPresentationInterfaceState
 
 final class SecretChatHandshakeStatusInputPanelNode: ChatInputPanelNode {
     private let button: HighlightableButtonNode
@@ -53,7 +54,7 @@ final class SecretChatHandshakeStatusInputPanelNode: ChatInputPanelNode {
                         let text: String
                         switch peer.role {
                             case .creator:
-                                text = interfaceState.strings.DialogList_AwaitingEncryption(userPeer.compactDisplayTitle).string
+                                text = interfaceState.strings.DialogList_AwaitingEncryption(EnginePeer(userPeer).compactDisplayTitle).string
                             case .participant:
                                 text = interfaceState.strings.Conversation_EncryptionProcessing
                         }

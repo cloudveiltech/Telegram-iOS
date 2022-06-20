@@ -14,14 +14,18 @@
 
 #include "tools/common/file_system.h"
 
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <cerrno>
+#include <iostream>
 #include <string>
 
 #ifdef __APPLE__
 #include <copyfile.h>
+#include <removefile.h>
 #else
 #include <fcntl.h>
 #include <sys/sendfile.h>
@@ -35,6 +39,20 @@ std::string GetCurrentDirectory() {
   std::string cwd(buffer);
   free(buffer);
   return cwd;
+}
+
+bool FileExists(const std::string &path) {
+  return access(path.c_str(), 0) == 0;
+}
+
+bool RemoveFile(const std::string &path) {
+#ifdef __APPLE__
+  return removefile(path.c_str(), nullptr, 0);
+#elif __unix__
+  return remove(path.c_str());
+#else
+#error Only macOS and Unix are supported at this time.
+#endif
 }
 
 bool CopyFile(const std::string &src, const std::string &dest) {
@@ -84,7 +102,13 @@ bool MakeDirs(const std::string &path, int mode) {
   struct stat dir_stats;
   if (stat(path.c_str(), &dir_stats) == 0) {
     // Return true if the directory already exists.
-    return S_ISDIR(dir_stats.st_mode);
+    if (S_ISDIR(dir_stats.st_mode)) {
+      return true;
+    }
+
+    std::cerr << "error: path already exists but is not a directory: "
+              << path << "\n";
+    return false;
   }
 
   // Recurse to create the parent directory.
@@ -93,5 +117,25 @@ bool MakeDirs(const std::string &path, int mode) {
   }
 
   // Create the directory that was requested.
-  return mkdir(path.c_str(), mode) == 0;
+  if (mkdir(path.c_str(), mode) == 0) {
+    return true;
+  }
+
+  // Race condition: The above call to `mkdir` could fail if there are multiple
+  // calls to `MakeDirs` running at the same time with overlapping paths, so
+  // check again to see if the directory exists despite the call failing. If it
+  // does, that's ok.
+  if (errno == EEXIST && stat(path.c_str(), &dir_stats) == 0) {
+    if (S_ISDIR(dir_stats.st_mode)) {
+      return true;
+    }
+
+    std::cerr << "error: path already exists but is not a directory: "
+              << path << "\n";
+    return false;
+  }
+
+  std::cerr << "error: could not create directory: " << path
+            << " (" << strerror(errno) << ")\n";
+  return false;
 }

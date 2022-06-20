@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 # Copyright (c) 2019 The WebRTC project authors. All Rights Reserved.
 #
 # Use of this source code is governed by a BSD-style license
@@ -88,7 +88,8 @@ def main():
         plt.ylabel('%s (%s)' % (metric[GRAPH_NAME], metric[UNITS]))
         plt.xlabel('time (s)')
         plt.title(metric[GRAPH_NAME])
-        plt.plot(x_values, y_values)
+        plt.plot(x_values, y_values, marker='x', markersize=3,
+                 markeredgecolor='red')
 
     plt.show()
 

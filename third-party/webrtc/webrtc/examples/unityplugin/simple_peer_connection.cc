@@ -101,10 +101,10 @@ class DummySetSessionDescriptionObserver
   static DummySetSessionDescriptionObserver* Create() {
     return new rtc::RefCountedObject<DummySetSessionDescriptionObserver>();
   }
-  virtual void OnSuccess() { RTC_LOG(INFO) << __FUNCTION__; }
+  virtual void OnSuccess() { RTC_LOG(LS_INFO) << __FUNCTION__; }
   virtual void OnFailure(webrtc::RTCError error) {
-    RTC_LOG(INFO) << __FUNCTION__ << " " << ToString(error.type()) << ": "
-                  << error.message();
+    RTC_LOG(LS_INFO) << __FUNCTION__ << " " << ToString(error.type()) << ": "
+                     << error.message();
   }
 
  protected:
@@ -190,13 +190,15 @@ bool SimplePeerConnection::CreatePeerConnection(const char** turn_urls,
   webrtc::PeerConnectionInterface::IceServer stun_server;
   stun_server.uri = GetPeerConnectionString();
   config_.servers.push_back(stun_server);
-  config_.enable_rtp_data_channel = true;
-  config_.enable_dtls_srtp = false;
 
-  peer_connection_ = g_peer_connection_factory->CreatePeerConnection(
-      config_, nullptr, nullptr, this);
-
-  return peer_connection_.get() != nullptr;
+  auto result = g_peer_connection_factory->CreatePeerConnectionOrError(
+      config_, webrtc::PeerConnectionDependencies(this));
+  if (!result.ok()) {
+    peer_connection_ = nullptr;
+    return false;
+  }
+  peer_connection_ = result.MoveValue();
+  return true;
 }
 
 void SimplePeerConnection::DeletePeerConnection() {
@@ -267,7 +269,7 @@ void SimplePeerConnection::OnSuccess(
 }
 
 void SimplePeerConnection::OnFailure(webrtc::RTCError error) {
-  RTC_LOG(LERROR) << ToString(error.type()) << ": " << error.message();
+  RTC_LOG(LS_ERROR) << ToString(error.type()) << ": " << error.message();
 
   // TODO(hta): include error.type in the message
   if (OnFailureMessage)
@@ -276,7 +278,7 @@ void SimplePeerConnection::OnFailure(webrtc::RTCError error) {
 
 void SimplePeerConnection::OnIceCandidate(
     const webrtc::IceCandidateInterface* candidate) {
-  RTC_LOG(INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
+  RTC_LOG(LS_INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
 
   std::string sdp;
   if (!candidate->ToString(&sdp)) {
@@ -341,12 +343,12 @@ bool SimplePeerConnection::SetRemoteDescription(const char* type,
   webrtc::SessionDescriptionInterface* session_description(
       webrtc::CreateSessionDescription(desc_type, remote_desc, &error));
   if (!session_description) {
-    RTC_LOG(WARNING) << "Can't parse received session description message. "
-                        "SdpParseError was: "
-                     << error.description;
+    RTC_LOG(LS_WARNING) << "Can't parse received session description message. "
+                           "SdpParseError was: "
+                        << error.description;
     return false;
   }
-  RTC_LOG(INFO) << " Received session description :" << remote_desc;
+  RTC_LOG(LS_INFO) << " Received session description :" << remote_desc;
   peer_connection_->SetRemoteDescription(
       DummySetSessionDescriptionObserver::Create(), session_description);
 
@@ -363,16 +365,16 @@ bool SimplePeerConnection::AddIceCandidate(const char* candidate,
   std::unique_ptr<webrtc::IceCandidateInterface> ice_candidate(
       webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, candidate, &error));
   if (!ice_candidate.get()) {
-    RTC_LOG(WARNING) << "Can't parse received candidate message. "
-                        "SdpParseError was: "
-                     << error.description;
+    RTC_LOG(LS_WARNING) << "Can't parse received candidate message. "
+                           "SdpParseError was: "
+                        << error.description;
     return false;
   }
   if (!peer_connection_->AddIceCandidate(ice_candidate.get())) {
-    RTC_LOG(WARNING) << "Failed to apply the received candidate";
+    RTC_LOG(LS_WARNING) << "Failed to apply the received candidate";
     return false;
   }
-  RTC_LOG(INFO) << " Received candidate :" << candidate;
+  RTC_LOG(LS_INFO) << " Received candidate :" << candidate;
   return true;
 }
 
@@ -407,7 +409,7 @@ void SimplePeerConnection::SetAudioControl() {
 
 void SimplePeerConnection::OnAddStream(
     rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
-  RTC_LOG(INFO) << __FUNCTION__ << " " << stream->id();
+  RTC_LOG(LS_INFO) << __FUNCTION__ << " " << stream->id();
   remote_stream_ = stream;
   if (remote_video_observer_ && !remote_stream_->GetVideoTracks().empty()) {
     remote_stream_->GetVideoTracks()[0]->AddOrUpdateSink(
@@ -494,8 +496,9 @@ bool SimplePeerConnection::CreateDataChannel() {
   struct webrtc::DataChannelInit init;
   init.ordered = true;
   init.reliable = true;
-  data_channel_ = peer_connection_->CreateDataChannel("Hello", &init);
-  if (data_channel_.get()) {
+  auto result = peer_connection_->CreateDataChannelOrError("Hello", &init);
+  if (result.ok()) {
+    data_channel_ = result.MoveValue();
     data_channel_->RegisterObserver(this);
     RTC_LOG(LS_INFO) << "Succeeds to create data channel";
     return true;

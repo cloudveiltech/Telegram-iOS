@@ -18,11 +18,14 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/sequence_checker.h"
+#include "api/units/timestamp.h"
 #include "api/video/color_space.h"
+#include "api/video/video_codec_type.h"
 #include "api/video_codecs/video_codec.h"
 #include "call/rtp_packet_sink_interface.h"
 #include "call/syncable.h"
@@ -32,16 +35,15 @@
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
-#include "modules/rtp_rtcp/source/absolute_capture_time_receiver.h"
+#include "modules/rtp_rtcp/source/absolute_capture_time_interpolator.h"
+#include "modules/rtp_rtcp/source/capture_clock_offset_updater.h"
 #include "modules/rtp_rtcp/source/rtp_dependency_descriptor_extension.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "modules/rtp_rtcp/source/rtp_video_header.h"
 #include "modules/rtp_rtcp/source/video_rtp_depacketizer.h"
 #include "modules/video_coding/h264_sps_pps_tracker.h"
 #include "modules/video_coding/loss_notification_controller.h"
-#ifndef DISABLE_H265
 #include "modules/video_coding/h265_vps_sps_pps_tracker.h"
-#endif
 #include "modules/video_coding/packet_buffer.h"
 #include "modules/video_coding/rtp_frame_reference_finder.h"
 #include "modules/video_coding/unique_timestamp_counter.h"
@@ -70,11 +72,18 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
                                public RecoveredPacketReceiver,
                                public RtpPacketSinkInterface,
                                public KeyFrameRequestSender,
-                               public OnCompleteFrameCallback,
                                public OnDecryptedFrameCallback,
                                public OnDecryptionStatusChangeCallback,
                                public RtpVideoFrameReceiver {
  public:
+  // A complete frame is a frame which has received all its packets and all its
+  // references are known.
+  class OnCompleteFrameCallback {
+   public:
+    virtual ~OnCompleteFrameCallback() {}
+    virtual void OnCompleteFrame(std::unique_ptr<EncodedFrame> frame) = 0;
+  };
+
   // DEPRECATED due to dependency on ReceiveStatisticsProxy.
   RtpVideoStreamReceiver(
       Clock* clock,
@@ -119,9 +128,18 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   ~RtpVideoStreamReceiver() override;
 
   void AddReceiveCodec(uint8_t payload_type,
-                       const VideoCodec& video_codec,
+                       VideoCodecType codec_type,
                        const std::map<std::string, std::string>& codec_params,
                        bool raw_payload);
+
+  ABSL_DEPRECATED("Use AddReceiveCodec above")
+  void AddReceiveCodec(uint8_t payload_type,
+                       const VideoCodec& video_codec,
+                       const std::map<std::string, std::string>& codec_params,
+                       bool raw_payload) {
+    AddReceiveCodec(payload_type, video_codec.codecType, codec_params,
+                    raw_payload);
+  }
 
   void StartReceive();
   void StopReceive();
@@ -174,8 +192,7 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   // Don't use, still experimental.
   void RequestPacketRetransmit(const std::vector<uint16_t>& sequence_numbers);
 
-  // Implements OnCompleteFrameCallback.
-  void OnCompleteFrame(std::unique_ptr<EncodedFrame> frame) override;
+  void OnCompleteFrames(RtpFrameReferenceFinder::ReturnVector frames);
 
   // Implements OnDecryptedFrameCallback.
   void OnDecryptedFrame(std::unique_ptr<RtpFrameObject> frame) override;
@@ -305,10 +322,14 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   ParseGenericDependenciesResult ParseGenericDependenciesExtension(
       const RtpPacketReceived& rtp_packet,
       RTPVideoHeader* video_header) RTC_RUN_ON(worker_task_checker_);
-  void OnAssembledFrame(std::unique_ptr<RtpFrameObject> frame);
+  void OnAssembledFrame(std::unique_ptr<RtpFrameObject> frame)
+      RTC_LOCKS_EXCLUDED(packet_buffer_lock_);
+  void UpdatePacketReceiveTimestamps(const RtpPacketReceived& packet,
+                                     bool is_keyframe)
+      RTC_RUN_ON(worker_task_checker_);
 
   Clock* const clock_;
-  // Ownership of this object lies with VideoReceiveStream, which owns |this|.
+  // Ownership of this object lies with VideoReceiveStream, which owns `this`.
   const VideoReceiveStream::Config& config_;
   PacketRouter* const packet_router_;
   ProcessThread* const process_thread_;
@@ -336,7 +357,8 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   std::unique_ptr<DEPRECATED_NackModule> nack_module_;
   std::unique_ptr<LossNotificationController> loss_notification_controller_;
 
-  video_coding::PacketBuffer packet_buffer_;
+  mutable Mutex packet_buffer_lock_;
+  video_coding::PacketBuffer packet_buffer_ RTC_GUARDED_BY(packet_buffer_lock_);
   UniqueTimestampCounter frame_counter_ RTC_GUARDED_BY(worker_task_checker_);
   SeqNumUnwrapper<uint16_t> frame_id_unwrapper_
       RTC_GUARDED_BY(worker_task_checker_);
@@ -365,11 +387,8 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   // Maps payload id to the depacketizer.
   std::map<uint8_t, std::unique_ptr<VideoRtpDepacketizer>> payload_type_map_;
 
-
-#ifndef DISABLE_H265
   video_coding::H265VpsSpsPpsTracker h265_tracker_;
-#endif
-
+                                   
   // TODO(johan): Remove pt_codec_params_ once
   // https://bugs.chromium.org/p/webrtc/issues/detail?id=6883 is resolved.
   // Maps a payload type to a map of out-of-band supplied codec parameters.
@@ -386,7 +405,11 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   mutable Mutex sync_info_lock_;
   absl::optional<uint32_t> last_received_rtp_timestamp_
       RTC_GUARDED_BY(sync_info_lock_);
-  absl::optional<int64_t> last_received_rtp_system_time_ms_
+  absl::optional<uint32_t> last_received_keyframe_rtp_timestamp_
+      RTC_GUARDED_BY(sync_info_lock_);
+  absl::optional<Timestamp> last_received_rtp_system_time_
+      RTC_GUARDED_BY(sync_info_lock_);
+  absl::optional<Timestamp> last_received_keyframe_rtp_system_time_
       RTC_GUARDED_BY(sync_info_lock_);
 
   // Used to validate the buffered frame decryptor is always run on the correct
@@ -399,13 +422,21 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   std::atomic<bool> frames_decryptable_;
   absl::optional<ColorSpace> last_color_space_;
 
-  AbsoluteCaptureTimeReceiver absolute_capture_time_receiver_
+  AbsoluteCaptureTimeInterpolator absolute_capture_time_interpolator_
+      RTC_GUARDED_BY(worker_task_checker_);
+
+  CaptureClockOffsetUpdater capture_clock_offset_updater_
       RTC_GUARDED_BY(worker_task_checker_);
 
   int64_t last_completed_picture_id_ = 0;
 
   rtc::scoped_refptr<RtpVideoStreamReceiverFrameTransformerDelegate>
       frame_transformer_delegate_;
+
+  SeqNumUnwrapper<uint16_t> rtp_seq_num_unwrapper_
+      RTC_GUARDED_BY(packet_buffer_lock_);
+  std::map<int64_t, RtpPacketInfo> packet_infos_
+      RTC_GUARDED_BY(packet_buffer_lock_);
 };
 
 }  // namespace webrtc

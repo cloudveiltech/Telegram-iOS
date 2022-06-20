@@ -20,8 +20,6 @@
 namespace cricket {
 
 extern const int kVideoCodecClockrate;
-extern const int kDataCodecClockrate;
-extern const int kRtpDataMaxBandwidth;  // bps
 
 extern const int kVideoMtu;
 extern const int kVideoRtpSendBufferSize;
@@ -44,6 +42,7 @@ extern const char kCodecParamRtxTime[];
 extern const char kCodecParamAssociatedPayloadType[];
 
 extern const char kCodecParamAssociatedCodecName[];
+extern const char kCodecParamNotInNameValueFormat[];
 
 extern const char kOpusCodecName[];
 extern const char kIsacCodecName[];
@@ -69,7 +68,7 @@ extern const char kCodecParamMaxPlaybackRate[];
 
 extern const char kParamValueTrue[];
 // Parameters are stored as parameter/value pairs. For parameters who do not
-// have a value, |kParamValueEmpty| should be used as value.
+// have a value, `kParamValueEmpty` should be used as value.
 extern const char kParamValueEmpty[];
 
 // opus parameters.
@@ -119,21 +118,13 @@ extern const char kCodecParamMinBitrate[];
 extern const char kCodecParamStartBitrate[];
 extern const char kCodecParamMaxQuantization[];
 
-// We put the data codec names here so callers of DataEngine::CreateChannel
-// don't have to import rtpdataengine.h to get the codec names they want to
-// pass in.
-extern const int kGoogleRtpDataCodecPlType;
-extern const char kGoogleRtpDataCodecName[];
-
 extern const char kComfortNoiseCodecName[];
 
 RTC_EXPORT extern const char kVp8CodecName[];
 RTC_EXPORT extern const char kVp9CodecName[];
 RTC_EXPORT extern const char kAv1CodecName[];
 RTC_EXPORT extern const char kH264CodecName[];
-#ifndef DISABLE_H265
 RTC_EXPORT extern const char kH265CodecName[];
-#endif
 
 // RFC 6184 RTP Payload Format for H.264 video
 RTC_EXPORT extern const char kH264FmtpProfileLevelId[];
@@ -144,13 +135,12 @@ extern const char kH264FmtpSpsPpsIdrInKeyframe[];
 extern const char kH264ProfileLevelConstrainedBaseline[];
 extern const char kH264ProfileLevelConstrainedHigh[];
 
-#ifndef DISABLE_H265
 // RFC 7798 RTP Payload Format for H.265 video
 RTC_EXPORT extern const char kH265FmtpProfileSpace[];
 RTC_EXPORT extern const char kH265FmtpProfileId[];
 RTC_EXPORT extern const char kH265FmtpTierFlag[];
 RTC_EXPORT extern const char kH265FmtpLevelId[];
-#endif
+
 extern const int kDefaultVideoMaxFramerate;
 
 extern const size_t kConferenceMaxNumSpatialLayers;

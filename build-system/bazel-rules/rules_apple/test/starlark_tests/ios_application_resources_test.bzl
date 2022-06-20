@@ -27,11 +27,11 @@ load(
     "analysis_xcasset_argv_test",
 )
 
-def ios_application_resources_test_suite(name = "ios_application_resources"):
+def ios_application_resources_test_suite(name):
     """Test suite for apple_bundle_version.
 
     Args:
-        name: The name prefix for all the nested tests
+      name: the base name to be used in things created by this macro
     """
 
     # Tests that various nonlocalized resource types are bundled correctly with
@@ -88,6 +88,18 @@ def ios_application_resources_test_suite(name = "ios_application_resources"):
         name = "{}_invalid_top_level_directory_fail_test".format(name),
         target_under_test = "//test/starlark_tests/targets_under_test/ios:app_with_structured_resources_in_resources_folder",
         expected_error = "For ios bundles, the following top level directories are invalid (case-insensitive): resources",
+        tags = [name],
+    )
+
+    # Tests bundling generated resources within structured resources should fail with a nice
+    # message.
+    analysis_failure_message_test(
+        name = "{}_invalid_resources_in_structured_resources".format(name),
+        target_under_test = "//test/starlark_tests/targets_under_test/ios:app_with_processed_resources_in_structured_resources",
+        expected_error = "Error: Found ignored resource providers for target " +
+                         "//test/starlark_tests/resources:processed_resources_in_structured_resources. " +
+                         "Check that there are no processed resource targets being referenced by " +
+                         "structured_resources.",
         tags = [name],
     )
 
@@ -457,6 +469,24 @@ def ios_application_resources_test_suite(name = "ios_application_resources"):
         tags = [name],
     )
 
+    # Test that an application with alternate icons properly embeds the icons PNGs and has the
+    # correct entries set in the Info.plist.
+    archive_contents_test(
+        name = "{}_with_alternate_icons".format(name),
+        build_type = "simulator",
+        target_under_test = "//test/starlark_tests/targets_under_test/ios:app_with_alternate_icons",
+        contains = [
+            "$BUNDLE_ROOT/app_icon_one.png",
+            "$BUNDLE_ROOT/app_icon_two.png",
+        ],
+        plist_test_file = "$BUNDLE_ROOT/Info.plist",
+        plist_test_values = {
+            "CFBundleIcons:CFBundleAlternateIcons:one:CFBundleIconFiles:0": "app_icon_one",
+            "CFBundleIcons:CFBundleAlternateIcons:two:CFBundleIconFiles:0": "app_icon_two",
+        },
+        tags = [name],
+    )
+
     # Tests that multiple references to a structured resource will be successfully deduplicated.
     archive_contents_test(
         name = "{}_with_multiple_refs_to_same_structured_resources_test".format(name),
@@ -520,6 +550,21 @@ def ios_application_resources_test_suite(name = "ios_application_resources"):
         contains = [
             "$BUNDLE_ROOT/resource_bundle_with_structured_resource_group.bundle/Another.plist",
         ],
+        tags = [name],
+    )
+
+    archive_contents_test(
+        name = "{}_with_resource_bundle_with_bundle_id".format(name),
+        build_type = "device",
+        compilation_mode = "opt",
+        target_under_test = "//test/starlark_tests/targets_under_test/ios:app_with_resource_bundle_with_bundle_id",
+        contains = [
+            "$BUNDLE_ROOT/resource_bundle_with_bundle_id.bundle/Info.plist",
+        ],
+        plist_test_file = "$BUNDLE_ROOT/resource_bundle_with_bundle_id.bundle/Info.plist",
+        plist_test_values = {
+            "CFBundleIdentifier": "org.bazel.rules_apple.resource_bundle",
+        },
         tags = [name],
     )
 

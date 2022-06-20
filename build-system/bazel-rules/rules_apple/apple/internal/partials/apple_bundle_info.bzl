@@ -36,6 +36,7 @@ def _apple_bundle_info_partial_impl(
         executable_name,
         entitlements,
         label_name,
+        output_discriminator,
         platform_prerequisites,
         predeclared_outputs,
         product_type):
@@ -52,8 +53,10 @@ def _apple_bundle_info_partial_impl(
 
     binary = outputs.binary(
         actions = actions,
+        bundle_name = bundle_name,
         executable_name = executable_name,
         label_name = label_name,
+        output_discriminator = output_discriminator,
     )
 
     infoplist = None
@@ -62,6 +65,7 @@ def _apple_bundle_info_partial_impl(
         infoplist = outputs.infoplist(
             actions = actions,
             label_name = label_name,
+            output_discriminator = output_discriminator,
         )
 
     return struct(
@@ -76,6 +80,7 @@ def _apple_bundle_info_partial_impl(
                 executable_name = executable_name,
                 entitlements = entitlements,
                 infoplist = infoplist,
+                minimum_deployment_os_version = platform_prerequisites.minimum_deployment_os,
                 minimum_os_version = platform_prerequisites.minimum_os,
                 platform_type = str(platform_prerequisites.platform_type),
                 product_type = product_type,
@@ -91,8 +96,9 @@ def apple_bundle_info_partial(
         bundle_extension,
         bundle_name,
         executable_name,
-        entitlements,
+        entitlements = None,
         label_name,
+        output_discriminator = None,
         platform_prerequisites,
         predeclared_outputs,
         product_type):
@@ -108,6 +114,8 @@ def apple_bundle_info_partial(
       executable_name: The name of the output executable.
       entitlements: The entitlements file to sign with. Can be `None` if one was not provided.
       label_name: Name of the target being built.
+      output_discriminator: A string to differentiate between different target intermediate files
+          or `None`.
       platform_prerequisites: Struct containing information on the platform being targeted.
       predeclared_outputs: Outputs declared by the owning context. Typically from `ctx.outputs`.
       product_type: Product type identifier used to describe the current bundle type.
@@ -124,6 +132,7 @@ def apple_bundle_info_partial(
         executable_name = executable_name,
         entitlements = entitlements,
         label_name = label_name,
+        output_discriminator = output_discriminator,
         platform_prerequisites = platform_prerequisites,
         predeclared_outputs = predeclared_outputs,
         product_type = product_type,

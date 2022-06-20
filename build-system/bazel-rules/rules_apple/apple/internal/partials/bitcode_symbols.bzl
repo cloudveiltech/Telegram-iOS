@@ -15,8 +15,8 @@
 """Partial implementation for bitcode symbol file processing."""
 
 load(
-    "@build_bazel_rules_apple//apple/internal/utils:legacy_actions.bzl",
-    "legacy_actions",
+    "@build_bazel_apple_support//lib:apple_support.bzl",
+    "apple_support",
 )
 load(
     "@build_bazel_rules_apple//apple/internal:intermediates.bzl",
@@ -42,24 +42,31 @@ def _bitcode_symbols_partial_impl(
         *,
         actions,
         binary_artifact,
+        bitcode_symbol_maps,
         debug_outputs_provider,
         dependency_targets,
         label_name,
+        output_discriminator,
         package_bitcode,
         platform_prerequisites):
     """Implementation for the bitcode symbols processing partial."""
 
     bitcode_dirs = []
-    if binary_artifact and debug_outputs_provider:
-        debug_outputs_map = debug_outputs_provider.outputs_map
 
+    bitcode_symbols = {}
+    if bitcode_symbol_maps:
+        bitcode_symbols.update(bitcode_symbol_maps)
+    if debug_outputs_provider:
+        for arch in debug_outputs_provider.outputs_map:
+            bitcode_symbols[arch] = debug_outputs_provider.outputs_map[arch].get("bitcode_symbols")
+
+    if binary_artifact and bitcode_symbols:
         bitcode_files = []
         copy_commands = []
-        for arch in debug_outputs_map:
-            bitcode_file = debug_outputs_map[arch].get("bitcode_symbols")
+        for arch in bitcode_symbols:
+            bitcode_file = bitcode_symbols[arch]
             if not bitcode_file:
                 continue
-
             bitcode_files.append(bitcode_file)
 
             # Get the UUID of the arch slice and use that to name the bcsymbolmap file.
@@ -74,17 +81,23 @@ def _bitcode_symbols_partial_impl(
             )
 
         if bitcode_files:
-            bitcode_dir = intermediates.directory(actions, label_name, "bitcode_files")
+            bitcode_dir = intermediates.directory(
+                actions = actions,
+                target_name = label_name,
+                output_discriminator = output_discriminator,
+                dir_name = "bitcode_files",
+            )
             bitcode_dirs.append(bitcode_dir)
 
-            legacy_actions.run_shell(
+            apple_support.run_shell(
                 actions = actions,
+                apple_fragment = platform_prerequisites.apple_fragment,
                 inputs = [binary_artifact] + bitcode_files,
                 outputs = [bitcode_dir],
                 command = "mkdir -p ${OUTPUT_DIR} && " + " && ".join(copy_commands),
                 env = {"OUTPUT_DIR": bitcode_dir.path},
                 mnemonic = "BitcodeSymbolsCopy",
-                platform_prerequisites = platform_prerequisites,
+                xcode_config = platform_prerequisites.xcode_version_config,
             )
 
     transitive_bitcode_files = depset(
@@ -110,9 +123,11 @@ def bitcode_symbols_partial(
         *,
         actions,
         binary_artifact = None,
+        bitcode_symbol_maps = {},
         debug_outputs_provider = None,
         dependency_targets = [],
         label_name,
+        output_discriminator = None,
         package_bitcode = False,
         platform_prerequisites):
     """Constructor for the bitcode symbols processing partial.
@@ -120,11 +135,15 @@ def bitcode_symbols_partial(
     Args:
       actions: Actions defined for the current build context.
       binary_artifact: The main binary artifact for this target.
+      bitcode_symbol_maps: A mapping of architectures to Files representing bitcode symbol maps for
+        each architecture.
       debug_outputs_provider: The AppleDebugOutputs provider containing the references to the debug
         outputs of this target's binary.
       dependency_targets: List of targets that should be checked for bitcode files that need to be
         bundled..
       label_name: Name of the target being built
+      output_discriminator: A string to differentiate between different target intermediate files
+          or `None`.
       package_bitcode: Whether the partial should package the bitcode files for all dependency
         binaries.
       platform_prerequisites: Struct containing information on the platform being targeted.
@@ -136,9 +155,11 @@ def bitcode_symbols_partial(
         _bitcode_symbols_partial_impl,
         actions = actions,
         binary_artifact = binary_artifact,
+        bitcode_symbol_maps = bitcode_symbol_maps,
         debug_outputs_provider = debug_outputs_provider,
         dependency_targets = dependency_targets,
         label_name = label_name,
+        output_discriminator = output_discriminator,
         package_bitcode = package_bitcode,
         platform_prerequisites = platform_prerequisites,
     )

@@ -51,8 +51,8 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "build_bazel_rules_swift",
-    sha256 = "d0e5f888b2ccce42c92e6d4686b5507b4230462627f965f9d39862e11ae9fb35",
-    url = "https://github.com/bazelbuild/rules_swift/releases/download/0.18.0/rules_swift.0.18.0.tar.gz",
+    sha256 = "a2fd565e527f83fb3f9eb07eb9737240e668c9242d3bc318712efa54a7deda97",
+    url = "https://github.com/bazelbuild/rules_swift/releases/download/0.27.0/rules_swift.0.27.0.tar.gz",
 )
 
 load(
@@ -107,11 +107,23 @@ bazel run @build_bazel_rules_swift//tools/dump_toolchains
 **Linux hosts:** At this time, Bazel uses whichever `swift` executable is
 encountered first on your `PATH`.
 
+## Supporting remote builds
+
+To make remote builds work correctly with debugging and general
+reproducibility see [this doc](doc/debuggable_remote_swift.md)
+
+## Swift Package Manager Support
+
+To download, build, and reference external Swift packages as Bazel targets, check out
+[rules_spm](https://github.com/cgrindel/rules_spm).  The rules in
+[rules_spm](https://github.com/cgrindel/rules_spm) build external Swift packages with [Swift
+Package Manager](https://swift.org/package-manager/), then make the outputs available to Bazel
+rules.
+
 ## Future Work
 
 - Support for building and linking to shared libraries (`.dylib`/`.so`) written
   in Swift.
-- Interoperability with Swift Package Manager.
 - Migration to the Bazel platforms/toolchains APIs.
 - Support for multiple toolchains, and support for non-Xcode toolchains on
   macOS.

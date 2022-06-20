@@ -50,11 +50,13 @@ private class MediaHeaderItemNode: ASDisplayNode {
                     subtitleString = NSAttributedString(string: subtitleText, font: subtitleFont, textColor: theme.rootController.navigationBar.secondaryTextColor)
                 case let .voice(author, peer):
                     rateButtonHidden = false
-                    let titleText: String = author?.displayTitle(strings: strings, displayOrder: nameDisplayOrder) ?? ""
+                    let titleText: String = author.flatMap(EnginePeer.init)?.displayTitle(strings: strings, displayOrder: nameDisplayOrder) ?? ""
                     let subtitleText: String
                     if let peer = peer {
-                        if peer is TelegramGroup || peer is TelegramChannel {
-                            subtitleText = peer.displayTitle(strings: strings, displayOrder: nameDisplayOrder)
+                        if let peer = peer as? TelegramChannel, case .broadcast = peer.info {
+                            subtitleText = strings.MusicPlayer_VoiceNote
+                        } else if peer is TelegramGroup || peer is TelegramChannel {
+                            subtitleText = EnginePeer(peer).displayTitle(strings: strings, displayOrder: nameDisplayOrder)
                         } else {
                             subtitleText = strings.MusicPlayer_VoiceNote
                         }
@@ -66,12 +68,12 @@ private class MediaHeaderItemNode: ASDisplayNode {
                     subtitleString = NSAttributedString(string: subtitleText, font: subtitleFont, textColor: theme.rootController.navigationBar.secondaryTextColor)
                 case let .instantVideo(author, peer, timestamp):
                     rateButtonHidden = false
-                    let titleText: String = author?.displayTitle(strings: strings, displayOrder: nameDisplayOrder) ?? ""
+                    let titleText: String = author.flatMap(EnginePeer.init)?.displayTitle(strings: strings, displayOrder: nameDisplayOrder) ?? ""
                     var subtitleText: String
                     
                     if let peer = peer {
                         if peer is TelegramGroup || peer is TelegramChannel {
-                            subtitleText = peer.displayTitle(strings: strings, displayOrder: nameDisplayOrder)
+                            subtitleText = EnginePeer(peer).displayTitle(strings: strings, displayOrder: nameDisplayOrder)
                         } else {
                             subtitleText = strings.Message_VideoMessage
                         }
@@ -555,7 +557,7 @@ public final class MediaNavigationAccessoryHeaderNode: ASDisplayNode, UIScrollVi
             return
         }
         let items: Signal<[ContextMenuItem], NoError> = self.contextMenuSpeedItems()
-        let contextController = ContextController(account: self.context.account, presentationData: self.context.sharedContext.currentPresentationData.with { $0 }, source: .reference(HeaderContextReferenceContentSource(controller: controller, sourceNode: self.rateButton.referenceNode, shouldBeDismissed: self.dismissedPromise.get())), items: items |> map { ContextController.Items(items: $0) }, reactionItems: [], gesture: gesture)
+        let contextController = ContextController(account: self.context.account, presentationData: self.context.sharedContext.currentPresentationData.with { $0 }, source: .reference(HeaderContextReferenceContentSource(controller: controller, sourceNode: self.rateButton.referenceNode, shouldBeDismissed: self.dismissedPromise.get())), items: items |> map { ContextController.Items(content: .list($0)) }, gesture: gesture)
         
         self.presentInGlobalOverlay?(contextController)
     }
@@ -780,6 +782,6 @@ private final class HeaderContextReferenceContentSource: ContextReferenceContent
     }
     
     func transitionInfo() -> ContextControllerReferenceViewInfo? {
-        return ContextControllerReferenceViewInfo(referenceNode: self.sourceNode, contentAreaInScreenSpace: UIScreen.main.bounds)
+        return ContextControllerReferenceViewInfo(referenceView: self.sourceNode.view, contentAreaInScreenSpace: UIScreen.main.bounds)
     }
 }

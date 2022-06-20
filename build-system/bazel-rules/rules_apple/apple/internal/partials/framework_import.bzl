@@ -39,10 +39,6 @@ load(
     "bundle_paths",
 )
 load(
-    "@build_bazel_rules_apple//apple/internal/utils:defines.bzl",
-    "defines",
-)
-load(
     "@build_bazel_rules_apple//apple/internal:intermediates.bzl",
     "intermediates",
 )
@@ -54,17 +50,14 @@ load(
     "@bazel_skylib//lib:paths.bzl",
     "paths",
 )
-load(
-    "@bazel_skylib//lib:sets.bzl",
-    "sets",
-)
 
 def _framework_import_partial_impl(
         *,
         actions,
         apple_toolchain_info,
+        features,
         label_name,
-        package_symbols,
+        output_discriminator,
         platform_prerequisites,
         provisioning_profile,
         rule_descriptor,
@@ -74,7 +67,8 @@ def _framework_import_partial_impl(
     transitive_sets = [
         x[AppleFrameworkImportInfo].framework_imports
         for x in targets
-        if AppleFrameworkImportInfo in x
+        if AppleFrameworkImportInfo in x and
+           hasattr(x[AppleFrameworkImportInfo], "framework_imports")
     ]
     files_to_bundle = depset(transitive = transitive_sets).to_list()
 
@@ -82,7 +76,8 @@ def _framework_import_partial_impl(
         avoid_transitive_sets = [
             x[AppleFrameworkImportInfo].framework_imports
             for x in targets_to_avoid
-            if AppleFrameworkImportInfo in x
+            if AppleFrameworkImportInfo in x and
+               hasattr(x[AppleFrameworkImportInfo], "framework_imports")
         ]
         if avoid_transitive_sets:
             avoid_files = depset(transitive = avoid_transitive_sets).to_list()
@@ -135,9 +130,10 @@ def _framework_import_partial_impl(
         # Create a temporary path for intermediate files and the anticipated zip output.
         temp_path = paths.join("_imported_frameworks/", framework_basename)
         framework_zip = intermediates.file(
-            actions,
-            label_name,
-            temp_path + ".zip",
+            actions = actions,
+            target_name = label_name,
+            output_discriminator = output_discriminator,
+            file_name = temp_path + ".zip",
         )
         temp_framework_bundle_path = paths.split_extension(framework_zip.path)[0]
 
@@ -162,6 +158,7 @@ def _framework_import_partial_impl(
 
         codesign_args = codesigning_support.codesigning_args(
             entitlements = None,
+            features = features,
             full_archive_path = temp_framework_bundle_path,
             is_framework = True,
             platform_prerequisites = platform_prerequisites,
@@ -184,6 +181,11 @@ def _framework_import_partial_impl(
         if provisioning_profile:
             input_files.append(provisioning_profile)
             execution_requirements = {"no-sandbox": "1"}
+            if platform_prerequisites.platform.is_device:
+                # Added so that the output of this action is not cached
+                # remotely, in case multiple developers sign the same artifact
+                # with different identities.
+                execution_requirements["no-remote"] = "1"
 
         transitive_inputs = [
             resolved_imported_dynamic_framework_processor.inputs,
@@ -211,121 +213,18 @@ def _framework_import_partial_impl(
         )
         signed_frameworks_list.append(framework_basename)
 
-    symbols_requested = defines.bool_value(
-        config_vars = platform_prerequisites.config_vars,
-        define_name = "apple.package_symbols",
-        default = False,
-    )
-    if package_symbols and symbols_requested:
-        transitive_dsyms = [
-            x[AppleFrameworkImportInfo].dsym_imports
-            for x in targets
-            if AppleFrameworkImportInfo in x
-        ]
-        symbols = _generate_symbols(
-            actions,
-            build_archs_found,
-            files_by_framework,
-            framework_binaries_by_framework,
-            transitive_dsyms,
-            label_name,
-            platform_prerequisites,
-        )
-        bundle_files = [(
-            processor.location.archive,
-            "Symbols",
-            depset(symbols),
-        )]
-    else:
-        bundle_files = []
-
     return struct(
-        bundle_files = bundle_files,
         bundle_zips = bundle_zips,
         signed_frameworks = depset(signed_frameworks_list),
     )
-
-def _generate_symbols(
-        actions,
-        build_archs_found,
-        files_by_framework,
-        framework_binaries_by_framework,
-        transitive_dsyms,
-        label_name,
-        platform_prerequisites):
-    # Collect dSYM binaries and framework binaries of frameworks that don't
-    # have dSYMs
-    all_binaries = []
-
-    # Keep track of frameworks that provide dSYM, so that we can avoid
-    # unnecessarily extracting symbols from said frameworks' binaries
-    has_dsym_framework_basenames = sets.make()
-
-    for file in depset(transitive = transitive_dsyms).to_list():
-        # Any files that aren't Info.plist are DWARF binaries. There may be
-        # more than one binary per framework depending on how the dSYM bundle
-        # is packaged.
-        if file.basename.lower() != "info.plist":
-            all_binaries.append(file)
-
-            # Update the set of frameworks that provide dSYMs
-            framework_dsym_path = bundle_paths.farthest_parent(
-                file.short_path,
-                "framework.dSYM",
-            )
-            framework_dsym_basename = paths.basename(framework_dsym_path)
-            framework_basename = framework_dsym_basename.rstrip(".dSYM")
-            sets.insert(has_dsym_framework_basenames, framework_basename)
-
-    # Find binaries of frameworks that don't provide dSYMs
-    for framework_basename in files_by_framework.keys():
-        for framework_binary in framework_binaries_by_framework[framework_basename]:
-            if not sets.contains(has_dsym_framework_basenames, framework_basename):
-                all_binaries.append(framework_binary)
-
-    temp_path = paths.join("_imported_frameworks", "symbols_files")
-    symbols_dir = intermediates.directory(
-        actions,
-        label_name,
-        temp_path,
-    )
-    outputs = [symbols_dir]
-
-    commands = ["mkdir -p \"${OUTPUT_DIR}\""]
-
-    for binary in all_binaries:
-        # If dSYMs are bundled with multiple non-fat binaries, the 'symbols'
-        # command may try to extract symbols from a binary that doesn't have a
-        # slice for an architecture, but it's fine since it won't return a
-        # non-zero code in that case.
-        for arch in build_archs_found:
-            commands.append(
-                ("/usr/bin/xcrun symbols -noTextInSOD -noDaemon -arch {0} " +
-                 "-symbolsPackageDir \"${{OUTPUT_DIR}}\" \"{1}\"").format(
-                    arch,
-                    binary.path,
-                ),
-            )
-
-    apple_support.run_shell(
-        actions = actions,
-        xcode_config = platform_prerequisites.xcode_version_config,
-        apple_fragment = platform_prerequisites.apple_fragment,
-        inputs = all_binaries,
-        outputs = outputs,
-        command = "\n".join(commands),
-        env = {"OUTPUT_DIR": symbols_dir.path},
-        mnemonic = "ImportedDynamicFrameworkSymbols",
-    )
-
-    return outputs
 
 def framework_import_partial(
         *,
         actions,
         apple_toolchain_info,
+        features,
         label_name,
-        package_symbols = False,
+        output_discriminator = None,
         platform_prerequisites,
         provisioning_profile,
         rule_descriptor,
@@ -334,13 +233,15 @@ def framework_import_partial(
     """Constructor for the framework import file processing partial.
 
     This partial propagates framework import file bundle locations. The files are collected through
-    the framework_import_aspect aspect.
+    the framework_provider_aspect aspect.
 
     Args:
         actions: The actions provider from `ctx.actions`.
         apple_toolchain_info: `struct` of tools from the shared Apple toolchain.
+        features: List of features enabled by the user. Typically from `ctx.features`.
         label_name: Name of the target being built.
-        package_symbols: Whether the partial should package the symbols files for all binaries.
+        output_discriminator: A string to differentiate between different target intermediate files
+            or `None`.
         platform_prerequisites: Struct containing information on the platform being targeted.
         provisioning_profile: File for the provisioning profile.
         rule_descriptor: A rule descriptor for platform and product types from the rule context.
@@ -355,8 +256,9 @@ def framework_import_partial(
         _framework_import_partial_impl,
         actions = actions,
         apple_toolchain_info = apple_toolchain_info,
+        features = features,
         label_name = label_name,
-        package_symbols = package_symbols,
+        output_discriminator = output_discriminator,
         platform_prerequisites = platform_prerequisites,
         provisioning_profile = provisioning_profile,
         rule_descriptor = rule_descriptor,

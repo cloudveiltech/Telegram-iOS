@@ -1,4 +1,3 @@
-# Lint as: python2, python3
 # Copyright 2018 The Bazel Authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,23 +13,12 @@
 # limitations under the License.
 """Tests for wrapper_common.execute."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import contextlib
 import io
-import sys
+import signal
 import unittest
 
 from build_bazel_rules_apple.tools.wrapper_common import execute
-
-try:
-  import StringIO  # Doesn't exist in Python 3
-except ImportError:
-  StringIO = None
-
-_PY3 = sys.version_info[0] == 3
 
 _INVALID_UTF8 = b'\xa0\xa1'
 
@@ -46,36 +34,35 @@ class ExecuteTest(unittest.TestCase):
     bytes_out = u'\u201d '.encode('utf8') + _INVALID_UTF8
     args = ['echo', '-n', bytes_out]
 
-    with self._mock_streams() as (mock_stdout, mock_stderr):
-      execute.execute_and_filter_output(args,
-                                        filtering=_cmd_filter,
-                                        print_output=True,
-                                        raise_on_failure=False)
-      stdout = mock_stdout.getvalue()
-      stderr = mock_stderr.getvalue()
+    with contextlib.redirect_stdout(io.StringIO()) as mock_stdout, \
+      contextlib.redirect_stderr(io.StringIO()) as mock_stderr:
+      execute.execute_and_filter_output(
+          args,
+          filtering=_cmd_filter,
+          print_output=True,
+          raise_on_failure=False)
+    stdout = mock_stdout.getvalue()
+    stderr = mock_stderr.getvalue()
 
-    if _PY3:
-      expected = bytes_out.decode('utf8', 'replace')
-    else:
-      expected = bytes_out
+    expected = bytes_out.decode('utf8', 'replace')
 
     expected += ' filtered'
     self.assertEqual(expected, stdout)
     self.assertIn('filtered', stderr)
+
+  def test_execute_timeout(self):
+    args = ['sleep', '30']
+    result, stdout, stderr = execute.execute_and_filter_output(
+        args, timeout=1, raise_on_failure=False)
+    self.assertEqual(-signal.SIGKILL, result)
 
   @contextlib.contextmanager
   def _mock_streams(self):
     orig_stdout = sys.stdout
     orig_stderr = sys.stderr
 
-    # io.StringIO() only accepts unicode in Py2, so use the older
-    # StringIO.StringIO for Py2, which accepts str/unicode
-    if StringIO:
-      mock_stdout = StringIO.StringIO()
-      mock_stderr = StringIO.StringIO()
-    else:
-      mock_stdout = io.StringIO()
-      mock_stderr = io.StringIO()
+    mock_stdout = io.StringIO()
+    mock_stderr = io.StringIO()
 
     try:
       sys.stdout = mock_stdout

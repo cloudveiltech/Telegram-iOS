@@ -15,9 +15,8 @@
 #include <utility>
 
 #include "api/transport/field_trial_based_config.h"
-#include "media/base/rtp_data_engine.h"
+#include "media/sctp/sctp_transport_factory.h"
 #include "rtc_base/helpers.h"
-#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/time_utils.h"
 
@@ -76,7 +75,7 @@ std::unique_ptr<SctpTransportFactoryInterface> MaybeCreateSctpFactory(
 // Static
 rtc::scoped_refptr<ConnectionContext> ConnectionContext::Create(
     PeerConnectionFactoryDependencies* dependencies) {
-  return new rtc::RefCountedObject<ConnectionContext>(dependencies);
+  return new ConnectionContext(dependencies);
 }
 
 ConnectionContext::ConnectionContext(
@@ -104,11 +103,13 @@ ConnectionContext::ConnectionContext(
   signaling_thread_->AllowInvokesToThread(network_thread_);
   worker_thread_->AllowInvokesToThread(network_thread_);
   if (network_thread_->IsCurrent()) {
-    network_thread_->DisallowAllInvokes();
+    // TODO(https://crbug.com/webrtc/12802) switch to DisallowAllInvokes
+    network_thread_->AllowInvokesToThread(network_thread_);
   } else {
     network_thread_->PostTask(ToQueuedTask([thread = network_thread_] {
       thread->DisallowBlockingCalls();
-      thread->DisallowAllInvokes();
+      // TODO(https://crbug.com/webrtc/12802) switch to DisallowAllInvokes
+      thread->AllowInvokesToThread(thread);
     }));
   }
 
@@ -118,16 +119,19 @@ ConnectionContext::ConnectionContext(
   // If network_monitor_factory_ is non-null, it will be used to create a
   // network monitor while on the network thread.
   default_network_manager_ = std::make_unique<rtc::BasicNetworkManager>(
-      network_monitor_factory_.get());
+      network_monitor_factory_.get(), network_thread()->socketserver());
 
-  default_socket_factory_ =
-      std::make_unique<rtc::BasicPacketSocketFactory>(network_thread());
+  // TODO(bugs.webrtc.org/13145): Either require that a PacketSocketFactory
+  // always is injected (with no need to construct this default factory), or get
+  // the appropriate underlying SocketFactory without going through the
+  // rtc::Thread::socketserver() accessor.
+  default_socket_factory_ = std::make_unique<rtc::BasicPacketSocketFactory>(
+      network_thread()->socketserver());
 
   worker_thread_->Invoke<void>(RTC_FROM_HERE, [&]() {
     channel_manager_ = cricket::ChannelManager::Create(
         std::move(dependencies->media_engine),
-        std::make_unique<cricket::RtpDataEngine>(), /*enable_rtx=*/true,
-        worker_thread(), network_thread());
+        /*enable_rtx=*/true, worker_thread(), network_thread());
   });
 
   // Set warning levels on the threads, to give warnings when response
@@ -145,8 +149,8 @@ ConnectionContext::~ConnectionContext() {
   worker_thread_->Invoke<void>(RTC_FROM_HERE,
                                [&]() { channel_manager_.reset(nullptr); });
 
-  // Make sure |worker_thread()| and |signaling_thread()| outlive
-  // |default_socket_factory_| and |default_network_manager_|.
+  // Make sure `worker_thread()` and `signaling_thread()` outlive
+  // `default_socket_factory_` and `default_network_manager_`.
   default_socket_factory_ = nullptr;
   default_network_manager_ = nullptr;
 

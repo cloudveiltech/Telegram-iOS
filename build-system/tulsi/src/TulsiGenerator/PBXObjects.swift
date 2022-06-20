@@ -114,8 +114,9 @@ final class XCBuildConfiguration: PBXObjectProtocol {
 class PBXReference: PBXObjectProtocol {
   var globalID: String = ""
   let name: String
-  var path: String?
-  let sourceTree: SourceTree
+  // be careful setting these; they're cached in PBXGroup
+  fileprivate(set) var path: String?
+  fileprivate(set) var sourceTree: SourceTree
 
   var isa: String {
     assertionFailure("PBXReference must be subclassed")
@@ -146,7 +147,7 @@ class PBXReference: PBXObjectProtocol {
   fileprivate weak var _parent: PBXReference?
 
   init(name: String, path: String?, sourceTree: SourceTree, parent: PBXReference? = nil) {
-    self.name = name;
+    self.name = name
     self.path = path
     self.sourceTree = sourceTree
     self._parent = parent
@@ -387,18 +388,22 @@ class PBXGroup: PBXReference, Hashable {
         child.updatePathForChild(grandchild, currentPath: childPath)
       }
     } else if let child = child as? PBXFileReference {
-      // Remove old source path reference. All PBXFileReferences should have valid paths as
-      // non-main/external groups no longer have any paths, meaning a PBXFileReference without a
-      // path shouldn't exist as it doesn't point to anything.
-      var sourceTreePath = SourceTreePath(sourceTree: child.sourceTree, path: child.path!)
-      fileReferencesBySourceTreePath.removeValue(forKey: sourceTreePath)
-
-      // Add in new source path reference.
-      sourceTreePath = SourceTreePath(sourceTree: child.sourceTree, path: childPath)
-      fileReferencesBySourceTreePath[sourceTreePath] = child
-
-      child.path = childPath
+      updatePathForChildFile(child, toPath: childPath)
     }
+  }
+
+  func updatePathForChildFile(
+    _ child: PBXFileReference,
+    toPath: String,
+    sourceTree: SourceTree? = nil) { // Source tree defaults to staying the same
+    // Updates internal index to match
+    fileReferencesBySourceTreePath.removeValue(
+      forKey: SourceTreePath(sourceTree: child.sourceTree, path: child.path!))
+    let newSourceTreePath =
+      SourceTreePath(sourceTree: sourceTree ?? child.sourceTree, path: toPath)
+    child.path = newSourceTreePath.path
+    child.sourceTree = newSourceTreePath.sourceTree
+    fileReferencesBySourceTreePath[newSourceTreePath] = child
   }
 
   /// Takes ownership of the children of the given group. Note that this leaves the "other" group in
@@ -618,6 +623,7 @@ final class PBXShellScriptBuildPhase: PBXBuildPhase {
   let outputPaths: [String]
   let shellPath: String
   let shellScript: String
+  let name: String?
   var showEnvVarsInLog = false
 
   override var isa: String {
@@ -628,17 +634,19 @@ final class PBXShellScriptBuildPhase: PBXBuildPhase {
   private let _hashValue: Int
 
   override var comment: String? {
-    return "ShellScript"
+    return name ?? "ShellScript"
   }
 
   init(shellScript: String,
        shellPath: String = "/bin/sh",
+       name: String?,
        inputPaths: [String] = [String](),
        outputPaths: [String] = [String](),
        buildActionMask: Int = 0,
        runOnlyForDeploymentPostprocessing: Bool = false) {
     self.shellScript = shellScript
     self.shellPath = shellPath
+    self.name = name
     self.inputPaths = inputPaths
     self.outputPaths = outputPaths
     self._hashValue = shellPath.hashValue &+ shellScript.hashValue
@@ -651,6 +659,7 @@ final class PBXShellScriptBuildPhase: PBXBuildPhase {
     try super.serializeInto(serializer)
     try serializer.addField("inputPaths", inputPaths)
     try serializer.addField("outputPaths", outputPaths)
+    try serializer.addField("name", name)
     try serializer.addField("shellPath", shellPath)
     try serializer.addField("shellScript", shellScript)
     try serializer.addField("showEnvVarsInLog", showEnvVarsInLog)
@@ -1321,8 +1330,8 @@ final class PBXProject: PBXObjectProtocol {
     try serializer.addField("attributes", attributes)
     try serializer.addField("buildConfigurationList", buildConfigurationList)
     try serializer.addField("compatibilityVersion", compatibilityVersion)
-    try serializer.addField("mainGroup", mainGroup);
-    try serializer.addField("targets", targetByName.values.sorted(by: {$0.name < $1.name}));
+    try serializer.addField("mainGroup", mainGroup)
+    try serializer.addField("targets", targetByName.values.sorted(by: {$0.name < $1.name}))
 
     // Hardcoded defaults to match Xcode behavior.
     try serializer.addField("developmentRegion", "English")

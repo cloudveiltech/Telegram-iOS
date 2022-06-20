@@ -24,6 +24,7 @@ load(
 )
 load(
     ":rules/common_verification_tests.bzl",
+    "apple_symbols_file_test",
     "archive_contents_test",
     "bitcode_symbol_map_test",
 )
@@ -40,13 +41,12 @@ load(
     "linkmap_test",
 )
 
-def ios_application_test_suite(name = "ios_application"):
+def ios_application_test_suite(name):
     """Test suite for ios_application.
 
     Args:
-        name: The name prefix for all the nested tests
+      name: the base name to be used in things created by this macro
     """
-
     analysis_target_outputs_test(
         name = "{}_ipa_test".format(name),
         target_under_test = "//test/starlark_tests/targets_under_test/ios:app",
@@ -171,24 +171,6 @@ def ios_application_test_suite(name = "ios_application"):
         tags = [name],
     )
 
-    apple_verification_test(
-        name = "{}_package_symbols_test".format(name),
-        build_type = "simulator",
-        env = {
-            "BINARY_PATHS": [
-                "Payload/app_with_imported_dynamic_fmwk_with_dsym.app/app_with_imported_dynamic_fmwk_with_dsym",
-                "Payload/app_with_imported_dynamic_fmwk_with_dsym.app/Frameworks/iOSDynamicFramework.framework/iOSDynamicFramework",
-                "Payload/app_with_imported_dynamic_fmwk_with_dsym.app/Frameworks/iOSDynamicFrameworkWithDebugInfo.framework/iOSDynamicFrameworkWithDebugInfo",
-            ],
-        },
-        target_under_test = "//test/starlark_tests/targets_under_test/ios:app_with_imported_dynamic_fmwk_with_dsym",
-        verifier_script = "verifier_scripts/symbols_verifier.sh",
-        tags = [
-            name,
-            "manual",  # can't use Starlark transition on --define now
-        ],
-    )
-
     archive_contents_test(
         name = "{}_custom_executable_name_test".format(name),
         build_type = "simulator",
@@ -265,7 +247,7 @@ def ios_application_test_suite(name = "ios_application"):
         name = "{}_custom_executable_name_dsyms_test".format(name),
         target_under_test = "//test/starlark_tests/targets_under_test/ios:app_with_custom_executable_name",
         expected_dsyms = ["custom_bundle_name.app"],
-        expected_binaries  = [
+        expected_binaries = [
             "custom_bundle_name.app.dSYM/Contents/Resources/DWARF/app.exe",
         ],
         tags = [name],
@@ -321,6 +303,34 @@ def ios_application_test_suite(name = "ios_application"):
         binary_paths = ["Payload/app.app/app"],
         target_under_test = "//test/starlark_tests/targets_under_test/ios:app",
         tags = [name],
+    )
+
+    # Tests that the archive contains .symbols package files when `include_symbols_in_bundle`
+    # is enabled.
+    apple_symbols_file_test(
+        name = "{}_archive_contains_apple_symbols_files_test".format(name),
+        binary_paths = [
+            "Payload/app_with_ext_and_fmwk_and_symbols_in_bundle.app/app_with_ext_and_fmwk_and_symbols_in_bundle",
+            "Payload/app_with_ext_and_fmwk_and_symbols_in_bundle.app/PlugIns/ext_with_fmwk_provisioned.appex/ext_with_fmwk_provisioned",
+            "Payload/app_with_ext_and_fmwk_and_symbols_in_bundle.app/Frameworks/fmwk_with_provisioning.framework/fmwk_with_provisioning",
+        ],
+        build_type = "simulator",
+        tags = [name],
+        target_under_test = "//test/starlark_tests/targets_under_test/ios:app_with_ext_and_fmwk_and_symbols_in_bundle",
+    )
+
+    # Tests that the archive contains .symbols package files generated from
+    # imported frameworks when `include_symbols_in_bundle` is enabled.
+    apple_symbols_file_test(
+        name = "{}_archive_contains_apple_symbols_files_from_external_fmwk_test".format(name),
+        binary_paths = [
+            "Payload/app_with_imported_dynamic_fmwk_with_dsym.app/app_with_imported_dynamic_fmwk_with_dsym",
+            "Payload/app_with_imported_dynamic_fmwk_with_dsym.app/Frameworks/iOSDynamicFramework.framework/iOSDynamicFramework",
+            "Payload/app_with_imported_dynamic_fmwk_with_dsym.app/Frameworks/iOSDynamicFrameworkWithDebugInfo.framework/iOSDynamicFrameworkWithDebugInfo",
+        ],
+        build_type = "simulator",
+        tags = [name],
+        target_under_test = "//test/starlark_tests/targets_under_test/ios:app_with_imported_dynamic_fmwk_with_dsym",
     )
 
     # Tests that the linkmap outputs are produced when `--objc_generate_linkmap`
@@ -437,6 +447,15 @@ def ios_application_test_suite(name = "ios_application"):
             # OSS Blocked by b/73547309
             "manual",  # disabled in oss
         ],
+    )
+
+    infoplist_contents_test(
+        name = "{}_with_minimum_deployment_os_version".format(name),
+        target_under_test = "//test/starlark_tests/targets_under_test/ios:app_minimal_with_deployment_version",
+        tags = [name],
+        expected_values = {
+            "MinimumOSVersion": "14.0",
+        },
     )
 
     native.test_suite(

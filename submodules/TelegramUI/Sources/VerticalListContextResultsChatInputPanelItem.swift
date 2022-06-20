@@ -196,7 +196,7 @@ final class VerticalListContextResultsChatInputPanelItemNode: ListViewItemNode {
                     }
                     if let selectedUrl = selectedUrl, let parsedUrl = URL(string: selectedUrl) {
                         if let host = parsedUrl.host, !host.isEmpty {
-                            iconText = NSAttributedString(string: host.substring(to: host.index(after: host.startIndex)).uppercased(), font: iconFont, textColor: UIColor.white)
+                            iconText = NSAttributedString(string: String(host[..<host.index(after: host.startIndex)].uppercased()), font: iconFont, textColor: UIColor.white)
                         }
                     }
                 case let .internalReference(internalReference):
@@ -214,7 +214,7 @@ final class VerticalListContextResultsChatInputPanelItemNode: ListViewItemNode {
             
             if iconText == nil {
                 if let title = item.result.title, !title.isEmpty {
-                    let titleText = title.substring(to: title.index(after: title.startIndex)).uppercased()
+                    let titleText = String(title[..<title.index(after: title.startIndex)].uppercased())
                     iconText = NSAttributedString(string: titleText, font: iconFont, textColor: UIColor.white)
                 }
             }
@@ -364,7 +364,7 @@ final class VerticalListContextResultsChatInputPanelItemNode: ListViewItemNode {
                                     switch status {
                                     case let .Fetching(_, progress):
                                         state = RadialStatusNodeState.progress(color: statusForegroundColor, lineWidth: nil, value: CGFloat(max(progress, 0.2)), cancelEnabled: false, animateRotation: true)
-                                    case .Remote:
+                                    case .Remote, .Paused:
                                         state = .download(statusForegroundColor)
                                     case .Local:
                                         state = .none
@@ -378,7 +378,6 @@ final class VerticalListContextResultsChatInputPanelItemNode: ListViewItemNode {
                     } else {
                         strongSelf.statusNode.transitionToState(.none, completion: { })
                     }
-                    
                 }
             })
         }

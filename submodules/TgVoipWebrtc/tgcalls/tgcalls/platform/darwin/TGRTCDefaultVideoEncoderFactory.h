@@ -23,6 +23,8 @@ RTC_OBJC_EXPORT
 
 @property(nonatomic, retain) RTCVideoCodecInfo *preferredCodec;
 
+- (instancetype)initWithPreferHardwareH264:(bool)preferHardwareH264 preferX264:(bool)preferX264;
+
 + (NSArray<RTCVideoCodecInfo *> *)supportedCodecs;
 
 @end

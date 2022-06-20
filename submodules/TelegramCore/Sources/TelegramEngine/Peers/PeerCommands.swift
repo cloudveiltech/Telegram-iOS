@@ -3,6 +3,7 @@ import Postbox
 import SwiftSignalKit
 import CloudVeilSecurityManager
 
+
 public struct PeerCommand: Hashable {
     public let peer: Peer
     public let command: BotCommand

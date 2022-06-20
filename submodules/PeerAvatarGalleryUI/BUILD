@@ -6,8 +6,11 @@ swift_library(
     srcs = glob([
 		"Sources/**/*.swift",
     ]),
+    copts = [
+        "-warnings-as-errors",
+    ],
     deps = [
-        #if  start
+        #CloudVeil start
         "//Telegram:CloudVeilSecurityManager",
         #CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
@@ -27,6 +30,7 @@ swift_library(
         "//submodules/LegacyComponents:LegacyComponents",
         "//submodules/LegacyMediaPickerUI:LegacyMediaPickerUI",
         "//submodules/SaveToCameraRoll:SaveToCameraRoll",
+        "//submodules/UndoUI:UndoUI",
     ],
     visibility = [
         "//visibility:public",

@@ -223,14 +223,17 @@ def _bundle_partial_outputs_files(
         apple_toolchain_info,
         bundle_extension,
         bundle_name,
+        codesign_inputs = [],
         codesigning_command = None,
         embedding = False,
         extra_input_files = [],
         ipa_post_processor = None,
         label_name,
+        output_discriminator,
+        output_file,
         partial_outputs,
         platform_prerequisites,
-        output_file,
+        provisioning_profile,
         rule_descriptor):
     """Invokes bundletool to bundle the files specified by the partial outputs.
 
@@ -239,16 +242,20 @@ def _bundle_partial_outputs_files(
       apple_toolchain_info: `struct` of tools from the shared Apple toolchain.
       bundle_extension: The extension for the bundle.
       bundle_name: The name of the output bundle.
+      codesign_inputs: Extra inputs needed for the `codesign` tool.
       codesigning_command: When building tree artifact outputs, the command to codesign the output
           bundle.
       embedding: Whether outputs are being bundled to be embedded.
       extra_input_files: Extra files to include in the bundling action.
       ipa_post_processor: A file that acts as a bundle post processing tool. May be `None`.
       label_name: The name of the target being built.
+      output_discriminator: A string to differentiate between different target intermediate files
+          or `None`.
+      output_file: The file where the final zipped bundle should be created.
       partial_outputs: List of partial outputs from which to collect the files
         that will be bundled inside the final archive.
       platform_prerequisites: Struct containing information on the platform being targeted.
-      output_file: The file where the final zipped bundle should be created.
+      provisioning_profile: File for the provisioning profile.
       rule_descriptor: A rule descriptor for platform and product types from the rule context.
     """
 
@@ -375,9 +382,10 @@ def _bundle_partial_outputs_files(
         control_file_name = "bundletool_control.json"
 
     control_file = intermediates.file(
-        actions,
-        label_name,
-        control_file_name,
+        actions = actions,
+        target_name = label_name,
+        output_discriminator = output_discriminator,
+        file_name = control_file_name,
     )
     actions.write(
         output = control_file,
@@ -405,19 +413,24 @@ def _bundle_partial_outputs_files(
         if post_processor:
             bundling_tools.append(post_processor)
 
+        execution_requirements = {
+            # Unsure, but may be needed for keychain access, especially for
+            # files that live in $HOME.
+            "no-sandbox": "1",
+        }
+
+        if platform_prerequisites.platform.is_device and provisioning_profile:
+            # Added so that the output of this action is not cached remotely,
+            # in case multiple developers sign the same artifact with different
+            # identities.
+            execution_requirements["no-remote"] = "1"
+
         apple_support.run(
             actions = actions,
             apple_fragment = platform_prerequisites.apple_fragment,
             executable = resolved_bundletool.executable,
-            execution_requirements = {
-                # Added so that the output of this action is not cached remotely, in case multiple
-                # developers sign the same artifact with different identities.
-                "no-remote": "1",
-                # Unsure, but may be needed for keychain access, especially for files that live in
-                # $HOME.
-                "no-sandbox": "1",
-            },
-            inputs = depset(bundletool_inputs, transitive = [
+            execution_requirements = execution_requirements,
+            inputs = depset(bundletool_inputs + codesign_inputs, transitive = [
                 resolved_bundletool.inputs,
                 resolved_codesigningtool.inputs,
             ]),
@@ -447,11 +460,14 @@ def _bundle_post_process_and_sign(
         apple_toolchain_info,
         bundle_extension,
         bundle_name,
+        codesign_inputs,
         codesignopts,
         entitlements,
         executable_name,
+        features,
         ipa_post_processor,
         output_archive,
+        output_discriminator,
         partial_outputs,
         platform_prerequisites,
         predeclared_outputs,
@@ -466,11 +482,15 @@ def _bundle_post_process_and_sign(
         apple_toolchain_info: `struct` of tools from the shared Apple toolchain.
         bundle_extension: The extension for the bundle.
         bundle_name: The name of the output bundle.
-        codesignopts: Extra options to pass to the `codesign` tool
+        codesign_inputs: Extra inputs needed for the `codesign` tool.
+        codesignopts: Extra options to pass to the `codesign` tool.
         entitlements: The entitlements file to sign with. Can be `None` if one was not provided.
         executable_name: The name of the output executable.
+        features: List of features enabled by the user. Typically from `ctx.features`.
         ipa_post_processor: A file that acts as a bundle post processing tool. May be `None`.
         output_archive: The file representing the final bundled, post-processed and signed archive.
+        output_discriminator: A string to differentiate between different target intermediate files
+            or `None`.
         partial_outputs: The outputs of the partials used to process this target's bundle.
         platform_prerequisites: Struct containing information on the platform being targeted.
         predeclared_outputs: Outputs declared by the owning context. Typically from `ctx.outputs`.
@@ -507,6 +527,7 @@ def _bundle_post_process_and_sign(
         codesigning_command = codesigning_support.codesigning_command(
             codesigningtool = apple_toolchain_info.resolved_codesigningtool.executable,
             entitlements = entitlements,
+            features = features,
             frameworks_path = archive_paths[_LOCATION_ENUM.framework],
             platform_prerequisites = platform_prerequisites,
             provisioning_profile = provisioning_profile,
@@ -520,13 +541,16 @@ def _bundle_post_process_and_sign(
             apple_toolchain_info = apple_toolchain_info,
             bundle_extension = bundle_extension,
             bundle_name = bundle_name,
+            codesign_inputs = codesign_inputs,
             codesigning_command = codesigning_command,
             extra_input_files = extra_input_files,
             ipa_post_processor = ipa_post_processor,
             label_name = rule_label.name,
+            output_discriminator = output_discriminator,
+            output_file = output_archive,
             partial_outputs = partial_outputs,
             platform_prerequisites = platform_prerequisites,
-            output_file = output_archive,
+            provisioning_profile = provisioning_profile,
             rule_descriptor = rule_descriptor,
         )
 
@@ -538,9 +562,10 @@ def _bundle_post_process_and_sign(
         # This output, while an intermediate artifact not exposed through the AppleBundleInfo
         # provider, is used by Tulsi for custom processing logic. (b/120221708)
         unprocessed_archive = intermediates.file(
-            actions,
-            rule_label.name,
-            "unprocessed_archive.zip",
+            actions = actions,
+            target_name = rule_label.name,
+            output_discriminator = output_discriminator,
+            file_name = "unprocessed_archive.zip",
         )
         _bundle_partial_outputs_files(
             actions = actions,
@@ -549,9 +574,11 @@ def _bundle_post_process_and_sign(
             bundle_name = bundle_name,
             ipa_post_processor = ipa_post_processor,
             label_name = rule_label.name,
+            output_discriminator = output_discriminator,
+            output_file = unprocessed_archive,
             partial_outputs = partial_outputs,
             platform_prerequisites = platform_prerequisites,
-            output_file = unprocessed_archive,
+            provisioning_profile = provisioning_profile,
             rule_descriptor = rule_descriptor,
         )
 
@@ -564,14 +591,17 @@ def _bundle_post_process_and_sign(
         codesigning_support.post_process_and_sign_archive_action(
             actions = actions,
             archive_codesigning_path = archive_codesigning_path,
+            codesign_inputs = codesign_inputs,
             codesignopts = codesignopts,
             entitlements = entitlements,
+            features = features,
             frameworks_path = frameworks_path,
             input_archive = unprocessed_archive,
             ipa_post_processor = ipa_post_processor,
             label_name = rule_label.name,
             output_archive = output_archive,
             output_archive_root_path = output_archive_root_path,
+            output_discriminator = output_discriminator,
             platform_prerequisites = platform_prerequisites,
             process_and_sign_template = process_and_sign_template,
             provisioning_profile = provisioning_profile,
@@ -587,8 +617,8 @@ def _bundle_post_process_and_sign(
         if has_different_embedding_archive:
             embedding_archive = outputs.archive_for_embedding(
                 actions = actions,
-                bundle_name = bundle_name,
                 bundle_extension = bundle_extension,
+                bundle_name = bundle_name,
                 executable_name = executable_name,
                 label_name = rule_label.name,
                 rule_descriptor = rule_descriptor,
@@ -606,9 +636,10 @@ def _bundle_post_process_and_sign(
             embedding_frameworks_path = embedding_archive_paths[_LOCATION_ENUM.framework]
             embedding_archive_root_path = outputs.root_path_from_archive(archive = embedding_archive)
             unprocessed_embedded_archive = intermediates.file(
-                actions,
-                rule_label.name,
-                "unprocessed_embedded_archive.zip",
+                actions = actions,
+                target_name = rule_label.name,
+                output_discriminator = output_discriminator,
+                file_name = "unprocessed_embedded_archive.zip",
             )
             _bundle_partial_outputs_files(
                 actions = actions,
@@ -618,23 +649,28 @@ def _bundle_post_process_and_sign(
                 embedding = True,
                 ipa_post_processor = ipa_post_processor,
                 label_name = rule_label.name,
+                output_discriminator = output_discriminator,
+                output_file = unprocessed_embedded_archive,
                 partial_outputs = partial_outputs,
                 platform_prerequisites = platform_prerequisites,
-                output_file = unprocessed_embedded_archive,
+                provisioning_profile = provisioning_profile,
                 rule_descriptor = rule_descriptor,
             )
 
             codesigning_support.post_process_and_sign_archive_action(
                 actions = actions,
                 archive_codesigning_path = embedding_archive_codesigning_path,
+                codesign_inputs = codesign_inputs,
                 codesignopts = codesignopts,
                 entitlements = entitlements,
+                features = features,
                 frameworks_path = embedding_frameworks_path,
                 input_archive = unprocessed_embedded_archive,
                 ipa_post_processor = ipa_post_processor,
                 label_name = rule_label.name,
                 output_archive = embedding_archive,
                 output_archive_root_path = embedding_archive_root_path,
+                output_discriminator = output_discriminator,
                 platform_prerequisites = platform_prerequisites,
                 process_and_sign_template = process_and_sign_template,
                 provisioning_profile = provisioning_profile,
@@ -650,15 +686,18 @@ def _process(
         bundle_extension,
         bundle_name,
         bundle_post_process_and_sign = True,
+        codesign_inputs = [],
         codesignopts = [],
-        entitlements,
+        entitlements = None,
         executable_name,
+        features,
         ipa_post_processor,
+        output_discriminator = None,
         partials,
         platform_prerequisites,
         predeclared_outputs,
         process_and_sign_template,
-        provisioning_profile,
+        provisioning_profile = None,
         rule_descriptor,
         rule_label):
     """Processes a list of partials that provide the files to be bundled.
@@ -670,10 +709,14 @@ def _process(
       bundle_name: The name of the output bundle.
       bundle_post_process_and_sign: If the process action should also post process and sign after
           calling the implementation of every partial. Defaults to True.
-      codesignopts: Extra options to pass to the `codesign` tool
+      codesign_inputs: Extra inputs needed for the `codesign` tool.
+      codesignopts: Extra options to pass to the `codesign` tool.
       entitlements: The entitlements file to sign with. Can be `None` if one was not provided.
       executable_name: The name of the output executable.
+      features: List of features enabled by the user. Typically from `ctx.features`.
       ipa_post_processor: A file that acts as a bundle post processing tool. May be `None`.
+      output_discriminator: A string to differentiate between different target intermediate files
+          or `None`.
       partials: The list of partials to process to construct the complete bundle.
       platform_prerequisites: Struct containing information on the platform being targeted.
       predeclared_outputs: Outputs declared by the owning context. Typically from `ctx.outputs`.
@@ -704,11 +747,14 @@ def _process(
             apple_toolchain_info = apple_toolchain_info,
             bundle_extension = bundle_extension,
             bundle_name = bundle_name,
+            codesign_inputs = codesign_inputs,
             codesignopts = codesignopts,
             executable_name = executable_name,
             entitlements = entitlements,
+            features = features,
             ipa_post_processor = ipa_post_processor,
             output_archive = output_archive,
+            output_discriminator = output_discriminator,
             partial_outputs = partial_outputs,
             platform_prerequisites = platform_prerequisites,
             predeclared_outputs = predeclared_outputs,

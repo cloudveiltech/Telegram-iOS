@@ -91,7 +91,7 @@ final class WatchChatMessagesHandler: WatchRequestHandler {
                 |> take(1)
                 |> mapToSignal({ context -> Signal<(MessageHistoryView, Bool, PresentationData), NoError> in
                     if let context = context {
-                        return context.account.viewTracker.aroundMessageHistoryViewForLocation(.peer(peerId), index: .upperBound, anchorIndex: .upperBound, count: limit, fixedCombinedReadStates: nil)
+                        return context.account.viewTracker.aroundMessageHistoryViewForLocation(.peer(peerId: peerId), index: .upperBound, anchorIndex: .upperBound, count: limit, fixedCombinedReadStates: nil)
                         |> map { messageHistoryView, _, _ -> (MessageHistoryView, Bool, PresentationData) in
                             return (messageHistoryView, peerId == context.account.peerId, context.sharedContext.currentPresentationData.with { $0 })
                         }
@@ -313,11 +313,11 @@ private func mediaForSticker(documentId: Int64, account: Account) -> Signal<Tele
     |> map { view -> TelegramMediaFile? in
         for view in view.orderedItemListsViews {
             for entry in view.items {
-                if let file = (entry.contents as? SavedStickerItem)?.file {
+                if let file = entry.contents.get(SavedStickerItem.self)?.file {
                     if file.id?.id == documentId {
                         return file
                     }
-                } else if let file = (entry.contents as? RecentMediaItem)?.media as? TelegramMediaFile {
+                } else if let file = entry.contents.get(RecentMediaItem.self)?.media {
                     if file.id?.id == documentId {
                         return file
                     }
@@ -556,7 +556,7 @@ final class WatchMediaHandler: WatchRequestHandler {
                                             imageSignal = chatMessageVideoThumbnail(account: context.account, fileReference: fileReference)
                                             roundVideo = fileReference.media.isInstantVideo
                                         } else if let iconImageRepresentation = smallestImageRepresentation(fileReference.media.previewRepresentations) {
-                                            imageSignal = chatWebpageSnippetFile(account: context.account, fileReference: fileReference, representation: iconImageRepresentation)
+                                            imageSignal = chatWebpageSnippetFile(account: context.account, mediaReference: fileReference.abstract, representation: iconImageRepresentation)
                                         }
                                     }
                                 }
@@ -618,12 +618,12 @@ final class WatchStickersHandler: WatchRequestHandler {
                     var added: Set<Int64> = []
                     outer: for view in view.orderedItemListsViews {
                         for entry in view.items {
-                            if let file = (entry.contents as? SavedStickerItem)?.file {
+                            if let file = entry.contents.get(SavedStickerItem.self)?.file {
                                 if let sticker = makeBridgeDocument(file), !added.contains(sticker.documentId) {
                                     stickers.append(sticker)
                                     added.insert(sticker.documentId)
                                 }
-                            } else if let file = (entry.contents as? RecentMediaItem)?.media as? TelegramMediaFile {
+                            } else if let file = entry.contents.get(RecentMediaItem.self)?.media {
                                 if let sticker = makeBridgeDocument(file), !added.contains(sticker.documentId) {
                                     stickers.append(sticker)
                                     added.insert(sticker.documentId)

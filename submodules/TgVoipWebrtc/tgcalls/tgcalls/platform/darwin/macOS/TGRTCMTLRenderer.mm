@@ -145,6 +145,7 @@ static inline void getCubeVertexData(size_t frameWidth,
 
 }
 
+
 @synthesize rotationOverride = _rotationOverride;
 
 - (instancetype)init {
@@ -213,13 +214,13 @@ static inline void getCubeVertexData(size_t frameWidth,
 
 
 - (void)uploadTexturesToRenderEncoder:(id<MTLRenderCommandEncoder>)renderEncoder {
-  RTC_NOTREACHED() << "Virtual method not implemented in subclass.";
+//  RTC_NOTREACHED() << "Virtual method not implemented in subclass.";
 }
 
 - (void)getWidth:(int *)width
           height:(int *)height
          ofFrame:(nonnull RTC_OBJC_TYPE(RTCVideoFrame) *)frame {
-  RTC_NOTREACHED() << "Virtual method not implemented in subclass.";
+ // RTC_NOTREACHED() << "Virtual method not implemented in subclass.";
 }
 
 - (BOOL)setupTexturesForFrame:(nonnull RTC_OBJC_TYPE(RTCVideoFrame) *)frame {
@@ -611,7 +612,13 @@ static inline void getCubeVertexData(size_t frameWidth,
     dispatch_semaphore_signal(_inflight1);
     dispatch_semaphore_signal(_inflight2);
     dispatch_semaphore_signal(_inflight2);
-
+    __block CAMetalLayer *view = _view;
+    __block CAMetalLayer *foreground = _foreground;
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        view = nil;
+        foreground = nil;
+    });
 }
 
 #pragma mark - RTCMTLRenderer

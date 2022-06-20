@@ -13,15 +13,15 @@ import PersistentStringHash
 import CloudVeilSecurityManager
 
 public enum ChatMessageItemContent: Sequence {
-    case message(message: Message, read: Bool, selection: ChatHistoryMessageSelection, attributes: ChatMessageEntryAttributes)
-    case group(messages: [(Message, Bool, ChatHistoryMessageSelection, ChatMessageEntryAttributes)])
+    case message(message: Message, read: Bool, selection: ChatHistoryMessageSelection, attributes: ChatMessageEntryAttributes, location: MessageHistoryEntryLocation?)
+    case group(messages: [(Message, Bool, ChatHistoryMessageSelection, ChatMessageEntryAttributes, MessageHistoryEntryLocation?)])
     
     func effectivelyIncoming(_ accountPeerId: PeerId, associatedData: ChatMessageItemAssociatedData? = nil) -> Bool {
         if let subject = associatedData?.subject, case .forwardedMessages = subject {
             return false
         }
         switch self {
-            case let .message(message, _, _, _):
+            case let .message(message, _, _, _, _):
                 return message.effectivelyIncoming(accountPeerId)
             case let .group(messages):
                 return messages[0].0.effectivelyIncoming(accountPeerId)
@@ -30,7 +30,7 @@ public enum ChatMessageItemContent: Sequence {
     
     var index: MessageIndex {
         switch self {
-            case let .message(message, _, _, _):
+            case let .message(message, _, _, _, _):
                 return message.index
             case let .group(messages):
                 return messages[0].0.index
@@ -39,7 +39,7 @@ public enum ChatMessageItemContent: Sequence {
     
     var firstMessage: Message {
         switch self {
-            case let .message(message, _, _, _):
+            case let .message(message, _, _, _, _):
                 return message
             case let .group(messages):
                 return messages[0].0
@@ -48,8 +48,8 @@ public enum ChatMessageItemContent: Sequence {
     
     var firstMessageAttributes: ChatMessageEntryAttributes {
         switch self {
-            case let .message(message):
-                return message.attributes
+            case let .message(_, _, _, attributes, _):
+                return attributes
             case let .group(messages):
                 return messages[0].3
         }
@@ -59,10 +59,10 @@ public enum ChatMessageItemContent: Sequence {
         var index = 0
         return AnyIterator { () -> (Message, ChatMessageEntryAttributes)? in
             switch self {
-                case let .message(message):
+                case let .message(message, _, _, attributes, _):
                     if index == 0 {
                         index += 1
-                        return (message.message, message.attributes)
+                        return (message, attributes)
                     } else {
                         index += 1
                         return nil
@@ -270,7 +270,7 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
     
     var message: Message {
         switch self.content {
-            case let .message(message, _, _, _):
+            case let .message(message, _, _, _, _):
                 return message
             case let .group(messages):
                 return messages[0].0
@@ -279,7 +279,7 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
     
     var read: Bool {
         switch self.content {
-            case let .message(_, read, _, _):
+            case let .message(_, read, _, _, _):
                 return read
             case let .group(messages):
                 return messages[0].1
@@ -302,8 +302,7 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
         var effectiveAuthor: Peer?
         let displayAuthorInfo: Bool
         
-        let messagePeerId: PeerId = chatLocation.peerId
-        
+        let messagePeerId: PeerId = chatLocation.peerId ?? content.firstMessage.id.peerId
         
         do {
             let peerId = messagePeerId
@@ -334,14 +333,14 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
             isScheduledMessages = true
         }
         
-        self.dateHeader = ChatMessageDateHeader(timestamp: content.index.timestamp, scheduled: isScheduledMessages, presentationData: presentationData, context: context, action: { timestamp in
+        self.dateHeader = ChatMessageDateHeader(timestamp: content.index.timestamp, scheduled: isScheduledMessages, presentationData: presentationData, context: context, action: { timestamp, alreadyThere in
             var calendar = NSCalendar.current
             calendar.timeZone = TimeZone(abbreviation: "UTC")!
             let date = Date(timeIntervalSince1970: TimeInterval(timestamp))
             let components = calendar.dateComponents([.year, .month, .day], from: date)
 
             if let date = calendar.date(from: components) {
-                controllerInteraction.navigateToFirstDateMessage(Int32(date.timeIntervalSince1970))
+                controllerInteraction.navigateToFirstDateMessage(Int32(date.timeIntervalSince1970), alreadyThere)
             }
         })
         
@@ -379,12 +378,11 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
             headers.append(avatarHeader)
         }
         self.headers = headers
-        
         //CloudVeil start
         patchForbiddenStickerData()
         //CloudVeil end
     }
-    
+        
     //CloudVeil start
     private func patchForbiddenStickerData() {
         self.originalMedia = self.message.media
@@ -410,15 +408,17 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
         }
     }
     //CloudVeil end
-
     
     public func nodeConfiguredForParams(async: @escaping (@escaping () -> Void) -> Void, params: ListViewItemLayoutParams, synchronousLoads: Bool, previousItem: ListViewItem?, nextItem: ListViewItem?, completion: @escaping (ListViewItemNode, @escaping () -> (Signal<Void, NoError>?, (ListViewItemApply) -> Void)) -> Void) {
         var viewClassName: AnyClass = ChatMessageBubbleItemNode.self
-        
         //CloudVeil start
         loop: for media in self.originalMedia {
         //CloudVeil end
             if let telegramFile = media as? TelegramMediaFile {
+                if telegramFile.isVideoSticker {
+                    viewClassName = ChatMessageAnimatedStickerItemNode.self
+                    break loop
+                }
                 if telegramFile.isAnimatedSticker, let size = telegramFile.size, size > 0 && size <= 128 * 1024 {
                     if self.message.id.peerId.namespace == Namespaces.Peer.SecretChat {
                         if telegramFile.fileId.namespace == Namespaces.Media.CloudFile {
@@ -471,9 +471,8 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
             }
         }
         
-        
         if viewClassName == ChatMessageBubbleItemNode.self && self.presentationData.largeEmoji && self.message.media.isEmpty {
-            if case let .message(_, _, _, attributes) = self.content {
+            if case let .message(_, _, _, attributes, _) = self.content {
                 switch attributes.contentTypeHint {
                     case .largeEmoji:
                         viewClassName = ChatMessageStickerItemNode.self

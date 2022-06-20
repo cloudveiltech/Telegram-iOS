@@ -111,7 +111,7 @@ bool H264CMSampleBufferToAnnexBBuffer(CMSampleBufferRef avcc_sample_buffer,
   }
   size_t bytes_remaining = block_buffer_size;
   while (bytes_remaining > 0) {
-    // The size type here must match |nalu_header_size|, we expect 4 bytes.
+    // The size type here must match `nalu_header_size`, we expect 4 bytes.
     // Read the length of the next packet of data. Must convert from big endian
     // to host endian.
     RTC_DCHECK_GE(bytes_remaining, (size_t)nalu_header_size);
@@ -224,14 +224,11 @@ bool H264AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
   return true;
 }
 
-#ifndef DISABLE_H265
 bool H265CMSampleBufferToAnnexBBuffer(
     CMSampleBufferRef hvcc_sample_buffer,
     bool is_keyframe,
     rtc::Buffer* annexb_buffer) {
   RTC_DCHECK(hvcc_sample_buffer);
-  //RTC_DCHECK(out_header);
-  //out_header->reset(nullptr);
 
   // Get format description from the sample buffer.
   CMVideoFormatDescriptionRef description =
@@ -338,14 +335,6 @@ bool H265CMSampleBufferToAnnexBBuffer(
   }
   RTC_DCHECK_EQ(bytes_remaining, (size_t)0);
 
-  /*std::unique_ptr<RTPFragmentationHeader> header(new RTPFragmentationHeader());
-  header->VerifyAndAllocateFragmentationHeader(frag_offsets.size());
-  RTC_DCHECK_EQ(frag_lengths.size(), frag_offsets.size());
-  for (size_t i = 0; i < frag_offsets.size(); ++i) {
-    header->fragmentationOffset[i] = frag_offsets[i];
-    header->fragmentationLength[i] = frag_lengths[i];
-  }
-  *out_header = std::move(header);*/
   CFRelease(contiguous_buffer);
   return true;
 }
@@ -444,7 +433,6 @@ bool H265AnnexBBufferToCMSampleBuffer(const uint8_t* annexb_buffer,
   CFRelease(contiguous_buffer);
   return true;
 }
-#endif
 
 CMVideoFormatDescriptionRef CreateVideoFormatDescription(
     const uint8_t* annexb_buffer,
@@ -476,7 +464,6 @@ CMVideoFormatDescriptionRef CreateVideoFormatDescription(
   return description;
 }
 
-#ifndef DISABLE_H265
 CMVideoFormatDescriptionRef CreateH265VideoFormatDescription(
     const uint8_t* annexb_buffer,
     size_t annexb_buffer_size) {
@@ -511,7 +498,6 @@ CMVideoFormatDescriptionRef CreateH265VideoFormatDescription(
   }
   return description;
 }
-#endif
 
 AnnexBBufferReader::AnnexBBufferReader(const uint8_t* annexb_buffer,
                                        size_t length)
@@ -559,8 +545,6 @@ bool AnnexBBufferReader::SeekToNextNaluOfType(NaluType type) {
   }
   return false;
 }
-
-#ifndef DISABLE_H265
 bool AnnexBBufferReader::SeekToNextNaluOfType(H265::NaluType type) {
   for (; offset_ != offsets_.end(); ++offset_) {
     if (offset_->payload_size < 1)
@@ -570,8 +554,6 @@ bool AnnexBBufferReader::SeekToNextNaluOfType(H265::NaluType type) {
   }
   return false;
 }
-#endif
-
 AvccBufferWriter::AvccBufferWriter(uint8_t* const avcc_buffer, size_t length)
     : start_(avcc_buffer), offset_(0), length_(length) {
   RTC_DCHECK(avcc_buffer);

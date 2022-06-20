@@ -3,7 +3,6 @@ import UIKit
 import Display
 import AsyncDisplayKit
 import SwiftSignalKit
-import Postbox
 import TelegramPresentationData
 import TelegramStringFormatting
 import SearchBarNode
@@ -144,7 +143,6 @@ private final class AuthorizationSequenceCountrySelectionNavigationContentNode: 
         self.addSubnode(self.searchBar)
         
         self.searchBar.cancel = { [weak self] in
-            //self?.searchBar.deactivate(clear: false)
             self?.cancel()
         }
         
@@ -333,7 +331,9 @@ public final class AuthorizationSequenceCountrySelectionController: ViewControll
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        self.navigationContentNode?.activate()
+        Queue.mainQueue().justDispatch {
+            self.navigationContentNode?.activate()
+        }
     }
     
     override public func containerLayoutUpdated(_ layout: ContainerViewLayout, transition: ContainedViewLayoutTransition) {

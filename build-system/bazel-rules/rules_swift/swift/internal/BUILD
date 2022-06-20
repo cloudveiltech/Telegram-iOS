@@ -145,7 +145,17 @@ bzl_library(
 )
 
 bzl_library(
+    name = "swift_feature_allowlist",
+    srcs = ["swift_feature_allowlist.bzl"],
+    visibility = ["//swift:__subpackages__"],
+    deps = [
+        ":providers",
+    ],
+)
+
+bzl_library(
     name = "swift_binary_test",
+    srcs = ["swift_binary_test.bzl"],
     visibility = ["//swift:__subpackages__"],
     deps = [
         ":compiling",
@@ -227,6 +237,7 @@ bzl_library(
     visibility = ["//swift:__subpackages__"],
     deps = [
         ":attrs",
+        ":build_settings",
         ":compiling",
         ":feature_names",
         ":linking",
@@ -362,6 +373,11 @@ bzl_library(
     name = "vfsoverlay",
     srcs = ["vfsoverlay.bzl"],
     visibility = ["//swift:__subpackages__"],
+)
+
+bzl_library(
+    name = "build_settings",
+    srcs = ["build_settings.bzl"],
 )
 
 # Consumed by Bazel integration tests.

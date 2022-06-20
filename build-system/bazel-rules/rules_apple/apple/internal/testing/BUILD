@@ -13,9 +13,6 @@ bzl_library(
     visibility = [
         "//apple:__subpackages__",
     ],
-    deps = [
-        "//apple/internal:binary_support",
-    ],
 )
 
 bzl_library(
@@ -28,7 +25,6 @@ bzl_library(
         "//apple:providers",
         "//apple/internal:apple_product_type",
         "//apple/internal:bundling_support",
-        "//apple/internal:entitlements_support",
         "//apple/internal:experimental",
         "//apple/internal:features_support",
         "//apple/internal:linking_support",
@@ -59,6 +55,9 @@ bzl_library(
     srcs = ["build_test_rules.bzl"],
     visibility = [
         "//apple:__subpackages__",
+    ],
+    deps = [
+        "//apple/internal:transition_support",
     ],
 )
 
@@ -95,6 +94,21 @@ bzl_library(
 bzl_library(
     name = "tvos_rules",
     srcs = ["tvos_rules.bzl"],
+    visibility = [
+        "//apple:__subpackages__",
+    ],
+    deps = [
+        ":apple_test_bundle_support",
+        ":apple_test_rule_support",
+        "//apple:providers",
+        "//apple/internal:apple_product_type",
+        "//apple/internal:rule_factory",
+    ],
+)
+
+bzl_library(
+    name = "watchos_rules",
+    srcs = ["watchos_rules.bzl"],
     visibility = [
         "//apple:__subpackages__",
     ],

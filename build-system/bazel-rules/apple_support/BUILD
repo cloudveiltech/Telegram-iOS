@@ -12,20 +12,10 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = [
         "//lib:apple_support",
+        "//lib:lipo",
         "//lib:xcode_support",
         "//rules:apple_genrule",
     ],
-)
-
-alias(
-    name = "bzl_library",
-    actual = ":apple_support",
-    deprecation = (
-        "bzl_library will go away in the future, please directly depend on the" +
-        " public file's bzl_library being used: lib:apple_support," +
-        " lib:xcode_support, or rules:apple_genrule."
-    ),
-    visibility = ["//visibility:public"],
 )
 
 # Consumed by bazel tests.

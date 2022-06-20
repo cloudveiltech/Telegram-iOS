@@ -19,26 +19,17 @@ load(
     "entry_point_test",
 )
 
-def macos_extension_test_suite(name = "macos_extension"):
+def macos_extension_test_suite(name):
     """Test suite for macos_extension.
 
     Args:
-        name: The name prefix for all the nested tests
+      name: the base name to be used in things created by this macro
     """
-
     entry_point_test(
         name = "{}_entry_point_nsextensionmain_test".format(name),
         build_type = "simulator",
         entry_point = "_NSExtensionMain",
         target_under_test = "//test/starlark_tests/targets_under_test/macos:ext",
-        tags = [name],
-    )
-
-    entry_point_test(
-        name = "{}_entry_point_main_test".format(name),
-        build_type = "simulator",
-        entry_point = "_main",
-        target_under_test = "//test/starlark_tests/targets_under_test/macos:ext_with_main",
         tags = [name],
     )
 

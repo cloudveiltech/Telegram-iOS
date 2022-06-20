@@ -14,49 +14,51 @@
 
 """Common utility definitions used by various BUILD rules."""
 
+load(":providers.bzl", "SwiftInfo")
 load("@bazel_skylib//lib:paths.bzl", "paths")
 
-def collect_cc_libraries(
-        cc_info,
-        include_dynamic = False,
-        include_interface = False,
-        include_pic_static = False,
-        include_static = False):
-    """Returns a list of libraries referenced in the given `CcInfo` provider.
+def collect_implicit_deps_providers(
+        targets,
+        additional_cc_infos = [],
+        additional_objc_infos = []):
+    """Returns a struct with important providers from a list of implicit deps.
+
+    Note that the relationship between each provider in the list and the target
+    it originated from is no longer retained.
 
     Args:
-        cc_info: The `CcInfo` provider whose libraries should be returned.
-        include_dynamic: True if dynamic libraries should be included in the
-            list.
-        include_interface: True if interface libraries should be included in the
-            list.
-        include_pic_static: True if PIC static libraries should be included in
-            the list. If there is no PIC library, the non-PIC library will be
-            used instead.
-        include_static: True if non-PIC static libraries should be included in
-            the list.
+        targets: A list (possibly empty) of `Target`s.
+        additional_cc_infos: A `list` of additional `CcInfo` providers that
+            should be included in the returned value.
+        additional_objc_infos: A `list` of additional `apple_common.Objc`
+            providers that should be included in the returned value.
 
     Returns:
-        The list of libraries built or depended on by the given provier.
+        A `struct` containing three fields:
+
+        *   `cc_infos`: The merged `CcInfo` provider from the given targets.
+        *   `objc_infos`: The merged `apple_common.Objc` provider from the given
+            targets.
+        *   `swift_infos`: The merged `SwiftInfo` provider from the given
+            targets.
     """
-    libraries = []
+    cc_infos = []
+    objc_infos = []
+    swift_infos = []
 
-    for linker_input in cc_info.linking_context.linker_inputs.to_list():
-        for library in linker_input.libraries:
-            if include_pic_static:
-                if library.pic_static_library:
-                    libraries.append(library.pic_static_library)
-                elif library.static_library:
-                    libraries.append(library.static_library)
-            elif include_static and library.static_library:
-                libraries.append(library.static_library)
+    for target in targets:
+        if CcInfo in target:
+            cc_infos.append(target[CcInfo])
+        if apple_common.Objc in target:
+            objc_infos.append(target[apple_common.Objc])
+        if SwiftInfo in target:
+            swift_infos.append(target[SwiftInfo])
 
-            if include_dynamic and library.dynamic_library:
-                libraries.append(library.dynamic_library)
-            if include_interface and library.interface_library:
-                libraries.append(library.interface_library)
-
-    return libraries
+    return struct(
+        cc_infos = cc_infos + additional_cc_infos,
+        objc_infos = objc_infos + additional_objc_infos,
+        swift_infos = swift_infos,
+    )
 
 def compact(sequence):
     """Returns a copy of the sequence with any `None` items removed.
@@ -68,65 +70,37 @@ def compact(sequence):
     """
     return [item for item in sequence if item != None]
 
-def create_cc_info(
-        *,
-        cc_infos = [],
-        compilation_outputs = None,
-        defines = [],
-        includes = [],
-        linker_inputs = [],
-        private_cc_infos = []):
-    """Creates a `CcInfo` provider from Swift compilation info and deps.
+def compilation_context_for_explicit_module_compilation(
+        compilation_contexts,
+        deps):
+    """Returns a compilation context suitable for compiling an explicit module.
 
     Args:
-        cc_infos: A list of `CcInfo` providers from public dependencies, whose
-            compilation and linking contexts should both be merged into the new
-            provider.
-        compilation_outputs: The compilation outputs from a Swift compile
-            action, as returned by `swift_common.compile`, or None.
-        defines: The list of compiler defines to insert into the compilation
-            context.
-        includes: The list of include paths to insert into the compilation
-            context.
-        linker_inputs: A list of `LinkerInput` objects that represent the
-            libraries that should be linked into the final binary as well as any
-            additional inputs and flags that should be passed to the linker.
-        private_cc_infos: A list of `CcInfo` providers from private
-            (implementation-only) dependencies, whose linking contexts should be
-            merged into the new provider but whose compilation contexts should
-            be excluded.
+        compilation_contexts: `CcCompilationContext`s that provide information
+            about headers and include paths for the target being compiled.
+        deps: Direct dependencies of the target being compiled.
 
     Returns:
-        A new `CcInfo`.
+        A `CcCompilationContext` containing information needed when compiling an
+        explicit module, such as the headers and search paths of direct
+        dependencies (since Clang needs to find those on the file system in
+        order to map them to a module).
     """
-    all_headers = []
-    if compilation_outputs:
-        all_headers = compact([compilation_outputs.generated_header])
+    all_compilation_contexts = list(compilation_contexts)
 
-    local_cc_infos = [
-        CcInfo(
-            linking_context = cc_common.create_linking_context(
-                linker_inputs = depset(linker_inputs),
-            ),
-            compilation_context = cc_common.create_compilation_context(
-                defines = depset(defines),
-                headers = depset(all_headers),
-                includes = depset(includes),
-            ),
-        ),
-    ]
+    for dep in deps:
+        if CcInfo in dep:
+            all_compilation_contexts.append(dep[CcInfo].compilation_context)
+        if apple_common.Objc in dep:
+            all_compilation_contexts.append(
+                cc_common.create_compilation_context(
+                    includes = dep[apple_common.Objc].strict_include,
+                ),
+            )
 
-    if private_cc_infos:
-        # Merge the private deps' CcInfos, but discard the compilation context
-        # and only propagate the linking context.
-        full_private_cc_info = cc_common.merge_cc_infos(
-            cc_infos = private_cc_infos,
-        )
-        local_cc_infos.append(CcInfo(
-            linking_context = full_private_cc_info.linking_context,
-        ))
-
-    return cc_common.merge_cc_infos(cc_infos = local_cc_infos + cc_infos)
+    return cc_common.merge_compilation_contexts(
+        compilation_contexts = all_compilation_contexts,
+    )
 
 def expand_locations(ctx, values, targets = []):
     """Expands the `$(location)` placeholders in each of the given values.
@@ -141,6 +115,23 @@ def expand_locations(ctx, values, targets = []):
         A list of strings with any `$(location)` placeholders filled in.
     """
     return [ctx.expand_location(value, targets) for value in values]
+
+def expand_make_variables(ctx, values, attribute_name):
+    """Expands all references to Make variables in each of the given values.
+
+    Args:
+        ctx: The rule context.
+        values: A list of strings, which may contain Make variable placeholders.
+        attribute_name: The attribute name string that will be presented in
+            console when an error occurs.
+
+    Returns:
+        A list of strings with Make variables placeholders filled in.
+    """
+    return [
+        ctx.expand_make_variables(attribute_name, value, {})
+        for value in values
+    ]
 
 def get_swift_executable_for_toolchain(ctx):
     """Returns the Swift driver executable that the toolchain should use.
@@ -299,6 +290,44 @@ def owner_relative_path(file):
         )
     else:
         return paths.relativize(file.short_path, package)
+
+def resolve_optional_tool(ctx, *, target):
+    """Resolves a tool and returns a `struct` describing its inputs.
+
+    This function uses `ctx.resolve_tools` which allows an executable and any of
+    its required runfiles to be propagated correctly across the target boundary.
+
+    Args:
+        ctx: The rule or aspect context.
+        target: The `Target` representing the tool whose inputs should be
+            resolved. This may be `None`, in which case the returned `struct`
+            will be valid but its fields will be appropriately empty.
+
+    Returns:
+        A `struct` containing three fields:
+
+        *   `executable`: The `File` representing the tool's executable (or
+            `None` if `target` was `None`).
+        *   `input_manifests`: A list of input manifests that should be passed
+            as `tool_input_manifests` when configuring the tool in the
+            toolchain (or the empty list if `target` was `None`.)
+        *   `inputs`: A `depset` of `File`s that should be passed as
+            `tool_inputs` when configuring the tool in the toolchain (or the
+            empty `depset` if `target` was `None`.)
+    """
+    if target:
+        executable = target[DefaultInfo].files_to_run.executable
+        inputs, input_manifests = ctx.resolve_tools(tools = [target])
+    else:
+        executable = None
+        input_manifests = []
+        inputs = depset()
+
+    return struct(
+        executable = executable,
+        input_manifests = input_manifests,
+        inputs = inputs,
+    )
 
 def struct_fields(s):
     """Returns a dictionary containing the fields in the struct `s`.

@@ -30,11 +30,11 @@ coverage_xcode_prefix_map_test = make_action_command_line_test_rule(
     },
 )
 
-def coverage_settings_test_suite(name = "coverage_settings"):
+def coverage_settings_test_suite(name):
     """Test suite for coverage options.
 
     Args:
-        name: The name prefix for all the nested tests
+      name: the base name to be used in things created by this macro
     """
     default_coverage_test(
         name = "{}_default_coverage".format(name),
@@ -65,13 +65,11 @@ def coverage_settings_test_suite(name = "coverage_settings"):
     coverage_xcode_prefix_map_test(
         name = "{}_xcode_prefix_map".format(name),
         tags = [name],
-        expected_argv = select({
-            "//test:linux": [],
-            "//conditions:default": [
-                "-coverage-prefix-map",
-                "__BAZEL_XCODE_DEVELOPER_DIR__=DEVELOPER_DIR",
-            ],
-        }),
+        expected_argv = [
+            "-coverage-prefix-map",
+            "__BAZEL_XCODE_DEVELOPER_DIR__=DEVELOPER_DIR",
+        ],
+        target_compatible_with = ["@platforms//os:macos"],
         mnemonic = "SwiftCompile",
         target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
     )

@@ -35,7 +35,7 @@ const CGFloat TGClipboardPreviewEdgeInset = 8.0f;
 
 @implementation TGClipboardPreviewItemView
 
-- (instancetype)initWithContext:(id<LegacyComponentsContext>)context images:(NSArray *)images
+- (instancetype)initWithContext:(id<LegacyComponentsContext>)context images:(NSArray *)images allowGrouping:(bool)allowGrouping
 {
     self = [super initWithType:TGMenuSheetItemTypeDefault];
     if (self != nil)
@@ -61,7 +61,9 @@ const CGFloat TGClipboardPreviewEdgeInset = 8.0f;
         [_collectionView registerClass:[TGClipboardPreviewCell class] forCellWithReuseIdentifier:TGClipboardPreviewCellIdentifier];
         [self addSubview:_collectionView];
         
-        _selectionContext = [[TGMediaSelectionContext alloc] initWithGroupingAllowed:false selectionLimit:100];
+        _selectionContext = [[TGMediaSelectionContext alloc] initWithGroupingAllowed:allowGrouping selectionLimit:100];
+        if (allowGrouping)
+            _selectionContext.grouping = true;
         
         for (UIImage *image in _images)
         {
@@ -268,7 +270,7 @@ const CGFloat TGClipboardPreviewEdgeInset = 8.0f;
     if ([cell isKindOfClass:[TGClipboardPreviewCell class]])
         thumbnailImage = cell.imageView.image;
     
-    TGClipboardGalleryMixin *mixin = [[TGClipboardGalleryMixin alloc] initWithContext:_context image:image images:_images parentController:self.parentController thumbnailImage:thumbnailImage selectionContext:_selectionContext editingContext:_editingContext suggestionContext:self.suggestionContext stickersContext:self.stickersContext hasCaptions:self.allowCaptions hasTimer:self.hasTimer hasSilentPosting:self.hasSilentPosting hasSchedule:self.hasSchedule reminder:self.reminder recipientName:self.recipientName];
+    TGClipboardGalleryMixin *mixin = [[TGClipboardGalleryMixin alloc] initWithContext:_context image:image images:_images parentController:self.parentController thumbnailImage:thumbnailImage selectionContext:_selectionContext editingContext:_editingContext stickersContext:self.stickersContext hasCaptions:self.allowCaptions hasTimer:self.hasTimer hasSilentPosting:self.hasSilentPosting hasSchedule:self.hasSchedule reminder:self.reminder recipientName:self.recipientName];
     mixin.presentScheduleController = self.presentScheduleController;
     mixin.presentTimerController = self.presentTimerController;
     

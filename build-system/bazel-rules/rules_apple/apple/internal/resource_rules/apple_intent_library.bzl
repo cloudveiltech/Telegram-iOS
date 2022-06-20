@@ -59,6 +59,10 @@ def _apple_intent_library_impl(ctx):
         apple_fragment = ctx.fragments.apple,
         config_vars = ctx.var,
         device_families = None,
+        disabled_features = ctx.disabled_features,
+        explicit_minimum_deployment_os = None,
+        explicit_minimum_os = None,
+        features = ctx.features,
         objc_fragment = None,
         platform_type_string = str(ctx.fragments.apple.single_arch_platform.platform_type),
         uses_swift = False,
@@ -104,7 +108,7 @@ apple_intent_library = rule(
             allow_single_file = [".intentdefinition"],
             mandatory = True,
             doc = """
-Label to a single or multiple intentdefinition files from which to generate sources files.
+Label to a single `.intentdefinition` files from which to generate sources files.
 """,
         ),
         "language": attr.string(
@@ -134,10 +138,11 @@ Label to a single or multiple intentdefinition files from which to generate sour
     output_to_genfiles = True,
     fragments = ["apple"],
     doc = """
-This rule takes a single `.intentdefinition` file and creates a target that can be added as a dependency from
-objc_library or swift_library targets.
-If the `language` is `Objective-C`, this target generates a header named `<target_name>.h` that can be imported from
-within the package where this target resides. For example, if this target's label is `//my/package:intent`, you can
-import the header as `#import "my/package/intent.h"`.
+This rule supports the integration of Intents `.intentdefinition` files into Apple rules.
+It takes a single `.intentdefinition` file and creates a target that can be added as a dependency from `objc_library` or
+`swift_library` targets. It accepts the regular `objc_library` attributes too.
+This target generates a header named `<target_name>.h` that can be imported from within the package where this target
+resides. For example, if this target's label is `//my/package:intent`, you can import the header as
+`#import "my/package/intent.h"`.
 """,
 )

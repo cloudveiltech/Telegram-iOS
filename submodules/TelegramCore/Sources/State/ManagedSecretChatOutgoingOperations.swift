@@ -209,6 +209,10 @@ private func initialHandshakeAccept(postbox: Postbox, network: Network, peerId: 
         
         let gb = MTExp(network.encryptionProvider, g, bData, p)!
         
+        if !MTCheckIsSafeGAOrB(network.encryptionProvider, gb, p) {
+            return .complete()
+        }
+        
         var key = MTExp(network.encryptionProvider, gA.makeData(), bData, p)!
         
         if key.count > 256 {
@@ -222,7 +226,8 @@ private func initialHandshakeAccept(postbox: Postbox, network: Network, peerId: 
         let keyHash = MTSha1(key)
         
         var keyFingerprint: Int64 = 0
-        keyHash.withUnsafeBytes { (bytes: UnsafePointer<UInt8>) -> Void in
+        keyHash.withUnsafeBytes { rawBytes -> Void in
+            let bytes = rawBytes.baseAddress!.assumingMemoryBound(to: UInt8.self)
             memcpy(&keyFingerprint, bytes.advanced(by: keyHash.count - 8), 8)
         }
         
@@ -283,6 +288,10 @@ private func pfsRequestKey(postbox: Postbox, network: Network, peerId: PeerId, l
         let aData = a.makeData()
         let ga = MTExp(network.encryptionProvider, g, aData, p)!
         
+        if !MTCheckIsSafeGAOrB(network.encryptionProvider, ga, p) {
+            return .complete()
+        }
+        
         return postbox.transaction { transaction -> Signal<Void, NoError> in
             if let state = transaction.getPeerChatState(peerId) as? SecretChatState {
                 switch state.embeddedState {
@@ -307,9 +316,17 @@ private func pfsAcceptKey(postbox: Postbox, network: Network, peerId: PeerId, la
         let g = Data(bytes: &gValue, count: 4)
         let p = config.p.makeData()
         
+        if !MTCheckIsSafeGAOrB(network.encryptionProvider, gA.makeData(), p) {
+            return .complete()
+        }
+        
         let bData = b.makeData()
         
         let gb = MTExp(network.encryptionProvider, g, bData, p)!
+        
+        if !MTCheckIsSafeGAOrB(network.encryptionProvider, gb, p) {
+            return .complete()
+        }
         
         var key = MTExp(network.encryptionProvider, gA.makeData(), bData, p)!
         
@@ -324,7 +341,8 @@ private func pfsAcceptKey(postbox: Postbox, network: Network, peerId: PeerId, la
         let keyHash = MTSha1(key)
         
         var keyFingerprint: Int64 = 0
-        keyHash.withUnsafeBytes { (bytes: UnsafePointer<UInt8>) -> Void in
+        keyHash.withUnsafeBytes { rawBytes -> Void in
+            let bytes = rawBytes.baseAddress!.assumingMemoryBound(to: UInt8.self)
             memcpy(&keyFingerprint, bytes.advanced(by: keyHash.count - 8), 8)
         }
         
@@ -515,7 +533,7 @@ private func decryptedAttributes46(_ attributes: [TelegramMediaFileAttribute], t
                 var waveformBuffer: Buffer?
                 if let waveform = waveform {
                     flags |= Int32(1 << 2)
-                    waveformBuffer = Buffer(data: waveform.makeData())
+                    waveformBuffer = Buffer(data: waveform)
                 }
                 result.append(.documentAttributeAudio(flags: flags, duration: Int32(duration), title: title, performer: performer, waveform: waveformBuffer))
             case .HasLinkedStickers:
@@ -574,7 +592,7 @@ private func decryptedAttributes73(_ attributes: [TelegramMediaFileAttribute], t
                 var waveformBuffer: Buffer?
                 if let waveform = waveform {
                     flags |= Int32(1 << 2)
-                    waveformBuffer = Buffer(data: waveform.makeData())
+                    waveformBuffer = Buffer(data: waveform)
                 }
                 result.append(.documentAttributeAudio(flags: flags, duration: Int32(duration), title: title, performer: performer, waveform: waveformBuffer))
             case .HasLinkedStickers:
@@ -633,7 +651,7 @@ private func decryptedAttributes101(_ attributes: [TelegramMediaFileAttribute], 
                 var waveformBuffer: Buffer?
                 if let waveform = waveform {
                     flags |= Int32(1 << 2)
-                    waveformBuffer = Buffer(data: waveform.makeData())
+                    waveformBuffer = Buffer(data: waveform)
                 }
                 result.append(.documentAttributeAudio(flags: flags, duration: Int32(duration), title: title, performer: performer, waveform: waveformBuffer))
             case .HasLinkedStickers:
@@ -689,6 +707,8 @@ private func decryptedEntities73(_ entities: [MessageTextEntity]?) -> [SecretApi
                 break
             case .BankCard:
                 break
+            case .Spoiler:
+                break
             case .Custom:
                 break
         }
@@ -737,6 +757,8 @@ private func decryptedEntities101(_ entities: [MessageTextEntity]?) -> [SecretAp
             case .Underline:
                 result.append(.messageEntityUnderline(offset: Int32(entity.range.lowerBound), length: Int32(entity.range.count)))
             case .BankCard:
+                break
+            case .Spoiler:
                 break
             case .Custom:
                 break

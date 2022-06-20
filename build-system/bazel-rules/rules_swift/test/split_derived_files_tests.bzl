@@ -80,18 +80,36 @@ split_swiftmodule_bitcode_markers_test = make_action_command_line_test_rule(
         ],
     },
 )
+split_swiftmodule_copts_test = make_action_command_line_test_rule(
+    config_settings = {
+        "//command_line_option:swiftcopt": [
+            "-DHELLO",
+        ],
+        "//command_line_option:objccopt": [
+            "-DWORLD=1",
+        ],
+        "//command_line_option:features": [
+            "swift.split_derived_files_generation",
+        ],
+    },
+)
 
-def split_derived_files_test_suite(name = "split_derived_files"):
+def split_derived_files_test_suite(name):
     """Test suite for split derived files options.
 
     Args:
-        name: The name prefix for all the nested tests
+      name: the base name to be used in things created by this macro
     """
     default_no_split_test(
         name = "{}_default_no_split_args".format(name),
         expected_argv = [
             "-emit-module-path",
             "-emit-object",
+            "-enable-batch-mode",
+            "simple.output_file_map.json",
+        ],
+        not_expected_argv = [
+            "simple.derived_output_file_map.json",
         ],
         mnemonic = "SwiftCompile",
         tags = [name],
@@ -114,9 +132,22 @@ def split_derived_files_test_suite(name = "split_derived_files"):
         expected_files = [
             "libsimple.a",
         ],
+        field = "linking_context.linker_inputs.libraries.static_library!",
+        provider = "CcInfo",
+        tags = [name],
+        target_compatible_with = ["@platforms//os:macos"],
+        target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
+    )
+
+    default_no_split_provider_test(
+        name = "{}_default_no_split_provider_ccinfo_linux".format(name),
+        expected_files = [
+            "libsimple.a",
+        ],
         field = "linking_context.linker_inputs.libraries.pic_static_library!",
         provider = "CcInfo",
         tags = [name],
+        target_compatible_with = ["@platforms//os:linux"],
         target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
     )
 
@@ -124,10 +155,13 @@ def split_derived_files_test_suite(name = "split_derived_files"):
         name = "{}_object_only".format(name),
         expected_argv = [
             "-emit-object",
+            "-enable-batch-mode",
+            "simple.output_file_map.json",
         ],
         mnemonic = "SwiftCompile",
         not_expected_argv = [
             "-emit-module-path",
+            "simple.derived_output_file_map.json",
         ],
         tags = [name],
         target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
@@ -137,10 +171,13 @@ def split_derived_files_test_suite(name = "split_derived_files"):
         name = "{}_swiftmodule_only".format(name),
         expected_argv = [
             "-emit-module-path",
+            "-enable-batch-mode",
+            "simple.derived_output_file_map.json",
         ],
         mnemonic = "SwiftDeriveFiles",
         not_expected_argv = [
             "-emit-object",
+            "simple.output_file_map.json",
         ],
         tags = [name],
         target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
@@ -162,9 +199,22 @@ def split_derived_files_test_suite(name = "split_derived_files"):
         expected_files = [
             "libsimple.a",
         ],
+        field = "linking_context.linker_inputs.libraries.static_library!",
+        provider = "CcInfo",
+        tags = [name],
+        target_compatible_with = ["@platforms//os:macos"],
+        target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
+    )
+
+    split_swiftmodule_provider_test(
+        name = "{}_split_provider_ccinfo_linux".format(name),
+        expected_files = [
+            "libsimple.a",
+        ],
         field = "linking_context.linker_inputs.libraries.pic_static_library!",
         provider = "CcInfo",
         tags = [name],
+        target_compatible_with = ["@platforms//os:linux"],
         target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
     )
 
@@ -212,9 +262,22 @@ def split_derived_files_test_suite(name = "split_derived_files"):
         expected_files = [
             "libsimple.a",
         ],
+        field = "linking_context.linker_inputs.libraries.static_library!",
+        provider = "CcInfo",
+        tags = [name],
+        target_compatible_with = ["@platforms//os:macos"],
+        target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
+    )
+
+    split_swiftmodule_wmo_provider_test(
+        name = "{}_split_wmo_provider_ccinfo_linux".format(name),
+        expected_files = [
+            "libsimple.a",
+        ],
         field = "linking_context.linker_inputs.libraries.pic_static_library!",
         provider = "CcInfo",
         tags = [name],
+        target_compatible_with = ["@platforms//os:linux"],
         target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
     )
 
@@ -274,12 +337,8 @@ def split_derived_files_test_suite(name = "split_derived_files"):
 
     split_swiftmodule_bitcode_test(
         name = "{}_bitcode_compile".format(name),
-        expected_argv = select({
-            "//test:linux": [],
-            "//conditions:default": [
-                "-embed-bitcode",
-            ],
-        }),
+        expected_argv = ["-embed-bitcode"],
+        target_compatible_with = ["@platforms//os:macos"],
         mnemonic = "SwiftCompile",
         tags = [name],
         target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
@@ -297,12 +356,8 @@ def split_derived_files_test_suite(name = "split_derived_files"):
 
     split_swiftmodule_bitcode_markers_test(
         name = "{}_bitcode_markers_compile".format(name),
-        expected_argv = select({
-            "//test:linux": [],
-            "//conditions:default": [
-                "-embed-bitcode-marker",
-            ],
-        }),
+        expected_argv = ["-embed-bitcode-marker"],
+        target_compatible_with = ["@platforms//os:macos"],
         mnemonic = "SwiftCompile",
         tags = [name],
         target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
@@ -313,6 +368,30 @@ def split_derived_files_test_suite(name = "split_derived_files"):
         not_expected_argv = [
             "-embed-bitcode-marker",
         ],
+        mnemonic = "SwiftDeriveFiles",
+        tags = [name],
+        target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
+    )
+
+    split_swiftmodule_copts_test(
+        name = "{}_copts_compile".format(name),
+        expected_argv = [
+            "-DHELLO",
+            "-Xcc -DWORLD=1",
+        ],
+        target_compatible_with = ["@platforms//os:macos"],
+        mnemonic = "SwiftCompile",
+        tags = [name],
+        target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",
+    )
+
+    split_swiftmodule_copts_test(
+        name = "{}_copts_derive_files".format(name),
+        expected_argv = [
+            "-DHELLO",
+            "-Xcc -DWORLD=1",
+        ],
+        target_compatible_with = ["@platforms//os:macos"],
         mnemonic = "SwiftDeriveFiles",
         tags = [name],
         target_under_test = "@build_bazel_rules_swift//test/fixtures/debug_settings:simple",

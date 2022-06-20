@@ -1,4 +1,3 @@
-# Lint as: python2, python3
 # Copyright 2018 The Bazel Authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,9 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Common functionality for tool wrappers to execute jobs.
-"""
+"""Common functionality for tool wrappers to execute jobs."""
 
 import io
 import os
@@ -22,48 +19,39 @@ import re
 import subprocess
 import sys
 
-_PY3 = sys.version_info[0] == 3
 
-
-def execute_and_filter_output(
-    cmd_args,
-    filtering=None,
-    trim_paths=False,
-    custom_env=None,
-    inputstr=None,
-    print_output=False,
-    raise_on_failure=False):
+def execute_and_filter_output(cmd_args,
+                              filtering=None,
+                              trim_paths=False,
+                              custom_env=None,
+                              inputstr=None,
+                              print_output=False,
+                              raise_on_failure=False,
+                              timeout=900):
   """Execute a command with arguments, and suppress STDERR output.
 
   Args:
     cmd_args: A list of strings beginning with the command to execute followed
-        by its arguments.
-
+      by its arguments.
     filtering: Optionally specify a filter for stdout/stderr. It must be
-        callable and have the following signature:
-
-          myFilter(tool_exit_status, stdout_string, stderr_string) ->
-             (stdout_string, stderr_string)
-
-        The filter can then use the tool's exit status to process the
-        output as they wish, returning what ever should be used.
-
+        callable and have the following signature:  myFilter(tool_exit_status,
+          stdout_string, stderr_string) -> (stdout_string, stderr_string)  The
+          filter can then use the tool's exit status to process the output as
+          they wish, returning what ever should be used.
     trim_paths: Optionally specify whether or not to trim the current working
-        directory from any paths in the output. Based on output after filtering,
-        if a filter has been specified.
-
+      directory from any paths in the output. Based on output after filtering,
+      if a filter has been specified.
     custom_env: A dictionary of custom environment variables for this session.
-
     inputstr: Data to send directly to the child process as input.
-
     print_output: Wheither to always print the output of stdout and stderr for
-        this subprocess.
-
+      this subprocess.
     raise_on_failure: Raises an exception if the subprocess does not return a
-        successful result.
+      successful result.
+    timeout: Timeout in seconds.
 
   Returns:
-    The result of running the command.
+    A tuple consisting of the result of running the command, stdout output from
+    the command as a string, and the stderr output from the command as a string.
 
   Raises:
     CalledProcessError: If the process did not indicate a successful result and
@@ -78,19 +66,27 @@ def execute_and_filter_output(
       stdout=subprocess.PIPE,
       stderr=subprocess.PIPE,
       env=env)
-  stdout, stderr = proc.communicate(input=inputstr)
+  try:
+      stdout, stderr = proc.communicate(
+        input=inputstr,
+        timeout=timeout,
+      )
+  except subprocess.TimeoutExpired:
+      proc.kill()
+      stdout, stderr = proc.communicate()
+
   cmd_result = proc.returncode
 
-  # Only decode the output for Py3 so that the output type matches
-  # the native string-literal type. This prevents Unicode{Encode,Decode}Errors
-  # in Py2.
-  if _PY3:
-    # The invoked tools don't specify what encoding they use, so for lack of a
-    # better option, just use utf8 with error replacement. This will replace
-    # incorrect utf8 byte sequences with '?', which avoids UnicodeDecodeError
-    # from raising.
-    stdout = stdout.decode("utf8", "replace")
-    stderr = stderr.decode("utf8", "replace")
+  # The invoked tools don't specify what encoding they use, so for lack of a
+  # better option, just use utf8 with error replacement. This will replace
+  # incorrect utf8 byte sequences with '?', which avoids UnicodeDecodeError
+  # from raising.
+  #
+  # NOTE: Not using `encoding` and `errors` on `subprocess.Popen` as that also
+  # impacts stdin. This way the callers can control sending `bytes` or `str`
+  # thru as input.
+  stdout = stdout.decode("utf8", "replace")
+  stderr = stderr.decode("utf8", "replace")
 
   if (stdout or stderr) and filtering:
     if not callable(filtering):
@@ -108,20 +104,18 @@ def execute_and_filter_output(
   elif print_output:
     # The default encoding of stdout/stderr is 'ascii', so we need to reopen the
     # streams in utf8 mode since some messages from Apple's tools use characters
-    # like curly quotes. (It would be nice to use the `reconfigure` method here,
-    # but that's only available in Python 3.7, which we can't guarantee.)
-    if _PY3:
-      try:
-        sys.stdout = open(
-            sys.stdout.fileno(), mode="w", encoding="utf8", buffering=1)
-        sys.stderr = open(sys.stderr.fileno(), mode="w", encoding="utf8")
-      except io.UnsupportedOperation:
-        # When running under test, `fileno` is not supported.
-        pass
+    # like curly quotes.
+    def _ensure_utf8_encoding(s):
+      # Tests might hook sys.stdout/sys.stderr, so be defensive.
+      if (getattr(s, "encoding", "utf8") != "utf8" and
+          callable(getattr(s, "reconfigure", None))):
+        s.reconfigure(encoding="utf8")
 
     if stdout:
+      _ensure_utf8_encoding(sys.stdout)
       sys.stdout.write(stdout)
     if stderr:
+      _ensure_utf8_encoding(sys.stderr)
       sys.stderr.write(stderr)
 
   return cmd_result, stdout, stderr

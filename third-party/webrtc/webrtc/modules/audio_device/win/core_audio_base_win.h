@@ -39,7 +39,7 @@ namespace webrtc_win {
 // a separate thread owned and controlled by the manager.
 // TODO(henrika): investigate if CoreAudioBase should implement
 // IMMNotificationClient as well (might improve support for device changes).
-class CoreAudioBase : public IAudioSessionEvents, public IMMNotificationClient {
+class CoreAudioBase : public IAudioSessionEvents {
  public:
   enum class Direction {
     kInput,
@@ -63,7 +63,7 @@ class CoreAudioBase : public IAudioSessionEvents, public IMMNotificationClient {
 
   // Callback definition for notifications of run-time error messages. It can
   // be called e.g. when an active audio device is removed and an audio stream
-  // is disconnected (|error| is then set to kStreamDisconnected). Both input
+  // is disconnected (`error` is then set to kStreamDisconnected). Both input
   // and output clients implements OnErrorCallback() and will trigger an
   // internal restart sequence for kStreamDisconnected.
   // This method is currently always called on the audio thread.
@@ -103,13 +103,13 @@ class CoreAudioBase : public IAudioSessionEvents, public IMMNotificationClient {
   // Releases all allocated COM resources in the base class.
   void ReleaseCOMObjects();
 
-  // Returns number of active devices given the specified |direction_| set
+  // Returns number of active devices given the specified `direction_` set
   // by the parent (input or output).
   int NumberOfActiveDevices() const;
 
   // Returns total number of enumerated audio devices which is the sum of all
   // active devices plus two extra (one default and one default
-  // communications). The value in |direction_| determines if capture or
+  // communications). The value in `direction_` determines if capture or
   // render devices are counted.
   int NumberOfEnumeratedDevices() const;
 
@@ -158,9 +158,8 @@ class CoreAudioBase : public IAudioSessionEvents, public IMMNotificationClient {
   // Set when restart process starts and cleared when restart stops
   // successfully. Accessed atomically.
   std::atomic<bool> is_restarting_;
-  std::unique_ptr<rtc::PlatformThread> audio_thread_;
+  rtc::PlatformThread audio_thread_;
   Microsoft::WRL::ComPtr<IAudioSessionControl> audio_session_control_;
-  Microsoft::WRL::ComPtr<IMMDeviceEnumerator> enumerator_;
 
   void StopThread();
   AudioSessionState GetAudioSessionState() const;
@@ -195,31 +194,6 @@ class CoreAudioBase : public IAudioSessionEvents, public IMMNotificationClient {
                                            LPCGUID event_context) override;
   HRESULT __stdcall OnGroupingParamChanged(LPCGUID new_grouping_param,
                                            LPCGUID event_context) override;
-
-  // IMMNotificationClient implementation. At present we
-  // only handle OnDefaultDeviceChanged event.
-  HRESULT __stdcall OnDeviceStateChanged(LPCWSTR pwstrDeviceId,
-                                         DWORD dwNewState) override {
-    return S_OK;
-  }
-
-  HRESULT __stdcall OnDeviceAdded(LPCWSTR pwstrDeviceId) override {
-    return S_OK;
-  }
-
-  HRESULT __stdcall OnDeviceRemoved(LPCWSTR pwstrDeviceId) override {
-    return S_OK;
-  }
-
-  HRESULT __stdcall OnDefaultDeviceChanged(
-      EDataFlow flow,
-      ERole role,
-      LPCWSTR pwstrDefaultDeviceId) override;
-
-  HRESULT __stdcall OnPropertyValueChanged(LPCWSTR pwstrDeviceId,
-                                           const PROPERTYKEY key) override {
-    return S_OK;
-  }
 };
 
 }  // namespace webrtc_win

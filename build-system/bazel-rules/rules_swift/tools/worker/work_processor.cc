@@ -25,18 +25,19 @@
 
 #include "tools/common/file_system.h"
 #include "tools/common/path_utils.h"
-#include "tools/common/string_utils.h"
 #include "tools/common/temp_file.h"
 #include "tools/worker/output_file_map.h"
 #include "tools/worker/swift_runner.h"
 
 namespace {
 
-// Returns true if the given command line argument enables whole-module
-// optimization in the compiler.
-static bool ArgumentEnablesWMO(const std::string &arg) {
-  return arg == "-wmo" || arg == "-whole-module-optimization" ||
-         arg == "-force-single-frontend-invocation";
+static void FinalizeWorkRequest(const blaze::worker::WorkRequest &request,
+                                blaze::worker::WorkResponse *response,
+                                int exit_code,
+                                const std::ostringstream &output) {
+  response->set_exit_code(exit_code);
+  response->set_output(output.str());
+  response->set_request_id(request.request_id());
 }
 
 };  // end namespace
@@ -61,7 +62,9 @@ void WorkProcessor::ProcessWorkRequest(
 
   OutputFileMap output_file_map;
   std::string output_file_map_path;
+  std::string emit_module_path;
   bool is_wmo = false;
+  bool is_dump_ast = false;
 
   std::string prev_arg;
   for (auto arg : request.arguments()) {
@@ -70,9 +73,13 @@ void WorkProcessor::ProcessWorkRequest(
     // necessary later.
     if (arg == "-output-file-map") {
       arg.clear();
+    } else if (arg == "-dump-ast") {
+      is_dump_ast = true;
     } else if (prev_arg == "-output-file-map") {
       output_file_map_path = arg;
       arg.clear();
+    } else if (prev_arg == "-emit-module-path") {
+      emit_module_path = arg;
     } else if (ArgumentEnablesWMO(arg)) {
       is_wmo = true;
     }
@@ -84,9 +91,11 @@ void WorkProcessor::ProcessWorkRequest(
     prev_arg = original_arg;
   }
 
+  bool is_incremental = !is_wmo && !is_dump_ast;
+
   if (!output_file_map_path.empty()) {
-    if (!is_wmo) {
-      output_file_map.ReadFromPath(output_file_map_path);
+    if (is_incremental) {
+      output_file_map.ReadFromPath(output_file_map_path, emit_module_path);
 
       // Rewrite the output file map to use the incremental storage area and
       // pass the compiler the path to the rewritten file.
@@ -102,8 +111,8 @@ void WorkProcessor::ProcessWorkRequest(
       // there's no reason to pass it when it's a no-op.
       params_file_stream << "-incremental\n";
     } else {
-      // If WMO is forcing us out of incremental mode, just put the original
-      // output file map back so the outputs end up where they should.
+      // If WMO or -dump-ast is forcing us out of incremental mode, just put the
+      // original output file map back so the outputs end up where they should.
       params_file_stream << "-output-file-map\n";
       params_file_stream << output_file_map_path << '\n';
     }
@@ -112,7 +121,9 @@ void WorkProcessor::ProcessWorkRequest(
   processed_args.push_back("@" + params_file->GetPath());
   params_file_stream.close();
 
-  if (!is_wmo) {
+  std::ostringstream stderr_stream;
+
+  if (is_incremental) {
     for (const auto &expected_object_pair :
          output_file_map.incremental_outputs()) {
       // Bazel creates the intermediate directories for the files declared at
@@ -120,30 +131,75 @@ void WorkProcessor::ProcessWorkRequest(
       // incremental storage area.
       auto dir_path = Dirname(expected_object_pair.second);
       if (!MakeDirs(dir_path, S_IRWXU)) {
-        std::cerr << "Could not create directory " << dir_path << " (errno "
-                  << errno << ")\n";
+        stderr_stream << "swift_worker: Could not create directory " << dir_path
+                      << " (errno " << errno << ")\n";
+        FinalizeWorkRequest(request, response, EXIT_FAILURE, stderr_stream);
+        return;
+      }
+    }
+
+    // Copy some input files from the incremental storage area to the locations
+    // where Bazel will generate them.
+    for (const auto &expected_object_pair :
+         output_file_map.incremental_inputs()) {
+      if (FileExists(expected_object_pair.second)) {
+        if (!CopyFile(expected_object_pair.second,
+                      expected_object_pair.first)) {
+          stderr_stream << "swift_worker: Could not copy "
+                        << expected_object_pair.second << " to "
+                        << expected_object_pair.first << " (errno " << errno
+                        << ")\n";
+          FinalizeWorkRequest(request, response, EXIT_FAILURE, stderr_stream);
+          return;
+        }
       }
     }
   }
 
-  std::ostringstream stderr_stream;
   SwiftRunner swift_runner(processed_args, /*force_response_file=*/true);
-
   int exit_code = swift_runner.Run(&stderr_stream, /*stdout_to_stderr=*/true);
 
-  if (!is_wmo) {
+  if (is_incremental) {
     // Copy the output files from the incremental storage area back to the
     // locations where Bazel declared the files.
     for (const auto &expected_object_pair :
          output_file_map.incremental_outputs()) {
       if (!CopyFile(expected_object_pair.second, expected_object_pair.first)) {
-        std::cerr << "Could not copy " << expected_object_pair.second << " to "
-                  << expected_object_pair.first << " (errno " << errno << ")\n";
-        exit_code = EXIT_FAILURE;
+        stderr_stream << "swift_worker: Could not copy "
+                      << expected_object_pair.second << " to "
+                      << expected_object_pair.first << " (errno " << errno
+                      << ")\n";
+        FinalizeWorkRequest(request, response, EXIT_FAILURE, stderr_stream);
+        return;
+      }
+    }
+
+    // Copy the replaced input files back to the incremental storage for the
+    // next run.
+    for (const auto &expected_object_pair :
+         output_file_map.incremental_inputs()) {
+      if (FileExists(expected_object_pair.first)) {
+        if (FileExists(expected_object_pair.second)) {
+          // CopyFile fails if the file already exists
+          RemoveFile(expected_object_pair.second);
+        }
+        if (!CopyFile(expected_object_pair.first,
+                      expected_object_pair.second)) {
+          stderr_stream << "swift_worker: Could not copy "
+                        << expected_object_pair.first << " to "
+                        << expected_object_pair.second << " (errno " << errno
+                        << ")\n";
+          FinalizeWorkRequest(request, response, EXIT_FAILURE, stderr_stream);
+          return;
+        }
+      } else if (exit_code == 0) {
+        stderr_stream << "Failed to copy " << expected_object_pair.first
+                      << " for incremental builds, maybe it wasn't produced?\n";
+        FinalizeWorkRequest(request, response, EXIT_FAILURE, stderr_stream);
+        return;
       }
     }
   }
 
-  response->set_exit_code(exit_code);
-  response->set_output(stderr_stream.str());
+  FinalizeWorkRequest(request, response, exit_code, stderr_stream);
 }

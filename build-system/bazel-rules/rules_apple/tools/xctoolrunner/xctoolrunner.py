@@ -1,4 +1,3 @@
-# Lint as: python2, python3
 # Copyright 2018 The Bazel Authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -96,9 +95,9 @@ def _execute_and_filter_with_retry(xcrunargs, filtering):
   return return_code
 
 def _ensure_clean_path(path):
-  """Ensure a directory is exists and is empty."""
+  """Ensure a directory exists and is empty."""
   if os.path.exists(path):
-    os.removedirs(path)
+    shutil.rmtree(path)
   os.makedirs(path)
 
 def _listdir_full(path):
@@ -344,7 +343,7 @@ def intentbuilderc(args, toolargs):
 
   return return_code
 
-def momc(_, toolargs):
+def momc(args, toolargs):
   """Assemble the call to "xcrun momc"."""
   xcrunargs = ["xcrun", "momc"]
   _apply_realpath(toolargs)
@@ -353,6 +352,13 @@ def momc(_, toolargs):
   return_code, _, _ = execute.execute_and_filter_output(
       xcrunargs,
       print_output=True)
+
+  destination_dir = args.xctoolrunner_assert_nonempty_dir
+  if args.xctoolrunner_assert_nonempty_dir and not os.listdir(destination_dir):
+    raise FileNotFoundError(
+        f"xcrun momc did not generate artifacts at: {destination_dir}\n"
+        "Core Data model was not configured to have code generation.")
+
   return return_code
 
 
@@ -395,6 +401,9 @@ def main(argv):
 
   # MOMC Argument Parser
   momc_parser = subparsers.add_parser("momc")
+  momc_parser.add_argument(
+      "--xctoolrunner_assert_nonempty_dir",
+      help="Enables non-empty destination dir assertion after execution.")
   momc_parser.set_defaults(func=momc)
 
   # MAPC Argument Parser

@@ -21,7 +21,7 @@ import XCTest
 // generated xcodeproj by running the projects unit tests.
 class TulsiEndToEndTest: BazelIntegrationTestCase {
   fileprivate static let simulatorName = "tulsie2e-\(UUID().uuidString.prefix(8))"
-  fileprivate static let targetVersion = "14.2"
+  fileprivate static let targetVersion = "14.5"
 
   let fileManager = FileManager.default
   var runfilesWorkspaceURL: URL! = nil
@@ -36,7 +36,7 @@ class TulsiEndToEndTest: BazelIntegrationTestCase {
   override class func setUp() {
     super.setUp()
 
-    let targetDevice = "iPhone XS"
+    let targetDevice = "iPhone 12 Pro"
     let deviceName = targetDevice.replacingOccurrences(of: " ", with: "-")
     let deviceVersion = TulsiEndToEndTest.targetVersion.replacingOccurrences(of: ".", with: "-")
     let typeId = "com.apple.CoreSimulator.SimDeviceType.\(deviceName)"
@@ -159,20 +159,25 @@ class TulsiEndToEndTest: BazelIntegrationTestCase {
     let projectURL = workspaceRootURL.appendingPathComponent(path, isDirectory: true)
     XCTAssert(fileManager.fileExists(atPath: projectURL.path), "Tulsi project is missing.")
     let configPath = projectURL.path + ":" + config
+    var args: [String] = [
+      "--",
+      "--genconfig",
+      configPath,
+      "--outputfolder",
+      workspaceRootURL.path,
+      "--bazel",
+      bazelURL.path,
+      "--no-open-xcode"
+    ]
+    if !bazelBuildOptions.isEmpty {
+      args.append("--build-options")
+      args.append(bazelBuildOptions.joined(separator: " "))
+    }
 
     // Generate Xcode project with Tulsi.
     let completionInfo = ProcessRunner.launchProcessSync(
       tulsiBinURL.path,
-      arguments: [
-        "--",
-        "--genconfig",
-        configPath,
-        "--outputfolder",
-        workspaceRootURL.path,
-        "--bazel",
-        bazelURL.path,
-        "--no-open-xcode"
-      ])
+      arguments: args)
 
     if let stdoutput = String(data: completionInfo.stdout, encoding: .utf8) {
       print(stdoutput)

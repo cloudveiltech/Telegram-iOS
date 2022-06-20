@@ -64,7 +64,10 @@ def _platform_prerequisites_for_aspect(target, aspect_ctx):
         apple_fragment = aspect_ctx.fragments.apple,
         config_vars = aspect_ctx.var,
         device_families = None,
+        disabled_features = aspect_ctx.disabled_features,
+        explicit_minimum_deployment_os = None,
         explicit_minimum_os = None,
+        features = aspect_ctx.features,
         objc_fragment = None,
         platform_type_string = str(aspect_ctx.fragments.apple.single_arch_platform.platform_type),
         uses_swift = uses_swift,
@@ -81,6 +84,12 @@ def _apple_resource_aspect_impl(target, ctx):
 
     providers = []
     bucketize_args = {}
+
+    # TODO(b/174858377) Follow up to see if we need to define output_discriminator for process_args
+    # if an input from the aspect context indicates that the Apple resource aspect is being sent
+    # down a split transition that builds for multiple platforms. This should match an existing
+    # output_discriminator used for resource processing in the top level rule. It might not be
+    # necessary to do this on account of how deduping resources works in the resources partial.
     process_args = {
         "actions": ctx.actions,
         "apple_toolchain_info": ctx.attr._toolchain[AppleSupportToolchainInfo],
@@ -120,6 +129,7 @@ def _apple_resource_aspect_impl(target, ctx):
         collect_infoplists_args["res_attrs"] = ["infoplists"]
         collect_args["res_attrs"] = ["resources"]
         collect_structured_args["res_attrs"] = ["structured_resources"]
+        process_args["bundle_id"] = ctx.rule.attr.bundle_id or None
         bundle_name = "{}.bundle".format(ctx.rule.attr.bundle_name or ctx.label.name)
 
     # Collect all resource files related to this target.
@@ -176,8 +186,15 @@ def _apple_resource_aspect_impl(target, ctx):
         #
         # `structured_resources` also does not support propagating resource providers from
         # apple_resource_group or apple_bundle_import targets, unlike `resources`. If a target is
-        # referenced by `structured_resources` that already propagates a resource provider, it will
-        # be ignored.
+        # referenced by `structured_resources` that already propagates a resource provider, this
+        # will raise an error in the analysis phase.
+        for attr in collect_structured_args.get("res_attrs", []):
+            for found_attr in getattr(ctx.rule.attr, attr):
+                if AppleResourceInfo in found_attr:
+                    fail("Error: Found ignored resource providers for target %s. " % ctx.label +
+                         "Check that there are no processed resource targets being referenced " +
+                         "by structured_resources.")
+
         structured_files = resources.collect(
             attr = ctx.rule.attr,
             **collect_structured_args
@@ -246,7 +263,7 @@ def _apple_resource_aspect_impl(target, ctx):
 
 apple_resource_aspect = aspect(
     implementation = _apple_resource_aspect_impl,
-    attr_aspects = ["data", "deps", "resources"],
+    attr_aspects = ["data", "deps", "resources", "structured_resources"],
     attrs = dicts.add(
         apple_support.action_required_attrs(),
         apple_support_toolchain_utils.shared_attrs(),

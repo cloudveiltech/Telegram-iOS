@@ -2,7 +2,6 @@
 # vice versa when it is linked into the existing native linking rules for Apple
 # platforms.
 
-load("@rules_cc//cc:defs.bzl", "objc_library")
 load(
     "//swift:swift.bzl",
     "swift_binary",
@@ -20,6 +19,7 @@ objc_library(
 swift_library(
     name = "Printer",
     srcs = ["Printer.swift"],
+    generates_header = True,
     deps = [":PrintStream"],
 )
 

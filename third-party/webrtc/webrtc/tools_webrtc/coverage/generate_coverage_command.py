@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 # Copyright (c) 2018 The WebRTC project authors. All Rights Reserved.
 #
 # Use of this source code is governed by a BSD-style license
@@ -17,7 +17,7 @@ import sys
 
 TESTS = [
     'video_capture_tests', 'webrtc_nonparallel_tests', 'video_engine_tests',
-    'tools_unittests', 'test_support_unittests', 'slow_tests',
+    'tools_unittests', 'test_support_unittests',
     'system_wrappers_unittests', 'rtc_unittests', 'rtc_stats_unittests',
     'rtc_pc_unittests', 'rtc_media_unittests', 'peerconnection_unittests',
     'modules_unittests', 'modules_tests', 'low_bandwidth_audio_test',

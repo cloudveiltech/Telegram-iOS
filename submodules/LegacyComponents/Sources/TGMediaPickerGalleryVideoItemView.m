@@ -45,6 +45,8 @@
 
 @interface TGMediaPickerGalleryVideoItemView() <TGMediaPickerGalleryVideoScrubberDataSource, TGMediaPickerGalleryVideoScrubberDelegate>
 {
+    TGMediaPickerGalleryFetchResultItem *_fetchItem;
+    
     UIView *_containerView;
     TGModernGalleryVideoContentView *_videoContentView;
     UIView *_playerWrapperView;
@@ -383,10 +385,26 @@
     }]];
 }
 
+- (id<TGModernGalleryItem>)item {
+    if (_fetchItem != nil) {
+        return _fetchItem;
+    } else {
+        return _item;
+    }
+}
+
 - (void)setItem:(TGMediaPickerGalleryVideoItem *)item synchronously:(bool)synchronously
 {
+    TGMediaPickerGalleryFetchResultItem *fetchItem;
+    if ([item isKindOfClass:[TGMediaPickerGalleryFetchResultItem class]]) {
+        fetchItem = (TGMediaPickerGalleryFetchResultItem *)item;
+        item = (TGMediaPickerGalleryVideoItem *)[fetchItem backingItem];
+    }
+    
     bool itemChanged = ![item isEqual:self.item];
     bool itemIdChanged = item.uniqueId != self.item.uniqueId;
+    
+    _fetchItem = fetchItem;
     
     [super setItem:item synchronously:synchronously];
     
@@ -858,6 +876,14 @@
     return [_imageView convertRect:_imageView.bounds toView:[self transitionView]];
 }
 
+- (UIView *)transitionContentView {
+    if (_videoView != nil) {
+        return _videoView;
+    } else {
+        return _imageView;
+    }
+}
+
 - (UIImage *)screenImage
 {
     if (_videoView != nil)
@@ -1107,7 +1133,11 @@
     }
     else if (self.item.avAsset != nil) {
         itemSignal = [self.item.avAsset mapToSignal:^SSignal *(AVAsset *avAsset) {
-            return [SSignal single:[AVPlayerItem playerItemWithAsset:avAsset]];
+            if ([avAsset isKindOfClass:[AVAsset class]]) {
+                return [SSignal single:[AVPlayerItem playerItemWithAsset:avAsset]];
+            } else {
+                return [SSignal never];
+            }
         }];
     }
     

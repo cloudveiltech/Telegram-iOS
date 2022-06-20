@@ -23,18 +23,17 @@ load(
     "unittest",
 )
 
+# A sentinel value returned by `_evaluate_field` when a `None` value is
+# encountered during the evaluation of a dotted path on any component other than
+# the last component. This allows the caller to distinguish between a legitimate
+# `None` value being returned by the entire path vs. an unexpected `None` in an
+# earlier component.
+#
+# A `provider` is used here because it is a simple way of getting a known unique
+# object from Bazel that cannot be equal to any other object.
 _EVALUATE_FIELD_FAILED = provider(
-    doc = """
-A sentinel value returned by `_evaluate_field` when a `None` value is
-encountered during the evaluation of a dotted path on any component other than
-the last component. This allows the caller to distinguish between a legitimate
-`None` value being returned by the entire path vs. an unexpected `None` in an
-earlier component.
-
-A `provider` is used here because it is a simple way of getting a known unique
-object from Bazel that cannot be equal to any other object.
-""",
-    fields = [],
+    doc = "Sentinel value, not otherwise used.",
+    fields = {},
 )
 
 def _evaluate_field(env, source, field):
@@ -150,6 +149,8 @@ def _lookup_provider_by_name(env, target, provider_name):
         provider = CcInfo
     elif provider_name == "DefaultInfo":
         provider = DefaultInfo
+    elif provider_name == "OutputGroupInfo":
+        provider = OutputGroupInfo
     elif provider_name == "SwiftInfo":
         provider = SwiftInfo
     elif provider_name == "apple_common.Objc":
@@ -411,6 +412,7 @@ Currently, only the following providers are recognized:
 
 *   `CcInfo`
 *   `DefaultInfo`
+*   `OutputGroupInfo`
 *   `SwiftInfo`
 *   `apple_common.Objc`
 """,

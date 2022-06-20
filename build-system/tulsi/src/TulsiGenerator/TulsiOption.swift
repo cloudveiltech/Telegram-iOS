@@ -51,7 +51,7 @@ public class TulsiOption: Equatable, CustomStringConvertible {
     }
 
     /// An option that is handled in Tulsi's code.
-    static let Generic = OptionType(rawValue: 0)
+    static let Generic = OptionType([])
 
     /// An option that may be automatically encoded into a build setting.
     static let BuildSetting = OptionType(rawValue: 1 << 0)
@@ -166,6 +166,16 @@ public class TulsiOption: Equatable, CustomStringConvertible {
       return commonValue
     }
     return nil
+  }
+
+  /// Append or set the project value of this option.
+  public func appendProjectValue(_ value: String) {
+    guard !value.isEmpty else { return }
+    guard let previous = projectValue ?? defaultValue, !previous.isEmpty else {
+      projectValue = value
+      return
+    }
+    projectValue = "\(previous) \(value)"
   }
 
   public func sanitizeValue(_ value: String?) -> String? {

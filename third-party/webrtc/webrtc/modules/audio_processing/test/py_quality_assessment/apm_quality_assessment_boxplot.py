@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 # Copyright (c) 2017 The WebRTC project authors. All Rights Reserved.
 #
 # Use of this source code is governed by a BSD-style license
@@ -88,7 +88,7 @@ def FilterScoresByParams(data_frame, filter_params, score_name, config_dir):
         data_cell_scores = data_with_config[data_with_config.eval_score_name ==
                                             score_name]
 
-        # Exactly one of |params_to_plot| must match:
+        # Exactly one of `params_to_plot` must match:
         (matching_param, ) = [
             x for x in filter_params if '-' + x in config_json
         ]

@@ -17,6 +17,7 @@
 #include "rtc_base/async_invoker.h"
 #include "rtc_base/async_udp_socket.h"
 #include "rtc_base/atomic_ops.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/gunit.h"
 #include "rtc_base/internal/default_socket_server.h"
@@ -63,7 +64,7 @@ struct TestMessage : public MessageData {
 // Receives on a socket and sends by posting messages.
 class SocketClient : public TestGenerator, public sigslot::has_slots<> {
  public:
-  SocketClient(AsyncSocket* socket,
+  SocketClient(Socket* socket,
                const SocketAddress& addr,
                Thread* post_thread,
                MessageHandler* phandler)
@@ -220,14 +221,13 @@ TEST(ThreadTest, DISABLED_Main) {
 
   // Create the messaging client on its own thread.
   auto th1 = Thread::CreateWithSocketServer();
-  Socket* socket =
-      th1->socketserver()->CreateAsyncSocket(addr.family(), SOCK_DGRAM);
+  Socket* socket = th1->socketserver()->CreateSocket(addr.family(), SOCK_DGRAM);
   MessageClient msg_client(th1.get(), socket);
 
   // Create the socket client on its own thread.
   auto th2 = Thread::CreateWithSocketServer();
-  AsyncSocket* asocket =
-      th2->socketserver()->CreateAsyncSocket(addr.family(), SOCK_DGRAM);
+  Socket* asocket =
+      th2->socketserver()->CreateSocket(addr.family(), SOCK_DGRAM);
   SocketClient sock_client(asocket, addr, th1.get(), &msg_client);
 
   socket->Connect(sock_client.address());
@@ -297,6 +297,40 @@ TEST(ThreadTest, CountBlockingCalls) {
 #endif
 }
 
+#if RTC_DCHECK_IS_ON
+TEST(ThreadTest, CountBlockingCallsOneCallback) {
+  rtc::Thread* current = rtc::Thread::Current();
+  ASSERT_TRUE(current);
+  bool was_called_back = false;
+  {
+    rtc::Thread::ScopedCountBlockingCalls blocked_calls(
+        [&](uint32_t actual_block, uint32_t could_block) {
+          was_called_back = true;
+        });
+    current->Invoke<void>(RTC_FROM_HERE, []() {});
+  }
+  EXPECT_TRUE(was_called_back);
+}
+
+TEST(ThreadTest, CountBlockingCallsSkipCallback) {
+  rtc::Thread* current = rtc::Thread::Current();
+  ASSERT_TRUE(current);
+  bool was_called_back = false;
+  {
+    rtc::Thread::ScopedCountBlockingCalls blocked_calls(
+        [&](uint32_t actual_block, uint32_t could_block) {
+          was_called_back = true;
+        });
+    // Changed `blocked_calls` to not issue the callback if there are 1 or
+    // fewer blocking calls (i.e. we set the minimum required number to 2).
+    blocked_calls.set_minimum_call_count_for_callback(2);
+    current->Invoke<void>(RTC_FROM_HERE, []() {});
+  }
+  // We should not have gotten a call back.
+  EXPECT_FALSE(was_called_back);
+}
+#endif
+
 // Test that setting thread names doesn't cause a malfunction.
 // There's no easy way to verify the name was set properly at this time.
 TEST(ThreadTest, Names) {
@@ -332,7 +366,7 @@ TEST(ThreadTest, Wrap) {
   ThreadManager::Instance()->SetCurrentThread(current_thread);
 }
 
-#if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
+#if (!defined(NDEBUG) || RTC_DCHECK_IS_ON)
 TEST(ThreadTest, InvokeToThreadAllowedReturnsTrueWithoutPolicies) {
   // Create and start the thread.
   auto thread1 = Thread::CreateWithSocketServer();
@@ -376,7 +410,7 @@ TEST(ThreadTest, InvokesDisallowedWhenDisallowAllInvokes) {
   Thread* th_main = Thread::Current();
   th_main->ProcessMessages(100);
 }
-#endif  // (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
+#endif  // (!defined(NDEBUG) || RTC_DCHECK_IS_ON)
 
 TEST(ThreadTest, InvokesAllowedByDefault) {
   // Create and start the thread.
@@ -412,7 +446,7 @@ TEST(ThreadTest, Invoke) {
 // not deadlock but crash.
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 TEST(ThreadTest, TwoThreadsInvokeDeathTest) {
-  ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
   AutoThread thread;
   Thread* main_thread = Thread::Current();
   auto other_thread = Thread::CreateWithSocketServer();
@@ -423,7 +457,7 @@ TEST(ThreadTest, TwoThreadsInvokeDeathTest) {
 }
 
 TEST(ThreadTest, ThreeThreadsInvokeDeathTest) {
-  ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
   AutoThread thread;
   Thread* first = Thread::Current();
 
@@ -477,7 +511,7 @@ TEST(ThreadTest, ThreeThreadsInvoke) {
       thread->Invoke<void>(RTC_FROM_HERE, [out] { Set(out); });
     }
 
-    // Set |out| true and call InvokeSet on |thread|.
+    // Set `out` true and call InvokeSet on `thread`.
     static void SetAndInvokeSet(LockedBool* out,
                                 Thread* thread,
                                 LockedBool* out_inner) {
@@ -485,9 +519,9 @@ TEST(ThreadTest, ThreeThreadsInvoke) {
       InvokeSet(thread, out_inner);
     }
 
-    // Asynchronously invoke SetAndInvokeSet on |thread1| and wait until
-    // |thread1| starts the call.
-    static void AsyncInvokeSetAndWait(AsyncInvoker* invoker,
+    // Asynchronously invoke SetAndInvokeSet on `thread1` and wait until
+    // `thread1` starts the call.
+    static void AsyncInvokeSetAndWait(DEPRECATED_AsyncInvoker* invoker,
                                       Thread* thread1,
                                       Thread* thread2,
                                       LockedBool* out) {
@@ -502,7 +536,7 @@ TEST(ThreadTest, ThreeThreadsInvoke) {
     }
   };
 
-  AsyncInvoker invoker;
+  DEPRECATED_AsyncInvoker invoker;
   LockedBool thread_a_called(false);
 
   // Start the sequence A --(invoke)--> B --(async invoke)--> C --(invoke)--> A.
@@ -517,36 +551,6 @@ TEST(ThreadTest, ThreeThreadsInvoke) {
   EXPECT_FALSE(thread_a_called.Get());
 
   EXPECT_TRUE_WAIT(thread_a_called.Get(), 2000);
-}
-
-// Set the name on a thread when the underlying QueueDestroyed signal is
-// triggered. This causes an error if the object is already partially
-// destroyed.
-class SetNameOnSignalQueueDestroyedTester : public sigslot::has_slots<> {
- public:
-  SetNameOnSignalQueueDestroyedTester(Thread* thread) : thread_(thread) {
-    thread->SignalQueueDestroyed.connect(
-        this, &SetNameOnSignalQueueDestroyedTester::OnQueueDestroyed);
-  }
-
-  void OnQueueDestroyed() {
-    // Makes sure that if we access the Thread while it's being destroyed, that
-    // it doesn't cause a problem because the vtable has been modified.
-    thread_->SetName("foo", nullptr);
-  }
-
- private:
-  Thread* thread_;
-};
-
-TEST(ThreadTest, SetNameOnSignalQueueDestroyed) {
-  auto thread1 = Thread::CreateWithSocketServer();
-  SetNameOnSignalQueueDestroyedTester tester1(thread1.get());
-  thread1.reset();
-
-  Thread* thread2 = new AutoThread();
-  SetNameOnSignalQueueDestroyedTester tester2(thread2);
-  delete thread2;
 }
 
 class ThreadQueueTest : public ::testing::Test, public Thread {
@@ -738,7 +742,7 @@ TEST(ThreadManager, ClearReentrant) {
           new ScopedRefMessageData<RefCountedHandler>(inner_handler));
 }
 
-class AsyncInvokeTest : public ::testing::Test {
+class DEPRECATED_AsyncInvokeTest : public ::testing::Test {
  public:
   void IntCallback(int value) {
     EXPECT_EQ(expected_thread_, Thread::Current());
@@ -750,14 +754,14 @@ class AsyncInvokeTest : public ::testing::Test {
 
  protected:
   enum { kWaitTimeout = 1000 };
-  AsyncInvokeTest() : int_value_(0), expected_thread_(nullptr) {}
+  DEPRECATED_AsyncInvokeTest() : int_value_(0), expected_thread_(nullptr) {}
 
   int int_value_;
   Thread* expected_thread_;
 };
 
-TEST_F(AsyncInvokeTest, FireAndForget) {
-  AsyncInvoker invoker;
+TEST_F(DEPRECATED_AsyncInvokeTest, FireAndForget) {
+  DEPRECATED_AsyncInvoker invoker;
   // Create and start the thread.
   auto thread = Thread::CreateWithSocketServer();
   thread->Start();
@@ -768,8 +772,8 @@ TEST_F(AsyncInvokeTest, FireAndForget) {
   thread->Stop();
 }
 
-TEST_F(AsyncInvokeTest, NonCopyableFunctor) {
-  AsyncInvoker invoker;
+TEST_F(DEPRECATED_AsyncInvokeTest, NonCopyableFunctor) {
+  DEPRECATED_AsyncInvoker invoker;
   // Create and start the thread.
   auto thread = Thread::CreateWithSocketServer();
   thread->Start();
@@ -780,7 +784,7 @@ TEST_F(AsyncInvokeTest, NonCopyableFunctor) {
   thread->Stop();
 }
 
-TEST_F(AsyncInvokeTest, KillInvokerDuringExecute) {
+TEST_F(DEPRECATED_AsyncInvokeTest, KillInvokerDuringExecute) {
   // Use these events to get in a state where the functor is in the middle of
   // executing, and then to wait for it to finish, ensuring the "EXPECT_FALSE"
   // is run.
@@ -800,7 +804,7 @@ TEST_F(AsyncInvokeTest, KillInvokerDuringExecute) {
       EXPECT_FALSE(invoker_destroyed);
       functor_finished.Set();
     };
-    AsyncInvoker invoker;
+    DEPRECATED_AsyncInvoker invoker;
     invoker.AsyncInvoke<void>(RTC_FROM_HERE, thread.get(), functor);
     functor_started.Wait(Event::kForever);
 
@@ -817,10 +821,10 @@ TEST_F(AsyncInvokeTest, KillInvokerDuringExecute) {
 }
 
 // Variant of the above test where the async-invoked task calls AsyncInvoke
-// *again*, for the thread on which the AsyncInvoker is currently being
-// destroyed. This shouldn't deadlock or crash; this second invocation should
-// just be ignored.
-TEST_F(AsyncInvokeTest, KillInvokerDuringExecuteWithReentrantInvoke) {
+// *again*, for the thread on which the invoker is currently being destroyed.
+// This shouldn't deadlock or crash. The second invocation should be ignored.
+TEST_F(DEPRECATED_AsyncInvokeTest,
+       KillInvokerDuringExecuteWithReentrantInvoke) {
   Event functor_started;
   // Flag used to verify that the recursively invoked task never actually runs.
   bool reentrant_functor_run = false;
@@ -829,7 +833,7 @@ TEST_F(AsyncInvokeTest, KillInvokerDuringExecuteWithReentrantInvoke) {
   Thread thread(std::make_unique<NullSocketServer>());
   thread.Start();
   {
-    AsyncInvoker invoker;
+    DEPRECATED_AsyncInvoker invoker;
     auto reentrant_functor = [&reentrant_functor_run] {
       reentrant_functor_run = true;
     };
@@ -838,51 +842,13 @@ TEST_F(AsyncInvokeTest, KillInvokerDuringExecuteWithReentrantInvoke) {
       Thread::Current()->SleepMs(kWaitTimeout);
       invoker.AsyncInvoke<void>(RTC_FROM_HERE, main, reentrant_functor);
     };
-    // This queues a task on |thread| to sleep for |kWaitTimeout| then queue a
-    // task on |main|. But this second queued task should never run, since the
+    // This queues a task on `thread` to sleep for `kWaitTimeout` then queue a
+    // task on `main`. But this second queued task should never run, since the
     // destructor will be entered before it's even invoked.
     invoker.AsyncInvoke<void>(RTC_FROM_HERE, &thread, functor);
     functor_started.Wait(Event::kForever);
   }
   EXPECT_FALSE(reentrant_functor_run);
-}
-
-TEST_F(AsyncInvokeTest, Flush) {
-  AsyncInvoker invoker;
-  AtomicBool flag1;
-  AtomicBool flag2;
-  // Queue two async calls to the current thread.
-  invoker.AsyncInvoke<void>(RTC_FROM_HERE, Thread::Current(), FunctorB(&flag1));
-  invoker.AsyncInvoke<void>(RTC_FROM_HERE, Thread::Current(), FunctorB(&flag2));
-  // Because we haven't pumped messages, these should not have run yet.
-  EXPECT_FALSE(flag1.get());
-  EXPECT_FALSE(flag2.get());
-  // Force them to run now.
-  invoker.Flush(Thread::Current());
-  EXPECT_TRUE(flag1.get());
-  EXPECT_TRUE(flag2.get());
-}
-
-TEST_F(AsyncInvokeTest, FlushWithIds) {
-  AsyncInvoker invoker;
-  AtomicBool flag1;
-  AtomicBool flag2;
-  // Queue two async calls to the current thread, one with a message id.
-  invoker.AsyncInvoke<void>(RTC_FROM_HERE, Thread::Current(), FunctorB(&flag1),
-                            5);
-  invoker.AsyncInvoke<void>(RTC_FROM_HERE, Thread::Current(), FunctorB(&flag2));
-  // Because we haven't pumped messages, these should not have run yet.
-  EXPECT_FALSE(flag1.get());
-  EXPECT_FALSE(flag2.get());
-  // Execute pending calls with id == 5.
-  invoker.Flush(Thread::Current(), 5);
-  EXPECT_TRUE(flag1.get());
-  EXPECT_FALSE(flag2.get());
-  flag1 = false;
-  // Execute all pending calls. The id == 5 call should not execute again.
-  invoker.Flush(Thread::Current());
-  EXPECT_FALSE(flag1.get());
-  EXPECT_TRUE(flag2.get());
 }
 
 void WaitAndSetEvent(Event* wait_event, Event* set_event) {

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # Copyright 2016 The Tulsi Authors. All rights reserved.
 #
@@ -54,6 +54,9 @@ XCODE_INJECTED_FRAMEWORKS = [
     'IDEBundleInjection.framework',
     'XCTAutomationSupport.framework',
     'XCTest.framework',
+    'XCTestCore.framework',
+    'XCUnit.framework',
+    'XCUIAutomation.framework',
 ]
 
 _logger = None
@@ -362,8 +365,8 @@ class _OptionsParser(object):
     app_dir = developer_dir.split('.app')[0] + '.app'
     version_plist_path = os.path.join(app_dir, 'Contents', 'version.plist')
     try:
-      # python2 API to plistlib - needs updating if/when Tulsi bumps to python3
-      plist = plistlib.readPlist(version_plist_path)
+      with open(version_plist_path, 'rb') as f:
+        plist = plistlib.load(f)
     except IOError:
       _PrintXcodeWarning('Tulsi cannot determine Xcode version, error '
                          'reading from {}'.format(version_plist_path))
@@ -427,6 +430,11 @@ class BazelBuildBridge(object):
 
   BUILD_EVENTS_FILE = 'build_events.json'
 
+  XCODE_MODULE_CACHE_DIRECTORY = os.path.expanduser(
+      '~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex')
+  MODULE_CACHE_PRUNER_EXECUTABLE = os.path.expanduser(
+      '~/Library/Application Support/Tulsi/Scripts/module_cache_pruner')
+
   def __init__(self, build_settings):
     self.build_settings = build_settings
     self.verbose = 0
@@ -454,17 +462,9 @@ class BazelBuildBridge(object):
     self.direct_debug_prefix_map = False
     self.normalized_prefix_map = False
 
-    self.update_symbol_cache = UpdateSymbolCache()
-
-    # Target architecture.  Must be defined for correct setting of
-    # the --cpu flag. Note that Xcode will set multiple values in
-    # ARCHS when building for a Generic Device.
-    archs = os.environ.get('ARCHS')
-    if not archs:
-      _PrintXcodeError('Tulsi requires env variable ARCHS to be '
-                       'set.  Please file a bug against Tulsi.')
-      sys.exit(1)
-    self.arch = archs.split()[-1]
+    self.update_symbol_cache = None
+    if os.environ.get('TULSI_USE_BAZEL_CACHE_READER') is not None:
+      self.update_symbol_cache = UpdateSymbolCache()
 
     # Path into which generated artifacts should be copied.
     self.built_products_dir = os.environ['BUILT_PRODUCTS_DIR']
@@ -515,11 +515,21 @@ class BazelBuildBridge(object):
         os.environ['TARGET_BUILD_DIR'], os.environ['EXECUTABLE_PATH'])
 
     self.is_simulator = self.platform_name.endswith('simulator')
-    # Check to see if code signing actions should be skipped or not.
-    if self.is_simulator:
-      self.codesigning_allowed = False
+    self.codesigning_allowed = not self.is_simulator
+
+    # Target architecture.  Must be defined for correct setting of
+    # the --cpu flag. Note that Xcode will set multiple values in
+    # ARCHS when building for a Generic Device.
+    archs = os.environ.get('ARCHS')
+    if not archs:
+      _PrintXcodeError('Tulsi requires env variable ARCHS to be '
+                       'set.  Please file a bug against Tulsi.')
+      sys.exit(1)
+    arch = archs.split()[-1]
+    if self.is_simulator and arch == "arm64":
+      self.arch = "sim_" + arch
     else:
-      self.codesigning_allowed = os.environ.get('CODE_SIGNING_ALLOWED') == 'YES'
+      self.arch = arch
 
     if self.codesigning_allowed:
       platform_prefix = 'iOS'
@@ -554,6 +564,7 @@ class BazelBuildBridge(object):
     self.bazel_bin_path = os.path.abspath(parser.bazel_bin_path)
     self.bazel_executable = parser.bazel_executable
     self.bazel_exec_root = self.build_settings.bazelExecRoot
+    self.bazel_output_base = self.build_settings.bazelOutputBase
 
     # Update feature flags.
     features = parser.GetEnabledFeatures()
@@ -584,17 +595,35 @@ class BazelBuildBridge(object):
     post_bazel_timer = Timer('Total Tulsi Post-Bazel time', 'total_post_bazel')
     post_bazel_timer.Start()
 
+
+    # This needs to run after `bazel build`, since it depends on the Bazel
+    # output directories
+
     if not os.path.exists(self.bazel_exec_root):
       _Fatal('No Bazel execution root was found at %r. Debugging experience '
              'will be compromised. Please report a Tulsi bug.'
              % self.bazel_exec_root)
       return 404
+    if not os.path.exists(self.bazel_output_base):
+      _Fatal('No Bazel output base was found at %r. Editing experience '
+             'will be compromised for external workspaces. Please report a'
+             ' Tulsi bug.'
+             % self.bazel_output_base)
+      return 404
 
-    # This needs to run after `bazel build`, since it depends on the Bazel
-    # workspace directory
-    exit_code = self._LinkTulsiWorkspace()
+    exit_code = self._LinkTulsiToBazel('tulsi-execution-root', self.bazel_exec_root)
     if exit_code:
       return exit_code
+    # Old versions of Tulsi mis-referred to the execution root as the workspace.
+    # We preserve the old symlink name for backwards compatibility.
+    exit_code = self._LinkTulsiToBazel('tulsi-workspace', self.bazel_exec_root)
+    if exit_code:
+      return exit_code
+    exit_code = self._LinkTulsiToBazel(
+        'tulsi-output-base', self.bazel_output_base)
+    if exit_code:
+      return exit_code
+
 
     exit_code, outputs_data = self._ExtractAspectOutputsData(outputs)
     if exit_code:
@@ -647,6 +676,8 @@ class BazelBuildBridge(object):
       if exit_code:
         return exit_code
 
+    self._PruneLLDBModuleCache(outputs)
+
     # Starting with Xcode 8, .lldbinit files are honored during Xcode debugging
     # sessions. This allows use of the target.source-map field to remap the
     # debug symbol paths encoded in the binary to the paths expected by Xcode.
@@ -697,11 +728,7 @@ class BazelBuildBridge(object):
         '--noexperimental_build_event_json_file_path_conversion',
         '--aspects', '@tulsi//:tulsi/tulsi_aspects.bzl%tulsi_outputs_aspect'])
 
-    if self.is_test and self.gen_runfiles:
-      bazel_command.append('--output_groups=+tulsi_outputs')
-    else:
-      bazel_command.append('--output_groups=tulsi_outputs,default')
-
+    bazel_command.append('--output_groups=+tulsi_outputs')
     bazel_command.extend(options.targets)
 
     extra_options = bazel_options.BazelOptions(os.environ)
@@ -716,14 +743,6 @@ class BazelBuildBridge(object):
                        (' '.join([pipes.quote(x) for x in command]),
                         self.workspace_root,
                         self.project_dir))
-    # Xcode translates any warning that sounds like an error into an error. If
-    # you use a shared remote cache, there will be modules that are likely to
-    # have been compiled on a different machine, thus dsymutil will emit a
-    # "/path/to/YourModule.pcm: No such file or directory" warning about that.
-    # We patch the message slightly to make Xcode seeing that as a warning.
-    no_pcm_line_regex = re.compile(
-        r'(warning):\s+(.+.pcm):\s+(No such file or directory)')
-
     # Clean up bazel output to make it look better in Xcode.
     bazel_line_regex = re.compile(
         r'(INFO|DEBUG|WARNING|ERROR|FAILED): ([^:]+:\d+:(?:\d+:)?)\s+(.+)')
@@ -743,10 +762,6 @@ class BazelBuildBridge(object):
             'FAILED': 'error'
         }
         return xcode_labels.get(bazel_label, bazel_label)
-
-      match = no_pcm_line_regex.match(output_line)
-      if match:
-        return 'warning: %s does not exist' % match.group(2)
 
       match = bazel_line_regex.match(output_line)
       if match:
@@ -808,10 +823,12 @@ class BazelBuildBridge(object):
 
     # Capture the stderr and stdout from Bazel. We only display it if it we're
     # unable to read any BEP events.
-    process = subprocess.Popen(command,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT,
-                               bufsize=1)
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+        bufsize=1)
 
     # Register atexit function to clean up BEP file.
     atexit.register(_BEPFileExitCleanup, self.build_events_file_path)
@@ -870,7 +887,8 @@ class BazelBuildBridge(object):
     outputs_data = []
     for output_file in output_files:
       try:
-        output_data = json.load(open(output_file))
+        with io.open(output_file, 'rb') as f:
+          output_data = json.load(f)
       except (ValueError, IOError) as e:
         _PrintXcodeError('Failed to load output map ""%s". '
                          '%s' % (output_file, e))
@@ -1256,7 +1274,7 @@ class BazelBuildBridge(object):
 
         # If the archive item looks like a file, extract it.
         if not filename.endswith(os.sep):
-          with zf.open(item) as src, file(target_path, 'wb') as dst:
+          with zf.open(item) as src, open(target_path, 'wb') as dst:
             shutil.copyfileobj(src, dst)
 
         # Patch up the extracted file's attributes to match the zip content.
@@ -1432,7 +1450,8 @@ class BazelBuildBridge(object):
     if os.path.exists(output_file):
       os.remove(output_file)
 
-    with open(self.runner_entitlements_template, 'r') as template:
+    with io.open(
+        self.runner_entitlements_template, 'r', encoding='utf-8') as template:
       contents = template.read()
       contents = contents.replace(
           '$(TeamIdentifier)',
@@ -1467,16 +1486,33 @@ class BazelBuildBridge(object):
 
     timer = Timer('\tExtracting signature for ' + signed_bundle,
                   'extracting_signature').Start()
-    output = subprocess.check_output(['xcrun',
-                                      'codesign',
-                                      '-dvv',
-                                      signed_bundle],
-                                     stderr=subprocess.STDOUT)
+    output = subprocess.check_output(
+        ['xcrun', 'codesign', '-dvv', signed_bundle],
+        stderr=subprocess.STDOUT,
+        encoding='utf-8')
     timer.End()
 
     bundle_attributes = CodesignBundleAttributes(output)
     self.codesign_attributes[signed_bundle] = bundle_attributes
     return bundle_attributes.Get(attribute)
+
+  def _PruneLLDBModuleCache(self, output_files):
+    """Run the module cache pruner tool as a subprocess."""
+    if not os.path.exists(BazelBuildBridge.MODULE_CACHE_PRUNER_EXECUTABLE):
+      _PrintXcodeWarning(
+          'Could find module cache pruner executable at %s. '
+          'You may need to manually remove %s if lldb-rpc-server crashes.' %
+          (BazelBuildBridge.MODULE_CACHE_PRUNER_EXECUTABLE,
+           BazelBuildBridge.XCODE_MODULE_CACHE_DIRECTORY))
+      return
+
+    timer = Timer('Pruning module cache', 'prune_module_cache').Start()
+    for output_file in output_files:
+      self._RunSubprocess([
+          BazelBuildBridge.MODULE_CACHE_PRUNER_EXECUTABLE,
+          BazelBuildBridge.XCODE_MODULE_CACHE_DIRECTORY, output_file
+      ])
+    timer.End()
 
   def _UpdateLLDBInit(self, clear_source_map=False):
     """Updates lldbinit to enable debugging of Bazel binaries."""
@@ -1492,8 +1528,12 @@ class BazelBuildBridge(object):
       # Make sure a reference to ~/.lldbinit-tulsiproj exists in ~/.lldbinit or
       # ~/.lldbinit-Xcode. Priority is given to ~/.lldbinit-Xcode if it exists,
       # otherwise the bootstrapping will be written to ~/.lldbinit.
-      BootstrapLLDBInit()
+      BootstrapLLDBInit(True)
     else:
+      # Remove any reference to ~/.lldbinit-tulsiproj if the global lldbinit was
+      # previously bootstrapped. This prevents the global lldbinit from having
+      # side effects on the custom lldbinit file.
+      BootstrapLLDBInit(False)
       # When using a custom lldbinit, Xcode will directly load our custom file
       # so write our settings to this custom file. Retain standard Xcode
       # behavior by loading the default file in our custom file.
@@ -1515,6 +1555,13 @@ class BazelBuildBridge(object):
       out.write('# This sets lldb\'s working directory to the Bazel workspace '
                 'root used by %r.\n' % project_basename)
       out.write('platform settings -w "%s"\n' % workspace_root)
+
+      out.write('# This enables implicitly loading Clang modules which can be '
+                'disabled when a Swift module was built with explicit modules '
+                'enabled.\n')
+      out.write(
+          'settings set -- target.swift-extra-clang-flags "-fimplicit-module-maps"\n'
+      )
 
       if clear_source_map:
         out.write('settings clear target.source-map\n')
@@ -1581,12 +1628,8 @@ class BazelBuildBridge(object):
                               given architecture, if no error has occcured.
     """
 
-    returncode, output = self._RunSubprocess([
-        'xcrun',
-        'dwarfdump',
-        '--uuid',
-        source_binary_path
-    ])
+    returncode, output = self._RunSubprocess(
+        ['xcrun', 'dwarfdump', '--uuid', source_binary_path])
     if returncode:
       _PrintXcodeWarning('dwarfdump returned %d while finding the UUID for %s'
                          % (returncode, source_binary_path))
@@ -1663,13 +1706,14 @@ class BazelBuildBridge(object):
       return False
 
     # Update the dSYM symbol cache with a reference to this dSYM bundle.
-    err_msg = self.update_symbol_cache.UpdateUUID(uuid,
-                                                  dsym_bundle_path,
-                                                  arch)
-    if err_msg:
-      _PrintXcodeWarning('Attempted to save (uuid, dsym_bundle_path, arch) '
-                         'to DBGShellCommands\' dSYM cache, but got error '
-                         '\"%s\".' % err_msg)
+    if self.update_symbol_cache is not None:
+      err_msg = self.update_symbol_cache.UpdateUUID(uuid,
+                                                    dsym_bundle_path,
+                                                    arch)
+      if err_msg:
+        _PrintXcodeWarning('Attempted to save (uuid, dsym_bundle_path, arch) '
+                           'to DBGShellCommands\' dSYM cache, but got error '
+                           '\"%s\".' % err_msg)
 
     return True
 
@@ -1761,17 +1805,17 @@ class BazelBuildBridge(object):
       sm_execroot = self._NormalizePath(sm_execroot)
     return (sm_execroot, sm_destpath)
 
-  def _LinkTulsiWorkspace(self):
-    """Links the Bazel Workspace to the Tulsi Workspace (`tulsi-workspace`)."""
-    tulsi_workspace = os.path.join(self.project_file_path,
+  def _LinkTulsiToBazel(self, symlink_name, destination):
+    """Links symlink_name (in project/.tulsi) to the specified destination."""
+    symlink_path = os.path.join(self.project_file_path,
                                    '.tulsi',
-                                   'tulsi-workspace')
-    if os.path.islink(tulsi_workspace):
-      os.unlink(tulsi_workspace)
-    os.symlink(self.bazel_exec_root, tulsi_workspace)
-    if not os.path.exists(tulsi_workspace):
+                                   symlink_name)
+    if os.path.islink(symlink_path):
+      os.unlink(symlink_path)
+    os.symlink(destination, symlink_path)
+    if not os.path.exists(symlink_path):
       _PrintXcodeError(
-          'Linking Tulsi Workspace to %s failed.' % tulsi_workspace)
+          'Linking %s to %s failed.' % (symlink_path, destination))
       return -1
 
   @staticmethod
@@ -1786,9 +1830,8 @@ class BazelBuildBridge(object):
   def _RunSubprocess(self, cmd):
     """Runs the given command as a subprocess, returning (exit_code, output)."""
     self._PrintVerbose('%r' % cmd, 1)
-    process = subprocess.Popen(cmd,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT)
+    process = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
     output, _ = process.communicate()
     return (process.returncode, output)
 

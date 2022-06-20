@@ -16,9 +16,6 @@
 #import "base/RTCVideoEncoder.h"
 #import "base/RTCVideoEncoderFactory.h"
 #import "components/video_codec/RTCCodecSpecificInfoH264+Private.h"
-#ifndef DISABLE_H265
-#import "components/video_codec/RTCCodecSpecificInfoH265+Private.h"
-#endif
 #import "sdk/objc/api/peerconnection/RTCEncodedImage+Private.h"
 #import "sdk/objc/api/peerconnection/RTCVideoCodecInfo+Private.h"
 #import "sdk/objc/api/peerconnection/RTCVideoEncoderSettings+Private.h"
@@ -51,28 +48,24 @@ class ObjCVideoEncoder : public VideoEncoder {
   }
 
   int32_t RegisterEncodeCompleteCallback(EncodedImageCallback *callback) override {
-    [encoder_ setCallback:^BOOL(RTC_OBJC_TYPE(RTCEncodedImage) * _Nonnull frame,
-                                id<RTC_OBJC_TYPE(RTCCodecSpecificInfo)> _Nonnull info) {
-      EncodedImage encodedImage = [frame nativeEncodedImage];
+    if (callback) {
+      [encoder_ setCallback:^BOOL(RTC_OBJC_TYPE(RTCEncodedImage) * _Nonnull frame,
+                                  id<RTC_OBJC_TYPE(RTCCodecSpecificInfo)> _Nonnull info) {
+        EncodedImage encodedImage = [frame nativeEncodedImage];
 
-      // Handle types that can be converted into one of CodecSpecificInfo's hard coded cases.
-      CodecSpecificInfo codecSpecificInfo;
-      // Because of symbol conflict, isKindOfClass doesn't work as expected.
-      // See https://bugs.webkit.org/show_bug.cgi?id=198782.
-      if ([NSStringFromClass([info class]) isEqual:@"RTCCodecSpecificInfoH264"]) {
-        // if ([info isKindOfClass:[RTCCodecSpecificInfoH264 class]]) {
-        codecSpecificInfo = [(RTCCodecSpecificInfoH264 *)info nativeCodecSpecificInfo];
-#ifndef DISABLE_H265
-      } else if ([NSStringFromClass([info class]) isEqual:@"RTCCodecSpecificInfoH265"]) {
-        // if ([info isKindOfClass:[RTCCodecSpecificInfoH265 class]]) {
-        codecSpecificInfo = [(RTCCodecSpecificInfoH265 *)info nativeCodecSpecificInfo];
-#endif
-      }
+        // Handle types that can be converted into one of CodecSpecificInfo's hard coded cases.
+        CodecSpecificInfo codecSpecificInfo;
+        if ([info isKindOfClass:[RTC_OBJC_TYPE(RTCCodecSpecificInfoH264) class]]) {
+          codecSpecificInfo =
+              [(RTC_OBJC_TYPE(RTCCodecSpecificInfoH264) *)info nativeCodecSpecificInfo];
+        }
 
-      EncodedImageCallback::Result res = callback->OnEncodedImage(encodedImage, &codecSpecificInfo);
-      return res.error == EncodedImageCallback::Result::OK;
-    }];
-
+        EncodedImageCallback::Result res = callback->OnEncodedImage(encodedImage, &codecSpecificInfo);
+        return res.error == EncodedImageCallback::Result::OK;
+      }];
+    } else {
+      [encoder_ setCallback:nil];
+    }
     return WEBRTC_VIDEO_CODEC_OK;
   }
 
@@ -80,18 +73,14 @@ class ObjCVideoEncoder : public VideoEncoder {
 
   int32_t Encode(const VideoFrame &frame,
                  const std::vector<VideoFrameType> *frame_types) override {
-    int32_t result = 0;
-    @autoreleasepool {
     NSMutableArray<NSNumber *> *rtcFrameTypes = [NSMutableArray array];
     for (size_t i = 0; i < frame_types->size(); ++i) {
       [rtcFrameTypes addObject:@(RTCFrameType(frame_types->at(i)))];
     }
 
-    result = [encoder_ encode:ToObjCVideoFrame(frame)
+    return [encoder_ encode:ToObjCVideoFrame(frame)
           codecSpecificInfo:nil
                  frameTypes:rtcFrameTypes];
-    }
-    return result;
   }
 
   void SetRates(const RateControlParameters &parameters) override {
@@ -102,15 +91,16 @@ class ObjCVideoEncoder : public VideoEncoder {
 
   VideoEncoder::EncoderInfo GetEncoderInfo() const override {
     EncoderInfo info;
-    info.supports_native_handle = true;
     info.implementation_name = implementation_name_;
 
     RTC_OBJC_TYPE(RTCVideoEncoderQpThresholds) *qp_thresholds = [encoder_ scalingSettings];
     info.scaling_settings = qp_thresholds ? ScalingSettings(qp_thresholds.low, qp_thresholds.high) :
                                             ScalingSettings::kOff;
 
+    info.requested_resolution_alignment = encoder_.resolutionAlignment > 0 ?: 1;
+    info.apply_alignment_to_all_simulcast_layers = encoder_.applyAlignmentToAllSimulcastLayers;
+    info.supports_native_handle = encoder_.supportsNativeHandle;
     info.is_hardware_accelerated = true;
-    info.has_internal_source = false;
     return info;
   }
 
@@ -184,13 +174,11 @@ std::vector<SdpVideoFormat> ObjCVideoEncoderFactory::GetImplementations() const 
 
 std::unique_ptr<VideoEncoder> ObjCVideoEncoderFactory::CreateVideoEncoder(
     const SdpVideoFormat &format) {
-  RTCVideoCodecInfo *info = [[RTCVideoCodecInfo alloc] initWithNativeSdpVideoFormat:format];
-  id<RTCVideoEncoder> encoder = [encoder_factory_ createEncoder:info];
-  // Because of symbol conflict, isKindOfClass doesn't work as expected.
-  // See https://bugs.webkit.org/show_bug.cgi?id=198782.
-  // if ([encoder isKindOfClass:[RTCWrappedNativeVideoEncoder class]]) {
-  if ([info.name isEqual:@"VP8"] || [info.name isEqual:@"VP9"]) {
-    return [(RTCWrappedNativeVideoEncoder *)encoder releaseWrappedEncoder];
+  RTC_OBJC_TYPE(RTCVideoCodecInfo) *info =
+      [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc] initWithNativeSdpVideoFormat:format];
+  id<RTC_OBJC_TYPE(RTCVideoEncoder)> encoder = [encoder_factory_ createEncoder:info];
+  if ([encoder isKindOfClass:[RTC_OBJC_TYPE(RTCWrappedNativeVideoEncoder) class]]) {
+    return [(RTC_OBJC_TYPE(RTCWrappedNativeVideoEncoder) *)encoder releaseWrappedEncoder];
   } else {
     return std::unique_ptr<ObjCVideoEncoder>(new ObjCVideoEncoder(encoder));
   }

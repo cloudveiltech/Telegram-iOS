@@ -103,7 +103,7 @@
 
 @synthesize safeAreaInset = _safeAreaInset;
 
-- (instancetype)initWithContext:(id<LegacyComponentsContext>)context focusItem:(id<TGModernGalleryItem>)focusItem selectionContext:(TGMediaSelectionContext *)selectionContext editingContext:(TGMediaEditingContext *)editingContext hasSelectionPanel:(bool)hasSelectionPanel hasCameraButton:(bool)hasCameraButton recipientName:(NSString *)recipientName
+- (instancetype)initWithContext:(id<LegacyComponentsContext>)context focusItem:(id<TGModernGalleryItem>)focusItem selectionContext:(TGMediaSelectionContext *)selectionContext editingContext:(TGMediaEditingContext *)editingContext stickersContext:(id<TGPhotoPaintStickersContext>)stickersContext hasSelectionPanel:(bool)hasSelectionPanel hasCameraButton:(bool)hasCameraButton recipientName:(NSString *)recipientName
 {
     self = [super initWithFrame:CGRectZero];
     if (self != nil)
@@ -139,6 +139,10 @@
             __strong TGMediaPickerGalleryInterfaceView *strongSelf = weakSelf;
             if (strongSelf == nil)
                 return;
+            
+            strongSelf->_ignoreSelectionUpdates = true;
+            [strongSelf->_selectionChangedDisposable dispose];
+            [strongSelf->_itemSelectedDisposable dispose];
             
             [strongSelf.window endEditing:true];
             strongSelf->_portraitToolbarView.doneButton.userInteractionEnabled = false;
@@ -277,7 +281,7 @@
         _itemSelectedDisposable = [[SMetaDisposable alloc] init];
         _itemAvailabilityDisposable = [[SMetaDisposable alloc] init];
         
-        _captionMixin = [[TGPhotoCaptionInputMixin alloc] initWithKeyCommandController:[_context keyCommandController]];
+        _captionMixin = [[TGPhotoCaptionInputMixin alloc] init];
         _captionMixin.panelParentView = ^UIView *
         {
             __strong TGMediaPickerGalleryInterfaceView *strongSelf = weakSelf;
@@ -301,7 +305,7 @@
             [strongSelf setItemHeaderViewHidden:true animated:true];
         };
         
-        _captionMixin.finishedWithCaption = ^(NSString *caption, NSArray *entities)
+        _captionMixin.finishedWithCaption = ^(NSAttributedString *caption)
         {
             __strong TGMediaPickerGalleryInterfaceView *strongSelf = weakSelf;
             if (strongSelf == nil)
@@ -318,7 +322,7 @@
             [strongSelf setItemHeaderViewHidden:false animated:true];
             
             if (strongSelf.captionSet != nil)
-                strongSelf.captionSet(strongSelf->_currentItem, caption, entities);
+                strongSelf.captionSet(strongSelf->_currentItem, caption);
             
             [strongSelf updateEditorButtonsForItem:strongSelf->_currentItem animated:false];
         };
@@ -340,15 +344,16 @@
             } completion:nil];
         };
         
+        _captionMixin.stickersContext = stickersContext;
         [_captionMixin createInputPanelIfNeeded];
         
-        _portraitToolbarView = [[TGPhotoToolbarView alloc] initWithBackButton:TGPhotoEditorBackButtonBack doneButton:TGPhotoEditorDoneButtonSend solidBackground:false];
+        _portraitToolbarView = [[TGPhotoToolbarView alloc] initWithContext:_context backButton:TGPhotoEditorBackButtonBack doneButton:TGPhotoEditorDoneButtonSend solidBackground:false];
         _portraitToolbarView.cancelPressed = toolbarCancelPressed;
         _portraitToolbarView.donePressed = toolbarDonePressed;
         _portraitToolbarView.doneLongPressed = toolbarDoneLongPressed;
         [_wrapperView addSubview:_portraitToolbarView];
         
-        _landscapeToolbarView = [[TGPhotoToolbarView alloc] initWithBackButton:TGPhotoEditorBackButtonBack doneButton:TGPhotoEditorDoneButtonSend solidBackground:false];
+        _landscapeToolbarView = [[TGPhotoToolbarView alloc] initWithContext:_context backButton:TGPhotoEditorBackButtonBack doneButton:TGPhotoEditorDoneButtonSend solidBackground:false];
         _landscapeToolbarView.cancelPressed = toolbarCancelPressed;
         _landscapeToolbarView.donePressed = toolbarDonePressed;
         _landscapeToolbarView.doneLongPressed = toolbarDoneLongPressed;
@@ -424,11 +429,6 @@
 {
     _allowCaptionEntities = allowCaptionEntities;
     _captionMixin.allowEntities = allowCaptionEntities;
-}
-
-- (void)setSuggestionContext:(TGSuggestionContext *)suggestionContext
-{
-    _captionMixin.suggestionContext = suggestionContext;
 }
 
 - (void)setClosePressed:(void (^)())closePressed
@@ -718,15 +718,12 @@
     if ([item conformsToProtocol:@protocol(TGModernGalleryEditableItem)])
     {
         id<TGMediaEditableItem> editableMediaItem = [galleryEditableItem editableMediaItem];
-        [_captionDisposable setDisposable:[[galleryEditableItem.editingContext captionSignalForItem:editableMediaItem] startWithNext:^(NSDictionary *captionWithEntities)
+        [_captionDisposable setDisposable:[[galleryEditableItem.editingContext captionSignalForItem:editableMediaItem] startWithNext:^(NSAttributedString *caption)
         {
             __strong TGMediaPickerGalleryInterfaceView *strongSelf = weakSelf;
             if (strongSelf == nil)
                 return;
-            
-            NSString *caption = captionWithEntities[@"caption"];
-            NSArray *entities = captionWithEntities[@"entities"];
-            [strongSelf->_captionMixin setCaption:caption entities:entities animated:animated];
+            [strongSelf->_captionMixin setCaption:caption animated:animated];
         }]];
     }
     
@@ -817,7 +814,7 @@
         [_adjustmentsDisposable setDisposable:nil];
         [_captionDisposable setDisposable:nil];
         [self updateEditorButtonsForAdjustments:nil dimensions:CGSizeZero timer:nil];
-        [_captionMixin setCaption:nil entities:nil animated:animated];
+        [_captionMixin setCaption:nil animated:animated];
     }
 }
 
@@ -1091,7 +1088,8 @@
             _recipientLabel.alpha = alpha;
             _portraitToolbarView.alpha = alpha;
             _landscapeToolbarView.alpha = alpha;
-            _captionMixin.inputPanel.alpha = alpha;
+            _captionMixin.inputPanelView.alpha = alpha;
+            _captionMixin.backgroundView.alpha = alpha;
         } completion:^(BOOL finished)
         {
             if (finished)
@@ -1100,7 +1098,8 @@
                 _muteButton.userInteractionEnabled = !hidden;
                 _portraitToolbarView.userInteractionEnabled = !hidden;
                 _landscapeToolbarView.userInteractionEnabled = !hidden;
-                _captionMixin.inputPanel.userInteractionEnabled = !hidden;
+                _captionMixin.inputPanelView.userInteractionEnabled = !hidden;
+                _captionMixin.backgroundView.userInteractionEnabled = !hidden;
             }
         }];
         
@@ -1133,8 +1132,11 @@
         _landscapeToolbarView.alpha = alpha;
         _landscapeToolbarView.userInteractionEnabled = !hidden;
         
-        _captionMixin.inputPanel.alpha = alpha;
-        _captionMixin.inputPanel.userInteractionEnabled = !hidden;
+        _captionMixin.inputPanelView.alpha = alpha;
+        _captionMixin.inputPanelView.userInteractionEnabled = !hidden;
+        
+        _captionMixin.backgroundView.alpha = alpha;
+        _captionMixin.backgroundView.userInteractionEnabled = !hidden;
     }
     
     if (hidden)
@@ -1302,7 +1304,8 @@
 
 - (void)immediateEditorTransitionIn {
     [self setSelectionInterfaceHidden:true animated:false];
-    _captionMixin.inputPanel.alpha = 0.0f;
+    _captionMixin.inputPanelView.alpha = 0.0f;
+    _captionMixin.backgroundView.alpha = 0.0f;
     _portraitToolbarView.doneButton.alpha = 0.0f;
     _landscapeToolbarView.doneButton.alpha = 0.0f;
     
@@ -1322,7 +1325,8 @@
     
     [UIView animateWithDuration:0.2 animations:^
     {
-        _captionMixin.inputPanel.alpha = 0.0f;
+        _captionMixin.inputPanelView.alpha = 0.0f;
+        _captionMixin.backgroundView.alpha = 0.0f;
         _portraitToolbarView.doneButton.alpha = 0.0f;
         _landscapeToolbarView.doneButton.alpha = 0.0f;
     }];
@@ -1334,7 +1338,8 @@
     
     [UIView animateWithDuration:0.3 animations:^
     {
-        _captionMixin.inputPanel.alpha = 1.0f;
+        _captionMixin.inputPanelView.alpha = 1.0f;
+        _captionMixin.backgroundView.alpha = 1.0f;
         _portraitToolbarView.doneButton.alpha = 1.0f;
         _landscapeToolbarView.doneButton.alpha = 1.0f;
     }];
@@ -1355,7 +1360,7 @@
         || [view isDescendantOfView:_portraitToolbarView]
         || [view isDescendantOfView:_landscapeToolbarView]
         || [view isDescendantOfView:_selectedPhotosView]
-        || [view isDescendantOfView:_captionMixin.inputPanel]
+        || [view isDescendantOfView:_captionMixin.inputPanelView]
         || [view isDescendantOfView:_captionMixin.dismissView]
         || [view isKindOfClass:[TGMenuButtonView class]])
         
@@ -1645,7 +1650,7 @@
                 
                 _selectedPhotosView.frame = CGRectMake(screenEdges.left + TGPhotoEditorToolbarSize + 66 + _safeAreaInset.left, screenEdges.top + 4 + headerInset, photosViewSize, self.frame.size.height - 4 * 2 - headerInset);
                 
-                _landscapeToolbarView.frame = CGRectMake(screenEdges.left, screenEdges.top, TGPhotoEditorToolbarSize + _safeAreaInset.left, self.frame.size.height);
+                _landscapeToolbarView.frame = CGRectMake(screenEdges.left + _safeAreaInset.left, screenEdges.top, TGPhotoEditorToolbarSize + _safeAreaInset.left, self.frame.size.height);
             }];
             
             _headerWrapperView.frame = CGRectMake(screenEdges.left + TGPhotoEditorToolbarSize + _safeAreaInset.left, screenEdges.top, self.frame.size.width - TGPhotoEditorToolbarSize - _safeAreaInset.left, 64);

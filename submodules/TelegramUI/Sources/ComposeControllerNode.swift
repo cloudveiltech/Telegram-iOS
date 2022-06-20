@@ -41,7 +41,6 @@ final class ComposeControllerNode: ASDisplayNode {
         var openCreateNewGroupImpl: (() -> Void)?
         var openCreateContactImpl: (() -> Void)?
         var openCreateNewChannelImpl: (() -> Void)?
-                        
         //CloudVeil start
         var options = [
             ContactListAdditionalOption(title: self.presentationData.strings.Compose_NewGroup, icon: .generic(UIImage(bundleImageName: "Contact List/CreateGroupActionIcon")!), action: {
@@ -63,7 +62,7 @@ final class ComposeControllerNode: ASDisplayNode {
         
         self.contactListNode = ContactListNode(context: context, presentation: .single(.natural(options: options, includeChatList: false)), displayPermissionPlaceholder: false)
         //CloudVeil end
-        
+            
         super.init()
         
         self.setViewBlock({

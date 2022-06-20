@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import TelegramCore
 import AccountContext
+import ChatPresentationInterfaceState
 import CloudVeilSecurityManager
 
 private func inputQueryResultPriority(_ result: ChatPresentationInputQueryResult) -> (Int, Bool) {
@@ -65,11 +66,11 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
     if hasBannedInlineContent {
         switch inputQueryResult {
             case .stickers, .contextRequestResult:
-                //CloudVeil start
-                if MainController.shared.disableStickers {
-                    return nil
-                }
-                //CloudVeil end
+            //CloudVeil start
+            if MainController.shared.disableStickers {
+                return nil
+            }
+            //CloudVeil end
                 if let currentPanel = currentPanel as? DisabledContextResultsChatInputContextPanelNode {
                     return currentPanel
                 } else {
@@ -84,12 +85,12 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
     
     switch inputQueryResult {
         case let .stickers(results):
-            //CloudVeil start
-            if MainController.shared.disableStickers {
-                return nil
-            }
-            //CloudVeil end
             if !results.isEmpty {
+                //CloudVeil start
+                if MainController.shared.disableStickers {
+                    return nil
+                }
+                //CloudVeil end
                 let query = chatPresentationInterfaceState.interfaceState.composeInputState.inputText.string
                 
                 if let currentPanel = currentPanel as? InlineReactionSearchPanel {
@@ -161,7 +162,6 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
                 return nil
             }
             //CloudVeil end
-            
             if let results = results, (!results.results.isEmpty || results.switchPeer != nil) {
                 switch results.presentation {
                     case .list:

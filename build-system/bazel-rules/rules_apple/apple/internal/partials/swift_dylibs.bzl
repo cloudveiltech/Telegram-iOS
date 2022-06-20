@@ -19,10 +19,6 @@ load(
     "apple_support",
 )
 load(
-    "@build_bazel_apple_support//lib:xcode_support.bzl",
-    "xcode_support",
-)
-load(
     "@build_bazel_rules_apple//apple/internal:bitcode_support.bzl",
     "bitcode_support",
 )
@@ -65,14 +61,27 @@ File object that represents a directory containing the Swift dylibs to package f
     },
 )
 
-# Minimum OS versions after which the Swift StdLib dylibs are packaged with the OS. If the minimum
-# OS version for the current target and platform is equal or above to the versions defined here,
-# then we can skip copying the Swift dylibs into Frameworks and SwiftSupport.
+# Minimum OS versions for which we no longer need to potentially bundle any
+# Swift dylibs with the application. The first cutoff point was when the
+# platforms bundled the standard libraries, the second was when they started
+# bundling the Concurrency library. There may be future libraries that require
+# us to continue bumping these values.
+#
+# Values are the first version where bundling is no longer required and should
+# correspond with the Swift compilers values for these which is the source of
+# truth https://github.com/apple/swift/blob/998d3518938bd7229e7c5e7b66088d0501c02051/lib/Basic/Platform.cpp#L82-L105
 _MIN_OS_PLATFORM_SWIFT_PRESENCE = {
     "ios": apple_common.dotted_version("12.2"),
     "macos": apple_common.dotted_version("10.14.4"),
     "tvos": apple_common.dotted_version("12.2"),
     "watchos": apple_common.dotted_version("5.2"),
+}
+
+_MIN_OS_PLATFORM_SWIFT_CONCURRENCY_PRESENCE = {
+    "ios": apple_common.dotted_version("15.0"),
+    "macos": apple_common.dotted_version("12.0"),
+    "tvos": apple_common.dotted_version("15.0"),
+    "watchos": apple_common.dotted_version("8.0"),
 }
 
 def _swift_dylib_action(
@@ -83,25 +92,20 @@ def _swift_dylib_action(
         platform_name,
         platform_prerequisites,
         resolved_swift_stdlib_tool,
-        strip_bitcode):
+        strip_bitcode,
+        swift_dylibs_paths):
     """Registers a swift-stlib-tool action to gather Swift dylibs to bundle."""
-
-    swift_dylibs_path = "Toolchains/XcodeDefault.xctoolchain/usr/lib/swift"
-
-    # Xcode 11 changed the location of the Swift dylibs within the default toolchain, so we need to
-    # make the dylibs path conditional on the Xcode version.
-    xcode_config = platform_prerequisites.xcode_version_config
-    if xcode_support.is_xcode_at_least_version(xcode_config, "11"):
-        swift_dylibs_path += "-5.0"
-
     swift_stdlib_tool_args = [
         "--platform",
         platform_name,
         "--output_path",
         output_dir.path,
-        "--swift_dylibs_path",
-        swift_dylibs_path,
     ]
+    for x in swift_dylibs_paths:
+        swift_stdlib_tool_args.extend([
+            "--swift_dylibs_path",
+            x,
+        ])
     for x in binary_files:
         swift_stdlib_tool_args.extend([
             "--binary",
@@ -124,6 +128,16 @@ def _swift_dylib_action(
         xcode_path_wrapper = platform_prerequisites.xcode_path_wrapper,
     )
 
+def _target_platform_is_arm_simulator(platform_prerequisites):
+    """Returns True if the target platform is a simulator with arm64 architecture, otherwise False.
+
+    Args:
+      platform_prerequisites: Struct containing information on the platform being targeted.
+    """
+
+    return (platform_prerequisites.apple_fragment.single_arch_cpu == "arm64" and
+            not platform_prerequisites.platform.is_device)
+
 def _swift_dylibs_partial_impl(
         *,
         actions,
@@ -132,6 +146,7 @@ def _swift_dylibs_partial_impl(
         bundle_dylibs,
         dependency_targets,
         label_name,
+        output_discriminator,
         package_swift_support_if_needed,
         platform_prerequisites):
     """Implementation for the Swift dylibs processing partial."""
@@ -149,14 +164,26 @@ def _swift_dylibs_partial_impl(
         transitive_swift_support_files.extend(provider.swift_support_files)
 
     direct_binaries = []
+    target_min_os = apple_common.dotted_version(platform_prerequisites.minimum_os)
     if binary_artifact and platform_prerequisites.uses_swift:
-        target_min_os = apple_common.dotted_version(platform_prerequisites.minimum_os)
-        swift_min_os = _MIN_OS_PLATFORM_SWIFT_PRESENCE[str(platform_prerequisites.platform_type)]
+        swift_concurrency_min_os = _MIN_OS_PLATFORM_SWIFT_CONCURRENCY_PRESENCE[str(platform_prerequisites.platform_type)]
 
         # Only check this binary for Swift dylibs if the minimum OS version is lower than the
         # minimum OS version under which Swift dylibs are already packaged with the OS.
-        if target_min_os < swift_min_os:
+        if target_min_os < swift_concurrency_min_os:
             direct_binaries.append(binary_artifact)
+
+    swift_min_os = _MIN_OS_PLATFORM_SWIFT_PRESENCE[str(platform_prerequisites.platform_type)]
+    swift_dylibs_path_prefix = "Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-"
+    swift_dylibs_paths = [swift_dylibs_path_prefix + "5.5"]
+
+    # Workaround for https://bugs.swift.org/browse/SR-16010.
+    if (target_min_os < swift_min_os and
+        # There's no such a simulator on Apple silicon Macs with a minimum OS
+        # version before ABI stability, so it's unnecessary to bundle the
+        # original Swift runtime here.
+        not _target_platform_is_arm_simulator(platform_prerequisites)):
+        swift_dylibs_paths.append(swift_dylibs_path_prefix + "5.0")
 
     transitive_binaries = depset(
         direct = direct_binaries,
@@ -179,9 +206,10 @@ def _swift_dylibs_partial_impl(
         if binaries_to_check:
             platform_name = platform_prerequisites.platform.name_in_plist.lower()
             output_dir = intermediates.directory(
-                actions,
-                label_name,
-                "swiftlibs",
+                actions = actions,
+                target_name = label_name,
+                output_discriminator = output_discriminator,
+                dir_name = "swiftlibs",
             )
             _swift_dylib_action(
                 actions = actions,
@@ -191,6 +219,7 @@ def _swift_dylibs_partial_impl(
                 platform_prerequisites = platform_prerequisites,
                 resolved_swift_stdlib_tool = apple_toolchain_info.resolved_swift_stdlib_tool,
                 strip_bitcode = strip_bitcode,
+                swift_dylibs_paths = swift_dylibs_paths,
             )
 
             bundle_files.append((processor.location.framework, None, depset([output_dir])))
@@ -201,9 +230,10 @@ def _swift_dylibs_partial_impl(
                     # Swift Support, so we register another action for copying
                     # them without stripping bitcode.
                     swift_support_output_dir = intermediates.directory(
-                        actions,
-                        label_name,
-                        "swiftlibs_for_swiftsupport",
+                        actions = actions,
+                        target_name = label_name,
+                        output_discriminator = output_discriminator,
+                        dir_name = "swiftlibs_for_swiftsupport",
                     )
                     _swift_dylib_action(
                         actions = actions,
@@ -213,6 +243,7 @@ def _swift_dylibs_partial_impl(
                         platform_prerequisites = platform_prerequisites,
                         resolved_swift_stdlib_tool = apple_toolchain_info.resolved_swift_stdlib_tool,
                         strip_bitcode = False,
+                        swift_dylibs_paths = swift_dylibs_paths,
                     )
                 else:
                     # When not building with bitcode, we can reuse Swift dylibs
@@ -257,6 +288,7 @@ def swift_dylibs_partial(
         bundle_dylibs = False,
         dependency_targets = [],
         label_name,
+        output_discriminator = None,
         package_swift_support_if_needed = False,
         platform_prerequisites):
     """Constructor for the Swift dylibs processing partial.
@@ -272,6 +304,8 @@ def swift_dylibs_partial(
       dependency_targets: List of targets that should be checked for binaries that might contain
         Swift, so that the Swift dylibs can be collected.
       label_name: Name of the target being built.
+      output_discriminator: A string to differentiate between different target intermediate files
+          or `None`.
       package_swift_support_if_needed: Whether the partial should also bundle the Swift dylib for
         each dependency platform into the SwiftSupport directory at the root of the archive. It
         might still not be included depending on what it is being built for.
@@ -289,6 +323,7 @@ def swift_dylibs_partial(
         bundle_dylibs = bundle_dylibs,
         dependency_targets = dependency_targets,
         label_name = label_name,
+        output_discriminator = output_discriminator,
         package_swift_support_if_needed = package_swift_support_if_needed,
         platform_prerequisites = platform_prerequisites,
     )

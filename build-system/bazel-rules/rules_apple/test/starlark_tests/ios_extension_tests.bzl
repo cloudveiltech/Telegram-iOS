@@ -37,13 +37,12 @@ load(
     "linkmap_test",
 )
 
-def ios_extension_test_suite(name = "ios_extension"):
+def ios_extension_test_suite(name):
     """Test suite for ios_extension.
 
     Args:
-        name: The name prefix for all the nested tests
+      name: the base name to be used in things created by this macro
     """
-
     apple_verification_test(
         name = "{}_codesign_test".format(name),
         build_type = "simulator",
@@ -165,14 +164,6 @@ def ios_extension_test_suite(name = "ios_extension"):
         build_type = "simulator",
         entry_point = "_NSExtensionMain",
         target_under_test = "//test/starlark_tests/targets_under_test/ios:ext",
-        tags = [name],
-    )
-
-    entry_point_test(
-        name = "{}_entry_point_main_test".format(name),
-        build_type = "simulator",
-        entry_point = "_main",
-        target_under_test = "//test/starlark_tests/targets_under_test/ios:ext_with_main",
         tags = [name],
     )
 

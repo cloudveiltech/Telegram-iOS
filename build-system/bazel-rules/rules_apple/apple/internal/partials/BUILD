@@ -35,6 +35,20 @@ bzl_library(
 )
 
 bzl_library(
+    name = "apple_symbols_file",
+    srcs = ["apple_symbols_file.bzl"],
+    visibility = [
+        "//apple/internal:__pkg__",
+    ],
+    deps = [
+        "//apple/internal:intermediates",
+        "//apple/internal:processor",
+        "@bazel_skylib//lib:partial",
+        "@build_bazel_apple_support//lib:apple_support",
+    ],
+)
+
+bzl_library(
     name = "binary",
     srcs = ["binary.bzl"],
     visibility = [
@@ -56,8 +70,8 @@ bzl_library(
     deps = [
         "//apple/internal:intermediates",
         "//apple/internal:processor",
-        "//apple/internal/utils:legacy_actions",
         "@bazel_skylib//lib:partial",
+        "@build_bazel_apple_support//lib:apple_support",
     ],
 )
 
@@ -70,8 +84,23 @@ bzl_library(
     deps = [
         "//apple/internal:intermediates",
         "//apple/internal:processor",
-        "//apple/internal/utils:legacy_actions",
         "@bazel_skylib//lib:partial",
+        "@build_bazel_apple_support//lib:apple_support",
+    ],
+)
+
+bzl_library(
+    name = "codesigning_dossier",
+    srcs = ["codesigning_dossier.bzl"],
+    visibility = [
+        "//apple/internal:__pkg__",
+    ],
+    deps = [
+        "//apple/internal:codesigning_support",
+        "//apple/internal:processor",
+        "@bazel_skylib//lib:partial",
+        "@bazel_skylib//lib:paths",
+        "@bazel_skylib//lib:sets",
     ],
 )
 
@@ -97,6 +126,7 @@ bzl_library(
     deps = [
         "//apple/internal:experimental",
         "//apple/internal:processor",
+        "//apple/internal/providers:embeddable_info",
         "@bazel_skylib//lib:partial",
     ],
 )
@@ -108,6 +138,19 @@ bzl_library(
         "//apple/internal:__pkg__",
     ],
     deps = [
+        "@bazel_skylib//lib:partial",
+    ],
+)
+
+bzl_library(
+    name = "framework_header_modulemap",
+    srcs = ["framework_header_modulemap.bzl"],
+    visibility = [
+        "//apple/internal:__pkg__",
+    ],
+    deps = [
+        "//apple/internal:intermediates",
+        "//apple/internal:processor",
         "@bazel_skylib//lib:partial",
     ],
 )
@@ -131,7 +174,7 @@ bzl_library(
         "//apple/internal:__pkg__",
     ],
     deps = [
-        "//apple/internal:apple_framework_import",
+        "//apple:providers",
         "//apple/internal:codesigning_support",
         "//apple/internal:intermediates",
         "//apple/internal:processor",
@@ -231,19 +274,6 @@ bzl_library(
 )
 
 bzl_library(
-    name = "static_framework_header_modulemap",
-    srcs = ["static_framework_header_modulemap.bzl"],
-    visibility = [
-        "//apple/internal:__pkg__",
-    ],
-    deps = [
-        "//apple/internal:intermediates",
-        "//apple/internal:processor",
-        "@bazel_skylib//lib:partial",
-    ],
-)
-
-bzl_library(
     name = "swift_dylibs",
     srcs = ["swift_dylibs.bzl"],
     visibility = [
@@ -261,14 +291,28 @@ bzl_library(
 )
 
 bzl_library(
+    name = "swift_framework",
+    srcs = ["swift_framework.bzl"],
+    visibility = [
+        "//apple/internal:__pkg__",
+    ],
+    deps = [
+        "//apple/internal:processor",
+        "//apple/internal:swift_info_support",
+        "@bazel_skylib//lib:partial",
+        "@bazel_skylib//lib:paths",
+    ],
+)
+
+bzl_library(
     name = "swift_static_framework",
     srcs = ["swift_static_framework.bzl"],
     visibility = [
         "//apple/internal:__pkg__",
     ],
     deps = [
-        "//apple/internal:intermediates",
         "//apple/internal:processor",
+        "//apple/internal:swift_info_support",
         "@bazel_skylib//lib:partial",
         "@bazel_skylib//lib:paths",
     ],

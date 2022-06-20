@@ -13,7 +13,7 @@ import CloudVeilSecurityManager
 
 private let deletedIcon = UIImage(bundleImageName: "Avatar/DeletedIcon")?.precomposed()
 private let phoneIcon = generateTintedImage(image: UIImage(bundleImageName: "Avatar/PhoneIcon"), color: .white)
-private let savedMessagesIcon = generateTintedImage(image: UIImage(bundleImageName: "Avatar/SavedMessagesIcon"), color: .white)
+public let savedMessagesIcon = generateTintedImage(image: UIImage(bundleImageName: "Avatar/SavedMessagesIcon"), color: .white)
 private let archivedChatsIcon = UIImage(bundleImageName: "Avatar/ArchiveAvatarIcon")?.precomposed()
 private let repliesIcon = generateTintedImage(image: UIImage(bundleImageName: "Avatar/RepliesMessagesIcon"), color: .white)
 
@@ -185,7 +185,7 @@ public final class AvatarNode: ASDisplayNode {
     
     public var font: UIFont {
         didSet {
-            if oldValue !== font {
+            if oldValue.pointSize != font.pointSize {
                 if let parameters = self.parameters {
                     self.parameters = AvatarNodeParameters(theme: parameters.theme, accountPeerId: parameters.accountPeerId, peerId: parameters.peerId, letters: parameters.letters, font: self.font, icon: parameters.icon, explicitColorIndex: parameters.explicitColorIndex, hasImage: parameters.hasImage, clipStyle: parameters.clipStyle)
                 }
@@ -337,13 +337,12 @@ public final class AvatarNode: ASDisplayNode {
             representation = peer?.smallProfileImage
         }
         
-        
-         //CloudVeil start
+        //CloudVeil start
         if MainController.shared.disableProfilePhoto {
             representation = nil
             setAvatar(icon: icon, representation: representation, context: context, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
         } else if MainController.shared.disableProfileVideo {
-            if let isVideoAvatarCachedValue = isVideoAvatarCached(context: context, peer: peer) {
+            if let isVideoAvatarCachedValue = isVideoAvatarCached(peer: peer) {
                 if isVideoAvatarCachedValue {
                     representation = nil
                 }
@@ -363,12 +362,11 @@ public final class AvatarNode: ASDisplayNode {
             setAvatar(icon: icon, representation: representation, context: context, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
         }
         //CloudVeil end
+       
     }
     
     //CloudVeil start
-    //param copied from setPeer plus 2 new
     private func setAvatar(icon: AvatarNodeIcon, representation: TelegramMediaImageRepresentation?, context: AccountContext, theme: PresentationTheme, peer: EnginePeer?, authorOfMessage: MessageReference? = nil, overrideImage: AvatarNodeImageOverride? = nil, emptyColor: UIColor? = nil, clipStyle: AvatarNodeClipStyle = .round, synchronousLoad: Bool = false, displayDimensions: CGSize = CGSize(width: 60.0, height: 60.0), storeUnrounded: Bool = false) {
-        
         let updatedState: AvatarNodeState = .peerAvatar(peer?.id ?? EnginePeer.Id(0), peer?.displayLetters ?? [], representation)
         if updatedState != self.state || overrideImage != self.overrideImage || theme !== self.theme {
             self.state = updatedState
@@ -377,7 +375,7 @@ public final class AvatarNode: ASDisplayNode {
             
             let parameters: AvatarNodeParameters
             
-            if let peer = peer, let signal = peerAvatarImage(account: context.account, peerReference: PeerReference(peer._asPeer()), authorOfMessage: authorOfMessage, representation: representation, displayDimensions: displayDimensions, emptyColor: emptyColor, synchronousLoad: synchronousLoad, provideUnrounded: storeUnrounded) {
+            if let peer = peer, let signal = peerAvatarImage(account: context.account, peerReference: PeerReference(peer._asPeer()), authorOfMessage: authorOfMessage, representation: representation, displayDimensions: displayDimensions, round: clipStyle == .round, emptyColor: emptyColor, synchronousLoad: synchronousLoad, provideUnrounded: storeUnrounded) {
                 self.contents = nil
                 self.displaySuspended = true
                 self.imageReady.set(self.imageNode.contentReady)
@@ -424,11 +422,45 @@ public final class AvatarNode: ASDisplayNode {
             }
         }
     }
+    //CloudVeil end
     
+    public func setCustomLetters(_ letters: [String], explicitColor: AvatarNodeColorOverride? = nil, icon: AvatarNodeExplicitIcon? = nil) {
+        var explicitIndex: Int?
+        if let explicitColor = explicitColor {
+            switch explicitColor {
+            case .blue:
+                explicitIndex = 5
+            }
+        }
+        let updatedState: AvatarNodeState = .custom(letter: letters, explicitColorIndex: explicitIndex, explicitIcon: icon)
+        if updatedState != self.state {
+            self.state = updatedState
+            
+            let parameters: AvatarNodeParameters
+            if let icon = icon, case .phone = icon {
+                parameters = AvatarNodeParameters(theme: nil, accountPeerId: nil, peerId: nil, letters: [], font: self.font, icon: .phoneIcon, explicitColorIndex: explicitIndex, hasImage: false, clipStyle: .round)
+            } else {
+                parameters = AvatarNodeParameters(theme: nil, accountPeerId: nil, peerId: nil, letters: letters, font: self.font, icon: .none, explicitColorIndex: explicitIndex, hasImage: false, clipStyle: .round)
+            }
+            
+            self.displaySuspended = true
+            self.contents = nil
+            
+            self.imageReady.set(.single(true))
+            self.displaySuspended = false
+            
+            if self.parameters == nil || self.parameters != parameters {
+                self.parameters = parameters
+                self.setNeedsDisplay()
+            }
+        }
+    }
+        
+    //CloudVeil start
     private let accessQueue = DispatchQueue(label: "videoAvatarsCacheAccessQueue", attributes: .concurrent)
     public static var videoAvatarsCache: [EnginePeer.Id:Bool] = [:]
     
-    private func isVideoAvatarCached(context: AccountContext, peer: EnginePeer?) -> Bool? {
+    private func isVideoAvatarCached(peer: EnginePeer?) -> Bool? {
         guard let id = peer?.id else {
             return false
         }
@@ -450,11 +482,13 @@ public final class AvatarNode: ASDisplayNode {
             callback(false)
             return
         }
-        context.engine.peers.requestPeerPhotos(peerId: id).start(next: { result in
+        let _ = context.engine.peers.requestPeerPhotos(peerId: id).start(next: { result in
             for i in 0 ..< result.count {
                 if let _ = result[i].image.videoRepresentations.first {
-                    AvatarNode.videoAvatarsCache[id] = true
-                    callback(true)
+                    self.accessQueue.async(flags: .barrier) {
+                        AvatarNode.videoAvatarsCache[id] = true
+                        callback(true)
+                    }
                     return
                 }
             }
@@ -466,39 +500,6 @@ public final class AvatarNode: ASDisplayNode {
         })
     }
     //CloudVeil end
-        
-    
-    public func setCustomLetters(_ letters: [String], explicitColor: AvatarNodeColorOverride? = nil, icon: AvatarNodeExplicitIcon? = nil) {
-        var explicitIndex: Int?
-        if let explicitColor = explicitColor {
-            switch explicitColor {
-                case .blue:
-                    explicitIndex = 5
-            }
-        }
-        let updatedState: AvatarNodeState = .custom(letter: letters, explicitColorIndex: explicitIndex, explicitIcon: icon)
-        if updatedState != self.state {
-            self.state = updatedState
-            
-            let parameters: AvatarNodeParameters
-            if let icon = icon, case .phone = icon {
-                parameters = AvatarNodeParameters(theme: nil, accountPeerId: nil, peerId: nil, letters: [], font: self.font, icon: .phoneIcon, explicitColorIndex: explicitIndex, hasImage: false, clipStyle: .round)
-            } else {
-                parameters = AvatarNodeParameters(theme: nil, accountPeerId: nil, peerId: nil, letters: letters, font: self.font, icon: .none, explicitColorIndex: explicitIndex, hasImage: false, clipStyle: .round)
-            }
-            
-            self.displaySuspended = true
-            self.contents = nil
-        
-            self.imageReady.set(.single(true))
-            self.displaySuspended = false
-            
-            if self.parameters == nil || self.parameters != parameters {
-                self.parameters = parameters
-                self.setNeedsDisplay()
-            }
-        }
-    }
     
     override public func drawParameters(forAsyncLayer layer: _ASDisplayLayer) -> NSObjectProtocol {
         return parameters ?? NSObject()
@@ -760,7 +761,7 @@ public enum AvatarBackgroundColor {
     case violet
 }
 
-public func generateAvatarImage(size: CGSize, icon: UIImage?, color: AvatarBackgroundColor) -> UIImage? {
+public func generateAvatarImage(size: CGSize, icon: UIImage?, iconScale: CGFloat = 1.0, color: AvatarBackgroundColor) -> UIImage? {
     return generateImage(size, rotatedContext: { size, context in
         context.clear(CGRect(origin: CGPoint(), size: size))
         context.beginPath()
@@ -807,7 +808,8 @@ public func generateAvatarImage(size: CGSize, icon: UIImage?, color: AvatarBackg
         context.translateBy(x: -size.width / 2.0, y: -size.height / 2.0)
         
         if let icon = icon {
-            let iconFrame = CGRect(origin: CGPoint(x: floor((size.width - icon.size.width) / 2.0), y: floor((size.height - icon.size.height) / 2.0)), size: icon.size)
+            let iconSize = CGSize(width: icon.size.width * iconScale, height: icon.size.height * iconScale)
+            let iconFrame = CGRect(origin: CGPoint(x: floor((size.width - iconSize.width) / 2.0), y: floor((size.height - iconSize.height) / 2.0)), size: iconSize)
             context.draw(icon.cgImage!, in: iconFrame)
         }
     })

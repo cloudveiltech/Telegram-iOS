@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder.WatchKit.Storyboard" version="3.0" toolsVersion="19529" targetRuntime="watchKit" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="umr-Wa-jBL">
+<document type="com.apple.InterfaceBuilder.WatchKit.Storyboard" version="3.0" toolsVersion="17701" targetRuntime="watchKit" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="umr-Wa-jBL">
     <device id="watch38"/>
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="19519"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBWatchKitPlugin" version="19514"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17703"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBWatchKitPlugin" version="17500"/>
     </dependencies>
     <scenes>
         <!--TGNeoConversationController-->
@@ -2017,7 +2017,7 @@ contacts found.</string>
         <image name="BotCommandIcon" width="128" height="128"/>
         <image name="BubbleNotification" width="128" height="128"/>
         <image name="File.png" width="128" height="128"/>
-        <image name="Location" width="17" height="20"/>
+        <image name="Location" width="128" height="128"/>
         <image name="LocationIcon" width="128" height="128"/>
         <image name="LoginIcon" width="128" height="128"/>
         <image name="MediaAudioPlay" width="128" height="128"/>

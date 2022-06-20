@@ -49,7 +49,7 @@ uint8_t CodecTypeToPayloadType(VideoCodecType codec_type) {
     case VideoCodecType::kVideoCodecH264:
       return CallTest::kPayloadTypeH264;
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
   }
   return {};
 }
@@ -64,7 +64,7 @@ std::string CodecTypeToCodecName(VideoCodecType codec_type) {
     case VideoCodecType::kVideoCodecH264:
       return cricket::kH264CodecName;
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
   }
   return {};
 }
@@ -73,7 +73,6 @@ VideoEncoderConfig::ContentType ConvertContentType(
   switch (content_type) {
     case VideoStreamConfig::Encoder::ContentType::kVideo:
       return VideoEncoderConfig::ContentType::kRealtimeVideo;
-      break;
     case VideoStreamConfig::Encoder::ContentType::kScreen:
       return VideoEncoderConfig::ContentType::kScreen;
   }
@@ -175,8 +174,8 @@ CreateVp9SpecificSettings(VideoStreamConfig video_config) {
     vp9.automaticResizeOn = conf.single.automatic_scaling;
     vp9.denoisingOn = conf.single.denoising;
   }
-  return new rtc::RefCountedObject<
-      VideoEncoderConfig::Vp9EncoderSpecificSettings>(vp9);
+  return rtc::make_ref_counted<VideoEncoderConfig::Vp9EncoderSpecificSettings>(
+      vp9);
 }
 
 rtc::scoped_refptr<VideoEncoderConfig::EncoderSpecificSettings>
@@ -192,8 +191,8 @@ CreateVp8SpecificSettings(VideoStreamConfig config) {
     vp8_settings.automaticResizeOn = config.encoder.single.automatic_scaling;
     vp8_settings.denoisingOn = config.encoder.single.denoising;
   }
-  return new rtc::RefCountedObject<
-      VideoEncoderConfig::Vp8EncoderSpecificSettings>(vp8_settings);
+  return rtc::make_ref_counted<VideoEncoderConfig::Vp8EncoderSpecificSettings>(
+      vp8_settings);
 }
 
 rtc::scoped_refptr<VideoEncoderConfig::EncoderSpecificSettings>
@@ -205,33 +204,14 @@ CreateH264SpecificSettings(VideoStreamConfig config) {
   h264_settings.frameDroppingOn = config.encoder.frame_dropping;
   h264_settings.keyFrameInterval =
       config.encoder.key_frame_interval.value_or(0);
-  return new rtc::RefCountedObject<
-      VideoEncoderConfig::H264EncoderSpecificSettings>(h264_settings);
+  return rtc::make_ref_counted<VideoEncoderConfig::H264EncoderSpecificSettings>(
+      h264_settings);
 }
-
-#ifndef DISABLE_H265
-rtc::scoped_refptr<VideoEncoderConfig::EncoderSpecificSettings>
-CreateH265SpecificSettings(VideoStreamConfig config) {
-  RTC_DCHECK_EQ(config.encoder.layers.temporal, 1);
-  RTC_DCHECK_EQ(config.encoder.layers.spatial, 1);
-
-  VideoCodecH265 h265_settings = VideoEncoder::GetDefaultH265Settings();
-  h265_settings.frameDroppingOn = config.encoder.frame_dropping;
-  h265_settings.keyFrameInterval =
-      config.encoder.key_frame_interval.value_or(0);
-  return new rtc::RefCountedObject<
-      VideoEncoderConfig::H265EncoderSpecificSettings>(h265_settings);
-}
-#endif
 
 rtc::scoped_refptr<VideoEncoderConfig::EncoderSpecificSettings>
 CreateEncoderSpecificSettings(VideoStreamConfig config) {
   using Codec = VideoStreamConfig::Encoder::Codec;
   switch (config.encoder.codec) {
-#ifndef DISABLE_H265
-    case Codec::kVideoCodecH265:
-      return CreateH265SpecificSettings(config);
-#endif
     case Codec::kVideoCodecH264:
       return CreateH264SpecificSettings(config);
     case Codec::kVideoCodecVP8:
@@ -242,7 +222,7 @@ CreateEncoderSpecificSettings(VideoStreamConfig config) {
     case Codec::kVideoCodecAV1:
       return nullptr;
     case Codec::kVideoCodecMultiplex:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
       return nullptr;
   }
 }
@@ -267,11 +247,11 @@ VideoEncoderConfig CreateVideoEncoderConfig(VideoStreamConfig config) {
     bool screenshare = config.encoder.content_type ==
                        VideoStreamConfig::Encoder::ContentType::kScreen;
     encoder_config.video_stream_factory =
-        new rtc::RefCountedObject<cricket::EncoderStreamFactory>(
+        rtc::make_ref_counted<cricket::EncoderStreamFactory>(
             cricket_codec, kDefaultMaxQp, screenshare, screenshare);
   } else {
     encoder_config.video_stream_factory =
-        new rtc::RefCountedObject<DefaultVideoStreamFactory>();
+        rtc::make_ref_counted<DefaultVideoStreamFactory>();
   }
 
   // TODO(srte): Base this on encoder capabilities.
@@ -402,7 +382,7 @@ SendVideoStream::SendVideoStream(CallClient* sender,
             } else if (config_.encoder.codec == Codec::kVideoCodecGeneric) {
               encoder = std::make_unique<test::FakeEncoder>(sender_->clock_);
             } else {
-              RTC_NOTREACHED();
+              RTC_DCHECK_NOTREACHED();
             }
             fake_encoders_.push_back(encoder.get());
             if (config_.encoder.fake.max_rate.IsFinite())
@@ -590,10 +570,10 @@ ReceiveVideoStream::ReceiveVideoStream(CallClient* receiver,
       RTC_DCHECK(num_streams == 1);
       FlexfecReceiveStream::Config flexfec(feedback_transport);
       flexfec.payload_type = CallTest::kFlexfecPayloadType;
-      flexfec.remote_ssrc = CallTest::kFlexfecSendSsrc;
+      flexfec.rtp.remote_ssrc = CallTest::kFlexfecSendSsrc;
       flexfec.protected_media_ssrcs = send_stream->rtx_ssrcs_;
-      flexfec.local_ssrc = recv_config.rtp.local_ssrc;
-      receiver_->ssrc_media_types_[flexfec.remote_ssrc] = MediaType::VIDEO;
+      flexfec.rtp.local_ssrc = recv_config.rtp.local_ssrc;
+      receiver_->ssrc_media_types_[flexfec.rtp.remote_ssrc] = MediaType::VIDEO;
 
       receiver_->SendTask([this, &flexfec] {
         flecfec_stream_ = receiver_->call_->CreateFlexfecReceiveStream(flexfec);

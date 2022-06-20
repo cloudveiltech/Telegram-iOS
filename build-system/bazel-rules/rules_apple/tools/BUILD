@@ -1,21 +1,16 @@
-load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-
 licenses(["notice"])
-
-bzl_library(
-    name = "py2and3_test",
-    srcs = ["py2and3_test.bzl"],
-)
 
 # Consumed by bazel tests.
 filegroup(
     name = "for_bazel_tests",
     testonly = 1,
     srcs = glob(["**"]) + [
+        "//tools/alticonstool:for_bazel_tests",
         "//tools/bitcode_strip:for_bazel_tests",
         "//tools/bundletool:for_bazel_tests",
         "//tools/clangrttool:for_bazel_tests",
         "//tools/codesigningtool:for_bazel_tests",
+        "//tools/dossier_codesigningtool:for_bazel_tests",
         "//tools/environment_plist:for_bazel_tests",
         "//tools/plisttool:for_bazel_tests",
         "//tools/provisioning_profile_tool:for_bazel_tests",

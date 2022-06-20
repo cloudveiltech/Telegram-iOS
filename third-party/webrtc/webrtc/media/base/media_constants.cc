@@ -13,8 +13,6 @@
 namespace cricket {
 
 const int kVideoCodecClockrate = 90000;
-const int kDataCodecClockrate = 90000;
-const int kRtpDataMaxBandwidth = 30720;  // bps
 
 const int kVideoMtu = 1200;
 const int kVideoRtpSendBufferSize = 65536;
@@ -41,6 +39,9 @@ const char kCodecParamRtxTime[] = "rtx-time";
 const char kCodecParamAssociatedPayloadType[] = "apt";
 
 const char kCodecParamAssociatedCodecName[] = "acn";
+// Parameters that do not follow the key-value convention
+// are treated as having the empty string as key.
+const char kCodecParamNotInNameValueFormat[] = "";
 
 const char kOpusCodecName[] = "opus";
 const char kIsacCodecName[] = "ISAC";
@@ -97,18 +98,13 @@ const char kCodecParamMinBitrate[] = "x-google-min-bitrate";
 const char kCodecParamStartBitrate[] = "x-google-start-bitrate";
 const char kCodecParamMaxQuantization[] = "x-google-max-quantization";
 
-const int kGoogleRtpDataCodecPlType = 109;
-const char kGoogleRtpDataCodecName[] = "google-data";
-
 const char kComfortNoiseCodecName[] = "CN";
 
 const char kVp8CodecName[] = "VP8";
 const char kVp9CodecName[] = "VP9";
-const char kAv1CodecName[] = "AV1X";
+const char kAv1CodecName[] = "AV1";
 const char kH264CodecName[] = "H264";
-#ifndef DISABLE_H265
 const char kH265CodecName[] = "H265";
-#endif
 
 // RFC 6184 RTP Payload Format for H.264 video
 const char kH264FmtpProfileLevelId[] = "profile-level-id";
@@ -118,13 +114,12 @@ const char kH264FmtpSpropParameterSets[] = "sprop-parameter-sets";
 const char kH264FmtpSpsPpsIdrInKeyframe[] = "sps-pps-idr-in-keyframe";
 const char kH264ProfileLevelConstrainedBaseline[] = "42e01f";
 const char kH264ProfileLevelConstrainedHigh[] = "640c1f";
-#ifndef DISABLE_H265
+
 // RFC 7798 RTP Payload Format for H.265 video
 const char kH265FmtpProfileSpace[] = "profile-space";
 const char kH265FmtpProfileId[] = "profile-id";
 const char kH265FmtpTierFlag[] = "tier-flag";
 const char kH265FmtpLevelId[] = "level-id";
-#endif
 
 const int kDefaultVideoMaxFramerate = 60;
 

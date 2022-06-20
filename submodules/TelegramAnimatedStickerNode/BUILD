@@ -6,6 +6,9 @@ swift_library(
     srcs = glob([
         "Sources/**/*.swift",
     ]),
+    copts = [
+        "-warnings-as-errors",
+    ],
     deps = [
     	"//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
@@ -17,6 +20,9 @@ swift_library(
         "//submodules/rlottie:RLottieBinding",
         "//submodules/YuvConversion:YuvConversion",
         "//submodules/GZip:GZip",
+        "//submodules/ManagedFile:ManagedFile",
+        "//submodules/MediaPlayer:UniversalMediaPlayer",
+        "//submodules/SoftwareVideo:SoftwareVideo",
     ],
     visibility = [
         "//visibility:public",

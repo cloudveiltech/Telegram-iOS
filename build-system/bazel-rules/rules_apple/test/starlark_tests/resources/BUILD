@@ -1,4 +1,3 @@
-load("@rules_cc//cc:defs.bzl", "objc_library")
 load(
     "//apple:resources.bzl",
     "apple_bundle_import",
@@ -91,68 +90,69 @@ swift_library(
 
 swift_library(
     name = "swift_lib_with_resources",
-    module_name = "swift_lib_with_resources",
+    testonly = True,
     srcs = [
         "Shared.swift",
     ],
     data = [
         ":structured_resources",
     ],
-    testonly = True,
     features = ["swift.no_generated_module_map"],
+    module_name = "swift_lib_with_resources",
     tags = FIXTURE_TAGS,
 )
 
 swift_library(
     name = "swift_common_lib",
-    module_name = "swift_common_lib",
-    srcs = ["Common.swift"],
     testonly = True,
+    srcs = ["Common.swift"],
     features = ["swift.no_generated_module_map"],
+    module_name = "swift_common_lib",
     tags = FIXTURE_TAGS,
 )
 
 swift_library(
     name = "swift_shared_lib",
-    module_name = "swift_shared_lib",
+    testonly = True,
     srcs = ["Shared.swift"],
+    features = ["swift.no_generated_module_map"],
+    module_name = "swift_shared_lib",
+    tags = FIXTURE_TAGS,
     deps = [
         "//test/starlark_tests/resources:swift_common_lib",
     ],
-    testonly = True,
-    features = ["swift.no_generated_module_map"],
-    tags = FIXTURE_TAGS,
 )
 
 swift_library(
     name = "swift_transitive_lib",
-    module_name = "swift_transitive_lib",
+    testonly = True,
     srcs = ["Transitives.swift"],
+    features = ["swift.no_generated_module_map"],
+    module_name = "swift_transitive_lib",
+    tags = FIXTURE_TAGS,
     deps = [
         "//test/starlark_tests/resources:swift_common_lib",
         "//test/starlark_tests/resources:swift_shared_lib",
     ],
-    testonly = True,
-    features = ["swift.no_generated_module_map"],
-    tags = FIXTURE_TAGS,
 )
 
 swift_library(
     name = "swift_lib_with_transitives",
-    module_name = "dynamic_framework_with_resources",
+    testonly = True,
     srcs = ["Shared.swift"],
     data = [
         "//test/starlark_tests/targets_under_test/ios:swift_common_lib_framework",
         "//test/starlark_tests/targets_under_test/ios:swift_shared_lib_framework",
     ],
-    testonly = True,
     features = ["swift.no_generated_module_map"],
+    module_name = "dynamic_framework_with_resources",
     tags = FIXTURE_TAGS,
 )
 
 swift_library(
     name = "swift_framework_lib",
     srcs = ["//test/testdata/sources:main.swift"],
+    generates_header = True,
     module_name = "swift_framework_lib",
     tags = FIXTURE_TAGS,
 )
@@ -209,6 +209,17 @@ apple_resource_bundle(
 apple_resource_bundle(
     name = "resource_bundle_with_structured_resource_group",
     resources = [":structured_resources"],
+    tags = FIXTURE_TAGS,
+)
+
+apple_resource_bundle(
+    name = "resource_bundle_with_bundle_id",
+    bundle_id = "org.bazel.rules_apple.resource_bundle",
+    infoplists = ["Info-noversion.plist"],
+    resources = [
+        "en.lproj/files.stringsdict",
+        "en.lproj/greetings.strings",
+    ],
     tags = FIXTURE_TAGS,
 )
 
@@ -275,6 +286,21 @@ objc_library(
     tags = FIXTURE_TAGS,
 )
 
+apple_resource_group(
+    name = "processed_resources_in_structured_resources",
+    structured_resources = [
+        ":localization",
+    ],
+)
+
+objc_library(
+    name = "processed_resources_in_structured_resources_lib",
+    srcs = ["main.m"],
+    data = [
+        ":processed_resources_in_structured_resources",
+    ],
+)
+
 filegroup(
     name = "localized_plists",
     srcs = glob(["*.lproj/*.plist"]),
@@ -288,6 +314,11 @@ filegroup(
 filegroup(
     name = "app_icons_ios",
     srcs = glob(["app_icons_ios.xcassets/**"]),
+)
+
+filegroup(
+    name = "alternate_icons_ios",
+    srcs = glob(["alticons/**"]),
 )
 
 filegroup(
@@ -537,6 +568,21 @@ filegroup(
 )
 
 filegroup(
+    name = "swift_datamodel",
+    srcs = glob(["core_data_models/swift_datamodel.xcdatamodeld/**"]),
+)
+
+filegroup(
+    name = "objc_datamodel",
+    srcs = glob(["core_data_models/objc_datamodel.xcdatamodeld/**"]),
+)
+
+filegroup(
+    name = "no_code_generation_datamodel",
+    srcs = glob(["core_data_models/no_code_generation_datamodel.xcdatamodeld/**"]),
+)
+
+filegroup(
     name = "unversioned_datamodel",
     srcs = glob(["unversioned_datamodel.xcdatamodel/**"]),
 )
@@ -568,4 +614,75 @@ filegroup(
 filegroup(
     name = "WatchAppIcon.xcassets",
     srcs = glob(["WatchAppIcon.xcassets/**"]),
+)
+
+filegroup(
+    name = "complications_watchos",
+    srcs = glob(["complications_watchos.xcassets/**"]),
+)
+
+cc_binary(
+    name = "cc_test_binary",
+    srcs = ["main.cc"],
+    tags = FIXTURE_TAGS,
+)
+
+genrule(
+    name = "swift_importing_imported_dynamic_xcfw",
+    outs = ["swift_importing_imported_dynamic_xcfw.swift"],
+    cmd = "echo 'import ios_dynamic_xcframework' > $@",
+    tags = FIXTURE_TAGS,
+)
+
+swift_library(
+    name = "swift_lib_importing_imported_dynamic_xcfw",
+    testonly = True,
+    srcs = [":swift_importing_imported_dynamic_xcfw"],
+    tags = FIXTURE_TAGS,
+    deps = ["//test/starlark_tests/targets_under_test/apple:ios_imported_dynamic_xcframework"],
+)
+
+genrule(
+    name = "swift_importing_imported_static_xcfw",
+    outs = ["swift_importing_imported_static_xcfw.swift"],
+    cmd = "echo 'import ios_static_xcframework_with_module_map' > $@",
+    tags = FIXTURE_TAGS,
+)
+
+swift_library(
+    name = "swift_lib_importing_imported_static_xcfw",
+    testonly = True,
+    srcs = [":swift_importing_imported_static_xcfw"],
+    tags = FIXTURE_TAGS,
+    deps = ["//test/starlark_tests/targets_under_test/apple:ios_imported_static_xcframework_with_module_map"],
+)
+
+genrule(
+    name = "swift_importing_imported_xcfw_bundling_static_fmwks",
+    outs = ["swift_importing_imported_xcfw_bundling_static_fmwks.swift"],
+    cmd = "echo 'import ios_xcframework_bundling_static_fmwks' > $@",
+    tags = FIXTURE_TAGS,
+)
+
+swift_library(
+    name = "swift_lib_importing_imported_xcfw_bundling_static_fmwks",
+    testonly = True,
+    srcs = [":swift_importing_imported_xcfw_bundling_static_fmwks"],
+    tags = FIXTURE_TAGS,
+    deps = ["//test/starlark_tests/targets_under_test/apple:ios_imported_xcframework_bundling_static_xcfmwks"],
+)
+
+genrule(
+    name = "objc_importing_imported_static_xcfw",
+    outs = ["objc_importing_imported_static_xcfw.m"],
+    cmd = """echo '#import "shared.h"' > $@""",
+    tags = FIXTURE_TAGS,
+)
+
+objc_library(
+    name = "objc_lib_importing_imported_static_xcfw",
+    testonly = True,
+    srcs = [":objc_importing_imported_static_xcfw"],
+    tags = FIXTURE_TAGS,
+    deps = ["//test/starlark_tests/targets_under_test/apple:ios_imported_static_xcframework"],
 )

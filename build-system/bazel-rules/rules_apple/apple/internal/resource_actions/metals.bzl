@@ -31,12 +31,9 @@ def _metal_apple_target_triple(platform_prerequisites):
     Returns:
         A target triple string describing the platform.
     """
-    platform = platform_prerequisites.apple_fragment.single_arch_platform
-    xcode_config = platform_prerequisites.xcode_version_config
-    target_os_version = xcode_config.minimum_os_for_platform_type(
-        platform.platform_type,
-    )
+    target_os_version = platform_prerequisites.minimum_os
 
+    platform = platform_prerequisites.apple_fragment.single_arch_platform
     platform_string = str(platform.platform_type)
     if platform_string == "macos":
         platform_string = "macosx"
@@ -49,7 +46,7 @@ def _metal_apple_target_triple(platform_prerequisites):
         version = target_os_version,
     )
 
-def compile_metals(*, actions, input_files, output_file, platform_prerequisites, **kwargs):
+def compile_metals(*, actions, input_files, output_file, platform_prerequisites, **_kwargs):
     """Creates actions that compile .metal files into a single .metallib file.
 
     Args:
@@ -57,7 +54,7 @@ def compile_metals(*, actions, input_files, output_file, platform_prerequisites,
         platform_prerequisites: Struct containing information on the platform being targeted.
         input_files: The input metal files.
         output_file: The output metallib file.
-        **kwargs: Ignored
+        **_kwargs: Ignored
     """
     air_files = []
     target = _metal_apple_target_triple(platform_prerequisites)

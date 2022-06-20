@@ -78,7 +78,6 @@ def _describe_rule_type(
         app_icon_parent_extension = None,
         archive_extension = ".zip",
         binary_infoplist = True,
-        binary_type = "executable",
         bundle_extension = None,
         bundle_locations = None,
         bundle_package_type = None,
@@ -88,6 +87,7 @@ def _describe_rule_type(
         deps_cfg = None,
         extra_linkopts = [],
         expose_non_archive_relative_output = False,
+        has_alternate_icons = False,
         has_infoplist = True,
         has_launch_images = False,
         has_settings_bundle = False,
@@ -117,9 +117,6 @@ def _describe_rule_type(
         archive_extension: Extension for the archive output of the rule.
         binary_infoplist: Whether the Info.plist output should be in binary form.
         bundle_package_type: Four-character code representing the bundle type.
-        binary_type: Binary type to use for the binary_type attribute in the bundling rules. This
-            attribute is read by apple_common.link_multi_arch_binary, so rules that use apple_binary
-            underneath are not affected.
         bundle_extension: Extension for the Apple bundle inside the archive.
         bundle_locations: Struct with expected bundle locations for different types of artifacts.
         codesigning_exceptions: A value from _CODESIGNING_EXCEPTIONS to determine conditions for
@@ -135,6 +132,7 @@ def _describe_rule_type(
             the `archive_relative` bundle location, to permit embedding within another target. Has no
             effect if `archive_relative` is empty.
         extra_linkopts: Extra options to pass to the linker.
+        has_alternate_icons: Whether the rule supports alternate icons.
         has_infoplist: Whether the rule should place an Info.plist file at the root of the bundle.
         has_launch_images: Whether the rule supports launch images.
         has_settings_bundle: Whether the rule supports a settings bundle.
@@ -173,7 +171,6 @@ def _describe_rule_type(
         app_icon_parent_extension = app_icon_parent_extension,
         archive_extension = archive_extension,
         binary_infoplist = binary_infoplist,
-        binary_type = binary_type,
         bundle_extension = bundle_extension,
         bundle_locations = bundle_locations,
         bundle_package_type = bundle_package_type,
@@ -183,6 +180,7 @@ def _describe_rule_type(
         deps_cfg = deps_cfg,
         expose_non_archive_relative_output = expose_non_archive_relative_output,
         extra_linkopts = extra_linkopts,
+        has_alternate_icons = has_alternate_icons,
         has_infoplist = has_infoplist,
         has_launch_images = has_launch_images,
         has_settings_bundle = has_settings_bundle,
@@ -221,6 +219,7 @@ _RULE_TYPE_DESCRIPTORS = {
             bundle_locations = _describe_bundle_locations(archive_relative = "Payload"),
             bundle_package_type = bundle_package_type.application,
             deps_cfg = apple_common.multi_arch_split,
+            has_alternate_icons = True,
             has_launch_images = True,
             has_settings_bundle = True,
             is_executable = True,
@@ -266,6 +265,8 @@ _RULE_TYPE_DESCRIPTORS = {
             deps_cfg = apple_common.multi_arch_split,
             extra_linkopts = [
                 "-fapplication-extension",
+                "-e",
+                "_NSExtensionMain",
             ],
             mandatory_families = True,
             product_type = apple_product_type.app_extension,
@@ -278,7 +279,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # ios_framework
         apple_product_type.framework: _describe_rule_type(
             allowed_device_families = ["iphone", "ipad"],
-            binary_type = "dylib",
             bundle_extension = ".framework",
             bundle_package_type = bundle_package_type.framework,
             codesigning_exceptions = _CODESIGNING_EXCEPTIONS.sign_with_provisioning_profile,
@@ -359,7 +359,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # ios_ui_test
         apple_product_type.ui_test_bundle: _describe_rule_type(
             allowed_device_families = ["iphone", "ipad"],
-            binary_type = "loadable_bundle",
             bundle_extension = ".xctest",
             bundle_package_type = bundle_package_type.bundle,
             default_infoplist = "@build_bazel_rules_apple//apple/testing:DefaultTestBundlePlist",
@@ -383,7 +382,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # ios_unit_test
         apple_product_type.unit_test_bundle: _describe_rule_type(
             allowed_device_families = ["iphone", "ipad"],
-            binary_type = "loadable_bundle",
             bundle_extension = ".xctest",
             bundle_package_type = bundle_package_type.bundle,
             default_infoplist = "@build_bazel_rules_apple//apple/testing:DefaultTestBundlePlist",
@@ -441,7 +439,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # macos_dylib
         apple_product_type.dylib: _describe_rule_type(
             allowed_device_families = ["mac"],
-            binary_type = "dylib",
             bundle_extension = "",
             deps_cfg = apple_common.multi_arch_split,
             product_type = apple_product_type.dylib,
@@ -457,6 +454,11 @@ _RULE_TYPE_DESCRIPTORS = {
             bundle_locations = _DEFAULT_MACOS_BUNDLE_LOCATIONS,
             bundle_package_type = bundle_package_type.extension_or_xpc,
             deps_cfg = apple_common.multi_arch_split,
+            extra_linkopts = [
+                "-fapplication-extension",
+                "-e",
+                "_NSExtensionMain",
+            ],
             product_type = apple_product_type.app_extension,
             provisioning_profile_extension = ".provisionprofile",
             requires_signing_for_device = False,
@@ -470,7 +472,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # macos_quick_look_plugin
         apple_product_type.quicklook_plugin: _describe_rule_type(
             allowed_device_families = ["mac"],
-            binary_type = "dylib",
             bundle_extension = ".qlgenerator",
             bundle_locations = _DEFAULT_MACOS_BUNDLE_LOCATIONS,
             bundle_package_type = bundle_package_type.extension_or_xpc,
@@ -485,7 +486,6 @@ _RULE_TYPE_DESCRIPTORS = {
             allowed_device_families = ["mac"],
             app_icon_parent_extension = ".xcassets",
             app_icon_extension = ".appiconset",
-            binary_type = "loadable_bundle",
             bundle_extension = ".bundle",
             bundle_locations = _DEFAULT_MACOS_BUNDLE_LOCATIONS,
             bundle_package_type = bundle_package_type.bundle,
@@ -554,7 +554,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # macos_ui_test
         apple_product_type.ui_test_bundle: _describe_rule_type(
             allowed_device_families = ["mac"],
-            binary_type = "loadable_bundle",
             bundle_extension = ".xctest",
             bundle_locations = _DEFAULT_MACOS_BUNDLE_LOCATIONS,
             bundle_package_type = bundle_package_type.bundle,
@@ -579,7 +578,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # macos_unit_test
         apple_product_type.unit_test_bundle: _describe_rule_type(
             allowed_device_families = ["mac"],
-            binary_type = "loadable_bundle",
             bundle_extension = ".xctest",
             bundle_locations = _DEFAULT_MACOS_BUNDLE_LOCATIONS,
             bundle_package_type = bundle_package_type.bundle,
@@ -649,7 +647,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # tvos_framework
         apple_product_type.framework: _describe_rule_type(
             allowed_device_families = ["tv"],
-            binary_type = "dylib",
             bundle_extension = ".framework",
             bundle_package_type = bundle_package_type.framework,
             codesigning_exceptions = _CODESIGNING_EXCEPTIONS.sign_with_provisioning_profile,
@@ -676,7 +673,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # tvos_ui_test
         apple_product_type.ui_test_bundle: _describe_rule_type(
             allowed_device_families = ["tv"],
-            binary_type = "loadable_bundle",
             bundle_extension = ".xctest",
             bundle_package_type = bundle_package_type.bundle,
             default_infoplist = "@build_bazel_rules_apple//apple/testing:DefaultTestBundlePlist",
@@ -700,7 +696,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # tvos_unit_test
         apple_product_type.unit_test_bundle: _describe_rule_type(
             allowed_device_families = ["tv"],
-            binary_type = "loadable_bundle",
             bundle_extension = ".xctest",
             bundle_package_type = bundle_package_type.bundle,
             default_infoplist = "@build_bazel_rules_apple//apple/testing:DefaultTestBundlePlist",
@@ -756,7 +751,6 @@ _RULE_TYPE_DESCRIPTORS = {
         # watchos_framework
         apple_product_type.framework: _describe_rule_type(
             allowed_device_families = ["watch"],
-            binary_type = "dylib",
             bundle_extension = ".framework",
             bundle_package_type = bundle_package_type.framework,
             codesigning_exceptions = _CODESIGNING_EXCEPTIONS.sign_with_provisioning_profile,
@@ -779,6 +773,52 @@ _RULE_TYPE_DESCRIPTORS = {
             product_type = apple_product_type.static_framework,
             requires_bundle_id = False,
             requires_provisioning_profile = False,
+        ),
+        # watchos_ui_test
+        apple_product_type.ui_test_bundle: _describe_rule_type(
+            allowed_device_families = ["watch"],
+            bundle_extension = ".xctest",
+            bundle_package_type = bundle_package_type.bundle,
+            default_infoplist = "@build_bazel_rules_apple//apple/testing:DefaultTestBundlePlist",
+            default_test_runner = "@build_bazel_rules_apple//apple/testing/default_runner:watchos_default_runner",
+            deps_cfg = apple_common.multi_arch_split,
+            extra_linkopts = [
+                "-framework",
+                "XCTest",
+            ],
+            product_type = apple_product_type.ui_test_bundle,
+            requires_signing_for_device = False,
+            rpaths = [
+                # Test binaries live in Application.app/PlugIns/Test.xctest/Test
+                # Frameworks are packaged in Application.app/Frameworks and in
+                # Application.app/PlugIns/Test.xctest/Frameworks
+                "@executable_path/Frameworks",
+                "@loader_path/Frameworks",
+            ],
+            skip_simulator_signing_allowed = False,
+        ),
+        # watchos_unit_test
+        apple_product_type.unit_test_bundle: _describe_rule_type(
+            allowed_device_families = ["watch"],
+            bundle_extension = ".xctest",
+            bundle_package_type = bundle_package_type.bundle,
+            default_infoplist = "@build_bazel_rules_apple//apple/testing:DefaultTestBundlePlist",
+            default_test_runner = "@build_bazel_rules_apple//apple/testing/default_runner:watchos_default_runner",
+            deps_cfg = apple_common.multi_arch_split,
+            extra_linkopts = [
+                "-framework",
+                "XCTest",
+            ],
+            product_type = apple_product_type.unit_test_bundle,
+            requires_signing_for_device = False,
+            rpaths = [
+                # Test binaries live in Application.app/PlugIns/Test.xctest/Test
+                # Frameworks are packaged in Application.app/Frameworks and in
+                # Application.app/PlugIns/Test.xctest/Frameworks
+                "@executable_path/Frameworks",
+                "@loader_path/Frameworks",
+            ],
+            skip_simulator_signing_allowed = False,
         ),
     },
 }

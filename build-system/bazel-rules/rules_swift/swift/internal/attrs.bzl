@@ -104,7 +104,7 @@ A list of `.swift` source files that will be compiled into the library.
             "copts": attr.string_list(
                 doc = """\
 Additional compiler options that should be passed to `swiftc`. These strings are
-subject to `$(location ...)` expansion.
+subject to `$(location ...)` and ["Make" variable](https://docs.bazel.build/versions/master/be/make-variables.html) expansion.
 """,
             ),
             "defines": attr.string_list(
@@ -151,6 +151,9 @@ def swift_config_attrs():
     return {
         "_config_emit_swiftinterface": attr.label(
             default = "@build_bazel_rules_swift//swift:emit_swiftinterface",
+        ),
+        "_per_module_swiftcopt": attr.label(
+            default = "@build_bazel_rules_swift//swift:per_module_swiftcopt",
         ),
     }
 
@@ -248,7 +251,7 @@ def swift_library_rule_attrs(
                 doc = """\
 Additional linker options that should be passed to the linker for the binary
 that depends on this target. These strings are subject to `$(location ...)`
-expansion.
+and ["Make" variable](https://docs.bazel.build/versions/master/be/make-variables.html) expansion.
 """,
             ),
             "alwayslink": attr.bool(
@@ -271,8 +274,24 @@ a `.h` extension and cannot contain any path separators.
 If this attribute is not specified, then the default behavior is to name the
 header `${target_name}-Swift.h`.
 
-This attribute is ignored if the toolchain does not support generating headers
-or if the target has the `swift.no_generated_header` feature enabled.
+This attribute is ignored if the toolchain does not support generating headers.
+""",
+                mandatory = False,
+            ),
+            "generates_header": attr.bool(
+                default = False,
+                doc = """\
+If True, an Objective-C header will be generated for this target, in the same
+build package where the target is defined. By default, the name of the header is
+`${target_name}-Swift.h`; this can be changed using the `generated_header_name`
+attribute.
+
+Targets should only set this attribute to True if they export Objective-C APIs.
+A header generated for a target that does not export Objective-C APIs will be
+effectively empty (except for a large amount of prologue and epilogue code) and
+this is generally wasteful because the extra file needs to be propagated in the
+build graph and, when explicit modules are enabled, extra actions must be
+executed to compile the Objective-C module for the generated header.
 """,
                 mandatory = False,
             ),

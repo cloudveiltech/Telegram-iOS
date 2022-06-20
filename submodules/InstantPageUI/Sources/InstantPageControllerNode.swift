@@ -16,6 +16,7 @@ import OpenInExternalAppUI
 import LocationUI
 import UndoUI
 import ContextUI
+import TranslateUI
 import CloudVeilSecurityManager
 
 final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
@@ -68,6 +69,7 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
     
     var currentAccessibilityAreas: [AccessibilityAreaNode] = []
     
+    private var previousContentOffset: CGPoint?
     private var isDeceleratingBecauseOfDragging = false
     
     private let hiddenMediaDisposable = MetaDisposable()
@@ -348,7 +350,7 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
         let maxBarHeight: CGFloat
         if !layout.safeInsets.top.isZero {
             if let statusBarHeight = layout.statusBarHeight, statusBarHeight > 34.0 {
-                maxBarHeight = statusBarHeight + 34.0
+                maxBarHeight = statusBarHeight + 44.0
             } else {
                 maxBarHeight = layout.safeInsets.top + 34.0
             }
@@ -358,7 +360,7 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
         
         let scrollInsetTop = maxBarHeight
         
-        let resetOffset = self.scrollNode.bounds.size.width.isZero || self.setupScrollOffsetOnLayout
+        let resetOffset = self.scrollNode.bounds.size.width.isZero || self.setupScrollOffsetOnLayout || !(self.initialAnchor ?? "").isEmpty
         let widthUpdated = !self.scrollNode.bounds.size.width.isEqual(to: layout.size.width)
         
         var shouldUpdateVisibleItems = false
@@ -380,6 +382,7 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
                 contentOffset = CGPoint(x: 0.0, y: CGFloat(state.contentOffset))
             }
             else if let anchor = self.initialAnchor, !anchor.isEmpty {
+                self.initialAnchor = nil
                 if let items = self.currentLayout?.items {
                     didSetScrollOffset = true
                     if let (item, lineOffset, _, _) = self.findAnchorItem(anchor, items: items) {
@@ -391,6 +394,7 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
             }
             self.scrollNode.view.contentOffset = contentOffset
             if didSetScrollOffset {
+                self.previousContentOffset = contentOffset
                 self.updateNavigationBar()
                 if self.currentLayout != nil {
                     self.setupScrollOffsetOnLayout = false
@@ -706,6 +710,8 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         self.updateVisibleItems(visibleBounds: self.scrollNode.view.bounds)
+        self.updateNavigationBar()
+        self.previousContentOffset = self.scrollNode.view.contentOffset
     }
     
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
@@ -726,6 +732,7 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
         }
         
         let bounds = self.scrollNode.view.bounds
+        let contentOffset = self.scrollNode.view.contentOffset
         
         let maxBarHeight: CGFloat
         let minBarHeight: CGFloat
@@ -741,14 +748,55 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
             minBarHeight = 20.0
         }
         
-        let transition: ContainedViewLayoutTransition = .immediate
+        var pageProgress: CGFloat = 0.0
+        if !self.scrollNode.view.contentSize.height.isZero {
+            let value = (contentOffset.y + self.scrollNode.view.contentInset.top) / (self.scrollNode.view.contentSize.height - bounds.size.height + self.scrollNode.view.contentInset.top)
+            pageProgress = max(0.0, min(1.0, value))
+        }
+        
+        let delta: CGFloat
+        if self.setupScrollOffsetOnLayout {
+            delta = 0.0
+        } else if let previousContentOffset = self.previousContentOffset {
+            delta = contentOffset.y - previousContentOffset.y
+        } else {
+            delta = 0.0
+        }
+        self.previousContentOffset = contentOffset
+        
+        var transition: ContainedViewLayoutTransition = .immediate
         var navigationBarFrame = self.navigationBar.frame
         navigationBarFrame.size.width = bounds.size.width
         if navigationBarFrame.size.height.isZero {
             navigationBarFrame.size.height = maxBarHeight
         }
         
-        navigationBarFrame.size.height = maxBarHeight
+        if case .regular = containerLayout.metrics.widthClass {
+            navigationBarFrame.size.height = maxBarHeight
+        } else {
+            if forceState {
+                transition = .animated(duration: 0.3, curve: .spring)
+                
+                let transitionFactor = (navigationBarFrame.size.height - minBarHeight) / (maxBarHeight - minBarHeight)
+                
+                if contentOffset.y <= -self.scrollNode.view.contentInset.top || transitionFactor > 0.4 {
+                    navigationBarFrame.size.height = maxBarHeight
+                } else {
+                    navigationBarFrame.size.height = minBarHeight
+                }
+            } else {
+                if contentOffset.y <= -self.scrollNode.view.contentInset.top {
+                    navigationBarFrame.size.height = maxBarHeight
+                } else {
+                    navigationBarFrame.size.height -= delta
+                }
+                navigationBarFrame.size.height = max(minBarHeight, min(maxBarHeight, navigationBarFrame.size.height))
+            }
+            
+            if self.setupScrollOffsetOnLayout {
+                navigationBarFrame.size.height = maxBarHeight
+            }
+        }
         
         let transitionFactor = (navigationBarFrame.size.height - minBarHeight) / (maxBarHeight - minBarHeight)
         
@@ -767,7 +815,7 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
         }
         
         transition.updateFrame(node: self.navigationBar, frame: navigationBarFrame)
-        self.navigationBar.updateLayout(size: navigationBarFrame.size, minHeight: minBarHeight, maxHeight: maxBarHeight, topInset: containerLayout.safeInsets.top, leftInset: containerLayout.safeInsets.left, rightInset: containerLayout.safeInsets.right, title: title, pageProgress: 0.0, transition: transition)
+        self.navigationBar.updateLayout(size: navigationBarFrame.size, minHeight: minBarHeight, maxHeight: maxBarHeight, topInset: containerLayout.safeInsets.top, leftInset: containerLayout.safeInsets.left, rightInset: containerLayout.safeInsets.right, title: title, pageProgress: pageProgress, transition: transition)
         
         transition.animateView {
             self.scrollNode.view.scrollIndicatorInsets = UIEdgeInsets(top: navigationBarFrame.size.height, left: 0.0, bottom: containerLayout.intrinsicInsets.bottom, right: 0.0)
@@ -802,7 +850,7 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
             if let current = self.linkHighlightingNode {
                 linkHighlightingNode = current
             } else {
-                let highlightColor = self.theme?.linkHighlightColor ?? UIColor(rgb: 0x007ee5).withAlphaComponent(0.4)
+                let highlightColor = self.theme?.linkHighlightColor ?? UIColor(rgb: 0x007aff).withAlphaComponent(0.4)
                 linkHighlightingNode = LinkHighlightingNode(color: highlightColor)
                 linkHighlightingNode.isUserInteractionEnabled = false
                 self.linkHighlightingNode = linkHighlightingNode
@@ -1020,23 +1068,52 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
                 coveringRect = coveringRect.union(rects[i])
             }
             
-            let controller = ContextMenuController(actions: [ContextMenuAction(content: .text(title: self.strings.Conversation_ContextMenuCopy, accessibilityLabel: self.strings.Conversation_ContextMenuCopy), action: {
-                UIPasteboard.general.string = text
-            }), ContextMenuAction(content: .text(title: self.strings.Conversation_ContextMenuShare, accessibilityLabel: self.strings.Conversation_ContextMenuShare), action: { [weak self] in
-                if let strongSelf = self, let webPage = strongSelf.webPage, case let .Loaded(content) = webPage.content {
-                    strongSelf.present(ShareController(context: strongSelf.context, subject: .quote(text: text, url: content.url)), nil)
-                }
-            })])
-            controller.dismissed = { [weak self] in
-                self?.updateTextSelectionRects([], text: nil)
-            }
-            self.present(controller, ContextMenuControllerPresentationArguments(sourceNodeAndRect: { [weak self] in
-                if let strongSelf = self {
-                    return (strongSelf.scrollNode, coveringRect.insetBy(dx: -3.0, dy: -3.0), strongSelf, strongSelf.bounds)
+            let context = self.context
+            let strings = self.strings
+            let _ = (context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.translationSettings])
+            |> take(1)
+            |> deliverOnMainQueue).start(next: { [weak self] sharedData in
+                let translationSettings: TranslationSettings
+                if let current = sharedData.entries[ApplicationSpecificSharedDataKeys.translationSettings]?.get(TranslationSettings.self) {
+                    translationSettings = current
                 } else {
-                    return nil
+                    translationSettings = TranslationSettings.defaultSettings
                 }
-            }))
+                
+                var actions: [ContextMenuAction] = [ContextMenuAction(content: .text(title: strings.Conversation_ContextMenuCopy, accessibilityLabel: strings.Conversation_ContextMenuCopy), action: { [weak self] in
+                    UIPasteboard.general.string = text
+                    
+                    if let strongSelf = self {
+                        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                        strongSelf.present(UndoOverlayController(presentationData: presentationData, content: .copy(text: strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), nil)
+                    }
+                }), ContextMenuAction(content: .text(title: strings.Conversation_ContextMenuShare, accessibilityLabel: strings.Conversation_ContextMenuShare), action: { [weak self] in
+                    if let strongSelf = self, let webPage = strongSelf.webPage, case let .Loaded(content) = webPage.content {
+                        strongSelf.present(ShareController(context: strongSelf.context, subject: .quote(text: text, url: content.url)), nil)
+                    }
+                })]
+                
+                let (canTranslate, language) = canTranslateText(context: context, text: text, showTranslate: translationSettings.showTranslate, showTranslateIfTopical: false, ignoredLanguages: translationSettings.ignoredLanguages)
+                if canTranslate {
+                    actions.append(ContextMenuAction(content: .text(title: strings.Conversation_ContextMenuTranslate, accessibilityLabel: strings.Conversation_ContextMenuTranslate), action: { [weak self] in
+                        let controller = TranslateScreen(context: context, text: text, fromLanguage: language)
+                        self?.present(controller, nil)
+                    }))
+                }
+                
+                let controller = ContextMenuController(actions: actions)
+                controller.dismissed = { [weak self] in
+                    self?.updateTextSelectionRects([], text: nil)
+                }
+                self?.present(controller, ContextMenuControllerPresentationArguments(sourceNodeAndRect: { [weak self] in
+                    if let strongSelf = self {
+                        return (strongSelf.scrollNode, coveringRect.insetBy(dx: -3.0, dy: -3.0), strongSelf, strongSelf.bounds)
+                    } else {
+                        return nil
+                    }
+                }))
+            })
+            
             textSelectionNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.18)
         } else if let textSelectionNode = self.textSelectionNode {
             self.textSelectionNode = nil
@@ -1214,21 +1291,25 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
                         }
                     default:
                         strongSelf.loadProgress.set(1.0)
-                        strongSelf.context.sharedContext.openResolvedUrl(result, context: strongSelf.context, urlContext: .generic, navigationController: strongSelf.getNavigationController(), openPeer: { peerId, navigation in
+                        strongSelf.context.sharedContext.openResolvedUrl(result, context: strongSelf.context, urlContext: .generic, navigationController: strongSelf.getNavigationController(), forceExternal: false, openPeer: { peerId, navigation in
                             switch navigation {
                                 case let .chat(_, subject, peekData):
                                     if let navigationController = strongSelf.getNavigationController() {
-                                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peerId), subject: subject, peekData: peekData))
+                                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(id: peerId), subject: subject, peekData: peekData))
                                     }
                                 case let .withBotStartPayload(botStart):
                                     if let navigationController = strongSelf.getNavigationController() {
-                                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peerId), botStart: botStart, keepStack: .always))
+                                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(id: peerId), botStart: botStart, keepStack: .always))
+                                    }
+                                case let .withAttachBot(attachBotStart):
+                                    if let navigationController = strongSelf.getNavigationController() {
+                                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(id: peerId), attachBotStart: attachBotStart))
                                     }
                                 case .info:
                                     let _ = (strongSelf.context.account.postbox.loadedPeerWithId(peerId)
                                     |> deliverOnMainQueue).start(next: { peer in
                                         if let strongSelf = self {
-                                            if let controller = strongSelf.context.sharedContext.makePeerInfoController(context: strongSelf.context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false) {
+                                            if let controller = strongSelf.context.sharedContext.makePeerInfoController(context: strongSelf.context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
                                                 strongSelf.getNavigationController()?.pushViewController(controller)
                                             }
                                         }

@@ -18,16 +18,14 @@ load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@bazel_skylib//lib:dicts.bzl", "dicts")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load(":attrs.bzl", "swift_config_attrs")
-load(":compiling.bzl", "output_groups_from_compilation_outputs")
+load(":compiling.bzl", "new_objc_provider", "output_groups_from_other_compilation_outputs")
 load(
     ":feature_names.bzl",
     "SWIFT_FEATURE_EMIT_SWIFTINTERFACE",
     "SWIFT_FEATURE_ENABLE_LIBRARY_EVOLUTION",
     "SWIFT_FEATURE_ENABLE_TESTING",
     "SWIFT_FEATURE_GENERATE_FROM_RAW_PROTO_FILES",
-    "SWIFT_FEATURE_NO_GENERATED_HEADER",
 )
-load(":linking.bzl", "create_linker_input")
 load(
     ":proto_gen_utils.bzl",
     "declare_generated_files",
@@ -37,12 +35,7 @@ load(
 )
 load(":providers.bzl", "SwiftInfo", "SwiftProtoInfo", "SwiftToolchainInfo")
 load(":swift_common.bzl", "swift_common")
-load(
-    ":utils.bzl",
-    "compact",
-    "create_cc_info",
-    "get_providers",
-)
+load(":utils.bzl", "get_providers")
 
 # The paths of proto files bundled with the runtime. This is mainly the well
 # known type protos, but also includes descriptor.proto to make generation of
@@ -221,7 +214,7 @@ def _register_pbswift_generate_action(
         ),
         mnemonic = "ProtocGenSwift",
         outputs = generated_files,
-        progress_message = "Generating Swift sources for {}".format(label),
+        progress_message = "Generating Swift sources for %{label}",
         tools = [
             mkdir_and_run,
             protoc_executable,
@@ -370,9 +363,7 @@ def _swift_protoc_gen_aspect_impl(target, aspect_ctx):
         # compile action.
         feature_configuration = swift_common.configure_features(
             ctx = aspect_ctx,
-            requested_features = aspect_ctx.features + extra_features + [
-                SWIFT_FEATURE_NO_GENERATED_HEADER,
-            ],
+            requested_features = aspect_ctx.features + extra_features,
             swift_toolchain = swift_toolchain,
             unsupported_features = aspect_ctx.disabled_features + [
                 SWIFT_FEATURE_ENABLE_TESTING,
@@ -415,35 +406,36 @@ def _swift_protoc_gen_aspect_impl(target, aspect_ctx):
 
         module_name = swift_common.derive_module_name(target.label)
 
-        compilation_outputs = swift_common.compile(
+        module_context, cc_compilation_outputs, other_compilation_outputs = swift_common.compile(
             actions = aspect_ctx.actions,
-            bin_dir = aspect_ctx.bin_dir,
             copts = ["-parse-as-library"],
             deps = proto_deps + support_deps,
             feature_configuration = feature_configuration,
-            genfiles_dir = aspect_ctx.genfiles_dir,
             module_name = module_name,
             srcs = pbswift_files,
             swift_toolchain = swift_toolchain,
             target_name = target.label.name,
+            workspace_name = aspect_ctx.workspace_name,
         )
 
-        linker_input, library_to_link = create_linker_input(
-            actions = aspect_ctx.actions,
-            alwayslink = False,
-            cc_feature_configuration = swift_common.cc_feature_configuration(
+        linking_context, linking_output = (
+            swift_common.create_linking_context_from_compilation_outputs(
+                actions = aspect_ctx.actions,
+                compilation_outputs = cc_compilation_outputs,
                 feature_configuration = feature_configuration,
-            ),
-            compilation_outputs = compilation_outputs,
-            is_dynamic = False,
-            is_static = True,
-            # Prevent conflicts with C++ protos in the same output directory,
-            # which use the `lib{name}.a` pattern. This will produce
-            # `lib{name}.swift.a` instead.
-            library_name = "{}.swift".format(target.label.name),
-            objects = compilation_outputs.object_files,
-            owner = target.label,
-            swift_toolchain = swift_toolchain,
+                label = target.label,
+                linking_contexts = [
+                    dep[CcInfo].linking_context
+                    for dep in proto_deps + support_deps
+                    if CcInfo in dep
+                ],
+                module_context = module_context,
+                # Prevent conflicts with C++ protos in the same output
+                # directory, which use the `lib{name}.a` pattern. This will
+                # produce `lib{name}.swift.a` instead.
+                name = "{}.swift".format(target.label.name),
+                swift_toolchain = swift_toolchain,
+            )
         )
 
         # It's bad practice to attach providers you don't own to other targets,
@@ -459,80 +451,54 @@ def _swift_protoc_gen_aspect_impl(target, aspect_ctx):
         # `SwiftProtoCcInfo`. Finally, the `swift_proto_library` rule will
         # extract the `CcInfo` from the `SwiftProtoCcInfo` of its single
         # dependency and propagate that safely up the tree.
-        cc_infos = (
-            get_providers(proto_deps, SwiftProtoCcInfo, _extract_cc_info) +
-            get_providers(support_deps, CcInfo)
+        transitive_cc_infos = get_providers(
+            proto_deps,
+            SwiftProtoCcInfo,
+            lambda proto_cc_info: proto_cc_info.cc_info,
+        ) + get_providers(support_deps, CcInfo)
+
+        # Propagate an `apple_common.Objc` provider with linking info about the
+        # library so that linking with Apple Starlark APIs/rules works
+        # correctly.
+        # TODO(b/171413861): This can be removed when the Obj-C rules are
+        # migrated to use `CcLinkingContext`.
+        objc_infos = get_providers(
+            proto_deps,
+            SwiftProtoCcInfo,
+            lambda proto_cc_info: proto_cc_info.objc_info,
+        ) + get_providers(support_deps, apple_common.Objc)
+
+        objc_info = new_objc_provider(
+            additional_objc_infos = (
+                objc_infos +
+                swift_toolchain.implicit_deps_providers.objc_infos
+            ),
+            # We pass an empty list here because we already extracted the
+            # `Objc` providers from `SwiftProtoCcInfo` above.
+            deps = [],
+            feature_configuration = feature_configuration,
+            module_context = module_context,
+            libraries_to_link = [linking_output.library_to_link],
         )
 
-        # Propagate an `objc` provider if the toolchain supports Objective-C
-        # interop, which ensures that the libraries get linked into
-        # `apple_binary` targets properly.
-        if swift_toolchain.supports_objc_interop:
-            objc_infos = get_providers(
-                proto_deps,
-                SwiftProtoCcInfo,
-                _extract_objc_info,
-            ) + get_providers(support_deps, apple_common.Objc)
-
-            objc_info_args = {}
-            if compilation_outputs.generated_header:
-                objc_info_args["header"] = depset([
-                    compilation_outputs.generated_header,
-                ])
-            if library_to_link.pic_static_library:
-                objc_info_args["library"] = depset(
-                    [library_to_link.pic_static_library],
-                    order = "topological",
-                )
-            if compilation_outputs.linker_flags:
-                objc_info_args["linkopt"] = depset(
-                    compilation_outputs.linker_flags,
-                )
-            if compilation_outputs.generated_module_map:
-                objc_info_args["module_map"] = depset([
-                    compilation_outputs.generated_module_map,
-                ])
-
-            linker_inputs = compilation_outputs.linker_inputs + compact([
-                compilation_outputs.swiftmodule,
-            ])
-            if linker_inputs:
-                objc_info_args["link_inputs"] = depset(linker_inputs)
-
-            includes = [aspect_ctx.bin_dir.path]
-            objc_info = apple_common.new_objc_provider(
-                providers = objc_infos,
-                uses_swift = True,
-                **objc_info_args
-            )
-        else:
-            includes = None
-            objc_info = None
+        cc_info = CcInfo(
+            compilation_context = module_context.clang.compilation_context,
+            linking_context = linking_context,
+        )
 
         providers = [
-            OutputGroupInfo(**output_groups_from_compilation_outputs(
-                compilation_outputs = compilation_outputs,
+            OutputGroupInfo(**output_groups_from_other_compilation_outputs(
+                other_compilation_outputs = other_compilation_outputs,
             )),
             SwiftProtoCcInfo(
-                cc_info = create_cc_info(
-                    cc_infos = cc_infos,
-                    compilation_outputs = compilation_outputs,
-                    includes = includes,
-                    linker_inputs = [linker_input],
+                cc_info = cc_common.merge_cc_infos(
+                    direct_cc_infos = [cc_info],
+                    cc_infos = transitive_cc_infos,
                 ),
                 objc_info = objc_info,
             ),
             swift_common.create_swift_info(
-                modules = [
-                    swift_common.create_module(
-                        name = module_name,
-                        swift = swift_common.create_swift_module(
-                            swiftdoc = compilation_outputs.swiftdoc,
-                            swiftmodule = compilation_outputs.swiftmodule,
-                            swiftinterface = compilation_outputs.swiftinterface,
-                        ),
-                    ),
-                ],
+                modules = [module_context],
                 swift_infos = get_providers(
                     proto_deps + support_deps,
                     SwiftInfo,
@@ -547,18 +513,13 @@ def _swift_protoc_gen_aspect_impl(target, aspect_ctx):
         # already been pulled in by a `proto_library` that had srcs.
         pbswift_files = []
 
-        if swift_toolchain.supports_objc_interop:
-            objc_providers = get_providers(
+        objc_info = apple_common.new_objc_provider(
+            providers = get_providers(
                 proto_deps,
                 SwiftProtoCcInfo,
-                _extract_objc_info,
-            )
-            objc_provider = apple_common.new_objc_provider(
-                providers = objc_providers,
-            )
-            objc_info = objc_provider
-        else:
-            objc_info = None
+                lambda proto_cc_info: proto_cc_info.objc_info,
+            ),
+        )
 
         providers = [
             SwiftProtoCcInfo(
@@ -566,7 +527,7 @@ def _swift_protoc_gen_aspect_impl(target, aspect_ctx):
                     cc_infos = get_providers(
                         proto_deps,
                         SwiftProtoCcInfo,
-                        _extract_cc_info,
+                        lambda proto_cc_info: proto_cc_info.cc_info,
                     ),
                 ),
                 objc_info = objc_info,
@@ -584,28 +545,6 @@ def _swift_protoc_gen_aspect_impl(target, aspect_ctx):
 
     return providers
 
-def _extract_cc_info(proto_cc_info):
-    """A map function to extract the `CcInfo` from a `SwiftProtoCcInfo`.
-
-    Args:
-        proto_cc_info: A `SwiftProtoCcInfo` provider.
-
-    Returns:
-        The `CcInfo` nested inside the `SwiftProtoCcInfo`.
-    """
-    return proto_cc_info.cc_info
-
-def _extract_objc_info(proto_cc_info):
-    """A map function to extract the `Objc` provider from a `SwiftProtoCcInfo`.
-
-    Args:
-        proto_cc_info: A `SwiftProtoCcInfo` provider.
-
-    Returns:
-        The `ObjcInfo` nested inside the `SwiftProtoCcInfo`.
-    """
-    return proto_cc_info.objc_info
-
 swift_protoc_gen_aspect = aspect(
     attr_aspects = ["deps"],
     attrs = dicts.add(
@@ -613,7 +552,7 @@ swift_protoc_gen_aspect = aspect(
         swift_config_attrs(),
         {
             "_mkdir_and_run": attr.label(
-                cfg = "host",
+                cfg = "exec",
                 default = Label(
                     "@build_bazel_rules_swift//tools/mkdir_and_run",
                 ),
@@ -626,13 +565,13 @@ swift_protoc_gen_aspect = aspect(
                 ],
             ),
             "_protoc": attr.label(
-                cfg = "host",
+                cfg = "exec",
                 default = Label("@com_google_protobuf//:protoc"),
                 executable = True,
             ),
             "_protoc_gen_swift": attr.label(
-                cfg = "host",
-                default = Label("@com_github_apple_swift_protobuf//:ProtoCompilerPlugin"),
+                cfg = "exec",
+                default = Label("@com_github_apple_swift_protobuf//:ProtoCompilerPlugin_wrapper"),
                 executable = True,
             ),
         },

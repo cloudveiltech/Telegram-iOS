@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 #
 # Copyright 2014 The LibYuv Project Authors. All rights reserved.
 #
