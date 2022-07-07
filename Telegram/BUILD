@@ -512,6 +512,11 @@ communication_notifications_fragment = """
 <true/>
 """
 
+filtering_notifications_fragment = """
+<key>com.apple.developer.usernotifications.filtering</key>
+<true/>
+"""
+
 plist_fragment(
     name = "TelegramEntitlements",
     extension = "entitlements",
@@ -525,6 +530,7 @@ plist_fragment(
         unrestricted_voip_fragment,
         carplay_fragment,
         communication_notifications_fragment,
+        filtering_notifications_fragment,
     ])
 )
 

@@ -738,7 +738,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }
         self.pushRegistry = pushRegistry
         // cloudveil disabled because of crash
-               //pushRegistry.delegate = self
+        pushRegistry.delegate = self
 
         self.accountManagerState = extractAccountManagerState(records: accountManager._internalAccountRecordsSync())
         let _ = (accountManager.accountRecords()
@@ -1265,29 +1265,29 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             UIApplication.shared.internalSetStatusBarHidden(false, animation: .none)
         }
         //CloudVeil uncommented
-        if #available(iOS 13.0, *) {
-            BGTaskScheduler.shared.register(forTaskWithIdentifier: baseAppBundleId + ".refresh", using: nil, launchHandler: { task in
-                let _ = (self.sharedContextPromise.get()
-                |> take(1)
-                |> deliverOnMainQueue).start(next: { sharedApplicationContext in
-                    
-                    sharedApplicationContext.wakeupManager.replaceCurrentExtensionWithExternalTime(completion: {
-                        task.setTaskCompleted(success: true)
-                    }, timeout: 29.0)
-                    let _ = (self.context.get()
-                    |> take(1)
-                    |> deliverOnMainQueue).start(next: { context in
-                        guard let context = context else {
-                            return
-                        }
-                        sharedApplicationContext.notificationManager.beginPollingState(account: context.context.account)
-                    })
-                })
-                self.scheduleUpdateTask(baseAppBundleId)
-            })
-        }
-        
-        scheduleUpdateTask(baseAppBundleId)
+//        if #available(iOS 13.0, *) {
+//            BGTaskScheduler.shared.register(forTaskWithIdentifier: baseAppBundleId + ".refresh", using: nil, launchHandler: { task in
+//                let _ = (self.sharedContextPromise.get()
+//                |> take(1)
+//                |> deliverOnMainQueue).start(next: { sharedApplicationContext in
+//
+//                    sharedApplicationContext.wakeupManager.replaceCurrentExtensionWithExternalTime(completion: {
+//                        task.setTaskCompleted(success: true)
+//                    }, timeout: 29.0)
+//                    let _ = (self.context.get()
+//                    |> take(1)
+//                    |> deliverOnMainQueue).start(next: { context in
+//                        guard let context = context else {
+//                            return
+//                        }
+//                        sharedApplicationContext.notificationManager.beginPollingState(account: context.context.account)
+//                    })
+//                })
+//                self.scheduleUpdateTask(baseAppBundleId)
+//            })
+//        }
+//
+//        scheduleUpdateTask(baseAppBundleId)
         //CloudVeil end
         self.maybeCheckForUpdates()
 
@@ -1301,16 +1301,16 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         
         return true
     }
-
+    
     //CloudVeil start
-    func scheduleUpdateTask(_ baseAppBundleId: String) {
-        if #available(iOS 13.0, *) {
-            Logger.shared.log("CloudVeil", "Update task set")
-            let request = BGAppRefreshTaskRequest(identifier: baseAppBundleId + ".refresh")
-            request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
-            try? BGTaskScheduler.shared.submit(request)
-        }
-    }
+//    func scheduleUpdateTask(_ baseAppBundleId: String) {
+//        if #available(iOS 13.0, *) {
+//            Logger.shared.log("CloudVeil", "Update task set")
+//            let request = BGAppRefreshTaskRequest(identifier: baseAppBundleId + ".refresh")
+//            request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+//            try? BGTaskScheduler.shared.submit(request)
+//        }
+//    }
     //CloudVeil end
     
     private func resetBadge() {
@@ -1477,7 +1477,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 Logger.shared.log("App \(self.episodeId)", "pushRegistry credentials: \(credentials.token as NSData)")
                 
                 //Cloudveil disabled
-                                //self.voipTokenPromise.set(.single(credentials.token))
+                self.voipTokenPromise.set(.single(credentials.token))
             }
         }
     }

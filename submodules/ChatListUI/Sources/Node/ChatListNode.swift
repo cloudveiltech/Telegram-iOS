@@ -1566,11 +1566,13 @@ public final class ChatListNode: ListView {
                return
            }
            let peerViewSignal = self.context.account.viewTracker.peerView(self.context.account.peerId)
-           let _ = peerViewSignal.start(next: { peerView in
+           var peerViewDisplosable: Disposable? = nil
+           peerViewDisplosable = peerViewSignal.start(next: { peerView in
                if entriesCount == self.rawEntriesCountCache {
                    return
                }
-               self.rawEntriesCountCache = entriesCount
+               
+               Logger.shared.log("CVSettings", "peerViewDisplosable fired")
                if let peer = peerViewMainPeer(peerView) as? TelegramUser {
                    TGUserController.shared.set(userID: NSInteger(peer.id.toInt64()))
                    TGUserController.shared.set(userName: (peer.username ?? "") as NSString)
@@ -1590,34 +1592,7 @@ public final class ChatListNode: ListView {
                            row.objectID = NSInteger(peer.peerId.id._internalGetInt64Value())
                            let groupId = -peer.peerId.id._internalGetInt64Value()
                            row.title = title as NSString
-                           
-                           /*
-                            case let .user(user):
-                                if case .user(user) = rhs {
-                                    return true
-                                } else {
-                                    return false
-                                }
-                            case let .legacyGroup(legacyGroup):
-                                if case .legacyGroup(legacyGroup) = rhs {
-                                    return true
-                                } else {
-                                    return false
-                                }
-                            case let .channel(channel):
-                                if case .channel(channel) = rhs {
-                                    return true
-                                } else {
-                                    return false
-                                }
-                            case let .secretChat(secretChat):
-                                if case .secretChat(secretChat) = rhs {
-                                    return true
-                                } else {
-                                    return false
-                                }
-                            }
-                            */
+
                            var isGroup: Bool = false
                            var isChannel = false
                            if case let .channel(peer) = peer.chatMainPeer, case .group = peer.info {
@@ -1641,39 +1616,52 @@ public final class ChatListNode: ListView {
                                row.userName = (user.username ?? "") as NSString
                                bots.append(row)
                            }
+                           
                            if isGroup || isChannel {
-                               proceededGroupIds.append(1)
-                               let _ = self.loadPeerMembers(peerId: peer.peerId).start(next: { peers in
-                                  for peer in peers {
-                                      if case let .user(user) = peer {
-                                          if let _ = user.botInfo {
-                                              var botFound = false
-                                              let id = NSInteger(user.id.id._internalGetInt64Value())
-                                              for row in bots {
-                                                  if row.objectID == id {
-                                                      botFound = true
-                                                  }
-                                              }
-                                              if !botFound {
-                                                  let row = TGRow()
-                                                  row.objectID = id
-                                                  row.title = title as NSString
-                                                  row.userName = (user.username ?? "") as NSString
-                                                  bots.append(row)
-                                              }
-                                          }
-                                      }
-                                  }
-                                   if proceededGroupIds.count == groups.count + channels.count {
-                                       MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
-                                       proceededGroupIds = []
+                               var peerMembersDisposable: Disposable? = nil
+                               peerMembersDisposable = self.loadPeerMembers(peerId: peer.peerId).start(next: { peers in
+                                   peerMembersDisposable?.dispose()
+                                   proceededGroupIds.append(1)
+                                   for peer in peers {
+                                       if case let .user(user) = peer {
+                                           if let _ = user.botInfo {
+                                               var botFound = false
+                                               let id = NSInteger(user.id.id._internalGetInt64Value())
+                                               for row in bots {
+                                                   if row.objectID == id {
+                                                       botFound = true
+                                                   }
+                                               }
+                                               if !botFound {
+                                                   let row = TGRow()
+                                                   row.objectID = id
+                                                   row.title = title as NSString
+                                                   row.userName = (user.username ?? "") as NSString
+                                                   bots.append(row)
+                                               }
+                                           }
+                                       }
                                    }
+                                   
+                                   
+                                    if proceededGroupIds.count == groups.count + channels.count {
+                                        MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                                        Logger.shared.log("CVSettings", "getSettings fired from load peer members")
+                                        proceededGroupIds = []
+                                    }
                                })
                            }
+                       }
+                       
+                       if groups.count == 0 && channels.count == 0 {
+                            MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                            Logger.shared.log("CVSettings", "getSettings fired from common block")
                        }
                    }
                    
                    self.subscribeToCloudVeilSupportChannel(channels: channels)
+                   peerViewDisplosable?.dispose()
+                   Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel")
                }
            }
            )
