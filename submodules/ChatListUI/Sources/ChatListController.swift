@@ -29,6 +29,8 @@ import FetchManagerImpl
 import ComponentFlow
 import LottieAnimationComponent
 import ProgressIndicatorComponent
+import CloudVeilSecurityManager
+import SafariServices
 
 private func fixListNodeScrolling(_ listNode: ListView, searchNode: NavigationBarSearchContentNode) -> Bool {
     if listNode.scroller.isDragging {
@@ -1723,10 +1725,12 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             
             let dontShowAgainChecked = userDefaults.bool(forKey: dontShowKey)
             if dontShowAgainChecked {
+                showOrganizationChangeAlert()
                 return
             }
             let now = Date().timeIntervalSince1970
             if now - lastShownTime < 24*60*60 {//one day
+                showOrganizationChangeAlert()
                 return
             }
             userDefaults.set(now, forKey: "notification_alert_shown_time")
@@ -1735,6 +1739,39 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             alert.addAction(UIAlertAction(title: "Ok", style: UIAlertAction.Style.default, handler: nil))
             alert.addAction(UIAlertAction(title: "Don't show again", style: UIAlertAction.Style.default, handler: { _ in
                 userDefaults.set(true, forKey: dontShowKey)
+            }))
+            self.present(alert, animated: true, completion: nil)
+        }
+    }
+    
+    private func showOrganizationChangeAlert() {
+        if !MainController.shared.needOrganizationChange {
+            return
+        }
+        
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            let lastShownTime = userDefaults.double(forKey: "organization_alert_shown_time")
+            let now = Date().timeIntervalSince1970
+            if now - lastShownTime < 24*60*60 {//one day
+                return
+            }
+            userDefaults.set(now, forKey: "organization_alert_shown_time")
+            
+            let alert = UIAlertController(title: "Change Organization.", message: "Please Select Your Organization. It is important that you select your correct church organization so that your app works as expected. Unblock requests will NOT work correctly if you select the wrong group. This one-time step is required to allow organizations more flexibility in supporting their own members and is based off of church membership.", preferredStyle: UIAlertController.Style.alert)
+            alert.addAction(UIAlertAction(title: "Cancel", style: UIAlertAction.Style.default, handler: nil))
+            alert.addAction(UIAlertAction(title: "Change", style: UIAlertAction.Style.default, handler: { [self] _ in
+                let userId = TGUserController.shared.getUserID()
+                let url =  "https://messenger.cloudveil.org/unblock_status/\(userId)"
+                if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
+                    if let parsed = URL(string: url) {
+                        let safariController = SFSafariViewController(url: parsed)
+                        if #available(iOSApplicationExtension 10.0, iOS 10.0, *) {
+                            safariController.preferredBarTintColor = self.presentationData.theme.rootController.navigationBar.opaqueBackgroundColor
+                            safariController.preferredControlTintColor = self.presentationData.theme.rootController.navigationBar.accentTextColor
+                        }
+                        self.present(safariController, animated: true)
+                    }
+                }
             }))
             self.present(alert, animated: true, completion: nil)
         }
