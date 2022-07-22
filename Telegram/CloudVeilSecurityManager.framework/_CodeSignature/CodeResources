@@ -22,7 +22,7 @@
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm64-apple-ios.swiftmodule</key>
 		<data>
-		dqXQe1bS88f2YMdg25f27NNbna0=
+		UxMOypI0wPm4llQ/T/3Q5M0a+vM=
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7-apple-ios.swiftdoc</key>
 		<data>
@@ -30,7 +30,7 @@
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7-apple-ios.swiftmodule</key>
 		<data>
-		YTZaQQvOv/JFLE/Qki3bIsHP60I=
+		hY2lraxZgmCGR0FKjeximtTVzbU=
 		</data>
 		<key>Modules/module.modulemap</key>
 		<data>
@@ -76,11 +76,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			dqXQe1bS88f2YMdg25f27NNbna0=
+			UxMOypI0wPm4llQ/T/3Q5M0a+vM=
 			</data>
 			<key>hash2</key>
 			<data>
-			S1NbAlv3GDpiIe8HO/dVVm+mDVR9ZHWR3MBPYtu5TLg=
+			LMinu5fPD2kZ5zQAEF+IMf52oR1RZV0jDOY2li2Q6Zs=
 			</data>
 		</dict>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/armv7-apple-ios.swiftdoc</key>
@@ -98,11 +98,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			YTZaQQvOv/JFLE/Qki3bIsHP60I=
+			hY2lraxZgmCGR0FKjeximtTVzbU=
 			</data>
 			<key>hash2</key>
 			<data>
-			jOFgoTJva2SdbqYhDnyQMtUKLHFtdU07NbcT02inqUc=
+			3cVY9CRWOulRGnyDO1MBr/5yEtsfsWZPFg2CFddZ/ZU=
 			</data>
 		</dict>
 		<key>Modules/module.modulemap</key>

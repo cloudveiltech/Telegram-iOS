@@ -1553,27 +1553,12 @@ public final class ChatListNode: ListView {
         self.view.addGestureRecognizer(selectionRecognizer)
     }
   
-    //CloudVeil start    
-    var rawEntriesCountCache = 0
+    //CloudVeil start
        func cloudVeilCheckDialogsOnServer(entries: [ChatListNodeEntry]) {
-           var entriesCount = 0
-           for entry in entries {
-               if case .PeerEntry = entry {
-                   entriesCount += 1
-               }
-           }
-           if entriesCount == rawEntriesCountCache {
-               return
-           }
            let peerViewSignal = self.context.account.viewTracker.peerView(self.context.account.peerId)
            var peerViewDisplosable: Disposable? = nil
            peerViewDisplosable = peerViewSignal.start(next: { peerView in
-               if entriesCount == self.rawEntriesCountCache {
-                   return
-               }
-               
-               Logger.shared.log("CVSettings", "peerViewDisplosable fired")
-               if let peer = peerViewMainPeer(peerView) as? TelegramUser {
+               if let peer  = peerViewMainPeer(peerView) as? TelegramUser {
                    TGUserController.shared.set(userID: NSInteger(peer.id.toInt64()))
                    TGUserController.shared.set(userName: (peer.username ?? "") as NSString)
                    TGUserController.shared.set(userPhoneNumber: (peer.phone ?? "") as NSString)
@@ -1582,8 +1567,7 @@ public final class ChatListNode: ListView {
                    var groups = [TGRow]()
                    var channels = [TGRow]()
                    
-                   var proceededGroupIds = [Int]()
-
+                   var groupAndChannelsPeerIds: [EnginePeer.Id] = []
                    for entry in entries {
                        if case let .PeerEntry(_, _, _, _, _, _, peer, _, _, _, _, _, _, _, _, _, _) = entry {
                            let title = peer.chatMainPeer?.compactDisplayTitle ?? "empty"
@@ -1618,44 +1602,50 @@ public final class ChatListNode: ListView {
                            }
                            
                            if isGroup || isChannel {
-                               var peerMembersDisposable: Disposable? = nil
-                               peerMembersDisposable = self.loadPeerMembers(peerId: peer.peerId).start(next: { peers in
-                                   peerMembersDisposable?.dispose()
-                                   proceededGroupIds.append(1)
-                                   for peer in peers {
-                                       if case let .user(user) = peer {
-                                           if let _ = user.botInfo {
-                                               var botFound = false
-                                               let id = NSInteger(user.id.id._internalGetInt64Value())
-                                               for row in bots {
-                                                   if row.objectID == id {
-                                                       botFound = true
-                                                   }
+                               groupAndChannelsPeerIds.append(peer.peerId)
+                           }
+                       }
+                   }
+                   
+                   if groups.count == 0 && channels.count == 0 {
+                       MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                       Logger.shared.log("CVSettings", "getSettings fired from common block")
+                   } else {
+                       var processedPeers = groups.count
+                       for peerId in groupAndChannelsPeerIds {
+                           var peerMembersDisposable: Disposable? = nil
+                           peerMembersDisposable = self.loadPeerMembers(peerId: peerId).start(next: { [self] peers in
+                               peerMembersDisposable?.dispose()
+                               
+                               for peer in peers {
+                                   if case let .user(user) = peer {
+                                       if let _ = user.botInfo {
+                                           var botFound = false
+                                           let id = NSInteger(user.id.id._internalGetInt64Value())
+                                           for row in bots {
+                                               if row.objectID == id {
+                                                   botFound = true
                                                }
-                                               if !botFound {
-                                                   let row = TGRow()
-                                                   row.objectID = id
-                                                   row.title = title as NSString
-                                                   row.userName = (user.username ?? "") as NSString
-                                                   bots.append(row)
-                                               }
+                                           }
+                                           if !botFound {
+                                               let row = TGRow()
+                                               row.objectID = id
+                                               row.title = NSString(string:user.nameOrPhone)
+                                               row.userName = (user.username ?? "") as NSString
+                                               bots.append(row)
                                            }
                                        }
                                    }
-                                   
-                                   
-                                    if proceededGroupIds.count == groups.count + channels.count {
-                                        MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
-                                        Logger.shared.log("CVSettings", "getSettings fired from load peer members")
-                                        proceededGroupIds = []
-                                    }
-                               })
-                           }
-                       }
-                       
-                       if groups.count == 0 && channels.count == 0 {
-                            MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
-                            Logger.shared.log("CVSettings", "getSettings fired from common block")
+                               }
+                                                              
+                               self.backgroundQueue.sync {
+                                   processedPeers = processedPeers - 1
+                                   if processedPeers == 0 {
+                                       MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                                       Logger.shared.log("CVSettings", "getSettings fired from load peer members \(groupAndChannelsPeerIds.count)")
+                                   }
+                               }
+                           })
                        }
                    }
                    
