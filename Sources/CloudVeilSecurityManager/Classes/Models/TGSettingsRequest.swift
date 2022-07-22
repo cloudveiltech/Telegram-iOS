@@ -18,6 +18,10 @@ open class TGSettingsRequest: NSObject, Mappable {
     public var groups = SyncArray<TGRow>()
     public var channels = SyncArray<TGRow>()
     public var bots = SyncArray<TGRow>()
+    public var clientOsType = "iOS"
+    public var clientSessionId = ""
+    public var clientVersionCode = ""
+    public var clientVersionName = ""
     
     
     // MARK: Mappable
@@ -31,6 +35,10 @@ open class TGSettingsRequest: NSObject, Mappable {
         groups.array <- map["groups"]
         channels.array <- map["channels"]
         bots.array <- map["bots"]
+        clientOsType <- map["client_os_type"]
+        clientSessionId <- map["client_session_id"]
+        clientVersionCode <- map["client_version_code"]
+        clientVersionName <- map["client_version_name"]
     }
     
     static func compareRequests(lhs: TGSettingsRequest, rhs: TGSettingsRequest) -> Bool {

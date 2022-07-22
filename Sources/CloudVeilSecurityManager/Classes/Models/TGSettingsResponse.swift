@@ -32,6 +32,7 @@ class TGSettingsResponse: Mappable {
     public var inputToggleVoiceVideo: Bool?
     public var blockedImageResourceUrl: String?
     public var profilePhotoLimit: String?
+    public var organization: Organization?
     
     
     // MARK: Mappable
@@ -58,6 +59,7 @@ class TGSettingsResponse: Mappable {
         blockedImageResourceUrl <- map["disable_stickers_image"]
 		disableProfileVideo <- map["disable_profile_video"]
 		disableProfileVideoChange <- map["disable_profile_video_change"]
+        organization <- map["organization"]
     }
 }
 
@@ -87,4 +89,16 @@ class AccessObject: Mappable {
     }
 }
 
-
+class Organization: Mappable {
+    public var id: Int?
+    public var name: String?
+    public var needChange: Bool?
+    
+    public required init?(map: Map) { }
+    
+    public func mapping(map: Map) {
+        id <- map["id"]
+        name <- map["name"]
+        needChange <- map["need_change"]
+    }
+}

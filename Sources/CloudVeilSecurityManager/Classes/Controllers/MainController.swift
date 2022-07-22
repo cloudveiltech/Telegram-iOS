@@ -42,6 +42,7 @@ open class MainController: NSObject {
     
     private let accessQueue = DispatchQueue(label: "TGSettingsResponseAccess", attributes: .concurrent)
 	private var settingsCache: TGSettingsResponse?
+    
 	private var settings: TGSettingsResponse? {        
         var resp: TGSettingsResponse?
         self.accessQueue.sync {
@@ -54,7 +55,11 @@ open class MainController: NSObject {
         }
 		return resp
 	}
-	
+    
+    public var needOrganizationChange: Bool {
+        return settings?.organization?.needChange ?? false
+    }
+    
 	public var disableStickers: Bool {
 		return settings?.disableSticker ?? false
 	}
@@ -123,24 +128,50 @@ open class MainController: NSObject {
         request.groups = SyncArray<TGRow>(groups)
 		request.bots = SyncArray<TGRow>(bots)
 		request.channels = SyncArray<TGRow>(channels)
+        
+        let dictionary = Bundle.main.infoDictionary!
+        let version = dictionary["CFBundleShortVersionString"] as! String
+        let build = dictionary["CFBundleVersion"] as! String
+        request.clientVersionName = version
+        request.clientVersionCode = build
 		
-		if let lastReq = self.lastRequest, TGSettingsRequest.compareRequests(lhs: lastReq, rhs: request) {
-			let now = Date().timeIntervalSince1970
-			if now - self.lastRequestTime < self.UPADTE_INTERVAL {
-				NSLog("No changes, didn't load settings");
-				return
-			} else {
-				NSLog("It was too long since last update, running request")
-			}
-		}
+        if let lastReq = self.lastRequest {
+            if TGSettingsRequest.compareRequests(lhs: lastReq, rhs: request) {
+                let now = Date().timeIntervalSince1970
+                if now - self.lastRequestTime < self.UPADTE_INTERVAL {
+                    NSLog("No changes, didn't load settings");
+                    return
+                } else {
+                    NSLog("It was too long since last update, running request")
+                }
+            }
+            
+            request.clientSessionId = lastReq.clientSessionId
+        } else {
+            request.clientSessionId = getClientId(userId: request.id!)
+        }
 		
 		self.lastRequest = request
 		self.lastRequestTime = Date().timeIntervalSince1970
 		self.sengSettingsRequest()
 	}
 	
+    private func getClientId(userId: Int) -> String {
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            let key = "client_id__\(userId)"
+            
+            if let v = userDefaults.string(forKey: key) {
+                return v
+            }
+            let guid = UUID().uuidString
+            userDefaults.set(guid, forKey: key)
+            userDefaults.synchronize()
+            return guid
+        }
+        return ""
+    }
+    
 	private func saveSettings(_ settings: TGSettingsResponse?) {
-		
 		print("Save settings called")
 		if settings != nil {
 			DataSource<TGSettingsResponse>.set(settings)
