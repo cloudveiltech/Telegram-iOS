@@ -394,7 +394,9 @@ public class ContactsController: ViewController {
             }
         }
         
-        self.contactsNode.openPeopleNearby = { [weak self] in
+        self.contactsNode.openPeopleNearby = {// [weak self] in
+            //CloudVeil disabled
+            /*
             let _ = (DeviceAccess.authorizationStatus(subject: .location(.tracking))
             |> take(1)
             |> deliverOnMainQueue).start(next: { [weak self] status in
@@ -435,7 +437,7 @@ public class ContactsController: ViewController {
                             })
                         }
                 }
-            })
+            })*/
         }
         
         self.contactsNode.openInvite = { [weak self] in
@@ -666,7 +668,8 @@ public class ContactsController: ViewController {
                 strongSelf.addPressed()
             })
         })))
-        
+        //CloudVeil disabled
+        /*
         items.append(.action(ContextMenuActionItem(text: self.presentationData.strings.Contacts_AddPeopleNearby, icon: { theme in
             return generateTintedImage(image: UIImage(bundleImageName: "Contact List/Context Menu/PeopleNearby"), color: theme.contextMenu.primaryColor)
         }, action: { [weak self] c, f in
@@ -676,7 +679,7 @@ public class ContactsController: ViewController {
                 }
                 strongSelf.contactsNode.openPeopleNearby?()
             })
-        })))
+        })))*/
         
         let controller = ContextController(account: self.context.account, presentationData: self.presentationData, source: .extracted(ContactsTabBarContextExtractedContentSource(controller: self, sourceNode: sourceNode)), items: .single(ContextController.Items(content: .list(items))), recognizer: nil, gesture: gesture)
         self.context.sharedContext.mainWindow?.presentInGlobalOverlay(controller)
