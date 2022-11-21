@@ -8,9 +8,9 @@ public struct MediaResourceId: Equatable, Hashable {
     }
 }
 
-public protocol MediaResource {
+public protocol MediaResource: AnyObject {
     var id: MediaResourceId { get }
-    var size: Int? { get }
+    var size: Int64? { get }
     var streamable: Bool { get }
     var headerSize: Int32 { get }
     
@@ -18,10 +18,6 @@ public protocol MediaResource {
 }
 
 public extension MediaResource {
-    var size: Int? {
-        return nil
-    }
-    
     var streamable: Bool {
         return false
     }

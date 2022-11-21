@@ -210,6 +210,15 @@ public protocol CustomViewControllerNavigationDataSummary: AnyObject {
     
     open var hasActiveInput: Bool = false
     
+    open var overlayWantsToBeBelowKeyboard: Bool {
+        return false
+    }
+    
+    var internalOverlayWantsToBeBelowKeyboardUpdated: ((ContainedViewLayoutTransition) -> Void)?
+    public func overlayWantsToBeBelowKeyboardUpdated(transition: ContainedViewLayoutTransition) {
+        self.internalOverlayWantsToBeBelowKeyboardUpdated?(transition)
+    }
+    
     private var navigationBarOrigin: CGFloat = 0.0
 
     open func navigationLayout(layout: ContainerViewLayout) -> NavigationLayout {
@@ -366,7 +375,7 @@ public protocol CustomViewControllerNavigationDataSummary: AnyObject {
             }
         }
         self.navigationBar?.item = self.navigationItem
-        self.automaticallyAdjustsScrollViewInsets = false
+        //self.automaticallyAdjustsScrollViewInsets = false
         
         self.scrollToTopWithTabBar = { [weak self] in
             self?.scrollToTop?()
@@ -552,6 +561,15 @@ public protocol CustomViewControllerNavigationDataSummary: AnyObject {
     
     public func push(_ controller: ViewController) {
         (self.navigationController as? NavigationController)?.pushViewController(controller)
+    }
+    
+    public func replace(with controller: ViewController) {
+        if let navigationController = self.navigationController as? NavigationController {
+            var controllers = navigationController.viewControllers
+            controllers.removeAll(where: { $0 === self })
+            controllers.append(controller)
+            navigationController.setViewControllers(controllers, animated: true)
+        }
     }
     
     open func present(_ controller: ViewController, in context: PresentationContextType, with arguments: Any? = nil, blockInteraction: Bool = false, completion: @escaping () -> Void = {}) {

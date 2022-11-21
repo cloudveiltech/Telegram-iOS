@@ -393,10 +393,6 @@ public final class SharedNotificationManager {
             
             if let readMessageId = readMessageId {
                 self.clearNotificationsManager?.append(readMessageId)
-                
-                let _ = account.postbox.transaction(ignoreDisabled: true, { transaction -> Void in
-                    transaction.applyIncomingReadMaxId(readMessageId)
-                }).start()
             }
             
             for messageId in messagesDeleted {
@@ -404,9 +400,6 @@ public final class SharedNotificationManager {
             }
             
             if !messagesDeleted.isEmpty {
-                let _ = account.postbox.transaction(ignoreDisabled: true, { transaction -> Void in
-                    TelegramEngine(account: account).messages.deleteMessages(transaction: transaction, ids: messagesDeleted)
-                }).start()
             }
             
             if readMessageId != nil || !messagesDeleted.isEmpty {
@@ -471,16 +464,10 @@ public final class SharedNotificationManager {
                 
             } else {
                 let notification = UILocalNotification()
-                if #available(iOS 8.2, *) {
-                    notification.alertTitle = title
-                    notification.alertBody = body
-                } else {
-                    if let title = title {
-                        notification.alertBody = "\(title): \(body)"
-                    } else {
-                        notification.alertBody = body
-                    }
-                }
+                
+                notification.alertTitle = title
+                notification.alertBody = body
+                
                 notification.category = "incomingCall"
                 notification.userInfo = ["callId": String(describing: notificationCall.internalId)]
                 notification.soundName = "0.m4a"

@@ -66,7 +66,7 @@ func openChatMessageImpl(_ params: OpenChatMessageParams) -> Bool {
                 params.dismissInput()
                 
                 let controllerParams = LocationViewParams(sendLiveLocation: { location in
-                    let outMessage: EnqueueMessage = .message(text: "", attributes: [], mediaReference: .standalone(media: location), replyToMessageId: nil, localGroupingKey: nil, correlationId: nil)
+                    let outMessage: EnqueueMessage = .message(text: "", attributes: [], inlineStickers: [:], mediaReference: .standalone(media: location), replyToMessageId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])
                     params.enqueueMessage(outMessage)
                 }, stopLiveLocation: { messageId in
                     params.context.liveLocationManager?.cancelLiveLocation(peerId: messageId?.peerId ?? params.message.id.peerId)
@@ -78,29 +78,40 @@ func openChatMessageImpl(_ params: OpenChatMessageParams) -> Bool {
                 params.navigationController?.pushViewController(controller)
                 return true
             case let .stickerPack(reference):
-                let controller = StickerPackScreen(context: params.context, updatedPresentationData: params.updatedPresentationData, mainStickerPack: reference, stickerPacks: [reference], parentNavigationController: params.navigationController, sendSticker: params.sendSticker, actionPerformed: { info, items, action in
+                let controller = StickerPackScreen(context: params.context, updatedPresentationData: params.updatedPresentationData, mainStickerPack: reference, stickerPacks: [reference], parentNavigationController: params.navigationController, sendSticker: params.sendSticker, sendEmoji: params.sendEmoji, actionPerformed: { actions in
                     let presentationData = params.context.sharedContext.currentPresentationData.with { $0 }
-                    var animateInAsReplacement = false
-                    if let navigationController = params.navigationController {
-                        for controller in navigationController.overlayControllers {
-                            if let controller = controller as? UndoOverlayController {
-                                controller.dismissWithCommitActionAndReplacementAnimation()
-                                animateInAsReplacement = true
+                    
+                    if actions.count > 1, let first = actions.first {
+                        if case .add = first.2 {
+                            params.navigationController?.presentOverlay(controller: UndoOverlayController(presentationData: presentationData, content: .stickersModified(title: presentationData.strings.EmojiPackActionInfo_AddedTitle, text: presentationData.strings.EmojiPackActionInfo_MultipleAddedText(Int32(actions.count)), undo: false, info: first.0, topItem: first.1.first, context: params.context), elevatedLayout: true, animateInAsReplacement: false, action: { _ in
+                                return true
+                            }))
+                        }
+                    } else if let (info, items, action) = actions.first {
+                        let isEmoji = info.id.namespace == Namespaces.ItemCollection.CloudEmojiPacks
+                        
+                        var animateInAsReplacement = false
+                        if let navigationController = params.navigationController {
+                            for controller in navigationController.overlayControllers {
+                                if let controller = controller as? UndoOverlayController {
+                                    controller.dismissWithCommitActionAndReplacementAnimation()
+                                    animateInAsReplacement = true
+                                }
                             }
                         }
-                    }
-                    switch action {
-                    case .add:
-                        params.navigationController?.presentOverlay(controller: UndoOverlayController(presentationData: presentationData, content: .stickersModified(title: presentationData.strings.StickerPackActionInfo_AddedTitle, text: presentationData.strings.StickerPackActionInfo_AddedText(info.title).string, undo: false, info: info, topItem: items.first, context: params.context), elevatedLayout: true, animateInAsReplacement: animateInAsReplacement, action: { _ in
-                            return true
-                        }))
-                    case let .remove(positionInList):
-                        params.navigationController?.presentOverlay(controller: UndoOverlayController(presentationData: presentationData, content: .stickersModified(title: presentationData.strings.StickerPackActionInfo_RemovedTitle, text: presentationData.strings.StickerPackActionInfo_RemovedText(info.title).string, undo: true, info: info, topItem: items.first, context: params.context), elevatedLayout: true, animateInAsReplacement: animateInAsReplacement, action: { action in
-                            if case .undo = action {
-                                let _ = params.context.engine.stickers.addStickerPackInteractively(info: info, items: items, positionInList: positionInList).start()
-                            }
-                            return true
-                        }))
+                        switch action {
+                        case .add:
+                            params.navigationController?.presentOverlay(controller: UndoOverlayController(presentationData: presentationData, content: .stickersModified(title: isEmoji ? presentationData.strings.EmojiPackActionInfo_AddedTitle : presentationData.strings.StickerPackActionInfo_AddedTitle, text: isEmoji ? presentationData.strings.EmojiPackActionInfo_AddedText(info.title).string : presentationData.strings.StickerPackActionInfo_AddedText(info.title).string, undo: false, info: info, topItem: items.first, context: params.context), elevatedLayout: true, animateInAsReplacement: animateInAsReplacement, action: { _ in
+                                return true
+                            }))
+                        case let .remove(positionInList):
+                            params.navigationController?.presentOverlay(controller: UndoOverlayController(presentationData: presentationData, content: .stickersModified(title: isEmoji ? presentationData.strings.EmojiPackActionInfo_RemovedTitle : presentationData.strings.StickerPackActionInfo_RemovedTitle, text: isEmoji ? presentationData.strings.EmojiPackActionInfo_RemovedText(info.title).string : presentationData.strings.StickerPackActionInfo_RemovedText(info.title).string, undo: true, info: info, topItem: items.first, context: params.context), elevatedLayout: true, animateInAsReplacement: animateInAsReplacement, action: { action in
+                                if case .undo = action {
+                                    let _ = params.context.engine.stickers.addStickerPackInteractively(info: info, items: items, positionInList: positionInList).start()
+                                }
+                                return true
+                            }))
+                        }
                     }
                 })
                 params.dismissInput()
@@ -190,20 +201,25 @@ func openChatMessageImpl(_ params: OpenChatMessageParams) -> Bool {
             case let .other(otherMedia):
                 params.dismissInput()
                 if let contact = otherMedia as? TelegramMediaContact {
-                    let _ = (params.context.account.postbox.transaction { transaction -> (Peer?, Bool?) in
-                        if let peerId = contact.peerId {
-                            return (transaction.getPeer(peerId), transaction.isPeerContact(peerId: peerId))
-                        } else {
-                            return (nil, nil)
-                        }
-                    } |> deliverOnMainQueue).start(next: { peer, isContact in
+                    let paramsSignal: Signal<(EnginePeer?, Bool), NoError>
+                    if let peerId = contact.peerId {
+                        paramsSignal = params.context.engine.data.get(
+                            TelegramEngine.EngineData.Item.Peer.Peer(id: peerId),
+                            TelegramEngine.EngineData.Item.Peer.IsContact(id: peerId)
+                        )
+                    } else {
+                        paramsSignal = .single((nil, false))
+                    }
+                    
+                    let _ = (paramsSignal
+                    |> deliverOnMainQueue).start(next: { peer, isContact in
                         let contactData: DeviceContactExtendedData
                         if let vCard = contact.vCardData, let vCardData = vCard.data(using: .utf8), let parsed = DeviceContactExtendedData(vcard: vCardData) {
                             contactData = parsed
                         } else {
                             contactData = DeviceContactExtendedData(basicData: DeviceContactBasicData(firstName: contact.firstName, lastName: contact.lastName, phoneNumbers: [DeviceContactPhoneNumberData(label: "_$!<Mobile>!$_", value: contact.phoneNumber)]), middleName: "", prefix: "", suffix: "", organization: "", jobTitle: "", department: "", emailAddresses: [], urls: [], addresses: [], birthdayDate: nil, socialProfiles: [], instantMessagingProfiles: [], note: "")
                         }
-                        let controller = deviceContactInfoController(context: params.context, updatedPresentationData: params.updatedPresentationData, subject: .vcard(peer, nil, contactData), completed: nil, cancelled: nil)
+                        let controller = deviceContactInfoController(context: params.context, updatedPresentationData: params.updatedPresentationData, subject: .vcard(peer?._asPeer(), nil, contactData), completed: nil, cancelled: nil)
                         params.navigationController?.pushViewController(controller)
                     })
                     return true

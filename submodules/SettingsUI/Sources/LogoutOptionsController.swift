@@ -13,6 +13,8 @@ import AccountContext
 import AlertUI
 import PresentationDataUtils
 import UrlHandling
+import AccountUtils
+import PremiumUI
 
 private struct LogoutOptionsItemArguments {
     let addAccount: () -> Void
@@ -133,10 +135,40 @@ public func logoutOptionsController(context: AccountContext, navigationControlle
     let supportPeerDisposable = MetaDisposable()
     
     let arguments = LogoutOptionsItemArguments(addAccount: {
-        let isTestingEnvironment = context.account.testingEnvironment
-        context.sharedContext.beginNewAuth(testingEnvironment: isTestingEnvironment)
-        
-        dismissImpl?()
+        let _ = (activeAccountsAndPeers(context: context)
+        |> take(1)
+        |> deliverOnMainQueue
+        ).start(next: { accountAndPeer, accountsAndPeers in
+            var maximumAvailableAccounts: Int = 3
+            if accountAndPeer?.1.isPremium == true && !context.account.testingEnvironment {
+                maximumAvailableAccounts = 4
+            }
+            var count: Int = 1
+            for (accountContext, peer, _) in accountsAndPeers {
+                if !accountContext.account.testingEnvironment {
+                    if peer.isPremium {
+                        maximumAvailableAccounts = 4
+                    }
+                    count += 1
+                }
+            }
+            
+            if count >= maximumAvailableAccounts {
+                var replaceImpl: ((ViewController) -> Void)?
+                let controller = PremiumLimitScreen(context: context, subject: .accounts, count: Int32(count), action: {
+                    let controller = PremiumIntroScreen(context: context, source: .accounts)
+                    replaceImpl?(controller)
+                })
+                replaceImpl = { [weak controller] c in
+                    controller?.replace(with: c)
+                }
+                pushControllerImpl?(controller)
+            } else {
+                context.sharedContext.beginNewAuth(testingEnvironment: context.account.testingEnvironment)
+                
+                dismissImpl?()
+            }
+        })
     }, setPasscode: {
         let _ = passcodeOptionsAccessController(context: context, pushController: { controller in
             replaceTopControllerImpl?(controller)
@@ -197,10 +229,19 @@ public func logoutOptionsController(context: AccountContext, navigationControlle
                 supportPeerDisposable.set((supportPeer.get()
                 |> take(1)
                 |> deliverOnMainQueue).start(next: { peerId in
-                    if let peerId = peerId, let navigationController = navigationController {
-                        dismissImpl?()
-                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(id: peerId)))
+                    guard let peerId = peerId else {
+                        return
                     }
+                    let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId))
+                    |> deliverOnMainQueue).start(next: { peer in
+                        guard let peer = peer else {
+                            return
+                        }
+                        if let navigationController = navigationController {
+                            dismissImpl?()
+                            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer)))
+                        }
+                    })
                 }))
             })
         ]), nil)

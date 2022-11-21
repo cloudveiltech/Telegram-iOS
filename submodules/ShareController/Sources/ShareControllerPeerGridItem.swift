@@ -13,13 +13,18 @@ import AccountContext
 import ShimmerEffect
 
 final class ShareControllerInteraction {
-    var foundPeers: [RenderedPeer] = []
+    var foundPeers: [EngineRenderedPeer] = []
     var selectedPeerIds = Set<PeerId>()
-    var selectedPeers: [RenderedPeer] = []
-    let togglePeer: (RenderedPeer, Bool) -> Void
+    var selectedPeers: [EngineRenderedPeer] = []
     
-    init(togglePeer: @escaping (RenderedPeer, Bool) -> Void) {
+    var selectedTopics: [EnginePeer.Id: (Int64, MessageHistoryThreadData)] = [:]
+    
+    let togglePeer: (EngineRenderedPeer, Bool) -> Void
+    let selectTopic: (EngineRenderedPeer, Int64, MessageHistoryThreadData) -> Void
+
+    init(togglePeer: @escaping (EngineRenderedPeer, Bool) -> Void, selectTopic: @escaping (EngineRenderedPeer, Int64, MessageHistoryThreadData) -> Void) {
         self.togglePeer = togglePeer
+        self.selectTopic = selectTopic
     }
 }
 
@@ -90,19 +95,23 @@ final class ShareControllerPeerGridItem: GridItem {
     let context: AccountContext
     let theme: PresentationTheme
     let strings: PresentationStrings
-    let peer: RenderedPeer?
-    let presence: PeerPresence?
+    let peer: EngineRenderedPeer?
+    let presence: EnginePeer.Presence?
+    let topicId: Int64?
+    let threadData: MessageHistoryThreadData?
     let controllerInteraction: ShareControllerInteraction
     let search: Bool
     
     let section: GridSection?
     
-    init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, peer: RenderedPeer?, presence: PeerPresence?, controllerInteraction: ShareControllerInteraction, sectionTitle: String? = nil, search: Bool = false) {
+    init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, peer: EngineRenderedPeer?, presence: EnginePeer.Presence?, topicId: Int64?, threadData: MessageHistoryThreadData?, controllerInteraction: ShareControllerInteraction, sectionTitle: String? = nil, search: Bool = false) {
         self.context = context
         self.theme = theme
         self.strings = strings
         self.peer = peer
         self.presence = presence
+        self.topicId = topicId
+        self.threadData = threadData
         self.controllerInteraction = controllerInteraction
         self.search = search
         
@@ -116,7 +125,7 @@ final class ShareControllerPeerGridItem: GridItem {
     func node(layout: GridNodeLayout, synchronousLoad: Bool) -> GridItemNode {
         let node = ShareControllerPeerGridItemNode()
         node.controllerInteraction = self.controllerInteraction
-        node.setup(context: self.context, theme: self.theme, strings: self.strings, peer: self.peer, presence: self.presence, search: self.search, synchronousLoad: synchronousLoad, force: false)
+        node.setup(context: self.context, theme: self.theme, strings: self.strings, peer: self.peer, presence: self.presence, topicId: self.topicId, threadData: self.threadData, search: self.search, synchronousLoad: synchronousLoad, force: false)
         return node
     }
     
@@ -126,12 +135,12 @@ final class ShareControllerPeerGridItem: GridItem {
             return
         }
         node.controllerInteraction = self.controllerInteraction
-        node.setup(context: self.context, theme: self.theme, strings: self.strings, peer: self.peer, presence: self.presence, search: self.search, synchronousLoad: false, force: false)
+        node.setup(context: self.context, theme: self.theme, strings: self.strings, peer: self.peer, presence: self.presence, topicId: self.topicId, threadData: self.threadData, search: self.search, synchronousLoad: false, force: false)
     }
 }
 
 final class ShareControllerPeerGridItemNode: GridItemNode {
-    private var currentState: (AccountContext, PresentationTheme, PresentationStrings, RenderedPeer?, Bool, PeerPresence?)?
+    private var currentState: (AccountContext, PresentationTheme, PresentationStrings, EngineRenderedPeer?, Bool, EnginePeer.Presence?, Int64?, MessageHistoryThreadData?)?
     private let peerNode: SelectablePeerNode
     private var presenceManager: PeerPresenceStatusManager?
     
@@ -140,6 +149,10 @@ final class ShareControllerPeerGridItemNode: GridItemNode {
     private var placeholderNode: ShimmerEffectNode?
     private var absoluteLocation: (CGRect, CGSize)?
     
+    var peerId: EnginePeer.Id? {
+        return self.currentState?.3?.peerId
+    }
+    
     override init() {
         self.peerNode = SelectablePeerNode()
         
@@ -147,7 +160,7 @@ final class ShareControllerPeerGridItemNode: GridItemNode {
         
         self.peerNode.toggleSelection = { [weak self] in
             if let strongSelf = self {
-                if let (_, _, _, maybePeer, search, _) = strongSelf.currentState, let peer = maybePeer {
+                if let (_, _, _, maybePeer, search, _, _, _) = strongSelf.currentState, let peer = maybePeer {
                     if let _ = peer.peers[peer.peerId] {
                         strongSelf.controllerInteraction?.togglePeer(peer, search)
                     }
@@ -159,7 +172,7 @@ final class ShareControllerPeerGridItemNode: GridItemNode {
             guard let strongSelf = self, let currentState = strongSelf.currentState else {
                 return
             }
-            strongSelf.setup(context: currentState.0, theme: currentState.1, strings: currentState.2, peer: currentState.3, presence: currentState.5, search: currentState.4, synchronousLoad: false, force: true)
+            strongSelf.setup(context: currentState.0, theme: currentState.1, strings: currentState.2, peer: currentState.3, presence: currentState.5, topicId: currentState.6, threadData: currentState.7, search: currentState.4, synchronousLoad: false, force: true)
         })
     }
     
@@ -171,14 +184,14 @@ final class ShareControllerPeerGridItemNode: GridItemNode {
         }
     }
     
-    func setup(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, peer: RenderedPeer?, presence: PeerPresence?, search: Bool, synchronousLoad: Bool, force: Bool) {
-        if force || self.currentState == nil || self.currentState!.0 !== context || self.currentState!.3 != peer || !arePeerPresencesEqual(self.currentState!.5, presence) {
+    func setup(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, peer: EngineRenderedPeer?, presence: EnginePeer.Presence?, topicId: Int64?, threadData: MessageHistoryThreadData?, search: Bool, synchronousLoad: Bool, force: Bool) {
+        if force || self.currentState == nil || self.currentState!.0 !== context || self.currentState!.3 != peer || self.currentState!.5 != presence || self.currentState!.6 != topicId {
             let itemTheme = SelectablePeerNodeTheme(textColor: theme.actionSheet.primaryTextColor, secretTextColor: theme.chatList.secretTitleColor, selectedTextColor: theme.actionSheet.controlAccentColor, checkBackgroundColor: theme.actionSheet.opaqueItemBackgroundColor, checkFillColor: theme.actionSheet.controlAccentColor, checkColor: theme.actionSheet.checkContentColor, avatarPlaceholderColor: theme.list.mediaPlaceholderColor)
             
             let timestamp = Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970)
             var online = false
-            if let peer = peer?.peer as? TelegramUser, let presence = presence as? TelegramUserPresence, !isServicePeer(peer) && !peer.flags.contains(.isSupport) && peer.id != context.account.peerId  {
-                let relativeStatus = relativeUserPresenceStatus(EnginePeer.Presence(presence), relativeTo: timestamp)
+            if case let .user(peer) = peer?.peer, let presence = presence, !isServicePeer(peer) && !peer.flags.contains(.isSupport) && peer.id != context.account.peerId  {
+                let relativeStatus = relativeUserPresenceStatus(presence, relativeTo: timestamp)
                 if case .online = relativeStatus {
                     online = true
                 }
@@ -186,7 +199,7 @@ final class ShareControllerPeerGridItemNode: GridItemNode {
             
             self.peerNode.theme = itemTheme
             if let peer = peer {
-                self.peerNode.setup(context: context, theme: theme, strings: strings, peer: EngineRenderedPeer(peer), online: online, synchronousLoad: synchronousLoad)
+                self.peerNode.setup(context: context, theme: theme, strings: strings, peer: peer, customTitle: threadData?.info.title, iconId: threadData?.info.icon, iconColor: threadData?.info.iconColor ?? 0, online: online, synchronousLoad: synchronousLoad)
                 if let shimmerNode = self.placeholderNode {
                     self.placeholderNode = nil
                     shimmerNode.removeFromSupernode()
@@ -218,10 +231,10 @@ final class ShareControllerPeerGridItemNode: GridItemNode {
                 
                 shimmerNode.update(backgroundColor: theme.list.itemBlocksBackgroundColor, foregroundColor: theme.list.mediaPlaceholderColor, shimmeringColor: theme.list.itemBlocksBackgroundColor.withAlphaComponent(0.4), shapes: shapes, horizontal: true, size: self.bounds.size)
             }
-            self.currentState = (context, theme, strings, peer, search, presence)
+            self.currentState = (context, theme, strings, peer, search, presence, topicId, threadData)
             self.setNeedsLayout()
-            if let presence = presence as? TelegramUserPresence {
-                self.presenceManager?.reset(presence: EnginePeer.Presence(presence))
+            if let presence = presence {
+                self.presenceManager?.reset(presence: presence)
             }
         }
         self.updateSelection(animated: false)
@@ -229,7 +242,7 @@ final class ShareControllerPeerGridItemNode: GridItemNode {
     
     func updateSelection(animated: Bool) {
         var selected = false
-        if let controllerInteraction = self.controllerInteraction, let (_, _, _, maybePeer, _, _) = self.currentState, let peer = maybePeer {
+        if let controllerInteraction = self.controllerInteraction, let (_, _, _, maybePeer, _, _, _, _) = self.currentState, let peer = maybePeer {
             selected = controllerInteraction.selectedPeerIds.contains(peer.peerId)
         }
         
@@ -243,7 +256,7 @@ final class ShareControllerPeerGridItemNode: GridItemNode {
         self.peerNode.frame = bounds
         self.placeholderNode?.frame = bounds
         
-        if let (_, theme, _, _, _, _) = self.currentState, let shimmerNode = self.placeholderNode {
+        if let (_, theme, _, _, _, _, _, _) = self.currentState, let shimmerNode = self.placeholderNode {
             var shapes: [ShimmerEffectNode.Shape] = []
             
             let titleLineWidth: CGFloat = 56.0

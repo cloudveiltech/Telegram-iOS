@@ -15,7 +15,7 @@ func _internal_twoStepVerificationConfiguration(account: Account) -> Signal<TwoS
     |> retryRequest
     |> map { result -> TwoStepVerificationConfiguration in
         switch result {
-            case let .password(flags, currentAlgo, _, _, hint, emailUnconfirmedPattern, _, _, _, pendingResetDate):
+            case let .password(flags, currentAlgo, _, _, hint, emailUnconfirmedPattern, _, _, _, pendingResetDate, _):
                 if currentAlgo != nil {
                     return .set(hint: hint ?? "", hasRecoveryEmail: (flags & (1 << 0)) != 0, pendingEmail: emailUnconfirmedPattern.flatMap({ TwoStepVerificationPendingEmail(pattern: $0, codeLength: nil) }), hasSecureValues: (flags & (1 << 1)) != 0, pendingResetTimestamp: pendingResetDate)
                 } else {
@@ -353,7 +353,7 @@ func _internal_cacheTwoStepPasswordToken(postbox: Postbox, token: TemporaryTwoSt
         let key = ValueBoxKey(length: 1)
         key.setUInt8(0, value: 0)
         if let token = token.flatMap(CodableEntry.init) {
-            transaction.putItemCacheEntry(id: ItemCacheEntryId(collectionId: Namespaces.CachedItemCollection.cachedTwoStepToken, key: key), entry: token, collectionSpec: ItemCacheCollectionSpec(lowWaterItemCount: 1, highWaterItemCount: 1))
+            transaction.putItemCacheEntry(id: ItemCacheEntryId(collectionId: Namespaces.CachedItemCollection.cachedTwoStepToken, key: key), entry: token)
         } else {
             transaction.removeItemCacheEntry(id: ItemCacheEntryId(collectionId: Namespaces.CachedItemCollection.cachedTwoStepToken, key: key))
         }

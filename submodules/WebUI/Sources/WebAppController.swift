@@ -17,8 +17,110 @@ import ShimmerEffect
 import PhotoResources
 import LegacyComponents
 import UrlHandling
+import MoreButtonNode
+import BotPaymentsUI
+import PromptUI
+import PhoneNumberFormat
 
 private let durgerKingBotIds: [Int64] = [5104055776, 2200339955]
+
+private class CancelButtonNode: ASDisplayNode {
+    enum State {
+        case cancel
+        case back
+    }
+    
+    private let buttonNode: HighlightTrackingButtonNode
+    private let arrowNode: ASImageNode
+    private let labelNode: ImmediateTextNode
+    
+    var state: State = .cancel
+    
+    var theme: PresentationTheme {
+        didSet {
+            
+        }
+    }
+    private let strings: PresentationStrings
+    
+    init(theme: PresentationTheme, strings: PresentationStrings) {
+        self.theme = theme
+        self.strings = strings
+        
+        self.buttonNode = HighlightTrackingButtonNode()
+        
+        self.arrowNode = ASImageNode()
+        self.arrowNode.displaysAsynchronously = false
+        
+        self.labelNode = ImmediateTextNode()
+        
+        super.init()
+        
+        self.addSubnode(self.buttonNode)
+        self.buttonNode.addSubnode(self.arrowNode)
+        self.buttonNode.addSubnode(self.labelNode)
+        
+        self.buttonNode.highligthedChanged = { [weak self] highlighted in
+            guard let strongSelf = self else {
+                return
+            }
+            if highlighted {
+                strongSelf.arrowNode.layer.removeAnimation(forKey: "opacity")
+                strongSelf.arrowNode.alpha = 0.4
+                strongSelf.labelNode.layer.removeAnimation(forKey: "opacity")
+                strongSelf.labelNode.alpha = 0.4
+            } else {
+                strongSelf.arrowNode.alpha = 1.0
+                strongSelf.arrowNode.layer.animateAlpha(from: 0.4, to: 1.0, duration: 0.2)
+                strongSelf.labelNode.alpha = 1.0
+                strongSelf.labelNode.layer.animateAlpha(from: 0.4, to: 1.0, duration: 0.2)
+            }
+        }
+        
+        self.setState(.cancel, animated: false, force: true)
+    }
+    
+    func setState(_ state: State, animated: Bool, force: Bool = false) {
+        guard self.state != state || force else {
+            return
+        }
+        self.state = state
+        
+        if animated, let snapshotView = self.buttonNode.view.snapshotContentTree() {
+            snapshotView.layer.sublayerTransform = self.buttonNode.subnodeTransform
+            self.view.addSubview(snapshotView)
+            
+            snapshotView.layer.animateScale(from: 1.0, to: 0.001, duration: 0.25, removeOnCompletion: false)
+            snapshotView.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.25, removeOnCompletion: false, completion: { [weak snapshotView] _ in
+                snapshotView?.removeFromSuperview()
+            })
+            
+            self.buttonNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.25)
+            self.buttonNode.layer.animateScale(from: 0.001, to: 1.0, duration: 0.25)
+        }
+        
+        self.arrowNode.isHidden = state == .cancel
+        self.labelNode.attributedText = NSAttributedString(string: state == .cancel ? self.strings.Common_Cancel : self.strings.Common_Back, font: Font.regular(17.0), textColor: self.theme.rootController.navigationBar.accentTextColor)
+        
+        let labelSize = self.labelNode.updateLayout(CGSize(width: 120.0, height: 56.0))
+        
+        self.buttonNode.frame = CGRect(origin: .zero, size: CGSize(width: labelSize.width, height: self.buttonNode.frame.height))
+        self.arrowNode.image = NavigationBarTheme.generateBackArrowImage(color: self.theme.rootController.navigationBar.accentTextColor)
+        if let image = self.arrowNode.image {
+            self.arrowNode.frame = CGRect(origin: self.arrowNode.frame.origin, size: image.size)
+        }
+        self.labelNode.frame = CGRect(origin: self.labelNode.frame.origin, size: labelSize)
+        self.buttonNode.subnodeTransform = CATransform3DMakeTranslation(state == .back ? 11.0 : 0.0, 0.0, 0.0)
+    }
+    
+    override public func calculateSizeThatFits(_ constrainedSize: CGSize) -> CGSize {
+        self.buttonNode.frame = CGRect(origin: .zero, size: CGSize(width: self.buttonNode.frame.width, height: constrainedSize.height))
+        self.arrowNode.frame = CGRect(origin: CGPoint(x: -19.0, y: floorToScreenPixels((constrainedSize.height - self.arrowNode.frame.size.height) / 2.0)), size: self.arrowNode.frame.size)
+        self.labelNode.frame = CGRect(origin: CGPoint(x: 0.0, y: floorToScreenPixels((constrainedSize.height - self.labelNode.frame.size.height) / 2.0)), size: self.labelNode.frame.size)
+
+        return CGSize(width: 70.0, height: 56.0)
+    }
+}
 
 public struct WebAppParameters {
     let peerId: PeerId
@@ -59,11 +161,14 @@ public struct WebAppParameters {
 
 public func generateWebAppThemeParams(_ presentationTheme: PresentationTheme) -> [String: Any] {
     var backgroundColor = presentationTheme.list.plainBackgroundColor.rgb
-    if backgroundColor == 0x000000 {
-        backgroundColor = presentationTheme.list.itemBlocksBackgroundColor.rgb
+    var secondaryBackgroundColor = presentationTheme.list.blocksBackgroundColor.rgb
+    if presentationTheme.list.blocksBackgroundColor.rgb == presentationTheme.list.plainBackgroundColor.rgb {
+        backgroundColor = presentationTheme.list.modalPlainBackgroundColor.rgb
+        secondaryBackgroundColor = presentationTheme.list.plainBackgroundColor.rgb
     }
     return [
         "bg_color": Int32(bitPattern: backgroundColor),
+        "secondary_bg_color": Int32(bitPattern: secondaryBackgroundColor),
         "text_color": Int32(bitPattern: presentationTheme.list.itemPrimaryTextColor.rgb),
         "hint_color": Int32(bitPattern: presentationTheme.list.itemSecondaryTextColor.rgb),
         "link_color": Int32(bitPattern: presentationTheme.list.itemAccentColor.rgb),
@@ -79,9 +184,13 @@ public final class WebAppController: ViewController, AttachmentContainable {
     public var cancelPanGesture: () -> Void = { }
     public var isContainerPanning: () -> Bool = { return false }
     public var isContainerExpanded: () -> Bool = { return false }
-    
+        
     fileprivate class Node: ViewControllerTracingNode, WKNavigationDelegate, WKUIDelegate, UIScrollViewDelegate {
         private weak var controller: WebAppController?
+        
+        private let backgroundNode: ASDisplayNode
+        private let headerBackgroundNode: ASDisplayNode
+        private let topOverscrollNode: ASDisplayNode
         
         fileprivate var webView: WebAppWebView?
         private var placeholderIcon: (UIImage, Bool)?
@@ -92,23 +201,27 @@ public final class WebAppController: ViewController, AttachmentContainable {
         
         private let context: AccountContext
         var presentationData: PresentationData
-        private let present: (ViewController, Any?) -> Void
         private var queryId: Int64?
         
         private var placeholderDisposable: Disposable?
         private var iconDisposable: Disposable?
         private var keepAliveDisposable: Disposable?
         
+        private var paymentDisposable: Disposable?
+        
         private var didTransitionIn = false
         private var dismissed = false
         
         private var validLayout: (ContainerViewLayout, CGFloat)?
         
-        init(context: AccountContext, controller: WebAppController, present: @escaping (ViewController, Any?) -> Void) {
+        init(context: AccountContext, controller: WebAppController) {
             self.context = context
             self.controller = controller
             self.presentationData = controller.presentationData
-            self.present = present
+            
+            self.backgroundNode = ASDisplayNode()
+            self.headerBackgroundNode = ASDisplayNode()
+            self.topOverscrollNode = ASDisplayNode()
             
             super.init()
             
@@ -140,6 +253,9 @@ public final class WebAppController: ViewController, AttachmentContainable {
             placeholderNode.allowsGroupOpacity = true
             self.addSubnode(placeholderNode)
             self.placeholderNode = placeholderNode
+            
+            self.addSubnode(self.backgroundNode)
+            self.addSubnode(self.headerBackgroundNode)
             
             let placeholder: Signal<(FileMediaReference, Bool)?, NoError>
             if durgerKingBotIds.contains(controller.botId.id._internalGetInt64Value()) {
@@ -234,7 +350,7 @@ public final class WebAppController: ViewController, AttachmentContainable {
                     })
                 }
             } else {
-                let _ = (context.engine.messages.requestWebView(peerId: controller.peerId, botId: controller.botId, url: controller.url, payload: controller.payload, themeParams: generateWebAppThemeParams(presentationData.theme), fromMenu: controller.fromMenu, replyToMessageId: controller.replyToMessageId)
+                let _ = (context.engine.messages.requestWebView(peerId: controller.peerId, botId: controller.botId, url: controller.url, payload: controller.payload, themeParams: generateWebAppThemeParams(presentationData.theme), fromMenu: controller.fromMenu, replyToMessageId: controller.replyToMessageId, threadId: controller.threadId)
                 |> deliverOnMainQueue).start(next: { [weak self] result in
                     guard let strongSelf = self else {
                         return
@@ -263,6 +379,7 @@ public final class WebAppController: ViewController, AttachmentContainable {
             self.placeholderDisposable?.dispose()
             self.iconDisposable?.dispose()
             self.keepAliveDisposable?.dispose()
+            self.paymentDisposable?.dispose()
             
             self.webView?.removeObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress))
         }
@@ -274,9 +391,11 @@ public final class WebAppController: ViewController, AttachmentContainable {
                 return
             }
             self.view.addSubview(webView)
+            webView.scrollView.insertSubview(self.topOverscrollNode.view, at: 0)
         }
         
         @objc fileprivate func mainButtonPressed() {
+            self.webView?.lastTouchTimestamp = CACurrentMediaTime()
             self.webView?.sendEvent(name: "main_button_pressed", data: nil)
         }
         
@@ -345,6 +464,48 @@ public final class WebAppController: ViewController, AttachmentContainable {
         func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
             decisionHandler(.prompt)
         }
+        
+        func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+            let alertController = textAlertController(context: self.context, updatedPresentationData: self.controller?.updatedPresentationData, title: nil, text: message, actions: [TextAlertAction(type: .defaultAction, title: self.presentationData.strings.Common_OK, action: {
+                completionHandler()
+            })])
+            alertController.dismissed = { byOutsideTap in
+                if byOutsideTap {
+                    completionHandler()
+                }
+            }
+            self.controller?.present(alertController, in: .window(.root))
+        }
+
+        func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+            let alertController = textAlertController(context: self.context, updatedPresentationData: self.controller?.updatedPresentationData, title: nil, text: message, actions: [TextAlertAction(type: .genericAction, title: self.presentationData.strings.Common_Cancel, action: {
+                completionHandler(false)
+            }), TextAlertAction(type: .defaultAction, title: self.presentationData.strings.Common_OK, action: {
+                completionHandler(true)
+            })])
+            alertController.dismissed = { byOutsideTap in
+                if byOutsideTap {
+                    completionHandler(false)
+                }
+            }
+            self.controller?.present(alertController, in: .window(.root))
+        }
+
+        func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (String?) -> Void) {
+            let promptController = promptController(sharedContext: self.context.sharedContext, updatedPresentationData: self.controller?.updatedPresentationData, text: prompt, value: defaultText, apply: { value in
+                if let value = value {
+                    completionHandler(value)
+                } else {
+                    completionHandler(nil)
+                }
+            })
+            promptController.dismissed = { byOutsideTap in
+                if byOutsideTap {
+                    completionHandler(nil)
+                }
+            }
+            self.controller?.present(promptController, in: .window(.root))
+        }
                 
         private var targetContentOffset: CGPoint?
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -366,6 +527,10 @@ public final class WebAppController: ViewController, AttachmentContainable {
             let previousLayout = self.validLayout?.0
             self.validLayout = (layout, navigationBarHeight)
                         
+            transition.updateFrame(node: self.backgroundNode, frame: CGRect(origin: .zero, size: layout.size))
+            transition.updateFrame(node: self.headerBackgroundNode, frame: CGRect(origin: .zero, size: CGSize(width: layout.size.width, height: navigationBarHeight)))
+            transition.updateFrame(node: self.topOverscrollNode, frame: CGRect(origin: CGPoint(x: 0.0, y: -1000.0), size: CGSize(width: layout.size.width, height: 1000.0)))
+            
             if let webView = self.webView {
                 let frame = CGRect(origin: CGPoint(x: layout.safeInsets.left, y: navigationBarHeight), size: CGSize(width: layout.size.width - layout.safeInsets.left - layout.safeInsets.right, height: max(1.0, layout.size.height - navigationBarHeight - layout.intrinsicInsets.bottom)))
                 let viewportFrame = CGRect(origin: CGPoint(x: layout.safeInsets.left, y: navigationBarHeight), size: CGSize(width: layout.size.width - layout.safeInsets.left - layout.safeInsets.right, height: max(1.0, layout.size.height - navigationBarHeight - layout.intrinsicInsets.bottom - layout.additionalInsets.bottom)))
@@ -424,6 +589,8 @@ public final class WebAppController: ViewController, AttachmentContainable {
             }
         }
              
+        private let hapticFeedback = HapticFeedback()
+        
         private var delayedScriptMessage: WKScriptMessage?
         private func handleScriptMessage(_ message: WKScriptMessage) {
             guard let controller = self.controller else {
@@ -436,6 +603,9 @@ public final class WebAppController: ViewController, AttachmentContainable {
                 return
             }
             
+            let eventData = (body["eventData"] as? String)?.data(using: .utf8)
+            let json = try? JSONSerialization.jsonObject(with: eventData ?? Data(), options: []) as? [String: Any]
+            
             switch eventName {
                 case "web_app_ready":
                     self.animateTransitionIn()
@@ -444,9 +614,9 @@ public final class WebAppController: ViewController, AttachmentContainable {
                         self.handleSendData(data: eventData)
                     }
                 case "web_app_setup_main_button":
-                    if let webView = self.webView, !webView.didTouchOnce {
+                    if let webView = self.webView, !webView.didTouchOnce && controller.url == nil {
                         self.delayedScriptMessage = message
-                    } else if let eventData = (body["eventData"] as? String)?.data(using: .utf8), let json = try? JSONSerialization.jsonObject(with: eventData, options: []) as? [String: Any] {
+                    } else if let json = json {
                         if var isVisible = json["is_visible"] as? Bool {
                             let text = json["text"] as? String
                             if (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -471,12 +641,229 @@ public final class WebAppController: ViewController, AttachmentContainable {
                 case "web_app_request_theme":
                     self.sendThemeChangedEvent()
                 case "web_app_expand":
-                    self.controller?.requestAttachmentMenuExpansion()
+                    controller.requestAttachmentMenuExpansion()
                 case "web_app_close":
-                    self.controller?.dismiss()
+                    controller.dismiss()
+                case "web_app_open_tg_link":
+                    if let json = json, let path = json["path_full"] as? String {
+                        controller.openUrl("https://t.me\(path)")
+                        controller.dismiss()
+                    }
+                case "web_app_open_invoice":
+                    if let json = json, let slug = json["slug"] as? String {
+                        self.paymentDisposable = (self.context.engine.payments.fetchBotPaymentInvoice(source: .slug(slug))
+                        |> map(Optional.init)
+                        |> `catch` { _ -> Signal<TelegramMediaInvoice?, NoError> in
+                            return .single(nil)
+                        }
+                        |> deliverOnMainQueue).start(next: { [weak self] invoice in
+                            if let strongSelf = self, let invoice = invoice {
+                                let inputData = Promise<BotCheckoutController.InputData?>()
+                                inputData.set(BotCheckoutController.InputData.fetch(context: strongSelf.context, source: .slug(slug))
+                                |> map(Optional.init)
+                                |> `catch` { _ -> Signal<BotCheckoutController.InputData?, NoError> in
+                                    return .single(nil)
+                                })
+                                if let navigationController = strongSelf.controller?.getNavigationController() {
+                                    let checkoutController = BotCheckoutController(context: strongSelf.context, invoice: invoice, source: .slug(slug), inputData: inputData, completed: { currencyValue, receiptMessageId in
+                                        self?.sendInvoiceClosedEvent(slug: slug, result: .paid)
+                                    }, cancelled: { [weak self] in
+                                        self?.sendInvoiceClosedEvent(slug: slug, result: .cancelled)
+                                    }, failed: { [weak self] in
+                                        self?.sendInvoiceClosedEvent(slug: slug, result: .failed)
+                                    })
+                                    checkoutController.navigationPresentation = .modal
+                                    navigationController.pushViewController(checkoutController)
+                                }
+                            }
+                        })
+                    }
+                case "web_app_open_link":
+                    if let json = json, let url = json["url"] as? String {
+                        let currentTimestamp = CACurrentMediaTime()
+                        if let lastTouchTimestamp = self.webView?.lastTouchTimestamp, currentTimestamp < lastTouchTimestamp + 10.0 {
+                            self.webView?.lastTouchTimestamp = nil
+                            self.context.sharedContext.openExternalUrl(context: self.context, urlContext: .generic, url: url, forceExternal: true, presentationData: self.context.sharedContext.currentPresentationData.with { $0 }, navigationController: nil, dismissInput: {})
+                        }
+                    }
+                case "web_app_setup_back_button":
+                    if let json = json, let isVisible = json["is_visible"] as? Bool {
+                        self.controller?.cancelButtonNode.setState(isVisible ? .back : .cancel, animated: true)
+                    }
+                case "web_app_trigger_haptic_feedback":
+                    if let json = json, let type = json["type"] as? String {
+                        switch type {
+                            case "impact":
+                                if let impactType = json["impact_style"] as? String {
+                                    switch impactType {
+                                        case "light":
+                                            self.hapticFeedback.impact(.light)
+                                        case "medium":
+                                            self.hapticFeedback.impact(.medium)
+                                        case "heavy":
+                                            self.hapticFeedback.impact(.heavy)
+                                        case "rigid":
+                                            self.hapticFeedback.impact(.rigid)
+                                        case "soft":
+                                            self.hapticFeedback.impact(.soft)
+                                        default:
+                                            break
+                                    }
+                                }
+                            case "notification":
+                                if let notificationType = json["notification_type"] as? String {
+                                    switch notificationType {
+                                        case "success":
+                                            self.hapticFeedback.success()
+                                        case "error":
+                                            self.hapticFeedback.error()
+                                        case "warning":
+                                            self.hapticFeedback.warning()
+                                        default:
+                                            break
+                                    }
+                                }
+                            case "selection_change":
+                                self.hapticFeedback.tap()
+                            default:
+                                break
+                        }
+                    }
+                case "web_app_set_background_color":
+                    if let json = json, let colorValue = json["color"] as? String, let color = UIColor(hexString: colorValue) {
+                        let transition = ContainedViewLayoutTransition.animated(duration: 0.2, curve: .linear)
+                        transition.updateBackgroundColor(node: self.backgroundNode, color: color)
+                    }
+                case "web_app_set_header_color":
+                    if let json = json, let colorKey = json["color_key"] as? String, ["bg_color", "secondary_bg_color"].contains(colorKey) {
+                        self.headerColorKey = colorKey
+                        self.updateHeaderBackgroundColor(transition: .animated(duration: 0.2, curve: .linear))
+                    }
+                case "web_app_open_popup":
+                    if let json = json, let message = json["message"] as? String, let buttons = json["buttons"] as? [Any] {
+                        let presentationData = self.presentationData
+                        
+                        let title = json["title"] as? String
+                        var alertButtons: [TextAlertAction] = []
+                        
+                        for buttonJson in buttons {
+                            if let button = buttonJson as? [String: Any], let id = button["id"] as? String, let type = button["type"] as? String {
+                                let buttonAction = {
+                                    self.sendAlertButtonEvent(id: id)
+                                }
+                                let text = button["text"] as? String
+                                switch type {
+                                    case "default":
+                                        if let text = text {
+                                            alertButtons.append(TextAlertAction(type: .genericAction, title: text, action: {
+                                                buttonAction()
+                                            }))
+                                        }
+                                    case "destructive":
+                                        if let text = text {
+                                            alertButtons.append(TextAlertAction(type: .destructiveAction, title: text, action: {
+                                                buttonAction()
+                                            }))
+                                        }
+                                    case "ok":
+                                        alertButtons.append(TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {
+                                            buttonAction()
+                                        }))
+                                    case "cancel":
+                                        alertButtons.append(TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {
+                                            buttonAction()
+                                        }))
+                                    case "close":
+                                        alertButtons.append(TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Close, action: {
+                                            buttonAction()
+                                        }))
+                                    default:
+                                        break
+                                }
+                            }
+                        }
+                        
+                        var actionLayout: TextAlertContentActionLayout = .horizontal
+                        if alertButtons.count > 2 {
+                            actionLayout = .vertical
+                        }
+                        let alertController = textAlertController(context: self.context, updatedPresentationData: self.controller?.updatedPresentationData, title: title, text: message, actions: alertButtons, actionLayout: actionLayout)
+                        alertController.dismissed = { byOutsideTap in
+                            if byOutsideTap {
+                                self.sendAlertButtonEvent(id: nil)
+                            }
+                        }
+                        self.controller?.present(alertController, in: .window(.root))
+                    }
+                case "web_app_setup_closing_behavior":
+                    if let json = json, let needConfirmation = json["need_confirmation"] as? Bool {
+                        self.needDismissConfirmation = needConfirmation
+                    }
+                case "web_app_request_phone":
+                    break
+//                    let _ = (self.context.account.postbox.loadedPeerWithId(self.context.account.peerId)
+//                    |> deliverOnMainQueue).start(next: { [weak self] accountPeer in
+//                        guard let strongSelf = self else {
+//                            return
+//                        }
+//                        guard let user = accountPeer as? TelegramUser, let phoneNumber = user.phone else {
+//                            return
+//                        }
+//
+//                        let actionSheet = ActionSheetController(presentationData: strongSelf.presentationData)
+//                        var items: [ActionSheetItem] = []
+//                        items.append(ActionSheetTextItem(title: strongSelf.presentationData.strings.WebApp_ShareMyPhoneNumberConfirmation(formatPhoneNumber(phoneNumber), strongSelf.controller?.botName ?? "").string, parseMarkdown: true))
+//                        items.append(ActionSheetButtonItem(title: strongSelf.presentationData.strings.WebApp_ShareMyPhoneNumber, action: { [weak actionSheet] in
+//                            actionSheet?.dismissAnimated()
+//                            guard let strongSelf = self else {
+//                                return
+//                            }
+//
+//                            strongSelf.sendPhoneRequestedEvent(phone: phoneNumber)
+//                        }))
+//
+//                        actionSheet.setItemGroups([ActionSheetItemGroup(items: items), ActionSheetItemGroup(items: [
+//                            ActionSheetButtonItem(title: strongSelf.presentationData.strings.Common_Cancel, color: .accent, font: .bold, action: { [weak actionSheet] in
+//                                actionSheet?.dismissAnimated()
+//                                guard let strongSelf = self else {
+//                                    return
+//                                }
+//
+//                                strongSelf.sendPhoneRequestedEvent(phone: nil)
+//                            })
+//                        ])])
+//                        strongSelf.controller?.present(actionSheet, in: .window(.root))
+//                    })
                 default:
                     break
             }
+        }
+        
+        fileprivate var needDismissConfirmation = false
+        
+        private var headerColorKey: String?
+        private func updateHeaderBackgroundColor(transition: ContainedViewLayoutTransition) {
+            let color: UIColor?
+            var backgroundColor = self.presentationData.theme.list.plainBackgroundColor
+            var secondaryBackgroundColor = self.presentationData.theme.list.blocksBackgroundColor
+            if self.presentationData.theme.list.blocksBackgroundColor.rgb == self.presentationData.theme.list.plainBackgroundColor.rgb {
+                backgroundColor = self.presentationData.theme.list.modalPlainBackgroundColor
+                secondaryBackgroundColor = self.presentationData.theme.list.plainBackgroundColor
+            }
+            if let headerColorKey = self.headerColorKey {
+                switch headerColorKey {
+                    case "bg_color":
+                        color = backgroundColor
+                    case "secondary_bg_color":
+                        color = secondaryBackgroundColor
+                    default:
+                        color = nil
+                }
+            } else {
+                color = nil
+            }
+            transition.updateBackgroundColor(node: self.headerBackgroundNode, color: color ?? .clear)
+            transition.updateBackgroundColor(node: self.topOverscrollNode, color: color ?? .clear)
         }
         
         private func handleSendData(data string: String) {
@@ -507,6 +894,7 @@ public final class WebAppController: ViewController, AttachmentContainable {
             } else {
                 self.backgroundColor = self.presentationData.theme.list.plainBackgroundColor
             }
+            self.updateHeaderBackgroundColor(transition: .immediate)
             self.sendThemeChangedEvent()
         }
         
@@ -526,6 +914,55 @@ public final class WebAppController: ViewController, AttachmentContainable {
             themeParamsString.append("}}")
             self.webView?.sendEvent(name: "theme_changed", data: themeParamsString)
         }
+        
+        enum InvoiceCloseResult {
+            case paid
+            case pending
+            case cancelled
+            case failed
+            
+            var string: String {
+                switch self {
+                    case .paid:
+                        return "paid"
+                    case .pending:
+                        return "pending"
+                    case .cancelled:
+                        return "cancelled"
+                    case .failed:
+                        return "failed"
+                    }
+            }
+        }
+        
+        private func sendInvoiceClosedEvent(slug: String, result: InvoiceCloseResult) {
+            let paramsString = "{slug: \"\(slug)\", status: \"\(result.string)\"}"
+            self.webView?.sendEvent(name: "invoice_closed", data: paramsString)
+        }
+        
+        fileprivate func sendBackButtonEvent() {
+            self.webView?.sendEvent(name: "back_button_pressed", data: nil)
+        }
+        
+        fileprivate func sendSettingsButtonEvent() {
+            self.webView?.sendEvent(name: "settings_button_pressed", data: nil)
+        }
+        
+        fileprivate func sendAlertButtonEvent(id: String?) {
+            var paramsString: String?
+            if let id = id {
+                paramsString = "{button_id: \"\(id)\"}"
+            }
+            self.webView?.sendEvent(name: "popup_closed", data: paramsString)
+        }
+        
+        fileprivate func sendPhoneRequestedEvent(phone: String?) {
+            var paramsString: String?
+            if let phone = phone {
+                paramsString = "{phone_number: \"\(phone)\"}"
+            }
+            self.webView?.sendEvent(name: "phone_requested", data: paramsString)
+        }
     }
     
     fileprivate var controllerNode: Node {
@@ -533,6 +970,7 @@ public final class WebAppController: ViewController, AttachmentContainable {
     }
     
     private var titleView: CounterContollerTitleView?
+    private let cancelButtonNode: CancelButtonNode
     private let moreButtonNode: MoreButtonNode
     
     private let context: AccountContext
@@ -547,6 +985,7 @@ public final class WebAppController: ViewController, AttachmentContainable {
     private let isSimple: Bool
     private let keepAliveSignal: Signal<Never, KeepWebViewError>?
     private let replyToMessageId: MessageId?
+    private let threadId: Int64?
     
     private var presentationData: PresentationData
     fileprivate let updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?
@@ -556,7 +995,7 @@ public final class WebAppController: ViewController, AttachmentContainable {
     public var getNavigationController: () -> NavigationController? = { return nil }
     public var completion: () -> Void = {}
         
-    public init(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, params: WebAppParameters, replyToMessageId: MessageId?) {
+    public init(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, params: WebAppParameters, replyToMessageId: MessageId?, threadId: Int64?) {
         self.context = context
         self.peerId = params.peerId
         self.botId = params.botId
@@ -569,9 +1008,12 @@ public final class WebAppController: ViewController, AttachmentContainable {
         self.isSimple = params.isSimple
         self.keepAliveSignal = params.keepAliveSignal
         self.replyToMessageId = replyToMessageId
+        self.threadId = threadId
         
         self.updatedPresentationData = updatedPresentationData
         self.presentationData = updatedPresentationData?.initial ?? context.sharedContext.currentPresentationData.with { $0 }
+        
+        self.cancelButtonNode = CancelButtonNode(theme: self.presentationData.theme, strings: self.presentationData.strings)
         
         self.moreButtonNode = MoreButtonNode(theme: self.presentationData.theme)
         self.moreButtonNode.iconNode.enqueueState(.more, animated: false)
@@ -581,7 +1023,12 @@ public final class WebAppController: ViewController, AttachmentContainable {
         
         self.statusBar.statusBarStyle = self.presentationData.theme.rootController.statusBarStyle.style
         
-        self.navigationItem.leftBarButtonItem = UIBarButtonItem(title: self.presentationData.strings.Common_Cancel, style: .plain, target: self, action: #selector(self.cancelPressed))
+//        self.navigationItem.leftBarButtonItem = UIBarButtonItem(title: self.presentationData.strings.Common_Cancel, style: .plain, target: self, action: #selector(self.cancelPressed))
+        
+        self.navigationItem.leftBarButtonItem = UIBarButtonItem(customDisplayNode: self.cancelButtonNode)
+        self.navigationItem.leftBarButtonItem?.action = #selector(self.cancelPressed)
+        self.navigationItem.leftBarButtonItem?.target = self
+        
         self.navigationItem.rightBarButtonItem = UIBarButtonItem(customDisplayNode: self.moreButtonNode)
         self.navigationItem.rightBarButtonItem?.action = #selector(self.moreButtonPressed)
         self.navigationItem.rightBarButtonItem?.target = self
@@ -606,6 +1053,9 @@ public final class WebAppController: ViewController, AttachmentContainable {
                 strongSelf.navigationBar?.updatePresentationData(navigationBarPresentationData)
                 strongSelf.titleView?.theme = presentationData.theme
                 
+                strongSelf.cancelButtonNode.theme = presentationData.theme
+                strongSelf.moreButtonNode.theme = presentationData.theme
+                
                 if strongSelf.isNodeLoaded {
                     strongSelf.controllerNode.updatePresentationData(presentationData)
                 }
@@ -623,7 +1073,13 @@ public final class WebAppController: ViewController, AttachmentContainable {
     }
     
     @objc private func cancelPressed() {
-        self.dismiss()
+        if case .back = self.cancelButtonNode.state {
+            self.controllerNode.sendBackButtonEvent()
+        } else {
+            self.requestDismiss {
+                self.dismiss()
+            }
+        }
     }
     
     @objc private func moreButtonPressed() {
@@ -638,34 +1094,62 @@ public final class WebAppController: ViewController, AttachmentContainable {
         let botId = self.botId
         
         let items = context.engine.messages.attachMenuBots()
+        |> take(1)
         |> map { [weak self] attachMenuBots -> ContextController.Items in
             var items: [ContextMenuItem] = []
+            
+            let attachMenuBot = attachMenuBots.first(where: { $0.peer.id == botId})
+            
+            if self?.url == nil, let attachMenuBot = attachMenuBot, attachMenuBot.hasSettings {
+                items.append(.action(ContextMenuActionItem(text: presentationData.strings.WebApp_Settings, icon: { theme in
+                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Settings"), color: theme.contextMenu.primaryColor)
+                }, action: { [weak self] c, _ in
+                    c.dismiss(completion: nil)
+                    
+                    if let strongSelf = self {
+                        strongSelf.controllerNode.sendSettingsButtonEvent()
+                    }
+                })))
+            }
+            
             if peerId != botId {
                 items.append(.action(ContextMenuActionItem(text: presentationData.strings.WebApp_OpenBot, icon: { theme in
                     return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Bots"), color: theme.contextMenu.primaryColor)
-                }, action: { [weak self] _, f in
-                    f(.default)
+                }, action: { [weak self] c, _ in
+                    c.dismiss(completion: nil)
                     
-                    if let strongSelf = self, let navigationController = strongSelf.getNavigationController() {
-                        strongSelf.dismiss()
-                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(id: strongSelf.botId)))
+                    guard let strongSelf = self else {
+                        return
                     }
+                    
+                    let _ = (context.engine.data.get(
+                        TelegramEngine.EngineData.Item.Peer.Peer(id: strongSelf.botId)
+                    )
+                    |> deliverOnMainQueue).start(next: { botPeer in
+                        guard let botPeer = botPeer else {
+                            return
+                        }
+                        if let strongSelf = self, let navigationController = strongSelf.getNavigationController() {
+                            strongSelf.dismiss()
+                            strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(botPeer)))
+                        }
+                    })
                 })))
             }
             
             items.append(.action(ContextMenuActionItem(text: presentationData.strings.WebApp_ReloadPage, icon: { theme in
                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Reload"), color: theme.contextMenu.primaryColor)
-            }, action: { [weak self] _, f in
-                f(.default)
+            }, action: { [weak self] c, _ in
+                c.dismiss(completion: nil)
                 
                 self?.controllerNode.webView?.reload()
             })))
             
-            if let _ = attachMenuBots.firstIndex(where: { $0.peer.id == botId}) {
+            if let _ = attachMenuBot, self?.url == nil {
                 items.append(.action(ContextMenuActionItem(text: presentationData.strings.WebApp_RemoveBot, textColor: .destructive, icon: { theme in
                     return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.contextMenu.destructiveColor)
-                }, action: { [weak self] _, f in
-                    f(.default)
+                }, action: { [weak self] c, _ in
+                    c.dismiss(completion: nil)
                     
                     if let strongSelf = self {
                         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
@@ -687,9 +1171,7 @@ public final class WebAppController: ViewController, AttachmentContainable {
     }
     
     override public func loadDisplayNode() {
-        self.displayNode = Node(context: self.context, controller: self, present: { [weak self] c, a in
-            self?.present(c, in: .window(.root), with: a)
-        })
+        self.displayNode = Node(context: self.context, controller: self)
         
         self.navigationBar?.updateBackgroundAlpha(0.0, transition: .immediate)
         self.updateTabBarAlpha(1.0, .immediate)
@@ -718,6 +1200,38 @@ public final class WebAppController: ViewController, AttachmentContainable {
     
     public func prepareForReuse() {
         self.updateTabBarAlpha(1.0, .immediate)
+    }
+    
+    public func requestDismiss(completion: @escaping () -> Void) {
+        if self.controllerNode.needDismissConfirmation {
+            let actionSheet = ActionSheetController(presentationData: self.presentationData)
+            actionSheet.setItemGroups([
+                ActionSheetItemGroup(items: [
+                    ActionSheetTextItem(title: self.presentationData.strings.WebApp_CloseConfirmation),
+                    ActionSheetButtonItem(title: self.presentationData.strings.WebApp_CloseAnyway, color: .destructive, action: { [weak actionSheet] in
+                        actionSheet?.dismissAnimated()
+                        
+                        completion()
+                    })
+                ]),
+                ActionSheetItemGroup(items: [
+                    ActionSheetButtonItem(title: self.presentationData.strings.Common_Cancel, color: .accent, font: .bold, action: { [weak actionSheet] in
+                        actionSheet?.dismissAnimated()
+                    })
+                ])
+            ])
+            self.present(actionSheet, in: .window(.root))
+        } else {
+            completion()
+        }
+    }
+    
+    public func shouldDismissImmediately() -> Bool {
+        if self.controllerNode.needDismissConfirmation {
+            return false
+        } else {
+            return true
+        }
     }
 }
 
@@ -773,16 +1287,20 @@ private final class WebAppContextReferenceContentSource: ContextReferenceContent
     }
 }
 
-public func standaloneWebAppController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, params: WebAppParameters, openUrl: @escaping (String) -> Void, getInputContainerNode: @escaping () -> (CGFloat, ASDisplayNode, () -> AttachmentController.InputPanelTransition?)? = { return nil }, completion: @escaping () -> Void = {}, willDismiss: @escaping () -> Void = {}, didDismiss: @escaping () -> Void = {}) -> ViewController {
-    let controller = AttachmentController(context: context, updatedPresentationData: updatedPresentationData, chatLocation: .peer(id: params.peerId), buttons: [.standalone], initialButton: .standalone, fromMenu: params.fromMenu)
+public func standaloneWebAppController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, params: WebAppParameters, threadId: Int64?, openUrl: @escaping (String) -> Void, getInputContainerNode: @escaping () -> (CGFloat, ASDisplayNode, () -> AttachmentController.InputPanelTransition?)? = { return nil }, completion: @escaping () -> Void = {}, willDismiss: @escaping () -> Void = {}, didDismiss: @escaping () -> Void = {}, getNavigationController: @escaping () -> NavigationController? = { return nil }, getSourceRect: (() -> CGRect?)? = nil) -> ViewController {
+    let controller = AttachmentController(context: context, updatedPresentationData: updatedPresentationData, chatLocation: .peer(id: params.peerId), buttons: [.standalone], initialButton: .standalone, fromMenu: params.fromMenu, hasTextInput: false, makeEntityInputView: {
+        return nil
+    })
     controller.getInputContainerNode = getInputContainerNode
     controller.requestController = { _, present in
-        let webAppController = WebAppController(context: context, updatedPresentationData: updatedPresentationData, params: params, replyToMessageId: nil)
+        let webAppController = WebAppController(context: context, updatedPresentationData: updatedPresentationData, params: params, replyToMessageId: nil, threadId: threadId)
         webAppController.openUrl = openUrl
         webAppController.completion = completion
+        webAppController.getNavigationController = getNavigationController
         present(webAppController, webAppController.mediaPickerContext)
     }
     controller.willDismiss = willDismiss
     controller.didDismiss = didDismiss
+    controller.getSourceRect = getSourceRect
     return controller
 }

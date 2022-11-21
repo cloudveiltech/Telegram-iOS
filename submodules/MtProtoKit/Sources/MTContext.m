@@ -22,7 +22,7 @@
 
 #import <MtProtoKit/MTApiEnvironment.h>
 
-#import <libkern/OSAtomic.h>
+#import <os/lock.h>
 
 #import "MTDiscoverConnectionSignals.h"
 
@@ -176,7 +176,7 @@ static MTDatacenterAuthInfoMapKeyStruct parseAuthInfoMapKeyInteger(NSNumber *key
     
     NSMutableDictionary *_periodicTasksTimerByDatacenterId;
     
-    volatile OSSpinLock _passwordEntryRequiredLock;
+    os_unfair_lock _passwordEntryRequiredLock;
     NSMutableDictionary *_passwordRequiredByDatacenterId;
     
     NSMutableDictionary *_transportSchemeDisposableByDatacenterId;
@@ -288,6 +288,21 @@ static int32_t fixedTimeDifferenceValue = 0;
         block();
     } @finally {
     }
+}
+
+static void copyKeychainKey(NSString * _Nonnull group, NSString * _Nonnull key, id<MTKeychain> _Nonnull fromKeychain, id<MTKeychain> _Nonnull toKeychain) {
+    id value = [fromKeychain objectForKey:key group:group];
+    if (value) {
+        [toKeychain setObject:value forKey:key group:group];
+    }
+}
+
++ (void)copyAuthInfoFrom:(id<MTKeychain> _Nonnull)keychain toTempKeychain:(id<MTKeychain> _Nonnull)tempKeychain {
+    copyKeychainKey(@"temp", @"globalTimeDifference", keychain, tempKeychain);
+    copyKeychainKey(@"persistent", @"datacenterAddressSetById", keychain, tempKeychain);
+    copyKeychainKey(@"persistent", @"datacenterAuthInfoById", keychain, tempKeychain);
+    copyKeychainKey(@"ephemeral", @"datacenterPublicKeysById", keychain, tempKeychain);
+    //copyKeychainKey(@"persistent", @"authTokenById", keychain, tempKeychain);
 }
 
 - (void)cleanup
@@ -665,20 +680,20 @@ static int32_t fixedTimeDifferenceValue = 0;
 
 - (bool)isPasswordInputRequiredForDatacenterWithId:(NSInteger)datacenterId
 {
-    OSSpinLockLock(&_passwordEntryRequiredLock);
+    os_unfair_lock_lock(&_passwordEntryRequiredLock);
     bool currentValue = [_passwordRequiredByDatacenterId[@(datacenterId)] boolValue];
-    OSSpinLockUnlock(&_passwordEntryRequiredLock);
+    os_unfair_lock_unlock(&_passwordEntryRequiredLock);
     
     return currentValue;
 }
 
 - (bool)updatePasswordInputRequiredForDatacenterWithId:(NSInteger)datacenterId required:(bool)required
 {
-    OSSpinLockLock(&_passwordEntryRequiredLock);
+    os_unfair_lock_lock(&_passwordEntryRequiredLock);
     bool currentValue = [_passwordRequiredByDatacenterId[@(datacenterId)] boolValue];
     bool updated = currentValue != required;
     _passwordRequiredByDatacenterId[@(datacenterId)] = @(required);
-    OSSpinLockUnlock(&_passwordEntryRequiredLock);
+    os_unfair_lock_unlock(&_passwordEntryRequiredLock);
     
     if (updated)
     {
@@ -718,7 +733,7 @@ static int32_t fixedTimeDifferenceValue = 0;
             
             for (id<MTContextChangeListener> listener in currentListeners) {
                 if ([listener respondsToSelector:@selector(contextDatacenterTransportSchemesUpdated:datacenterId:shouldReset:)])
-                    [listener contextDatacenterTransportSchemesUpdated:self datacenterId:datacenterId shouldReset:true];
+                    [listener contextDatacenterTransportSchemesUpdated:self datacenterId:datacenterId shouldReset:false];
             }
         }
     }];
@@ -900,9 +915,33 @@ static int32_t fixedTimeDifferenceValue = 0;
         } else {
             [results addObjectsFromArray:[self _allTransportSchemesForDatacenterWithId:datacenterId]];
         }
-        MTTransportScheme *manualScheme = _datacenterManuallySelectedSchemeById[[[MTTransportSchemeKey alloc] initWithDatacenterId:datacenterId isProxy:isProxy isMedia:media]];
-        if (manualScheme != nil && ![results containsObject:manualScheme]) {
-            [results addObject:manualScheme];
+        
+        MTDatacenterAddressSet *addressSet = [self addressSetForDatacenterWithId:datacenterId];
+        if (addressSet != nil) {
+            MTTransportScheme *manualScheme = _datacenterManuallySelectedSchemeById[[[MTTransportSchemeKey alloc] initWithDatacenterId:datacenterId isProxy:isProxy isMedia:media]];
+            if (manualScheme != nil) {
+                bool addressValid = false;
+                for (MTDatacenterAddress *address in addressSet.addressList) {
+                    if ([manualScheme.address isEqualToAddress:address]) {
+                        addressValid = true;
+                        break;
+                    }
+                }
+                
+                if (addressValid) {
+                    bool found = false;
+                    for (MTTransportScheme *result in results) {
+                        if ([result isEqualToScheme:manualScheme]) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!found) {
+                        [results addObject:manualScheme];
+                    }
+                }
+            }
         }
     } synchronous:true];
     
@@ -911,6 +950,23 @@ static int32_t fixedTimeDifferenceValue = 0;
             [results removeObjectAtIndex:i];
         } else if (!media && results[i].address.preferForMedia) {
             [results removeObjectAtIndex:i];
+        }
+    }
+    
+    if (media) {
+        bool hasMedia = false;
+        for (MTTransportScheme *scheme in results) {
+            if (scheme.address.preferForMedia) {
+                hasMedia = true;
+                break;
+            }
+        }
+        if (hasMedia) {
+            for (int i = (int)(results.count - 1); i >= 0; i--) {
+                if (!results[i].address.preferForMedia) {
+                    [results removeObjectAtIndex:i];
+                }
+            }
         }
     }
     

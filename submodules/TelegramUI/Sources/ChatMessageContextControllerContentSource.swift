@@ -3,7 +3,23 @@ import UIKit
 import Display
 import ContextUI
 import Postbox
+import TelegramCore
 import SwiftSignalKit
+ 
+final class ChatMessageContextLocationContentSource: ContextLocationContentSource {
+    private let controller: ViewController
+    private let location: CGPoint
+    
+    init(controller: ViewController, location: CGPoint) {
+        self.controller = controller
+        self.location = location
+    }
+    
+    func transitionInfo() -> ContextControllerLocationViewInfo? {
+        return ContextControllerLocationViewInfo(location: self.location, contentAreaInScreenSpace: UIScreen.main.bounds)
+    }
+}
+
 
 final class ChatMessageContextExtractedContentSource: ContextExtractedContentSource {
     let keepInPlace: Bool = false
@@ -11,7 +27,7 @@ final class ChatMessageContextExtractedContentSource: ContextExtractedContentSou
     let blurBackground: Bool = true
     
     private weak var chatNode: ChatControllerNode?
-    private let postbox: Postbox
+    private let engine: TelegramEngine
     private let message: Message
     private let selectAll: Bool
     
@@ -19,24 +35,21 @@ final class ChatMessageContextExtractedContentSource: ContextExtractedContentSou
         if self.message.adAttribute != nil {
             return .single(false)
         }
-        let viewKey = PostboxViewKey.messages(Set([self.message.id]))
-        return self.postbox.combinedView(keys: [viewKey])
-        |> map { views -> Bool in
-            guard let view = views.views[viewKey] as? MessagesView else {
+    
+        return self.engine.data.subscribe(TelegramEngine.EngineData.Item.Messages.Message(id: self.message.id))
+        |> map { message -> Bool in
+            if let _ = message {
                 return false
-            }
-            if view.messages.isEmpty {
-                return true
             } else {
-                return false
+                return true
             }
         }
         |> distinctUntilChanged
     }
     
-    init(chatNode: ChatControllerNode, postbox: Postbox, message: Message, selectAll: Bool) {
+    init(chatNode: ChatControllerNode, engine: TelegramEngine, message: Message, selectAll: Bool) {
         self.chatNode = chatNode
-        self.postbox = postbox
+        self.engine = engine
         self.message = message
         self.selectAll = selectAll
     }
@@ -55,7 +68,7 @@ final class ChatMessageContextExtractedContentSource: ContextExtractedContentSou
                 return
             }
             if item.content.contains(where: { $0.0.stableId == self.message.stableId }), let contentNode = itemNode.getMessageContextSourceNode(stableId: self.selectAll ? nil : self.message.stableId) {
-                result = ContextControllerTakeViewInfo(contentContainingNode: contentNode, contentAreaInScreenSpace: chatNode.convert(chatNode.frameForVisibleArea(), to: nil))
+                result = ContextControllerTakeViewInfo(containingItem: .node(contentNode), contentAreaInScreenSpace: chatNode.convert(chatNode.frameForVisibleArea(), to: nil))
             }
         }
         return result
@@ -86,37 +99,34 @@ final class ChatMessageReactionContextExtractedContentSource: ContextExtractedCo
     let keepInPlace: Bool = false
     let ignoreContentTouches: Bool = true
     let blurBackground: Bool = true
-    let centerActionsHorizontally: Bool = true
+    let actionsHorizontalAlignment: ContextActionsHorizontalAlignment = .center
     
     private weak var chatNode: ChatControllerNode?
-    private let postbox: Postbox
+    private let engine: TelegramEngine
     private let message: Message
-    private let contentNode: ContextExtractedContentContainingNode
+    private let contentView: ContextExtractedContentContainingView
     
     var shouldBeDismissed: Signal<Bool, NoError> {
         if self.message.adAttribute != nil {
             return .single(false)
         }
-        let viewKey = PostboxViewKey.messages(Set([self.message.id]))
-        return self.postbox.combinedView(keys: [viewKey])
-        |> map { views -> Bool in
-            guard let view = views.views[viewKey] as? MessagesView else {
+        
+        return self.engine.data.subscribe(TelegramEngine.EngineData.Item.Messages.Message(id: self.message.id))
+        |> map { message -> Bool in
+            if let _ = message {
                 return false
-            }
-            if view.messages.isEmpty {
-                return true
             } else {
-                return false
+                return true
             }
         }
         |> distinctUntilChanged
     }
     
-    init(chatNode: ChatControllerNode, postbox: Postbox, message: Message, contentNode: ContextExtractedContentContainingNode) {
+    init(chatNode: ChatControllerNode, engine: TelegramEngine, message: Message, contentView: ContextExtractedContentContainingView) {
         self.chatNode = chatNode
-        self.postbox = postbox
+        self.engine = engine
         self.message = message
-        self.contentNode = contentNode
+        self.contentView = contentView
     }
     
     func takeView() -> ContextControllerTakeViewInfo? {
@@ -133,7 +143,7 @@ final class ChatMessageReactionContextExtractedContentSource: ContextExtractedCo
                 return
             }
             if item.content.contains(where: { $0.0.stableId == self.message.stableId }) {
-                result = ContextControllerTakeViewInfo(contentContainingNode: self.contentNode, contentAreaInScreenSpace: chatNode.convert(chatNode.frameForVisibleArea(), to: nil))
+                result = ContextControllerTakeViewInfo(containingItem: .view(self.contentView), contentAreaInScreenSpace: chatNode.convert(chatNode.frameForVisibleArea(), to: nil))
             }
         }
         return result
@@ -164,7 +174,7 @@ final class ChatMessageNavigationButtonContextExtractedContentSource: ContextExt
     let keepInPlace: Bool = false
     let ignoreContentTouches: Bool = true
     let blurBackground: Bool = true
-    let centerActionsHorizontally: Bool = true
+    let actionsHorizontalAlignment: ContextActionsHorizontalAlignment = .center
     
     private weak var chatNode: ChatControllerNode?
     private let contentNode: ContextExtractedContentContainingNode
@@ -183,7 +193,7 @@ final class ChatMessageNavigationButtonContextExtractedContentSource: ContextExt
             return nil
         }
         
-        return ContextControllerTakeViewInfo(contentContainingNode: self.contentNode, contentAreaInScreenSpace: chatNode.convert(chatNode.frameForVisibleArea(), to: nil))
+        return ContextControllerTakeViewInfo(containingItem: .node(self.contentNode), contentAreaInScreenSpace: chatNode.convert(chatNode.frameForVisibleArea(), to: nil))
     }
     
     func putBack() -> ContextControllerPutBackViewInfo? {

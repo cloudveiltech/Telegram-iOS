@@ -11,6 +11,7 @@ import TelegramVoip
 import TelegramUIPreferences
 import AccountContext
 import CallKit
+import PhoneNumberFormat
 
 private func callKitIntegrationIfEnabled(_ integration: CallKitIntegration?, settings: VoiceCallSettings?) -> CallKitIntegration?  {
     let enabled = settings?.enableSystemIntegration ?? true
@@ -128,16 +129,16 @@ public final class PresentationCallManagerImpl: PresentationCallManager {
         self.isMediaPlaying = isMediaPlaying
         self.resumeMediaPlayback = resumeMediaPlayback
         
-        var startCallImpl: ((AccountContext, UUID, String, Bool) -> Signal<Bool, NoError>)?
+        var startCallImpl: ((AccountContext, UUID, EnginePeer.Id?, String, Bool) -> Signal<Bool, NoError>)?
         var answerCallImpl: ((UUID) -> Void)?
         var endCallImpl: ((UUID) -> Signal<Bool, NoError>)?
         var setCallMutedImpl: ((UUID, Bool) -> Void)?
         var audioSessionActivationChangedImpl: ((Bool) -> Void)?
         
         self.callKitIntegration = CallKitIntegration.shared
-        self.callKitIntegration?.setup(startCall: { context, uuid, handle, isVideo in
+        self.callKitIntegration?.setup(startCall: { context, uuid, maybePeerId, handle, isVideo in
             if let startCallImpl = startCallImpl {
-                return startCallImpl(context, uuid, handle, isVideo)
+                return startCallImpl(context, uuid, maybePeerId, handle, isVideo)
             } else {
                 return .single(false)
             }
@@ -194,9 +195,13 @@ public final class PresentationCallManagerImpl: PresentationCallManager {
                 return .single(([], enableCallKit && enabledMicrophoneAccess))
             } else {
                 return combineLatest(ringingStatesByAccount.map { context, state, networkType -> Signal<(AccountContext, Peer, CallSessionRingingState, Bool, NetworkType)?, NoError> in
-                    return context.account.postbox.transaction { transaction -> (AccountContext, Peer, CallSessionRingingState, Bool, NetworkType)? in
-                        if let peer = transaction.getPeer(state.peerId) {
-                            return (context, peer, state, transaction.isPeerContact(peerId: state.peerId), networkType)
+                    return context.engine.data.get(
+                        TelegramEngine.EngineData.Item.Peer.Peer(id: state.peerId),
+                        TelegramEngine.EngineData.Item.Peer.IsContact(id: state.peerId)
+                    )
+                    |> map { peer, isContact -> (AccountContext, Peer, CallSessionRingingState, Bool, NetworkType)? in
+                        if let peer = peer {
+                            return (context, peer._asPeer(), state, isContact, networkType)
                         } else {
                             return nil
                         }
@@ -211,15 +216,25 @@ public final class PresentationCallManagerImpl: PresentationCallManager {
             self?.ringingStatesUpdated(ringingStates, enableCallKit: enableCallKit)
         })
         
-        startCallImpl = { [weak self] context, uuid, handle, isVideo in
-            if let strongSelf = self, let userId = Int64(handle) {
-                return strongSelf.startCall(context: context, peerId: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(userId)), isVideo: isVideo, internalId: uuid)
-                |> take(1)
-                |> map { result -> Bool in
-                    return result
-                }
-            } else {
+        startCallImpl = { [weak self] context, uuid, maybePeerId, handle, isVideo in
+            guard let strongSelf = self else {
                 return .single(false)
+            }
+            
+            var peerId: PeerId?
+            if let maybePeerId = maybePeerId {
+                peerId = maybePeerId
+            } else if let userId = Int64(handle) {
+                peerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(userId))
+            }
+            guard let peerId = peerId else {
+                return .single(false)
+            }
+            
+            return strongSelf.startCall(context: context, peerId: peerId, isVideo: isVideo, internalId: uuid)
+            |> take(1)
+            |> map { result -> Bool in
+                return result
             }
         }
         
@@ -283,14 +298,13 @@ public final class PresentationCallManagerImpl: PresentationCallManager {
     private func ringingStatesUpdated(_ ringingStates: [(AccountContext, Peer, CallSessionRingingState, Bool, NetworkType)], enableCallKit: Bool) {
         if let firstState = ringingStates.first {
             if self.currentCall == nil && self.currentGroupCall == nil {
-                self.currentCallDisposable.set((combineLatest(firstState.0.account.postbox.preferencesView(keys: [PreferencesKeys.voipConfiguration, ApplicationSpecificPreferencesKeys.voipDerivedState, PreferencesKeys.appConfiguration]) |> take(1), accountManager.sharedData(keys: [SharedDataKeys.autodownloadSettings, ApplicationSpecificSharedDataKeys.experimentalUISettings]) |> take(1))
+                self.currentCallDisposable.set((combineLatest(firstState.0.account.postbox.preferencesView(keys: [PreferencesKeys.voipConfiguration, PreferencesKeys.appConfiguration]) |> take(1), accountManager.sharedData(keys: [SharedDataKeys.autodownloadSettings, ApplicationSpecificSharedDataKeys.experimentalUISettings]) |> take(1))
                 |> deliverOnMainQueue).start(next: { [weak self] preferences, sharedData in
                     guard let strongSelf = self else {
                         return
                     }
                     
                     let configuration = preferences.values[PreferencesKeys.voipConfiguration]?.get(VoipConfiguration.self) ?? .defaultValue
-                    let derivedState = preferences.values[ApplicationSpecificPreferencesKeys.voipDerivedState]?.get(VoipDerivedState.self) ?? .default
                     let autodownloadSettings = sharedData.entries[SharedDataKeys.autodownloadSettings]?.get(AutodownloadSettings.self) ?? .defaultSettings
                     let experimentalSettings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
                     let appConfiguration = preferences.values[PreferencesKeys.appConfiguration]?.get(AppConfiguration.self) ?? AppConfiguration.defaultValue
@@ -302,7 +316,6 @@ public final class PresentationCallManagerImpl: PresentationCallManager {
                         callKitIntegration: enableCallKit ? callKitIntegrationIfEnabled(strongSelf.callKitIntegration, settings: strongSelf.callSettings) : nil,
                         serializedData: configuration.serializedData,
                         dataSaving: effectiveDataSaving(for: strongSelf.callSettings, autodownloadSettings: autodownloadSettings),
-                        derivedState: derivedState,
                         getDeviceAccessData: strongSelf.getDeviceAccessData,
                         initialState: nil,
                         internalId: firstState.2.id,
@@ -396,19 +409,39 @@ public final class PresentationCallManagerImpl: PresentationCallManager {
                 |> runOn(Queue.mainQueue())
                 let postbox = context.account.postbox
                 strongSelf.startCallDisposable.set((accessEnabledSignal
-                |> mapToSignal { accessEnabled -> Signal<Peer?, NoError> in
+                |> mapToSignal { accessEnabled -> Signal<(Peer?, String?), NoError> in
                     if !accessEnabled {
-                        return .single(nil)
+                        return .single((nil, nil))
                     }
-                    return postbox.loadedPeerWithId(peerId)
-                    |> take(1)
-                    |> map(Optional.init)
+                    return postbox.transaction { transaction -> (Peer?, String?) in
+                        var foundLocalId: String?
+                        transaction.enumerateDeviceContactImportInfoItems({ _, value in
+                            if let value = value as? TelegramDeviceContactImportedData {
+                                switch value {
+                                case let .imported(data, _, importedPeerId):
+                                    if importedPeerId == peerId {
+                                        foundLocalId = data.localIdentifiers.first
+                                        return false
+                                    }
+                                default:
+                                    break
+                                }
+                            }
+                            return true
+                        })
+                        
+                        return (transaction.getPeer(peerId), foundLocalId)
+                    }
                 }
-                |> deliverOnMainQueue).start(next: { peer in
+                |> deliverOnMainQueue).start(next: { peer, localContactId in
                     guard let strongSelf = self, let peer = peer else {
                         return
                     }
-                    strongSelf.callKitIntegration?.startCall(context: context, peerId: peerId, isVideo: isVideo, displayTitle: peer.debugDisplayTitle)
+                    var phoneNumber: String?
+                    if let peer = peer as? TelegramUser, let phone = peer.phone {
+                        phoneNumber = formatPhoneNumber(phone)
+                    }
+                    strongSelf.callKitIntegration?.startCall(context: context, peerId: peerId, phoneNumber: phoneNumber, localContactId: localContactId, isVideo: isVideo, displayTitle: peer.debugDisplayTitle)
                 }))
             }
             if let currentCall = self.currentCall {
@@ -493,61 +526,30 @@ public final class PresentationCallManagerImpl: PresentationCallManager {
                 return .single(false)
             }
             
-            let request = context.account.postbox.transaction { transaction -> (VideoCallsConfiguration, CachedUserData?) in
-                let appConfiguration: AppConfiguration = transaction.getPreferencesEntry(key: PreferencesKeys.appConfiguration)?.get(AppConfiguration.self) ?? AppConfiguration.defaultValue
-                return (VideoCallsConfiguration(appConfiguration: appConfiguration), transaction.getPeerCachedData(peerId: peerId) as? CachedUserData)
-            }
-            |> mapToSignal { callsConfiguration, cachedUserData -> Signal<CallSessionInternalId, NoError> in
-                var isVideoPossible: Bool
-                switch callsConfiguration.videoCallsSupport {
-                case .disabled:
-                    isVideoPossible = isVideo
-                case .full:
-                    isVideoPossible = true
-                case .onlyVideo:
-                    isVideoPossible = isVideo
-                }
-                if let cachedUserData = cachedUserData, cachedUserData.videoCallsAvailable {
-                } else {
-                    isVideoPossible = false
-                }
+            let areVideoCallsAvailable = context.engine.data.get(TelegramEngine.EngineData.Item.Peer.AreVideoCallsAvailable(id: peerId))
+            
+            let request = areVideoCallsAvailable
+            |> mapToSignal { areVideoCallsAvailable -> Signal<CallSessionInternalId, NoError> in
+                let isVideoPossible: Bool = areVideoCallsAvailable
                 
                 return context.account.callSessionManager.request(peerId: peerId, isVideo: isVideo, enableVideo: isVideoPossible, internalId: internalId)
             }
             
-            let cachedUserData = context.account.postbox.transaction { transaction -> CachedUserData? in
-                return transaction.getPeerCachedData(peerId: peerId) as? CachedUserData
-            }
-            
             return (combineLatest(queue: .mainQueue(), request, networkType |> take(1), context.account.postbox.peerView(id: peerId) |> map { peerView -> Bool in
                 return peerView.peerIsContact
-            } |> take(1), context.account.postbox.preferencesView(keys: [PreferencesKeys.voipConfiguration, ApplicationSpecificPreferencesKeys.voipDerivedState, PreferencesKeys.appConfiguration]) |> take(1), accountManager.sharedData(keys: [SharedDataKeys.autodownloadSettings, ApplicationSpecificSharedDataKeys.experimentalUISettings]) |> take(1), cachedUserData)
+            } |> take(1), context.account.postbox.preferencesView(keys: [PreferencesKeys.voipConfiguration, PreferencesKeys.appConfiguration]) |> take(1), accountManager.sharedData(keys: [SharedDataKeys.autodownloadSettings, ApplicationSpecificSharedDataKeys.experimentalUISettings]) |> take(1), areVideoCallsAvailable)
             |> deliverOnMainQueue
-            |> beforeNext { internalId, currentNetworkType, isContact, preferences, sharedData, cachedUserData in
+            |> beforeNext { internalId, currentNetworkType, isContact, preferences, sharedData, areVideoCallsAvailable in
                 if let strongSelf = self, accessEnabled {
                     if let currentCall = strongSelf.currentCall {
                         currentCall.rejectBusy()
                     }
                     
                     let configuration = preferences.values[PreferencesKeys.voipConfiguration]?.get(VoipConfiguration.self) ?? .defaultValue
-                    let derivedState = preferences.values[ApplicationSpecificPreferencesKeys.voipDerivedState]?.get(VoipDerivedState.self) ?? .default
                     let autodownloadSettings = sharedData.entries[SharedDataKeys.autodownloadSettings]?.get(AutodownloadSettings.self) ?? .defaultSettings
                     let appConfiguration = preferences.values[PreferencesKeys.appConfiguration]?.get(AppConfiguration.self) ?? AppConfiguration.defaultValue
                     
-                    let callsConfiguration = VideoCallsConfiguration(appConfiguration: appConfiguration)
-                    var isVideoPossible: Bool
-                    switch callsConfiguration.videoCallsSupport {
-                    case .disabled:
-                        isVideoPossible = isVideo
-                    case .full:
-                        isVideoPossible = true
-                    case .onlyVideo:
-                        isVideoPossible = isVideo
-                    }
-                    if let cachedUserData = cachedUserData, cachedUserData.videoCallsAvailable {
-                    } else {
-                        isVideoPossible = false
-                    }
+                    let isVideoPossible: Bool = areVideoCallsAvailable
                     
                     let experimentalSettings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
                     
@@ -561,7 +563,6 @@ public final class PresentationCallManagerImpl: PresentationCallManager {
                         ),
                         serializedData: configuration.serializedData,
                         dataSaving: effectiveDataSaving(for: strongSelf.callSettings, autodownloadSettings: autodownloadSettings),
-                        derivedState: derivedState,
                         getDeviceAccessData: strongSelf.getDeviceAccessData,
                         initialState: nil,
                         internalId: internalId,

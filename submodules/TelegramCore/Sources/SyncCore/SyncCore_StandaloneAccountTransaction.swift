@@ -45,6 +45,7 @@ public let telegramPostboxSeedConfiguration: SeedConfiguration = {
         messageThreadHoles: messageThreadHoles,
         existingMessageTags: MessageTags.all,
         messageTagsWithSummary: [.unseenPersonalMessage, .pinned, .video, .photo, .gif, .music, .voiceOrInstantVideo, .webPage, .file, .unseenReaction],
+        messageTagsWithThreadSummary: [.unseenPersonalMessage, .unseenReaction],
         existingGlobalMessageTags: GlobalMessageTags.all,
         peerNamespacesRequiringMessageTextIndex: [Namespaces.Peer.SecretChat],
         peerSummaryCounterTags: { peer, isContact in
@@ -65,7 +66,7 @@ public let telegramPostboxSeedConfiguration: SeedConfiguration = {
                 case .broadcast:
                     return .channel
                 case .group:
-                    if channel.username != nil {
+                    if channel.flags.contains(.isForum) {
                         return .group
                     } else {
                         return .group
@@ -74,6 +75,17 @@ public let telegramPostboxSeedConfiguration: SeedConfiguration = {
             } else {
                 assertionFailure()
                 return .nonContact
+            }
+        },
+        peerSummaryIsThreadBased: { peer in
+            if let channel = peer as? TelegramChannel {
+                if channel.flags.contains(.isForum) {
+                    return true
+                } else {
+                    return false
+                }
+            } else {
+                return false
             }
         },
         additionalChatListIndexNamespace: Namespaces.Message.Cloud,
@@ -89,7 +101,39 @@ public let telegramPostboxSeedConfiguration: SeedConfiguration = {
         },
         defaultGlobalNotificationSettings: PostboxGlobalNotificationSettings(defaultIncludePeer: { peer in
             return GlobalNotificationSettings.defaultSettings.defaultIncludePeer(peer: peer)
-        })
+        }),
+        mergeMessageAttributes: { previous, updated in
+            if previous.isEmpty {
+                return
+            }
+            var audioTranscription: AudioTranscriptionMessageAttribute?
+            for attribute in previous {
+                if let attribute = attribute as? AudioTranscriptionMessageAttribute {
+                    audioTranscription = attribute
+                    break
+                }
+            }
+            
+            if let audioTranscription = audioTranscription {
+                var found = false
+                for i in 0 ..< updated.count {
+                    if let attribute = updated[i] as? AudioTranscriptionMessageAttribute {
+                        updated[i] = attribute.merge(withPrevious: audioTranscription)
+                        found = true
+                        break
+                    }
+                }
+                if !found {
+                    updated.append(audioTranscription)
+                }
+            }
+        },
+        decodeMessageThreadInfo: { entry in
+            guard let data = entry.get(MessageHistoryThreadData.self) else {
+                return nil
+            }
+            return Message.AssociatedThreadInfo(title: data.info.title, icon: data.info.icon, iconColor: data.info.iconColor)
+        }
     )
 }()
 

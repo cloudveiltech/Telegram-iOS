@@ -132,7 +132,7 @@ private final class ChannelMemberSingleCategoryListContext: ChannelMemberCategor
                     return ranks
                 }
                 if ranks != previousRanks {
-                    let _ = updateCachedChannelAdminRanks(postbox: self.postbox, peerId: self.peerId, ranks: ranks).start()
+                    let _ = updateCachedChannelAdminRanks(engine: self.engine, peerId: self.peerId, ranks: ranks).start()
                 }
             }
         }
@@ -734,7 +734,7 @@ final class PeerChannelMemberCategoriesContext {
         let context: ChannelMemberCategoryListContext
         let emptyTimeout: Double
         switch key {
-            case .admins(nil), .banned(nil), .recentSearch(nil), .restricted(nil), .restrictedAndBanned(nil), .recent, .contacts:
+            case .admins(nil), .banned(nil), .recentSearch(""), .restricted(nil), .restrictedAndBanned(nil), .recent, .contacts:
                 emptyTimeout = defaultEmptyTimeout
             default:
                 emptyTimeout = 0.0

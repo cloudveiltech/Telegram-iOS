@@ -8,10 +8,52 @@
 //
 
 #import <AsyncDisplayKit/ASTextKitComponents.h>
+#import "ASTextKitContext.h"
 #import <AsyncDisplayKit/ASAssert.h>
 #import <AsyncDisplayKit/ASMainThreadDeallocation.h>
 
 #import <tgmath.h>
+
+@implementation ASCustomTextContainer
+
+- (CGRect)lineFragmentRectForProposedRect:(CGRect)proposedRect atIndex:(NSUInteger)characterIndex writingDirection:(NSWritingDirection)baseWritingDirection remainingRect:(nullable CGRect *)remainingRect {
+    CGRect result = [super lineFragmentRectForProposedRect:proposedRect atIndex:characterIndex writingDirection:baseWritingDirection remainingRect:remainingRect];
+    
+/*#if DEBUG
+    if (result.origin.y < 10.0f) {
+        result.size.width -= 21.0f;
+        if (result.size.width < 0.0f) {
+            result.size.width = 0.0f;
+        }
+    }
+#endif*/
+    
+    return result;
+}
+
+@end
+
+@interface ASCustomLayoutManager : NSLayoutManager
+
+@end
+
+@implementation ASCustomLayoutManager
+
+- (void)showCGGlyphs:(const CGGlyph *)glyphs positions:(const CGPoint *)positions count:(NSUInteger)glyphCount font:(UIFont *)font matrix:(CGAffineTransform)textMatrix attributes:(NSDictionary<NSAttributedStringKey,id> *)attributes inContext:(CGContextRef)graphicsContext {
+    for (NSUInteger i = 0; i < glyphCount; i++) {
+        if (attributes[@"Attribute__CustomEmoji"] != nil) {
+            continue;
+        }
+        
+        [super showCGGlyphs:&glyphs[i] positions:&positions[i] count:1 font:font matrix:textMatrix attributes:attributes inContext:graphicsContext];
+    }
+}
+
+- (void)drawGlyphsForGlyphRange:(NSRange)glyphsToShow atPoint:(CGPoint)origin {
+    [super drawGlyphsForGlyphRange:glyphsToShow atPoint:origin];
+}
+
+@end
 
 @interface ASTextKitComponentsTextView () {
   // Prevent UITextView from updating contentOffset while deallocating: https://github.com/TextureGroup/Texture/issues/860
@@ -83,7 +125,7 @@
 
   return [self componentsWithTextStorage:textStorage
                        textContainerSize:textContainerSize
-                           layoutManager:[[NSLayoutManager alloc] init]];
+                           layoutManager:[[ASCustomLayoutManager alloc] init]];
 }
 
 + (instancetype)componentsWithTextStorage:(NSTextStorage *)textStorage
@@ -97,7 +139,8 @@
   components.layoutManager = layoutManager;
   [components.textStorage addLayoutManager:components.layoutManager];
 
-  components.textContainer = [[NSTextContainer alloc] initWithSize:textContainerSize];
+  components.textContainer = [[ASCustomTextContainer alloc] initWithSize:textContainerSize];
+    //components.textContainer.exclusionPaths = @[[UIBezierPath bezierPathWithRect:CGRectMake(textContainerSize.width - 60.0, 0.0, 60.0, 40.0)]];
   components.textContainer.lineFragmentPadding = 0.0; // We want the text laid out up to the very edges of the text-view.
   [components.layoutManager addTextContainer:components.textContainer];
 
@@ -129,8 +172,10 @@
 
   // If our text-view's width is already the constrained width, we can use our existing TextKit stack for this sizing calculation.
   // Otherwise, we create a temporary stack to size for `constrainedWidth`.
+  UIEdgeInsets additionalInsets = UIEdgeInsetsZero;
   if (CGRectGetWidth(components.textView.threadSafeBounds) != constrainedWidth) {
-    components = [ASTextKitComponents componentsWithAttributedSeedString:components.textStorage textContainerSize:CGSizeMake(constrainedWidth, CGFLOAT_MAX)];
+    additionalInsets = self.textView.textContainerInset;
+    components = [ASTextKitComponents componentsWithAttributedSeedString:components.textStorage textContainerSize:CGSizeMake(constrainedWidth - additionalInsets.left - additionalInsets.right, CGFLOAT_MAX)];
   }
 
   // Force glyph generation and layout, which may not have happened yet (and isn't triggered by -usedRectForTextContainer:).

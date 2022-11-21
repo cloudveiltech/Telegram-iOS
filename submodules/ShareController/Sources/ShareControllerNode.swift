@@ -11,7 +11,7 @@ import TelegramIntents
 import ContextUI
 
 enum ShareState {
-    case preparing
+    case preparing(Bool)
     case progress(Float)
     case done
 }
@@ -59,7 +59,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
     
     var dismiss: ((Bool) -> Void)?
     var cancel: (() -> Void)?
-    var share: ((String, [PeerId], Bool, Bool) -> Signal<ShareState, NoError>)?
+    var share: ((String, [PeerId], [PeerId: Int64], Bool, Bool) -> Signal<ShareState, ShareControllerError>)?
     var shareExternal: ((Bool) -> Signal<ShareExternalState, NoError>)?
     var switchToAnotherAccount: (() -> Void)?
     var debugAction: (() -> Void)?
@@ -73,6 +73,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
     private var controllerInteraction: ShareControllerInteraction?
     
     private var peersContentNode: SharePeersContainerNode?
+    private var topicsContentNode: ShareTopicsContainerNode?
     
     private var scheduledLayoutTransitionRequestId: Int = 0
     private var scheduledLayoutTransitionRequest: (Int, ContainedViewLayoutTransition)?
@@ -233,7 +234,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
                             }
                         }))
                     ])
-                    return ContextController.Items(content: .list(items))
+                    return ContextController.Items(content: .list(items), animationCache: nil)
                 }
                 let contextController = ContextController(account: context.account, presentationData: presentationData, source: .reference(ShareContextReferenceContentSource(sourceNode: node, customPosition: CGPoint(x: 0.0, y: -116.0))), items: items, gesture: gesture)
                 contextController.immediateItemsTransitionAnimation = true
@@ -244,15 +245,28 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
         self.controllerInteraction = ShareControllerInteraction(togglePeer: { [weak self] peer, search in
             if let strongSelf = self {
                 var added = false
+                var openedTopicList = false
                 if strongSelf.controllerInteraction!.selectedPeerIds.contains(peer.peerId) {
+                    strongSelf.controllerInteraction!.selectedTopics[peer.peerId] = nil
+                    strongSelf.peersContentNode?.update()
                     strongSelf.controllerInteraction!.selectedPeerIds.remove(peer.peerId)
                     strongSelf.controllerInteraction!.selectedPeers = strongSelf.controllerInteraction!.selectedPeers.filter({ $0.peerId != peer.peerId })
                 } else {
-                    strongSelf.controllerInteraction!.selectedPeerIds.insert(peer.peerId)
-                    strongSelf.controllerInteraction!.selectedPeers.append(peer)
+                    if case let .channel(channel) = peer.peer, channel.flags.contains(.isForum) {
+                        if strongSelf.controllerInteraction!.selectedTopics[peer.peerId] != nil {
+                            strongSelf.controllerInteraction!.selectedTopics[peer.peerId] = nil
+                            strongSelf.peersContentNode?.update()
+                        } else {
+                            strongSelf.transitionToPeerTopics(peer)
+                            openedTopicList = true
+                        }
+                    } else {
+                        strongSelf.controllerInteraction!.selectedPeerIds.insert(peer.peerId)
+                        strongSelf.controllerInteraction!.selectedPeers.append(peer)
+                        added = true
+                    }
                     
                     strongSelf.contentNode?.setEnsurePeerVisibleOnLayout(peer.peerId)
-                    added = true
                 }
                 
                 if search && added {
@@ -263,12 +277,14 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
                     strongSelf.peersContentNode?.updateFoundPeers()
                 }
                 
-                strongSelf.setActionNodesHidden(strongSelf.controllerInteraction!.selectedPeers.isEmpty && strongSelf.presetText == nil, inputField: true, actions: strongSelf.defaultAction == nil)
-                
-                strongSelf.updateButton()
-                
-                strongSelf.peersContentNode?.updateSelectedPeers()
-                strongSelf.contentNode?.updateSelectedPeers()
+                if !openedTopicList {
+                    strongSelf.setActionNodesHidden(strongSelf.controllerInteraction!.selectedPeers.isEmpty && strongSelf.presetText == nil, inputField: true, actions: strongSelf.defaultAction == nil)
+                    
+                    strongSelf.updateButton()
+                    
+                    strongSelf.peersContentNode?.updateSelectedPeers(animated: true)
+                    strongSelf.contentNode?.updateSelectedPeers(animated: true)
+                }
                 
                 if let (layout, navigationBarHeight, _) = strongSelf.containerLayout {
                     strongSelf.containerLayoutUpdated(layout, navigationBarHeight: navigationBarHeight, transition: .animated(duration: 0.4, curve: .spring))
@@ -279,6 +295,27 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
                         strongSelf.transitionToContentNode(peersContentNode)
                     }
                 }
+            }
+        }, selectTopic: { [weak self] peer, threadId, threadData in
+            if let strongSelf = self {
+                strongSelf.controllerInteraction?.selectedPeers.append(peer)
+                strongSelf.controllerInteraction?.selectedPeerIds.insert(peer.peerId)
+                strongSelf.controllerInteraction?.selectedTopics[peer.peerId] = (threadId, threadData)
+                strongSelf.peersContentNode?.update()
+                
+                strongSelf.setActionNodesHidden(strongSelf.controllerInteraction!.selectedPeers.isEmpty && strongSelf.presetText == nil, inputField: true, actions: strongSelf.defaultAction == nil)
+                
+                strongSelf.peersContentNode?.updateSelectedPeers(animated: false)
+                strongSelf.updateButton()
+                
+                if let peersContentNode = strongSelf.peersContentNode, strongSelf.contentNode !== peersContentNode {
+                    strongSelf.transitionToContentNode(peersContentNode, animated: true)
+                    peersContentNode.prepareForAnimateIn()
+                }
+                                
+                Queue.mainQueue().after(0.01, {
+                    strongSelf.closePeerTopics(peer.peerId, selected: true)
+                })
             }
         })
         
@@ -324,12 +361,127 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
     deinit {
         self.shareDisposable.dispose()
     }
-    
+        
     override func didLoad() {
         super.didLoad()
         
         if #available(iOSApplicationExtension 11.0, iOS 11.0, *) {
             self.wrappingScrollNode.view.contentInsetAdjustmentBehavior = .never
+        }
+    }
+    
+    func transitionToPeerTopics(_ peer: EngineRenderedPeer) {
+        guard let context = self.context, let mainPeer = peer.chatMainPeer, let controllerInteraction = self.controllerInteraction else {
+            return
+        }
+        
+        var didPresent = false
+        var presentImpl: (() -> Void)?
+        let threads = threadList(context: context, peerId: mainPeer.id)
+        |> deliverOnMainQueue
+        |> beforeNext { _ in
+            if !didPresent {
+                didPresent = true
+                presentImpl?()
+            }
+        }
+        
+        let topicsContentNode = ShareTopicsContainerNode(
+            sharedContext: self.sharedContext,
+            context: context,
+            theme: self.presentationData.theme,
+            strings: self.presentationData.strings,
+            peer: mainPeer,
+            topics: threads,
+            controllerInteraction: controllerInteraction
+        )
+        topicsContentNode.backPressed = { [weak self] in
+            if let strongSelf = self {
+                strongSelf.closePeerTopics(peer.peerId, selected: false)
+            }
+        }
+        self.topicsContentNode = topicsContentNode
+        
+        presentImpl = { [weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            
+            strongSelf.contentNode?.supernode?.addSubnode(topicsContentNode)
+                        
+            if let (layout, navigationBarHeight, _) = strongSelf.containerLayout {
+                strongSelf.containerLayoutUpdated(layout, navigationBarHeight: navigationBarHeight, transition: .immediate)
+            }
+            
+            if let searchContentNode = strongSelf.contentNode as? ShareSearchContainerNode {
+                searchContentNode.setContentOffsetUpdated(nil)
+                let scrollDelta = topicsContentNode.contentGridNode.scrollView.contentOffset.y - searchContentNode.contentGridNode.scrollView.contentOffset.y
+                if let sourceFrame = searchContentNode.animateOut(peerId: peer.peerId, scrollDelta: scrollDelta) {
+                    topicsContentNode.animateIn(sourceFrame: sourceFrame, scrollDelta: scrollDelta)
+                }
+            } else if let peersContentNode = strongSelf.peersContentNode {
+                peersContentNode.setContentOffsetUpdated(nil)
+                let scrollDelta = topicsContentNode.contentGridNode.scrollView.contentOffset.y - peersContentNode.contentGridNode.scrollView.contentOffset.y
+                if let sourceFrame = peersContentNode.animateOut(peerId: peer.peerId, scrollDelta: scrollDelta) {
+                    topicsContentNode.animateIn(sourceFrame: sourceFrame, scrollDelta: scrollDelta)
+                }
+            }
+            
+            topicsContentNode.setContentOffsetUpdated({ [weak self] contentOffset, transition in
+                self?.contentNodeOffsetUpdated(contentOffset, transition: transition)
+            })
+            strongSelf.contentNodeOffsetUpdated(topicsContentNode.contentGridNode.scrollView.contentOffset.y, transition: .animated(duration: 0.4, curve: .spring))
+            
+            strongSelf.view.endEditing(true)
+        }
+    }
+    
+    func closePeerTopics(_ peerId: EnginePeer.Id, selected: Bool) {
+        guard let topicsContentNode = self.topicsContentNode else {
+            return
+        }
+        topicsContentNode.setContentOffsetUpdated(nil)
+                
+        if let searchContentNode = self.contentNode as? ShareSearchContainerNode {
+            topicsContentNode.supernode?.insertSubnode(topicsContentNode, belowSubnode: searchContentNode)
+        } else if let peersContentNode = self.peersContentNode {
+            topicsContentNode.supernode?.insertSubnode(topicsContentNode, belowSubnode: peersContentNode)
+        }
+                            
+        if let (layout, navigationBarHeight, _) = self.containerLayout {
+            self.containerLayoutUpdated(layout, navigationBarHeight: navigationBarHeight, transition: .animated(duration: 0.4, curve: .spring))
+        }
+
+        if let searchContentNode = self.contentNode as? ShareSearchContainerNode {
+            searchContentNode.setContentOffsetUpdated({ [weak self] contentOffset, transition in
+                self?.contentNodeOffsetUpdated(contentOffset, transition: transition)
+            })
+            self.contentNodeOffsetUpdated(searchContentNode.contentGridNode.scrollView.contentOffset.y, transition: .animated(duration: 0.4, curve: .spring))
+            
+            let scrollDelta = topicsContentNode.contentGridNode.scrollView.contentOffset.y - searchContentNode.contentGridNode.scrollView.contentOffset.y
+            if let targetFrame = searchContentNode.animateIn(peerId: peerId, scrollDelta: scrollDelta) {
+                topicsContentNode.animateOut(targetFrame: targetFrame, scrollDelta: scrollDelta, completion: { [weak self] in
+                    if let topicsContentNode = self?.topicsContentNode {
+                        topicsContentNode.removeFromSupernode()
+                        self?.topicsContentNode = nil
+                    }
+                })
+            }
+        } else if let peersContentNode = self.peersContentNode {
+            peersContentNode.setContentOffsetUpdated({ [weak self] contentOffset, transition in
+                self?.contentNodeOffsetUpdated(contentOffset, transition: transition)
+            })
+            self.contentNodeOffsetUpdated(peersContentNode.contentGridNode.scrollView.contentOffset.y, transition: .animated(duration: 0.4, curve: .spring))
+            
+            let scrollDelta = topicsContentNode.contentGridNode.scrollView.contentOffset.y - peersContentNode.contentGridNode.scrollView.contentOffset.y
+            if let targetFrame = peersContentNode.animateIn(peerId: peerId, scrollDelta: scrollDelta) {
+                topicsContentNode.animateOut(targetFrame: targetFrame, scrollDelta: scrollDelta, completion: { [weak self] in
+                    if let topicsContentNode = self?.topicsContentNode {
+                        topicsContentNode.removeFromSupernode()
+                        self?.topicsContentNode = nil
+                    }
+                })
+            }
         }
     }
     
@@ -457,7 +609,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
                     
                     if contentNode is ShareSearchContainerNode {
                         self.setActionNodesHidden(true, inputField: true, actions: true)
-                    } else if !(contentNode is ShareLoadingContainerNode) {
+                    } else if !(contentNode is ShareLoadingContainer) {
                         self.setActionNodesHidden(false, inputField: !self.controllerInteraction!.selectedPeers.isEmpty || self.presetText != nil, actions: true)
                     }
                 } else {
@@ -540,6 +692,12 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
             transition.updateFrame(node: contentNode, frame: CGRect(origin: CGPoint(x: floor((contentContainerFrame.size.width - contentFrame.size.width) / 2.0), y: titleAreaHeight), size: gridSize))
             contentNode.updateLayout(size: gridSize, isLandscape: layout.size.width > layout.size.height, bottomInset: bottomGridInset, transition: transition)
         }
+        
+        if let topicsContentNode = self.topicsContentNode {
+            transition.updateFrame(node: topicsContentNode, frame: CGRect(origin: CGPoint(x: floor((contentContainerFrame.size.width - contentFrame.size.width) / 2.0), y: titleAreaHeight), size: gridSize))
+            
+            topicsContentNode.updateLayout(size: gridSize, isLandscape: layout.size.width > layout.size.height, bottomInset: self.contentNode === self.peersContentNode ? bottomGridInset : 0.0, transition: transition)
+        }
     }
     
     private func contentNodeOffsetUpdated(_ contentOffset: CGFloat, transition: ContainedViewLayoutTransition) {
@@ -614,7 +772,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
     func send(peerId: PeerId? = nil, showNames: Bool = true, silently: Bool = false) {
         if !self.inputFieldNode.text.isEmpty {
             for peer in self.controllerInteraction!.selectedPeers {
-                if let channel = peer.peer as? TelegramChannel, channel.isRestrictedBySlowmode {
+                if case let .channel(channel) = peer.peer, channel.isRestrictedBySlowmode {
                     self.presentError(channel.title, self.presentationData.strings.Share_MultipleMessagesDisabled)
                     return
                 }
@@ -634,22 +792,41 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
         transition.updateAlpha(node: self.actionsBackgroundNode, alpha: 0.0)
         
         let peerIds: [PeerId]
+        var topicIds: [PeerId: Int64] = [:]
         if let peerId = peerId {
             peerIds = [peerId]
         } else {
             peerIds = self.controllerInteraction!.selectedPeers.map { $0.peerId }
+            topicIds = self.controllerInteraction!.selectedTopics.mapValues { $0.0 }
         }
         
         if let context = self.context {
             donateSendMessageIntent(account: context.account, sharedContext: self.sharedContext, intentContext: .share, peerIds: peerIds)
         }
         
-        if let signal = self.share?(self.inputFieldNode.text, peerIds, showNames, silently) {
+        if let signal = self.share?(self.inputFieldNode.text, peerIds, topicIds, showNames, silently) {
             var wasDone = false
             let timestamp = CACurrentMediaTime()
             let doneImpl: (Bool) -> Void = { [weak self] shouldDelay in
                 let minDelay: Double = shouldDelay ? 0.9 : 0.6
-                let delay = max(minDelay, (timestamp + minDelay) - CACurrentMediaTime())
+                let delay: Double
+                let hapticDelay: Double
+                
+                if let strongSelf = self, let contentNode = strongSelf.contentNode as? ShareProlongedLoadingContainerNode {
+                    delay = contentNode.completionDuration
+                    hapticDelay = shouldDelay ? delay - 1.5 : delay
+                } else {
+                    delay = max(minDelay, (timestamp + minDelay) - CACurrentMediaTime())
+                    hapticDelay = delay
+                }
+                         
+                Queue.mainQueue().after(hapticDelay, {
+                    if self?.hapticFeedback == nil {
+                        self?.hapticFeedback = HapticFeedback()
+                    }
+                    self?.hapticFeedback?.success()
+                })
+                
                 Queue.mainQueue().after(delay, {
                     self?.animateOut(shared: true, completion: {
                         self?.dismiss?(true)
@@ -657,9 +834,8 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
                     })
                 })
             }
-            if self.fromForeignApp {
-                self.transitionToContentNode(ShareLoadingContainerNode(theme: self.presentationData.theme, forceNativeAppearance: true), fastOut: true)
-            } else {
+            
+            if !self.fromForeignApp {
                 self.animateOut(shared: true, completion: {
                 })
                 self.completed?(peerIds)
@@ -671,6 +847,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
                     self.hapticFeedback?.success()
                 }
             }
+            var transitioned = false
             let fromForeignApp = self.fromForeignApp
             self.shareDisposable.set((signal
             |> deliverOnMainQueue).start(next: { [weak self] status in
@@ -678,12 +855,21 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
                     return
                 }
                 
+                if fromForeignApp, case let .preparing(long) = status, !transitioned {
+                    transitioned = true
+                    if long {
+                        strongSelf.transitionToContentNode(ShareProlongedLoadingContainerNode(theme: strongSelf.presentationData.theme, strings: strongSelf.presentationData.strings, forceNativeAppearance: true, account: strongSelf.context?.account, sharedContext: strongSelf.sharedContext), fastOut: true)
+                    } else {
+                        strongSelf.transitionToContentNode(ShareLoadingContainerNode(theme: strongSelf.presentationData.theme, forceNativeAppearance: true), fastOut: true)
+                    }
+                }
+                
                 if case .done = status, !fromForeignApp {
                     strongSelf.dismiss?(true)
                     return
                 }
-                
-                guard let contentNode = strongSelf.contentNode as? ShareLoadingContainerNode else {
+                                
+                guard let contentNode = strongSelf.contentNode as? ShareLoadingContainer else {
                     return
                 }
                 
@@ -696,11 +882,6 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
                         contentNode.state = .done
                         if fromForeignApp {
                             if !wasDone {
-                                if strongSelf.hapticFeedback == nil {
-                                    strongSelf.hapticFeedback = HapticFeedback()
-                                }
-                                strongSelf.hapticFeedback?.success()
-                                
                                 wasDone = true
                                 doneImpl(true)
                             }
@@ -784,7 +965,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
         }
     }
     
-    func updatePeers(context: AccountContext, switchableAccounts: [AccountWithInfo], peers: [(RenderedPeer, PeerPresence?)], accountPeer: Peer, defaultAction: ShareControllerAction?) {
+    func updatePeers(context: AccountContext, switchableAccounts: [AccountWithInfo], peers: [(EngineRenderedPeer, EnginePeer.Presence?)], accountPeer: EnginePeer, defaultAction: ShareControllerAction?) {
         self.context = context
         
         if let peersContentNode = self.peersContentNode, peersContentNode.accountPeer.id == accountPeer.id {
@@ -794,9 +975,8 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
         
         if let peerId = self.immediatePeerId {
             self.immediatePeerId = nil
-            let _ = (context.account.postbox.transaction { transaction -> RenderedPeer? in
-                return transaction.getPeer(peerId).flatMap(RenderedPeer.init(peer:))
-            } |> deliverOnMainQueue).start(next: { [weak self] peer in
+            let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.RenderedPeer(id: peerId))
+            |> deliverOnMainQueue).start(next: { [weak self] peer in
                 if let strongSelf = self, let peer = peer {
                     strongSelf.controllerInteraction?.togglePeer(peer, peer.peerId != context.account.peerId)
                 }
@@ -947,7 +1127,8 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
     }
     
     private func updateButton() {
-        if self.controllerInteraction!.selectedPeers.isEmpty {
+        let count = self.controllerInteraction!.selectedPeers.count
+        if count == 0 {
             if self.presetText != nil {
                 self.actionButtonNode.setTitle(self.presentationData.strings.ShareMenu_Send, with: Font.medium(20.0), with: self.presentationData.theme.actionSheet.disabledActionTextColor, for: .normal)
                 self.actionButtonNode.isEnabled = false
@@ -970,13 +1151,13 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
             let text: String
             if let segmentedValues = self.segmentedValues {
                 let value = segmentedValues[self.selectedSegmentedIndex]
-                text = value.formatSendTitle(self.controllerInteraction!.selectedPeers.count)
+                text = value.formatSendTitle(count)
             } else {
                 text = self.presentationData.strings.ShareMenu_Send
             }
             self.actionButtonNode.isEnabled = true
             self.actionButtonNode.setTitle(text, with: Font.medium(20.0), with: self.presentationData.theme.actionSheet.standardActionTextColor, for: .normal)
-            self.actionButtonNode.badge = "\(self.controllerInteraction!.selectedPeers.count)"
+            self.actionButtonNode.badge = "\(count)"
         }
     }
     
@@ -988,7 +1169,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
         transition.updateAlpha(node: self.actionSeparatorNode, alpha: 0.0)
         transition.updateAlpha(node: self.actionsBackgroundNode, alpha: 0.0)
         
-        self.transitionToContentNode(ShareLoadingContainerNode(theme: self.presentationData.theme, forceNativeAppearance: true), fastOut: true)
+        self.transitionToContentNode(ShareProlongedLoadingContainerNode(theme: self.presentationData.theme, strings: self.presentationData.strings, forceNativeAppearance: true, account: self.context?.account, sharedContext: self.sharedContext), fastOut: true)
         let timestamp = CACurrentMediaTime()
         self.shareDisposable.set(signal.start(completed: { [weak self] in
             let minDelay = 0.6
@@ -1003,7 +1184,7 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
         }))
     }
     
-    func transitionToProgressWithValue(signal: Signal<Float?, NoError>, dismissImmediately: Bool = false) {
+    func transitionToProgressWithValue(signal: Signal<Float?, NoError>, dismissImmediately: Bool = false, completion: @escaping () -> Void) {
         self.inputFieldNode.deactivateInput()
         
         if dismissImmediately {
@@ -1016,6 +1197,8 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
                 if let strongSelf = self {
                     strongSelf.dismiss?(true)
                 }
+                
+                completion()
             }))
         } else {
             let transition = ContainedViewLayoutTransition.animated(duration: 0.12, curve: .easeInOut)
@@ -1041,14 +1224,16 @@ final class ShareControllerNode: ViewControllerTracingNode, UIScrollViewDelegate
             }
             self.shareDisposable.set((signal
             |> deliverOnMainQueue).start(next: { [weak self] status in
-                guard let strongSelf = self, let contentNode = strongSelf.contentNode as? ShareLoadingContainerNode else {
+                guard let strongSelf = self, let contentNode = strongSelf.contentNode as? ShareLoadingContainer else {
                     return
                 }
                 if let status = status {
                     contentNode.state = .progress(status)
                 }
             }, completed: { [weak self] in
-                guard let strongSelf = self, let contentNode = strongSelf.contentNode as? ShareLoadingContainerNode else {
+                completion()
+                
+                guard let strongSelf = self, let contentNode = strongSelf.contentNode as? ShareLoadingContainer else {
                     return
                 }
                 contentNode.state = .done
@@ -1072,5 +1257,75 @@ private final class ShareContextReferenceContentSource: ContextReferenceContentS
 
     func transitionInfo() -> ContextControllerReferenceViewInfo? {
         return ContextControllerReferenceViewInfo(referenceView: self.sourceNode.view, contentAreaInScreenSpace: UIScreen.main.bounds, customPosition: self.customPosition)
+    }
+}
+
+private func threadList(context: AccountContext, peerId: EnginePeer.Id) -> Signal<EngineChatList, NoError> {
+    let viewKey: PostboxViewKey = .messageHistoryThreadIndex(
+        id: peerId,
+        summaryComponents: ChatListEntrySummaryComponents(
+            components: [:]
+        )
+    )
+
+    return context.account.postbox.combinedView(keys: [viewKey])
+    |> mapToSignal { view -> Signal<CombinedView, NoError> in
+        return context.account.postbox.transaction { transaction -> CombinedView in
+            if let peer = transaction.getPeer(context.account.peerId) {
+                transaction.updatePeersInternal([peer]) { current, _ in
+                    return current ?? peer
+                }
+            }
+            return view
+        }
+    }
+    |> map { views -> EngineChatList in
+        guard let view = views.views[viewKey] as? MessageHistoryThreadIndexView else {
+            preconditionFailure()
+        }
+        
+        var items: [EngineChatList.Item] = []
+        for item in view.items {
+            guard let peer = view.peer else {
+                continue
+            }
+            guard let data = item.info.get(MessageHistoryThreadData.self) else {
+                continue
+            }
+            
+            let pinnedIndex: EngineChatList.Item.PinnedIndex
+            if let index = item.pinnedIndex {
+                pinnedIndex = .index(index)
+            } else {
+                pinnedIndex = .none
+            }
+            
+            items.append(EngineChatList.Item(
+                id: .forum(item.id),
+                index: .forum(pinnedIndex: pinnedIndex, timestamp: item.index.timestamp, threadId: item.id, namespace: item.index.id.namespace, id: item.index.id.id),
+                messages: item.topMessage.flatMap { [EngineMessage($0)] } ?? [],
+                readCounters: nil,
+                isMuted: false,
+                draft: nil,
+                threadData: data,
+                renderedPeer: EngineRenderedPeer(peer: EnginePeer(peer)),
+                presence: nil,
+                hasUnseenMentions: false,
+                hasUnseenReactions: false,
+                forumTopicData: nil,
+                hasFailed: false,
+                isContact: false
+            ))
+        }
+        
+        let list = EngineChatList(
+            items: items,
+            groupItems: [],
+            additionalItems: [],
+            hasEarlier: false,
+            hasLater: false,
+            isLoading: view.isLoading
+        )
+        return list
     }
 }

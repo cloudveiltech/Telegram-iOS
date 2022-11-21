@@ -9,6 +9,8 @@ import MergeLists
 import AccountContext
 import ContactListUI
 import ChatListUI
+import AnimationCache
+import MultiAnimationRenderer
 
 private struct SearchResultEntry: Identifiable {
     let index: Int
@@ -66,11 +68,17 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
     
     private var presentationData: PresentationData
     
-    init(navigationBar: NavigationBar?, context: AccountContext, presentationData: PresentationData, mode: ContactMultiselectionControllerMode, options: [ContactListAdditionalOption], filters: [ContactListFilter]) {
+    private let animationCache: AnimationCache
+    private let animationRenderer: MultiAnimationRenderer
+    
+    init(navigationBar: NavigationBar?, context: AccountContext, presentationData: PresentationData, mode: ContactMultiselectionControllerMode, options: [ContactListAdditionalOption], filters: [ContactListFilter], limit: Int32?, reachedSelectionLimit: ((Int32) -> Void)?) {
         self.navigationBar = navigationBar
         
         self.context = context
         self.presentationData = presentationData
+        
+        self.animationCache = context.animationCache
+        self.animationRenderer = context.animationRenderer
         
         var placeholder: String
         var includeChatList = false
@@ -88,7 +96,11 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
         
         if case let .chatSelection(_, selectedChats, additionalCategories, chatListFilters) = mode {
             placeholder = self.presentationData.strings.ChatListFilter_AddChatsTitle
-            let chatListNode = ChatListNode(context: context, groupId: .root, previewing: false, fillPreloadItems: false, mode: .peers(filter: [.excludeSecretChats], isSelecting: true, additionalCategories: additionalCategories?.categories ?? [], chatListFilters: chatListFilters), theme: self.presentationData.theme, fontSize: self.presentationData.listsFontSize, strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, nameSortOrder: self.presentationData.nameSortOrder, nameDisplayOrder: self.presentationData.nameDisplayOrder, disableAnimations: true)
+            let chatListNode = ChatListNode(context: context, location: .chatList(groupId: .root), previewing: false, fillPreloadItems: false, mode: .peers(filter: [.excludeSecretChats], isSelecting: true, additionalCategories: additionalCategories?.categories ?? [], chatListFilters: chatListFilters), theme: self.presentationData.theme, fontSize: self.presentationData.listsFontSize, strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, nameSortOrder: self.presentationData.nameSortOrder, nameDisplayOrder: self.presentationData.nameDisplayOrder, animationCache: self.animationCache, animationRenderer: self.animationRenderer, disableAnimations: true)
+            if let limit = limit {
+                chatListNode.selectionLimit = limit
+                chatListNode.reachedSelectionLimit = reachedSelectionLimit
+            }
             chatListNode.accessibilityPageScrolledString = { row, count in
                 return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
             }
@@ -128,7 +140,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
                 self?.openPeer?(peer)
             }
         case let .chats(chatsNode):
-            chatsNode.peerSelected = { [weak self] peer, _, _, _ in
+            chatsNode.peerSelected = { [weak self] peer, _, _, _, _ in
                 self?.openPeer?(.peer(peer: peer._asPeer(), isGlobal: false, participantCount: nil))
             }
             chatsNode.additionalCategorySelected = { [weak self] id in

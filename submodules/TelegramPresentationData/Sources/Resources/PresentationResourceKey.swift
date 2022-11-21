@@ -38,6 +38,7 @@ public enum PresentationResourceKey: Int32 {
     
     case itemListDownArrow
     case itemListDisclosureArrow
+    case itemListDisclosureLocked
     case itemListCheckIcon
     case itemListSecondaryCheckIcon
     case itemListPlusIcon
@@ -85,6 +86,7 @@ public enum PresentationResourceKey: Int32 {
     case chatListBadgeBackgroundPinned
     case chatListMutedIcon
     case chatListVerifiedIcon
+    case chatListPremiumIcon
     case chatListScamRegularIcon
     case chatListScamOutgoingIcon
     case chatListScamServiceIcon
@@ -92,6 +94,8 @@ public enum PresentationResourceKey: Int32 {
     case chatListFakeOutgoingIcon
     case chatListFakeServiceIcon
     case chatListSecretIcon
+    case chatListStatusLockIcon
+    case chatListTopicArrowIcon
     case chatListRecentStatusOnlineIcon
     case chatListRecentStatusOnlineHighlightedIcon
     case chatListRecentStatusOnlinePinnedIcon
@@ -103,6 +107,7 @@ public enum PresentationResourceKey: Int32 {
 
     case chatTitleLockIcon
     case chatTitleMuteIcon
+    case chatPanelLockIcon
     
     case chatBubbleVerticalLineIncomingImage
     case chatBubbleVerticalLineOutgoingImage
@@ -164,6 +169,7 @@ public enum PresentationResourceKey: Int32 {
     case chatInputMediaPanelGridDismissImage
     case chatInputMediaPanelTrendingGifsIcon
     case chatInputMediaPanelStickersModeIcon
+    case chatInputMediaPanelPremiumIcon
     
     case chatInputButtonPanelButtonImage
     case chatInputButtonPanelButtonHighlightedImage
@@ -309,4 +315,7 @@ public enum PresentationResourceParameterKey: Hashable {
     case chatMessageCommentsArrowIcon(incoming: Bool)
     case chatMessageCommentsUnreadDotIcon(incoming: Bool)
     case chatMessageRepliesIcon(incoming: Bool)
+    
+    case chatEntityKeyboardLock(color: UInt32)
+    case chatInputMediaPanelGridDismissImage(color: UInt32)
 }

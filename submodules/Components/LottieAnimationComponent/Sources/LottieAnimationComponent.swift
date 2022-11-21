@@ -3,28 +3,38 @@ import ComponentFlow
 import Lottie
 import AppBundle
 import HierarchyTrackingLayer
+import Display
 
 public final class LottieAnimationComponent: Component {
-    public struct Animation: Equatable {
-        public var name: String
-        public var loop: Bool
-        public var isAnimating: Bool
-        public var colors: [String: UIColor]
+    public struct AnimationItem: Equatable {
+        public enum StillPosition {
+            case begin
+            case end
+        }
         
-        public init(name: String, colors: [String: UIColor], loop: Bool, isAnimating: Bool = true) {
+        public enum Mode: Equatable {
+            case still(position: StillPosition)
+            case animating(loop: Bool)
+            case animateTransitionFromPrevious
+        }
+        
+        public var name: String
+        public var mode: Mode
+        
+        public init(name: String, mode: Mode) {
             self.name = name
-            self.colors = colors
-            self.loop = loop
-            self.isAnimating = isAnimating
+            self.mode = mode
         }
     }
     
-    public let animation: Animation
+    public let animation: AnimationItem
+    public let colors: [String: UIColor]
     public let tag: AnyObject?
     public let size: CGSize?
     
-    public init(animation: Animation, tag: AnyObject? = nil, size: CGSize?) {
+    public init(animation: AnimationItem, colors: [String: UIColor], tag: AnyObject? = nil, size: CGSize?) {
         self.animation = animation
+        self.colors = colors
         self.tag = tag
         self.size = size
     }
@@ -32,6 +42,7 @@ public final class LottieAnimationComponent: Component {
     public func tagged(_ tag: AnyObject?) -> LottieAnimationComponent {
         return LottieAnimationComponent(
             animation: self.animation,
+            colors: self.colors,
             tag: tag,
             size: self.size
         )
@@ -39,6 +50,9 @@ public final class LottieAnimationComponent: Component {
 
     public static func ==(lhs: LottieAnimationComponent, rhs: LottieAnimationComponent) -> Bool {
         if lhs.animation != rhs.animation {
+            return false
+        }
+        if lhs.colors != rhs.colors {
             return false
         }
         if lhs.tag !== rhs.tag {
@@ -53,10 +67,13 @@ public final class LottieAnimationComponent: Component {
     public final class View: UIView, ComponentTaggedView {
         private var component: LottieAnimationComponent?
         
-        private var colorCallbacks: [LOTColorValueCallback] = []
-        private var animationView: LOTAnimationView?
+        //private var colorCallbacks: [LOTColorValueCallback] = []
+        private var animationView: AnimationView?
+        private var didPlayToCompletion: Bool = false
         
         private let hierarchyTrackingLayer: HierarchyTrackingLayer
+        
+        private var currentCompletion: (() -> Void)?
         
         override init(frame: CGRect) {
             self.hierarchyTrackingLayer = HierarchyTrackingLayer()
@@ -68,8 +85,10 @@ public final class LottieAnimationComponent: Component {
                 guard let strongSelf = self, let animationView = strongSelf.animationView else {
                     return
                 }
-                if animationView.loopAnimation {
-                    animationView.play()
+                if case .loop = animationView.loopMode {
+                    animationView.play { _ in
+                        self?.currentCompletion?()
+                    }
                 }
             }
         }
@@ -94,48 +113,99 @@ public final class LottieAnimationComponent: Component {
             }
 
             animationView.stop()
-            animationView.loopAnimation = false
-            animationView.play { _ in
+            animationView.loopMode = .playOnce
+            animationView.play { [weak self] _ in
+                self?.currentCompletion?()
             }
         }
         
         func update(component: LottieAnimationComponent, availableSize: CGSize, transition: Transition) -> CGSize {
+            var updatePlayback = false
+            var updateColors = false
+            
+            if let currentComponent = self.component, currentComponent.colors != component.colors {
+                updateColors = true
+            }
+            
+            var animateSize = true
+            var updateComponent = true
+            
             if self.component?.animation != component.animation {
+                if let animationView = self.animationView {
+                    if case .animateTransitionFromPrevious = component.animation.mode, !animationView.isAnimationPlaying, !self.didPlayToCompletion {
+                        updateComponent = false
+                        animationView.play { [weak self] _ in
+                            self?.currentCompletion?()
+                        }
+                    }
+                }
+                
                 if let animationView = self.animationView, animationView.isAnimationPlaying {
-                    animationView.completionBlock = { [weak self] _ in
+                    updateComponent = false
+                    self.currentCompletion = { [weak self] in
                         guard let strongSelf = self else {
                             return
                         }
+                        strongSelf.didPlayToCompletion = true
                         let _ = strongSelf.update(component: component, availableSize: availableSize, transition: transition)
                     }
-                    animationView.loopAnimation = false
+                    animationView.loopMode = .playOnce
                 } else {
                     self.component = component
                     
                     self.animationView?.removeFromSuperview()
+                    self.didPlayToCompletion = false
+                    self.currentCompletion = nil
                     
-                    if let url = getAppBundle().url(forResource: component.animation.name, withExtension: "json"), let composition = LOTComposition(filePath: url.path) {
-                        let view = LOTAnimationView(model: composition, in: getAppBundle())
-                        view.loopAnimation = component.animation.loop
+                    if let url = getAppBundle().url(forResource: component.animation.name, withExtension: "json"), let animation = Animation.filepath(url.path) {
+                        let view = AnimationView(animation: animation, configuration: LottieConfiguration(renderingEngine: .mainThread, decodingStrategy: .codable))
+                        switch component.animation.mode {
+                        case .still, .animateTransitionFromPrevious:
+                            view.loopMode = .playOnce
+                        case let .animating(loop):
+                            if loop {
+                                view.loopMode = .loop
+                            } else {
+                                view.loopMode = .playOnce
+                            }
+                        }
                         view.animationSpeed = 1.0
                         view.backgroundColor = .clear
                         view.isOpaque = false
                         
-                        for (key, value) in component.animation.colors {
-                            let colorCallback = LOTColorValueCallback(color: value.cgColor)
-                            self.colorCallbacks.append(colorCallback)
-                            view.setValueDelegate(colorCallback, for: LOTKeypath(string: "\(key).Color"))
-                        }
+                        updateColors = true
                         
                         self.animationView = view
                         self.addSubview(view)
+                        
+                        animateSize = false
+                        updatePlayback = true
                     }
                 }
             }
             
+            if updateComponent {
+                self.component = component
+            }
+            
+            if updateColors, let animationView = self.animationView {
+                if let value = component.colors["__allcolors__"] {
+                    for keypath in animationView.allKeypaths(predicate: { $0.keys.last == "Color" }) {
+                        animationView.setValueProvider(ColorValueProvider(value.lottieColorValue), keypath: AnimationKeypath(keypath: keypath))
+                    }
+                }
+                
+                for (key, value) in component.colors {
+                    if key == "__allcolors__" {
+                        continue
+                    }
+                    animationView.setValueProvider(ColorValueProvider(value.lottieColorValue), keypath: AnimationKeypath(keypath: "\(key).Color"))
+                }
+            }
+            
             var animationSize = CGSize()
-            if let animationView = self.animationView, let sceneModel = animationView.sceneModel {
-                animationSize = sceneModel.compBounds.size
+            if let animationView = self.animationView, let animation = animationView.animation {
+                animationSize = animation.size
             }
             if let customSize = component.size {
                 animationSize = customSize
@@ -144,16 +214,56 @@ public final class LottieAnimationComponent: Component {
             let size = CGSize(width: min(animationSize.width, availableSize.width), height: min(animationSize.height, availableSize.height))
             
             if let animationView = self.animationView {
-                animationView.frame = CGRect(origin: CGPoint(x: floor((size.width - animationSize.width) / 2.0), y: floor((size.height - animationSize.height) / 2.0)), size: animationSize)
+                let animationFrame = CGRect(origin: CGPoint(x: floor((size.width - animationSize.width) / 2.0), y: floor((size.height - animationSize.height) / 2.0)), size: animationSize)
                 
-                if component.animation.isAnimating {
-                    if !animationView.isAnimationPlaying {
-                        animationView.play { _ in
+                if animationView.frame != animationFrame {
+                    if !transition.animation.isImmediate && animateSize && !animationView.frame.isEmpty && animationView.frame.size != animationFrame.size {
+                        let previouosAnimationFrame = animationView.frame
+                        
+                        if let snapshotView = animationView.snapshotView(afterScreenUpdates: false) {
+                            snapshotView.frame = previouosAnimationFrame
+                            
+                            animationView.superview?.insertSubview(snapshotView, belowSubview: animationView)
+                            
+                            transition.setPosition(view: snapshotView, position: CGPoint(x: animationFrame.midX, y: animationFrame.midY))
+                            snapshotView.bounds = CGRect(origin: CGPoint(), size: animationFrame.size)
+                            let scaleFactor = previouosAnimationFrame.width / animationFrame.width
+                            transition.animateScale(view: snapshotView, from: scaleFactor, to: 1.0)
+                            snapshotView.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, removeOnCompletion: false, completion: { [weak snapshotView] _ in
+                                snapshotView?.removeFromSuperview()
+                            })
                         }
+                        
+                        transition.setPosition(view: animationView, position: CGPoint(x: animationFrame.midX, y: animationFrame.midY))
+                        transition.setBounds(view: animationView, bounds: CGRect(origin: CGPoint(), size: animationFrame.size))
+                        transition.animateSublayerScale(view: animationView, from: previouosAnimationFrame.width / animationFrame.width, to: 1.0)
+                        animationView.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.18)
+                    } else if animationView.frame.size == animationFrame.size {
+                        transition.setFrame(view: animationView, frame: animationFrame)
+                    } else {
+                        animationView.frame = animationFrame
                     }
-                } else {
-                    if animationView.isAnimationPlaying {
-                        animationView.stop()
+                }
+                
+                if updatePlayback {
+                    if case .animating = component.animation.mode {
+                        if !animationView.isAnimationPlaying {
+                            animationView.play { [weak self] _ in
+                                self?.currentCompletion?()
+                            }
+                        }
+                    } else {
+                        if case let .still(position) = component.animation.mode {
+                            switch position {
+                            case .begin:
+                                animationView.currentFrame = 0.0
+                            case .end:
+                                animationView.currentFrame = animationView.animation?.endFrame ?? 0.0
+                            }
+                        }
+                        if animationView.isAnimationPlaying {
+                            animationView.stop()
+                        }
                     }
                 }
             }

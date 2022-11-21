@@ -43,7 +43,7 @@ enum ChatHistoryEntry: Identifiable, Comparable {
     case MessageGroupEntry(MessageGroupInfo, [(Message, Bool, ChatHistoryMessageSelection, ChatMessageEntryAttributes, MessageHistoryEntryLocation?)], ChatPresentationData)
     case UnreadEntry(MessageIndex, ChatPresentationData)
     case ReplyCountEntry(MessageIndex, Bool, Int, ChatPresentationData)
-    case ChatInfoEntry(String, String, TelegramMediaImage?, ChatPresentationData)
+    case ChatInfoEntry(String, String, TelegramMediaImage?, TelegramMediaFile?, ChatPresentationData)
     case SearchEntry(PresentationTheme, PresentationStrings)
     
     var stableId: UInt64 {
@@ -78,6 +78,23 @@ enum ChatHistoryEntry: Identifiable, Comparable {
                 return message.index
             case let .MessageGroupEntry(_, messages, _):
                 return messages[messages.count - 1].0.index
+            case let .UnreadEntry(index, _):
+                return index
+            case let .ReplyCountEntry(index, _, _, _):
+                return index
+            case .ChatInfoEntry:
+                return MessageIndex.absoluteLowerBound()
+            case .SearchEntry:
+                return MessageIndex.absoluteLowerBound()
+        }
+    }
+    
+    var firstIndex: MessageIndex {
+        switch self {
+            case let .MessageEntry(message, _, _, _, _, _):
+                return message.index
+            case let .MessageGroupEntry(_, messages, _):
+                return messages[0].0.index
             case let .UnreadEntry(index, _):
                 return index
             case let .ReplyCountEntry(index, _, _, _):
@@ -201,8 +218,8 @@ enum ChatHistoryEntry: Identifiable, Comparable {
                 } else {
                     return false
                 }
-            case let .ChatInfoEntry(lhsTitle, lhsText, lhsPhoto, lhsPresentationData):
-                if case let .ChatInfoEntry(rhsTitle, rhsText, rhsPhoto, rhsPresentationData) = rhs, lhsTitle == rhsTitle, lhsText == rhsText, lhsPhoto == rhsPhoto, lhsPresentationData === rhsPresentationData {
+            case let .ChatInfoEntry(lhsTitle, lhsText, lhsPhoto, lhsVideo, lhsPresentationData):
+                if case let .ChatInfoEntry(rhsTitle, rhsText, rhsPhoto, rhsVideo, rhsPresentationData) = rhs, lhsTitle == rhsTitle, lhsText == rhsText, lhsPhoto == rhsPhoto, lhsVideo == rhsVideo, lhsPresentationData === rhsPresentationData {
                     return true
                 } else {
                     return false

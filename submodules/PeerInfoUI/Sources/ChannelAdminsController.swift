@@ -508,15 +508,16 @@ public func channelAdminsController(context: AccountContext, updatedPresentation
         let _ = (currentPeerId.get()
         |> take(1)
         |> mapToSignal { peerId in
-            context.account.postbox.transaction { transaction -> (channel: Peer?, user: Peer?) in
-                return (channel: transaction.getPeer(peerId), user: transaction.getPeer(memberId))
-            }
+            return context.engine.data.get(
+                TelegramEngine.EngineData.Item.Peer.Peer(id: peerId),
+                TelegramEngine.EngineData.Item.Peer.Peer(id: memberId)
+            )
         }
         |> deliverOnMainQueue).start(next: { peer, user in
             guard let peer = peer, let user = user else {
                 return
             }
-            presentControllerImpl?(UndoOverlayController(presentationData: context.sharedContext.currentPresentationData.with { $0 }, content: .succeed(text: presentationData.strings.Channel_OwnershipTransfer_TransferCompleted(EnginePeer(user).displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder), EnginePeer(peer).displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)).string), elevatedLayout: false, action: { _ in return false }), nil)
+            presentControllerImpl?(UndoOverlayController(presentationData: context.sharedContext.currentPresentationData.with { $0 }, content: .succeed(text: presentationData.strings.Channel_OwnershipTransfer_TransferCompleted(user.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder), peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)).string), elevatedLayout: false, action: { _ in return false }), nil)
         })
     }
     
@@ -680,7 +681,7 @@ public func channelAdminsController(context: AccountContext, updatedPresentation
                                 var peers: [PeerId: Peer] = [:]
                                 peers[creator.id] = creator
                                 peers[peer.id] = peer
-                                result.append(RenderedChannelParticipant(participant: .member(id: peer.id, invitedAt: 0, adminInfo: ChannelParticipantAdminInfo(rights: TelegramChatAdminRights(rights: .groupSpecific), promotedBy: creator.id, canBeEditedByAccountPeer: creator.id == context.account.peerId), banInfo: nil, rank: nil), peer: peer, peers: peers))
+                                result.append(RenderedChannelParticipant(participant: .member(id: peer.id, invitedAt: 0, adminInfo: ChannelParticipantAdminInfo(rights: TelegramChatAdminRights(rights: .internal_groupSpecific), promotedBy: creator.id, canBeEditedByAccountPeer: creator.id == context.account.peerId), banInfo: nil, rank: nil), peer: peer, peers: peers))
                             case .member:
                                 break
                         }

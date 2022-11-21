@@ -366,7 +366,7 @@ public final class CallListController: TelegramBaseController {
             }
             
             func takeView() -> ContextControllerTakeViewInfo? {
-                return ContextControllerTakeViewInfo(contentContainingNode: self.sourceNode, contentAreaInScreenSpace: UIScreen.main.bounds)
+                return ContextControllerTakeViewInfo(containingItem: .node(self.sourceNode), contentAreaInScreenSpace: UIScreen.main.bounds)
             }
             
             func putBack() -> ContextControllerPutBackViewInfo? {
@@ -499,7 +499,7 @@ private final class CallListTabBarContextExtractedContentSource: ContextExtracte
     let keepInPlace: Bool = true
     let ignoreContentTouches: Bool = true
     let blurBackground: Bool = true
-    let centerActionsHorizontally: Bool = true
+    let actionsHorizontalAlignment: ContextActionsHorizontalAlignment = .center
     
     private let controller: ViewController
     private let sourceNode: ContextExtractedContentContainingNode
@@ -510,7 +510,7 @@ private final class CallListTabBarContextExtractedContentSource: ContextExtracte
     }
     
     func takeView() -> ContextControllerTakeViewInfo? {
-        return ContextControllerTakeViewInfo(contentContainingNode: self.sourceNode, contentAreaInScreenSpace: UIScreen.main.bounds)
+        return ContextControllerTakeViewInfo(containingItem: .node(self.sourceNode), contentAreaInScreenSpace: UIScreen.main.bounds)
     }
     
     func putBack() -> ContextControllerPutBackViewInfo? {

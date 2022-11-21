@@ -437,6 +437,7 @@ private struct NotificationContent: CustomStringConvertible {
     var category: String?
     var userInfo: [AnyHashable: Any] = [:]
     var attachments: [UNNotificationAttachment] = []
+    var silent = false
 
     var senderPerson: INPerson?
     var senderImage: INImage?
@@ -463,21 +464,29 @@ private struct NotificationContent: CustomStringConvertible {
         return string
     }
 
-    mutating func addSenderInfo(mediaBox: MediaBox, accountPeerId: PeerId, peer: Peer) {
+    mutating func addSenderInfo(mediaBox: MediaBox, accountPeerId: PeerId, peer: Peer, topicTitle: String?, contactIdentifier: String?) {
         if #available(iOS 15.0, *) {
             let image = peerAvatar(mediaBox: mediaBox, accountPeerId: accountPeerId, peer: peer)
 
             self.senderImage = image
 
+            var displayName: String = peer.debugDisplayTitle
+            if let topicTitle {
+                displayName = "\(topicTitle) (\(displayName))"
+            }
+            if self.silent {
+                displayName = "\(displayName) 🔕"
+            }
+            
             var personNameComponents = PersonNameComponents()
-            personNameComponents.nickname = peer.debugDisplayTitle
-
+            personNameComponents.nickname = displayName
+            
             self.senderPerson = INPerson(
                 personHandle: INPersonHandle(value: "\(peer.id.toInt64())", type: .unknown),
                 nameComponents: personNameComponents,
-                displayName: peer.debugDisplayTitle,
+                displayName: displayName,
                 image: image,
-                contactIdentifier: nil,
+                contactIdentifier: contactIdentifier,
                 customIdentifier: "\(peer.id.toInt64())",
                 isMe: false,
                 suggestionType: .none
@@ -487,9 +496,15 @@ private struct NotificationContent: CustomStringConvertible {
 
     func generate() -> UNNotificationContent {
         var content = UNMutableNotificationContent()
+        
+        //Logger.shared.log("NotificationService", "Generating final content: \(self.description)")
 
         if let title = self.title {
-            content.title = title
+            if self.silent {
+                content.title = "\(title) 🔕"
+            } else {
+                content.title = title
+            }
         }
         if let subtitle = self.subtitle {
             content.subtitle = subtitle
@@ -567,6 +582,31 @@ private struct NotificationContent: CustomStringConvertible {
     }
 }
 
+private func getCurrentRenderedTotalUnreadCount(accountManager: AccountManager<TelegramAccountManagerTypes>, postbox: Postbox) -> Signal<(Int32, RenderedTotalUnreadCountType), NoError> {
+    let counters = postbox.transaction { transaction -> ChatListTotalUnreadState in
+        return transaction.getTotalUnreadState(groupId: .root)
+    }
+    return combineLatest(
+        accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.inAppNotificationSettings])
+        |> take(1),
+        counters
+    )
+    |> map { sharedData, totalReadCounters -> (Int32, RenderedTotalUnreadCountType) in
+        let inAppSettings: InAppNotificationSettings
+        if let value = sharedData.entries[ApplicationSpecificSharedDataKeys.inAppNotificationSettings]?.get(InAppNotificationSettings.self) {
+            inAppSettings = value
+        } else {
+            inAppSettings = .defaultSettings
+        }
+        let type: RenderedTotalUnreadCountType
+        switch inAppSettings.totalUnreadCountDisplayStyle {
+            case .filtered:
+                type = .filtered
+        }
+        return (totalReadCounters.count(for: inAppSettings.totalUnreadCountDisplayStyle.category, in: inAppSettings.totalUnreadCountDisplayCategory.statsType, with: inAppSettings.totalUnreadCountIncludeTags), type)
+    }
+}
+
 @available(iOSApplicationExtension 10.0, iOS 10.0, *)
 private final class NotificationServiceHandler {
     private let queue: Queue
@@ -578,6 +618,7 @@ private final class NotificationServiceHandler {
     private let pollDisposable = MetaDisposable()
 
     init?(queue: Queue, updateCurrentContent: @escaping (NotificationContent) -> Void, completed: @escaping () -> Void, payload: [AnyHashable: Any]) {
+        //debug_linker_fail_test()
         self.queue = queue
 
         let episode = String(UInt32.random(in: 0 ..< UInt32.max), radix: 16)
@@ -604,10 +645,10 @@ private final class NotificationServiceHandler {
 
         TempBox.initializeShared(basePath: rootPath, processType: "notification", launchSpecificId: Int64.random(in: Int64.min ... Int64.max))
 
-        let logsPath = rootPath + "/notification-logs"
+        let logsPath = rootPath + "/logs/notification-logs"
         let _ = try? FileManager.default.createDirectory(atPath: logsPath, withIntermediateDirectories: true, attributes: nil)
 
-        setupSharedLogger(rootPath: rootPath, path: logsPath)
+        setupSharedLogger(rootPath: logsPath, path: logsPath)
 
         initializeAccountManagement()
 
@@ -617,6 +658,24 @@ private final class NotificationServiceHandler {
 
         let deviceSpecificEncryptionParameters = BuildConfig.deviceSpecificEncryptionParameters(rootPath, baseAppBundleId: baseAppBundleId)
         self.encryptionParameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: false, key: ValueBoxEncryptionParameters.Key(data: deviceSpecificEncryptionParameters.key)!, salt: ValueBoxEncryptionParameters.Salt(data: deviceSpecificEncryptionParameters.salt)!)
+        
+        let semaphore = DispatchSemaphore(value: 0)
+        var loggingSettings = LoggingSettings.defaultSettings
+        let _ = (self.accountManager.transaction { transaction -> LoggingSettings in
+            if let value = transaction.getSharedData(SharedDataKeys.loggingSettings)?.get(LoggingSettings.self) {
+                return value
+            } else {
+                return LoggingSettings.defaultSettings
+            }
+        }).start(next: { value in
+            loggingSettings = value
+            semaphore.signal()
+        })
+        semaphore.wait()
+        
+        Logger.shared.logToFile = loggingSettings.logToFile
+        Logger.shared.logToConsole = loggingSettings.logToConsole
+        Logger.shared.redactSensitiveData = loggingSettings.redactSensitiveData
 
         let networkArguments = NetworkInitializationArguments(apiId: apiId, apiHash: apiHash, languagesCategory: languagesCategory, appVersion: appVersion, voipMaxLayer: 0, voipVersions: [], appData: .single(buildConfig.bundleData(withAppToken: nil, signatureDict: nil)), autolockDeadine: .single(nil), encryptionProvider: OpenSSLEncryptionProvider(), resolvedDeviceName: nil)
         
@@ -638,7 +697,7 @@ private final class NotificationServiceHandler {
             incomingCallMessage = "is calling you"
         }
 
-        Logger.shared.log("NotificationService \(episode)", "Begin processing payload \(payload)")
+        Logger.shared.log("NotificationService \(episode)", "Begin processing payload")
 
         guard var encryptedPayload = payload["p"] as? String else {
             Logger.shared.log("NotificationService \(episode)", "Invalid payload 1")
@@ -656,13 +715,16 @@ private final class NotificationServiceHandler {
 
         let _ = (combineLatest(queue: self.queue,
             self.accountManager.accountRecords(),
-            self.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.inAppNotificationSettings, ApplicationSpecificSharedDataKeys.voiceCallSettings])
+            self.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.inAppNotificationSettings, ApplicationSpecificSharedDataKeys.voiceCallSettings, SharedDataKeys.loggingSettings])
         )
         |> take(1)
         |> deliverOn(self.queue)).start(next: { [weak self] records, sharedData in
             var recordId: AccountRecordId?
             var isCurrentAccount: Bool = false
-            var customSoundPath: String?
+            
+            let loggingSettings = sharedData.entries[SharedDataKeys.loggingSettings]?.get(LoggingSettings.self) ?? LoggingSettings.defaultSettings
+            Logger.shared.logToFile = loggingSettings.logToFile
+            Logger.shared.logToConsole = loggingSettings.logToConsole
 
             if let keyId = notificationPayloadKeyId(data: payloadData) {
                 outer: for listRecord in records.records {
@@ -681,8 +743,6 @@ private final class NotificationServiceHandler {
             }
 
             let inAppNotificationSettings = sharedData.entries[ApplicationSpecificSharedDataKeys.inAppNotificationSettings]?.get(InAppNotificationSettings.self) ?? InAppNotificationSettings.defaultSettings
-            
-            customSoundPath = inAppNotificationSettings.customSound
             
             let voiceCallSettings: VoiceCallSettings
             if let value = sharedData.entries[ApplicationSpecificSharedDataKeys.voiceCallSettings]?.get(VoiceCallSettings.self) {
@@ -774,6 +834,7 @@ private final class NotificationServiceHandler {
                     var downloadNotificationSound: (file: TelegramMediaFile, path: String, fileName: String)?
 
                     var interactionAuthorId: PeerId?
+                    var topicTitle: String?
 
                     struct CallData {
                         var id: Int64
@@ -782,6 +843,7 @@ private final class NotificationServiceHandler {
                         var updates: String
                         var accountId: Int64
                         var peer: EnginePeer?
+                        var localContactId: String?
                     }
 
                     var callData: CallData?
@@ -837,7 +899,7 @@ private final class NotificationServiceHandler {
 
                     enum Action {
                         case logout
-                        case poll(peerId: PeerId, content: NotificationContent)
+                        case poll(peerId: PeerId, content: NotificationContent, messageId: MessageId?)
                         case deleteMessage([MessageId])
                         case readMessage(MessageId)
                         case call(CallData)
@@ -853,7 +915,7 @@ private final class NotificationServiceHandler {
                             action = .logout
                         case "MESSAGE_MUTED":
                             if let peerId = peerId {
-                                action = .poll(peerId: peerId, content: NotificationContent(isLockedMessage: nil))
+                                action = .poll(peerId: peerId, content: NotificationContent(isLockedMessage: nil), messageId: nil)
                             }
                         case "MESSAGE_DELETED":
                             if let peerId = peerId {
@@ -884,7 +946,16 @@ private final class NotificationServiceHandler {
                         if let aps = payloadJson["aps"] as? [String: Any], let peerId = peerId {
                             var content: NotificationContent = NotificationContent(isLockedMessage: isLockedMessage)
                             if let alert = aps["alert"] as? [String: Any] {
-                                content.title = alert["title"] as? String
+                                if let topicTitleValue = payloadJson["topic_title"] as? String {
+                                    topicTitle = topicTitleValue
+                                    if let title = alert["title"] as? String {
+                                        content.title = "\(topicTitleValue) (\(title))"
+                                    } else {
+                                        content.title = topicTitleValue
+                                    }
+                                } else {
+                                    content.title = alert["title"] as? String
+                                }
                                 content.subtitle = alert["subtitle"] as? String
                                 content.body = alert["body"] as? String
                             } else if let alert = aps["alert"] as? String {
@@ -894,9 +965,12 @@ private final class NotificationServiceHandler {
                                 return
                             }
 
+                            var messageIdValue: MessageId?
                             if let messageId = messageId {
                                 content.userInfo["msg_id"] = "\(messageId)"
                                 interactionAuthorId = peerId
+                                
+                                messageIdValue = MessageId(peerId: peerId, namespace: Namespaces.Message.Cloud, id: messageId)
                             }
 
                             if peerId.namespace == Namespaces.Peer.CloudUser {
@@ -912,9 +986,7 @@ private final class NotificationServiceHandler {
 
                             if let silentString = payloadJson["silent"] as? String {
                                 if let silentValue = Int(silentString), silentValue != 0 {
-                                    if let title = content.title {
-                                        content.title = "\(title) 🔕"
-                                    }
+                                    content.silent = true
                                 }
                             }
                             if var attachmentDataString = payloadJson["attachb64"] as? String {
@@ -930,6 +1002,12 @@ private final class NotificationServiceHandler {
 
                             if let threadId = aps["thread-id"] as? String {
                                 content.threadId = threadId
+                            }
+                            if let topicIdValue = payloadJson["topic_id"] as? String, let topicId = Int(topicIdValue) {
+                                if let threadId = content.threadId {
+                                    content.threadId = "\(threadId):\(topicId)"
+                                }
+                                content.userInfo["threadId"] = Int32(clamping: topicId)
                             }
 
                             if let ringtoneString = aps["ringtone"] as? String, let fileId = Int64(ringtoneString) {
@@ -987,7 +1065,7 @@ private final class NotificationServiceHandler {
                                 }
                             }*/
 
-                            action = .poll(peerId: peerId, content: content)
+                            action = .poll(peerId: peerId, content: content, messageId: messageIdValue)
 
                             updateCurrentContent(content)
                         }
@@ -996,35 +1074,51 @@ private final class NotificationServiceHandler {
                     if let action = action {
                         switch action {
                         case let .call(callData):
-                            let voipPayload: [AnyHashable: Any] = [
-                                "call_id": "\(callData.id)",
-                                "call_ah": "\(callData.accessHash)",
-                                "from_id": "\(callData.fromId.id._internalGetInt64Value())",
-                                "updates": callData.updates,
-                                "accountId": "\(callData.accountId)"
-                            ]
-
-                            if #available(iOS 14.5, *), voiceCallSettings.enableSystemIntegration {
-                                Logger.shared.log("NotificationService \(episode)", "Will report voip notification")
+                            if let stateManager = strongSelf.stateManager {
                                 let content = NotificationContent(isLockedMessage: nil)
                                 updateCurrentContent(content)
                                 
-                                CXProvider.reportNewIncomingVoIPPushPayload(voipPayload, completion: { error in
-                                    Logger.shared.log("NotificationService \(episode)", "Did report voip notification, error: \(String(describing: error))")
+                                let _ = (stateManager.postbox.transaction { transaction -> String? in
+                                    if let peer = transaction.getPeer(callData.fromId) as? TelegramUser {
+                                        return peer.phone
+                                    } else {
+                                        return nil
+                                    }
+                                }).start(next: { phoneNumber in
+                                    var voipPayload: [AnyHashable: Any] = [
+                                        "call_id": "\(callData.id)",
+                                        "call_ah": "\(callData.accessHash)",
+                                        "from_id": "\(callData.fromId.id._internalGetInt64Value())",
+                                        "updates": callData.updates,
+                                        "accountId": "\(callData.accountId)"
+                                    ]
+                                    if let phoneNumber = phoneNumber {
+                                        voipPayload["phoneNumber"] = phoneNumber
+                                    }
 
-                                    completed()
+                                    if #available(iOS 14.5, *), voiceCallSettings.enableSystemIntegration {
+                                        Logger.shared.log("NotificationService \(episode)", "Will report voip notification")
+                                        let content = NotificationContent(isLockedMessage: nil)
+                                        updateCurrentContent(content)
+                                        
+                                        CXProvider.reportNewIncomingVoIPPushPayload(voipPayload, completion: { error in
+                                            Logger.shared.log("NotificationService \(episode)", "Did report voip notification, error: \(String(describing: error))")
+
+                                            completed()
+                                        })
+                                    } else {
+                                        var content = NotificationContent(isLockedMessage: nil)
+                                        if let peer = callData.peer {
+                                            content.title = peer.debugDisplayTitle
+                                            content.body = incomingCallMessage
+                                        } else {
+                                            content.body = "Incoming Call"
+                                        }
+                                        
+                                        updateCurrentContent(content)
+                                        completed()
+                                    }
                                 })
-                            } else {
-                                var content = NotificationContent(isLockedMessage: nil)
-                                if let peer = callData.peer {
-                                    content.title = peer.debugDisplayTitle
-                                    content.body = incomingCallMessage
-                                } else {
-                                    content.body = "Incoming Call"
-                                }
-                                
-                                updateCurrentContent(content)
-                                completed()
                             }
                         case .logout:
                             Logger.shared.log("NotificationService \(episode)", "Will logout")
@@ -1032,7 +1126,7 @@ private final class NotificationServiceHandler {
                             let content = NotificationContent(isLockedMessage: nil)
                             updateCurrentContent(content)
                             completed()
-                        case let .poll(peerId, initialContent):
+                        case let .poll(peerId, initialContent, messageId):
                             Logger.shared.log("NotificationService \(episode)", "Will poll")
                             if let stateManager = strongSelf.stateManager {
                                 let pollCompletion: (NotificationContent) -> Void = { content in
@@ -1062,7 +1156,7 @@ private final class NotificationServiceHandler {
                                             if let resource = fetchResource {
                                                 if let _ = strongSelf.stateManager?.postbox.mediaBox.completedResourcePath(resource) {
                                                 } else {
-                                                    let intervals: Signal<[(Range<Int>, MediaBoxFetchPriority)], NoError> = .single([(0 ..< Int(Int32.max), MediaBoxFetchPriority.maximum)])
+                                                    let intervals: Signal<[(Range<Int64>, MediaBoxFetchPriority)], NoError> = .single([(0 ..< Int64.max, MediaBoxFetchPriority.maximum)])
                                                     fetchMediaSignal = Signal { subscriber in
                                                         let collectedData = Atomic<Data>(value: Data())
                                                         return standaloneMultipartFetch(
@@ -1113,7 +1207,7 @@ private final class NotificationServiceHandler {
                                                 if let path = strongSelf.stateManager?.postbox.mediaBox.completedResourcePath(resource), let data = try? Data(contentsOf: URL(fileURLWithPath: path)) {
                                                     fetchNotificationSoundSignal = .single(data)
                                                 } else {
-                                                    let intervals: Signal<[(Range<Int>, MediaBoxFetchPriority)], NoError> = .single([(0 ..< Int(Int32.max), MediaBoxFetchPriority.maximum)])
+                                                    let intervals: Signal<[(Range<Int64>, MediaBoxFetchPriority)], NoError> = .single([(0 ..< Int64.max, MediaBoxFetchPriority.maximum)])
                                                     fetchNotificationSoundSignal = Signal { subscriber in
                                                         let collectedData = Atomic<Data>(value: Data())
                                                         return standaloneMultipartFetch(
@@ -1266,6 +1360,7 @@ private final class NotificationServiceHandler {
                                     Logger.shared.log("NotificationService \(episode)", "Will poll channel \(peerId)")
 
                                     pollSignal = standalonePollChannelOnce(
+                                        accountPeerId: stateManager.accountPeerId,
                                         postbox: stateManager.postbox,
                                         network: stateManager.network,
                                         peerId: peerId,
@@ -1291,12 +1386,47 @@ private final class NotificationServiceHandler {
                                 }
 
                                 let pollWithUpdatedContent: Signal<NotificationContent, NoError>
-                                if let interactionAuthorId = interactionAuthorId {
+                                if interactionAuthorId != nil || messageId != nil {
                                     pollWithUpdatedContent = stateManager.postbox.transaction { transaction -> NotificationContent in
                                         var content = initialContent
-
-                                        if inAppNotificationSettings.displayNameOnLockscreen, let peer = transaction.getPeer(interactionAuthorId) {
-                                            content.addSenderInfo(mediaBox: stateManager.postbox.mediaBox, accountPeerId: stateManager.accountPeerId, peer: peer)
+                                        
+                                        if let interactionAuthorId = interactionAuthorId {
+                                            if inAppNotificationSettings.displayNameOnLockscreen, let peer = transaction.getPeer(interactionAuthorId) {
+                                                var foundLocalId: String?
+                                                transaction.enumerateDeviceContactImportInfoItems({ _, value in
+                                                    if let value = value as? TelegramDeviceContactImportedData {
+                                                        switch value {
+                                                        case let .imported(data, _, peerId):
+                                                            if peerId == interactionAuthorId {
+                                                                foundLocalId = data.localIdentifiers.first
+                                                                return false
+                                                            }
+                                                        default:
+                                                            break
+                                                        }
+                                                    }
+                                                    return true
+                                                })
+                                                
+                                                content.addSenderInfo(mediaBox: stateManager.postbox.mediaBox, accountPeerId: stateManager.accountPeerId, peer: peer, topicTitle: topicTitle, contactIdentifier: foundLocalId)
+                                            }
+                                        }
+                                        
+                                        if let messageId = messageId {
+                                            if let readState = transaction.getCombinedPeerReadState(messageId.peerId) {
+                                                for (namespace, state) in readState.states {
+                                                    if namespace == messageId.namespace {
+                                                        switch state {
+                                                        case let .idBased(maxIncomingReadId, _, _, _, _):
+                                                            if maxIncomingReadId >= messageId.id {
+                                                                content = NotificationContent(isLockedMessage: nil)
+                                                            }
+                                                        case .indexBased:
+                                                            break
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
 
                                         return content

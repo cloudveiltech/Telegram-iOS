@@ -3,13 +3,10 @@ import Postbox
 import TelegramApi
 import SwiftSignalKit
 
-
 public enum RecentPeers {
     case peers([Peer])
     case disabled
 }
-
-private let collectionSpec = ItemCacheCollectionSpec(lowWaterItemCount: 1, highWaterItemCount: 1)
 
 private func cachedRecentPeersEntryId() -> ItemCacheEntryId {
     return ItemCacheEntryId(collectionId: 101, key: CachedRecentPeers.cacheKey())
@@ -69,26 +66,24 @@ func _internal_managedUpdatedRecentPeers(accountPeerId: PeerId, postbox: Postbox
             switch result {
                 case let .topPeers(_, _, users):
                     var peers: [Peer] = []
-                    var peerPresences: [PeerId: PeerPresence] = [:]
+                    var peerPresences: [PeerId: Api.User] = [:]
                     for user in users {
                         let telegramUser = TelegramUser(user: user)
                         peers.append(telegramUser)
-                        if let presence = TelegramUserPresence(apiUser: user) {
-                            peerPresences[telegramUser.id] = presence
-                        }
+                        peerPresences[telegramUser.id] = user
                     }
                     updatePeers(transaction: transaction, peers: peers, update: { return $1 })
                     
                     updatePeerPresences(transaction: transaction, accountPeerId: accountPeerId, peerPresences: peerPresences)
 
                     if let entry = CodableEntry(CachedRecentPeers(enabled: true, ids: peers.map { $0.id })) {
-                        transaction.putItemCacheEntry(id: cachedRecentPeersEntryId(), entry: entry, collectionSpec: collectionSpec)
+                        transaction.putItemCacheEntry(id: cachedRecentPeersEntryId(), entry: entry)
                     }
                 case .topPeersNotModified:
                     break
                 case .topPeersDisabled:
                     if let entry = CodableEntry(CachedRecentPeers(enabled: false, ids: [])) {
-                        transaction.putItemCacheEntry(id: cachedRecentPeersEntryId(), entry: entry, collectionSpec: collectionSpec)
+                        transaction.putItemCacheEntry(id: cachedRecentPeersEntryId(), entry: entry)
                     }
             }
         }
@@ -109,7 +104,7 @@ func _internal_removeRecentPeer(account: Account, peerId: PeerId) -> Signal<Void
             var updatedIds = entry.ids
             updatedIds.remove(at: index)
             if let entry = CodableEntry(CachedRecentPeers(enabled: entry.enabled, ids: updatedIds)) {
-                transaction.putItemCacheEntry(id: cachedRecentPeersEntryId(), entry: entry, collectionSpec: collectionSpec)
+                transaction.putItemCacheEntry(id: cachedRecentPeersEntryId(), entry: entry)
             }
         }
         if let peer = transaction.getPeer(peerId), let apiPeer = apiInputPeer(peer) {
@@ -145,12 +140,12 @@ func _internal_updateRecentPeersEnabled(postbox: Postbox, network: Network, enab
             return postbox.transaction { transaction -> Void in
                 if !enabled {
                     if let entry = CodableEntry(CachedRecentPeers(enabled: false, ids: [])) {
-                        transaction.putItemCacheEntry(id: cachedRecentPeersEntryId(), entry: entry, collectionSpec: collectionSpec)
+                        transaction.putItemCacheEntry(id: cachedRecentPeersEntryId(), entry: entry)
                     }
                 } else {
                     let entry = transaction.retrieveItemCacheEntry(id: cachedRecentPeersEntryId())?.get(CachedRecentPeers.self)
                     if let codableEntry = CodableEntry(CachedRecentPeers(enabled: true, ids: entry?.ids ?? [])) {
-                        transaction.putItemCacheEntry(id: cachedRecentPeersEntryId(), entry: codableEntry, collectionSpec: collectionSpec)
+                        transaction.putItemCacheEntry(id: cachedRecentPeersEntryId(), entry: codableEntry)
                     }
                 }
             }
@@ -161,19 +156,17 @@ func _internal_updateRecentPeersEnabled(postbox: Postbox, network: Network, enab
 func _internal_managedRecentlyUsedInlineBots(postbox: Postbox, network: Network, accountPeerId: PeerId) -> Signal<Void, NoError> {
     let remotePeers = network.request(Api.functions.contacts.getTopPeers(flags: 1 << 2, offset: 0, limit: 16, hash: 0))
         |> retryRequest
-        |> map { result -> ([Peer], [PeerId: PeerPresence], [(PeerId, Double)])? in
+        |> map { result -> ([Peer], [PeerId: Api.User], [(PeerId, Double)])? in
             switch result {
                 case .topPeersDisabled:
                     break
                 case let .topPeers(categories, _, users):
                     var peers: [Peer] = []
-                    var peerPresences: [PeerId: PeerPresence] = [:]
+                    var peerPresences: [PeerId: Api.User] = [:]
                     for user in users {
                         let telegramUser = TelegramUser(user: user)
                         peers.append(telegramUser)
-                        if let presence = TelegramUserPresence(apiUser: user) {
-                            peerPresences[telegramUser.id] = presence
-                        }
+                        peerPresences[telegramUser.id] = user
                     }
                     var peersWithRating: [(PeerId, Double)] = []
                     for category in categories {

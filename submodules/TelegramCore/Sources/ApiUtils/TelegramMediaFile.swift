@@ -50,18 +50,26 @@ public extension TelegramMediaFile {
 extension StickerPackReference {
     init?(apiInputSet: Api.InputStickerSet) {
         switch apiInputSet {
-            case .inputStickerSetEmpty:
-                return nil
-            case let .inputStickerSetID(id, accessHash):
-                self = .id(id: id, accessHash: accessHash)
-            case let .inputStickerSetShortName(shortName):
-                self = .name(shortName)
-            case .inputStickerSetAnimatedEmoji:
-                self = .animatedEmoji
-            case let .inputStickerSetDice(emoticon):
-                self = .dice(emoticon)
-            case .inputStickerSetAnimatedEmojiAnimations:
-                self = .animatedEmojiAnimations
+        case .inputStickerSetEmpty:
+            return nil
+        case let .inputStickerSetID(id, accessHash):
+            self = .id(id: id, accessHash: accessHash)
+        case let .inputStickerSetShortName(shortName):
+            self = .name(shortName)
+        case .inputStickerSetAnimatedEmoji:
+            self = .animatedEmoji
+        case let .inputStickerSetDice(emoticon):
+            self = .dice(emoticon)
+        case .inputStickerSetAnimatedEmojiAnimations:
+            self = .animatedEmojiAnimations
+        case .inputStickerSetPremiumGifts:
+            self = .premiumGifts
+        case .inputStickerSetEmojiGenericAnimations:
+            self = .emojiGenericAnimations
+        case .inputStickerSetEmojiDefaultStatuses:
+            self = .iconStatusEmoji
+        case .inputStickerSetEmojiDefaultTopicIcons:
+            self = .iconTopicEmoji
         }
     }
 }
@@ -102,6 +110,9 @@ func telegramMediaFileAttributesFromApiAttributes(_ attributes: [Api.DocumentAtt
                 let isVoice = (flags & (1 << 10)) != 0
                 let waveformBuffer: Data? = waveform?.makeData()
                 result.append(.Audio(isVoice: isVoice, duration: Int(duration), title: title, performer: performer, waveform: waveformBuffer))
+            case let .documentAttributeCustomEmoji(flags, alt, stickerSet):
+                let isFree = (flags & (1 << 0)) != 0
+                result.append(.CustomEmoji(isPremium: !isFree, alt: alt, packReference: StickerPackReference(apiInputSet: stickerSet)))
         }
     }
     return result
@@ -123,13 +134,13 @@ func telegramMediaFileThumbnailRepresentationsFromApiSizes(datacenterId: Int32, 
         switch size {
             case let .photoCachedSize(type, w, h, _):
                 let resource = CloudDocumentSizeMediaResource(datacenterId: datacenterId, documentId: documentId, accessHash: accessHash, sizeSpec: type, fileReference: fileReference)
-                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: [], immediateThumbnailData: nil))
+                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: [], immediateThumbnailData: nil, hasVideo: false))
             case let .photoSize(type, w, h, _):
                 let resource = CloudDocumentSizeMediaResource(datacenterId: datacenterId, documentId: documentId, accessHash: accessHash, sizeSpec: type, fileReference: fileReference)
-                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: [], immediateThumbnailData: nil))
+                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: [], immediateThumbnailData: nil, hasVideo: false))
             case let .photoSizeProgressive(type, w, h, sizes):
                 let resource = CloudDocumentSizeMediaResource(datacenterId: datacenterId, documentId: documentId, accessHash: accessHash, sizeSpec: type, fileReference: fileReference)
-                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: sizes, immediateThumbnailData: nil))
+                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: sizes, immediateThumbnailData: nil, hasVideo: false))
             case let .photoPathSize(_, data):
                 immediateThumbnailData = data.makeData()
             case let .photoStrippedSize(_, data):
@@ -164,7 +175,7 @@ func telegramMediaFileFromApiDocument(_ document: Api.Document) -> TelegramMedia
                 }
             }
             
-            return TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.CloudFile, id: id), partialReference: nil, resource: CloudDocumentMediaResource(datacenterId: Int(dcId), fileId: id, accessHash: accessHash, size: Int(size), fileReference: fileReference.makeData(), fileName: fileNameFromFileAttributes(parsedAttributes)), previewRepresentations: previewRepresentations, videoThumbnails: videoThumbnails, immediateThumbnailData: immediateThumbnail, mimeType: mimeType, size: Int(size), attributes: parsedAttributes)
+            return TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.CloudFile, id: id), partialReference: nil, resource: CloudDocumentMediaResource(datacenterId: Int(dcId), fileId: id, accessHash: accessHash, size: size, fileReference: fileReference.makeData(), fileName: fileNameFromFileAttributes(parsedAttributes)), previewRepresentations: previewRepresentations, videoThumbnails: videoThumbnails, immediateThumbnailData: immediateThumbnail, mimeType: mimeType, size: size, attributes: parsedAttributes)
         case .documentEmpty:
             return nil
     }

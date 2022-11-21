@@ -225,7 +225,43 @@ public struct PresentationResourcesChatList {
     
     public static func verifiedIcon(_ theme: PresentationTheme) -> UIImage? {
         return theme.image(PresentationResourceKey.chatListVerifiedIcon.rawValue, { theme in
-            return UIImage(bundleImageName: "Chat List/PeerVerifiedIcon")?.precomposed()
+            if let backgroundImage = UIImage(bundleImageName: "Chat List/PeerVerifiedIconBackground"), let foregroundImage = UIImage(bundleImageName: "Chat List/PeerVerifiedIconForeground") {
+                return generateImage(backgroundImage.size, contextGenerator: { size, context in
+                    if let backgroundCgImage = backgroundImage.cgImage, let foregroundCgImage = foregroundImage.cgImage {
+                        context.clear(CGRect(origin: CGPoint(), size: size))
+                        context.saveGState()
+                        context.clip(to: CGRect(origin: .zero, size: size), mask: backgroundCgImage)
+
+                        context.setFillColor(theme.list.itemCheckColors.fillColor.cgColor)
+                        context.fill(CGRect(origin: CGPoint(), size: size))
+                        context.restoreGState()
+                        
+                        context.clip(to: CGRect(origin: .zero, size: size), mask: foregroundCgImage)
+                        context.setFillColor(theme.list.itemCheckColors.foregroundColor.cgColor)
+                        context.fill(CGRect(origin: CGPoint(), size: size))
+                    }
+                }, opaque: false)
+            } else {
+                return nil
+            }
+        })
+    }
+    
+    public static func premiumIcon(_ theme: PresentationTheme) -> UIImage? {
+        return theme.image(PresentationResourceKey.chatListPremiumIcon.rawValue, { theme in
+            if let image = UIImage(bundleImageName: "Chat List/PeerPremiumIcon") {
+                return generateImage(image.size, contextGenerator: { size, context in
+                    if let cgImage = image.cgImage {
+                        context.clear(CGRect(origin: CGPoint(), size: size))
+                        context.clip(to: CGRect(origin: .zero, size: size), mask: cgImage)
+
+                        context.setFillColor(theme.list.itemCheckColors.fillColor.cgColor)
+                        context.fill(CGRect(origin: CGPoint(), size: size))
+                    }
+                }, opaque: false)
+            } else {
+                return nil
+            }
         })
     }
 
@@ -316,6 +352,18 @@ public struct PresentationResourcesChatList {
                 let _ = try? drawSvgPath(context, path: "M4.5,0.66 C3.11560623,0.66 1.99333333,1.78227289 1.99333333,3.16666667 L1.99333333,7.8047619 C1.99333333,9.18915568 3.11560623,10.3114286 4.5,10.3114286 C5.88439377,10.3114286 7.00666667,9.18915568 7.00666667,7.8047619 L7.00666667,3.16666667 C7.00666667,1.78227289 5.88439377,0.66 4.5,0.66 S ")
                 let _ = try? drawSvgPath(context, path: "M1.32,5.48571429 L7.68,5.48571429 C8.40901587,5.48571429 9,6.07669842 9,6.80571429 L9,10.68 C9,11.4090159 8.40901587,12 7.68,12 L1.32,12 C0.59098413,12 8.92786951e-17,11.4090159 0,10.68 L2.22044605e-16,6.80571429 C1.3276591e-16,6.07669842 0.59098413,5.48571429 1.32,5.48571429 Z ")
             })
+        })
+    }
+    
+    public static func statusLockIcon(_ theme: PresentationTheme) -> UIImage? {
+        return theme.image(PresentationResourceKey.chatListStatusLockIcon.rawValue, { theme in
+            return generateTintedImage(image: UIImage(bundleImageName: "Chat List/StatusLockIcon"), color: theme.chatList.unreadBadgeInactiveBackgroundColor)
+        })
+    }
+    
+    public static func topicArrowIcon(_ theme: PresentationTheme) -> UIImage? {
+        return theme.image(PresentationResourceKey.chatListTopicArrowIcon.rawValue, { theme in
+            return generateTintedImage(image: UIImage(bundleImageName: "Chat List/TopicArrowIcon"), color: theme.chatList.titleColor)
         })
     }
 }

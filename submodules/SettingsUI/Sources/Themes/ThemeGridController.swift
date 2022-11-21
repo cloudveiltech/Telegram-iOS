@@ -79,12 +79,11 @@ final class ThemeGridController: ViewController {
             }
         })
         //CloudVeil start disable theme search
-                      /*
+        /*
         self.searchContentNode = NavigationBarSearchContentNode(theme: self.presentationData.theme, placeholder: self.presentationData.strings.Wallpaper_Search, activate: { [weak self] in
             self?.activateSearch()
         })
-        self.navigationBar?.setContentNode(self.searchContentNode, animated: false)
-                       */
+        self.navigationBar?.setContentNode(self.searchContentNode, animated: false)  */
         //CloudVeil end
     }
     

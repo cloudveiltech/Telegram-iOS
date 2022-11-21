@@ -10,14 +10,14 @@ func telegramMediaImageRepresentationsFromApiSizes(datacenterId: Int32, photoId:
         switch size {
             case let .photoCachedSize(type, w, h, _):
                 let resource = CloudPhotoSizeMediaResource(datacenterId: datacenterId, photoId: photoId, accessHash: accessHash, sizeSpec: type, size: nil, fileReference: fileReference)
-                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: [], immediateThumbnailData: nil))
+                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: [], immediateThumbnailData: nil, hasVideo: false))
             case let .photoSize(type, w, h, size):
-                let resource = CloudPhotoSizeMediaResource(datacenterId: datacenterId, photoId: photoId, accessHash: accessHash, sizeSpec: type, size: Int(size), fileReference: fileReference)
-                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: [], immediateThumbnailData: nil))
+                let resource = CloudPhotoSizeMediaResource(datacenterId: datacenterId, photoId: photoId, accessHash: accessHash, sizeSpec: type, size: Int64(size), fileReference: fileReference)
+                representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: [], immediateThumbnailData: nil, hasVideo: false))
             case let .photoSizeProgressive(type, w, h, sizes):
                 if !sizes.isEmpty {
-                    let resource = CloudPhotoSizeMediaResource(datacenterId: datacenterId, photoId: photoId, accessHash: accessHash, sizeSpec: type, size: Int(sizes[sizes.count - 1]), fileReference: fileReference)
-                    representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: sizes, immediateThumbnailData: nil))
+                    let resource = CloudPhotoSizeMediaResource(datacenterId: datacenterId, photoId: photoId, accessHash: accessHash, sizeSpec: type, size: Int64(sizes[sizes.count - 1]), fileReference: fileReference)
+                    representations.append(TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, progressiveSizes: sizes, immediateThumbnailData: nil, hasVideo: false))
                 }
             case let .photoStrippedSize(_, data):
                 immediateThumbnailData = data.makeData()
@@ -46,7 +46,7 @@ func telegramMediaImageFromApiPhoto(_ photo: Api.Photo) -> TelegramMediaImage? {
                     switch size {
                         case let .videoSize(_, type, w, h, size, videoStartTs):
                             let resource: TelegramMediaResource
-                            resource = CloudPhotoSizeMediaResource(datacenterId: dcId, photoId: id, accessHash: accessHash, sizeSpec: type, size: Int(size), fileReference: fileReference.makeData())
+                            resource = CloudPhotoSizeMediaResource(datacenterId: dcId, photoId: id, accessHash: accessHash, sizeSpec: type, size: Int64(size), fileReference: fileReference.makeData())
                             
                             videoRepresentations.append(TelegramMediaImage.VideoRepresentation(dimensions: PixelDimensions(width: w, height: h), resource: resource, startTimestamp: videoStartTs))
                     }

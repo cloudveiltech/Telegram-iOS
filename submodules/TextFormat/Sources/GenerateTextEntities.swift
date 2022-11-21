@@ -1,13 +1,15 @@
 import Foundation
 import UIKit
 import TelegramCore
+import Emoji
 
 private let whitelistedHosts: Set<String> = Set([
     "telegram.org",
     "t.me",
     "telegram.me",
     "telegra.ph",
-    "telesco.pe"
+    "telesco.pe",
+    "fragment.com"
 ])
 
 private let dataDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType([.link]).rawValue)
@@ -142,8 +144,9 @@ private func commitEntity(_ utf16: String.UTF16View, _ type: CurrentEntityType, 
     }
 }
 
-public func generateChatInputTextEntities(_ text: NSAttributedString) -> [MessageTextEntity] {
+public func generateChatInputTextEntities(_ text: NSAttributedString, maxAnimatedEmojisInText: Int? = nil) -> [MessageTextEntity] {
     var entities: [MessageTextEntity] = []
+
     text.enumerateAttributes(in: NSRange(location: 0, length: text.length), options: [], using: { attributes, range, _ in
         for (key, value) in attributes {
             if key == ChatTextInputAttributes.bold {
@@ -162,6 +165,8 @@ public func generateChatInputTextEntities(_ text: NSAttributedString) -> [Messag
                 entities.append(MessageTextEntity(range: range.lowerBound ..< range.upperBound, type: .TextUrl(url: value.url)))
             } else if key == ChatTextInputAttributes.spoiler {
                 entities.append(MessageTextEntity(range: range.lowerBound ..< range.upperBound, type: .Spoiler))
+            } else if key == ChatTextInputAttributes.customEmoji, let value = value as? ChatTextInputTextCustomEmojiAttribute {
+                entities.append(MessageTextEntity(range: range.lowerBound ..< range.upperBound, type: .CustomEmoji(stickerPack: nil, fileId: value.fileId)))
             }
         }
     })

@@ -12,6 +12,7 @@ import ActivityIndicator
 import TextFormat
 import AccountContext
 import ContextUI
+import StickerPeekUI
 
 private struct StickerPackPreviewGridEntry: Comparable, Identifiable {
     let index: Int
@@ -26,7 +27,7 @@ private struct StickerPackPreviewGridEntry: Comparable, Identifiable {
     }
     
     func item(account: Account, interaction: StickerPackPreviewInteraction, theme: PresentationTheme) -> StickerPackPreviewGridItem {
-        return StickerPackPreviewGridItem(account: account, stickerItem: self.stickerItem, interaction: interaction, theme: theme, isEmpty: false)
+        return StickerPackPreviewGridItem(account: account, stickerItem: self.stickerItem, interaction: interaction, theme: theme, isPremium: false, isLocked: false, isEmpty: false)
     }
 }
 
@@ -73,7 +74,7 @@ final class StickerPackPreviewControllerNode: ViewControllerTracingNode, UIScrol
     var presentInGlobalOverlay: ((ViewController, Any?) -> Void)?
     var dismiss: (() -> Void)?
     var cancel: (() -> Void)?
-    var sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?
+    var sendSticker: ((FileMediaReference, UIView, CGRect) -> Bool)?
     private let actionPerformed: ((StickerPackCollectionInfo, [StickerPackItem], StickerPackScreenPerformedAction) -> Void)?
     
     let ready = Promise<Bool>()
@@ -142,7 +143,7 @@ final class StickerPackPreviewControllerNode: ViewControllerTracingNode, UIScrol
         
         super.init()
         
-        self.interaction = StickerPackPreviewInteraction(playAnimatedStickers: false)
+        self.interaction = StickerPackPreviewInteraction(playAnimatedStickers: false, addStickerPack: { _, _ in }, removeStickerPack: { _ in }, emojiSelected: { _, _ in }, emojiLongPressed: { _, _, _, _ in })
         
         self.backgroundColor = nil
         self.isOpaque = false
@@ -197,14 +198,22 @@ final class StickerPackPreviewControllerNode: ViewControllerTracingNode, UIScrol
         if #available(iOSApplicationExtension 11.0, iOS 11.0, *) {
             self.wrappingScrollNode.view.contentInsetAdjustmentBehavior = .never
         }
-        self.contentGridNode.view.addGestureRecognizer(PeekControllerGestureRecognizer(contentAtPoint: { [weak self] point -> Signal<(ASDisplayNode, PeekControllerContent)?, NoError>? in
+        self.contentGridNode.view.addGestureRecognizer(PeekControllerGestureRecognizer(contentAtPoint: { [weak self] point -> Signal<(UIView, CGRect, PeekControllerContent)?, NoError>? in
             if let strongSelf = self {
                 if let itemNode = strongSelf.contentGridNode.itemNodeAtPoint(point) as? StickerPackPreviewGridItemNode, let item = itemNode.stickerPackItem {
-                    return strongSelf.context.account.postbox.transaction { transaction -> Bool in
-                        return getIsStickerSaved(transaction: transaction, fileId: item.file.fileId)
-                    }
+                    let accountPeerId = strongSelf.context.account.peerId
+                    return combineLatest(
+                        strongSelf.context.engine.stickers.isStickerSaved(id: item.file.fileId),
+                        strongSelf.context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: accountPeerId)) |> map { peer -> Bool in
+                            var hasPremium = false
+                            if case let .user(user) = peer, user.isPremium {
+                                hasPremium = true
+                            }
+                            return hasPremium
+                        }
+                    )
                     |> deliverOnMainQueue
-                    |> map { isStarred -> (ASDisplayNode, PeekControllerContent)? in
+                    |> map { isStarred, hasPremium -> (UIView, CGRect, PeekControllerContent)? in
                         if let strongSelf = self {
                             var menuItems: [ContextMenuItem] = []
                             if let stickerPack = strongSelf.stickerPack, case let .result(info, _, _) = stickerPack, info.id.namespace == Namespaces.ItemCollection.CloudStickerPacks {
@@ -212,27 +221,27 @@ final class StickerPackPreviewControllerNode: ViewControllerTracingNode, UIScrol
                                     menuItems.append(.action(ContextMenuActionItem(text: strongSelf.presentationData.strings.StickerPack_Send, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Resend"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
                                         if let strongSelf = self, let peekController = strongSelf.peekController {
                                             if let animationNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.animationNode {
-                                                let _ = strongSelf.sendSticker?(.standalone(media: item.file), animationNode, animationNode.bounds)
+                                                let _ = strongSelf.sendSticker?(.standalone(media: item.file), animationNode.view, animationNode.bounds)
                                             } else if let imageNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.imageNode {
-                                                let _ = strongSelf.sendSticker?(.standalone(media: item.file), imageNode, imageNode.bounds)
+                                                let _ = strongSelf.sendSticker?(.standalone(media: item.file), imageNode.view, imageNode.bounds)
                                             }
                                         }
                                         f(.default)
                                     })))
                                 }
-                                menuItems.append(.action(ContextMenuActionItem(text: isStarred ? strongSelf.presentationData.strings.Stickers_RemoveFromFavorites : strongSelf.presentationData.strings.Stickers_AddToFavorites, icon: { theme in generateTintedImage(image: isStarred ? UIImage(bundleImageName: "Chat/Context Menu/Unstar") : UIImage(bundleImageName: "Chat/Context Menu/Rate"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
+                                menuItems.append(.action(ContextMenuActionItem(text: isStarred ? strongSelf.presentationData.strings.Stickers_RemoveFromFavorites : strongSelf.presentationData.strings.Stickers_AddToFavorites, icon: { theme in generateTintedImage(image: isStarred ? UIImage(bundleImageName: "Chat/Context Menu/Unfave") : UIImage(bundleImageName: "Chat/Context Menu/Fave"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
                                     f(.default)
                                     
                                     if let strongSelf = self {
-                                        if isStarred {
-                                            let _ = removeSavedSticker(postbox: strongSelf.context.account.postbox, mediaId: item.file.fileId).start()
-                                        } else {
-                                            let _ = addSavedSticker(postbox: strongSelf.context.account.postbox, network: strongSelf.context.account.network, file: item.file).start()
-                                        }
+                                        let _ = strongSelf.context.engine.stickers.toggleStickerSaved(file: item.file, saved: !isStarred).start(next: { result in
+                                            
+                                        })
                                     }
                                 })))
                             }
-                            return (itemNode, StickerPreviewPeekContent(account: strongSelf.context.account, item: .pack(item), menu: menuItems))
+                            return (itemNode.view, itemNode.bounds, StickerPreviewPeekContent(account: strongSelf.context.account, theme: strongSelf.presentationData.theme, strings: strongSelf.presentationData.strings, item: .pack(item.file), isLocked: item.file.isPremiumSticker && !hasPremium, menu: menuItems, openPremiumIntro: {
+                                
+                            }))
                         } else {
                             return nil
                         }
@@ -240,10 +249,10 @@ final class StickerPackPreviewControllerNode: ViewControllerTracingNode, UIScrol
                 }
             }
             return nil
-        }, present: { [weak self] content, sourceNode in
+        }, present: { [weak self] content, sourceView, sourceRect in
             if let strongSelf = self {
-                let controller = PeekController(presentationData: strongSelf.presentationData, content: content, sourceNode: {
-                    return sourceNode
+                let controller = PeekController(presentationData: strongSelf.presentationData, content: content, sourceView: {
+                    return (sourceView, sourceRect)
                 })
                 controller.visibilityUpdated = { [weak self] visible in
                     if let strongSelf = self {
@@ -391,7 +400,7 @@ final class StickerPackPreviewControllerNode: ViewControllerTracingNode, UIScrol
                     if self.currentItems.isEmpty && !updatedItems.isEmpty {
                         let entities = generateTextEntities(info.title, enabledTypes: [.mention])
                         let font = Font.medium(20.0)
-                        self.contentTitleNode.attributedText = stringWithAppliedEntities(info.title, entities: entities, baseColor: self.presentationData.theme.actionSheet.primaryTextColor, linkColor: self.presentationData.theme.actionSheet.controlAccentColor, baseFont: font, linkFont: font, boldFont: font, italicFont: font, boldItalicFont: font, fixedFont: font, blockQuoteFont: font)
+                        self.contentTitleNode.attributedText = stringWithAppliedEntities(info.title, entities: entities, baseColor: self.presentationData.theme.actionSheet.primaryTextColor, linkColor: self.presentationData.theme.actionSheet.controlAccentColor, baseFont: font, linkFont: font, boldFont: font, italicFont: font, boldItalicFont: font, fixedFont: font, blockQuoteFont: font, message: nil)
                         animateIn = true
                     }
                     transaction = StickerPackPreviewGridTransaction(previousList: self.currentItems, list: updatedItems, account: self.context.account, interaction: self.interaction, theme: self.presentationData.theme)
@@ -612,6 +621,8 @@ final class StickerPackPreviewControllerNode: ViewControllerTracingNode, UIScrol
                     let text: String
                     if info.id.namespace == Namespaces.ItemCollection.CloudStickerPacks {
                         text = self.presentationData.strings.StickerPack_RemoveStickerCount(info.count)
+                    } else if info.id.namespace == Namespaces.ItemCollection.CloudEmojiPacks {
+                        text = self.presentationData.strings.StickerPack_RemoveEmojiCount(info.count)
                     } else {
                         text = self.presentationData.strings.StickerPack_RemoveMaskCount(info.count)
                     }
@@ -620,6 +631,8 @@ final class StickerPackPreviewControllerNode: ViewControllerTracingNode, UIScrol
                     let text: String
                     if info.id.namespace == Namespaces.ItemCollection.CloudStickerPacks {
                         text = self.presentationData.strings.StickerPack_AddStickerCount(info.count)
+                    } else if info.id.namespace == Namespaces.ItemCollection.CloudEmojiPacks {
+                        text = self.presentationData.strings.StickerPack_AddEmojiCount(info.count)
                     } else {
                         text = self.presentationData.strings.StickerPack_AddMaskCount(info.count)
                     }

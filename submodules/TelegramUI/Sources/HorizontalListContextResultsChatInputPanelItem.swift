@@ -352,7 +352,7 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
                     if let stickerFile = stickerFile {
                         updateImageSignal = chatMessageSticker(account: item.account, file: stickerFile, small: false, fetched: true)
                     } else {
-                        let tmpRepresentation = TelegramMediaImageRepresentation(dimensions: PixelDimensions(CGSize(width: fittedImageDimensions.width * 2.0, height: fittedImageDimensions.height * 2.0)), resource: imageResource, progressiveSizes: [], immediateThumbnailData: nil)
+                        let tmpRepresentation = TelegramMediaImageRepresentation(dimensions: PixelDimensions(CGSize(width: fittedImageDimensions.width * 2.0, height: fittedImageDimensions.height * 2.0)), resource: imageResource, progressiveSizes: [], immediateThumbnailData: nil, hasVideo: false)
                         let tmpImage = TelegramMediaImage(imageId: MediaId(namespace: 0, id: 0), representations: [tmpRepresentation], immediateThumbnailData: nil, reference: nil, partialReference: nil, flags: [])
                         updateImageSignal = chatMessagePhoto(postbox: item.account.postbox, photoReference: .standalone(media: tmpImage), synchronousLoad: true)
                     }
@@ -421,7 +421,7 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
                             if let currentAnimationNode = strongSelf.animationNode {
                                 animationNode = currentAnimationNode
                             } else {
-                                animationNode = AnimatedStickerNode()
+                                animationNode = DefaultAnimatedStickerNodeImpl()
                                 animationNode.transform = CATransform3DMakeRotation(CGFloat.pi / 2.0, 0.0, 0.0, 1.0)
                                 animationNode.visibility = true
                                 if let placeholderNode = strongSelf.placeholderNode {
@@ -437,7 +437,7 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
                             let dimensions = animatedStickerFile.dimensions ?? PixelDimensions(width: 512, height: 512)
                             let fittedDimensions = dimensions.cgSize.aspectFitted(CGSize(width: 160.0, height: 160.0))
                             strongSelf.fetchDisposable.set(freeMediaFileResourceInteractiveFetched(account: item.account, fileReference: stickerPackFileReference(animatedStickerFile), resource: animatedStickerFile.resource).start())
-                            animationNode.setup(source: AnimatedStickerResourceSource(account: item.account, resource: animatedStickerFile.resource, isVideo: animatedStickerFile.isVideoSticker), width: Int(fittedDimensions.width), height: Int(fittedDimensions.height), mode: .cached)
+                            animationNode.setup(source: AnimatedStickerResourceSource(account: item.account, resource: animatedStickerFile.resource, isVideo: animatedStickerFile.isVideoSticker), width: Int(fittedDimensions.width), height: Int(fittedDimensions.height), playbackMode: .loop, mode: .cached)
                         }
                     }
                     

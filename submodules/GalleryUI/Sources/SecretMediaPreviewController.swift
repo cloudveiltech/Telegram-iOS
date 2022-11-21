@@ -204,6 +204,7 @@ public final class SecretMediaPreviewController: ViewController {
             if let strongSelf = self {
                 strongSelf.present(controller, in: .window(.root), with: arguments, blockInteraction: true)
             }
+        }, pushController: { _ in
         }, dismissController: { [weak self] in
             self?.dismiss(forceAway: true)
         }, replaceRootController: { _, _ in
@@ -339,7 +340,7 @@ public final class SecretMediaPreviewController: ViewController {
             |> deliverOnMainQueue).start(next: { [weak self] _ in
                 if let strongSelf = self, strongSelf.traceVisibility() {
                     if strongSelf.messageId.peerId.namespace == Namespaces.Peer.CloudUser {
-                        let _ = enqueueMessages(account: strongSelf.context.account, peerId: strongSelf.messageId.peerId, messages: [.message(text: "", attributes: [], mediaReference: .standalone(media: TelegramMediaAction(action: TelegramMediaActionType.historyScreenshot)), replyToMessageId: nil, localGroupingKey: nil, correlationId: nil)]).start()
+                        let _ = enqueueMessages(account: strongSelf.context.account, peerId: strongSelf.messageId.peerId, messages: [.message(text: "", attributes: [], inlineStickers: [:], mediaReference: .standalone(media: TelegramMediaAction(action: TelegramMediaActionType.historyScreenshot)), replyToMessageId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])]).start()
                     } else if strongSelf.messageId.peerId.namespace == Namespaces.Peer.SecretChat {
                         let _ = strongSelf.context.engine.messages.addSecretChatMessageScreenshot(peerId: strongSelf.messageId.peerId).start()
                     }

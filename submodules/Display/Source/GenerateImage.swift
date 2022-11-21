@@ -147,6 +147,41 @@ public func generateFilledCircleImage(diameter: CGFloat, color: UIColor?, stroke
     })
 }
 
+public func generateFilledRoundedRectImage(size: CGSize, cornerRadius: CGFloat, color: UIColor?, strokeColor: UIColor? = nil, strokeWidth: CGFloat? = nil, backgroundColor: UIColor? = nil) -> UIImage? {
+    return generateImage(CGSize(width: size.width, height: size.height), contextGenerator: { size, context in
+        context.clear(CGRect(origin: CGPoint(), size: size))
+        if let backgroundColor = backgroundColor {
+            context.setFillColor(backgroundColor.cgColor)
+            context.fill(CGRect(origin: CGPoint(), size: size))
+        }
+        
+        if let strokeColor = strokeColor, let strokeWidth = strokeWidth {
+            context.setFillColor(strokeColor.cgColor)
+            context.fillEllipse(in: CGRect(origin: CGPoint(), size: size))
+            
+            if let color = color {
+                context.setFillColor(color.cgColor)
+            } else {
+                context.setFillColor(UIColor.clear.cgColor)
+                context.setBlendMode(.copy)
+            }
+            let path = CGPath(roundedRect: CGRect(origin: CGPoint(x: strokeWidth, y: strokeWidth), size: CGSize(width: size.width - strokeWidth * 2.0, height: size.height - strokeWidth * 2.0)), cornerWidth: cornerRadius, cornerHeight: cornerRadius, transform: nil)
+            context.addPath(path)
+            context.fillPath()
+        } else {
+            if let color = color {
+                context.setFillColor(color.cgColor)
+            } else {
+                context.setFillColor(UIColor.clear.cgColor)
+                context.setBlendMode(.copy)
+            }
+            let path = CGPath(roundedRect: CGRect(origin: CGPoint(), size: size), cornerWidth: cornerRadius, cornerHeight: cornerRadius, transform: nil)
+            context.addPath(path)
+            context.fillPath()
+        }
+    })
+}
+
 public func generateAdjustedStretchableFilledCircleImage(diameter: CGFloat, color: UIColor) -> UIImage? {
     let corner: CGFloat = diameter / 2.0
     return generateImage(CGSize(width: diameter + 2.0, height: diameter + 2.0), contextGenerator: { size, context in
@@ -354,6 +389,21 @@ public func generateGradientImage(size: CGSize, colors: [UIColor], locations: [C
     return image
 }
 
+public func generateGradientFilledCircleImage(diameter: CGFloat, colors: NSArray) -> UIImage? {
+    return generateImage(CGSize(width: diameter, height: diameter), contextGenerator: { size, context in
+        let bounds = CGRect(origin: CGPoint(), size: size)
+        context.clear(bounds)
+        context.addEllipse(in: bounds)
+        context.clip()
+        
+        var locations: [CGFloat] = [0.0, 1.0]
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let gradient = CGGradient(colorsSpace: colorSpace, colors: colors, locations: &locations)!
+        
+        context.drawLinearGradient(gradient, start: CGPoint(), end: CGPoint(x: 0.0, y: bounds.size.height), options: CGGradientDrawingOptions())
+    })
+}
+
 public func generateScaledImage(image: UIImage?, size: CGSize, opaque: Bool = true, scale: CGFloat? = nil) -> UIImage? {
     guard let image = image else {
         return nil
@@ -367,7 +417,7 @@ public func generateScaledImage(image: UIImage?, size: CGSize, opaque: Bool = tr
     }, opaque: opaque, scale: scale)
 }
 
-private func generateSingleColorImage(size: CGSize, color: UIColor) -> UIImage? {
+public func generateSingleColorImage(size: CGSize, color: UIColor) -> UIImage? {
     return generateImage(size, contextGenerator: { size, context in
         context.setFillColor(color.cgColor)
         context.fill(CGRect(origin: CGPoint(), size: size))
@@ -477,7 +527,7 @@ public struct DeviceGraphicsContextSettings {
 public class DrawingContext {
     public let size: CGSize
     public let scale: CGFloat
-    private let scaledSize: CGSize
+    public let scaledSize: CGSize
     public let bytesPerRow: Int
     private let bitmapInfo: CGBitmapInfo
     public let length: Int
@@ -510,7 +560,7 @@ public class DrawingContext {
         f(self.context)
     }
     
-    public init(size: CGSize, scale: CGFloat = 0.0, opaque: Bool = false, clear: Bool = false) {
+    public init(size: CGSize, scale: CGFloat = 0.0, opaque: Bool = false, clear: Bool = false, bytesPerRow: Int? = nil) {
         assert(!size.width.isZero && !size.height.isZero)
         let size: CGSize = CGSize(width: max(1.0, size.width), height: max(1.0, size.height))
 
@@ -524,8 +574,8 @@ public class DrawingContext {
         self.scale = actualScale
         self.scaledSize = CGSize(width: size.width * actualScale, height: size.height * actualScale)
         
-        self.bytesPerRow = DeviceGraphicsContextSettings.shared.bytesPerRow(forWidth: Int(scaledSize.width))
-        self.length = bytesPerRow * Int(scaledSize.height)
+        self.bytesPerRow = bytesPerRow ?? DeviceGraphicsContextSettings.shared.bytesPerRow(forWidth: Int(scaledSize.width))
+        self.length = self.bytesPerRow * Int(scaledSize.height)
 
         self.imageBuffer = ASCGImageBuffer(length: UInt(self.length))
 

@@ -228,7 +228,7 @@ public class CreatePollTextInputItemNode: ListViewItemNode, ASEditableTextNodeDe
                 rightInset += inlineAction.icon.size.width + 8.0
             }
             
-            let itemText = textAttributedStringForStateText(item.text, fontSize: 17.0, textColor: item.presentationData.theme.chat.inputPanel.primaryTextColor, accentTextColor: item.presentationData.theme.chat.inputPanel.panelControlAccentColor, writingDirection: nil, spoilersRevealed: false)
+            let itemText = textAttributedStringForStateText(item.text, fontSize: 17.0, textColor: item.presentationData.theme.chat.inputPanel.primaryTextColor, accentTextColor: item.presentationData.theme.chat.inputPanel.panelControlAccentColor, writingDirection: nil, spoilersRevealed: false, availableEmojis: Set(), emojiViewProvider: nil)
             let measureText = NSMutableAttributedString(attributedString: itemText)
             let measureRawString = measureText.string
             if measureRawString.hasSuffix("\n") || measureRawString.isEmpty {
@@ -294,11 +294,11 @@ public class CreatePollTextInputItemNode: ListViewItemNode, ASEditableTextNodeDe
                     if let currentText = strongSelf.textNode.attributedText {
                         if currentText.string != attributedText.string || updatedTheme != nil {
                             strongSelf.textNode.attributedText = attributedText
-                            refreshGenericTextInputAttributes(strongSelf.textNode, theme: item.presentationData.theme, baseFontSize: 17.0)
+                            refreshGenericTextInputAttributes(strongSelf.textNode, theme: item.presentationData.theme, baseFontSize: 17.0, availableEmojis: Set(), emojiViewProvider: nil)
                         }
                     } else {
                         strongSelf.textNode.attributedText = attributedText
-                        refreshGenericTextInputAttributes(strongSelf.textNode, theme: item.presentationData.theme, baseFontSize: 17.0)
+                        refreshGenericTextInputAttributes(strongSelf.textNode, theme: item.presentationData.theme, baseFontSize: 17.0, availableEmojis: Set(), emojiViewProvider: nil)
                     }
                     
                     if strongSelf.backgroundNode.supernode == nil {
@@ -426,14 +426,18 @@ public class CreatePollTextInputItemNode: ListViewItemNode, ASEditableTextNodeDe
     
     public func editableTextNodeTarget(forAction action: Selector) -> ASEditableTextNodeTargetForAction? {
        if action == makeSelectorFromString("_showTextStyleOptions:") {
-            if case .general = self.inputMenu.state {
-                if self.textNode.attributedText == nil || self.textNode.attributedText!.length == 0 || self.textNode.selectedRange.length == 0 {
-                    return ASEditableTextNodeTargetForAction(target: nil)
-                }
-                return ASEditableTextNodeTargetForAction(target: self)
-            } else {
-                return ASEditableTextNodeTargetForAction(target: nil)
-            }
+           if #available(iOS 16.0, *) {
+               return ASEditableTextNodeTargetForAction(target: nil)
+           } else {
+               if case .general = self.inputMenu.state {
+                   if self.textNode.attributedText == nil || self.textNode.attributedText!.length == 0 || self.textNode.selectedRange.length == 0 {
+                       return ASEditableTextNodeTargetForAction(target: nil)
+                   }
+                   return ASEditableTextNodeTargetForAction(target: self)
+               } else {
+                   return ASEditableTextNodeTargetForAction(target: nil)
+               }
+           }
         } else if action == #selector(self.formatAttributesBold(_:)) || action == #selector(self.formatAttributesItalic(_:)) || action == #selector(self.formatAttributesMonospace(_:)) || action == #selector(self.formatAttributesLink(_:)) || action == #selector(self.formatAttributesStrikethrough(_:)) || action == #selector(self.formatAttributesUnderline(_:)) {
             if case .format = self.inputMenu.state {
                 return ASEditableTextNodeTargetForAction(target: self)
@@ -449,6 +453,58 @@ public class CreatePollTextInputItemNode: ListViewItemNode, ASEditableTextNodeDe
     
     @objc func _showTextStyleOptions(_ sender: Any) {
         self.inputMenu.format(view: self.textNode.view, rect: self.textNode.selectionRect.offsetBy(dx: 0.0, dy: -self.textNode.textView.contentOffset.y).insetBy(dx: 0.0, dy: -1.0))
+    }
+    
+    @available(iOS 16.0, *)
+    public func editableTextNodeMenu(_ editableTextNode: ASEditableTextNode, forTextRange textRange: NSRange, suggestedActions: [UIMenuElement]) -> UIMenu {
+        var actions = suggestedActions
+        
+        if editableTextNode.attributedText == nil || editableTextNode.attributedText!.length == 0 || editableTextNode.selectedRange.length == 0 {
+            
+        } else if let strings = self.item?.presentationData.strings {
+            let children: [UIAction] = [
+                UIAction(title: strings.TextFormat_Bold, image: nil) { [weak self] (action) in
+                    if let strongSelf = self {
+                        strongSelf.formatAttributesBold(strongSelf)
+                    }
+                },
+                UIAction(title: strings.TextFormat_Italic, image: nil) { [weak self] (action) in
+                    if let strongSelf = self {
+                        strongSelf.formatAttributesItalic(strongSelf)
+                    }
+                },
+                UIAction(title: strings.TextFormat_Monospace, image: nil) { [weak self] (action) in
+                    if let strongSelf = self {
+                        strongSelf.formatAttributesMonospace(strongSelf)
+                    }
+                },
+                UIAction(title: strings.TextFormat_Link, image: nil) { [weak self] (action) in
+                    if let strongSelf = self {
+                        strongSelf.formatAttributesLink(strongSelf)
+                    }
+                },
+                UIAction(title: strings.TextFormat_Strikethrough, image: nil) { [weak self] (action) in
+                    if let strongSelf = self {
+                        strongSelf.formatAttributesStrikethrough(strongSelf)
+                    }
+                },
+                UIAction(title: strings.TextFormat_Underline, image: nil) { [weak self] (action) in
+                    if let strongSelf = self {
+                        strongSelf.formatAttributesUnderline(strongSelf)
+                    }
+                },
+                UIAction(title: strings.TextFormat_Spoiler, image: nil) { [weak self] (action) in
+                    if let strongSelf = self {
+                        strongSelf.formatAttributesSpoiler(strongSelf)
+                    }
+                }
+            ]
+            
+            let formatMenu = UIMenu(title: strings.TextFormat_Format, image: nil, children: children)
+            actions.insert(formatMenu, at: 3)
+        }
+        
+        return UIMenu(children: actions)
     }
     
     @objc func formatAttributesBold(_ sender: Any) {
@@ -491,6 +547,13 @@ public class CreatePollTextInputItemNode: ListViewItemNode, ASEditableTextNodeDe
         }
     }
     
+    @objc func formatAttributesSpoiler(_ sender: Any) {
+        self.inputMenu.back()
+        if let item = self.item {
+            chatTextInputAddFormattingAttribute(item: item, textNode: self.textNode, theme: item.presentationData.theme, attribute: ChatTextInputAttributes.spoiler)
+        }
+    }
+    
     public func editableTextNode(_ editableTextNode: ASEditableTextNode, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         if let item = self.item {
             if text.count > 1, let processPaste = item.processPaste {
@@ -514,7 +577,7 @@ public class CreatePollTextInputItemNode: ListViewItemNode, ASEditableTextNodeDe
     public func editableTextNodeDidUpdateText(_ editableTextNode: ASEditableTextNode) {
         if let item = self.item {
             if let _ = self.textNode.attributedText {
-                refreshGenericTextInputAttributes(editableTextNode, theme: item.presentationData.theme, baseFontSize: 17.0)
+                refreshGenericTextInputAttributes(editableTextNode, theme: item.presentationData.theme, baseFontSize: 17.0, availableEmojis: Set(), emojiViewProvider: nil)
                 let updatedText = stateAttributedStringForText(self.textNode.attributedText!)
                 item.textUpdated(updatedText)
             } else {
@@ -544,7 +607,7 @@ public class CreatePollTextInputItemNode: ListViewItemNode, ASEditableTextNodeDe
             }
             
             refreshChatTextInputTypingAttributes(editableTextNode, theme: item.presentationData.theme, baseFontSize: 17.0)
-            refreshGenericTextInputAttributes(editableTextNode, theme: item.presentationData.theme, baseFontSize: 17.0)
+            refreshGenericTextInputAttributes(editableTextNode, theme: item.presentationData.theme, baseFontSize: 17.0, availableEmojis: Set(), emojiViewProvider: nil)
         }
     }
     
@@ -591,7 +654,7 @@ private func chatTextInputAddFormattingAttribute(item: CreatePollTextInputItem, 
         textNode.selectedRange = nsRange
         
         refreshChatTextInputTypingAttributes(textNode, theme: theme, baseFontSize: 17.0)
-        refreshGenericTextInputAttributes(textNode, theme: theme, baseFontSize: 17.0)
+        refreshGenericTextInputAttributes(textNode, theme: theme, baseFontSize: 17.0, availableEmojis: Set(), emojiViewProvider: nil)
         
         let updatedText = stateAttributedStringForText(textNode.attributedText!)
         item.textUpdated(updatedText)

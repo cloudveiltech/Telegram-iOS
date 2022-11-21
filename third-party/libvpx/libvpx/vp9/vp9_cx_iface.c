@@ -15,7 +15,6 @@
 #include "vpx/vpx_encoder.h"
 #include "vpx/vpx_ext_ratectrl.h"
 #include "vpx_dsp/psnr.h"
-#include "vpx_ports/vpx_once.h"
 #include "vpx_ports/static_assert.h"
 #include "vpx_ports/system_state.h"
 #include "vpx_util/vpx_timestamp.h"
@@ -381,8 +380,8 @@ static vpx_codec_err_t validate_img(vpx_codec_alg_priv_t *ctx,
     case VPX_IMG_FMT_I440:
       if (ctx->cfg.g_profile != (unsigned int)PROFILE_1) {
         ERROR(
-            "Invalid image format. I422, I444, I440, NV12 images are "
-            "not supported in profile.");
+            "Invalid image format. I422, I444, I440 images are not supported "
+            "in profile.");
       }
       break;
     case VPX_IMG_FMT_I42216:
@@ -397,8 +396,8 @@ static vpx_codec_err_t validate_img(vpx_codec_alg_priv_t *ctx,
       break;
     default:
       ERROR(
-          "Invalid image format. Only YV12, I420, I422, I444 images are "
-          "supported.");
+          "Invalid image format. Only YV12, I420, I422, I444, I440, NV12 "
+          "images are supported.");
       break;
   }
 
@@ -523,8 +522,9 @@ static vpx_codec_err_t set_encoder_config(
   raw_target_rate =
       (unsigned int)((int64_t)oxcf->width * oxcf->height * oxcf->bit_depth * 3 *
                      oxcf->init_framerate / 1000);
-  // Cap target bitrate to raw rate
-  cfg->rc_target_bitrate = VPXMIN(raw_target_rate, cfg->rc_target_bitrate);
+  // Cap target bitrate to raw rate or 1000Mbps, whichever is less
+  cfg->rc_target_bitrate =
+      VPXMIN(VPXMIN(raw_target_rate, cfg->rc_target_bitrate), 1000000);
 
   // Convert target bandwidth from Kbit/s to Bit/s
   oxcf->target_bandwidth = 1000 * (int64_t)cfg->rc_target_bitrate;
@@ -582,10 +582,6 @@ static vpx_codec_err_t set_encoder_config(
   oxcf->sharpness = extra_cfg->sharpness;
 
   vp9_set_first_pass_stats(oxcf, &cfg->rc_twopass_stats_in);
-
-#if CONFIG_FP_MB_STATS
-  oxcf->firstpass_mb_stats_in = cfg->rc_firstpass_mb_stats_in;
-#endif
 
   oxcf->color_space = extra_cfg->color_space;
   oxcf->color_range = extra_cfg->color_range;
@@ -834,6 +830,17 @@ static vpx_codec_err_t ctrl_get_quantizer64(vpx_codec_alg_priv_t *ctx,
   return VPX_CODEC_OK;
 }
 
+static vpx_codec_err_t ctrl_get_quantizer_svc_layers(vpx_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+  int *const arg = va_arg(args, int *);
+  int i;
+  if (arg == NULL) return VPX_CODEC_INVALID_PARAM;
+  for (i = 0; i < VPX_SS_MAX_LAYERS; i++) {
+    arg[i] = ctx->cpi->svc.base_qindex[i];
+  }
+  return VPX_CODEC_OK;
+}
+
 static vpx_codec_err_t ctrl_get_loopfilter_level(vpx_codec_alg_priv_t *ctx,
                                                  va_list args) {
   int *const arg = va_arg(args, int *);
@@ -1039,6 +1046,18 @@ static vpx_codec_err_t ctrl_set_row_mt(vpx_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static vpx_codec_err_t ctrl_set_rtc_external_ratectrl(vpx_codec_alg_priv_t *ctx,
+                                                      va_list args) {
+  VP9_COMP *const cpi = ctx->cpi;
+  const unsigned int data = va_arg(args, unsigned int);
+  if (data) {
+    cpi->compute_frame_low_motion_onepass = 0;
+    cpi->rc.constrain_gf_key_freq_onepass_vbr = 0;
+    cpi->cyclic_refresh->content_mode = 0;
+  }
+  return VPX_CODEC_OK;
+}
+
 static vpx_codec_err_t ctrl_enable_motion_vector_unit_test(
     vpx_codec_alg_priv_t *ctx, va_list args) {
   struct vp9_extracfg extra_cfg = ctx->extra_cfg;
@@ -1076,7 +1095,7 @@ static vpx_codec_err_t encoder_init(vpx_codec_ctx_t *ctx,
     }
 
     priv->extra_cfg = default_extra_cfg;
-    once(vp9_initialize_enc);
+    vp9_initialize_enc();
 
     res = validate_config(priv, &priv->cfg, &priv->extra_cfg);
 
@@ -1970,11 +1989,13 @@ static vpx_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { VP9E_SET_SVC_SPATIAL_LAYER_SYNC, ctrl_set_svc_spatial_layer_sync },
   { VP9E_SET_DELTA_Q_UV, ctrl_set_delta_q_uv },
   { VP9E_SET_DISABLE_LOOPFILTER, ctrl_set_disable_loopfilter },
+  { VP9E_SET_RTC_EXTERNAL_RATECTRL, ctrl_set_rtc_external_ratectrl },
   { VP9E_SET_EXTERNAL_RATE_CONTROL, ctrl_set_external_rate_control },
 
   // Getters
   { VP8E_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { VP8E_GET_LAST_QUANTIZER_64, ctrl_get_quantizer64 },
+  { VP9E_GET_LAST_QUANTIZER_SVC_LAYERS, ctrl_get_quantizer_svc_layers },
   { VP9E_GET_LOOPFILTER_LEVEL, ctrl_get_loopfilter_level },
   { VP9_GET_REFERENCE, ctrl_get_reference },
   { VP9E_GET_SVC_LAYER_ID, ctrl_get_svc_layer_id },
@@ -2122,6 +2143,7 @@ static vp9_extracfg get_extra_cfg() {
 VP9EncoderConfig vp9_get_encoder_config(int frame_width, int frame_height,
                                         vpx_rational_t frame_rate,
                                         int target_bitrate, int encode_speed,
+                                        int target_level,
                                         vpx_enc_pass enc_pass) {
   /* This function will generate the same VP9EncoderConfig used by the
    * vpxenc command given below.
@@ -2133,6 +2155,7 @@ VP9EncoderConfig vp9_get_encoder_config(int frame_width, int frame_height,
    * FPS:     frame_rate
    * BITRATE: target_bitrate
    * CPU_USED:encode_speed
+   * TARGET_LEVEL: target_level
    *
    * INPUT, OUTPUT, LIMIT will not affect VP9EncoderConfig
    *
@@ -2145,6 +2168,7 @@ VP9EncoderConfig vp9_get_encoder_config(int frame_width, int frame_height,
    * FPS=30/1
    * LIMIT=150
    * CPU_USED=0
+   * TARGET_LEVEL=0
    * ./vpxenc --limit=$LIMIT --width=$WIDTH --height=$HEIGHT --fps=$FPS
    * --lag-in-frames=25 \
    *  --codec=vp9 --good --cpu-used=CPU_USED --threads=0 --profile=0 \
@@ -2153,7 +2177,7 @@ VP9EncoderConfig vp9_get_encoder_config(int frame_width, int frame_height,
    *  --minsection-pct=0 --maxsection-pct=150 --arnr-maxframes=7 --psnr \
    *  --arnr-strength=5 --sharpness=0 --undershoot-pct=100 --overshoot-pct=100 \
    *  --frame-parallel=0 --tile-columns=0 --cpu-used=0 --end-usage=vbr \
-   *  --target-bitrate=$BITRATE -o $OUTPUT $INPUT
+   *  --target-bitrate=$BITRATE --target-level=0 -o $OUTPUT $INPUT
    */
 
   VP9EncoderConfig oxcf;
@@ -2171,6 +2195,7 @@ VP9EncoderConfig vp9_get_encoder_config(int frame_width, int frame_height,
   oxcf.frame_parallel_decoding_mode = 0;
   oxcf.two_pass_vbrmax_section = 150;
   oxcf.speed = abs(encode_speed);
+  oxcf.target_level = target_level;
   return oxcf;
 }
 
@@ -2280,11 +2305,6 @@ void vp9_dump_encoder_config(const VP9EncoderConfig *oxcf, FILE *fp) {
   DUMP_STRUCT_VALUE(fp, oxcf, target_level);
 
   // TODO(angiebird): dump two_pass_stats_in
-
-#if CONFIG_FP_MB_STATS
-  // TODO(angiebird): dump firstpass_mb_stats_in
-#endif
-
   DUMP_STRUCT_VALUE(fp, oxcf, tuning);
   DUMP_STRUCT_VALUE(fp, oxcf, content);
 #if CONFIG_VP9_HIGHBITDEPTH

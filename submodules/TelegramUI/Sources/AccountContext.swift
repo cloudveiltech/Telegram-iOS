@@ -18,6 +18,9 @@ import AsyncDisplayKit
 import PresentationDataUtils
 import MeshAnimationCache
 import FetchManagerImpl
+import InAppPurchaseManager
+import AnimationCache
+import MultiAnimationRenderer
 
 private final class DeviceSpecificContactImportContext {
     let disposable = MetaDisposable()
@@ -59,10 +62,9 @@ private final class DeviceSpecificContactImportContexts {
             if context.reference != reference {
                 context.reference = reference
                 
-                let key: PostboxViewKey = .basicPeer(peerId)
-                let signal = account.postbox.combinedView(keys: [key])
-                |> map { view -> String? in
-                    if let user = (view.views[key] as? BasicPeerView)?.peer as? TelegramUser {
+                let signal = TelegramEngine(account: account).data.subscribe(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId))
+                |> map { peer -> String? in
+                    if case let .user(user) = peer {
                         return user.phone
                     } else {
                         return nil
@@ -123,6 +125,7 @@ public final class AccountContextImpl: AccountContext {
     public let peersNearbyManager: PeersNearbyManager?
     public let wallpaperUploadManager: WallpaperUploadManager?
     private let themeUpdateManager: ThemeUpdateManager?
+    public let inAppPurchaseManager: InAppPurchaseManager?
     
     public let peerChannelMemberCategoriesContextsManager = PeerChannelMemberCategoriesContextsManager()
     
@@ -159,11 +162,22 @@ public final class AccountContextImpl: AccountContext {
     public let cachedGroupCallContexts: AccountGroupCallContextCache
     public let meshAnimationCache: MeshAnimationCache
     
+    public let animationCache: AnimationCache
+    public let animationRenderer: MultiAnimationRenderer
+    
+    private var animatedEmojiStickersDisposable: Disposable?
+    public private(set) var animatedEmojiStickers: [String: [StickerPackItem]] = [:]
+    
+    private var userLimitsConfigurationDisposable: Disposable?
+    public private(set) var userLimits: EngineConfiguration.UserLimits
+    
     public init(sharedContext: SharedAccountContextImpl, account: Account, limitsConfiguration: LimitsConfiguration, contentSettings: ContentSettings, appConfiguration: AppConfiguration, temp: Bool = false)
     {
         self.sharedContextImpl = sharedContext
         self.account = account
         self.engine = TelegramEngine(account: account)
+        
+        self.userLimits = EngineConfiguration.UserLimits(UserLimitsConfiguration.defaultValue)
         
         self.downloadedMediaStoreManager = DownloadedMediaStoreManagerImpl(postbox: account.postbox, accountManager: sharedContext.accountManager)
         
@@ -177,10 +191,13 @@ public final class AccountContextImpl: AccountContext {
             self.prefetchManager = PrefetchManagerImpl(sharedContext: sharedContext, account: account, engine: self.engine, fetchManager: self.fetchManager)
             self.wallpaperUploadManager = WallpaperUploadManagerImpl(sharedContext: sharedContext, account: account, presentationData: sharedContext.presentationData)
             self.themeUpdateManager = ThemeUpdateManagerImpl(sharedContext: sharedContext, account: account)
+            
+            self.inAppPurchaseManager = InAppPurchaseManager(engine: self.engine)
         } else {
             self.prefetchManager = nil
             self.wallpaperUploadManager = nil
             self.themeUpdateManager = nil
+            self.inAppPurchaseManager = nil
         }
         
         if let locationManager = self.sharedContextImpl.locationManager, sharedContext.applicationBindings.isMainApp && !temp {
@@ -191,6 +208,11 @@ public final class AccountContextImpl: AccountContext {
         
         self.cachedGroupCallContexts = AccountGroupCallContextCacheImpl()
         self.meshAnimationCache = MeshAnimationCache(mediaBox: account.postbox.mediaBox)
+        
+        self.animationCache = AnimationCacheImpl(basePath: self.account.postbox.mediaBox.basePath + "/animation-cache", allocateTempFile: {
+            return TempBox.shared.tempFile(fileName: "file").path
+        })
+        self.animationRenderer = MultiAnimationRendererImpl()
         
         let updatedLimitsConfiguration = account.postbox.preferencesView(keys: [PreferencesKeys.limitsConfiguration])
         |> map { preferences -> LimitsConfiguration in
@@ -244,6 +266,47 @@ public final class AccountContextImpl: AccountContext {
         account.callSessionManager.updateVersions(versions: PresentationCallManagerImpl.voipVersions(includeExperimental: true, includeReference: true).map { version, supportsVideo -> CallSessionManagerImplementationVersion in
             CallSessionManagerImplementationVersion(version: version, supportsVideo: supportsVideo)
         })
+        
+        self.animatedEmojiStickersDisposable = (self.engine.stickers.loadedStickerPack(reference: .animatedEmoji, forceActualized: false)
+        |> map { animatedEmoji -> [String: [StickerPackItem]] in
+            var animatedEmojiStickers: [String: [StickerPackItem]] = [:]
+            switch animatedEmoji {
+                case let .result(_, items, _):
+                    for item in items {
+                        if let emoji = item.getStringRepresentationsOfIndexKeys().first {
+                            animatedEmojiStickers[emoji.basicEmoji.0] = [item]
+                            let strippedEmoji = emoji.basicEmoji.0.strippedEmoji
+                            if animatedEmojiStickers[strippedEmoji] == nil {
+                                animatedEmojiStickers[strippedEmoji] = [item]
+                            }
+                        }
+                    }
+                default:
+                    break
+            }
+            return animatedEmojiStickers
+        }
+        |> deliverOnMainQueue).start(next: { [weak self] stickers in
+            guard let strongSelf = self else {
+                return
+            }
+            strongSelf.animatedEmojiStickers = stickers
+        })
+        
+        self.userLimitsConfigurationDisposable = (self.account.postbox.peerView(id: self.account.peerId)
+        |> mapToSignal { peerView -> Signal<EngineConfiguration.UserLimits, NoError> in
+            if let peer = peerView.peers[peerView.peerId] {
+                return self.engine.data.subscribe(TelegramEngine.EngineData.Item.Configuration.UserLimits(isPremium: peer.isPremium))
+            } else {
+                return .complete()
+            }
+        }
+        |> deliverOnMainQueue).start(next: { [weak self] value in
+            guard let strongSelf = self else {
+                return
+            }
+            strongSelf.userLimits = value
+        })
     }
     
     deinit {
@@ -252,6 +315,7 @@ public final class AccountContextImpl: AccountContext {
         self.contentSettingsDisposable?.dispose()
         self.appConfigurationDisposable?.dispose()
         self.experimentalUISettingsDisposable?.dispose()
+        self.animatedEmojiStickersDisposable?.dispose()
     }
     
     public func storeSecureIdPassword(password: String) {
@@ -278,10 +342,14 @@ public final class AccountContextImpl: AccountContext {
     public func chatLocationInput(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>) -> ChatLocationInput {
         switch location {
         case let .peer(peerId):
-            return .peer(peerId: peerId)
+            return .peer(peerId: peerId, threadId: nil)
         case let .replyThread(data):
-            let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
-            return .thread(peerId: data.messageId.peerId, threadId: makeMessageThreadId(data.messageId), data: context.state)
+            if data.isForumPost {
+                return .peer(peerId: data.messageId.peerId, threadId: Int64(data.messageId.id))
+            } else {
+                let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
+                return .thread(peerId: data.messageId.peerId, threadId: makeMessageThreadId(data.messageId), data: context.state)
+            }
         case let .feed(id):
             let context = chatLocationContext(holder: contextHolder, account: self.account, feedId: id)
             return .feed(id: id, data: context.state)
@@ -293,8 +361,20 @@ public final class AccountContextImpl: AccountContext {
         case .peer:
             return .single(nil)
         case let .replyThread(data):
-            let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
-            return context.maxReadOutgoingMessageId
+            if data.isForumPost, let peerId = location.peerId {
+                let viewKey: PostboxViewKey = .messageHistoryThreadInfo(peerId: data.messageId.peerId, threadId: Int64(data.messageId.id))
+                return self.account.postbox.combinedView(keys: [viewKey])
+                |> map { views -> MessageId? in
+                    if let threadInfo = views.views[viewKey] as? MessageHistoryThreadInfoView, let data = threadInfo.info?.data.get(MessageHistoryThreadData.self) {
+                        return MessageId(peerId: peerId, namespace: Namespaces.Message.Cloud, id: data.maxOutgoingReadId)
+                    } else {
+                        return nil
+                    }
+                }
+            } else {
+                let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
+                return context.maxReadOutgoingMessageId
+            }
         case let .feed(id):
             let context = chatLocationContext(holder: contextHolder, account: self.account, feedId: id)
             return context.maxReadOutgoingMessageId
@@ -304,22 +384,34 @@ public final class AccountContextImpl: AccountContext {
     public func chatLocationUnreadCount(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>) -> Signal<Int, NoError> {
         switch location {
         case let .peer(peerId):
-            let unreadCountsKey: PostboxViewKey = .unreadCounts(items: [.peer(peerId), .total(nil)])
+            let unreadCountsKey: PostboxViewKey = .unreadCounts(items: [.peer(id: peerId, handleThreads: false), .total(nil)])
             return self.account.postbox.combinedView(keys: [unreadCountsKey])
             |> map { views in
                 var unreadCount: Int32 = 0
-
+                
                 if let view = views.views[unreadCountsKey] as? UnreadMessageCountsView {
-                    if let count = view.count(for: .peer(peerId)) {
+                    if let count = view.count(for: .peer(id: peerId, handleThreads: false)) {
                         unreadCount = count
                     }
                 }
-
+                
                 return Int(unreadCount)
             }
         case let .replyThread(data):
-            let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
-            return context.unreadCount
+            if data.isForumPost {
+                let viewKey: PostboxViewKey = .messageHistoryThreadInfo(peerId: data.messageId.peerId, threadId: Int64(data.messageId.id))
+                return self.account.postbox.combinedView(keys: [viewKey])
+                |> map { views -> Int in
+                    if let threadInfo = views.views[viewKey] as? MessageHistoryThreadInfoView, let data = threadInfo.info?.data.get(MessageHistoryThreadData.self) {
+                        return Int(data.incomingUnreadCount)
+                    } else {
+                        return 0
+                    }
+                }
+            } else {
+                let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
+                return context.unreadCount
+            }
         case let .feed(id):
             let context = chatLocationContext(holder: contextHolder, account: self.account, feedId: id)
             return context.unreadCount
@@ -349,9 +441,22 @@ public final class AccountContextImpl: AccountContext {
             if currentPeerId == peerId {
                 self.sharedContext.navigateToCurrentCall()
             } else {
-                let _ = (self.account.postbox.transaction { transaction -> (Peer?, Peer?) in
-                    return (transaction.getPeer(peerId), currentPeerId.flatMap(transaction.getPeer))
+                let dataInput: Signal<(EnginePeer?, EnginePeer?), NoError>
+                if let currentPeerId = currentPeerId {
+                    dataInput = self.engine.data.get(
+                        TelegramEngine.EngineData.Item.Peer.Peer(id: peerId),
+                        TelegramEngine.EngineData.Item.Peer.Peer(id: currentPeerId)
+                    )
+                } else {
+                    dataInput = self.engine.data.get(
+                        TelegramEngine.EngineData.Item.Peer.Peer(id: peerId)
+                    )
+                    |> map { peer -> (EnginePeer?, EnginePeer?) in
+                        return (peer, nil)
+                    }
                 }
+                
+                let _ = (dataInput
                 |> deliverOnMainQueue).start(next: { [weak self] peer, current in
                     guard let strongSelf = self else {
                         return
@@ -361,15 +466,16 @@ public final class AccountContextImpl: AccountContext {
                     }
                     let presentationData = strongSelf.sharedContext.currentPresentationData.with { $0 }
                     if let current = current {
-                        if current is TelegramChannel || current is TelegramGroup {
+                        switch current {
+                        case .channel, .legacyGroup:
                             let title: String
                             let text: String
-                            if let channel = current as? TelegramChannel, case .broadcast = channel.info {
+                            if case let .channel(channel) = current, case .broadcast = channel.info {
                                 title = presentationData.strings.Call_LiveStreamInProgressTitle
-                                text = presentationData.strings.Call_LiveStreamInProgressMessage(EnginePeer(current).compactDisplayTitle, EnginePeer(peer).compactDisplayTitle).string
+                                text = presentationData.strings.Call_LiveStreamInProgressMessage(current.compactDisplayTitle, peer.compactDisplayTitle).string
                             } else {
                                 title = presentationData.strings.Call_VoiceChatInProgressTitle
-                                text = presentationData.strings.Call_VoiceChatInProgressMessage(EnginePeer(current).compactDisplayTitle, EnginePeer(peer).compactDisplayTitle).string
+                                text = presentationData.strings.Call_VoiceChatInProgressMessage(current.compactDisplayTitle, peer.compactDisplayTitle).string
                             }
 
                             strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: title, text: text, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
@@ -378,12 +484,12 @@ public final class AccountContextImpl: AccountContext {
                                 }
                                 let _ = strongSelf.sharedContext.callManager?.joinGroupCall(context: strongSelf, peerId: peer.id, invite: invite, requestJoinAsPeerId: requestJoinAsPeerId, initialCall: activeCall, endCurrentIfAny: true)
                             })]), on: .root)
-                        } else {
+                        default:
                             let text: String
-                            if let channel = peer as? TelegramChannel, case .broadcast = channel.info {
-                                text = presentationData.strings.Call_CallInProgressLiveStreamMessage(EnginePeer(current).compactDisplayTitle, EnginePeer(peer).compactDisplayTitle).string
+                            if case let .channel(channel) = peer, case .broadcast = channel.info {
+                                text = presentationData.strings.Call_CallInProgressLiveStreamMessage(current.compactDisplayTitle, peer.compactDisplayTitle).string
                             } else {
-                                text = presentationData.strings.Call_CallInProgressVoiceChatMessage(EnginePeer(current).compactDisplayTitle, EnginePeer(peer).compactDisplayTitle).string
+                                text = presentationData.strings.Call_CallInProgressVoiceChatMessage(current.compactDisplayTitle, peer.compactDisplayTitle).string
                             }
                             strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: presentationData.strings.Call_CallInProgressTitle, text: text, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
                                 guard let strongSelf = self else {
@@ -411,9 +517,22 @@ public final class AccountContextImpl: AccountContext {
                 completion()
                 self.sharedContext.navigateToCurrentCall()
             } else {
-                let _ = (self.account.postbox.transaction { transaction -> (Peer?, Peer?) in
-                    return (transaction.getPeer(peerId), currentPeerId.flatMap(transaction.getPeer))
+                let dataInput: Signal<(EnginePeer?, EnginePeer?), NoError>
+                if let currentPeerId = currentPeerId {
+                    dataInput = self.engine.data.get(
+                        TelegramEngine.EngineData.Item.Peer.Peer(id: peerId),
+                        TelegramEngine.EngineData.Item.Peer.Peer(id: currentPeerId)
+                    )
+                } else {
+                    dataInput = self.engine.data.get(
+                        TelegramEngine.EngineData.Item.Peer.Peer(id: peerId)
+                    )
+                    |> map { peer -> (EnginePeer?, EnginePeer?) in
+                        return (peer, nil)
+                    }
                 }
+                
+                let _ = (dataInput
                 |> deliverOnMainQueue).start(next: { [weak self] peer, current in
                     guard let strongSelf = self else {
                         return
@@ -423,12 +542,13 @@ public final class AccountContextImpl: AccountContext {
                     }
                     let presentationData = strongSelf.sharedContext.currentPresentationData.with { $0 }
                     if let current = current {
-                        if current is TelegramChannel || current is TelegramGroup {
+                        switch current {
+                        case .channel, .legacyGroup:
                             let text: String
-                            if let channel = current as? TelegramChannel, case .broadcast = channel.info {
-                                text = presentationData.strings.Call_LiveStreamInProgressCallMessage(EnginePeer(current).compactDisplayTitle, EnginePeer(peer).compactDisplayTitle).string
+                            if case let .channel(channel) = current, case .broadcast = channel.info {
+                                text = presentationData.strings.Call_LiveStreamInProgressCallMessage(current.compactDisplayTitle, peer.compactDisplayTitle).string
                             } else {
-                                text = presentationData.strings.Call_VoiceChatInProgressCallMessage(EnginePeer(current).compactDisplayTitle, EnginePeer(peer).compactDisplayTitle).string
+                                text = presentationData.strings.Call_VoiceChatInProgressCallMessage(current.compactDisplayTitle, peer.compactDisplayTitle).string
                             }
                             strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: presentationData.strings.Call_VoiceChatInProgressTitle, text: text, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
                                 guard let strongSelf = self else {
@@ -437,8 +557,8 @@ public final class AccountContextImpl: AccountContext {
                                 let _ = strongSelf.sharedContext.callManager?.requestCall(context: strongSelf, peerId: peerId, isVideo: isVideo, endCurrentIfAny: true)
                                 completion()
                             })]), on: .root)
-                        } else {
-                            strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: presentationData.strings.Call_CallInProgressTitle, text: presentationData.strings.Call_CallInProgressMessage(EnginePeer(current).compactDisplayTitle, EnginePeer(peer).compactDisplayTitle).string, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
+                        default:
+                            strongSelf.sharedContext.mainWindow?.present(textAlertController(context: strongSelf, title: presentationData.strings.Call_CallInProgressTitle, text: presentationData.strings.Call_CallInProgressMessage(current.compactDisplayTitle, peer.compactDisplayTitle).string, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Cancel, action: {}), TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
                                 guard let strongSelf = self else {
                                     return
                                 }

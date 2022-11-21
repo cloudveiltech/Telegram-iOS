@@ -26,7 +26,11 @@ class AnyComponentContext<EnvironmentType>: _TypeErasedComponentContext {
         preconditionFailure()
     }
     var erasedEnvironment: _Environment {
-        return self.environment
+        get {
+            return self.environment
+        } set(value) {
+            self.environment = value as! Environment<EnvironmentType>
+        }
     }
 
     let layoutResult: ComponentLayoutResult
@@ -169,7 +173,7 @@ public class ComponentGesture {
 }
 
 public class AnyComponent<EnvironmentType>: _TypeErasedComponent, Equatable {
-    fileprivate let wrapped: _TypeErasedComponent
+    public let wrapped: _TypeErasedComponent
 
     public init<ComponentType: Component>(_ component: ComponentType) where ComponentType.EnvironmentType == EnvironmentType {
         self.wrapped = component

@@ -10,11 +10,13 @@ import TelegramPresentationData
 import TelegramUIPreferences
 import MergeLists
 import StickerPackPreviewUI
+import StickerPeekUI
 import OverlayStatusController
 import PresentationDataUtils
 import SearchBarNode
 import UndoUI
 import ContextUI
+import PremiumUI
 
 private final class FeaturedInteraction {
     let installPack: (ItemCollectionInfo, Bool) -> Void
@@ -191,7 +193,7 @@ private final class FeaturedStickersScreenNode: ViewControllerTracingNode {
     private let context: AccountContext
     private var presentationData: PresentationData
     private weak var controller: FeaturedStickersScreen?
-    private let sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?
+    private let sendSticker: ((FileMediaReference, UIView, CGRect) -> Bool)?
     private var searchItemContext = StickerPaneSearchGlobalItemContext()
     
     let gridNode: GridNode
@@ -221,7 +223,7 @@ private final class FeaturedStickersScreenNode: ViewControllerTracingNode {
     }
     private var didSetReady: Bool = false
     
-    init(context: AccountContext, controller: FeaturedStickersScreen, sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?) {
+    init(context: AccountContext, controller: FeaturedStickersScreen, sendSticker: ((FileMediaReference, UIView, CGRect) -> Bool)?) {
         self.context = context
         self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
         self.controller = controller
@@ -475,33 +477,51 @@ private final class FeaturedStickersScreenNode: ViewControllerTracingNode {
             if let searchNode = strongSelf.searchNode, searchNode.isActive {
                 if let (itemNode, item) = searchNode.itemAt(point: strongSelf.view.convert(point, to: searchNode.view)) {
                     if let item = item as? StickerPreviewPeekItem {
-                        return strongSelf.context.account.postbox.transaction { transaction -> Bool in
-                            return getIsStickerSaved(transaction: transaction, fileId: item.file.fileId)
-                        }
+                        return strongSelf.context.engine.stickers.isStickerSaved(id: item.file.fileId)
                         |> deliverOnMainQueue
-                        |> map { isStarred -> (ASDisplayNode, PeekControllerContent)? in
+                        |> map { isStarred -> (UIView, CGRect, PeekControllerContent)? in
                             if let strongSelf = self {
                                 var menuItems: [ContextMenuItem] = []
                                 menuItems = [
                                     .action(ContextMenuActionItem(text: strongSelf.presentationData.strings.StickerPack_Send, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Resend"), color: theme.contextMenu.primaryColor) }, action: { _, f in
                                         if let strongSelf = self, let peekController = strongSelf.peekController {
                                             if let animationNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.animationNode {
-                                                let _ = strongSelf.sendSticker?(.standalone(media: item.file), animationNode, animationNode.bounds)
+                                                let _ = strongSelf.sendSticker?(.standalone(media: item.file), animationNode.view, animationNode.bounds)
                                             } else if let imageNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.imageNode {
-                                                let _ = strongSelf.sendSticker?(.standalone(media: item.file), imageNode, imageNode.bounds)
+                                                let _ = strongSelf.sendSticker?(.standalone(media: item.file), imageNode.view, imageNode.bounds)
                                             }
                                         }
                                         f(.default)
                                     })),
-                                    .action(ContextMenuActionItem(text: isStarred ? strongSelf.presentationData.strings.Stickers_RemoveFromFavorites : strongSelf.presentationData.strings.Stickers_AddToFavorites, icon: { theme in generateTintedImage(image: isStarred ? UIImage(bundleImageName: "Chat/Context Menu/Unstar") : UIImage(bundleImageName: "Chat/Context Menu/Rate"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
+                                    .action(ContextMenuActionItem(text: isStarred ? strongSelf.presentationData.strings.Stickers_RemoveFromFavorites : strongSelf.presentationData.strings.Stickers_AddToFavorites, icon: { theme in generateTintedImage(image: isStarred ? UIImage(bundleImageName: "Chat/Context Menu/Unfave") : UIImage(bundleImageName: "Chat/Context Menu/Fave"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
                                         f(.default)
                                         
                                         if let strongSelf = self {
-                                            if isStarred {
-                                                let _ = removeSavedSticker(postbox: strongSelf.context.account.postbox, mediaId: item.file.fileId).start()
-                                            } else {
-                                                let _ = addSavedSticker(postbox: strongSelf.context.account.postbox, network: strongSelf.context.account.network, file: item.file).start()
-                                            }
+                                            let _ = (strongSelf.context.engine.stickers.toggleStickerSaved(file: item.file, saved: !isStarred)
+                                            |> deliverOnMainQueue).start(next: { result in
+                                                switch result {
+                                                    case .generic:
+                                                        strongSelf.controller?.presentInGlobalOverlay(UndoOverlayController(presentationData: strongSelf.presentationData, content: .sticker(context: strongSelf.context, file: item.file, title: nil, text: !isStarred ? strongSelf.presentationData.strings.Conversation_StickerAddedToFavorites : strongSelf.presentationData.strings.Conversation_StickerRemovedFromFavorites, undoText: nil, customAction: nil), elevatedLayout: false, action: { _ in return false }), with: nil)
+                                                    case let .limitExceeded(limit, premiumLimit):
+                                                        let premiumConfiguration = PremiumConfiguration.with(appConfiguration: strongSelf.context.currentAppConfiguration.with { $0 })
+                                                        let text: String
+                                                        if limit == premiumLimit || premiumConfiguration.isPremiumDisabled  {
+                                                            text = strongSelf.presentationData.strings.Premium_MaxFavedStickersFinalText
+                                                        } else {
+                                                            text = strongSelf.presentationData.strings.Premium_MaxFavedStickersText("\(premiumLimit)").string
+                                                        }
+                                                        strongSelf.controller?.presentInGlobalOverlay(UndoOverlayController(presentationData: strongSelf.presentationData, content: .sticker(context: strongSelf.context, file: item.file, title: strongSelf.presentationData.strings.Premium_MaxFavedStickersTitle("\(limit)").string, text: text, undoText: nil, customAction: nil), elevatedLayout: false, action: { [weak self] action in
+                                                            if let strongSelf = self {
+                                                                if case .info = action {
+                                                                    let controller = PremiumIntroScreen(context: strongSelf.context, source: .savedStickers)
+                                                                    strongSelf.controller?.push(controller)
+                                                                    return true
+                                                                }
+                                                            }
+                                                            return false
+                                                        }), with: nil)
+                                                }
+                                            })
                                         }
                                     })),
                                     .action(ContextMenuActionItem(text: strongSelf.presentationData.strings.StickerPack_ViewPack, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Sticker"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
@@ -531,7 +551,13 @@ private final class FeaturedStickersScreenNode: ViewControllerTracingNode {
                                         }
                                     }))
                                 ]
-                                return (itemNode, StickerPreviewPeekContent(account: strongSelf.context.account, item: item, menu: menuItems))
+                                return (itemNode.view, itemNode.bounds, StickerPreviewPeekContent(account: strongSelf.context.account, theme: strongSelf.presentationData.theme, strings: strongSelf.presentationData.strings, item: item, menu: menuItems, openPremiumIntro: { [weak self] in
+                                    guard let strongSelf = self else {
+                                        return
+                                    }
+                                    let controller = PremiumIntroScreen(context: strongSelf.context, source: .stickers)
+                                    strongSelf.controller?.push(controller)
+                                }))
                             } else {
                                 return nil
                             }
@@ -543,29 +569,47 @@ private final class FeaturedStickersScreenNode: ViewControllerTracingNode {
             
             let itemNodeAndItem: (ASDisplayNode, StickerPackItem)? = strongSelf.itemAt(point: point)
             if let (itemNode, item) = itemNodeAndItem {
-                return strongSelf.context.account.postbox.transaction { transaction -> Bool in
-                    return getIsStickerSaved(transaction: transaction, fileId: item.file.fileId)
-                }
+                return strongSelf.context.engine.stickers.isStickerSaved(id: item.file.fileId)
                 |> deliverOnMainQueue
-                |> map { isStarred -> (ASDisplayNode, PeekControllerContent)? in
+                |> map { isStarred -> (UIView, CGRect, PeekControllerContent)? in
                     if let strongSelf = self {
                         var menuItems: [ContextMenuItem] = []
                         menuItems = [
                             .action(ContextMenuActionItem(text: strongSelf.presentationData.strings.StickerPack_Send, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Resend"), color: theme.contextMenu.primaryColor) }, action: { _, f in
                                 if let strongSelf = self, let peekController = strongSelf.peekController, let animationNode = (peekController.contentNode as? StickerPreviewPeekContentNode)?.animationNode {
-                                    let _ = strongSelf.sendSticker?(.standalone(media: item.file), animationNode, animationNode.bounds)
+                                    let _ = strongSelf.sendSticker?(.standalone(media: item.file), animationNode.view, animationNode.bounds)
                                 }
                                 f(.default)
                             })),
-                            .action(ContextMenuActionItem(text: isStarred ? strongSelf.presentationData.strings.Stickers_RemoveFromFavorites : strongSelf.presentationData.strings.Stickers_AddToFavorites, icon: { theme in generateTintedImage(image: isStarred ? UIImage(bundleImageName: "Chat/Context Menu/Unstar") : UIImage(bundleImageName: "Chat/Context Menu/Rate"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
+                            .action(ContextMenuActionItem(text: isStarred ? strongSelf.presentationData.strings.Stickers_RemoveFromFavorites : strongSelf.presentationData.strings.Stickers_AddToFavorites, icon: { theme in generateTintedImage(image: isStarred ? UIImage(bundleImageName: "Chat/Context Menu/Unfave") : UIImage(bundleImageName: "Chat/Context Menu/Fave"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
                                 f(.default)
                                 
                                 if let strongSelf = self {
-                                    if isStarred {
-                                        let _ = removeSavedSticker(postbox: strongSelf.context.account.postbox, mediaId: item.file.fileId).start()
-                                    } else {
-                                        let _ = addSavedSticker(postbox: strongSelf.context.account.postbox, network: strongSelf.context.account.network, file: item.file).start()
-                                    }
+                                    let _ = (strongSelf.context.engine.stickers.toggleStickerSaved(file: item.file, saved: !isStarred)
+                                    |> deliverOnMainQueue).start(next: { result in
+                                        switch result {
+                                            case .generic:
+                                            strongSelf.controller?.presentInGlobalOverlay(UndoOverlayController(presentationData: strongSelf.presentationData, content: .sticker(context: strongSelf.context, file: item.file, title: nil, text: !isStarred ? strongSelf.presentationData.strings.Conversation_StickerAddedToFavorites : strongSelf.presentationData.strings.Conversation_StickerRemovedFromFavorites, undoText: nil, customAction: nil), elevatedLayout: false, action: { _ in return false }), with: nil)
+                                            case let .limitExceeded(limit, premiumLimit):
+                                                let premiumConfiguration = PremiumConfiguration.with(appConfiguration: strongSelf.context.currentAppConfiguration.with { $0 })
+                                                let text: String
+                                                if limit == premiumLimit || premiumConfiguration.isPremiumDisabled {
+                                                    text = strongSelf.presentationData.strings.Premium_MaxFavedStickersFinalText
+                                                } else {
+                                                    text = strongSelf.presentationData.strings.Premium_MaxFavedStickersText("\(premiumLimit)").string
+                                                }
+                                                strongSelf.controller?.presentInGlobalOverlay(UndoOverlayController(presentationData: strongSelf.presentationData, content: .sticker(context: strongSelf.context, file: item.file, title: strongSelf.presentationData.strings.Premium_MaxFavedStickersTitle("\(limit)").string, text: text, undoText: nil, customAction: nil), elevatedLayout: false, action: { [weak self] action in
+                                                    if let strongSelf = self {
+                                                        if case .info = action {
+                                                            let controller = PremiumIntroScreen(context: strongSelf.context, source: .savedStickers)
+                                                            strongSelf.controller?.push(controller)
+                                                            return true
+                                                        }
+                                                    }
+                                                    return false
+                                                }), with: nil)
+                                        }
+                                    })
                                 }
                             })),
                             .action(ContextMenuActionItem(text: strongSelf.presentationData.strings.StickerPack_ViewPack, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Sticker"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
@@ -595,17 +639,23 @@ private final class FeaturedStickersScreenNode: ViewControllerTracingNode {
                                 }
                             }))
                         ]
-                        return (itemNode, StickerPreviewPeekContent(account: strongSelf.context.account, item: .pack(item), menu: menuItems))
+                        return (itemNode.view, itemNode.bounds, StickerPreviewPeekContent(account: strongSelf.context.account, theme: strongSelf.presentationData.theme, strings: strongSelf.presentationData.strings, item: .pack(item.file), menu: menuItems, openPremiumIntro: { [weak self] in
+                            guard let strongSelf = self else {
+                                return
+                            }
+                            let controller = PremiumIntroScreen(context: strongSelf.context, source: .stickers)
+                            strongSelf.controller?.push(controller)
+                        }))
                     } else {
                         return nil
                     }
                 }
             }
             return nil
-        }, present: { [weak self] content, sourceNode in
+        }, present: { [weak self] content, sourceView, sourceRect in
             if let strongSelf = self {
-                let controller = PeekController(presentationData: strongSelf.presentationData, content: content, sourceNode: {
-                    return sourceNode
+                let controller = PeekController(presentationData: strongSelf.presentationData, content: content, sourceView: {
+                    return (sourceView, sourceRect)
                 })
                 strongSelf.peekController = controller
                 strongSelf.controller?.presentInGlobalOverlay(controller)
@@ -740,7 +790,7 @@ private final class FeaturedStickersScreenNode: ViewControllerTracingNode {
 final class FeaturedStickersScreen: ViewController {
     private let context: AccountContext
     fileprivate let highlightedPackId: ItemCollectionId?
-    private let sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?
+    private let sendSticker: ((FileMediaReference, UIView, CGRect) -> Bool)?
     
     private var controllerNode: FeaturedStickersScreenNode {
         return self.displayNode as! FeaturedStickersScreenNode
@@ -756,7 +806,7 @@ final class FeaturedStickersScreen: ViewController {
     
     fileprivate var searchNavigationNode: SearchNavigationContentNode?
     
-    public init(context: AccountContext, highlightedPackId: ItemCollectionId?, sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)? = nil) {
+    public init(context: AccountContext, highlightedPackId: ItemCollectionId?, sendSticker: ((FileMediaReference, UIView, CGRect) -> Bool)? = nil) {
         self.context = context
         self.highlightedPackId = highlightedPackId
         self.sendSticker = sendSticker
@@ -985,7 +1035,7 @@ private enum FeaturedSearchEntry: Identifiable, Comparable {
         switch self {
         case let .sticker(_, code, stickerItem, theme):
             return StickerPaneSearchStickerItem(account: account, code: code, stickerItem: stickerItem, inputNodeInteraction: inputNodeInteraction, theme: theme, selected: { node, rect in
-                interaction.sendSticker(.standalone(media: stickerItem.file), node, rect)
+                interaction.sendSticker(.standalone(media: stickerItem.file), node.view, rect)
             })
         case let .global(_, info, topItems, installed, topSeparator):
             return StickerPaneSearchGlobalItem(account: account, theme: theme, strings: strings, listAppearance: true, fillsRow: true, info: info, topItems: topItems, topSeparator: topSeparator, regularInsets: false, installed: installed, unread: false, open: {
@@ -1031,7 +1081,7 @@ private final class FeaturedPaneSearchContentNode: ASDisplayNode {
     private let inputNodeInteraction: ChatMediaInputNodeInteraction
     private var interaction: StickerPaneSearchInteraction?
     private weak var controller: FeaturedStickersScreen?
-    private let sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?
+    private let sendSticker: ((FileMediaReference, UIView, CGRect) -> Bool)?
     private let itemContext: StickerPaneSearchGlobalItemContext
     
     private var theme: PresentationTheme
@@ -1066,7 +1116,7 @@ private final class FeaturedPaneSearchContentNode: ASDisplayNode {
     }
     var isActiveUpdated: (() -> Void)?
     
-    init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, inputNodeInteraction: ChatMediaInputNodeInteraction, controller: FeaturedStickersScreen, sendSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?, itemContext: StickerPaneSearchGlobalItemContext) {
+    init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, inputNodeInteraction: ChatMediaInputNodeInteraction, controller: FeaturedStickersScreen, sendSticker: ((FileMediaReference, UIView, CGRect) -> Bool)?, itemContext: StickerPaneSearchGlobalItemContext) {
         self.context = context
         self.inputNodeInteraction = inputNodeInteraction
         self.controller = controller
@@ -1126,12 +1176,12 @@ private final class FeaturedPaneSearchContentNode: ASDisplayNode {
                 |> deliverOnMainQueue).start(next: { _ in
                 })
             }
-        }, sendSticker: { [weak self] file, sourceNode, sourceRect in
+        }, sendSticker: { [weak self] file, sourceView, sourceRect in
             if let strongSelf = self {
-                let _ = strongSelf.sendSticker?(file, sourceNode, sourceRect)
+                let _ = strongSelf.sendSticker?(file, sourceView, sourceRect)
             }
         }, getItemIsPreviewed: { item in
-            return inputNodeInteraction.previewedStickerPackItem == .pack(item)
+            return inputNodeInteraction.previewedStickerPackItem == .pack(item.file)
         })
         
         self._ready.set(.single(Void()))
@@ -1377,7 +1427,7 @@ private final class FeaturedPaneSearchContentNode: ASDisplayNode {
                 return (itemNode, StickerPreviewPeekItem.found(stickerItem))
             } else if let itemNode = itemNode as? StickerPaneSearchGlobalItemNode {
                 if let (node, item) = itemNode.itemAt(point: self.view.convert(point, to: itemNode.view)) {
-                    return (node, StickerPreviewPeekItem.pack(item))
+                    return (node, StickerPreviewPeekItem.pack(item.file))
                 }
             }
         }

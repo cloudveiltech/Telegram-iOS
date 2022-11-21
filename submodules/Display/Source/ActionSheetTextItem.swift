@@ -1,12 +1,15 @@
 import Foundation
 import UIKit
 import AsyncDisplayKit
+import Markdown
 
 public class ActionSheetTextItem: ActionSheetItem {
     public let title: String
+    public let parseMarkdown: Bool
     
-    public init(title: String) {
+    public init(title: String, parseMarkdown: Bool = true) {
         self.title = title
+        self.parseMarkdown = parseMarkdown
     }
     
     public func node(theme: ActionSheetControllerTheme) -> ActionSheetItemNode {
@@ -47,6 +50,7 @@ public class ActionSheetTextNode: ActionSheetItemNode {
         self.label.displaysAsynchronously = false
         self.label.truncationType = .end
         self.label.isAccessibilityElement = false
+        self.label.textAlignment = .center
         
         self.accessibilityArea = AccessibilityAreaNode()
         self.accessibilityArea.accessibilityTraits = .staticText
@@ -63,8 +67,20 @@ public class ActionSheetTextNode: ActionSheetItemNode {
         self.item = item
         
         let defaultFont = Font.regular(floor(theme.baseFontSize * 13.0 / 17.0))
+        let boldFont = Font.semibold(floor(theme.baseFontSize * 13.0 / 17.0))
         
-        self.label.attributedText = NSAttributedString(string: item.title, font: defaultFont, textColor: self.theme.secondaryTextColor, paragraphAlignment: .center)
+        if item.parseMarkdown {
+            let body = MarkdownAttributeSet(font: defaultFont, textColor: self.theme.secondaryTextColor)
+            let bold = MarkdownAttributeSet(font: boldFont, textColor: self.theme.secondaryTextColor)
+            let link = body
+            
+            self.label.attributedText = parseMarkdownIntoAttributedString(item.title, attributes: MarkdownAttributes(body: body, bold: bold, link: link, linkAttribute: { _ in
+                return nil
+            }))
+        } else {
+            self.label.attributedText = NSAttributedString(string: item.title, font: defaultFont, textColor: self.theme.secondaryTextColor, paragraphAlignment: .center)
+        }
+        
         self.accessibilityArea.accessibilityLabel = item.title
     }
     

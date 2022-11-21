@@ -10,9 +10,11 @@ import TelegramUIPreferences
 import MergeLists
 import AccountContext
 import StickerPackPreviewUI
+import StickerPeekUI
 import ContextUI
 import ChatPresentationInterfaceState
 import UndoUI
+import PremiumUI
 
 private struct ChatContextResultStableId: Hashable {
     let result: ChatContextResult
@@ -90,7 +92,7 @@ final class HorizontalListContextResultsChatInputContextPanelNode: ChatInputCont
     private var enqueuedTransitions: [(HorizontalListContextResultsChatInputContextPanelTransition, Bool)] = []
     private var hasValidLayout = false
     
-    override init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, fontSize: PresentationFontSize) {
+    override init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, fontSize: PresentationFontSize, chatPresentationContext: ChatPresentationContext) {
         self.strings = strings
         
         self.separatorNode = ASDisplayNode()
@@ -107,7 +109,7 @@ final class HorizontalListContextResultsChatInputContextPanelNode: ChatInputCont
             return strings.VoiceOver_ScrollStatus(row, count).string
         }
         
-        super.init(context: context, theme: theme, strings: strings, fontSize: fontSize)
+        super.init(context: context, theme: theme, strings: strings, fontSize: fontSize, chatPresentationContext: chatPresentationContext)
         
         self.isOpaque = false
         self.clipsToBounds = true
@@ -143,7 +145,7 @@ final class HorizontalListContextResultsChatInputContextPanelNode: ChatInputCont
                     return nil
                 }
                 
-                var selectedItemNodeAndContent: (ASDisplayNode, PeekControllerContent)?
+                var selectedItemNodeAndContent: (UIView, CGRect, PeekControllerContent)?
                 strongSelf.listView.forEachItemNode { itemNode in
                     if itemNode.frame.contains(convertedPoint), let itemNode = itemNode as? HorizontalListContextResultsChatInputPanelItemNode, let item = itemNode.item {
                         if case let .internalReference(internalReference) = item.result, let file = internalReference.file, file.isSticker {
@@ -161,9 +163,9 @@ final class HorizontalListContextResultsChatInputContextPanelNode: ChatInputCont
                                     f(.default)
                                     
                                     if let strongSelf = self {
-                                        let controller = StickerPackScreen(context: strongSelf.context, mainStickerPack: packReference, stickerPacks: [packReference], parentNavigationController: strongSelf.interfaceInteraction?.getNavigationController(), sendSticker: { file, sourceNode, sourceRect in
+                                        let controller = StickerPackScreen(context: strongSelf.context, mainStickerPack: packReference, stickerPacks: [packReference], parentNavigationController: strongSelf.interfaceInteraction?.getNavigationController(), sendSticker: { file, sourceView, sourceRect in
                                             if let strongSelf = self {
-                                                return strongSelf.interfaceInteraction?.sendSticker(file, false, sourceNode, sourceRect) ?? false
+                                                return strongSelf.interfaceInteraction?.sendSticker(file, false, sourceView, sourceRect, nil, []) ?? false
                                             } else {
                                                 return false
                                             }
@@ -174,7 +176,13 @@ final class HorizontalListContextResultsChatInputContextPanelNode: ChatInputCont
                                     }
                                 })))
                             }
-                            selectedItemNodeAndContent = (itemNode, StickerPreviewPeekContent(account: item.account, item: .found(FoundStickerItem(file: file, stringRepresentations: [])), menu: menuItems))
+                            selectedItemNodeAndContent = (itemNode.view, itemNode.bounds, StickerPreviewPeekContent(account: item.account, theme: strongSelf.theme, strings: strongSelf.strings, item: .found(FoundStickerItem(file: file, stringRepresentations: [])), menu: menuItems, openPremiumIntro: { [weak self] in
+                                guard let strongSelf = self else {
+                                    return
+                                }
+                                let controller = PremiumIntroScreen(context: strongSelf.context, source: .stickers)
+                                strongSelf.interfaceInteraction?.getNavigationController()?.pushViewController(controller)
+                            }))
                         } else {
                             var menuItems: [ContextMenuItem] = []
                             if case let .internalReference(internalReference) = item.result, let file = internalReference.file, file.isAnimated {
@@ -186,10 +194,33 @@ final class HorizontalListContextResultsChatInputContextPanelNode: ChatInputCont
                                     guard let strongSelf = self else {
                                         return
                                     }
-                                    let _ = addSavedGif(postbox: strongSelf.context.account.postbox, fileReference: .standalone(media: file)).start()
                                     
-                                    let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
-                                    strongSelf.interfaceInteraction?.presentController(UndoOverlayController(presentationData: presentationData, content: .universal(animation: "anim_gif", scale: 0.075, colors: [:], title: nil, text: strongSelf.strings.Gallery_GifSaved), elevatedLayout: false, animateInAsReplacement: true, action: { _ in return false }), nil)
+                                    let context = strongSelf.context
+                                    let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                                    let interfaceInteraction = strongSelf.interfaceInteraction
+                                    let _ = (toggleGifSaved(account: context.account, fileReference: .standalone(media: file), saved: true)
+                                    |> deliverOnMainQueue).start(next: { result in
+                                        switch result {
+                                            case .generic:
+                                            interfaceInteraction?.presentController(UndoOverlayController(presentationData: presentationData, content: .universal(animation: "anim_gif", scale: 0.075, colors: [:], title: nil, text: presentationData.strings.Gallery_GifSaved, customUndoText: nil), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), nil)
+                                            case let .limitExceeded(limit, premiumLimit):
+                                                let premiumConfiguration = PremiumConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
+                                                let text: String
+                                                if limit == premiumLimit || premiumConfiguration.isPremiumDisabled {
+                                                    text = presentationData.strings.Premium_MaxSavedGifsFinalText
+                                                } else {
+                                                    text = presentationData.strings.Premium_MaxSavedGifsText("\(premiumLimit)").string
+                                                }
+                                                interfaceInteraction?.presentController(UndoOverlayController(presentationData: presentationData, content: .universal(animation: "anim_gif", scale: 0.075, colors: [:], title: presentationData.strings.Premium_MaxSavedGifsTitle("\(limit)").string, text: text, customUndoText: nil), elevatedLayout: false, animateInAsReplacement: false, action: { action in
+                                                    if case .info = action {
+                                                        let controller = PremiumIntroScreen(context: context, source: .savedGifs)
+                                                        interfaceInteraction?.getNavigationController()?.pushViewController(controller)
+                                                        return true
+                                                    }
+                                                    return false
+                                                }), nil)
+                                        }
+                                    })
                                 })))
                             }
                             menuItems.append(.action(ContextMenuActionItem(text: strongSelf.strings.ShareMenu_Send, icon: { theme in
@@ -198,18 +229,18 @@ final class HorizontalListContextResultsChatInputContextPanelNode: ChatInputCont
                                 f(.default)
                                 let _ = item.resultSelected(item.result, itemNode, itemNode.bounds)
                             })))
-                            selectedItemNodeAndContent = (itemNode, ChatContextResultPeekContent(account: item.account, contextResult: item.result, menu: menuItems))
+                            selectedItemNodeAndContent = (itemNode.view, itemNode.bounds, ChatContextResultPeekContent(account: item.account, contextResult: item.result, menu: menuItems))
                         }
                     }
                 }
                 return .single(selectedItemNodeAndContent)
             }
             return nil
-        }, present: { [weak self] content, sourceNode in
+        }, present: { [weak self] content, sourceView, sourceRect in
             if let strongSelf = self {
                 let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
-                let controller = PeekController(presentationData: presentationData, content: content, sourceNode: {
-                    return sourceNode
+                let controller = PeekController(presentationData: presentationData, content: content, sourceView: {
+                    return (sourceView, sourceRect)
                 })
                 strongSelf.interfaceInteraction?.presentGlobalOverlayController(controller, nil)
                 return controller

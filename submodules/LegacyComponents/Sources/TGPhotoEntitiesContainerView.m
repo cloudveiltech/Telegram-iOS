@@ -174,7 +174,8 @@
 - (void)setupWithPaintingData:(TGPaintingData *)paintingData {
     [self removeAll];
     for (TGPhotoPaintEntity *entity in paintingData.entities) {
-        [self createEntityViewWithEntity:entity];
+        UIView * entityView = [self createEntityViewWithEntity:entity];
+        [self addSubview:entityView];
     }
 }
 
@@ -191,7 +192,6 @@
 {
     TGPhotoStickerEntityView *stickerView = [[TGPhotoStickerEntityView alloc] initWithEntity:entity context:self.stickersContext];
     [self _commonEntityViewSetup:stickerView entity:entity];
-    [self addSubview:stickerView];
 
     return stickerView;
 }
@@ -202,7 +202,6 @@
     [textView sizeToFit];
     
     [self _commonEntityViewSetup:textView entity:entity];
-    [self addSubview:textView];
     
     return textView;
 }

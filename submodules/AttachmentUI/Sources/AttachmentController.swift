@@ -11,6 +11,7 @@ import AccountContext
 import TelegramStringFormatting
 import UIKitRuntimeUtils
 import MediaResources
+import AttachmentTextInputPanelNode
 
 public enum AttachmentButtonType: Equatable {
     case gallery
@@ -83,6 +84,7 @@ public protocol AttachmentContainable: ViewController {
     func prepareForReuse()
     
     func requestDismiss(completion: @escaping () -> Void)
+    func shouldDismissImmediately() -> Bool
 }
 
 public extension AttachmentContainable {
@@ -100,6 +102,10 @@ public extension AttachmentContainable {
     
     func requestDismiss(completion: @escaping () -> Void) {
         completion()
+    }
+    
+    func shouldDismissImmediately() -> Bool {
+         return true
     }
 }
 
@@ -162,6 +168,8 @@ public class AttachmentController: ViewController {
     private let buttons: [AttachmentButtonType]
     private let initialButton: AttachmentButtonType
     private let fromMenu: Bool
+    private let hasTextInput: Bool
+    private let makeEntityInputView: () -> AttachmentTextInputPanelInputView?
     
     public var willDismiss: () -> Void = {}
     public var didDismiss: () -> Void = {}
@@ -185,6 +193,7 @@ public class AttachmentController: ViewController {
         private let dim: ASDisplayNode
         private let shadowNode: ASImageNode
         private let container: AttachmentContainer
+        private let makeEntityInputView: () -> AttachmentTextInputPanelInputView?
         let panel: AttachmentPanel
         
         private var currentType: AttachmentButtonType?
@@ -254,8 +263,9 @@ public class AttachmentController: ViewController {
                  
         private let wrapperNode: ASDisplayNode
         
-        init(controller: AttachmentController) {
+        init(controller: AttachmentController, makeEntityInputView: @escaping () -> AttachmentTextInputPanelInputView?) {
             self.controller = controller
+            self.makeEntityInputView = makeEntityInputView
             
             self.dim = ASDisplayNode()
             self.dim.alpha = 0.0
@@ -269,7 +279,7 @@ public class AttachmentController: ViewController {
             
             self.container = AttachmentContainer()
             self.container.canHaveKeyboardFocus = true
-            self.panel = AttachmentPanel(context: controller.context, chatLocation: controller.chatLocation, updatedPresentationData: controller.updatedPresentationData)
+            self.panel = AttachmentPanel(context: controller.context, chatLocation: controller.chatLocation, updatedPresentationData: controller.updatedPresentationData, makeEntityInputView: makeEntityInputView)
             self.panel.fromMenu = controller.fromMenu
             self.panel.isStandalone = controller.isStandalone
             
@@ -309,6 +319,28 @@ public class AttachmentController: ViewController {
             self.container.isPanningUpdated = { [weak self] value in
                 if let strongSelf = self, let currentController = strongSelf.currentControllers.last, !value {
                     currentController.isContainerPanningUpdated(value)
+                }
+            }
+            
+            self.container.shouldCancelPanGesture = { [weak self] in
+                if let strongSelf = self, let currentController = strongSelf.currentControllers.last {
+                    if !currentController.shouldDismissImmediately() {
+                        return true
+                    } else {
+                        return false
+                    }
+                } else {
+                    return false
+                }
+            }
+            
+            self.container.requestDismiss = { [weak self] in
+                if let strongSelf = self, let currentController = strongSelf.currentControllers.last {
+                    currentController.requestDismiss { [weak self] in
+                        if let strongSelf = self {
+                            strongSelf.controller?.dismiss(animated: true)
+                        }
+                    }
                 }
             }
             
@@ -380,6 +412,8 @@ public class AttachmentController: ViewController {
         override func didLoad() {
             super.didLoad()
             
+            self.view.disablesInteractiveModalDismiss = true
+            
             self.dim.view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(self.dimTapGesture(_:))))
             
             if let controller = self.controller {
@@ -404,10 +438,10 @@ public class AttachmentController: ViewController {
             }
         }
         
-        private func updateSelectionCount(_ count: Int) {
+        fileprivate func updateSelectionCount(_ count: Int, animated: Bool = true) {
             self.selectionCount = count
             if let layout = self.validLayout {
-                self.containerLayoutUpdated(layout, transition: .animated(duration: 0.4, curve: .spring))
+                self.containerLayoutUpdated(layout, transition: animated ? .animated(duration: 0.4, curve: .spring) : .immediate)
             }
         }
         
@@ -567,7 +601,7 @@ public class AttachmentController: ViewController {
                 ContainedViewLayoutTransition.animated(duration: 0.3, curve: .linear).updateAlpha(node: self.dim, alpha: 1.0)
                 
                 let targetPosition = self.container.position
-                let startPosition = targetPosition.offsetBy(dx: 0.0, dy: self.bounds.height)
+                let startPosition = targetPosition.offsetBy(dx: 0.0, dy: layout.size.height)
                 
                 self.container.position = startPosition
                 let transition = ContainedViewLayoutTransition.animated(duration: 0.4, curve: .spring)
@@ -658,7 +692,14 @@ public class AttachmentController: ViewController {
                 
                 let insets = layout.insets(options: [.input])
                 let masterWidth = min(max(320.0, floor(layout.size.width / 3.0)), floor(layout.size.width / 2.0))
-                let position: CGPoint = CGPoint(x: masterWidth - 174.0, y: layout.size.height - size.height - insets.bottom - 40.0)
+                                
+                let position: CGPoint
+                let positionY = layout.size.height - size.height - insets.bottom - 40.0
+                if let sourceRect = controller.getSourceRect?() {
+                    position = CGPoint(x: floor(sourceRect.midX - size.width / 2.0), y: min(positionY, sourceRect.minY - size.height))
+                } else {
+                    position = CGPoint(x: masterWidth - 174.0, y: positionY)
+                }
                 
                 if controller.isStandalone {
                     var containerY = floorToScreenPixels((layout.size.height - size.height) / 2.0)
@@ -714,7 +755,7 @@ public class AttachmentController: ViewController {
             let previousHasButton = self.hasButton
             let hasButton = self.panel.isButtonVisible && !self.isDismissing
             self.hasButton = hasButton
-            if let controller = self.controller, controller.buttons.count > 1 {
+            if let controller = self.controller, controller.buttons.count > 1 || controller.hasTextInput {
                 hasPanel = true
             }
                             
@@ -783,7 +824,9 @@ public class AttachmentController: ViewController {
                 }
                 
                 let controllers = self.currentControllers
-                containerTransition.updateFrame(node: self.container, frame: CGRect(origin: CGPoint(), size: containerRect.size))
+                if !self.animating {
+                    containerTransition.updateFrame(node: self.container, frame: CGRect(origin: CGPoint(), size: containerRect.size))
+                }
                 
                 let containerLayout = containerLayout.withUpdatedIntrinsicInsets(containerInsets)
                 
@@ -812,13 +855,17 @@ public class AttachmentController: ViewController {
     
     public var getInputContainerNode: () -> (CGFloat, ASDisplayNode, () -> AttachmentController.InputPanelTransition?)? = { return nil }
     
-    public init(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, chatLocation: ChatLocation, buttons: [AttachmentButtonType], initialButton: AttachmentButtonType = .gallery, fromMenu: Bool = false) {
+    public var getSourceRect: (() -> CGRect?)?
+    
+    public init(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, chatLocation: ChatLocation, buttons: [AttachmentButtonType], initialButton: AttachmentButtonType = .gallery, fromMenu: Bool = false, hasTextInput: Bool = true, makeEntityInputView: @escaping () -> AttachmentTextInputPanelInputView? = { return nil}) {
         self.context = context
         self.updatedPresentationData = updatedPresentationData
         self.chatLocation = chatLocation
         self.buttons = buttons
         self.initialButton = initialButton
         self.fromMenu = fromMenu
+        self.hasTextInput = hasTextInput
+        self.makeEntityInputView = makeEntityInputView
         
         super.init(navigationBarPresentationData: nil)
         
@@ -832,11 +879,7 @@ public class AttachmentController: ViewController {
             }
         }
     }
-    
-    deinit {
-        print()
-    }
-    
+        
     public required init(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -845,12 +888,16 @@ public class AttachmentController: ViewController {
         return self.buttons.contains(.standalone)
     }
     
+    public func updateSelectionCount(_ count: Int) {
+        self.node.updateSelectionCount(count, animated: false)
+    }
+    
     private var node: Node {
         return self.displayNode as! Node
     }
     
     open override func loadDisplayNode() {
-        self.displayNode = Node(controller: self)
+        self.displayNode = Node(controller: self, makeEntityInputView: self.makeEntityInputView)
         self.displayNodeDidLoad()
     }
     

@@ -15,6 +15,9 @@ import PhotoResources
 import TelegramStringFormatting
 import TextFormat
 import InvisibleInkDustNode
+import TextNodeWithEntities
+import AnimationCache
+import MultiAnimationRenderer
 
 public final class ChatMessageNotificationItem: NotificationItem {
     let context: AccountContext
@@ -22,6 +25,7 @@ public final class ChatMessageNotificationItem: NotificationItem {
     let dateTimeFormat: PresentationDateTimeFormat
     let nameDisplayOrder: PresentationPersonNameOrder
     let messages: [Message]
+    let threadData: MessageHistoryThreadData?
     let tapAction: () -> Bool
     let expandAction: (@escaping () -> (ASDisplayNode?, () -> Void)) -> Void
     
@@ -29,12 +33,13 @@ public final class ChatMessageNotificationItem: NotificationItem {
         return messages.first?.id.peerId
     }
     
-    public init(context: AccountContext, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, nameDisplayOrder: PresentationPersonNameOrder, messages: [Message], tapAction: @escaping () -> Bool, expandAction: @escaping (() -> (ASDisplayNode?, () -> Void)) -> Void) {
+    public init(context: AccountContext, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, nameDisplayOrder: PresentationPersonNameOrder, messages: [Message], threadData: MessageHistoryThreadData?, tapAction: @escaping () -> Bool, expandAction: @escaping (() -> (ASDisplayNode?, () -> Void)) -> Void) {
         self.context = context
         self.strings = strings
         self.dateTimeFormat = dateTimeFormat
         self.nameDisplayOrder = nameDisplayOrder
         self.messages = messages
+        self.threadData = threadData
         self.tapAction = tapAction
         self.expandAction = expandAction
     }
@@ -69,7 +74,7 @@ final class ChatMessageNotificationItemNode: NotificationItemNode {
     private let avatarNode: AvatarNode
     private let titleIconNode: ASImageNode
     private let titleNode: TextNode
-    private let textNode: TextNode
+    private let textNode: TextNodeWithEntities
     private var dustNode: InvisibleInkDustNode?
     private let imageNode: TransformImageNode
     
@@ -90,8 +95,8 @@ final class ChatMessageNotificationItemNode: NotificationItemNode {
         self.titleIconNode.displayWithoutProcessing = true
         self.titleIconNode.displaysAsynchronously = false
         
-        self.textNode = TextNode()
-        self.textNode.isUserInteractionEnabled = false
+        self.textNode = TextNodeWithEntities()
+        self.textNode.textNode.isUserInteractionEnabled = false
         
         self.imageNode = TransformImageNode()
         
@@ -100,12 +105,13 @@ final class ChatMessageNotificationItemNode: NotificationItemNode {
         self.addSubnode(self.avatarNode)
         self.addSubnode(self.titleIconNode)
         self.addSubnode(self.titleNode)
-        self.addSubnode(self.textNode)
+        self.addSubnode(self.textNode.textNode)
         self.addSubnode(self.imageNode)
     }
     
     func setupItem(_ item: ChatMessageNotificationItem, compact: Bool) {
         self.item = item
+        
         self.compact = compact
         if compact {
             self.avatarNode.font = compactAvatarFont
@@ -122,10 +128,17 @@ final class ChatMessageNotificationItemNode: NotificationItemNode {
                 if firstMessage.id.peerId.isReplies, let _ = firstMessage.sourceReference, let effectiveAuthor = firstMessage.forwardInfo?.author {
                     title = EnginePeer(effectiveAuthor).displayTitle(strings: item.strings, displayOrder: item.nameDisplayOrder) + "@" + peer.displayTitle(strings: item.strings, displayOrder: item.nameDisplayOrder)
                 } else if author.id != peer.id {
+                    let authorString: String
                     if author.id == item.context.account.peerId {
-                        title = presentationData.strings.DialogList_You + "@" + peer.displayTitle(strings: item.strings, displayOrder: item.nameDisplayOrder)
+                        authorString = presentationData.strings.DialogList_You
                     } else {
-                        title = EnginePeer(author).displayTitle(strings: item.strings, displayOrder: item.nameDisplayOrder) + "@" + peer.displayTitle(strings: item.strings, displayOrder: item.nameDisplayOrder)
+                        authorString = EnginePeer(author).displayTitle(strings: item.strings, displayOrder: item.nameDisplayOrder)
+                    }
+                    
+                    if let threadData = item.threadData {
+                        title = "\(authorString) → \(threadData.info.title)"
+                    } else {
+                        title = authorString + "@" + peer.displayTitle(strings: item.strings, displayOrder: item.nameDisplayOrder)
                     }
                 } else {
                     title = peer.displayTitle(strings: item.strings, displayOrder: item.nameDisplayOrder)
@@ -136,6 +149,10 @@ final class ChatMessageNotificationItemNode: NotificationItemNode {
                             }
                             break
                         }
+                    }
+                    
+                    if let titleValue = title, let threadData = item.threadData {
+                        title = "\(threadData.info.title) (\(titleValue))"
                     }
                 }
             } else {
@@ -190,16 +207,18 @@ final class ChatMessageNotificationItemNode: NotificationItemNode {
                 messageEntities = message.textEntitiesAttribute?.entities.filter { entity in
                     if case .Spoiler = entity.type {
                         return true
+                    } else if case .CustomEmoji = entity.type {
+                        return true
                     } else {
                         return false
                     }
                 }
                 if messageEntities?.count == 0 {
                     messageEntities = nil
-                    messageText = textString
+                    messageText = textString.string
                 }
             } else {
-                messageText = textString
+                messageText = textString.string
             }
         } else if item.messages.count > 1, let peer = item.messages[0].peers[item.messages[0].id.peerId] {
             var displayAuthor = true
@@ -310,7 +329,7 @@ final class ChatMessageNotificationItemNode: NotificationItemNode {
         let textColor = presentationData.theme.inAppNotification.primaryTextColor
         var attributedMessageText: NSAttributedString
         if let messageEntities = messageEntities {
-            attributedMessageText = stringWithAppliedEntities(messageText, entities: messageEntities, baseColor: textColor, linkColor: textColor, baseFont: textFont, linkFont: textFont, boldFont: textFont, italicFont: textFont, boldItalicFont: textFont, fixedFont: textFont, blockQuoteFont: textFont, underlineLinks: false)
+            attributedMessageText = stringWithAppliedEntities(messageText, entities: messageEntities, baseColor: textColor, linkColor: textColor, baseFont: textFont, linkFont: textFont, boldFont: textFont, italicFont: textFont, boldItalicFont: textFont, fixedFont: textFont, blockQuoteFont: textFont, underlineLinks: false, message: item.messages.first)
         } else {
             attributedMessageText = NSAttributedString(string: messageText.replacingOccurrences(of: "\n\n", with: " "), font: textFont, textColor: textColor)
         }
@@ -384,10 +403,24 @@ final class ChatMessageNotificationItemNode: NotificationItemNode {
         let (titleLayout, titleApply) = makeTitleLayout(TextNodeLayoutArguments(attributedString: self.titleAttributedText, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: width - leftInset - rightInset - titleInset, height: CGFloat.greatestFiniteMagnitude), alignment: .left, lineSpacing: 0.0, cutout: nil, insets: UIEdgeInsets()))
         let _ = titleApply()
         
-        let makeTextLayout = TextNode.asyncLayout(self.textNode)
+        let makeTextLayout = TextNodeWithEntities.asyncLayout(self.textNode)
         let (textLayout, textApply) = makeTextLayout(TextNodeLayoutArguments(attributedString: self.textAttributedText, backgroundColor: nil, maximumNumberOfLines: 2, truncationType: .end, constrainedSize: CGSize(width: width - leftInset - rightInset, height: CGFloat.greatestFiniteMagnitude), alignment: .left, lineSpacing: 0.0, cutout: nil, insets: UIEdgeInsets()))
         let _ = titleApply()
-        let _ = textApply()
+        
+        if let item = self.item {
+            let theme = item.context.sharedContext.currentPresentationData.with({ $0 }).theme
+            let _ = textApply(TextNodeWithEntities.Arguments(
+                context: item.context,
+                cache: item.context.animationCache,
+                renderer: item.context.animationRenderer,
+                placeholderColor: theme.list.mediaPlaceholderColor,
+                attemptSynchronous: false
+            ))
+        } else {
+            let _ = textApply(nil)
+        }
+        
+        self.textNode.visibilityRect = CGRect.infinite
                 
         let textSpacing: CGFloat = 1.0
         
@@ -399,7 +432,7 @@ final class ChatMessageNotificationItemNode: NotificationItemNode {
         }
         
         let textFrame = CGRect(origin: CGPoint(x: leftInset, y: titleFrame.maxY + textSpacing), size: textLayout.size)
-        transition.updateFrame(node: self.textNode, frame: textFrame)
+        transition.updateFrame(node: self.textNode.textNode, frame: textFrame)
         
         transition.updateFrame(node: self.imageNode, frame: CGRect(origin: CGPoint(x: width - 10.0 - imageSize.width, y: (panelHeight - imageSize.height) / 2.0), size: imageSize))
         
@@ -411,7 +444,7 @@ final class ChatMessageNotificationItemNode: NotificationItemNode {
                 dustNode = InvisibleInkDustNode(textNode: nil)
                 dustNode.isUserInteractionEnabled = false
                 self.dustNode = dustNode
-                self.insertSubnode(dustNode, aboveSubnode: self.textNode)
+                self.insertSubnode(dustNode, aboveSubnode: self.textNode.textNode)
             }
             dustNode.frame = textFrame.insetBy(dx: -3.0, dy: -3.0).offsetBy(dx: 0.0, dy: 3.0)
             dustNode.update(size: dustNode.frame.size, color: presentationData.theme.inAppNotification.primaryTextColor, textColor: presentationData.theme.inAppNotification.primaryTextColor, rects: textLayout.spoilers.map { $0.1.offsetBy(dx: 3.0, dy: 3.0).insetBy(dx: 1.0, dy: 1.0) }, wordRects: textLayout.spoilerWords.map { $0.1.offsetBy(dx: 3.0, dy: 3.0).insetBy(dx: 1.0, dy: 1.0) })

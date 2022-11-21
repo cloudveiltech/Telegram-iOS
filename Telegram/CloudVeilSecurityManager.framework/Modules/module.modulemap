@@ -6,6 +6,6 @@ framework module CloudVeilSecurityManager {
 }
 
 module CloudVeilSecurityManager.Swift {
-    header "CloudVeilSecurityManager-Swift.h"
-    requires objc
+  header "CloudVeilSecurityManager-Swift.h"
+  requires objc
 }

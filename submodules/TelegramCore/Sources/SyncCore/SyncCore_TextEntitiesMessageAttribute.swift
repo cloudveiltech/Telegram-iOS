@@ -21,6 +21,7 @@ public enum MessageTextEntityType: Equatable {
     case Underline
     case BankCard
     case Spoiler
+    case CustomEmoji(stickerPack: StickerPackReference?, fileId: Int64)
     case Custom(type: CustomEntityType)
 }
 
@@ -71,6 +72,9 @@ public struct MessageTextEntity: PostboxCoding, Codable, Equatable {
                 self.type = .BankCard
             case 17:
                 self.type = .Spoiler
+            case 18:
+                let stickerPack = decoder.decodeObjectForKey("s", decoder: { StickerPackReference(decoder: $0) }) as? StickerPackReference
+                self.type = .CustomEmoji(stickerPack: stickerPack, fileId: decoder.decodeInt64ForKey("f", orElse: 0))
             case Int32.max:
                 self.type = .Custom(type: decoder.decodeInt32ForKey("type", orElse: 0))
             default:
@@ -126,6 +130,8 @@ public struct MessageTextEntity: PostboxCoding, Codable, Equatable {
                 self.type = .BankCard
             case 17:
                 self.type = .Spoiler
+            case 18:
+                self.type = .CustomEmoji(stickerPack: try container.decodeIfPresent(StickerPackReference.self, forKey: "s"), fileId: try container.decode(Int64.self, forKey: "f"))
             case Int32.max:
                 let customType: Int32 = (try? container.decode(Int32.self, forKey: "type")) ?? 0
                 self.type = .Custom(type: customType)
@@ -176,6 +182,14 @@ public struct MessageTextEntity: PostboxCoding, Codable, Equatable {
                 encoder.encodeInt32(16, forKey: "_rawValue")
             case .Spoiler:
                 encoder.encodeInt32(17, forKey: "_rawValue")
+            case let .CustomEmoji(stickerPack, fileId):
+                encoder.encodeInt32(18, forKey: "_rawValue")
+                if let stickerPack = stickerPack {
+                    encoder.encodeObject(stickerPack, forKey: "s")
+                } else {
+                    encoder.encodeNil(forKey: "s")
+                }
+                encoder.encodeInt64(fileId, forKey: "f")
             case let .Custom(type):
                 encoder.encodeInt32(Int32.max, forKey: "_rawValue")
                 encoder.encodeInt32(type, forKey: "type")
@@ -226,6 +240,10 @@ public struct MessageTextEntity: PostboxCoding, Codable, Equatable {
                 try container.encode(16 as Int32, forKey: "_rawValue")
             case .Spoiler:
                 try container.encode(17 as Int32, forKey: "_rawValue")
+            case let .CustomEmoji(stickerPack, fileId):
+                try container.encode(18 as Int32, forKey: "_rawValue")
+                try container.encodeIfPresent(stickerPack, forKey: "s")
+                try container.encode(fileId, forKey: "f")
             case let .Custom(type):
                 try container.encode(Int32.max as Int32, forKey: "_rawValue")
                 try container.encode(type as Int32, forKey: "type")
@@ -251,6 +269,23 @@ public class TextEntitiesMessageAttribute: MessageAttribute, Equatable {
             }
         }
         return result
+    }
+    
+    public var associatedMediaIds: [MediaId] {
+        var result: [MediaId] = []
+        for entity in self.entities {
+            switch entity.type {
+            case let .CustomEmoji(_, fileId):
+                result.append(MediaId(namespace: Namespaces.Media.CloudFile, id: fileId))
+            default:
+                break
+            }
+        }
+        if result.isEmpty {
+            return result
+        } else {
+            return Array(Set(result))
+        }
     }
     
     public init(entities: [MessageTextEntity]) {

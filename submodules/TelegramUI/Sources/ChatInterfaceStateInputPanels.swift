@@ -157,6 +157,43 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
                     }
                 }
             }
+            
+            if channel.flags.contains(.isForum) {
+                if let threadData = chatPresentationInterfaceState.threadData {
+                    if threadData.isClosed {
+                        var canManage = false
+                        if channel.flags.contains(.isCreator) {
+                            canManage = true
+                        } else if channel.hasPermission(.manageTopics) {
+                            canManage = true
+                        } else if threadData.isOwnedByMe {
+                            canManage = true
+                        }
+                        
+                        if !canManage {
+                            if let currentPanel = (currentPanel as? ChatRestrictedInputPanelNode) ?? (currentSecondaryPanel as? ChatRestrictedInputPanelNode) {
+                                return (currentPanel, nil)
+                            } else {
+                                let panel = ChatRestrictedInputPanelNode()
+                                panel.context = context
+                                panel.interfaceInteraction = interfaceInteraction
+                                return (panel, nil)
+                            }
+                        }
+                    }
+                } else {
+                    if chatPresentationInterfaceState.interfaceState.replyMessageId == nil {
+                        if let currentPanel = (currentPanel as? ChatRestrictedInputPanelNode) ?? (currentSecondaryPanel as? ChatRestrictedInputPanelNode) {
+                            return (currentPanel, nil)
+                        } else {
+                            let panel = ChatRestrictedInputPanelNode()
+                            panel.context = context
+                            panel.interfaceInteraction = interfaceInteraction
+                            return (panel, nil)
+                        }
+                    }
+                }
+            }
                         
             if isMember && channel.hasBannedPermission(.banSendMessages) != nil && !channel.flags.contains(.isGigagroup) {
                 if let currentPanel = (currentPanel as? ChatRestrictedInputPanelNode) ?? (currentSecondaryPanel as? ChatRestrictedInputPanelNode) {
@@ -297,7 +334,7 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
                 textInputPanelNode.context = context
                 return (textInputPanelNode, nil)
             } else {
-                let panel = ChatTextInputPanelNode(presentationInterfaceState: chatPresentationInterfaceState, presentationContext: nil, presentController: { [weak interfaceInteraction] controller in
+                let panel = ChatTextInputPanelNode(context: context, presentationInterfaceState: chatPresentationInterfaceState, presentationContext: nil, presentController: { [weak interfaceInteraction] controller in
                     interfaceInteraction?.presentController(controller, nil)
                 })
                 

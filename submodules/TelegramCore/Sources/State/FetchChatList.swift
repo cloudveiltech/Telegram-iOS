@@ -13,7 +13,7 @@ enum FetchChatListLocation {
 struct ParsedDialogs {
     let itemIds: [PeerId]
     let peers: [Peer]
-    let peerPresences: [PeerId: PeerPresence]
+    let peerPresences: [PeerId: Api.User]
     
     let notificationSettings: [PeerId: PeerNotificationSettings]
     let readStates: [PeerId: [MessageId.Namespace: PeerReadState]]
@@ -61,7 +61,7 @@ private func parseDialogs(apiDialogs: [Api.Dialog], apiMessages: [Api.Message], 
     var itemIds: [PeerId] = []
     
     var peers: [PeerId: Peer] = [:]
-    var peerPresences: [PeerId: PeerPresence] = [:]
+    var peerPresences: [PeerId: Api.User] = [:]
     for chat in apiChats {
         if let groupOrChannel = parseTelegramGroupOrChannel(chat: chat) {
             peers[groupOrChannel.id] = groupOrChannel
@@ -70,9 +70,7 @@ private func parseDialogs(apiDialogs: [Api.Dialog], apiMessages: [Api.Message], 
     for user in apiUsers {
         let telegramUser = TelegramUser(user: user)
         peers[telegramUser.id] = telegramUser
-        if let presence = TelegramUserPresence(apiUser: user) {
-            peerPresences[telegramUser.id] = presence
-        }
+        peerPresences[telegramUser.id] = user
     }
     
     for dialog in apiDialogs {
@@ -189,22 +187,23 @@ private func parseDialogs(apiDialogs: [Api.Dialog], apiMessages: [Api.Message], 
 }
 
 struct FetchedChatList {
-    let chatPeerIds: [PeerId]
-    let peers: [Peer]
-    let peerPresences: [PeerId: PeerPresence]
-    let notificationSettings: [PeerId: PeerNotificationSettings]
-    let readStates: [PeerId: [MessageId.Namespace: PeerReadState]]
-    let mentionTagSummaries: [PeerId: MessageHistoryTagNamespaceSummary]
-    let reactionTagSummaries: [PeerId: MessageHistoryTagNamespaceSummary]
-    let channelStates: [PeerId: Int32]
-    let storeMessages: [StoreMessage]
-    let topMessageIds: [PeerId: MessageId]
+    var chatPeerIds: [PeerId]
+    var peers: [Peer]
+    var peerPresences: [PeerId: Api.User]
+    var notificationSettings: [PeerId: PeerNotificationSettings]
+    var readStates: [PeerId: [MessageId.Namespace: PeerReadState]]
+    var mentionTagSummaries: [PeerId: MessageHistoryTagNamespaceSummary]
+    var reactionTagSummaries: [PeerId: MessageHistoryTagNamespaceSummary]
+    var channelStates: [PeerId: Int32]
+    var storeMessages: [StoreMessage]
+    var topMessageIds: [PeerId: MessageId]
     
-    let lowerNonPinnedIndex: MessageIndex?
+    var lowerNonPinnedIndex: MessageIndex?
     
-    let pinnedItemIds: [PeerId]?
-    let folderSummaries: [PeerGroupId: PeerGroupUnreadCountersSummary]
-    let peerGroupIds: [PeerId: PeerGroupId]
+    var pinnedItemIds: [PeerId]?
+    var folderSummaries: [PeerGroupId: PeerGroupUnreadCountersSummary]
+    var peerGroupIds: [PeerId: PeerGroupId]
+    var threadInfos: [MessageId: StoreMessageHistoryThreadData]
 }
 
 func fetchChatList(postbox: Postbox, network: Network, location: FetchChatListLocation, upperBound: MessageIndex, hash: Int64, limit: Int32) -> Signal<FetchedChatList?, NoError> {
@@ -295,9 +294,9 @@ func fetchChatList(postbox: Postbox, network: Network, location: FetchChatListLo
                 }
                 
                 return combineLatest(folderSignals)
-                |> map { folders -> FetchedChatList? in
+                |> mapToSignal { folders -> Signal<FetchedChatList?, NoError> in
                     var peers: [Peer] = []
-                    var peerPresences: [PeerId: PeerPresence] = [:]
+                    var peerPresences: [PeerId: Api.User] = [:]
                     var notificationSettings: [PeerId: PeerNotificationSettings] = [:]
                     var readStates: [PeerId: [MessageId.Namespace: PeerReadState]] = [:]
                     var mentionTagSummaries: [PeerId: MessageHistoryTagNamespaceSummary] = [:]
@@ -372,7 +371,7 @@ func fetchChatList(postbox: Postbox, network: Network, location: FetchChatListLo
                         }
                     }
                     
-                    return FetchedChatList(
+                    let result: FetchedChatList? = FetchedChatList(
                         chatPeerIds: parsedRemoteChats.itemIds + (pinnedItemIds ?? []),
                         peers: peers,
                         peerPresences: peerPresences,
@@ -388,8 +387,18 @@ func fetchChatList(postbox: Postbox, network: Network, location: FetchChatListLo
                     
                         pinnedItemIds: pinnedItemIds,
                         folderSummaries: folderSummaries,
-                        peerGroupIds: peerGroupIds
+                        peerGroupIds: peerGroupIds,
+                        threadInfos: [:]
                     )
+                    return resolveUnknownEmojiFiles(postbox: postbox, source: .network(network), messages: storeMessages, reactions: [], result: result)
+                    |> mapToSignal { result in
+                        if let result = result {
+                            return resolveForumThreads(postbox: postbox, network: network, fetchedChatList: result)
+                            |> map(Optional.init)
+                        } else {
+                            return .single(result)
+                        }
+                    }
                 }
             }
         }

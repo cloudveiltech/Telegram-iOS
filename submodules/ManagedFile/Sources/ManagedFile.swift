@@ -19,6 +19,7 @@ public final class ManagedFile {
     private let queue: Queue?
     private let fd: Int32
     private let mode: Mode
+    private var isClosed: Bool = false
     
     public init?(queue: Queue?, path: String, mode: Mode) {
         if let queue = queue {
@@ -51,13 +52,24 @@ public final class ManagedFile {
         if let queue = self.queue {
             assert(queue.isCurrent())
         }
+        if !self.isClosed {
+            close(self.fd)
+        }
+    }
+    
+    public func _unsafeClose() {
+        if let queue = self.queue {
+            assert(queue.isCurrent())
+        }
         close(self.fd)
+        self.isClosed = true
     }
     
     public func write(_ data: UnsafeRawPointer, count: Int) -> Int {
         if let queue = self.queue {
             assert(queue.isCurrent())
         }
+        assert(!self.isClosed)
         return wrappedWrite(self.fd, data, count)
     }
     
@@ -65,6 +77,7 @@ public final class ManagedFile {
         if let queue = self.queue {
             assert(queue.isCurrent())
         }
+        assert(!self.isClosed)
         return wrappedRead(self.fd, data, count)
     }
     
@@ -72,6 +85,7 @@ public final class ManagedFile {
         if let queue = self.queue {
             assert(queue.isCurrent())
         }
+        assert(!self.isClosed)
         var result = Data(count: count)
         result.withUnsafeMutableBytes { buffer -> Void in
             guard let bytes = buffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
@@ -87,6 +101,7 @@ public final class ManagedFile {
         if let queue = self.queue {
             assert(queue.isCurrent())
         }
+        assert(!self.isClosed)
         lseek(self.fd, position, SEEK_SET)
     }
     
@@ -94,25 +109,73 @@ public final class ManagedFile {
         if let queue = self.queue {
             assert(queue.isCurrent())
         }
+        assert(!self.isClosed)
         ftruncate(self.fd, count)
     }
     
-    public func getSize() -> Int? {
+    public func getSize() -> Int64? {
         if let queue = self.queue {
             assert(queue.isCurrent())
         }
+        assert(!self.isClosed)
         var value = stat()
         if fstat(self.fd, &value) == 0 {
-            return Int(value.st_size)
+            return value.st_size
         } else {
             return nil
         }
+    }
+    
+    public func position() -> Int64 {
+        if let queue = self.queue {
+            assert(queue.isCurrent())
+        }
+        assert(!self.isClosed)
+        
+        return lseek(self.fd, 0, SEEK_CUR);
     }
     
     public func sync() {
         if let queue = self.queue {
             assert(queue.isCurrent())
         }
+        assert(!self.isClosed)
         fsync(self.fd)
+    }
+}
+
+public extension ManagedFile {
+    func write(_ data: Data) -> Int {
+        if data.isEmpty {
+            return 0
+        }
+        return data.withUnsafeBytes { bytes -> Int in
+            return self.write(bytes.baseAddress!, count: bytes.count)
+        }
+    }
+    
+    func write(_ value: Int32) {
+        var value = value
+        let _ = self.write(&value, count: 4)
+    }
+    
+    func write(_ value: UInt32) {
+        var value = value
+        let _ = self.write(&value, count: 4)
+    }
+    
+    func write(_ value: Int64) {
+        var value = value
+        let _ = self.write(&value, count: 8)
+    }
+    
+    func write(_ value: UInt64) {
+        var value = value
+        let _ = self.write(&value, count: 8)
+    }
+    
+    func write(_ value: Float32) {
+        var value = value
+        let _ = self.write(&value, count: 4)
     }
 }

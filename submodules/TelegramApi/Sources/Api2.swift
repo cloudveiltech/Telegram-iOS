@@ -1,4 +1,286 @@
 public extension Api {
+    enum BotInlineMessage: TypeConstructorDescription {
+        case botInlineMessageMediaAuto(flags: Int32, message: String, entities: [Api.MessageEntity]?, replyMarkup: Api.ReplyMarkup?)
+        case botInlineMessageMediaContact(flags: Int32, phoneNumber: String, firstName: String, lastName: String, vcard: String, replyMarkup: Api.ReplyMarkup?)
+        case botInlineMessageMediaGeo(flags: Int32, geo: Api.GeoPoint, heading: Int32?, period: Int32?, proximityNotificationRadius: Int32?, replyMarkup: Api.ReplyMarkup?)
+        case botInlineMessageMediaInvoice(flags: Int32, title: String, description: String, photo: Api.WebDocument?, currency: String, totalAmount: Int64, replyMarkup: Api.ReplyMarkup?)
+        case botInlineMessageMediaVenue(flags: Int32, geo: Api.GeoPoint, title: String, address: String, provider: String, venueId: String, venueType: String, replyMarkup: Api.ReplyMarkup?)
+        case botInlineMessageText(flags: Int32, message: String, entities: [Api.MessageEntity]?, replyMarkup: Api.ReplyMarkup?)
+    
+    public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
+    switch self {
+                case .botInlineMessageMediaAuto(let flags, let message, let entities, let replyMarkup):
+                    if boxed {
+                        buffer.appendInt32(1984755728)
+                    }
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    serializeString(message, buffer: buffer, boxed: false)
+                    if Int(flags) & Int(1 << 1) != 0 {buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(entities!.count))
+                    for item in entities! {
+                        item.serialize(buffer, true)
+                    }}
+                    if Int(flags) & Int(1 << 2) != 0 {replyMarkup!.serialize(buffer, true)}
+                    break
+                case .botInlineMessageMediaContact(let flags, let phoneNumber, let firstName, let lastName, let vcard, let replyMarkup):
+                    if boxed {
+                        buffer.appendInt32(416402882)
+                    }
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    serializeString(phoneNumber, buffer: buffer, boxed: false)
+                    serializeString(firstName, buffer: buffer, boxed: false)
+                    serializeString(lastName, buffer: buffer, boxed: false)
+                    serializeString(vcard, buffer: buffer, boxed: false)
+                    if Int(flags) & Int(1 << 2) != 0 {replyMarkup!.serialize(buffer, true)}
+                    break
+                case .botInlineMessageMediaGeo(let flags, let geo, let heading, let period, let proximityNotificationRadius, let replyMarkup):
+                    if boxed {
+                        buffer.appendInt32(85477117)
+                    }
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    geo.serialize(buffer, true)
+                    if Int(flags) & Int(1 << 0) != 0 {serializeInt32(heading!, buffer: buffer, boxed: false)}
+                    if Int(flags) & Int(1 << 1) != 0 {serializeInt32(period!, buffer: buffer, boxed: false)}
+                    if Int(flags) & Int(1 << 3) != 0 {serializeInt32(proximityNotificationRadius!, buffer: buffer, boxed: false)}
+                    if Int(flags) & Int(1 << 2) != 0 {replyMarkup!.serialize(buffer, true)}
+                    break
+                case .botInlineMessageMediaInvoice(let flags, let title, let description, let photo, let currency, let totalAmount, let replyMarkup):
+                    if boxed {
+                        buffer.appendInt32(894081801)
+                    }
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    serializeString(title, buffer: buffer, boxed: false)
+                    serializeString(description, buffer: buffer, boxed: false)
+                    if Int(flags) & Int(1 << 0) != 0 {photo!.serialize(buffer, true)}
+                    serializeString(currency, buffer: buffer, boxed: false)
+                    serializeInt64(totalAmount, buffer: buffer, boxed: false)
+                    if Int(flags) & Int(1 << 2) != 0 {replyMarkup!.serialize(buffer, true)}
+                    break
+                case .botInlineMessageMediaVenue(let flags, let geo, let title, let address, let provider, let venueId, let venueType, let replyMarkup):
+                    if boxed {
+                        buffer.appendInt32(-1970903652)
+                    }
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    geo.serialize(buffer, true)
+                    serializeString(title, buffer: buffer, boxed: false)
+                    serializeString(address, buffer: buffer, boxed: false)
+                    serializeString(provider, buffer: buffer, boxed: false)
+                    serializeString(venueId, buffer: buffer, boxed: false)
+                    serializeString(venueType, buffer: buffer, boxed: false)
+                    if Int(flags) & Int(1 << 2) != 0 {replyMarkup!.serialize(buffer, true)}
+                    break
+                case .botInlineMessageText(let flags, let message, let entities, let replyMarkup):
+                    if boxed {
+                        buffer.appendInt32(-1937807902)
+                    }
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    serializeString(message, buffer: buffer, boxed: false)
+                    if Int(flags) & Int(1 << 1) != 0 {buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(entities!.count))
+                    for item in entities! {
+                        item.serialize(buffer, true)
+                    }}
+                    if Int(flags) & Int(1 << 2) != 0 {replyMarkup!.serialize(buffer, true)}
+                    break
+    }
+    }
+    
+    public func descriptionFields() -> (String, [(String, Any)]) {
+        switch self {
+                case .botInlineMessageMediaAuto(let flags, let message, let entities, let replyMarkup):
+                return ("botInlineMessageMediaAuto", [("flags", String(describing: flags)), ("message", String(describing: message)), ("entities", String(describing: entities)), ("replyMarkup", String(describing: replyMarkup))])
+                case .botInlineMessageMediaContact(let flags, let phoneNumber, let firstName, let lastName, let vcard, let replyMarkup):
+                return ("botInlineMessageMediaContact", [("flags", String(describing: flags)), ("phoneNumber", String(describing: phoneNumber)), ("firstName", String(describing: firstName)), ("lastName", String(describing: lastName)), ("vcard", String(describing: vcard)), ("replyMarkup", String(describing: replyMarkup))])
+                case .botInlineMessageMediaGeo(let flags, let geo, let heading, let period, let proximityNotificationRadius, let replyMarkup):
+                return ("botInlineMessageMediaGeo", [("flags", String(describing: flags)), ("geo", String(describing: geo)), ("heading", String(describing: heading)), ("period", String(describing: period)), ("proximityNotificationRadius", String(describing: proximityNotificationRadius)), ("replyMarkup", String(describing: replyMarkup))])
+                case .botInlineMessageMediaInvoice(let flags, let title, let description, let photo, let currency, let totalAmount, let replyMarkup):
+                return ("botInlineMessageMediaInvoice", [("flags", String(describing: flags)), ("title", String(describing: title)), ("description", String(describing: description)), ("photo", String(describing: photo)), ("currency", String(describing: currency)), ("totalAmount", String(describing: totalAmount)), ("replyMarkup", String(describing: replyMarkup))])
+                case .botInlineMessageMediaVenue(let flags, let geo, let title, let address, let provider, let venueId, let venueType, let replyMarkup):
+                return ("botInlineMessageMediaVenue", [("flags", String(describing: flags)), ("geo", String(describing: geo)), ("title", String(describing: title)), ("address", String(describing: address)), ("provider", String(describing: provider)), ("venueId", String(describing: venueId)), ("venueType", String(describing: venueType)), ("replyMarkup", String(describing: replyMarkup))])
+                case .botInlineMessageText(let flags, let message, let entities, let replyMarkup):
+                return ("botInlineMessageText", [("flags", String(describing: flags)), ("message", String(describing: message)), ("entities", String(describing: entities)), ("replyMarkup", String(describing: replyMarkup))])
+    }
+    }
+    
+        public static func parse_botInlineMessageMediaAuto(_ reader: BufferReader) -> BotInlineMessage? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            var _2: String?
+            _2 = parseString(reader)
+            var _3: [Api.MessageEntity]?
+            if Int(_1!) & Int(1 << 1) != 0 {if let _ = reader.readInt32() {
+                _3 = Api.parseVector(reader, elementSignature: 0, elementType: Api.MessageEntity.self)
+            } }
+            var _4: Api.ReplyMarkup?
+            if Int(_1!) & Int(1 << 2) != 0 {if let signature = reader.readInt32() {
+                _4 = Api.parse(reader, signature: signature) as? Api.ReplyMarkup
+            } }
+            let _c1 = _1 != nil
+            let _c2 = _2 != nil
+            let _c3 = (Int(_1!) & Int(1 << 1) == 0) || _3 != nil
+            let _c4 = (Int(_1!) & Int(1 << 2) == 0) || _4 != nil
+            if _c1 && _c2 && _c3 && _c4 {
+                return Api.BotInlineMessage.botInlineMessageMediaAuto(flags: _1!, message: _2!, entities: _3, replyMarkup: _4)
+            }
+            else {
+                return nil
+            }
+        }
+        public static func parse_botInlineMessageMediaContact(_ reader: BufferReader) -> BotInlineMessage? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            var _2: String?
+            _2 = parseString(reader)
+            var _3: String?
+            _3 = parseString(reader)
+            var _4: String?
+            _4 = parseString(reader)
+            var _5: String?
+            _5 = parseString(reader)
+            var _6: Api.ReplyMarkup?
+            if Int(_1!) & Int(1 << 2) != 0 {if let signature = reader.readInt32() {
+                _6 = Api.parse(reader, signature: signature) as? Api.ReplyMarkup
+            } }
+            let _c1 = _1 != nil
+            let _c2 = _2 != nil
+            let _c3 = _3 != nil
+            let _c4 = _4 != nil
+            let _c5 = _5 != nil
+            let _c6 = (Int(_1!) & Int(1 << 2) == 0) || _6 != nil
+            if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 {
+                return Api.BotInlineMessage.botInlineMessageMediaContact(flags: _1!, phoneNumber: _2!, firstName: _3!, lastName: _4!, vcard: _5!, replyMarkup: _6)
+            }
+            else {
+                return nil
+            }
+        }
+        public static func parse_botInlineMessageMediaGeo(_ reader: BufferReader) -> BotInlineMessage? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            var _2: Api.GeoPoint?
+            if let signature = reader.readInt32() {
+                _2 = Api.parse(reader, signature: signature) as? Api.GeoPoint
+            }
+            var _3: Int32?
+            if Int(_1!) & Int(1 << 0) != 0 {_3 = reader.readInt32() }
+            var _4: Int32?
+            if Int(_1!) & Int(1 << 1) != 0 {_4 = reader.readInt32() }
+            var _5: Int32?
+            if Int(_1!) & Int(1 << 3) != 0 {_5 = reader.readInt32() }
+            var _6: Api.ReplyMarkup?
+            if Int(_1!) & Int(1 << 2) != 0 {if let signature = reader.readInt32() {
+                _6 = Api.parse(reader, signature: signature) as? Api.ReplyMarkup
+            } }
+            let _c1 = _1 != nil
+            let _c2 = _2 != nil
+            let _c3 = (Int(_1!) & Int(1 << 0) == 0) || _3 != nil
+            let _c4 = (Int(_1!) & Int(1 << 1) == 0) || _4 != nil
+            let _c5 = (Int(_1!) & Int(1 << 3) == 0) || _5 != nil
+            let _c6 = (Int(_1!) & Int(1 << 2) == 0) || _6 != nil
+            if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 {
+                return Api.BotInlineMessage.botInlineMessageMediaGeo(flags: _1!, geo: _2!, heading: _3, period: _4, proximityNotificationRadius: _5, replyMarkup: _6)
+            }
+            else {
+                return nil
+            }
+        }
+        public static func parse_botInlineMessageMediaInvoice(_ reader: BufferReader) -> BotInlineMessage? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            var _2: String?
+            _2 = parseString(reader)
+            var _3: String?
+            _3 = parseString(reader)
+            var _4: Api.WebDocument?
+            if Int(_1!) & Int(1 << 0) != 0 {if let signature = reader.readInt32() {
+                _4 = Api.parse(reader, signature: signature) as? Api.WebDocument
+            } }
+            var _5: String?
+            _5 = parseString(reader)
+            var _6: Int64?
+            _6 = reader.readInt64()
+            var _7: Api.ReplyMarkup?
+            if Int(_1!) & Int(1 << 2) != 0 {if let signature = reader.readInt32() {
+                _7 = Api.parse(reader, signature: signature) as? Api.ReplyMarkup
+            } }
+            let _c1 = _1 != nil
+            let _c2 = _2 != nil
+            let _c3 = _3 != nil
+            let _c4 = (Int(_1!) & Int(1 << 0) == 0) || _4 != nil
+            let _c5 = _5 != nil
+            let _c6 = _6 != nil
+            let _c7 = (Int(_1!) & Int(1 << 2) == 0) || _7 != nil
+            if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 && _c7 {
+                return Api.BotInlineMessage.botInlineMessageMediaInvoice(flags: _1!, title: _2!, description: _3!, photo: _4, currency: _5!, totalAmount: _6!, replyMarkup: _7)
+            }
+            else {
+                return nil
+            }
+        }
+        public static func parse_botInlineMessageMediaVenue(_ reader: BufferReader) -> BotInlineMessage? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            var _2: Api.GeoPoint?
+            if let signature = reader.readInt32() {
+                _2 = Api.parse(reader, signature: signature) as? Api.GeoPoint
+            }
+            var _3: String?
+            _3 = parseString(reader)
+            var _4: String?
+            _4 = parseString(reader)
+            var _5: String?
+            _5 = parseString(reader)
+            var _6: String?
+            _6 = parseString(reader)
+            var _7: String?
+            _7 = parseString(reader)
+            var _8: Api.ReplyMarkup?
+            if Int(_1!) & Int(1 << 2) != 0 {if let signature = reader.readInt32() {
+                _8 = Api.parse(reader, signature: signature) as? Api.ReplyMarkup
+            } }
+            let _c1 = _1 != nil
+            let _c2 = _2 != nil
+            let _c3 = _3 != nil
+            let _c4 = _4 != nil
+            let _c5 = _5 != nil
+            let _c6 = _6 != nil
+            let _c7 = _7 != nil
+            let _c8 = (Int(_1!) & Int(1 << 2) == 0) || _8 != nil
+            if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 && _c7 && _c8 {
+                return Api.BotInlineMessage.botInlineMessageMediaVenue(flags: _1!, geo: _2!, title: _3!, address: _4!, provider: _5!, venueId: _6!, venueType: _7!, replyMarkup: _8)
+            }
+            else {
+                return nil
+            }
+        }
+        public static func parse_botInlineMessageText(_ reader: BufferReader) -> BotInlineMessage? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            var _2: String?
+            _2 = parseString(reader)
+            var _3: [Api.MessageEntity]?
+            if Int(_1!) & Int(1 << 1) != 0 {if let _ = reader.readInt32() {
+                _3 = Api.parseVector(reader, elementSignature: 0, elementType: Api.MessageEntity.self)
+            } }
+            var _4: Api.ReplyMarkup?
+            if Int(_1!) & Int(1 << 2) != 0 {if let signature = reader.readInt32() {
+                _4 = Api.parse(reader, signature: signature) as? Api.ReplyMarkup
+            } }
+            let _c1 = _1 != nil
+            let _c2 = _2 != nil
+            let _c3 = (Int(_1!) & Int(1 << 1) == 0) || _3 != nil
+            let _c4 = (Int(_1!) & Int(1 << 2) == 0) || _4 != nil
+            if _c1 && _c2 && _c3 && _c4 {
+                return Api.BotInlineMessage.botInlineMessageText(flags: _1!, message: _2!, entities: _3, replyMarkup: _4)
+            }
+            else {
+                return nil
+            }
+        }
+    
+    }
+}
+public extension Api {
     enum BotInlineResult: TypeConstructorDescription {
         case botInlineMediaResult(flags: Int32, id: String, type: String, photo: Api.Photo?, document: Api.Document?, title: String?, description: String?, sendMessage: Api.BotInlineMessage)
         case botInlineResult(flags: Int32, id: String, type: String, title: String?, description: String?, url: String?, thumb: Api.WebDocument?, content: Api.WebDocument?, sendMessage: Api.BotInlineMessage)
@@ -273,7 +555,7 @@ public extension Api {
     }
 }
 public extension Api {
-    enum ChannelAdminLogEvent: TypeConstructorDescription {
+    indirect enum ChannelAdminLogEvent: TypeConstructorDescription {
         case channelAdminLogEvent(id: Int64, date: Int32, userId: Int64, action: Api.ChannelAdminLogEventAction)
     
     public func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -323,9 +605,9 @@ public extension Api {
     }
 }
 public extension Api {
-    enum ChannelAdminLogEventAction: TypeConstructorDescription {
+    indirect enum ChannelAdminLogEventAction: TypeConstructorDescription {
         case channelAdminLogEventActionChangeAbout(prevValue: String, newValue: String)
-        case channelAdminLogEventActionChangeAvailableReactions(prevValue: [String], newValue: [String])
+        case channelAdminLogEventActionChangeAvailableReactions(prevValue: Api.ChatReactions, newValue: Api.ChatReactions)
         case channelAdminLogEventActionChangeHistoryTTL(prevValue: Int32, newValue: Int32)
         case channelAdminLogEventActionChangeLinkedChat(prevValue: Int64, newValue: Int64)
         case channelAdminLogEventActionChangeLocation(prevValue: Api.ChannelLocation, newValue: Api.ChannelLocation)
@@ -333,10 +615,14 @@ public extension Api {
         case channelAdminLogEventActionChangeStickerSet(prevStickerset: Api.InputStickerSet, newStickerset: Api.InputStickerSet)
         case channelAdminLogEventActionChangeTitle(prevValue: String, newValue: String)
         case channelAdminLogEventActionChangeUsername(prevValue: String, newValue: String)
+        case channelAdminLogEventActionChangeUsernames(prevValue: [String], newValue: [String])
+        case channelAdminLogEventActionCreateTopic(topic: Api.ForumTopic)
         case channelAdminLogEventActionDefaultBannedRights(prevBannedRights: Api.ChatBannedRights, newBannedRights: Api.ChatBannedRights)
         case channelAdminLogEventActionDeleteMessage(message: Api.Message)
+        case channelAdminLogEventActionDeleteTopic(topic: Api.ForumTopic)
         case channelAdminLogEventActionDiscardGroupCall(call: Api.InputGroupCall)
         case channelAdminLogEventActionEditMessage(prevMessage: Api.Message, newMessage: Api.Message)
+        case channelAdminLogEventActionEditTopic(prevTopic: Api.ForumTopic, newTopic: Api.ForumTopic)
         case channelAdminLogEventActionExportedInviteDelete(invite: Api.ExportedChatInvite)
         case channelAdminLogEventActionExportedInviteEdit(prevInvite: Api.ExportedChatInvite, newInvite: Api.ExportedChatInvite)
         case channelAdminLogEventActionExportedInviteRevoke(invite: Api.ExportedChatInvite)
@@ -350,9 +636,11 @@ public extension Api {
         case channelAdminLogEventActionParticipantToggleBan(prevParticipant: Api.ChannelParticipant, newParticipant: Api.ChannelParticipant)
         case channelAdminLogEventActionParticipantUnmute(participant: Api.GroupCallParticipant)
         case channelAdminLogEventActionParticipantVolume(participant: Api.GroupCallParticipant)
+        case channelAdminLogEventActionPinTopic(flags: Int32, prevTopic: Api.ForumTopic?, newTopic: Api.ForumTopic?)
         case channelAdminLogEventActionSendMessage(message: Api.Message)
         case channelAdminLogEventActionStartGroupCall(call: Api.InputGroupCall)
         case channelAdminLogEventActionStopPoll(message: Api.Message)
+        case channelAdminLogEventActionToggleForum(newValue: Api.Bool)
         case channelAdminLogEventActionToggleGroupCallSetting(joinMuted: Api.Bool)
         case channelAdminLogEventActionToggleInvites(newValue: Api.Bool)
         case channelAdminLogEventActionToggleNoForwards(newValue: Api.Bool)
@@ -372,18 +660,10 @@ public extension Api {
                     break
                 case .channelAdminLogEventActionChangeAvailableReactions(let prevValue, let newValue):
                     if boxed {
-                        buffer.appendInt32(-1661470870)
+                        buffer.appendInt32(-1102180616)
                     }
-                    buffer.appendInt32(481674261)
-                    buffer.appendInt32(Int32(prevValue.count))
-                    for item in prevValue {
-                        serializeString(item, buffer: buffer, boxed: false)
-                    }
-                    buffer.appendInt32(481674261)
-                    buffer.appendInt32(Int32(newValue.count))
-                    for item in newValue {
-                        serializeString(item, buffer: buffer, boxed: false)
-                    }
+                    prevValue.serialize(buffer, true)
+                    newValue.serialize(buffer, true)
                     break
                 case .channelAdminLogEventActionChangeHistoryTTL(let prevValue, let newValue):
                     if boxed {
@@ -434,6 +714,27 @@ public extension Api {
                     serializeString(prevValue, buffer: buffer, boxed: false)
                     serializeString(newValue, buffer: buffer, boxed: false)
                     break
+                case .channelAdminLogEventActionChangeUsernames(let prevValue, let newValue):
+                    if boxed {
+                        buffer.appendInt32(-263212119)
+                    }
+                    buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(prevValue.count))
+                    for item in prevValue {
+                        serializeString(item, buffer: buffer, boxed: false)
+                    }
+                    buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(newValue.count))
+                    for item in newValue {
+                        serializeString(item, buffer: buffer, boxed: false)
+                    }
+                    break
+                case .channelAdminLogEventActionCreateTopic(let topic):
+                    if boxed {
+                        buffer.appendInt32(1483767080)
+                    }
+                    topic.serialize(buffer, true)
+                    break
                 case .channelAdminLogEventActionDefaultBannedRights(let prevBannedRights, let newBannedRights):
                     if boxed {
                         buffer.appendInt32(771095562)
@@ -447,6 +748,12 @@ public extension Api {
                     }
                     message.serialize(buffer, true)
                     break
+                case .channelAdminLogEventActionDeleteTopic(let topic):
+                    if boxed {
+                        buffer.appendInt32(-1374254839)
+                    }
+                    topic.serialize(buffer, true)
+                    break
                 case .channelAdminLogEventActionDiscardGroupCall(let call):
                     if boxed {
                         buffer.appendInt32(-610299584)
@@ -459,6 +766,13 @@ public extension Api {
                     }
                     prevMessage.serialize(buffer, true)
                     newMessage.serialize(buffer, true)
+                    break
+                case .channelAdminLogEventActionEditTopic(let prevTopic, let newTopic):
+                    if boxed {
+                        buffer.appendInt32(-261103096)
+                    }
+                    prevTopic.serialize(buffer, true)
+                    newTopic.serialize(buffer, true)
                     break
                 case .channelAdminLogEventActionExportedInviteDelete(let invite):
                     if boxed {
@@ -542,6 +856,14 @@ public extension Api {
                     }
                     participant.serialize(buffer, true)
                     break
+                case .channelAdminLogEventActionPinTopic(let flags, let prevTopic, let newTopic):
+                    if boxed {
+                        buffer.appendInt32(1569535291)
+                    }
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    if Int(flags) & Int(1 << 0) != 0 {prevTopic!.serialize(buffer, true)}
+                    if Int(flags) & Int(1 << 1) != 0 {newTopic!.serialize(buffer, true)}
+                    break
                 case .channelAdminLogEventActionSendMessage(let message):
                     if boxed {
                         buffer.appendInt32(663693416)
@@ -559,6 +881,12 @@ public extension Api {
                         buffer.appendInt32(-1895328189)
                     }
                     message.serialize(buffer, true)
+                    break
+                case .channelAdminLogEventActionToggleForum(let newValue):
+                    if boxed {
+                        buffer.appendInt32(46949251)
+                    }
+                    newValue.serialize(buffer, true)
                     break
                 case .channelAdminLogEventActionToggleGroupCallSetting(let joinMuted):
                     if boxed {
@@ -626,14 +954,22 @@ public extension Api {
                 return ("channelAdminLogEventActionChangeTitle", [("prevValue", String(describing: prevValue)), ("newValue", String(describing: newValue))])
                 case .channelAdminLogEventActionChangeUsername(let prevValue, let newValue):
                 return ("channelAdminLogEventActionChangeUsername", [("prevValue", String(describing: prevValue)), ("newValue", String(describing: newValue))])
+                case .channelAdminLogEventActionChangeUsernames(let prevValue, let newValue):
+                return ("channelAdminLogEventActionChangeUsernames", [("prevValue", String(describing: prevValue)), ("newValue", String(describing: newValue))])
+                case .channelAdminLogEventActionCreateTopic(let topic):
+                return ("channelAdminLogEventActionCreateTopic", [("topic", String(describing: topic))])
                 case .channelAdminLogEventActionDefaultBannedRights(let prevBannedRights, let newBannedRights):
                 return ("channelAdminLogEventActionDefaultBannedRights", [("prevBannedRights", String(describing: prevBannedRights)), ("newBannedRights", String(describing: newBannedRights))])
                 case .channelAdminLogEventActionDeleteMessage(let message):
                 return ("channelAdminLogEventActionDeleteMessage", [("message", String(describing: message))])
+                case .channelAdminLogEventActionDeleteTopic(let topic):
+                return ("channelAdminLogEventActionDeleteTopic", [("topic", String(describing: topic))])
                 case .channelAdminLogEventActionDiscardGroupCall(let call):
                 return ("channelAdminLogEventActionDiscardGroupCall", [("call", String(describing: call))])
                 case .channelAdminLogEventActionEditMessage(let prevMessage, let newMessage):
                 return ("channelAdminLogEventActionEditMessage", [("prevMessage", String(describing: prevMessage)), ("newMessage", String(describing: newMessage))])
+                case .channelAdminLogEventActionEditTopic(let prevTopic, let newTopic):
+                return ("channelAdminLogEventActionEditTopic", [("prevTopic", String(describing: prevTopic)), ("newTopic", String(describing: newTopic))])
                 case .channelAdminLogEventActionExportedInviteDelete(let invite):
                 return ("channelAdminLogEventActionExportedInviteDelete", [("invite", String(describing: invite))])
                 case .channelAdminLogEventActionExportedInviteEdit(let prevInvite, let newInvite):
@@ -660,12 +996,16 @@ public extension Api {
                 return ("channelAdminLogEventActionParticipantUnmute", [("participant", String(describing: participant))])
                 case .channelAdminLogEventActionParticipantVolume(let participant):
                 return ("channelAdminLogEventActionParticipantVolume", [("participant", String(describing: participant))])
+                case .channelAdminLogEventActionPinTopic(let flags, let prevTopic, let newTopic):
+                return ("channelAdminLogEventActionPinTopic", [("flags", String(describing: flags)), ("prevTopic", String(describing: prevTopic)), ("newTopic", String(describing: newTopic))])
                 case .channelAdminLogEventActionSendMessage(let message):
                 return ("channelAdminLogEventActionSendMessage", [("message", String(describing: message))])
                 case .channelAdminLogEventActionStartGroupCall(let call):
                 return ("channelAdminLogEventActionStartGroupCall", [("call", String(describing: call))])
                 case .channelAdminLogEventActionStopPoll(let message):
                 return ("channelAdminLogEventActionStopPoll", [("message", String(describing: message))])
+                case .channelAdminLogEventActionToggleForum(let newValue):
+                return ("channelAdminLogEventActionToggleForum", [("newValue", String(describing: newValue))])
                 case .channelAdminLogEventActionToggleGroupCallSetting(let joinMuted):
                 return ("channelAdminLogEventActionToggleGroupCallSetting", [("joinMuted", String(describing: joinMuted))])
                 case .channelAdminLogEventActionToggleInvites(let newValue):
@@ -698,13 +1038,13 @@ public extension Api {
             }
         }
         public static func parse_channelAdminLogEventActionChangeAvailableReactions(_ reader: BufferReader) -> ChannelAdminLogEventAction? {
-            var _1: [String]?
-            if let _ = reader.readInt32() {
-                _1 = Api.parseVector(reader, elementSignature: -1255641564, elementType: String.self)
+            var _1: Api.ChatReactions?
+            if let signature = reader.readInt32() {
+                _1 = Api.parse(reader, signature: signature) as? Api.ChatReactions
             }
-            var _2: [String]?
-            if let _ = reader.readInt32() {
-                _2 = Api.parseVector(reader, elementSignature: -1255641564, elementType: String.self)
+            var _2: Api.ChatReactions?
+            if let signature = reader.readInt32() {
+                _2 = Api.parse(reader, signature: signature) as? Api.ChatReactions
             }
             let _c1 = _1 != nil
             let _c2 = _2 != nil
@@ -825,6 +1165,37 @@ public extension Api {
                 return nil
             }
         }
+        public static func parse_channelAdminLogEventActionChangeUsernames(_ reader: BufferReader) -> ChannelAdminLogEventAction? {
+            var _1: [String]?
+            if let _ = reader.readInt32() {
+                _1 = Api.parseVector(reader, elementSignature: -1255641564, elementType: String.self)
+            }
+            var _2: [String]?
+            if let _ = reader.readInt32() {
+                _2 = Api.parseVector(reader, elementSignature: -1255641564, elementType: String.self)
+            }
+            let _c1 = _1 != nil
+            let _c2 = _2 != nil
+            if _c1 && _c2 {
+                return Api.ChannelAdminLogEventAction.channelAdminLogEventActionChangeUsernames(prevValue: _1!, newValue: _2!)
+            }
+            else {
+                return nil
+            }
+        }
+        public static func parse_channelAdminLogEventActionCreateTopic(_ reader: BufferReader) -> ChannelAdminLogEventAction? {
+            var _1: Api.ForumTopic?
+            if let signature = reader.readInt32() {
+                _1 = Api.parse(reader, signature: signature) as? Api.ForumTopic
+            }
+            let _c1 = _1 != nil
+            if _c1 {
+                return Api.ChannelAdminLogEventAction.channelAdminLogEventActionCreateTopic(topic: _1!)
+            }
+            else {
+                return nil
+            }
+        }
         public static func parse_channelAdminLogEventActionDefaultBannedRights(_ reader: BufferReader) -> ChannelAdminLogEventAction? {
             var _1: Api.ChatBannedRights?
             if let signature = reader.readInt32() {
@@ -856,6 +1227,19 @@ public extension Api {
                 return nil
             }
         }
+        public static func parse_channelAdminLogEventActionDeleteTopic(_ reader: BufferReader) -> ChannelAdminLogEventAction? {
+            var _1: Api.ForumTopic?
+            if let signature = reader.readInt32() {
+                _1 = Api.parse(reader, signature: signature) as? Api.ForumTopic
+            }
+            let _c1 = _1 != nil
+            if _c1 {
+                return Api.ChannelAdminLogEventAction.channelAdminLogEventActionDeleteTopic(topic: _1!)
+            }
+            else {
+                return nil
+            }
+        }
         public static func parse_channelAdminLogEventActionDiscardGroupCall(_ reader: BufferReader) -> ChannelAdminLogEventAction? {
             var _1: Api.InputGroupCall?
             if let signature = reader.readInt32() {
@@ -882,6 +1266,24 @@ public extension Api {
             let _c2 = _2 != nil
             if _c1 && _c2 {
                 return Api.ChannelAdminLogEventAction.channelAdminLogEventActionEditMessage(prevMessage: _1!, newMessage: _2!)
+            }
+            else {
+                return nil
+            }
+        }
+        public static func parse_channelAdminLogEventActionEditTopic(_ reader: BufferReader) -> ChannelAdminLogEventAction? {
+            var _1: Api.ForumTopic?
+            if let signature = reader.readInt32() {
+                _1 = Api.parse(reader, signature: signature) as? Api.ForumTopic
+            }
+            var _2: Api.ForumTopic?
+            if let signature = reader.readInt32() {
+                _2 = Api.parse(reader, signature: signature) as? Api.ForumTopic
+            }
+            let _c1 = _1 != nil
+            let _c2 = _2 != nil
+            if _c1 && _c2 {
+                return Api.ChannelAdminLogEventAction.channelAdminLogEventActionEditTopic(prevTopic: _1!, newTopic: _2!)
             }
             else {
                 return nil
@@ -1054,6 +1456,27 @@ public extension Api {
                 return nil
             }
         }
+        public static func parse_channelAdminLogEventActionPinTopic(_ reader: BufferReader) -> ChannelAdminLogEventAction? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            var _2: Api.ForumTopic?
+            if Int(_1!) & Int(1 << 0) != 0 {if let signature = reader.readInt32() {
+                _2 = Api.parse(reader, signature: signature) as? Api.ForumTopic
+            } }
+            var _3: Api.ForumTopic?
+            if Int(_1!) & Int(1 << 1) != 0 {if let signature = reader.readInt32() {
+                _3 = Api.parse(reader, signature: signature) as? Api.ForumTopic
+            } }
+            let _c1 = _1 != nil
+            let _c2 = (Int(_1!) & Int(1 << 0) == 0) || _2 != nil
+            let _c3 = (Int(_1!) & Int(1 << 1) == 0) || _3 != nil
+            if _c1 && _c2 && _c3 {
+                return Api.ChannelAdminLogEventAction.channelAdminLogEventActionPinTopic(flags: _1!, prevTopic: _2, newTopic: _3)
+            }
+            else {
+                return nil
+            }
+        }
         public static func parse_channelAdminLogEventActionSendMessage(_ reader: BufferReader) -> ChannelAdminLogEventAction? {
             var _1: Api.Message?
             if let signature = reader.readInt32() {
@@ -1088,6 +1511,19 @@ public extension Api {
             let _c1 = _1 != nil
             if _c1 {
                 return Api.ChannelAdminLogEventAction.channelAdminLogEventActionStopPoll(message: _1!)
+            }
+            else {
+                return nil
+            }
+        }
+        public static func parse_channelAdminLogEventActionToggleForum(_ reader: BufferReader) -> ChannelAdminLogEventAction? {
+            var _1: Api.Bool?
+            if let signature = reader.readInt32() {
+                _1 = Api.parse(reader, signature: signature) as? Api.Bool
+            }
+            let _c1 = _1 != nil
+            if _c1 {
+                return Api.ChannelAdminLogEventAction.channelAdminLogEventActionToggleForum(newValue: _1!)
             }
             else {
                 return nil

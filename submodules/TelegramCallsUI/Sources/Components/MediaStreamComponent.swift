@@ -598,10 +598,7 @@ public final class MediaStreamComponent: CombinedComponent {
                 strongSelf.updated(transition: .immediate)
             })
             
-            let peerId = call.peerId
-            let callPeer = call.accountContext.account.postbox.transaction { transaction -> Peer? in
-                return transaction.getPeer(peerId)
-            }
+            let callPeer = call.accountContext.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: call.peerId))
             
             self.infoDisposable = (combineLatest(queue: .mainQueue(), call.state, call.members, callPeer)
             |> deliverOnMainQueue).start(next: { [weak self] state, members, callPeer in
@@ -618,7 +615,7 @@ public final class MediaStreamComponent: CombinedComponent {
                     strongSelf.peerTitle = callPeer.debugDisplayTitle
                     updated = true
                 }
-                strongSelf.chatPeer = callPeer
+                strongSelf.chatPeer = callPeer._asPeer()
                 
                 if strongSelf.callTitle != state.title {
                     strongSelf.callTitle = state.title
@@ -801,16 +798,15 @@ public final class MediaStreamComponent: CombinedComponent {
                             size: CGSize(width: 22.0, height: 22.0)
                         ))),
                         AnyComponentWithIdentity(id: "a", component: AnyComponent(LottieAnimationComponent(
-                            animation: LottieAnimationComponent.Animation(
+                            animation: LottieAnimationComponent.AnimationItem(
                                 name: "anim_profilemore",
-                                colors: [
-                                    "Point 2.Group 1.Fill 1": whiteColor,
-                                    "Point 3.Group 1.Fill 1": whiteColor,
-                                    "Point 1.Group 1.Fill 1": whiteColor
-                                ],
-                                loop: false,
-                                isAnimating: false
+                                mode: .still(position: .begin)
                             ),
+                            colors: [
+                                "Point 2.Group 1.Fill 1": whiteColor,
+                                "Point 3.Group 1.Fill 1": whiteColor,
+                                "Point 1.Group 1.Fill 1": whiteColor
+                            ],
                             size: CGSize(width: 22.0, height: 22.0)
                         ).tagged(moreAnimationTag))),
                     ])),
@@ -1194,8 +1190,21 @@ public final class MediaStreamComponentController: ViewControllerComponentContai
             view.expandFromPictureInPicture()
         }
         
+        if let validLayout = self.validLayout {
+            self.view.clipsToBounds = true
+            self.view.layer.cornerRadius = validLayout.deviceMetrics.screenCornerRadius
+            if #available(iOS 13.0, *) {
+                self.view.layer.cornerCurve = .continuous
+            }
+            
+            self.view.layer.animatePosition(from: CGPoint(x: self.view.frame.width * 0.9, y: 117.0), to: self.view.center, duration: 0.3, timingFunction: kCAMediaTimingFunctionSpring, completion: { [weak self] _ in
+                self?.view.layer.cornerRadius = 0.0
+            })
+            self.view.layer.animateScale(from: 0.001, to: 1.0, duration: 0.3, timingFunction: kCAMediaTimingFunctionSpring)
+        }
+        
         self.view.layer.allowsGroupOpacity = true
-        self.view.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.25, completion: { [weak self] _ in
+        self.view.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2, completion: { [weak self] _ in
             guard let strongSelf = self else {
                 return
             }
@@ -1230,6 +1239,18 @@ public final class MediaStreamComponentController: ViewControllerComponentContai
             strongSelf.view.layer.allowsGroupOpacity = false
             strongSelf.dismissImpl(completion: completion)
         })
+        
+        if let validLayout = self.validLayout {
+            self.view.clipsToBounds = true
+            self.view.layer.cornerRadius = validLayout.deviceMetrics.screenCornerRadius
+            if #available(iOS 13.0, *) {
+                self.view.layer.cornerCurve = .continuous
+            }
+            
+            self.view.layer.animatePosition(from: self.view.center, to: CGPoint(x: self.view.frame.width * 0.9, y: 117.0), duration: 0.3, timingFunction: kCAMediaTimingFunctionSpring, completion: { _ in
+            })
+            self.view.layer.animateScale(from: 1.0, to: 0.001, duration: 0.3, timingFunction: kCAMediaTimingFunctionSpring)
+        }
     }
     
     private func dismissImpl(completion: (() -> Void)? = nil) {
@@ -1253,18 +1274,17 @@ public final class MediaStreamComponentController: ViewControllerComponentContai
                 return
             }
             
-            let callPeerId = strongSelf.call.peerId
-            let _ = (strongSelf.call.accountContext.account.postbox.transaction { transaction -> GroupCallInviteLinks? in
+            let _ = (strongSelf.context.engine.data.get(
+                TelegramEngine.EngineData.Item.Peer.Peer(id: strongSelf.call.peerId),
+                TelegramEngine.EngineData.Item.Peer.ExportedInvitation(id: strongSelf.call.peerId)
+            )
+            |> map { peer, exportedInvitation -> GroupCallInviteLinks? in
                 if let inviteLinks = inviteLinks {
                     return inviteLinks
-                } else if let peer = transaction.getPeer(callPeerId), let addressName = peer.addressName, !addressName.isEmpty {
+                } else if let peer = peer, let addressName = peer.addressName, !addressName.isEmpty {
                     return GroupCallInviteLinks(listenerLink: "https://t.me/\(addressName)?voicechat", speakerLink: nil)
-                } else if let cachedData = transaction.getPeerCachedData(peerId: callPeerId) {
-                    if let cachedData = cachedData as? CachedChannelData, let link = cachedData.exportedInvitation?.link {
-                        return GroupCallInviteLinks(listenerLink: link, speakerLink: nil)
-                    } else if let cachedData = cachedData as? CachedGroupData, let link = cachedData.exportedInvitation?.link {
-                        return GroupCallInviteLinks(listenerLink: link, speakerLink: nil)
-                    }
+                } else if let link = exportedInvitation?.link {
+                    return GroupCallInviteLinks(listenerLink: link, speakerLink: nil)
                 }
                 return nil
             }
@@ -1314,30 +1334,28 @@ public final class MediaStreamComponentController: ViewControllerComponentContai
                 let shareController = ShareController(context: strongSelf.context, subject: .url(inviteLinks.listenerLink), segmentedValues: segmentedValues, forceTheme: defaultDarkPresentationTheme, forcedActionTitle: presentationData.strings.VoiceChat_CopyInviteLink)
                 shareController.completed = { [weak self] peerIds in
                     if let strongSelf = self {
-                        let _ = (strongSelf.context.account.postbox.transaction { transaction -> [Peer] in
-                            var peers: [Peer] = []
-                            for peerId in peerIds {
-                                if let peer = transaction.getPeer(peerId) {
-                                    peers.append(peer)
-                                }
-                            }
-                            return peers
-                        } |> deliverOnMainQueue).start(next: { [weak self] peers in
+                        let _ = (strongSelf.context.engine.data.get(
+                            EngineDataList(
+                                peerIds.map(TelegramEngine.EngineData.Item.Peer.Peer.init)
+                            )
+                        )
+                        |> deliverOnMainQueue).start(next: { [weak self] peerList in
                             if let strongSelf = self {
+                                let peers = peerList.compactMap { $0 }
                                 let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
                                 
                                 let text: String
                                 var isSavedMessages = false
                                 if peers.count == 1, let peer = peers.first {
                                     isSavedMessages = peer.id == strongSelf.context.account.peerId
-                                    let peerName = peer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : EnginePeer(peer).displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
+                                    let peerName = peer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
                                     text = presentationData.strings.VoiceChat_ForwardTooltip_Chat(peerName).string
                                 } else if peers.count == 2, let firstPeer = peers.first, let secondPeer = peers.last {
-                                    let firstPeerName = firstPeer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : EnginePeer(firstPeer).displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
-                                    let secondPeerName = secondPeer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : EnginePeer(secondPeer).displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
+                                    let firstPeerName = firstPeer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : firstPeer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
+                                    let secondPeerName = secondPeer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : secondPeer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
                                     text = presentationData.strings.VoiceChat_ForwardTooltip_TwoChats(firstPeerName, secondPeerName).string
                                 } else if let peer = peers.first {
-                                    let peerName = EnginePeer(peer).displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
+                                    let peerName = peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
                                     text = presentationData.strings.VoiceChat_ForwardTooltip_ManyChats(peerName, "\(peers.count - 1)").string
                                 } else {
                                     text = ""

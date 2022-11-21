@@ -141,7 +141,7 @@ public final class InstantPageController: ViewController {
     }
     
     override public func viewWillDisappear(_ animated: Bool) {
-        let _ = updateInstantPageStoredStateInteractively(postbox: self.context.account.postbox, webPage: self.webPage, state: self.controllerNode.currentState).start()
+        let _ = updateInstantPageStoredStateInteractively(engine: self.context.engine, webPage: self.webPage, state: self.controllerNode.currentState).start()
     }
     
     override public func loadDisplayNode() {
@@ -151,9 +151,9 @@ public final class InstantPageController: ViewController {
             self?.present(c, in: .window(.root), with: a, blockInteraction: true)
         }, pushController: { [weak self] c in
             (self?.navigationController as? NavigationController)?.pushViewController(c)
-        }, openPeer: { [weak self] peerId in
+        }, openPeer: { [weak self] peer in
             if let strongSelf = self, let navigationController = strongSelf.navigationController as? NavigationController {
-                strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(id: peerId), animated: true))
+                strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peer), animated: true))
             }
         }, navigateBack: { [weak self] in
             if let strongSelf = self, let controllers = strongSelf.navigationController?.viewControllers.reversed() {
@@ -167,7 +167,7 @@ public final class InstantPageController: ViewController {
             }
         })
         
-        self.storedStateDisposable = (instantPageStoredState(postbox: self.context.account.postbox, webPage: self.webPage)
+        self.storedStateDisposable = (instantPageStoredState(engine: self.context.engine, webPage: self.webPage)
         |> deliverOnMainQueue).start(next: { [weak self] state in
             if let strongSelf = self {
                 strongSelf.controllerNode.updateWebPage(strongSelf.webPage, anchor: strongSelf.anchor, state: state)

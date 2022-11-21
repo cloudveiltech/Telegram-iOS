@@ -53,7 +53,7 @@ swift_library(
         ":TelegramCallsUIBundle",
     ],
     deps = [
-        #CloudVeil start
+       #CloudVeil start
         "//Telegram:CloudVeilSecurityManager",
         #CloudVeil end
     	"//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
@@ -107,6 +107,7 @@ swift_library(
         "//submodules/Components/UndoPanelComponent:UndoPanelComponent",
         "//submodules/Components/HierarchyTrackingLayer:HierarchyTrackingLayer",
         "//submodules/PeerInfoUI/CreateExternalMediaStreamScreen:CreateExternalMediaStreamScreen",
+        "//submodules/PhoneNumberFormat:PhoneNumberFormat",
     ],
     visibility = [
         "//visibility:public",

@@ -30,6 +30,7 @@ public final class SearchDisplayController {
     private let backgroundNode: BackgroundNode
     public let contentNode: SearchDisplayControllerContentNode
     private var hasSeparator: Bool
+    private let inline: Bool
     
     private var containerLayout: (ContainerViewLayout, CGFloat)?
     
@@ -37,10 +38,10 @@ public final class SearchDisplayController {
     
     private var isSearchingDisposable: Disposable?
     
-    public init(presentationData: PresentationData, mode: SearchDisplayControllerMode = .navigation, placeholder: String? = nil, hasBackground: Bool = false, hasSeparator: Bool = false, contentNode: SearchDisplayControllerContentNode, cancel: @escaping () -> Void) {
-        self.searchBar = SearchBarNode(theme: SearchBarNodeTheme(theme: presentationData.theme, hasBackground: hasBackground, hasSeparator: hasSeparator), strings: presentationData.strings, fieldStyle: .modern, forceSeparator: hasSeparator, displayBackground: hasBackground)
+    public init(presentationData: PresentationData, mode: SearchDisplayControllerMode = .navigation, placeholder: String? = nil, hasBackground: Bool = false, hasSeparator: Bool = false, contentNode: SearchDisplayControllerContentNode, inline: Bool = false, cancel: @escaping () -> Void) {
+        self.inline = inline
+        self.searchBar = SearchBarNode(theme: SearchBarNodeTheme(theme: presentationData.theme, hasBackground: hasBackground, hasSeparator: hasSeparator, inline: inline), strings: presentationData.strings, fieldStyle: .modern, forceSeparator: hasSeparator, displayBackground: hasBackground)
         self.backgroundNode = BackgroundNode()
-        self.backgroundNode.backgroundColor = presentationData.theme.chatList.backgroundColor
         self.backgroundNode.allowsGroupOpacity = true
         
         self.mode = mode
@@ -79,7 +80,9 @@ public final class SearchDisplayController {
                 strongSelf.searchBar.tokens = tokens
                 strongSelf.searchBar.text = query
                 if previousTokens.count < tokens.count && !isFirstTime {
-                    strongSelf.searchBar.selectLastToken()
+                    if let lastToken = tokens.last, !lastToken.permanent {
+                        strongSelf.searchBar.selectLastToken()
+                    }
                 }
                 isFirstTime = false
             }
@@ -101,10 +104,18 @@ public final class SearchDisplayController {
         |> deliverOnMainQueue).start(next: { [weak self] value in
             self?.searchBar.activity = value
         })
+        
+        if self.contentNode.hasDim {
+            self.backgroundNode.backgroundColor = .clear
+            self.backgroundNode.isTransparent = true
+        } else {
+            self.backgroundNode.backgroundColor = presentationData.theme.chatList.backgroundColor
+            self.backgroundNode.isTransparent = false
+        }
     }
     
     public func updatePresentationData(_ presentationData: PresentationData) {
-        self.searchBar.updateThemeAndStrings(theme: SearchBarNodeTheme(theme: presentationData.theme, hasSeparator: self.hasSeparator), strings: presentationData.strings)
+        self.searchBar.updateThemeAndStrings(theme: SearchBarNodeTheme(theme: presentationData.theme, hasSeparator: self.hasSeparator, inline: self.inline), strings: presentationData.strings)
         self.contentNode.updatePresentationData(presentationData)
         
         if self.contentNode.hasDim {
@@ -202,7 +213,9 @@ public final class SearchDisplayController {
             if let placeholder = placeholder {
                 let initialTextBackgroundFrame = placeholder.convert(placeholder.backgroundNode.frame, to: nil)
                 let contentNodePosition = self.backgroundNode.layer.position
-                self.backgroundNode.layer.animatePosition(from: CGPoint(x: contentNodePosition.x, y: contentNodePosition.y + (initialTextBackgroundFrame.maxY + 8.0 - contentNavigationBarHeight)), to: contentNodePosition, duration: 0.5, timingFunction: kCAMediaTimingFunctionSpring)
+                if contentNode.animateBackgroundAppearance {
+                    self.backgroundNode.layer.animatePosition(from: CGPoint(x: contentNodePosition.x, y: contentNodePosition.y + (initialTextBackgroundFrame.maxY + 8.0 - contentNavigationBarHeight)), to: contentNodePosition, duration: 0.5, timingFunction: kCAMediaTimingFunctionSpring)
+                }
                 self.searchBar.placeholderString = placeholder.placeholderString
             }
         }

@@ -13,6 +13,8 @@ elif [ "$1" == "testinghockeyapp-local" ]; then
 	CERTS_PATH="$HOME/codesigning_data/certs/enterprise"
 elif [ "$1" == "appstore" ]; then
 	CERTS_PATH="$HOME/codesigning_data/certs/distribution"
+elif [ "$1" == "appstore-development" ]; then
+	CERTS_PATH="$HOME/codesigning_data/certs/development"
 elif [ "$1" == "verify" ]; then
 	CERTS_PATH="$HOME/codesigning_data/certs/distribution"
 else
@@ -73,12 +75,15 @@ for f in "$CERTS_PATH"/*.p12; do
 done
 
 for f in "$CERTS_PATH"/*.cer; do
-	sudo security add-trusted-cert -d -r trustRoot -p codeSign -k "$MY_KEYCHAIN" "$f"
+	#sudo security add-trusted-cert -d -r trustRoot -p codeSign -k "$MY_KEYCHAIN" "$f"
+	security import "$f" -k "$MY_KEYCHAIN" -P "" -T /usr/bin/codesign -T /usr/bin/security
 done
+
+security import "build-system/AppleWWDRCAG3.cer" -k "$MY_KEYCHAIN" -P "" -T /usr/bin/codesign -T /usr/bin/security
 
 security set-key-partition-list -S apple-tool:,apple: -k "$MY_KEYCHAIN_PASSWORD" "$MY_KEYCHAIN"
 
-if [ "$1" == "hockeyapp" ] || [ "$1" == "appcenter-experimental" ] || [ "$1" == "appcenter-experimental-2" ]; then
+if [ "$1" == "hockeyapp" ] || [ "$1" == "appcenter-experimental" ] || [ "$1" == "appcenter-experimental-2" ] || [ "$1" == "appstore-development" ]; then
 	APP_CONFIGURATION="release_arm64"
 elif [ "$1" == "appstore" ]; then
 	APP_CONFIGURATION="release_universal"
@@ -96,7 +101,8 @@ python3 build-system/Make/Make.py \
     --configurationPath="$HOME/telegram-configuration" \
     --buildNumber="$BUILD_NUMBER" \
     --disableParallelSwiftmoduleGeneration \
-    --configuration="$APP_CONFIGURATION"
+    --configuration="$APP_CONFIGURATION" \
+    --apsEnvironment=production
 
 OUTPUT_PATH="build/artifacts"
 rm -rf "$OUTPUT_PATH"

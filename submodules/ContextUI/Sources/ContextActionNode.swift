@@ -3,6 +3,7 @@ import AsyncDisplayKit
 import Display
 import TelegramPresentationData
 import SwiftSignalKit
+import Markdown
 
 public enum ContextActionSibling {
     case none
@@ -30,6 +31,7 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
     private let textNode: ImmediateTextNode
     private let statusNode: ImmediateTextNode?
     private let iconNode: ASImageNode
+    private let titleIconNode: ASImageNode
     private let badgeBackgroundNode: ASImageNode
     private let badgeTextNode: ImmediateTextNode
     private let buttonNode: HighlightTrackingButtonNode
@@ -52,6 +54,9 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
         
         let textFont = Font.regular(presentationData.listsFontSize.baseDisplaySize)
         let smallTextFont = Font.regular(floor(presentationData.listsFontSize.baseDisplaySize * 14.0 / 17.0))
+        
+        let boldTextFont = Font.semibold(presentationData.listsFontSize.baseDisplaySize)
+        let smallBoldTextFont = Font.semibold(floor(presentationData.listsFontSize.baseDisplaySize * 14.0 / 17.0))
         
         self.backgroundNode = ASDisplayNode()
         self.backgroundNode.isAccessibilityElement = false
@@ -76,18 +81,29 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
         }
         
         let titleFont: UIFont
+        let titleBoldFont: UIFont
         switch action.textFont {
         case .regular:
             titleFont = textFont
+            titleBoldFont = boldTextFont
         case .small:
             titleFont = smallTextFont
+            titleBoldFont = smallBoldTextFont
         case let .custom(customFont):
             titleFont = customFont
+            titleBoldFont = customFont
         }
         
         let subtitleFont = Font.regular(presentationData.listsFontSize.baseDisplaySize * 14.0 / 17.0)
         
-        self.textNode.attributedText = NSAttributedString(string: action.text, font: titleFont, textColor: textColor)
+        if action.parseMarkdown {
+            let attributedText = parseMarkdownIntoAttributedString(action.text, attributes: MarkdownAttributes(body: MarkdownAttributeSet(font: titleFont, textColor: textColor), bold: MarkdownAttributeSet(font: titleBoldFont, textColor: textColor), link: MarkdownAttributeSet(font: titleFont, textColor: textColor), linkAttribute: { _ in
+                return nil
+            }))
+            self.textNode.attributedText = attributedText
+        } else {
+            self.textNode.attributedText = NSAttributedString(string: action.text, font: titleFont, textColor: textColor)
+        }
         
         switch action.textLayout {
         case .singleLine:
@@ -118,6 +134,13 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
         if action.iconSource == nil {
             self.iconNode.image = action.icon(presentationData.theme)
         }
+        
+        self.titleIconNode = ASImageNode()
+        self.titleIconNode.isAccessibilityElement = false
+        self.titleIconNode.displaysAsynchronously = false
+        self.titleIconNode.displayWithoutProcessing = true
+        self.titleIconNode.isUserInteractionEnabled = false
+        self.titleIconNode.image = action.textIcon(presentationData.theme)
         
         self.badgeBackgroundNode = ASImageNode()
         self.badgeBackgroundNode.isAccessibilityElement = false
@@ -158,6 +181,9 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
         self.addSubnode(self.badgeBackgroundNode)
         self.addSubnode(self.badgeTextNode)
         self.addSubnode(self.buttonNode)
+        if let _ = self.titleIconNode.image {
+            self.addSubnode(self.titleIconNode)
+        }
         
         self.buttonNode.highligthedChanged = { [weak self] highligted in
             guard let strongSelf = self else {
@@ -219,6 +245,9 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
         if !iconSize.width.isZero {
             rightTextInset = max(iconSize.width, standardIconWidth) + iconSideInset + sideInset
         }
+        if let iconSize = self.titleIconNode.image?.size {
+            rightTextInset += iconSize.width + 10.0
+        }
         
         let badgeTextSize = self.badgeTextNode.updateLayout(CGSize(width: constrainedWidth, height: .greatestFiniteMagnitude))
         let badgeInset: CGFloat = 4.0
@@ -257,6 +286,10 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
                 transition.updateFrame(node: self.backgroundNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: size.width, height: size.height)))
                 transition.updateFrame(node: self.highlightedBackgroundNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: size.width, height: size.height)))
                 transition.updateFrame(node: self.buttonNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: size.width, height: size.height)))
+                
+                if let iconSize = self.titleIconNode.image?.size {
+                    transition.updateFrame(node: self.titleIconNode, frame: CGRect(origin: CGPoint(x: self.textNode.frame.maxX + 7.0, y: floorToScreenPixels(self.textNode.frame.midY - iconSize.height / 2.0)), size: iconSize))
+                }
             })
         } else {
             return (CGSize(width: textSize.width + sideInset + rightTextInset + badgeWidthSpace, height: verticalInset * 2.0 + textSize.height), { size, transition in
@@ -275,6 +308,10 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
                 transition.updateFrame(node: self.backgroundNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: size.width, height: size.height)))
                 transition.updateFrame(node: self.highlightedBackgroundNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: size.width, height: size.height)))
                 transition.updateFrame(node: self.buttonNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: size.width, height: size.height)))
+                
+                if let iconSize = self.titleIconNode.image?.size {
+                    transition.updateFrame(node: self.titleIconNode, frame: CGRect(origin: CGPoint(x: self.textNode.frame.maxX + 7.0, y: floorToScreenPixels(self.textNode.frame.midY - iconSize.height / 2.0)), size: iconSize))
+                }
             })
         }
     }
@@ -363,13 +400,15 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
         self.requestLayout()
     }
     
+    private var performedAction = false
     public func performAction() {
-        guard let controller = self.getController() else {
+        guard let controller = self.getController(), !self.performedAction else {
             return
         }
         self.action.action?(ContextMenuActionItem.Action(
             controller: controller,
             dismissWithResult: { [weak self] result in
+                self?.performedAction = true
                 self?.actionSelected(result)
             },
             updateAction: { [weak self] id, updatedAction in

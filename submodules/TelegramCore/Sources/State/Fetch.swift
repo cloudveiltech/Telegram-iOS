@@ -22,7 +22,7 @@ private final class MediaResourceDataCopyFile : MediaResourceDataFetchCopyLocalI
     }
 }
 
-public func fetchCloudMediaLocation(account: Account, resource: TelegramMediaResource, datacenterId: Int, size: Int?, intervals: Signal<[(Range<Int>, MediaBoxFetchPriority)], NoError>, parameters: MediaResourceFetchParameters?) -> Signal<MediaResourceDataFetchResult, MediaResourceDataFetchError> {
+public func fetchCloudMediaLocation(account: Account, resource: TelegramMediaResource, datacenterId: Int, size: Int64?, intervals: Signal<[(Range<Int64>, MediaBoxFetchPriority)], NoError>, parameters: MediaResourceFetchParameters?) -> Signal<MediaResourceDataFetchResult, MediaResourceDataFetchError> {
     return multipartFetch(postbox: account.postbox, network: account.network, mediaReferenceRevalidationContext: account.mediaReferenceRevalidationContext, resource: resource, datacenterId: datacenterId, size: size, intervals: intervals, parameters: parameters)
 }
 
@@ -39,7 +39,7 @@ private func fetchLocalFileResource(path: String, move: Bool) -> Signal<MediaRes
     }
 }
 
-func fetchResource(account: Account, resource: MediaResource, intervals: Signal<[(Range<Int>, MediaBoxFetchPriority)], NoError>, parameters: MediaResourceFetchParameters?) -> Signal<MediaResourceDataFetchResult, MediaResourceDataFetchError>? {
+func fetchResource(account: Account, resource: MediaResource, intervals: Signal<[(Range<Int64>, MediaBoxFetchPriority)], NoError>, parameters: MediaResourceFetchParameters?) -> Signal<MediaResourceDataFetchResult, MediaResourceDataFetchError>? {
     if let _ = resource as? EmptyMediaResource {
         return .single(.reset)
         |> then(.never())
@@ -49,7 +49,7 @@ func fetchResource(account: Account, resource: MediaResource, intervals: Signal<
     } else if let cloudResource = resource as? TelegramMultipartFetchableResource {
         return .single(.dataPart(resourceOffset: 0, data: Data(), range: 0 ..< 0, complete: false))
         |> then(fetchCloudMediaLocation(account: account, resource: cloudResource, datacenterId: cloudResource.datacenterId, size: resource.size == 0 ? nil : resource.size, intervals: intervals, parameters: parameters))
-    } else if let webFileResource = resource as? WebFileReferenceMediaResource {
+    } else if let webFileResource = resource as? MediaResourceWithWebFileReference {
         return currentWebDocumentsHostDatacenterId(postbox: account.postbox, isTestingEnvironment: account.testingEnvironment)
         |> castError(MediaResourceDataFetchError.self)
         |> mapToSignal { datacenterId -> Signal<MediaResourceDataFetchResult, MediaResourceDataFetchError> in

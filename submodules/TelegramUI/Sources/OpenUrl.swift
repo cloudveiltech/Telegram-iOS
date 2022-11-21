@@ -13,6 +13,8 @@ import PassportUI
 import UrlHandling
 import OpenInExternalAppUI
 import BrowserUI
+import OverlayStatusController
+import PresentationDataUtils
 import CloudVeilSecurityManager
 
 public struct ParsedSecureIdUrl {
@@ -189,30 +191,27 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
             if case let .externalUrl(value) = resolved {
                 context.sharedContext.applicationBindings.openUrl(value)
             } else {
-                context.sharedContext.openResolvedUrl(resolved, context: context, urlContext: .generic, navigationController: navigationController, forceExternal: false, openPeer: { peerId, navigation in
+                context.sharedContext.openResolvedUrl(resolved, context: context, urlContext: .generic, navigationController: navigationController, forceExternal: false, openPeer: { peer, navigation in
                     switch navigation {
                         case .info:
-                            let _ = (context.account.postbox.loadedPeerWithId(peerId)
-                            |> deliverOnMainQueue).start(next: { peer in
-                                if let infoController = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
-                                    context.sharedContext.applicationBindings.dismissNativeController()
-                                    navigationController?.pushViewController(infoController)
-                                }
-                            })
+                            if let infoController = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer._asPeer(), mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
+                                context.sharedContext.applicationBindings.dismissNativeController()
+                                navigationController?.pushViewController(infoController)
+                            }
                         case let .chat(_, subject, peekData):
                             context.sharedContext.applicationBindings.dismissNativeController()
                             if let navigationController = navigationController {
-                                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(id: peerId), subject: subject, peekData: peekData))
+                                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), subject: subject, peekData: peekData))
                             }
                         case let .withBotStartPayload(payload):
                             context.sharedContext.applicationBindings.dismissNativeController()
                             if let navigationController = navigationController {
-                                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(id: peerId), botStart: payload))
+                                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), botStart: payload))
                             }
                         case let .withAttachBot(attachBotStart):
                             context.sharedContext.applicationBindings.dismissNativeController()
                             if let navigationController = navigationController {
-                                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(id: peerId), attachBotStart: attachBotStart))
+                                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), attachBotStart: attachBotStart))
                             }
                         default:
                             break
@@ -292,6 +291,38 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                         }
                         if let set = set {
                             convertedUrl = "https://t.me/addstickers/\(set)"
+                        }
+                    }
+                } else if parsedUrl.host == "addemoji" {
+                    if let components = URLComponents(string: "/?" + query) {
+                        var set: String?
+                        if let queryItems = components.queryItems {
+                            for queryItem in queryItems {
+                                if let value = queryItem.value {
+                                    if queryItem.name == "set" {
+                                        set = value
+                                    }
+                                }
+                            }
+                        }
+                        if let set = set {
+                            convertedUrl = "https://t.me/addemoji/\(set)"
+                        }
+                    }
+                } else if parsedUrl.host == "invoice" {
+                    if let components = URLComponents(string: "/?" + query) {
+                        var slug: String?
+                        if let queryItems = components.queryItems {
+                            for queryItem in queryItems {
+                                if let value = queryItem.value {
+                                    if queryItem.name == "slug" {
+                                        slug = value
+                                    }
+                                }
+                            }
+                        }
+                        if let slug = slug {
+                            convertedUrl = "https://t.me/invoice/\(slug)"
                         }
                     }
                 } else if parsedUrl.host == "setlanguage" {
@@ -483,11 +514,9 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                         }
                         
                         if let id = id, !id.isEmpty, let idValue = Int64(id), idValue > 0 {
-                            let _ = (context.account.postbox.transaction { transaction -> Peer? in
-                                return transaction.getPeer(PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(idValue)))
-                            }
+                            let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(idValue))))
                             |> deliverOnMainQueue).start(next: { peer in
-                                if let peer = peer, let controller = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
+                                if let peer = peer, let controller = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer._asPeer(), mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
                                     navigationController?.pushViewController(controller)
                                 }
                             })
@@ -616,12 +645,14 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                         var domain: String?
                         var start: String?
                         var startGroup: String?
+                        var startChannel: String?
                         var admin: String?
                         var game: String?
                         var post: String?
                         var voiceChat: String?
                         var attach: String?
                         var startAttach: String?
+                        var choose: String?
                         if let queryItems = components.queryItems {
                             for queryItem in queryItems {
                                 if let value = queryItem.value {
@@ -645,11 +676,17 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                                         attach = value
                                     } else if queryItem.name == "startattach" {
                                         startAttach = value
+                                    } else if queryItem.name == "choose" {
+                                        choose = value
                                     }
                                 } else if ["voicechat", "videochat", "livestream"].contains(queryItem.name) {
                                     voiceChat = ""
                                 } else if queryItem.name == "startattach" {
                                     startAttach = ""
+                                } else if queryItem.name == "startgroup" {
+                                    startGroup = ""
+                                } else if queryItem.name == "startchannel" {
+                                    startChannel = ""
                                 }
                             }
                         }
@@ -664,7 +701,20 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                             if let start = start {
                                 result += "?start=\(start)"
                             } else if let startGroup = startGroup {
-                                result += "?startgroup=\(startGroup)"
+                                if !startGroup.isEmpty {
+                                    result += "?startgroup=\(startGroup)"
+                                } else {
+                                    result += "?startgroup"
+                                }
+                                if let admin = admin {
+                                    result += "&admin=\(admin)"
+                                }
+                            } else if let startChannel = startChannel {
+                                if !startChannel.isEmpty {
+                                    result += "?startchannel=\(startChannel)"
+                                } else {
+                                    result += "?startchannel"
+                                }
                                 if let admin = admin {
                                     result += "&admin=\(admin)"
                                 }
@@ -678,11 +728,20 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                                 }
                             } else if let attach = attach {
                                 result += "?attach=\(attach)"
-                            } else if let startAttach = startAttach {
-                                if !startAttach.isEmpty {
-                                    result += "?startattach=\(startAttach)"
+                            }
+                            if let startAttach = startAttach {
+                                if attach == nil {
+                                    result += "?"
                                 } else {
-                                    result += "?startattach"
+                                    result += "&"
+                                }
+                                if !startAttach.isEmpty {
+                                    result += "startattach=\(startAttach)"
+                                } else {
+                                    result += "startattach"
+                                }
+                                if let choose = choose {
+                                    result += "&choose=\(choose)"
                                 }
                             }
                             convertedUrl = result
@@ -709,6 +768,20 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                             return
                         }
                     }
+                } else if parsedUrl.host == "premium_offer" {
+                    var reference: String?
+                    if let components = URLComponents(string: "/?" + query) {
+                        if let queryItems = components.queryItems {
+                            for queryItem in queryItems {
+                                if let value = queryItem.value {
+                                    if queryItem.name == "ref" {
+                                        reference = value
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    handleResolvedUrl(.premiumOffer(reference: reference))
                 }
             } else {
                 if parsedUrl.host == "importStickers" {
@@ -728,6 +801,27 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                             handleResolvedUrl(.settings(section))
                         }
                     }
+                } else if parsedUrl.host == "premium_offer" {
+                    handleResolvedUrl(.premiumOffer(reference: nil))
+                } else if parsedUrl.host == "restore_purchases" {
+                    let statusController = OverlayStatusController(theme: presentationData.theme, type: .loading(cancelled: nil))
+                    context.sharedContext.presentGlobalController(statusController, nil)
+                    
+                    context.inAppPurchaseManager?.restorePurchases(completion: { [weak statusController] result in
+                        statusController?.dismiss()
+                        
+                        let text: String?
+                        switch result {
+                            case let .succeed(serverProvided):
+                                text = serverProvided ? nil : presentationData.strings.Premium_Restore_Success
+                            case .failed:
+                                text = presentationData.strings.Premium_Restore_ErrorUnknown
+                        }
+                        if let text = text {
+                            let alertController = textAlertController(context: context, title: nil, text: text, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})])
+                            context.sharedContext.presentGlobalController(alertController, nil)
+                        }
+                    })
                 }
             }
             
@@ -767,7 +861,6 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                             return
                         }
                         //CloudVeil end
-                        
 //                        let controller = BrowserScreen(context: context, subject: .webPage(parsedUrl.absoluteString))
 //                        navigationController?.pushViewController(controller)
                         if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {

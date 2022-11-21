@@ -10,6 +10,9 @@ import TelegramAnimatedStickerNode
 import SwiftSignalKit
 import StickerResources
 import AccountContext
+import AnimationCache
+import MultiAnimationRenderer
+import ShimmerEffect
 
 private func generateBubbleImage(foreground: UIColor, diameter: CGFloat, shadowBlur: CGFloat) -> UIImage? {
     return generateImage(CGSize(width: diameter + shadowBlur * 2.0, height: diameter + shadowBlur * 2.0), rotatedContext: { size, context in
@@ -35,13 +38,31 @@ private func generateBubbleShadowImage(shadow: UIColor, diameter: CGFloat, shado
 
 private let font = Font.medium(13.0)
 
-final class ReactionNode: ASDisplayNode {
+protocol ReactionItemNode: ASDisplayNode {
+    var isExtracted: Bool { get }
+    
+    var maskNode: ASDisplayNode? { get }
+    
+    func appear(animated: Bool)
+    func updateLayout(size: CGSize, isExpanded: Bool, largeExpanded: Bool, isPreviewing: Bool, transition: ContainedViewLayoutTransition)
+}
+
+public final class ReactionNode: ASDisplayNode, ReactionItemNode {
     let context: AccountContext
-    let item: ReactionContextItem
+    let theme: PresentationTheme
+    let item: ReactionItem
+    private let loopIdle: Bool
+    private let hasAppearAnimation: Bool
+    private let useDirectRendering: Bool
+    
+    let selectionTintView: UIView
+    let selectionView: UIView
     
     private var animateInAnimationNode: AnimatedStickerNode?
+    private var staticAnimationPlaceholderView: UIImageView?
     private let staticAnimationNode: AnimatedStickerNode
     private var stillAnimationNode: AnimatedStickerNode?
+    private var customContentsNode: ASDisplayNode?
     private var animationNode: AnimatedStickerNode?
     
     private var dismissedStillAnimationNodes: [AnimatedStickerNode] = []
@@ -54,20 +75,43 @@ final class ReactionNode: ASDisplayNode {
     var isExtracted: Bool = false
     
     var didSetupStillAnimation: Bool = false
-    
-    private var isLongPressing: Bool = false
-    private var longPressAnimator: DisplayLinkAnimator?
-    
+        
     var expandedAnimationDidBegin: (() -> Void)?
     
-    init(context: AccountContext, theme: PresentationTheme, item: ReactionContextItem) {
+    var currentFrameIndex: Int {
+        return self.staticAnimationNode.currentFrameIndex
+    }
+    
+    var currentFrameImage: UIImage? {
+        return self.staticAnimationNode.currentFrameImage
+    }
+    
+    var isAnimationLoaded: Bool {
+        return self.staticAnimationNode.currentFrameImage != nil
+    }
+    
+    public init(context: AccountContext, theme: PresentationTheme, item: ReactionItem, animationCache: AnimationCache, animationRenderer: MultiAnimationRenderer, loopIdle: Bool, hasAppearAnimation: Bool = true, useDirectRendering: Bool = false) {
         self.context = context
+        self.theme = theme
         self.item = item
+        self.loopIdle = loopIdle
+        self.hasAppearAnimation = hasAppearAnimation
+        self.useDirectRendering = useDirectRendering
         
-        self.staticAnimationNode = AnimatedStickerNode()
-        self.staticAnimationNode.isHidden = true
+        self.selectionTintView = UIView()
+        self.selectionTintView.backgroundColor = UIColor(white: 1.0, alpha: 0.2)
+        self.selectionTintView.isHidden = true
         
-        self.animateInAnimationNode = AnimatedStickerNode()
+        self.selectionView = UIView()
+        self.selectionView.backgroundColor = theme.chat.inputMediaPanel.panelContentControlVibrantSelectionColor
+        self.selectionView.isHidden = true
+        
+        self.staticAnimationNode = self.useDirectRendering ? DirectAnimatedStickerNode() : DefaultAnimatedStickerNodeImpl()
+    
+        if hasAppearAnimation {
+            self.staticAnimationNode.isHidden = true
+            self.animateInAnimationNode = self.useDirectRendering ? DirectAnimatedStickerNode() : DefaultAnimatedStickerNodeImpl()
+        }
         
         super.init()
         
@@ -82,6 +126,9 @@ final class ReactionNode: ASDisplayNode {
             }
             if strongSelf.animationNode == nil {
                 strongSelf.staticAnimationNode.isHidden = false
+                if strongSelf.loopIdle {
+                    strongSelf.staticAnimationNode.playLoop()
+                }
             }
             
             strongSelf.animateInAnimationNode?.removeFromSupernode()
@@ -91,7 +138,9 @@ final class ReactionNode: ASDisplayNode {
         self.fetchStickerDisposable = fetchedMediaResource(mediaBox: context.account.postbox.mediaBox, reference: .standalone(resource: item.appearAnimation.resource)).start()
         self.fetchStickerDisposable = fetchedMediaResource(mediaBox: context.account.postbox.mediaBox, reference: .standalone(resource: item.stillAnimation.resource)).start()
         self.fetchStickerDisposable = fetchedMediaResource(mediaBox: context.account.postbox.mediaBox, reference: .standalone(resource: item.listAnimation.resource)).start()
-        self.fetchFullAnimationDisposable = fetchedMediaResource(mediaBox: context.account.postbox.mediaBox, reference: .standalone(resource: item.applicationAnimation.resource)).start()
+        if let applicationAnimation = item.applicationAnimation {
+            self.fetchFullAnimationDisposable = fetchedMediaResource(mediaBox: context.account.postbox.mediaBox, reference: .standalone(resource: applicationAnimation.resource)).start()
+        }
     }
     
     deinit {
@@ -99,15 +148,45 @@ final class ReactionNode: ASDisplayNode {
         self.fetchFullAnimationDisposable?.dispose()
     }
     
+    var maskNode: ASDisplayNode? {
+        return nil
+    }
+    
     func appear(animated: Bool) {
         if animated {
-            self.animateInAnimationNode?.visibility = true
+            if self.item.isCustom {
+                self.layer.animateSpring(from: 0.01 as NSNumber, to: 1.0 as NSNumber, keyPath: "transform.scale", duration: 0.4)
+                
+                if self.animationNode == nil {
+                    self.staticAnimationNode.isHidden = false
+                    if self.loopIdle {
+                        self.staticAnimationNode.playLoop()
+                    }
+                }
+            } else {
+                self.animateInAnimationNode?.visibility = true
+            }
+            
+            self.selectionView.layer.animateAlpha(from: 0.0, to: self.selectionView.alpha, duration: 0.2)
+            self.selectionView.layer.animateSpring(from: 0.01 as NSNumber, to: 1.0 as NSNumber, keyPath: "transform.scale", duration: 0.4)
+            
+            self.selectionTintView.layer.animateAlpha(from: 0.0, to: self.selectionTintView.alpha, duration: 0.2)
+            self.selectionTintView.layer.animateSpring(from: 0.01 as NSNumber, to: 1.0 as NSNumber, keyPath: "transform.scale", duration: 0.4)
         } else {
             self.animateInAnimationNode?.completed(true)
         }
     }
     
-    func updateLayout(size: CGSize, isExpanded: Bool, largeExpanded: Bool, isPreviewing: Bool, transition: ContainedViewLayoutTransition) {
+    public func setCustomContents(contents: Any) {
+        if self.customContentsNode == nil {
+            let customContentsNode = ASDisplayNode()
+            self.customContentsNode = customContentsNode
+            self.addSubnode(customContentsNode)
+        }
+        self.customContentsNode?.contents = contents
+    }
+    
+    public func updateLayout(size: CGSize, isExpanded: Bool, largeExpanded: Bool, isPreviewing: Bool, transition: ContainedViewLayoutTransition) {
         let intrinsicSize = size
         
         let animationSize = self.item.stillAnimation.dimensions?.cgSize ?? CGSize(width: 512.0, height: 512.0)
@@ -124,8 +203,10 @@ final class ReactionNode: ASDisplayNode {
         
         let expandedAnimationFrame = animationFrame
         
-        if isExpanded, self.animationNode == nil {
-            let animationNode = AnimatedStickerNode()
+        if isExpanded && !self.hasAppearAnimation {
+            self.staticAnimationNode.play(firstFrame: false, fromIndex: 0)
+        } else if isExpanded, self.animationNode == nil {
+            let animationNode: AnimatedStickerNode = self.useDirectRendering ? DirectAnimatedStickerNode() : DefaultAnimatedStickerNodeImpl()
             animationNode.automaticallyLoadFirstFrame = true
             self.animationNode = animationNode
             self.addSubnode(animationNode)
@@ -139,9 +220,12 @@ final class ReactionNode: ASDisplayNode {
             }
             
             if largeExpanded {
-                animationNode.setup(source: AnimatedStickerResourceSource(account: self.context.account, resource: self.item.largeListAnimation.resource), width: Int(expandedAnimationFrame.width * 2.0), height: Int(expandedAnimationFrame.height * 2.0), playbackMode: .once, mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.largeListAnimation.resource.id)))
+                let source = AnimatedStickerResourceSource(account: self.context.account, resource: self.item.largeListAnimation.resource, isVideo: self.item.largeListAnimation.isVideoSticker || self.item.largeListAnimation.isVideoEmoji || self.item.largeListAnimation.isStaticSticker || self.item.largeListAnimation.isStaticEmoji)
+                
+                animationNode.setup(source: source, width: Int(expandedAnimationFrame.width * 2.0), height: Int(expandedAnimationFrame.height * 2.0), playbackMode: .once, mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.largeListAnimation.resource.id)))
             } else {
-                animationNode.setup(source: AnimatedStickerResourceSource(account: self.context.account, resource: self.item.listAnimation.resource), width: Int(expandedAnimationFrame.width * 2.0), height: Int(expandedAnimationFrame.height * 2.0), playbackMode: .once, mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.listAnimation.resource.id)))
+                let source = AnimatedStickerResourceSource(account: self.context.account, resource: self.item.listAnimation.resource, isVideo: self.item.listAnimation.isVideoSticker || self.item.listAnimation.isVideoEmoji || self.item.listAnimation.isVideoSticker || self.item.listAnimation.isStaticSticker || self.item.listAnimation.isStaticEmoji)
+                animationNode.setup(source: source, width: Int(expandedAnimationFrame.width * 2.0), height: Int(expandedAnimationFrame.height * 2.0), playbackMode: .once, mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.listAnimation.resource.id)))
             }
             animationNode.frame = expandedAnimationFrame
             animationNode.updateLayout(size: expandedAnimationFrame.size)
@@ -188,6 +272,16 @@ final class ReactionNode: ASDisplayNode {
                     self.staticAnimationNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2)
                 }
                 
+                if let customContentsNode = self.customContentsNode, !customContentsNode.isHidden {
+                    transition.animateTransformScale(node: customContentsNode, from: customContentsNode.bounds.width / animationFrame.width)
+                    transition.animatePositionAdditive(node: customContentsNode, offset: CGPoint(x: customContentsNode.frame.midX - animationFrame.midX, y: customContentsNode.frame.midY - animationFrame.midY))
+                    
+                    if self.item.listAnimation.isVideoEmoji || self.item.listAnimation.isVideoSticker || self.item.listAnimation.isAnimatedSticker || self.item.listAnimation.isStaticSticker || self.item.listAnimation.isStaticEmoji {
+                        customContentsNode.alpha = 0.0
+                        customContentsNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2)
+                    }
+                }
+                
                 animationNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.15)
                 
                 DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 0.17, execute: {
@@ -211,11 +305,11 @@ final class ReactionNode: ASDisplayNode {
         if self.animationNode == nil {
             if isPreviewing {
                 if self.stillAnimationNode == nil {
-                    let stillAnimationNode = AnimatedStickerNode()
+                    let stillAnimationNode: AnimatedStickerNode = self.useDirectRendering ? DirectAnimatedStickerNode() : DefaultAnimatedStickerNodeImpl()
                     self.stillAnimationNode = stillAnimationNode
                     self.addSubnode(stillAnimationNode)
                     
-                    stillAnimationNode.setup(source: AnimatedStickerResourceSource(account: self.context.account, resource: self.item.stillAnimation.resource), width: Int(animationDisplaySize.width * 2.0), height: Int(animationDisplaySize.height * 2.0), playbackMode: .loop, mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.stillAnimation.resource.id)))
+                    stillAnimationNode.setup(source: AnimatedStickerResourceSource(account: self.context.account, resource: self.item.stillAnimation.resource, isVideo: self.item.stillAnimation.isVideoEmoji || self.item.stillAnimation.isVideoSticker || self.item.stillAnimation.isStaticSticker || self.item.stillAnimation.isStaticEmoji), width: Int(animationDisplaySize.width * 2.0), height: Int(animationDisplaySize.height * 2.0), playbackMode: self.loopIdle ? .loop : .still(.start), mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.stillAnimation.resource.id)))
                     stillAnimationNode.position = animationFrame.center
                     stillAnimationNode.bounds = CGRect(origin: CGPoint(), size: animationFrame.size)
                     stillAnimationNode.updateLayout(size: animationFrame.size)
@@ -230,6 +324,9 @@ final class ReactionNode: ASDisplayNode {
                             animateInAnimationNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.1)
                             
                             strongSelf.staticAnimationNode.isHidden = false
+                            if strongSelf.loopIdle {
+                                strongSelf.staticAnimationNode.playLoop()
+                            }
                         }
                     }
                     stillAnimationNode.visibility = true
@@ -264,18 +361,55 @@ final class ReactionNode: ASDisplayNode {
             }
         }
         
-        if !self.didSetupStillAnimation {
+        if !self.didSetupStillAnimation && self.customContentsNode == nil {
             if self.animationNode == nil {
                 self.didSetupStillAnimation = true
                 
-                self.staticAnimationNode.setup(source: AnimatedStickerResourceSource(account: self.context.account, resource: self.item.stillAnimation.resource), width: Int(animationDisplaySize.width * 2.0), height: Int(animationDisplaySize.height * 2.0), playbackMode: .still(.start), mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.stillAnimation.resource.id)))
+                let staticFile: TelegramMediaFile
+                if !self.hasAppearAnimation {
+                    staticFile = self.item.largeListAnimation
+                } else {
+                    staticFile = self.item.stillAnimation
+                }
+                
+                if self.staticAnimationPlaceholderView == nil, let immediateThumbnailData = staticFile.immediateThumbnailData {
+                    let staticAnimationPlaceholderView = UIImageView()
+                    self.view.addSubview(staticAnimationPlaceholderView)
+                    self.staticAnimationPlaceholderView = staticAnimationPlaceholderView
+                    
+                    if let image = generateStickerPlaceholderImage(data: immediateThumbnailData, size: animationDisplaySize, scale: min(2.0, UIScreenScale), imageSize: staticFile.dimensions?.cgSize ?? CGSize(width: 512.0, height: 512.0), backgroundColor: nil, foregroundColor: self.theme.chat.inputPanel.primaryTextColor.withMultipliedAlpha(0.1)) {
+                        staticAnimationPlaceholderView.image = image
+                    }
+                }
+                
+                self.staticAnimationNode.started = { [weak self] in
+                    guard let strongSelf = self else {
+                        return
+                    }
+                    if let staticAnimationPlaceholderView = strongSelf.staticAnimationPlaceholderView {
+                        strongSelf.staticAnimationPlaceholderView = nil
+                        staticAnimationPlaceholderView.removeFromSuperview()
+                    }
+                }
+                
+                self.staticAnimationNode.automaticallyLoadFirstFrame = true
+                if !self.hasAppearAnimation {
+                    self.staticAnimationNode.setup(source: AnimatedStickerResourceSource(account: self.context.account, resource: self.item.largeListAnimation.resource, isVideo: self.item.largeListAnimation.isVideoEmoji || self.item.largeListAnimation.isVideoSticker || self.item.largeListAnimation.isStaticSticker || self.item.largeListAnimation.isStaticEmoji), width: Int(expandedAnimationFrame.width * 2.0), height: Int(expandedAnimationFrame.height * 2.0), playbackMode: .still(.start), mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.largeListAnimation.resource.id)))
+                } else {
+                    self.staticAnimationNode.setup(source: AnimatedStickerResourceSource(account: self.context.account, resource: self.item.stillAnimation.resource, isVideo: self.item.stillAnimation.isVideoEmoji || self.item.stillAnimation.isVideoSticker || self.item.stillAnimation.isStaticSticker || self.item.stillAnimation.isStaticEmoji), width: Int(animationDisplaySize.width * 2.0), height: Int(animationDisplaySize.height * 2.0), playbackMode: .still(.start), mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.stillAnimation.resource.id)))
+                }
                 self.staticAnimationNode.position = animationFrame.center
                 self.staticAnimationNode.bounds = CGRect(origin: CGPoint(), size: animationFrame.size)
                 self.staticAnimationNode.updateLayout(size: animationFrame.size)
                 self.staticAnimationNode.visibility = true
                 
+                if let staticAnimationPlaceholderView = self.staticAnimationPlaceholderView {
+                    staticAnimationPlaceholderView.center = animationFrame.center
+                    staticAnimationPlaceholderView.bounds = CGRect(origin: CGPoint(), size: animationFrame.size)
+                }
+                
                 if let animateInAnimationNode = self.animateInAnimationNode {
-                    animateInAnimationNode.setup(source: AnimatedStickerResourceSource(account: self.context.account, resource: self.item.appearAnimation.resource), width: Int(animationDisplaySize.width * 2.0), height: Int(animationDisplaySize.height * 2.0), playbackMode: .once, mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.appearAnimation.resource.id)))
+                    animateInAnimationNode.setup(source: AnimatedStickerResourceSource(account: self.context.account, resource: self.item.appearAnimation.resource, isVideo: self.item.appearAnimation.isVideoEmoji || self.item.appearAnimation.isVideoSticker || self.item.appearAnimation.isStaticSticker || self.item.appearAnimation.isStaticEmoji), width: Int(animationDisplaySize.width * 2.0), height: Int(animationDisplaySize.height * 2.0), playbackMode: .once, mode: .direct(cachePathPrefix: self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(self.item.appearAnimation.resource.id)))
                     animateInAnimationNode.position = animationFrame.center
                     animateInAnimationNode.bounds = CGRect(origin: CGPoint(), size: animationFrame.size)
                     animateInAnimationNode.updateLayout(size: animationFrame.size)
@@ -285,38 +419,135 @@ final class ReactionNode: ASDisplayNode {
             transition.updatePosition(node: self.staticAnimationNode, position: animationFrame.center, beginWithCurrentState: true)
             transition.updateTransformScale(node: self.staticAnimationNode, scale: animationFrame.size.width / self.staticAnimationNode.bounds.width, beginWithCurrentState: true)
             
+            if let staticAnimationPlaceholderView = self.staticAnimationPlaceholderView {
+                transition.updatePosition(layer: staticAnimationPlaceholderView.layer, position: animationFrame.center)
+                transition.updateTransformScale(layer: staticAnimationPlaceholderView.layer, scale: animationFrame.size.width / self.staticAnimationNode.bounds.width)
+            }
+            
             if let animateInAnimationNode = self.animateInAnimationNode {
                 transition.updatePosition(node: animateInAnimationNode, position: animationFrame.center, beginWithCurrentState: true)
                 transition.updateTransformScale(node: animateInAnimationNode, scale: animationFrame.size.width / animateInAnimationNode.bounds.width, beginWithCurrentState: true)
             }
         }
+        
+        if let customContentsNode = self.customContentsNode {
+            transition.updateFrame(node: customContentsNode, frame: animationFrame)
+        }
+    }
+}
+
+final class PremiumReactionsNode: ASDisplayNode, ReactionItemNode {
+    var isExtracted: Bool = false
+    
+    private var backgroundView: UIVisualEffectView?
+    private let backgroundMaskNode: ASImageNode
+    private let backgroundOverlayNode: ASImageNode
+    private let imageNode: ASImageNode
+    private var starsNode: PremiumStarsNode?
+    
+    private let maskContainerNode: ASDisplayNode
+    private let maskImageNode: ASImageNode
+    
+    init(theme: PresentationTheme) {
+        self.backgroundMaskNode = ASImageNode()
+        self.backgroundMaskNode.contentMode = .center
+        self.backgroundMaskNode.displaysAsynchronously = false
+        self.backgroundMaskNode.isUserInteractionEnabled = false
+        self.backgroundMaskNode.image = UIImage(bundleImageName: "Premium/ReactionsBackground")
+        
+        self.backgroundOverlayNode = ASImageNode()
+        self.backgroundOverlayNode.alpha = 0.1
+        self.backgroundOverlayNode.contentMode = .center
+        self.backgroundOverlayNode.displaysAsynchronously = false
+        self.backgroundOverlayNode.isUserInteractionEnabled = false
+        self.backgroundOverlayNode.image = generateTintedImage(image: UIImage(bundleImageName: "Premium/ReactionsBackground"), color: theme.overallDarkAppearance ? .white : .black)
+          
+        self.imageNode = ASImageNode()
+        self.imageNode.contentMode = .center
+        self.imageNode.displaysAsynchronously = false
+        self.imageNode.isUserInteractionEnabled = false
+        self.imageNode.image = UIImage(bundleImageName: "Premium/ReactionsForeground")
+        
+        self.maskContainerNode = ASDisplayNode()
+        
+        self.maskImageNode = ASImageNode()
+        if let backgroundImage = UIImage(bundleImageName: "Premium/ReactionsBackground") {
+            self.maskImageNode.image = generateImage(CGSize(width: 40.0 * 4.0, height: 52.0 * 4.0), contextGenerator: { size, context in
+                context.setFillColor(UIColor.black.cgColor)
+                context.fill(CGRect(origin: .zero, size: size))
+                
+                if let cgImage = backgroundImage.cgImage {
+                    let maskFrame = CGRect(origin: .zero, size: size).insetBy(dx: 4.0 + 40.0 * 2.0 - 16.0, dy: 10.0 + 52.0 * 2.0 - 16.0)
+                    context.clip(to: maskFrame, mask: cgImage)
+                }
+                context.setBlendMode(.clear)
+                context.fill(CGRect(origin: .zero, size: size))
+            })
+        }
+        self.maskImageNode.frame = CGRect(origin: CGPoint(x: floorToScreenPixels((40.0 - 40.0 * 4.0) / 2.0), y: floorToScreenPixels((52.0 - 52.0 * 4.0) / 2.0)), size: CGSize(width: 40.0 * 4.0, height: 52.0 * 4.0))
+        self.maskContainerNode.addSubnode(self.maskImageNode)
+        
+        super.init()
+        
+        self.addSubnode(self.backgroundOverlayNode)
+        self.addSubnode(self.imageNode)
     }
     
-    func updateIsLongPressing(isLongPressing: Bool) {
-        if self.isLongPressing == isLongPressing {
-            return
-        }
-        self.isLongPressing = isLongPressing
+    override func didLoad() {
+        super.didLoad()
         
-        if isLongPressing {
-            if self.longPressAnimator == nil {
-                let longPressAnimator = DisplayLinkAnimator(duration: 2.0, from: 1.0, to: 2.0, update: { [weak self] value in
-                    guard let strongSelf = self else {
-                        return
-                    }
-                    let transition: ContainedViewLayoutTransition = .immediate
-                    transition.updateSublayerTransformScale(node: strongSelf, scale: value)
-                }, completion: {
-                })
-                self.longPressAnimator = longPressAnimator
-            }
-        } else if let longPressAnimator = self.longPressAnimator {
-            self.longPressAnimator = nil
-            
-            let transition: ContainedViewLayoutTransition = .animated(duration: 0.2, curve: .easeInOut)
-            transition.updateSublayerTransformScale(node: self, scale: 1.0)
-            
-            longPressAnimator.invalidate()
+        let blurEffect: UIBlurEffect
+        if #available(iOS 13.0, *) {
+            blurEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+        } else {
+            blurEffect = UIBlurEffect(style: .light)
         }
+        let backgroundView = UIVisualEffectView(effect: blurEffect)
+        backgroundView.mask = self.backgroundMaskNode.view
+        self.view.insertSubview(backgroundView, at: 0)
+        self.backgroundView = backgroundView
+        
+        let starsNode = PremiumStarsNode()
+        starsNode.frame = CGRect(origin: .zero, size: CGSize(width: 32.0, height: 32.0))
+        self.backgroundView?.contentView.addSubview(starsNode.view)
+        self.starsNode = starsNode
+    }
+    
+    func appear(animated: Bool) {
+        if animated {
+            let delay: Double = 0.1
+            let duration: Double = 0.85
+            let damping: CGFloat = 60.0
+            
+            let initialScale: CGFloat = 0.25
+            self.maskImageNode.layer.animateSpring(from: initialScale as NSNumber, to: 1.0 as NSNumber, keyPath: "transform.scale", duration: duration, delay: delay, damping: damping)
+            self.backgroundView?.layer.animateSpring(from: initialScale as NSNumber, to: 1.0 as NSNumber, keyPath: "transform.scale", duration: duration, delay: delay, damping: damping)
+            self.backgroundOverlayNode.layer.animateSpring(from: initialScale as NSNumber, to: 1.0 as NSNumber, keyPath: "transform.scale", duration: duration, delay: delay, damping: damping)
+            self.imageNode.layer.animateSpring(from: initialScale as NSNumber, to: 1.0 as NSNumber, keyPath: "transform.scale", duration: duration, delay: delay, damping: damping)
+            
+            Queue.mainQueue().after(0.25, {
+                let shimmerNode = ASImageNode()
+                shimmerNode.displaysAsynchronously = false
+                shimmerNode.image = generateGradientImage(size: CGSize(width: 32.0, height: 32.0), colors: [UIColor(rgb: 0xffffff, alpha: 0.0), UIColor(rgb: 0xffffff, alpha: 0.24), UIColor(rgb: 0xffffff, alpha: 0.0)], locations: [0.0, 0.5, 1.0], direction: .horizontal)
+                shimmerNode.frame = CGRect(origin: .zero, size: CGSize(width: 32.0, height: 32.0))
+                self.backgroundView?.contentView.addSubview(shimmerNode.view)
+                
+                shimmerNode.layer.animatePosition(from: CGPoint(x: -60.0, y: 0.0), to: CGPoint(x: 60.0, y: 0.0), duration: 0.75, removeOnCompletion: false, additive: true, completion: { [weak shimmerNode] _ in
+                    shimmerNode?.view.removeFromSuperview()
+                })
+            })
+        }
+    }
+    
+    func updateLayout(size: CGSize, isExpanded: Bool, largeExpanded: Bool, isPreviewing: Bool, transition: ContainedViewLayoutTransition) {
+        let bounds = CGRect(origin: CGPoint(), size: size)
+        self.backgroundView?.frame = bounds
+        self.backgroundMaskNode.frame = bounds
+        self.backgroundOverlayNode.frame = bounds
+        self.imageNode.frame = bounds
+    }
+    
+    var maskNode: ASDisplayNode? {
+        return self.maskContainerNode
     }
 }

@@ -472,9 +472,16 @@ public final class InviteLinkViewController: ViewController {
             self.isOpaque = false
         
             self.interaction = InviteLinkViewInteraction(context: context, openPeer: { [weak self] peerId in
-                if let strongSelf = self, let navigationController = strongSelf.controller?.navigationController as? NavigationController {
-                    context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(id: peerId), keepStack: .always))
-                }
+                let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId))
+                |> deliverOnMainQueue).start(next: { peer in
+                    guard let peer = peer else {
+                        return
+                    }
+                    
+                    if let strongSelf = self, let navigationController = strongSelf.controller?.navigationController as? NavigationController {
+                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), keepStack: .always))
+                    }
+                })
             }, copyLink: { [weak self] invite in
                 UIPasteboard.general.string = invite.link
                 
@@ -489,16 +496,14 @@ public final class InviteLinkViewController: ViewController {
                 let shareController = ShareController(context: context, subject: .url(inviteLink))
                 shareController.completed = { [weak self] peerIds in
                     if let strongSelf = self {
-                        let _ = (strongSelf.context.account.postbox.transaction { transaction -> [Peer] in
-                            var peers: [Peer] = []
-                            for peerId in peerIds {
-                                if let peer = transaction.getPeer(peerId) {
-                                    peers.append(peer)
-                                }
-                            }
-                            return peers
-                        } |> deliverOnMainQueue).start(next: { [weak self] peers in
+                        let _ = (strongSelf.context.engine.data.get(
+                            EngineDataList(
+                                peerIds.map(TelegramEngine.EngineData.Item.Peer.Peer.init)
+                            )
+                        )
+                        |> deliverOnMainQueue).start(next: { [weak self] peerList in
                             if let strongSelf = self {
+                                let peers = peerList.compactMap { $0 }
                                 let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
                                 
                                 let text: String
@@ -508,14 +513,14 @@ public final class InviteLinkViewController: ViewController {
                                     savedMessages = true
                                 } else {
                                     if peers.count == 1, let peer = peers.first {
-                                        let peerName = peer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : EnginePeer(peer).displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
+                                        let peerName = peer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
                                         text = presentationData.strings.InviteLink_InviteLinkForwardTooltip_Chat_One(peerName).string
                                     } else if peers.count == 2, let firstPeer = peers.first, let secondPeer = peers.last {
-                                        let firstPeerName = firstPeer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : EnginePeer(firstPeer).displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
-                                        let secondPeerName = secondPeer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : EnginePeer(secondPeer).displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
+                                        let firstPeerName = firstPeer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : firstPeer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
+                                        let secondPeerName = secondPeer.id == strongSelf.context.account.peerId ? presentationData.strings.DialogList_SavedMessages : secondPeer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
                                         text = presentationData.strings.InviteLink_InviteLinkForwardTooltip_TwoChats_One(firstPeerName, secondPeerName).string
                                     } else if let peer = peers.first {
-                                        let peerName = EnginePeer(peer).displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
+                                        let peerName = peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
                                         text = presentationData.strings.InviteLink_InviteLinkForwardTooltip_ManyChats_One(peerName, "\(peers.count - 1)").string
                                     } else {
                                         text = ""
@@ -692,7 +697,7 @@ public final class InviteLinkViewController: ViewController {
                         if requestsState.importers.isEmpty && requestsState.isLoadingMore {
                             count = min(4, state.count)
                             loading = true
-                            let fakeUser = TelegramUser(id: EnginePeer.Id(namespace: .max, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "", lastName: "", username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [])
+                            let fakeUser = TelegramUser(id: EnginePeer.Id(namespace: .max, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "", lastName: "", username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [])
                             for i in 0 ..< count {
                                 entries.append(.request(Int32(i), presentationData.theme, presentationData.dateTimeFormat, EnginePeer.user(fakeUser), 0, true))
                             }
@@ -726,7 +731,7 @@ public final class InviteLinkViewController: ViewController {
                         if state.importers.isEmpty && state.isLoadingMore {
                             count = min(4, state.count)
                             loading = true
-                            let fakeUser = TelegramUser(id: EnginePeer.Id(namespace: .max, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "", lastName: "", username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [])
+                            let fakeUser = TelegramUser(id: EnginePeer.Id(namespace: .max, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "", lastName: "", username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [])
                             for i in 0 ..< count {
                                 entries.append(.importer(Int32(i), presentationData.theme, presentationData.dateTimeFormat, EnginePeer.user(fakeUser), 0, true))
                             }

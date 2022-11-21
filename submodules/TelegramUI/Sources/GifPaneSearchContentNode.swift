@@ -25,11 +25,9 @@ class PaneGifSearchForQueryResult {
 }
 
 func paneGifSearchForQuery(context: AccountContext, query: String, offset: String?, incompleteResults: Bool = false, staleCachedResults: Bool = false, delayRequest: Bool = true, updateActivity: ((Bool) -> Void)?) -> Signal<PaneGifSearchForQueryResult?, NoError> {
-    let contextBot = context.account.postbox.transaction { transaction -> String in
-        let configuration = currentSearchBotsConfiguration(transaction: transaction)
-        return configuration.gifBotUsername ?? "gif"
-    }
-    |> mapToSignal { botName -> Signal<EnginePeer?, NoError> in
+    let contextBot = context.engine.data.get(TelegramEngine.EngineData.Item.Configuration.SearchBots())
+    |> mapToSignal { searchBots -> Signal<EnginePeer?, NoError> in
+        let botName = searchBots.gifBotUsername ?? "gif"
         return context.engine.peers.resolvePeerByName(name: botName)
     }
     |> mapToSignal { peer -> Signal<(ChatPresentationInputQueryResult?, Bool, Bool), NoError> in
@@ -90,7 +88,8 @@ func paneGifSearchForQuery(context: AccountContext, query: String, offset: Strin
                                     dimensions: dimensions,
                                     resource: thumbnailResource,
                                     progressiveSizes: [],
-                                    immediateThumbnailData: nil
+                                    immediateThumbnailData: nil,
+                                    hasVideo: false
                                 ))
                             }
                         }
@@ -333,9 +332,9 @@ final class GifPaneSearchContentNode: ASDisplayNode & PaneSearchContentNode {
             
             multiplexedNode.fileSelected = { [weak self] file, sourceNode, sourceRect in
                 if let (collection, result) = file.contextResult {
-                    let _ = self?.controllerInteraction.sendBotContextResultAsGif(collection, result, sourceNode, sourceRect, false)
+                    let _ = self?.controllerInteraction.sendBotContextResultAsGif(collection, result, sourceNode.view, sourceRect, false)
                 } else {
-                    let _ = self?.controllerInteraction.sendGif(file.file, sourceNode, sourceRect, false, false)
+                    let _ = self?.controllerInteraction.sendGif(file.file, sourceNode.view, sourceRect, false, false)
                 }
             }
             

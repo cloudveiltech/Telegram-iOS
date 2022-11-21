@@ -473,9 +473,9 @@ public final class ListMessageFileItemNode: ListMessageNode {
                                 
                                 if !voice {
                                     if file.fileName?.lowercased().hasSuffix(".ogg") == true {
-                                        iconImage = .albumArt(file, SharedMediaPlaybackAlbumArt(thumbnailResource: ExternalMusicAlbumArtResource(title: "", performer: "", isThumbnail: true), fullSizeResource: ExternalMusicAlbumArtResource(title: "", performer: "", isThumbnail: false)))
+                                        iconImage = .albumArt(file, SharedMediaPlaybackAlbumArt(thumbnailResource: ExternalMusicAlbumArtResource(file: .message(message: MessageReference(message), media: file), title: "", performer: "", isThumbnail: true), fullSizeResource: ExternalMusicAlbumArtResource(file: .message(message: MessageReference(message), media: file), title: "", performer: "", isThumbnail: false)))
                                     } else {
-                                        iconImage = .albumArt(file, SharedMediaPlaybackAlbumArt(thumbnailResource: ExternalMusicAlbumArtResource(title: title ?? "", performer: performer ?? "", isThumbnail: true), fullSizeResource: ExternalMusicAlbumArtResource(title: title ?? "", performer: performer ?? "", isThumbnail: false)))
+                                        iconImage = .albumArt(file, SharedMediaPlaybackAlbumArt(thumbnailResource: ExternalMusicAlbumArtResource(file: .message(message: MessageReference(message), media: file), title: title ?? "", performer: performer ?? "", isThumbnail: true), fullSizeResource: ExternalMusicAlbumArtResource(file: .message(message: MessageReference(message), media: file), title: title ?? "", performer: performer ?? "", isThumbnail: false)))
                                     }
                                 } else {
                                     titleText = NSAttributedString(string: " ", font: audioTitleFont, textColor: item.presentationData.theme.theme.list.itemPrimaryTextColor)
@@ -1067,8 +1067,12 @@ public final class ListMessageFileItemNode: ListMessageNode {
                         let descriptionFrame = strongSelf.descriptionNode.frame
                         shapes.append(.roundedRectLine(startPoint: CGPoint(x: descriptionFrame.minX, y: descriptionFrame.minY + floor((descriptionFrame.height - lineDiameter) / 2.0)), width: descriptionLineWidth, diameter: lineDiameter))
                         
-                        shapes.append(.roundedRect(rect: iconFrame, cornerRadius: 6.0))
-
+                        if let media = selectedMedia as? TelegramMediaFile, media.isInstantVideo {
+                            shapes.append(.circle(iconFrame))
+                        } else {
+                            shapes.append(.roundedRect(rect: iconFrame, cornerRadius: 6.0))
+                        }
+                            
                         shimmerNode.update(backgroundColor: item.presentationData.theme.theme.list.itemBlocksBackgroundColor, foregroundColor: item.presentationData.theme.theme.list.mediaPlaceholderColor, shimmeringColor: item.presentationData.theme.theme.list.itemBlocksBackgroundColor.withAlphaComponent(0.4), shapes: shapes, size: nodeLayout.contentSize)
                     } else if let shimmerNode = strongSelf.placeholderNode {
                         strongSelf.placeholderNode = nil

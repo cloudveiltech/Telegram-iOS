@@ -341,20 +341,38 @@ public final class PeerInfoAvatarListItemNode: ASDisplayNode {
         videoNode.canAttachContent = true
         videoNode.isHidden = true
         
-        if let _ = self.videoStartTimestamp {
+        if let videoStartTimestamp = self.videoStartTimestamp {
             self.playbackStartDisposable.set((videoNode.status
-            |> map { status -> Bool in
+            |> castError(Bool.self)
+            |> mapToSignal { status -> Signal<Bool, Bool> in
                 if let status = status, case .playing = status.status {
-                    return true
+                    if videoStartTimestamp > 0.0 && videoStartTimestamp > status.duration - 1.0 {
+                        return .fail(true)
+                    }
+                    return .single(true)
                 } else {
-                    return false
+                    return .single(false)
                 }
             }
             |> filter { playing in
                 return playing
             }
             |> take(1)
-            |> deliverOnMainQueue).start(completed: { [weak self] in
+            |> deliverOnMainQueue).start(error: { [weak self] _ in
+                if let strongSelf = self {
+                    if let _ = strongSelf.videoNode {
+                        videoNode.seek(0.0)
+                        Queue.mainQueue().after(0.1) {
+                            strongSelf.videoNode?.layer.allowsGroupOpacity = true
+                            strongSelf.videoNode?.alpha = 0.0
+                            strongSelf.videoNode?.isHidden = false
+                            
+                            strongSelf.videoNode?.alpha = 1.0
+                            strongSelf.videoNode?.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.25, delay: 0.01)
+                        }
+                    }
+                }
+            }, completed: { [weak self] in
                 if let strongSelf = self {
                     Queue.mainQueue().after(0.1) {
                         strongSelf.videoNode?.isHidden = false
@@ -1117,7 +1135,6 @@ public final class PeerInfoAvatarListContainerNode: ASDisplayNode {
                             items.append(item)
                         }
                     }
-                    
                     //CloudVeil start
                     entries = Array(entries.prefix(MainController.shared.profilePhotoLimit))
                     items = Array(items.prefix(MainController.shared.profilePhotoLimit))
@@ -1129,7 +1146,6 @@ public final class PeerInfoAvatarListContainerNode: ASDisplayNode {
                     if let size = strongSelf.validLayout {
                         strongSelf.updateItems(size: size, update: true, transition: .immediate, stripTransition: .immediate, synchronous: synchronous)
                     }
-                    
                 } else {
                     strongSelf.galleryEntries = []
                     strongSelf.items = []

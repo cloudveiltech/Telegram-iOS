@@ -4,8 +4,7 @@ import SwiftSignalKit
 import TelegramApi
 import MtProtoKit
 
-private func reactionGeneratedEvent(_ previousReactions: ReactionsMessageAttribute?, _ updatedReactions: ReactionsMessageAttribute?, message: Message, transaction: Transaction) -> (reactionAuthor: Peer, reaction: String, message: Message, timestamp: Int32)? {
-    
+private func reactionGeneratedEvent(_ previousReactions: ReactionsMessageAttribute?, _ updatedReactions: ReactionsMessageAttribute?, message: Message, transaction: Transaction) -> (reactionAuthor: Peer, reaction: MessageReaction.Reaction, message: Message, timestamp: Int32)? {
     if let updatedReactions = updatedReactions, !message.flags.contains(.Incoming), message.id.peerId.namespace == Namespaces.Peer.CloudUser {
         let prev = previousReactions?.reactions ?? []
         
@@ -15,10 +14,10 @@ private func reactionGeneratedEvent(_ previousReactions: ReactionsMessageAttribu
             })
         }
         let myUpdated = updatedReactions.reactions.filter { value in
-            return value.isSelected
+            return value.chosenOrder != nil
         }.first
         let myPrevious = prev.filter { value in
-            return value.isSelected
+            return value.chosenOrder != nil
         }.first
         
         let previousCount = prev.reduce(0, {
@@ -29,7 +28,7 @@ private func reactionGeneratedEvent(_ previousReactions: ReactionsMessageAttribu
         })
         
         let newReaction = updated.filter {
-            !$0.isSelected
+            $0.chosenOrder == nil
         }.first?.value
         
         if !updated.isEmpty && myUpdated == myPrevious, updatedCount >= previousCount, let value = newReaction {
@@ -76,7 +75,7 @@ private func activeChannelsFromUpdateGroups(_ groups: [UpdateGroup]) -> Set<Peer
             switch chat {
                 case .channel:
                     if let channel = parseTelegramGroupOrChannel(chat: chat) as? TelegramChannel {
-                        if channel.participationStatus == .member {
+                        if channel.participationStatus == .member, case .personal = channel.accessHash {
                             peerIds.insert(channel.id)
                         }
                     }
@@ -126,7 +125,7 @@ private func peerIdsRequiringLocalChatStateFromUpdates(_ updates: [Api.Update]) 
                 peerIds.insert(PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(channelId)))
             case let .updateReadHistoryInbox(_, _, peer, _, _, _, _):
                 peerIds.insert(peer.peerId)
-            case let .updateDraftMessage(peer, draft):
+            case let .updateDraftMessage(_, peer, _, draft):
                 switch draft {
                     case .draftMessage:
                         peerIds.insert(peer.peerId)
@@ -470,13 +469,13 @@ private func initialStateWithPeerIds(_ transaction: Transaction, peerIds: Set<Pe
                 hasValidInclusion = false
         }
         if hasValidInclusion {
-            if let notificationSettings = transaction.getPeerNotificationSettings(peerId) {
+            if let notificationSettings = transaction.getPeerNotificationSettings(id: peerId) {
                 peerChatInfos[peerId] = PeerChatInfo(notificationSettings: notificationSettings)
             }
         } else {
             if let peer = transaction.getPeer(peerId) {
                 if let channel = peer as? TelegramChannel, channel.participationStatus != .member {
-                    if let notificationSettings = transaction.getPeerNotificationSettings(peerId) {
+                    if let notificationSettings = transaction.getPeerNotificationSettings(id: peerId) {
                         peerChatInfos[peerId] = PeerChatInfo(notificationSettings: notificationSettings)
                         Logger.shared.log("State", "Peer \(peerId) (\(peer.debugDisplayTitle) has no stored inclusion, using synthesized one")
                     }
@@ -528,7 +527,7 @@ func initialStateWithDifference(postbox: Postbox, difference: Api.updates.Differ
     }
 }
 
-func finalStateWithUpdateGroups(postbox: Postbox, network: Network, state: AccountMutableState, groups: [UpdateGroup]) -> Signal<AccountFinalState, NoError> {
+func finalStateWithUpdateGroups(accountPeerId: PeerId, postbox: Postbox, network: Network, state: AccountMutableState, groups: [UpdateGroup]) -> Signal<AccountFinalState, NoError> {
     var updatedState = state
     
     var hadReset = false
@@ -652,10 +651,10 @@ func finalStateWithUpdateGroups(postbox: Postbox, network: Network, state: Accou
         collectedUpdates.append(Api.Update.updateDeleteChannelMessages(channelId: channelId, messages: [], pts: pts, ptsCount: ptsCount))
     }
     
-    return finalStateWithUpdates(postbox: postbox, network: network, state: updatedState, updates: collectedUpdates, shouldPoll: hadReset, missingUpdates: !ptsUpdatesAfterHole.isEmpty || !qtsUpdatesAfterHole.isEmpty || !seqGroupsAfterHole.isEmpty, shouldResetChannels: false, updatesDate: updatesDate)
+    return finalStateWithUpdates(accountPeerId: accountPeerId, postbox: postbox, network: network, state: updatedState, updates: collectedUpdates, shouldPoll: hadReset, missingUpdates: !ptsUpdatesAfterHole.isEmpty || !qtsUpdatesAfterHole.isEmpty || !seqGroupsAfterHole.isEmpty, shouldResetChannels: false, updatesDate: updatesDate)
 }
 
-func finalStateWithDifference(postbox: Postbox, network: Network, state: AccountMutableState, difference: Api.updates.Difference) -> Signal<AccountFinalState, NoError> {
+func finalStateWithDifference(accountPeerId: PeerId, postbox: Postbox, network: Network, state: AccountMutableState, difference: Api.updates.Difference) -> Signal<AccountFinalState, NoError> {
     var updatedState = state
     
     var messages: [Api.Message] = []
@@ -710,7 +709,7 @@ func finalStateWithDifference(postbox: Postbox, network: Network, state: Account
         updatedState.addSecretMessages(encryptedMessages)
     }
     
-    return finalStateWithUpdates(postbox: postbox, network: network, state: updatedState, updates: updates, shouldPoll: false, missingUpdates: false, shouldResetChannels: true, updatesDate: nil)
+    return finalStateWithUpdates(accountPeerId: accountPeerId, postbox: postbox, network: network, state: updatedState, updates: updates, shouldPoll: false, missingUpdates: false, shouldResetChannels: true, updatesDate: nil)
 }
 
 private func sortedUpdates(_ updates: [Api.Update]) -> [Api.Update] {
@@ -831,15 +830,15 @@ private func sortedUpdates(_ updates: [Api.Update]) -> [Api.Update] {
     return result
 }
 
-private func finalStateWithUpdates(postbox: Postbox, network: Network, state: AccountMutableState, updates: [Api.Update], shouldPoll: Bool, missingUpdates: Bool, shouldResetChannels: Bool, updatesDate: Int32?) -> Signal<AccountFinalState, NoError> {
+private func finalStateWithUpdates(accountPeerId: PeerId, postbox: Postbox, network: Network, state: AccountMutableState, updates: [Api.Update], shouldPoll: Bool, missingUpdates: Bool, shouldResetChannels: Bool, updatesDate: Int32?) -> Signal<AccountFinalState, NoError> {
     return network.currentGlobalTime
     |> take(1)
     |> mapToSignal { serverTime -> Signal<AccountFinalState, NoError> in
-        return finalStateWithUpdatesAndServerTime(postbox: postbox, network: network, state: state, updates: updates, shouldPoll: shouldPoll, missingUpdates: missingUpdates, shouldResetChannels: shouldResetChannels, updatesDate: updatesDate, serverTime: Int32(serverTime))
+        return finalStateWithUpdatesAndServerTime(accountPeerId: accountPeerId, postbox: postbox, network: network, state: state, updates: updates, shouldPoll: shouldPoll, missingUpdates: missingUpdates, shouldResetChannels: shouldResetChannels, updatesDate: updatesDate, serverTime: Int32(serverTime))
     }
 }
     
-private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Network, state: AccountMutableState, updates: [Api.Update], shouldPoll: Bool, missingUpdates: Bool, shouldResetChannels: Bool, updatesDate: Int32?, serverTime: Int32) -> Signal<AccountFinalState, NoError> {
+private func finalStateWithUpdatesAndServerTime(accountPeerId: PeerId, postbox: Postbox, network: Network, state: AccountMutableState, updates: [Api.Update], shouldPoll: Bool, missingUpdates: Bool, shouldResetChannels: Bool, updatesDate: Int32?, serverTime: Int32) -> Signal<AccountFinalState, NoError> {
     var updatedState = state
     
     var channelsToPoll = Set<PeerId>()
@@ -1021,7 +1020,7 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                     if updatedState.peers[peerId] == nil {
                         updatedState.updatePeer(peerId, { peer in
                             if peer == nil {
-                                return TelegramUser(id: peerId, accessHash: nil, firstName: "Telegram Notifications", lastName: nil, username: nil, phone: nil, photo: [], botInfo: BotUserInfo(flags: [], inlinePlaceholder: nil), restrictionInfo: nil, flags: [.isVerified])
+                                return TelegramUser(id: peerId, accessHash: nil, firstName: "Telegram Notifications", lastName: nil, username: nil, phone: nil, photo: [], botInfo: BotUserInfo(flags: [], inlinePlaceholder: nil), restrictionInfo: nil, flags: [.isVerified], emojiStatus: nil, usernames: [])
                             } else {
                                 return peer
                             }
@@ -1048,12 +1047,16 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                         let messageText = text
                         var medias: [Media] = []
                         
-                        let (mediaValue, expirationTimer) = textMediaAndExpirationTimerFromApiMedia(media, peerId)
+                        let (mediaValue, expirationTimer, nonPremium) = textMediaAndExpirationTimerFromApiMedia(media, peerId)
                         if let mediaValue = mediaValue {
                             medias.append(mediaValue)
                         }
                         if let expirationTimer = expirationTimer {
                             attributes.append(AutoclearTimeoutMessageAttribute(timeout: expirationTimer, countdownBeginTime: nil))
+                        }
+                        
+                        if let nonPremium = nonPremium, nonPremium {
+                            attributes.append(NonPremiumMessageAttribute())
                         }
                         
                         if type.hasPrefix("auth") {
@@ -1101,11 +1104,17 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                             updatedState.updateMedia(webpage.webpageId, media: webpage)
                         }
                 }
+            case let .updateTranscribedAudio(flags, peer, msgId, transcriptionId, text):
+                let isPending = (flags & (1 << 0)) != 0
+                updatedState.updateAudioTranscription(messageId: MessageId(peerId: peer.peerId, namespace: Namespaces.Message.Cloud, id: msgId), id: transcriptionId, isPending: isPending, text: text)
             case let .updateNotifySettings(apiPeer, apiNotificationSettings):
                 switch apiPeer {
                     case let .notifyPeer(peer):
                         let notificationSettings = TelegramPeerNotificationSettings(apiSettings: apiNotificationSettings)
-                        updatedState.updateNotificationSettings(.peer(peer.peerId), notificationSettings: notificationSettings)
+                        updatedState.updateNotificationSettings(.peer(peerId: peer.peerId, threadId: nil), notificationSettings: notificationSettings)
+                    case let .notifyForumTopic(peer, topMsgId):
+                        let notificationSettings = TelegramPeerNotificationSettings(apiSettings: apiNotificationSettings)
+                        updatedState.updateNotificationSettings(.peer(peerId: peer.peerId, threadId: Int64(topMsgId)), notificationSettings: notificationSettings)
                     case .notifyUsers:
                         updatedState.updateGlobalNotificationSettings(.privateChats, notificationSettings: MessageNotificationSettings(apiSettings: apiNotificationSettings))
                     case .notifyChats:
@@ -1227,11 +1236,11 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                 })
             case let .updateUserStatus(userId, status):
                 updatedState.mergePeerPresences([PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(userId)): status], explicit: true)
-            case let .updateUserName(userId, _, _, username):
+            case let .updateUserName(userId, _, _, usernames):
                 //TODO add contact checking for apply first and last name
                 updatedState.updatePeer(PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(userId)), { peer in
                     if let user = peer as? TelegramUser {
-                        return user.withUpdatedUsername(username)
+                        return user.withUpdatedUsernames(usernames.map { TelegramPeerUsername(apiUsername: $0) })
                     } else {
                         return peer
                     }
@@ -1248,6 +1257,14 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                 updatedState.updatePeer(PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(userId)), { peer in
                     if let user = peer as? TelegramUser {
                         return user.withUpdatedPhone(phone.isEmpty ? nil : phone)
+                    } else {
+                        return peer
+                    }
+                })
+            case let .updateUserEmojiStatus(userId, emojiStatus):
+                updatedState.updatePeer(PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(userId)), { peer in
+                    if let user = peer as? TelegramUser {
+                        return user.withUpdatedEmojiStatus(PeerEmojiStatus(apiStatus: emojiStatus))
                     } else {
                         return peer
                     }
@@ -1358,9 +1375,12 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                 } else {
                     updatedState.addUpdatePinnedItemIds(groupId: groupId, operation: .sync)
                 }
+            case let .updateChannelPinnedTopic(_, channelId, topicId):
+                updatedState.addUpdatePinnedTopic(peerId: PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(channelId)), threadId: topicId.flatMap(Int64.init))
             case let .updateReadMessagesContents(messages, _, _):
                 updatedState.addReadMessagesContents((nil, messages))
-            case let .updateChannelReadMessagesContents(channelId, messages):
+            case let .updateChannelReadMessagesContents(_, channelId, topMsgId, messages):
+                let _ = topMsgId
                 updatedState.addReadMessagesContents((PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(channelId)), messages))
             case let .updateChannelMessageViews(channelId, id, views):
                 updatedState.addUpdateMessageImpressionCount(id: MessageId(peerId: PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(channelId)), namespace: Namespaces.Message.Cloud, id: id), count: views)
@@ -1372,15 +1392,27 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                 let namespace: SynchronizeInstalledStickerPacksOperationNamespace
                 if (flags & (1 << 0)) != 0 {
                     namespace = .masks
+                } else if (flags & (1 << 1)) != 0 {
+                    namespace = .emoji
                 } else {
                     namespace = .stickers
                 }
                 updatedState.addUpdateInstalledStickerPacks(.reorder(namespace, order))
+            case let .updateMoveStickerSetToTop(flags, stickerset):
+                let namespace: SynchronizeInstalledStickerPacksOperationNamespace
+                if (flags & (1 << 0)) != 0 {
+                    namespace = .masks
+                } else if (flags & (1 << 1)) != 0 {
+                    namespace = .emoji
+                } else {
+                    namespace = .stickers
+                }
+                updatedState.addUpdateInstalledStickerPacks(.reorderToTop(namespace, [stickerset]))
             case .updateStickerSets:
                 updatedState.addUpdateInstalledStickerPacks(.sync)
             case .updateSavedGifs:
                 updatedState.addUpdateRecentGifs()
-            case let .updateDraftMessage(peer, draft):
+            case let .updateDraftMessage(_, peer, topMsgId, draft):
                 let inputState: SynchronizeableChatInputState?
                 switch draft {
                     case .draftMessageEmpty:
@@ -1392,7 +1424,11 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                         }
                         inputState = SynchronizeableChatInputState(replyToMessageId: replyToMessageId, text: message, entities: messageTextEntitiesFromApiEntities(entities ?? []), timestamp: date, textSelection: nil)
                 }
-                updatedState.addUpdateChatInputState(peerId: peer.peerId, state: inputState)
+                var threadId: Int64?
+                if let topMsgId = topMsgId {
+                    threadId = Int64(topMsgId)
+                }
+                updatedState.addUpdateChatInputState(peerId: peer.peerId, threadId: threadId, state: inputState)
             case let .updatePhoneCall(phoneCall):
                 updatedState.addUpdateCall(phoneCall)
             case let .updatePhoneCallSignalingData(phoneCallId, data):
@@ -1467,14 +1503,14 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                 updatedState.updateCachedPeerData(peer.peerId, { current in
                     if peer.peerId.namespace == Namespaces.Peer.CloudUser, let previous = current as? CachedUserData {
                         if let botInfo = previous.botInfo {
-                            return previous.withUpdatedBotInfo(BotInfo(description: botInfo.description, photo: botInfo.photo, commands: commands, menuButton: botInfo.menuButton))
+                            return previous.withUpdatedBotInfo(BotInfo(description: botInfo.description, photo: botInfo.photo, video: botInfo.video, commands: commands, menuButton: botInfo.menuButton))
                         }
                     } else if peer.peerId.namespace == Namespaces.Peer.CloudGroup, let previous = current as? CachedGroupData {
                         if let index = previous.botInfos.firstIndex(where: { $0.peerId == botPeerId }) {
                             var updatedBotInfos = previous.botInfos
                             let previousBotInfo = updatedBotInfos[index]
                             updatedBotInfos.remove(at: index)
-                            updatedBotInfos.insert(CachedPeerBotInfo(peerId: botPeerId, botInfo: BotInfo(description: previousBotInfo.botInfo.description, photo: previousBotInfo.botInfo.photo, commands: commands, menuButton: previousBotInfo.botInfo.menuButton)), at: index)
+                            updatedBotInfos.insert(CachedPeerBotInfo(peerId: botPeerId, botInfo: BotInfo(description: previousBotInfo.botInfo.description, photo: previousBotInfo.botInfo.photo, video: previousBotInfo.botInfo.video, commands: commands, menuButton: previousBotInfo.botInfo.menuButton)), at: index)
                             return previous.withUpdatedBotInfos(updatedBotInfos)
                         }
                     } else if peer.peerId.namespace == Namespaces.Peer.CloudChannel, let previous = current as? CachedChannelData {
@@ -1482,7 +1518,7 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                             var updatedBotInfos = previous.botInfos
                             let previousBotInfo = updatedBotInfos[index]
                             updatedBotInfos.remove(at: index)
-                            updatedBotInfos.insert(CachedPeerBotInfo(peerId: botPeerId, botInfo: BotInfo(description: previousBotInfo.botInfo.description, photo: previousBotInfo.botInfo.photo, commands: commands, menuButton: previousBotInfo.botInfo.menuButton)), at: index)
+                            updatedBotInfos.insert(CachedPeerBotInfo(peerId: botPeerId, botInfo: BotInfo(description: previousBotInfo.botInfo.description, photo: previousBotInfo.botInfo.photo, video: previousBotInfo.botInfo.video, commands: commands, menuButton: previousBotInfo.botInfo.menuButton)), at: index)
                             return previous.withUpdatedBotInfos(updatedBotInfos)
                         }
                     }
@@ -1494,7 +1530,7 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                 updatedState.updateCachedPeerData(botPeerId, { current in
                     if let previous = current as? CachedUserData {
                         if let botInfo = previous.botInfo {
-                            return previous.withUpdatedBotInfo(BotInfo(description: botInfo.description, photo: botInfo.photo, commands: botInfo.commands, menuButton: menuButton))
+                            return previous.withUpdatedBotInfo(BotInfo(description: botInfo.description, photo: botInfo.photo, video: botInfo.video, commands: botInfo.commands, menuButton: menuButton))
                         }
                     }
                     return current
@@ -1521,12 +1557,16 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                         return current
                     }
                 })
-            case let .updateMessageReactions(peer, msgId, reactions):
+            case let .updateMessageReactions(_, peer, msgId, _, reactions):
                 updatedState.updateMessageReactions(MessageId(peerId: peer.peerId, namespace: Namespaces.Message.Cloud, id: msgId), reactions: reactions, eventTimestamp: updatesDate)
             case .updateAttachMenuBots:
                 updatedState.addUpdateAttachMenuBots()
             case let .updateWebViewResultSent(queryId):
                 updatedState.addDismissWebView(queryId)
+            case .updateConfig:
+                updatedState.reloadConfig()
+            case let .updateMessageExtendedMedia(peer, msgId, extendedMedia):
+                updatedState.updateExtendedMedia(MessageId(peerId: peer.peerId, namespace: Namespaces.Message.Cloud, id: msgId), extendedMedia: extendedMedia)
             default:
                 break
         }
@@ -1545,7 +1585,7 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
             }
         }
         if !channelPeers.isEmpty {
-            let resetSignal = resetChannels(network: network, peers: channelPeers, state: updatedState)
+            let resetSignal = resetChannels(accountPeerId: accountPeerId, postbox: postbox, network: network, peers: channelPeers, state: updatedState)
             |> map { resultState -> (AccountMutableState, Bool, Int32?) in
                 return (resultState, true, nil)
             }
@@ -1556,14 +1596,15 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
     } else {
         for peerId in channelsToPoll.union(missingUpdatesFromChannels) {
             if let peer = updatedState.peers[peerId] {
-                pollChannelSignals.append(pollChannel(network: network, peer: peer, state: updatedState.branch()))
+                pollChannelSignals.append(pollChannel(accountPeerId: accountPeerId, postbox: postbox, network: network, peer: peer, state: updatedState.branch()))
             } else {
                 Logger.shared.log("State", "can't poll channel \(peerId): no peer found")
             }
         }
     }
     
-    return combineLatest(pollChannelSignals) |> mapToSignal { states -> Signal<AccountFinalState, NoError> in
+    return combineLatest(pollChannelSignals)
+    |> mapToSignal { states -> Signal<AccountFinalState, NoError> in
         var finalState: AccountMutableState = updatedState
         var hadError = false
         
@@ -1578,21 +1619,412 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                 }
             }
         }
-        return resolveAssociatedMessages(network: network, state: finalState)
-        |> mapToSignal { resultingState -> Signal<AccountFinalState, NoError> in
-            return resolveMissingPeerChatInfos(network: network, state: resultingState)
-            |> map { resultingState, resolveError -> AccountFinalState in
-                return AccountFinalState(state: resultingState, shouldPoll: shouldPoll || hadError || resolveError, incomplete: missingUpdates, missingUpdatesFromChannels: Set(), discard: resolveError)
+        
+        return resolveForumThreads(postbox: postbox, network: network, state: finalState)
+        |> mapToSignal { finalState in
+            return resolveAssociatedMessages(postbox: postbox, network: network, state: finalState)
+            |> mapToSignal { resultingState -> Signal<AccountFinalState, NoError> in
+                return resolveMissingPeerChatInfos(network: network, state: resultingState)
+                |> map { resultingState, resolveError -> AccountFinalState in
+                    return AccountFinalState(state: resultingState, shouldPoll: shouldPoll || hadError || resolveError, incomplete: missingUpdates, missingUpdatesFromChannels: Set(), discard: resolveError)
+                }
             }
         }
     }
 }
 
+func resolveForumThreads(postbox: Postbox, network: Network, state: AccountMutableState) -> Signal<AccountMutableState, NoError> {
+    var forumThreadIds = Set<MessageId>()
+    
+    for operation in state.operations {
+        switch operation {
+        case let .AddMessages(messages, _):
+            for message in messages {
+                if let threadId = message.threadId {
+                    if let channel = state.peers[message.id.peerId] as? TelegramChannel, case .group = channel.info, channel.flags.contains(.isForum) {
+                        forumThreadIds.insert(MessageId(peerId: message.id.peerId, namespace: message.id.namespace, id: Int32(clamping: threadId)))
+                    }
+                }
+            }
+        default:
+            break
+        }
+    }
+    
+    if forumThreadIds.isEmpty {
+        return .single(state)
+    } else {
+        return postbox.transaction { transaction -> Signal<AccountMutableState, NoError> in
+            var missingForumThreadIds: [PeerId: [Int32]] = [:]
+            for threadId in forumThreadIds {
+                if let _ = transaction.getMessageHistoryThreadInfo(peerId: threadId.peerId, threadId: Int64(threadId.id)) {
+                } else {
+                    missingForumThreadIds[threadId.peerId, default: []].append(threadId.id)
+                }
+            }
+            
+            if missingForumThreadIds.isEmpty {
+                return .single(state)
+            } else {
+                var signals: [Signal<(PeerId, Api.messages.ForumTopics)?, NoError>] = []
+                for (peerId, threadIds) in missingForumThreadIds {
+                    guard let inputChannel = transaction.getPeer(peerId).flatMap(apiInputChannel) else {
+                        Logger.shared.log("State", "can't fetch thread infos \(threadIds) for peer \(peerId): can't create inputChannel")
+                        continue
+                    }
+                    let signal = network.request(Api.functions.channels.getForumTopicsByID(channel: inputChannel, topics: threadIds))
+                    |> map { result -> (PeerId, Api.messages.ForumTopics)? in
+                        return (peerId, result)
+                    }
+                    |> `catch` { _ -> Signal<(PeerId, Api.messages.ForumTopics)?, NoError> in
+                        return .single(nil)
+                    }
+                    signals.append(signal)
+                }
+                
+                return combineLatest(signals)
+                |> map { results -> AccountMutableState in
+                    var state = state
+                    
+                    var storeMessages: [StoreMessage] = []
+                    
+                    for maybeResult in results {
+                        if let (peerId, result) = maybeResult {
+                            switch result {
+                            case let .forumTopics(_, _, topics, messages, chats, users, pts):
+                                state.mergeChats(chats)
+                                state.mergeUsers(users)
+                                
+                                for message in messages {
+                                    if let message = StoreMessage(apiMessage: message) {
+                                        storeMessages.append(message)
+                                    }
+                                }
+                                
+                                for topic in topics {
+                                    switch topic {
+                                    case let .forumTopic(flags, id, date, title, iconColor, iconEmojiId, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, unreadReactionsCount, fromId, notifySettings, draft):
+                                        let _ = draft
+                                        
+                                        state.operations.append(.ResetForumTopic(
+                                            topicId: MessageId(peerId: peerId, namespace: Namespaces.Message.Cloud, id: id),
+                                            data: StoreMessageHistoryThreadData(
+                                                data: MessageHistoryThreadData(
+                                                    creationDate: date,
+                                                    isOwnedByMe: (flags & (1 << 1)) != 0,
+                                                    author: fromId.peerId,
+                                                    info: EngineMessageHistoryThread.Info(
+                                                        title: title,
+                                                        icon: iconEmojiId == 0 ? nil : iconEmojiId,
+                                                        iconColor: iconColor
+                                                    ),
+                                                    incomingUnreadCount: unreadCount,
+                                                    maxIncomingReadId: readInboxMaxId,
+                                                    maxKnownMessageId: topMessage,
+                                                    maxOutgoingReadId: readOutboxMaxId,
+                                                    isClosed: (flags & (1 << 2)) != 0,
+                                                    notificationSettings: TelegramPeerNotificationSettings(apiSettings: notifySettings)
+                                                ),
+                                                topMessageId: topMessage,
+                                                unreadMentionCount: unreadMentionsCount,
+                                                unreadReactionCount: unreadReactionsCount
+                                            ),
+                                            pts: pts
+                                        ))
+                                    case .forumTopicDeleted:
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    state.addMessages(storeMessages, location: .Random)
+                    
+                    return state
+                }
+            }
+        }
+        |> switchToLatest
+    }
+}
 
-private func resolveAssociatedMessages(network: Network, state: AccountMutableState) -> Signal<AccountMutableState, NoError> {
+func resolveForumThreads(postbox: Postbox, network: Network, ids: [MessageId]) -> Signal<Void, NoError> {
+    let forumThreadIds = Set(ids)
+    
+    if forumThreadIds.isEmpty {
+        return .single(Void())
+    } else {
+        return postbox.transaction { transaction -> Signal<Void, NoError> in
+            var missingForumThreadIds: [PeerId: [Int32]] = [:]
+            for threadId in forumThreadIds {
+                if let _ = transaction.getMessageHistoryThreadInfo(peerId: threadId.peerId, threadId: Int64(threadId.id)) {
+                } else {
+                    missingForumThreadIds[threadId.peerId, default: []].append(threadId.id)
+                }
+            }
+            
+            if missingForumThreadIds.isEmpty {
+                return .single(Void())
+            } else {
+                var signals: [Signal<(PeerId, Api.messages.ForumTopics)?, NoError>] = []
+                for (peerId, threadIds) in missingForumThreadIds {
+                    guard let inputChannel = transaction.getPeer(peerId).flatMap(apiInputChannel) else {
+                        Logger.shared.log("State", "can't fetch thread infos \(threadIds) for peer \(peerId): can't create inputChannel")
+                        continue
+                    }
+                    let signal = network.request(Api.functions.channels.getForumTopicsByID(channel: inputChannel, topics: threadIds))
+                    |> map { result -> (PeerId, Api.messages.ForumTopics)? in
+                        return (peerId, result)
+                    }
+                    |> `catch` { _ -> Signal<(PeerId, Api.messages.ForumTopics)?, NoError> in
+                        return .single(nil)
+                    }
+                    signals.append(signal)
+                }
+                
+                return combineLatest(signals)
+                |> mapToSignal { results -> Signal<Void, NoError> in
+                    return postbox.transaction { transaction in
+                        var chats: [Api.Chat] = []
+                        var users: [Api.User] = []
+                        var storeMessages: [StoreMessage] = []
+                        
+                        for maybeResult in results {
+                            if let (peerId, result) = maybeResult {
+                                switch result {
+                                case let .forumTopics(_, _, topics, messages, apiChats, apiUsers, _):
+                                    chats.append(contentsOf: apiChats)
+                                    users.append(contentsOf: apiUsers)
+                                    
+                                    for message in messages {
+                                        if let message = StoreMessage(apiMessage: message) {
+                                            storeMessages.append(message)
+                                        }
+                                    }
+                                    
+                                    for topic in topics {
+                                        switch topic {
+                                        case let .forumTopic(flags, id, date, title, iconColor, iconEmojiId, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, unreadReactionsCount, fromId, notifySettings, draft):
+                                            let _ = draft
+                                            
+                                            let data = MessageHistoryThreadData(
+                                                creationDate: date,
+                                                isOwnedByMe: (flags & (1 << 1)) != 0,
+                                                author: fromId.peerId,
+                                                info: EngineMessageHistoryThread.Info(
+                                                    title: title,
+                                                    icon: iconEmojiId == 0 ? nil : iconEmojiId,
+                                                    iconColor: iconColor
+                                                ),
+                                                incomingUnreadCount: unreadCount,
+                                                maxIncomingReadId: readInboxMaxId,
+                                                maxKnownMessageId: topMessage,
+                                                maxOutgoingReadId: readOutboxMaxId,
+                                                isClosed: (flags & (1 << 2)) != 0,
+                                                notificationSettings: TelegramPeerNotificationSettings(apiSettings: notifySettings)
+                                            )
+                                            if let entry = StoredMessageHistoryThreadInfo(data) {
+                                                transaction.setMessageHistoryThreadInfo(peerId: peerId, threadId: Int64(id), info: entry)
+                                            }
+                                            
+                                            transaction.replaceMessageTagSummary(peerId: peerId, threadId: Int64(id), tagMask: .unseenPersonalMessage, namespace: Namespaces.Message.Cloud, count: unreadMentionsCount, maxId: topMessage)
+                                            transaction.replaceMessageTagSummary(peerId: peerId, threadId: Int64(id), tagMask: .unseenReaction, namespace: Namespaces.Message.Cloud, count: unreadReactionsCount, maxId: topMessage)
+                                        case .forumTopicDeleted:
+                                            break
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        var peers: [Peer] = []
+                        for user in users {
+                            if let telegramUser = TelegramUser.merge(transaction.getPeer(user.peerId) as? TelegramUser, rhs: user) {
+                                peers.append(telegramUser)
+                            }
+                        }
+                        for chat in chats {
+                            if let groupOrChannel = mergeGroupOrChannel(lhs: transaction.getPeer(chat.peerId), rhs: chat) {
+                                peers.append(groupOrChannel)
+                            }
+                        }
+                        updatePeers(transaction: transaction, peers: peers, update: { _, updated in
+                            return updated
+                        })
+                        
+                        let _ = transaction.addMessages(storeMessages, location: .Random)
+                    }
+                }
+            }
+        }
+        |> switchToLatest
+    }
+}
+
+func resolveForumThreads(postbox: Postbox, network: Network, fetchedChatList: FetchedChatList) -> Signal<FetchedChatList, NoError> {
+    var forumThreadIds = Set<MessageId>()
+    
+    for message in fetchedChatList.storeMessages {
+        if let threadId = message.threadId {
+            if let channel = fetchedChatList.peers.first(where: { $0.id == message.id.peerId }) as? TelegramChannel, case .group = channel.info, channel.flags.contains(.isForum) {
+                forumThreadIds.insert(MessageId(peerId: message.id.peerId, namespace: message.id.namespace, id: Int32(clamping: threadId)))
+            }
+        }
+    }
+    
+    if forumThreadIds.isEmpty {
+        return .single(fetchedChatList)
+    } else {
+        return postbox.transaction { transaction -> Signal<FetchedChatList, NoError> in
+            var missingForumThreadIds: [PeerId: [Int32]] = [:]
+            for threadId in forumThreadIds {
+                if let _ = transaction.getMessageHistoryThreadInfo(peerId: threadId.peerId, threadId: Int64(threadId.id)) {
+                } else {
+                    missingForumThreadIds[threadId.peerId, default: []].append(threadId.id)
+                }
+            }
+            
+            if missingForumThreadIds.isEmpty {
+                return .single(fetchedChatList)
+            } else {
+                var signals: [Signal<(PeerId, Api.messages.ForumTopics)?, NoError>] = []
+                for (peerId, threadIds) in missingForumThreadIds {
+                    guard let inputChannel = fetchedChatList.peers.first(where: { $0.id == peerId }).flatMap(apiInputChannel) else {
+                        Logger.shared.log("resolveForumThreads", "can't fetch thread infos \(threadIds) for peer \(peerId): can't create inputChannel")
+                        continue
+                    }
+                    let signal = network.request(Api.functions.channels.getForumTopicsByID(channel: inputChannel, topics: threadIds))
+                    |> map { result -> (PeerId, Api.messages.ForumTopics)? in
+                        return (peerId, result)
+                    }
+                    |> `catch` { _ -> Signal<(PeerId, Api.messages.ForumTopics)?, NoError> in
+                        return .single(nil)
+                    }
+                    signals.append(signal)
+                }
+                
+                return combineLatest(signals)
+                |> map { results -> FetchedChatList in
+                    var fetchedChatList = fetchedChatList
+                    
+                    for maybeResult in results {
+                        if let (peerId, result) = maybeResult {
+                            switch result {
+                            case let .forumTopics(_, _, topics, messages, chats, users, _):
+                                fetchedChatList.peers.append(contentsOf: chats.compactMap { chat in
+                                    return parseTelegramGroupOrChannel(chat: chat)
+                                })
+                                fetchedChatList.peers.append(contentsOf: users.compactMap { user in
+                                    return TelegramUser(user: user)
+                                })
+                                
+                                for message in messages {
+                                    if let message = StoreMessage(apiMessage: message) {
+                                        fetchedChatList.storeMessages.append(message)
+                                    }
+                                }
+                                
+                                for topic in topics {
+                                    switch topic {
+                                    case let .forumTopic(flags, id, date, title, iconColor, iconEmojiId, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, unreadReactionsCount, fromId, notifySettings, draft):
+                                        let _ = draft
+                                        
+                                        fetchedChatList.threadInfos[MessageId(peerId: peerId, namespace: Namespaces.Message.Cloud, id: id)] = StoreMessageHistoryThreadData(
+                                            data: MessageHistoryThreadData(
+                                                creationDate: date,
+                                                isOwnedByMe: (flags & (1 << 1)) != 0,
+                                                author: fromId.peerId,
+                                                info: EngineMessageHistoryThread.Info(
+                                                    title: title,
+                                                    icon: iconEmojiId == 0 ? nil : iconEmojiId,
+                                                    iconColor: iconColor
+                                                ),
+                                                incomingUnreadCount: unreadCount,
+                                                maxIncomingReadId: readInboxMaxId,
+                                                maxKnownMessageId: topMessage,
+                                                maxOutgoingReadId: readOutboxMaxId,
+                                                isClosed: (flags & (1 << 2)) != 0,
+                                                notificationSettings: TelegramPeerNotificationSettings(apiSettings: notifySettings)
+                                            ),
+                                            topMessageId: topMessage,
+                                            unreadMentionCount: unreadMentionsCount,
+                                            unreadReactionCount: unreadReactionsCount
+                                        )
+                                    case .forumTopicDeleted:
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    return fetchedChatList
+                }
+            }
+        }
+        |> switchToLatest
+    }
+}
+
+func extractEmojiFileIds(message: StoreMessage, fileIds: inout Set<Int64>) {
+    for attribute in message.attributes {
+        if let attribute = attribute as? TextEntitiesMessageAttribute {
+            for entity in attribute.entities {
+                switch entity.type {
+                case let .CustomEmoji(_, fileId):
+                    fileIds.insert(fileId)
+                default:
+                    break
+                }
+            }
+        } else if let attribute = attribute as? ReactionsMessageAttribute {
+            for reaction in attribute.reactions {
+                switch reaction.value {
+                case let .custom(fileId):
+                    fileIds.insert(fileId)
+                default:
+                    break
+                }
+            }
+        }
+    }
+}
+
+private func messagesFromOperations(state: AccountMutableState) -> [StoreMessage] {
+    var messages: [StoreMessage] = []
+    for operation in state.operations {
+        switch operation {
+        case let .AddMessages(messagesValue, _):
+            messages.append(contentsOf: messagesValue)
+        case let .EditMessage(_, message):
+            messages.append(message)
+        default:
+            break
+        }
+    }
+    return messages
+}
+
+private func reactionsFromState(_ state: AccountMutableState) -> [MessageReaction.Reaction] {
+    var result: [MessageReaction.Reaction] = []
+    for operation in state.operations {
+        if case let .UpdateMessageReactions(_, reactions, _) = operation {
+            for reaction in ReactionsMessageAttribute(apiReactions: reactions).reactions {
+                result.append(reaction.value)
+            }
+        }
+    }
+    return result
+}
+
+private func resolveAssociatedMessages(postbox: Postbox, network: Network, state: AccountMutableState) -> Signal<AccountMutableState, NoError> {
     let missingMessageIds = state.referencedMessageIds.subtracting(state.storedMessages)
     if missingMessageIds.isEmpty {
-        return .single(state)
+        return resolveUnknownEmojiFiles(postbox: postbox, source: .network(network), messages: messagesFromOperations(state: state), reactions: reactionsFromState(state), result: state)
+        |> mapToSignal { state in
+            return resolveForumThreads(postbox: postbox, network: network, state: state)
+        }
     } else {
         var missingPeers = false
         let _ = missingPeers
@@ -1631,7 +2063,8 @@ private func resolveAssociatedMessages(network: Network, state: AccountMutableSt
         
         let fetchMessages = combineLatest(signals)
         
-        return fetchMessages |> map { results in
+        return fetchMessages
+        |> map { results in
             var updatedState = state
             for (messages, chats, users) in results {
                 if !messages.isEmpty {
@@ -1651,6 +2084,12 @@ private func resolveAssociatedMessages(network: Network, state: AccountMutableSt
                 }
             }
             return updatedState
+        }
+        |> mapToSignal { updatedState -> Signal<AccountMutableState, NoError> in
+            return resolveUnknownEmojiFiles(postbox: postbox, source: .network(network), messages: messagesFromOperations(state: updatedState), reactions: reactionsFromState(updatedState), result: updatedState)
+            |> mapToSignal { state in
+                return resolveForumThreads(postbox: postbox, network: network, state: state)
+            }
         }
     }
 }
@@ -1740,7 +2179,7 @@ private func resolveMissingPeerChatInfos(network: Network, state: AccountMutable
                                 }
                                 
                                 let notificationSettings = TelegramPeerNotificationSettings(apiSettings: notifySettings)
-                                updatedState.updateNotificationSettings(.peer(peer.peerId), notificationSettings: notificationSettings)
+                                updatedState.updateNotificationSettings(.peer(peerId: peer.peerId, threadId: nil), notificationSettings: notificationSettings)
                                 
                                 updatedState.resetReadState(peer.peerId, namespace: Namespaces.Message.Cloud, maxIncomingReadId: readInboxMaxId, maxOutgoingReadId: readOutboxMaxId, maxKnownId: topMessage, count: unreadCount, markedUnread: nil)
                                 updatedState.resetMessageTagSummary(peer.peerId, tag: .unseenPersonalMessage, namespace: Namespaces.Message.Cloud, count: unreadMentionsCount, range: MessageHistoryTagNamespaceCountValidityRange(maxId: topMessage))
@@ -1781,7 +2220,7 @@ private func resolveMissingPeerChatInfos(network: Network, state: AccountMutable
     }
 }
 
-func pollChannelOnce(postbox: Postbox, network: Network, peerId: PeerId, stateManager: AccountStateManager, delayCompletion: Bool) -> Signal<Int32, NoError> {
+func pollChannelOnce(accountPeerId: PeerId, postbox: Postbox, network: Network, peerId: PeerId, stateManager: AccountStateManager, delayCompletion: Bool) -> Signal<Int32, NoError> {
     return postbox.transaction { transaction -> Signal<Int32, NoError> in
         guard let accountState = (transaction.getState() as? AuthorizedAccountState)?.state, let peer = transaction.getPeer(peerId) else {
             if delayCompletion {
@@ -1807,14 +2246,14 @@ func pollChannelOnce(postbox: Postbox, network: Network, peerId: PeerId, stateMa
                 hasValidInclusion = false
         }
         if hasValidInclusion {
-            if let notificationSettings = transaction.getPeerNotificationSettings(peerId) as? TelegramPeerNotificationSettings {
+            if let notificationSettings = transaction.getPeerNotificationSettings(id: peerId) as? TelegramPeerNotificationSettings {
                 peerChatInfos[peerId] = PeerChatInfo(notificationSettings: notificationSettings)
             }
         }
         let initialState = AccountMutableState(initialState: AccountInitialState(state: accountState, peerIds: Set(), peerIdsRequiringLocalChatState: Set(), channelStates: channelStates, peerChatInfos: peerChatInfos, locallyGeneratedMessageTimestamps: [:], cloudReadStates: [:], channelsToPollExplicitely: Set()), initialPeers: initialPeers, initialReferencedMessageIds: Set(), initialStoredMessages: Set(), initialReadInboxMaxIds: [:], storedMessagesByPeerIdAndTimestamp: [:])
-        return pollChannel(network: network, peer: peer, state: initialState)
+        return pollChannel(accountPeerId: accountPeerId, postbox: postbox, network: network, peer: peer, state: initialState)
         |> mapToSignal { (finalState, _, timeout) -> Signal<Int32, NoError> in
-            return resolveAssociatedMessages(network: network, state: finalState)
+            return resolveAssociatedMessages(postbox: postbox, network: network, state: finalState)
             |> mapToSignal { resultingState -> Signal<AccountFinalState, NoError> in
                 return resolveMissingPeerChatInfos(network: network, state: resultingState)
                 |> map { resultingState, _ -> AccountFinalState in
@@ -1840,7 +2279,7 @@ func pollChannelOnce(postbox: Postbox, network: Network, peerId: PeerId, stateMa
     |> switchToLatest
 }
 
-public func standalonePollChannelOnce(postbox: Postbox, network: Network, peerId: PeerId, stateManager: AccountStateManager) -> Signal<Never, NoError> {
+public func standalonePollChannelOnce(accountPeerId: PeerId, postbox: Postbox, network: Network, peerId: PeerId, stateManager: AccountStateManager) -> Signal<Never, NoError> {
     return postbox.transaction { transaction -> Signal<Never, NoError> in
         guard let accountState = (transaction.getState() as? AuthorizedAccountState)?.state, let peer = transaction.getPeer(peerId) else {
             return .complete()
@@ -1861,14 +2300,14 @@ public func standalonePollChannelOnce(postbox: Postbox, network: Network, peerId
             hasValidInclusion = false
         }
         if hasValidInclusion {
-            if let notificationSettings = transaction.getPeerNotificationSettings(peerId) as? TelegramPeerNotificationSettings {
+            if let notificationSettings = transaction.getPeerNotificationSettings(id: peerId) as? TelegramPeerNotificationSettings {
                 peerChatInfos[peerId] = PeerChatInfo(notificationSettings: notificationSettings)
             }
         }
         let initialState = AccountMutableState(initialState: AccountInitialState(state: accountState, peerIds: Set(), peerIdsRequiringLocalChatState: Set(), channelStates: channelStates, peerChatInfos: peerChatInfos, locallyGeneratedMessageTimestamps: [:], cloudReadStates: [:], channelsToPollExplicitely: Set()), initialPeers: initialPeers, initialReferencedMessageIds: Set(), initialStoredMessages: Set(), initialReadInboxMaxIds: [:], storedMessagesByPeerIdAndTimestamp: [:])
-        return pollChannel(network: network, peer: peer, state: initialState)
+        return pollChannel(accountPeerId: accountPeerId, postbox: postbox, network: network, peer: peer, state: initialState)
         |> mapToSignal { (finalState, _, timeout) -> Signal<Never, NoError> in
-            return resolveAssociatedMessages(network: network, state: finalState)
+            return resolveAssociatedMessages(postbox: postbox, network: network, state: finalState)
             |> mapToSignal { resultingState -> Signal<AccountFinalState, NoError> in
                 return resolveMissingPeerChatInfos(network: network, state: resultingState)
                 |> map { resultingState, _ -> AccountFinalState in
@@ -1883,13 +2322,13 @@ public func standalonePollChannelOnce(postbox: Postbox, network: Network, peerId
     |> switchToLatest
 }
 
-func keepPollingChannel(postbox: Postbox, network: Network, peerId: PeerId, stateManager: AccountStateManager) -> Signal<Int32, NoError> {
-    return pollChannelOnce(postbox: postbox, network: network, peerId: peerId, stateManager: stateManager, delayCompletion: true)
+func keepPollingChannel(accountPeerId: PeerId, postbox: Postbox, network: Network, peerId: PeerId, stateManager: AccountStateManager) -> Signal<Int32, NoError> {
+    return pollChannelOnce(accountPeerId: accountPeerId, postbox: postbox, network: network, peerId: peerId, stateManager: stateManager, delayCompletion: true)
     |> restart
     |> delay(1.0, queue: .concurrentDefaultQueue())
 }
 
-private func resetChannels(network: Network, peers: [Peer], state: AccountMutableState) -> Signal<AccountMutableState, NoError> {
+private func resetChannels(accountPeerId: PeerId, postbox: Postbox, network: Network, peers: [Peer], state: AccountMutableState) -> Signal<AccountMutableState, NoError> {
     var inputPeers: [Api.InputDialogPeer] = []
     for peer in peers {
         if let inputPeer = apiInputPeer(peer) {
@@ -1917,7 +2356,9 @@ private func resetChannels(network: Network, peers: [Peer], state: AccountMutabl
         var channelStates: [PeerId: AccountStateChannelState] = [:]
         var invalidateChannelStates: [PeerId: Int32] = [:]
         var channelSynchronizedUntilMessage: [PeerId: MessageId.Id] = [:]
-        var notificationSettings: [PeerId: PeerNotificationSettings] = [:]
+        var notificationSettings: [PeerId: TelegramPeerNotificationSettings] = [:]
+        
+        var resetForumTopics = Set<PeerId>()
         
         if let result = result {
             switch result {
@@ -1975,6 +2416,8 @@ private func resetChannels(network: Network, peers: [Peer], state: AccountMutabl
                         notificationSettings[peerId] = TelegramPeerNotificationSettings(apiSettings: apiNotificationSettings)
                         
                         updatedState.updatePeerChatInclusion(peerId: peerId, groupId: groupId, changedGroup: false)
+                        
+                        resetForumTopics.insert(peerId)
                     }
                     
                     for message in messages {
@@ -2036,22 +2479,49 @@ private func resetChannels(network: Network, peers: [Peer], state: AccountMutabl
         }
         
         for (peerId, settings) in notificationSettings {
-            updatedState.updateNotificationSettings(.peer(peerId), notificationSettings: settings)
+            updatedState.updateNotificationSettings(.peer(peerId: peerId, threadId: nil), notificationSettings: settings)
         }
         
-        // TODO: delete messages later than top
-        
-        return resolveAssociatedMessages(network: network, state: updatedState)
-        |> mapToSignal { resultingState -> Signal<AccountMutableState, NoError> in
-            return .single(resultingState)
+        var resetTopicsSignals: [Signal<StateResetForumTopics, NoError>] = []
+        for resetForumTopicPeerId in resetForumTopics {
+            resetTopicsSignals.append(_internal_requestMessageHistoryThreads(accountPeerId: accountPeerId, postbox: postbox, network: network, peerId: resetForumTopicPeerId, offsetIndex: nil, limit: 20)
+            |> map(StateResetForumTopics.result)
+            |> `catch` { _ -> Signal<StateResetForumTopics, NoError> in
+                return .single(.error(resetForumTopicPeerId))
+            })
+        }
+        return combineLatest(resetTopicsSignals)
+        |> mapToSignal { results -> Signal<AccountMutableState, NoError> in
+            var updatedState = updatedState
+            
+            for result in results {
+                let peerId: PeerId
+                switch result {
+                case let .result(item):
+                    peerId = item.peerId
+                case let .error(peerIdValue):
+                    peerId = peerIdValue
+                }
+                updatedState.resetForumTopicLists[peerId] = result
+            }
+            
+            // TODO: delete messages later than top
+            return resolveAssociatedMessages(postbox: postbox, network: network, state: updatedState)
+            |> mapToSignal { resultingState -> Signal<AccountMutableState, NoError> in
+                return .single(resultingState)
+            }
         }
     }
 }
 
-private func pollChannel(network: Network, peer: Peer, state: AccountMutableState) -> Signal<(AccountMutableState, Bool, Int32?), NoError> {
+private func pollChannel(accountPeerId: PeerId, postbox: Postbox, network: Network, peer: Peer, state: AccountMutableState) -> Signal<(AccountMutableState, Bool, Int32?), NoError> {
     if let inputChannel = apiInputChannel(peer) {
         let limit: Int32
+        #if DEBUG
+        limit = 2
+        #else
         limit = 100
+        #endif
         
         let pollPts: Int32
         if let channelState = state.channelStates[peer.id] {
@@ -2070,161 +2540,219 @@ private func pollChannel(network: Network, peer: Peer, state: AccountMutableStat
             }
         })
         |> retryRequest
-        |> map { difference -> (AccountMutableState, Bool, Int32?) in
-            var updatedState = state
-            var apiTimeout: Int32?
-            if let difference = difference {
-                switch difference {
-                    case let .channelDifference(_, pts, timeout, newMessages, otherUpdates, chats, users):
-                        apiTimeout = timeout
-                        let channelPts: Int32
-                        if let _ = updatedState.channelStates[peer.id] {
-                            channelPts = pts
-                        } else {
-                            channelPts = pts
-                        }
-                        updatedState.updateChannelState(peer.id, pts: channelPts)
+        |> mapToSignal { difference -> Signal<(AccountMutableState, Bool, Int32?), NoError> in
+            guard let difference = difference else {
+                return .single((state, false, nil))
+            }
+            
+            switch difference {
+            case let .channelDifference(_, pts, timeout, newMessages, otherUpdates, chats, users):
+                var updatedState = state
+                var apiTimeout: Int32?
+                
+                apiTimeout = timeout
+                let channelPts: Int32
+                if let _ = updatedState.channelStates[peer.id] {
+                    channelPts = pts
+                } else {
+                    channelPts = pts
+                }
+                updatedState.updateChannelState(peer.id, pts: channelPts)
+                
+                updatedState.mergeChats(chats)
+                updatedState.mergeUsers(users)
+                
+                var forumThreadIds = Set<MessageId>()
+                
+                for apiMessage in newMessages {
+                    if var message = StoreMessage(apiMessage: apiMessage) {
+                        var attributes = message.attributes
+                        attributes.append(ChannelMessageStateVersionAttribute(pts: pts))
+                        message = message.withUpdatedAttributes(attributes)
                         
-                        updatedState.mergeChats(chats)
-                        updatedState.mergeUsers(users)
-                        
-                        for apiMessage in newMessages {
-                            if var message = StoreMessage(apiMessage: apiMessage) {
-                                var attributes = message.attributes
-                                attributes.append(ChannelMessageStateVersionAttribute(pts: pts))
-                                message = message.withUpdatedAttributes(attributes)
-                                
-                                if let preCachedResources = apiMessage.preCachedResources {
-                                    for (resource, data) in preCachedResources {
-                                        updatedState.addPreCachedResource(resource, data: data)
-                                    }
-                                }
-                                updatedState.addMessages([message], location: .UpperHistoryBlock)
-                                if case let .Id(id) = message.id {
-                                    updatedState.updateChannelSynchronizedUntilMessage(id.peerId, id: id.id)
-                                }
+                        if let preCachedResources = apiMessage.preCachedResources {
+                            for (resource, data) in preCachedResources {
+                                updatedState.addPreCachedResource(resource, data: data)
                             }
                         }
-                        for update in otherUpdates {
-                            switch update {
-                                case let .updateDeleteChannelMessages(_, messages, _, _):
-                                    let peerId = peer.id
-                                    updatedState.deleteMessages(messages.map({ MessageId(peerId: peerId, namespace: Namespaces.Message.Cloud, id: $0) }))
-                                case let .updateEditChannelMessage(apiMessage, _, _):
-                                    if let message = StoreMessage(apiMessage: apiMessage), case let .Id(messageId) = message.id, messageId.peerId == peer.id {
-                                        if let preCachedResources = apiMessage.preCachedResources {
-                                            for (resource, data) in preCachedResources {
-                                                updatedState.addPreCachedResource(resource, data: data)
-                                            }
-                                        }
-                                        var attributes = message.attributes
-                                        attributes.append(ChannelMessageStateVersionAttribute(pts: pts))
-                                        updatedState.editMessage(messageId, message: message.withUpdatedAttributes(attributes))
-                                    } else {
-                                        Logger.shared.log("State", "Invalid updateEditChannelMessage")
-                                    }
-                                case let .updatePinnedChannelMessages(flags, channelId, messages, _, _):
-                                    let channelPeerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(channelId))
-                                    updatedState.updateMessagesPinned(ids: messages.map { id in
-                                        MessageId(peerId: channelPeerId, namespace: Namespaces.Message.Cloud, id: id)
-                                    }, pinned: (flags & (1 << 0)) != 0)
-                                case let .updateChannelReadMessagesContents(_, messages):
-                                    updatedState.addReadMessagesContents((peer.id, messages))
-                                case let .updateChannelMessageViews(_, id, views):
-                                    updatedState.addUpdateMessageImpressionCount(id: MessageId(peerId: peer.id, namespace: Namespaces.Message.Cloud, id: id), count: views)
-                                /*case let .updateChannelMessageForwards(_, id, views):
-                                    updatedState.addUpdateMessageForwardsCount(id: MessageId(peerId: peer.id, namespace: Namespaces.Message.Cloud, id: id), count: views)*/
-                                case let .updateChannelWebPage(_, apiWebpage, _, _):
-                                    switch apiWebpage {
-                                        case let .webPageEmpty(id):
-                                            updatedState.updateMedia(MediaId(namespace: Namespaces.Media.CloudWebpage, id: id), media: nil)
-                                        default:
-                                            if let webpage = telegramMediaWebpageFromApiWebpage(apiWebpage, url: nil) {
-                                                updatedState.updateMedia(webpage.webpageId, media: webpage)
-                                            }
-                                    }
-                                case let .updateChannelAvailableMessages(_, minId):
-                                    let messageId = MessageId(peerId: peer.id, namespace: Namespaces.Message.Cloud, id: minId)
-                                    updatedState.updateMinAvailableMessage(messageId)
-                                    updatedState.updateCachedPeerData(peer.id, { current in
-                                        let previous: CachedChannelData
-                                        if let current = current as? CachedChannelData {
-                                            previous = current
-                                        } else {
-                                            previous = CachedChannelData()
-                                        }
-                                        return previous.withUpdatedMinAvailableMessageId(messageId)
-                                    })
-                                default:
-                                    break
-                            }
-                        }
-                    case let .channelDifferenceEmpty(_, pts, timeout):
-                        apiTimeout = timeout
-                        
-                        let channelPts: Int32
-                        if let _ = updatedState.channelStates[peer.id] {
-                            channelPts = pts
-                        } else {
-                            channelPts = pts
-                        }
-                        updatedState.updateChannelState(peer.id, pts: channelPts)
-                    case let .channelDifferenceTooLong(_, timeout, dialog, messages, chats, users):
-                        apiTimeout = timeout
-                        
-                    var parameters: (peer: Api.Peer, pts: Int32, topMessage: Int32, readInboxMaxId: Int32, readOutboxMaxId: Int32, unreadCount: Int32, unreadMentionsCount: Int32, unreadReactionsCount: Int32)?
-                        
-                        switch dialog {
-                            case let .dialog(_, peer, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, unreadReactionsCount, _, pts, _, _):
-                                if let pts = pts {
-                                    parameters = (peer, pts, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, unreadReactionsCount)
-                                }
-                            case .dialogFolder:
-                                break
-                        }
-                        
-                        if let (peer, pts, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, unreadReactionsCount) = parameters {
-                            updatedState.updateChannelState(peer.peerId, pts: pts)
-                            updatedState.updateChannelInvalidationPts(peer.peerId, invalidationPts: pts)
+                        updatedState.addMessages([message], location: .UpperHistoryBlock)
+                        if case let .Id(id) = message.id {
+                            updatedState.updateChannelSynchronizedUntilMessage(id.peerId, id: id.id)
                             
-                            updatedState.mergeChats(chats)
-                            updatedState.mergeUsers(users)
-                            
-                            updatedState.setNeedsHoleFromPreviousState(peerId: peer.peerId, namespace: Namespaces.Message.Cloud, validateChannelPts: pts)
-                        
-                            for apiMessage in messages {
-                                if var message = StoreMessage(apiMessage: apiMessage) {
-                                    var attributes = message.attributes
-                                    attributes.append(ChannelMessageStateVersionAttribute(pts: pts))
-                                    message = message.withUpdatedAttributes(attributes)
-                                    
-                                    if let preCachedResources = apiMessage.preCachedResources {
-                                        for (resource, data) in preCachedResources {
-                                            updatedState.addPreCachedResource(resource, data: data)
-                                        }
-                                    }
-                                    
-                                    let location: AddMessagesLocation
-                                    if case let .Id(id) = message.id, id.id == topMessage {
-                                        location = .UpperHistoryBlock
-                                        updatedState.updateChannelSynchronizedUntilMessage(id.peerId, id: id.id)
-                                    } else {
-                                        location = .Random
-                                    }
-                                    updatedState.addMessages([message], location: location)
+                            if let threadId = message.threadId {
+                                if let channel = updatedState.peers[message.id.peerId] as? TelegramChannel, case .group = channel.info, channel.flags.contains(.isForum) {
+                                    forumThreadIds.insert(MessageId(peerId: message.id.peerId, namespace: message.id.namespace, id: Int32(clamping: threadId)))
                                 }
                             }
-                        
-                            updatedState.resetReadState(peer.peerId, namespace: Namespaces.Message.Cloud, maxIncomingReadId: readInboxMaxId, maxOutgoingReadId: readOutboxMaxId, maxKnownId: topMessage, count: unreadCount, markedUnread: nil)
-                        
-                            updatedState.resetMessageTagSummary(peer.peerId, tag: .unseenPersonalMessage, namespace: Namespaces.Message.Cloud, count: unreadMentionsCount, range: MessageHistoryTagNamespaceCountValidityRange(maxId: topMessage))
-                            updatedState.resetMessageTagSummary(peer.peerId, tag: .unseenReaction, namespace: Namespaces.Message.Cloud, count: unreadReactionsCount, range: MessageHistoryTagNamespaceCountValidityRange(maxId: topMessage))
-                        } else {
-                            assertionFailure()
                         }
+                    }
+                }
+                
+                for update in otherUpdates {
+                    switch update {
+                    case let .updateDeleteChannelMessages(_, messages, _, _):
+                        let peerId = peer.id
+                        updatedState.deleteMessages(messages.map({ MessageId(peerId: peerId, namespace: Namespaces.Message.Cloud, id: $0) }))
+                    case let .updateEditChannelMessage(apiMessage, _, _):
+                        if let message = StoreMessage(apiMessage: apiMessage), case let .Id(messageId) = message.id, messageId.peerId == peer.id {
+                            if let preCachedResources = apiMessage.preCachedResources {
+                                for (resource, data) in preCachedResources {
+                                    updatedState.addPreCachedResource(resource, data: data)
+                                }
+                            }
+                            var attributes = message.attributes
+                            attributes.append(ChannelMessageStateVersionAttribute(pts: pts))
+                            updatedState.editMessage(messageId, message: message.withUpdatedAttributes(attributes))
+                            
+                            if let threadId = message.threadId {
+                                if let channel = updatedState.peers[message.id.peerId] as? TelegramChannel, case .group = channel.info, channel.flags.contains(.isForum) {
+                                    forumThreadIds.insert(MessageId(peerId: message.id.peerId, namespace: message.id.namespace, id: Int32(clamping: threadId)))
+                                }
+                            }
+                        } else {
+                            Logger.shared.log("State", "Invalid updateEditChannelMessage")
+                        }
+                    case let .updatePinnedChannelMessages(flags, channelId, messages, _, _):
+                        let channelPeerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(channelId))
+                        updatedState.updateMessagesPinned(ids: messages.map { id in
+                            MessageId(peerId: channelPeerId, namespace: Namespaces.Message.Cloud, id: id)
+                        }, pinned: (flags & (1 << 0)) != 0)
+                    case let .updateChannelReadMessagesContents(_, _, topMsgId, messages):
+                        let _ = topMsgId
+                        updatedState.addReadMessagesContents((peer.id, messages))
+                    case let .updateChannelMessageViews(_, id, views):
+                        updatedState.addUpdateMessageImpressionCount(id: MessageId(peerId: peer.id, namespace: Namespaces.Message.Cloud, id: id), count: views)
+                    case let .updateChannelWebPage(_, apiWebpage, _, _):
+                        switch apiWebpage {
+                        case let .webPageEmpty(id):
+                            updatedState.updateMedia(MediaId(namespace: Namespaces.Media.CloudWebpage, id: id), media: nil)
+                        default:
+                            if let webpage = telegramMediaWebpageFromApiWebpage(apiWebpage, url: nil) {
+                                updatedState.updateMedia(webpage.webpageId, media: webpage)
+                            }
+                        }
+                    case let .updateChannelAvailableMessages(_, minId):
+                        let messageId = MessageId(peerId: peer.id, namespace: Namespaces.Message.Cloud, id: minId)
+                        updatedState.updateMinAvailableMessage(messageId)
+                        updatedState.updateCachedPeerData(peer.id, { current in
+                            let previous: CachedChannelData
+                            if let current = current as? CachedChannelData {
+                                previous = current
+                            } else {
+                                previous = CachedChannelData()
+                            }
+                            return previous.withUpdatedMinAvailableMessageId(messageId)
+                        })
+                    default:
+                        break
+                    }
+                }
+                
+                return resolveForumThreads(postbox: postbox, network: network, state: updatedState)
+                |> map { updatedState -> (AccountMutableState, Bool, Int32?) in
+                    return (updatedState, true, apiTimeout)
+                }
+            case let .channelDifferenceEmpty(_, pts, timeout):
+                var updatedState = state
+                var apiTimeout: Int32?
+                
+                apiTimeout = timeout
+                
+                let channelPts: Int32
+                if let _ = updatedState.channelStates[peer.id] {
+                    channelPts = pts
+                } else {
+                    channelPts = pts
+                }
+                updatedState.updateChannelState(peer.id, pts: channelPts)
+                
+                return .single((updatedState, true, apiTimeout))
+            case let .channelDifferenceTooLong(_, timeout, dialog, messages, chats, users):
+                var updatedState = state
+                var apiTimeout: Int32?
+                
+                apiTimeout = timeout
+                
+                var parameters: (peer: Api.Peer, pts: Int32, topMessage: Int32, readInboxMaxId: Int32, readOutboxMaxId: Int32, unreadCount: Int32, unreadMentionsCount: Int32, unreadReactionsCount: Int32)?
+                
+                switch dialog {
+                case let .dialog(_, peer, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, unreadReactionsCount, _, pts, _, _):
+                    if let pts = pts {
+                        parameters = (peer, pts, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, unreadReactionsCount)
+                    }
+                case .dialogFolder:
+                    break
+                }
+                
+                var resetForumTopics = Set<PeerId>()
+                
+                if let (peer, pts, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, unreadReactionsCount) = parameters {
+                    updatedState.updateChannelState(peer.peerId, pts: pts)
+                    updatedState.updateChannelInvalidationPts(peer.peerId, invalidationPts: pts)
+                    
+                    updatedState.mergeChats(chats)
+                    updatedState.mergeUsers(users)
+                    
+                    updatedState.setNeedsHoleFromPreviousState(peerId: peer.peerId, namespace: Namespaces.Message.Cloud, validateChannelPts: pts)
+                    resetForumTopics.insert(peer.peerId)
+                    
+                    for apiMessage in messages {
+                        if var message = StoreMessage(apiMessage: apiMessage) {
+                            var attributes = message.attributes
+                            attributes.append(ChannelMessageStateVersionAttribute(pts: pts))
+                            message = message.withUpdatedAttributes(attributes)
+                            
+                            if let preCachedResources = apiMessage.preCachedResources {
+                                for (resource, data) in preCachedResources {
+                                    updatedState.addPreCachedResource(resource, data: data)
+                                }
+                            }
+                            
+                            let location: AddMessagesLocation
+                            if case let .Id(id) = message.id, id.id == topMessage {
+                                location = .UpperHistoryBlock
+                                updatedState.updateChannelSynchronizedUntilMessage(id.peerId, id: id.id)
+                            } else {
+                                location = .Random
+                            }
+                            updatedState.addMessages([message], location: location)
+                        }
+                    }
+                    
+                    updatedState.resetReadState(peer.peerId, namespace: Namespaces.Message.Cloud, maxIncomingReadId: readInboxMaxId, maxOutgoingReadId: readOutboxMaxId, maxKnownId: topMessage, count: unreadCount, markedUnread: nil)
+                    
+                    updatedState.resetMessageTagSummary(peer.peerId, tag: .unseenPersonalMessage, namespace: Namespaces.Message.Cloud, count: unreadMentionsCount, range: MessageHistoryTagNamespaceCountValidityRange(maxId: topMessage))
+                    updatedState.resetMessageTagSummary(peer.peerId, tag: .unseenReaction, namespace: Namespaces.Message.Cloud, count: unreadReactionsCount, range: MessageHistoryTagNamespaceCountValidityRange(maxId: topMessage))
+                } else {
+                    assertionFailure()
+                }
+                
+                var resetTopicsSignals: [Signal<StateResetForumTopics, NoError>] = []
+                for resetForumTopicPeerId in resetForumTopics {
+                    resetTopicsSignals.append(_internal_requestMessageHistoryThreads(accountPeerId: accountPeerId, postbox: postbox, network: network, peerId: resetForumTopicPeerId, offsetIndex: nil, limit: 20)
+                    |> map(StateResetForumTopics.result)
+                    |> `catch` { _ -> Signal<StateResetForumTopics, NoError> in
+                        return .single(.error(resetForumTopicPeerId))
+                    })
+                }
+                return combineLatest(resetTopicsSignals)
+                |> mapToSignal { results -> Signal<(AccountMutableState, Bool, Int32?), NoError> in
+                    var updatedState = updatedState
+                    
+                    for result in results {
+                        let peerId: PeerId
+                        switch result {
+                        case let .result(item):
+                            peerId = item.peerId
+                        case let .error(peerIdValue):
+                            peerId = peerIdValue
+                        }
+                        updatedState.resetForumTopicLists[peerId] = result
+                    }
+                    
+                    return .single((updatedState, true, apiTimeout))
                 }
             }
-            return (updatedState, difference != nil, apiTimeout)
         }
     } else {
         Logger.shared.log("State", "can't poll channel \(peer.id): can't create inputChannel")
@@ -2319,7 +2847,7 @@ private func optimizedOperations(_ operations: [AccountStateMutationOperation]) 
     var currentAddScheduledMessages: OptimizeAddMessagesState?
     for operation in operations {
         switch operation {
-        case .DeleteMessages, .DeleteMessagesWithGlobalIds, .EditMessage, .UpdateMessagePoll, .UpdateMessageReactions, .UpdateMedia, .MergeApiChats, .MergeApiUsers, .MergePeerPresences, .UpdatePeer, .ReadInbox, .ReadOutbox, .ReadGroupFeedInbox, .ResetReadState, .ResetIncomingReadState, .UpdatePeerChatUnreadMark, .ResetMessageTagSummary, .UpdateNotificationSettings, .UpdateGlobalNotificationSettings, .UpdateSecretChat, .AddSecretMessages, .ReadSecretOutbox, .AddPeerInputActivity, .UpdateCachedPeerData, .UpdatePinnedItemIds, .ReadMessageContents, .UpdateMessageImpressionCount, .UpdateMessageForwardsCount, .UpdateInstalledStickerPacks, .UpdateRecentGifs, .UpdateChatInputState, .UpdateCall, .AddCallSignalingData, .UpdateLangPack, .UpdateMinAvailableMessage, .UpdateIsContact, .UpdatePeerChatInclusion, .UpdatePeersNearby, .UpdateTheme, .SyncChatListFilters, .UpdateChatListFilter, .UpdateChatListFilterOrder, .UpdateReadThread, .UpdateMessagesPinned, .UpdateGroupCallParticipants, .UpdateGroupCall, .UpdateAutoremoveTimeout, .UpdateAttachMenuBots:
+        case .DeleteMessages, .DeleteMessagesWithGlobalIds, .EditMessage, .UpdateMessagePoll, .UpdateMessageReactions, .UpdateMedia, .MergeApiChats, .MergeApiUsers, .MergePeerPresences, .UpdatePeer, .ReadInbox, .ReadOutbox, .ReadGroupFeedInbox, .ResetReadState, .ResetIncomingReadState, .UpdatePeerChatUnreadMark, .ResetMessageTagSummary, .UpdateNotificationSettings, .UpdateGlobalNotificationSettings, .UpdateSecretChat, .AddSecretMessages, .ReadSecretOutbox, .AddPeerInputActivity, .UpdateCachedPeerData, .UpdatePinnedItemIds, .UpdatePinnedTopic, .ReadMessageContents, .UpdateMessageImpressionCount, .UpdateMessageForwardsCount, .UpdateInstalledStickerPacks, .UpdateRecentGifs, .UpdateChatInputState, .UpdateCall, .AddCallSignalingData, .UpdateLangPack, .UpdateMinAvailableMessage, .UpdateIsContact, .UpdatePeerChatInclusion, .UpdatePeersNearby, .UpdateTheme, .SyncChatListFilters, .UpdateChatListFilter, .UpdateChatListFilterOrder, .UpdateReadThread, .UpdateMessagesPinned, .UpdateGroupCallParticipants, .UpdateGroupCall, .UpdateAutoremoveTimeout, .UpdateAttachMenuBots, .UpdateAudioTranscription, .UpdateConfig, .UpdateExtendedMedia, .ResetForumTopic:
                 if let currentAddMessages = currentAddMessages, !currentAddMessages.messages.isEmpty {
                     result.append(.AddMessages(currentAddMessages.messages, currentAddMessages.location))
                 }
@@ -2433,6 +2961,7 @@ func replayFinalState(
     var syncChatListFilters = false
     var deletedMessageIds: [DeletedMessageId] = []
     var syncAttachMenuBots = false
+    var updateConfig = false
     
     var holesFromPreviousStateMessageIds: [MessageId] = []
     var clearHolesFromPreviousStateForChannelMessagesWithPts: [PeerIdAndMessageNamespace: Int32] = [:]
@@ -2488,7 +3017,7 @@ func replayFinalState(
     }
     var wasScheduledMessageIds:[MessageId] = []
     var addedIncomingMessageIds: [MessageId] = []
-    var addedReactionEvents: [(reactionAuthor: Peer, reaction: String, message: Message, timestamp: Int32)] = []
+    var addedReactionEvents: [(reactionAuthor: Peer, reaction: MessageReaction.Reaction, message: Message, timestamp: Int32)] = []
     
     if !wasOperationScheduledMessageIds.isEmpty {
         let existingIds = transaction.filterStoredMessageIds(Set(wasOperationScheduledMessageIds))
@@ -2537,6 +3066,8 @@ func replayFinalState(
         }
     }
     
+    var isPremiumUpdated = false
+    
     for operation in optimizedOperations(finalState.state.operations) {
         switch operation {
             case let .AddMessages(messages, location):
@@ -2544,10 +3075,55 @@ func replayFinalState(
                     for message in messages {
                         if case let .Id(id) = message.id {
                             if let threadId = message.threadId {
+                                for media in message.media {
+                                    if let action = media as? TelegramMediaAction {
+                                        switch action.action {
+                                        case .topicCreated:
+                                            transaction.removeHole(peerId: id.peerId, threadId: threadId, namespace: Namespaces.Message.Cloud, space: .everywhere, range: 1 ... id.id)
+                                        case let .topicEdited(components):
+                                            if let initialData = transaction.getMessageHistoryThreadInfo(peerId: id.peerId, threadId: threadId)?.data.get(MessageHistoryThreadData.self) {
+                                                var data = initialData
+                                                
+                                                for component in components {
+                                                    switch component {
+                                                    case let .title(title):
+                                                        data.info = EngineMessageHistoryThread.Info(title: title, icon: data.info.icon, iconColor: data.info.iconColor)
+                                                    case let .iconFileId(fileId):
+                                                        data.info = EngineMessageHistoryThread.Info(title: data.info.title, icon: fileId == 0 ? nil : fileId, iconColor: data.info.iconColor)
+                                                    case let .isClosed(isClosed):
+                                                        data.isClosed = isClosed
+                                                    }
+                                                }
+                                                
+                                                if data != initialData {
+                                                    if let entry = StoredMessageHistoryThreadInfo(data) {
+                                                        transaction.setMessageHistoryThreadInfo(peerId: id.peerId, threadId: threadId, info: entry)
+                                                    }
+                                                }
+                                            }
+                                        default:
+                                            break
+                                        }
+                                    }
+                                }
+                                
                                 let messageThreadId = makeThreadIdMessageId(peerId: message.id.peerId, threadId: threadId)
                                 if id.peerId.namespace == Namespaces.Peer.CloudChannel {
                                     if !transaction.messageExists(id: id) {
                                         addMessageThreadStatsDifference(threadMessageId: messageThreadId, remove: 0, addedMessagePeer: message.authorId, addedMessageId: id, isOutgoing: !message.flags.contains(.Incoming))
+                                    }
+                                }
+                                
+                                if message.flags.contains(.Incoming) {
+                                    if var data = transaction.getMessageHistoryThreadInfo(peerId: id.peerId, threadId: threadId)?.data.get(MessageHistoryThreadData.self) {
+                                        if id.id >= data.maxKnownMessageId {
+                                            data.maxKnownMessageId = id.id
+                                            data.incomingUnreadCount += 1
+                                            
+                                            if let entry = StoredMessageHistoryThreadInfo(data) {
+                                                transaction.setMessageHistoryThreadInfo(peerId: id.peerId, threadId: threadId, info: entry)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -2622,7 +3198,7 @@ func replayFinalState(
                                         case .groupCreated, .channelMigratedFromGroup:
                                             let holesAtHistoryStart = transaction.getHole(containing: MessageId(peerId: chatPeerId, namespace: Namespaces.Message.Cloud, id: id.id - 1))
                                             for (space, _) in holesAtHistoryStart {
-                                                transaction.removeHole(peerId: chatPeerId, namespace: Namespaces.Message.Cloud, space: space, range: 1 ... id.id)
+                                                transaction.removeHole(peerId: chatPeerId, threadId: nil, namespace: Namespaces.Message.Cloud, space: space, range: 1 ... id.id)
                                             }
                                         default:
                                             break
@@ -2728,7 +3304,7 @@ func replayFinalState(
                     invalidateGroupStats.insert(Namespaces.PeerGroup.archive)
                 }
             case let .EditMessage(id, message):
-                var generatedEvent: (reactionAuthor: Peer, reaction: String, message: Message, timestamp: Int32)?
+                var generatedEvent: (reactionAuthor: Peer, reaction: MessageReaction.Reaction, message: Message, timestamp: Int32)?
                 transaction.updateMessage(id, update: { previousMessage in
                     var updatedFlags = message.flags
                     var updatedLocalTags = message.localTags
@@ -2798,7 +3374,6 @@ func replayFinalState(
                 }
             case .ReadGroupFeedInbox:
                 break
-                //transaction.applyGroupFeedReadMaxIndex(groupId: groupId, index: index)
             case let .UpdateReadThread(threadMessageId, readMaxId, isIncoming, mainChannelMessage):
                 if isIncoming {
                     if let currentId = updatedIncomingThreadReadStates[threadMessageId] {
@@ -2807,6 +3382,23 @@ func replayFinalState(
                         }
                     } else {
                         updatedIncomingThreadReadStates[threadMessageId] = readMaxId
+                    }
+                    if let channel = transaction.getPeer(threadMessageId.peerId) as? TelegramChannel, case .group = channel.info, channel.flags.contains(.isForum) {
+                        if var data = transaction.getMessageHistoryThreadInfo(peerId: threadMessageId.peerId, threadId: Int64(threadMessageId.id))?.data.get(MessageHistoryThreadData.self) {
+                            if readMaxId > data.maxIncomingReadId {
+                                if let toIndex = transaction.getMessage(MessageId(peerId: threadMessageId.peerId, namespace: threadMessageId.namespace, id: readMaxId))?.index {
+                                    if let count = transaction.getThreadMessageCount(peerId: threadMessageId.peerId, threadId: Int64(threadMessageId.id), namespace: threadMessageId.namespace, fromIdExclusive: data.maxIncomingReadId, toIndex: toIndex) {
+                                        data.incomingUnreadCount = max(0, data.incomingUnreadCount - Int32(count))
+                                    }
+                                }
+                                
+                                data.maxKnownMessageId = max(data.maxKnownMessageId, readMaxId)
+                                
+                                if let entry = StoredMessageHistoryThreadInfo(data) {
+                                    transaction.setMessageHistoryThreadInfo(peerId: threadMessageId.peerId, threadId: Int64(threadMessageId.id), info: entry)
+                                }
+                            }
+                        }
                     }
                     if let mainChannelMessage = mainChannelMessage {
                         transaction.updateMessage(mainChannelMessage, update: { currentMessage in
@@ -2831,6 +3423,17 @@ func replayFinalState(
                         }
                     } else {
                         updatedOutgoingThreadReadStates[threadMessageId] = readMaxId
+                    }
+                    if let channel = transaction.getPeer(threadMessageId.peerId) as? TelegramChannel, case .group = channel.info, channel.flags.contains(.isForum) {
+                        if var data = transaction.getMessageHistoryThreadInfo(peerId: threadMessageId.peerId, threadId: Int64(threadMessageId.id))?.data.get(MessageHistoryThreadData.self) {
+                            if readMaxId >= data.maxOutgoingReadId {
+                                data.maxOutgoingReadId = readMaxId
+                                
+                                if let entry = StoredMessageHistoryThreadInfo(data) {
+                                    transaction.setMessageHistoryThreadInfo(peerId: threadMessageId.peerId, threadId: Int64(threadMessageId.id), info: entry)
+                                }
+                            }
+                        }
                     }
                 }
             case let .ResetReadState(peerId, namespace, maxIncomingReadId, maxOutgoingReadId, maxKnownId, count, markedUnread):
@@ -2918,11 +3521,11 @@ func replayFinalState(
             case let .UpdatePeerChatUnreadMark(peerId, namespace, value):
                 transaction.applyMarkUnread(peerId: peerId, namespace: namespace, value: value, interactive: false)
             case let .ResetMessageTagSummary(peerId, tag, namespace, count, range):
-                transaction.replaceMessageTagSummary(peerId: peerId, tagMask: tag, namespace: namespace, count: count, maxId: range.maxId)
+                transaction.replaceMessageTagSummary(peerId: peerId, threadId: nil, tagMask: tag, namespace: namespace, count: count, maxId: range.maxId)
                 if count == 0 {
-                    transaction.removeHole(peerId: peerId, namespace: namespace, space: .tag(tag), range: 1 ... (Int32.max - 1))
+                    transaction.removeHole(peerId: peerId, threadId: nil, namespace: namespace, space: .tag(tag), range: 1 ... (Int32.max - 1))
                     if tag == .unseenPersonalMessage {
-                        let ids = transaction.getMessageIndicesWithTag(peerId: peerId, namespace: namespace, tag: tag).map({ $0.id })
+                        let ids = transaction.getMessageIndicesWithTag(peerId: peerId, threadId: nil, namespace: namespace, tag: tag).map({ $0.id })
                         Logger.shared.log("State", "will call markUnseenPersonalMessage for \(ids.count) messages")
                         for id in ids {
                             markUnseenPersonalMessage(transaction: transaction, id: id, addSynchronizeAction: false)
@@ -2954,8 +3557,22 @@ func replayFinalState(
                 Logger.shared.log("State", "apply channel synchronized until message \(peerId): \(state)")
             case let .UpdateNotificationSettings(subject, notificationSettings):
                 switch subject {
-                    case let .peer(peerId):
+                case let .peer(peerId, threadId):
+                    if let threadId = threadId {
+                        if let initialData = transaction.getMessageHistoryThreadInfo(peerId: peerId, threadId: threadId)?.data.get(MessageHistoryThreadData.self) {
+                            var data = initialData
+                            
+                            data.notificationSettings = notificationSettings
+                            
+                            if data != initialData {
+                                if let entry = StoredMessageHistoryThreadInfo(data) {
+                                    transaction.setMessageHistoryThreadInfo(peerId: peerId, threadId: threadId, info: entry)
+                                }
+                            }
+                        }
+                    } else {
                         transaction.updateCurrentPeerNotificationSettings([peerId: notificationSettings])
+                    }
                 }
             case let .UpdateGlobalNotificationSettings(subject, notificationSettings):
                 switch subject {
@@ -3013,12 +3630,25 @@ func replayFinalState(
                         peers.append(telegramUser)
                     }
                 }
+            
+                if let updatedAccountPeer = peers.first(where: { $0.id == accountPeerId }) as? TelegramUser, let previousAccountPeer = transaction.getPeer(accountPeerId) as? TelegramUser {
+                    if updatedAccountPeer.isPremium != previousAccountPeer.isPremium {
+                        isPremiumUpdated = true
+                    }
+                }
+            
                 updatePeers(transaction: transaction, peers: peers, update: { _, updated in
                     return updated
                 })
                 updateContacts(transaction: transaction, apiUsers: users)
             case let .UpdatePeer(id, f):
                 if let peer = f(transaction.getPeer(id)) {
+                    if id == accountPeerId, let updatedAccountPeer = peer as? TelegramUser, let previousAccountPeer = transaction.getPeer(accountPeerId) as? TelegramUser {
+                        if updatedAccountPeer.isPremium != previousAccountPeer.isPremium {
+                            isPremiumUpdated = true
+                        }
+                    }
+                    
                     updatePeers(transaction: transaction, peers: [peer], update: { _, updated in
                         return updated
                     })
@@ -3070,7 +3700,7 @@ func replayFinalState(
                     }
                     
                 }
-                updatePeerPresences(transaction: transaction, accountPeerId: accountPeerId, peerPresences: presences)
+                updatePeerPresencesClean(transaction: transaction, accountPeerId: accountPeerId, peerPresences: presences)
             case let .UpdateSecretChat(chat, _):
                 updateSecretChat(encryptionProvider: encryptionProvider, accountPeerId: accountPeerId, transaction: transaction, mediaBox: mediaBox, chat: chat, requestData: nil)
             case let .AddSecretMessages(messages):
@@ -3127,6 +3757,12 @@ func replayFinalState(
                     case .sync:
                         addSynchronizePinnedChatsOperation(transaction: transaction, groupId: groupId)
                 }
+            case let .UpdatePinnedTopic(peerId, threadId):
+                if let threadId = threadId {
+                    transaction.setPeerPinnedThreads(peerId: peerId, threadIds: [threadId])
+                } else {
+                    transaction.setPeerPinnedThreads(peerId: peerId, threadIds: [])
+                }
             case let .ReadMessageContents(peerIdAndMessageIds):
                 let (peerId, messageIds) = peerIdAndMessageIds
 
@@ -3173,8 +3809,8 @@ func replayFinalState(
                 stickerPackOperations.append(operation)
             case .UpdateRecentGifs:
                 syncRecentGifs = true
-            case let .UpdateChatInputState(peerId, inputState):
-                _internal_updateChatInputState(transaction: transaction, peerId: peerId, inputState: inputState)
+            case let .UpdateChatInputState(peerId, threadId, inputState):
+                _internal_updateChatInputState(transaction: transaction, peerId: peerId, threadId: threadId, inputState: inputState)
             case let .UpdateCall(call):
                 updatedCalls.append(call)
             case let .AddCallSignalingData(callId, data):
@@ -3340,6 +3976,99 @@ func replayFinalState(
                 })
             case .UpdateAttachMenuBots:
                 syncAttachMenuBots = true
+            case let .UpdateAudioTranscription(messageId, id, isPending, text):
+                transaction.updateMessage(messageId, update: { currentMessage in
+                    var storeForwardInfo: StoreMessageForwardInfo?
+                    if let forwardInfo = currentMessage.forwardInfo {
+                        storeForwardInfo = StoreMessageForwardInfo(authorId: forwardInfo.author?.id, sourceId: forwardInfo.source?.id, sourceMessageId: forwardInfo.sourceMessageId, date: forwardInfo.date, authorSignature: forwardInfo.authorSignature, psaType: forwardInfo.psaType, flags: forwardInfo.flags)
+                    }
+                    var attributes = currentMessage.attributes
+                    var found = false
+                    loop: for j in 0 ..< attributes.count {
+                        if let attribute = attributes[j] as? AudioTranscriptionMessageAttribute {
+                            attributes[j] = AudioTranscriptionMessageAttribute(id: id, text: text, isPending: isPending, didRate: attribute.didRate, error: nil)
+                            found = true
+                            break loop
+                        }
+                    }
+                    if !found {
+                        attributes.append(AudioTranscriptionMessageAttribute(id: id, text: text, isPending: isPending, didRate: false, error: nil))
+                    }
+                    
+                    return .update(StoreMessage(
+                        id: currentMessage.id,
+                        globallyUniqueId: currentMessage.globallyUniqueId,
+                        groupingKey: currentMessage.groupingKey,
+                        threadId: currentMessage.threadId,
+                        timestamp: currentMessage.timestamp,
+                        flags: StoreMessageFlags(currentMessage.flags),
+                        tags: currentMessage.tags,
+                        globalTags: currentMessage.globalTags,
+                        localTags: currentMessage.localTags,
+                        forwardInfo: storeForwardInfo,
+                        authorId: currentMessage.author?.id,
+                        text: currentMessage.text,
+                        attributes: attributes,
+                        media: currentMessage.media
+                    ))
+                })
+            case .UpdateConfig:
+                updateConfig = true
+            case let .UpdateExtendedMedia(messageId, apiExtendedMedia):
+                transaction.updateMessage(messageId, update: { currentMessage in
+                    var media = currentMessage.media
+                    let invoice = media.first(where: { $0 is TelegramMediaInvoice }) as? TelegramMediaInvoice
+                    let currentExtendedMedia = invoice?.extendedMedia
+                    
+                    var storeForwardInfo: StoreMessageForwardInfo?
+                    if let forwardInfo = currentMessage.forwardInfo {
+                        storeForwardInfo = StoreMessageForwardInfo(authorId: forwardInfo.author?.id, sourceId: forwardInfo.source?.id, sourceMessageId: forwardInfo.sourceMessageId, date: forwardInfo.date, authorSignature: forwardInfo.authorSignature, psaType: forwardInfo.psaType, flags: forwardInfo.flags)
+                    }
+                    
+                    let updatedExtendedMedia: TelegramExtendedMedia?
+                    switch apiExtendedMedia {
+                        case let .messageExtendedMediaPreview(_, width, height, thumb, videoDuration):
+                            var dimensions: PixelDimensions?
+                            if let width = width, let height = height {
+                                dimensions = PixelDimensions(width: width, height: height)
+                            }
+                            var immediateThumbnailData: Data?
+                            if let thumb = thumb, case let .photoStrippedSize(_, bytes) = thumb {
+                                immediateThumbnailData = bytes.makeData()
+                            }
+                            updatedExtendedMedia = .preview(dimensions: dimensions, immediateThumbnailData: immediateThumbnailData, videoDuration: videoDuration)
+                        case let .messageExtendedMedia(apiMedia):
+                            let (media, _, _) = textMediaAndExpirationTimerFromApiMedia(apiMedia, currentMessage.id.peerId)
+                            if let media = media {
+                                updatedExtendedMedia = .full(media: media)
+                            } else {
+                                updatedExtendedMedia = currentExtendedMedia
+                            }
+                    }
+                    
+                    if let updatedExtendedMedia = updatedExtendedMedia, var invoice = invoice {
+                        if let currentExtendedMedia = currentExtendedMedia, case .full = currentExtendedMedia, case .preview = updatedExtendedMedia {
+                            
+                        } else   {
+                            media = media.filter { !($0 is TelegramMediaInvoice) }
+                            invoice = invoice.withUpdatedExtendedMedia(updatedExtendedMedia)
+                            media.append(invoice)
+                        }
+                    }
+                    
+                    return .update(StoreMessage(id: currentMessage.id, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: currentMessage.attributes, media: media))
+                })
+            case let .ResetForumTopic(topicId, data, pts):
+                if finalState.state.resetForumTopicLists[topicId.peerId] == nil {
+                    let _ = pts
+                    if let entry = StoredMessageHistoryThreadInfo(data.data) {
+                        transaction.setMessageHistoryThreadInfo(peerId: topicId.peerId, threadId: Int64(topicId.id), info: entry)
+                    } else {
+                        assertionFailure()
+                    }
+                    transaction.replaceMessageTagSummary(peerId: topicId.peerId, threadId: Int64(topicId.id), tagMask: .unseenPersonalMessage, namespace: Namespaces.Message.Cloud, count: data.unreadMentionCount, maxId: data.topMessageId)
+                    transaction.replaceMessageTagSummary(peerId: topicId.peerId, threadId: Int64(topicId.id), tagMask: .unseenReaction, namespace: Namespaces.Message.Cloud, count: data.unreadReactionCount, maxId: data.topMessageId)
+                }
         }
     }
     
@@ -3351,15 +4080,38 @@ func replayFinalState(
             upperId = Int32.max
         }
         if upperId >= messageId.id {
-            transaction.addHole(peerId: messageId.peerId, namespace: messageId.namespace, space: .everywhere, range: messageId.id ... upperId)
+            transaction.addHole(peerId: messageId.peerId, threadId: nil, namespace: messageId.namespace, space: .everywhere, range: messageId.id ... upperId)
             
-            transaction.addHole(peerId: messageId.peerId, namespace: messageId.namespace, space: .tag(.pinned), range: 1 ... upperId)
+            transaction.addHole(peerId: messageId.peerId, threadId: nil, namespace: messageId.namespace, space: .tag(.pinned), range: 1 ... upperId)
             
             Logger.shared.log("State", "adding hole for peer \(messageId.peerId), \(messageId.id) ... \(upperId)")
         } else {
             Logger.shared.log("State", "not adding hole for peer \(messageId.peerId), \(upperId) >= \(messageId.id) = false")
         }
     }
+    
+    var resetForumTopicResults: [LoadMessageHistoryThreadsResult] = []
+    for (peerId, result) in finalState.state.resetForumTopicLists {
+        for item in transaction.getMessageHistoryThreadIndex(peerId: peerId, limit: 10000) {
+            let holeLowerBound = transaction.holeLowerBoundForTopValidRange(peerId: peerId, threadId: item.threadId, namespace: Namespaces.Message.Cloud, space: .everywhere)
+         
+            transaction.addHole(peerId: peerId, threadId: item.threadId, namespace: Namespaces.Message.Cloud, space: .everywhere, range: holeLowerBound ... (Int32.max - 1))
+            for tag in MessageTags.all {
+                transaction.addHole(peerId: peerId, threadId: item.threadId, namespace: Namespaces.Message.Cloud, space: .tag(tag), range: holeLowerBound ... (Int32.max - 1))
+            }
+        }
+        
+        switch result {
+        case let .result(value):
+            resetForumTopicResults.append(value)
+        case .error:
+            transaction.setPeerThreadCombinedState(peerId: peerId, state: nil)
+        }
+    }
+    if !resetForumTopicResults.isEmpty {
+        applyLoadMessageHistoryThreadsResults(accountPeerId: accountPeerId, transaction: transaction, results: resetForumTopicResults)
+    }
+    
 //TODO Please do not forget fix holes space.
     
     // could be the reason for unbounded slowdown, needs investigation
@@ -3411,16 +4163,18 @@ func replayFinalState(
         }) {
             addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .stickers, content: .sync, noDelay: false)
             addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .masks, content: .sync, noDelay: false)
+            addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .emoji, content: .sync, noDelay: false)
         } else {
             var syncStickers = false
             var syncMasks = false
+            var syncEmoji = false
             loop: for operation in stickerPackOperations {
                 switch operation {
                     case let .add(apiSet):
                         let namespace: ItemCollectionId.Namespace
                         var items: [ItemCollectionItem] = []
                         let info: StickerPackCollectionInfo
-                        if case let .stickerSet(set, packs, documents) = apiSet {
+                        if case let .stickerSet(set, packs, keywords, documents) = apiSet {
                             var indexKeysByFile: [MediaId: [MemoryBuffer]] = [:]
                             for pack in packs {
                                 switch pack {
@@ -3437,6 +4191,20 @@ func replayFinalState(
                                     break
                                 }
                             }
+                            for keyword in keywords {
+                                switch keyword {
+                                case let .stickerKeyword(documentId, texts):
+                                    for text in texts {
+                                        let key = ValueBoxKey(text).toMemoryBuffer()
+                                        let mediaId = MediaId(namespace: Namespaces.Media.CloudFile, id: documentId)
+                                        if indexKeysByFile[mediaId] == nil {
+                                            indexKeysByFile[mediaId] = [key]
+                                        } else {
+                                            indexKeysByFile[mediaId]!.append(key)
+                                        }
+                                    }
+                                }
+                            }
                             
                             for apiDocument in documents {
                                 if let file = telegramMediaFileFromApiDocument(apiDocument), let id = file.id {
@@ -3450,9 +4218,11 @@ func replayFinalState(
                                 }
                             }
                             switch set {
-                                case let .stickerSet(flags, _, _, _, _, _, _, _, _, _, _):
+                                case let .stickerSet(flags, _, _, _, _, _, _, _, _, _, _, _):
                                     if (flags & (1 << 3)) != 0 {
                                         namespace = Namespaces.ItemCollection.CloudMaskPacks
+                                    } else if (flags & (1 << 7)) != 0 {
+                                        namespace = Namespaces.ItemCollection.CloudEmojiPacks
                                     } else {
                                         namespace = Namespaces.ItemCollection.CloudStickerPacks
                                     }
@@ -3463,6 +4233,8 @@ func replayFinalState(
                             if namespace == Namespaces.ItemCollection.CloudMaskPacks && syncMasks {
                                 continue loop
                             } else if namespace == Namespaces.ItemCollection.CloudStickerPacks && syncStickers {
+                                continue loop
+                            } else if namespace == Namespaces.ItemCollection.CloudEmojiPacks && syncEmoji {
                                 continue loop
                             }
                             
@@ -3484,6 +4256,8 @@ func replayFinalState(
                                 collectionNamespace = Namespaces.ItemCollection.CloudStickerPacks
                             case .masks:
                                 collectionNamespace = Namespaces.ItemCollection.CloudMaskPacks
+                            case .emoji:
+                                collectionNamespace = Namespaces.ItemCollection.CloudEmojiPacks
                         }
                         let currentInfos = transaction.getItemCollectionsInfos(namespace: collectionNamespace).map { $0.1 as! StickerPackCollectionInfo }
                         if Set(currentInfos.map { $0.id.id }) != Set(ids) {
@@ -3492,6 +4266,8 @@ func replayFinalState(
                                     syncStickers = true
                                 case .masks:
                                     syncMasks = true
+                                case .emoji:
+                                    syncEmoji = true
                             }
                         } else {
                             var currentDict: [ItemCollectionId: StickerPackCollectionInfo] = [:]
@@ -3505,9 +4281,38 @@ func replayFinalState(
                             }
                             transaction.replaceItemCollectionInfos(namespace: collectionNamespace, itemCollectionInfos: updatedInfos.map { ($0.id, $0) })
                         }
+                    case let .reorderToTop(namespace, ids):
+                        let collectionNamespace: ItemCollectionId.Namespace
+                        switch namespace {
+                        case .stickers:
+                            collectionNamespace = Namespaces.ItemCollection.CloudStickerPacks
+                        case .masks:
+                            collectionNamespace = Namespaces.ItemCollection.CloudMaskPacks
+                        case .emoji:
+                            collectionNamespace = Namespaces.ItemCollection.CloudEmojiPacks
+                        }
+                        let currentInfos = transaction.getItemCollectionsInfos(namespace: collectionNamespace).map { $0.1 as! StickerPackCollectionInfo }
+                        
+                        var currentDict: [ItemCollectionId: StickerPackCollectionInfo] = [:]
+                        for info in currentInfos {
+                            currentDict[info.id] = info
+                        }
+                        var updatedInfos: [StickerPackCollectionInfo] = []
+                        for id in ids {
+                            if let currentInfo = currentDict[ItemCollectionId(namespace: collectionNamespace, id: id)] {
+                                updatedInfos.append(currentInfo)
+                            }
+                        }
+                        for info in currentInfos {
+                            if !updatedInfos.contains(where: { $0.id == info.id }) {
+                                updatedInfos.append(info)
+                            }
+                        }
+                        transaction.replaceItemCollectionInfos(namespace: collectionNamespace, itemCollectionInfos: updatedInfos.map { ($0.id, $0) })
                     case .sync:
                         syncStickers = true
                         syncMasks = true
+                        syncEmoji = true
                         break loop
                 }
             }
@@ -3516,6 +4321,9 @@ func replayFinalState(
             }
             if syncMasks {
                 addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .masks, content: .sync, noDelay: false)
+            }
+            if syncEmoji {
+                addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: .emoji, content: .sync, noDelay: false)
             }
         }
     }
@@ -3605,7 +4413,7 @@ func replayFinalState(
                     let currentInclusion = transaction.getPeerChatListInclusion(peerId)
                     if let groupId = currentInclusion.groupId, groupId == Namespaces.PeerGroup.archive {
                         if let peer = transaction.getPeer(peerId) as? TelegramSecretChat {
-                            let isRemovedFromTotalUnreadCount = resolvedIsRemovedFromTotalUnreadCount(globalSettings: transaction.getGlobalNotificationSettings(), peer: peer, peerSettings: transaction.getPeerNotificationSettings(peer.regularPeerId))
+                            let isRemovedFromTotalUnreadCount = resolvedIsRemovedFromTotalUnreadCount(globalSettings: transaction.getGlobalNotificationSettings(), peer: peer, peerSettings: transaction.getPeerNotificationSettings(id: peer.regularPeerId))
                             
                             if !isRemovedFromTotalUnreadCount {
                                 transaction.updatePeerChatListInclusion(peerId, inclusion: currentInclusion.withGroupId(groupId: .root))
@@ -3715,5 +4523,5 @@ func replayFinalState(
         requestChatListFiltersSync(transaction: transaction)
     }
     
-    return AccountReplayedFinalState(state: finalState, addedIncomingMessageIds: addedIncomingMessageIds, addedReactionEvents: addedReactionEvents, wasScheduledMessageIds: wasScheduledMessageIds, addedSecretMessageIds: addedSecretMessageIds, deletedMessageIds: deletedMessageIds, updatedTypingActivities: updatedTypingActivities, updatedWebpages: updatedWebpages, updatedCalls: updatedCalls, addedCallSignalingData: addedCallSignalingData, updatedGroupCallParticipants: updatedGroupCallParticipants, updatedPeersNearby: updatedPeersNearby, isContactUpdates: isContactUpdates, delayNotificatonsUntil: delayNotificatonsUntil, updatedIncomingThreadReadStates: updatedIncomingThreadReadStates, updatedOutgoingThreadReadStates: updatedOutgoingThreadReadStates)
+    return AccountReplayedFinalState(state: finalState, addedIncomingMessageIds: addedIncomingMessageIds, addedReactionEvents: addedReactionEvents, wasScheduledMessageIds: wasScheduledMessageIds, addedSecretMessageIds: addedSecretMessageIds, deletedMessageIds: deletedMessageIds, updatedTypingActivities: updatedTypingActivities, updatedWebpages: updatedWebpages, updatedCalls: updatedCalls, addedCallSignalingData: addedCallSignalingData, updatedGroupCallParticipants: updatedGroupCallParticipants, updatedPeersNearby: updatedPeersNearby, isContactUpdates: isContactUpdates, delayNotificatonsUntil: delayNotificatonsUntil, updatedIncomingThreadReadStates: updatedIncomingThreadReadStates, updatedOutgoingThreadReadStates: updatedOutgoingThreadReadStates, updateConfig: updateConfig, isPremiumUpdated: isPremiumUpdated)
 }

@@ -652,7 +652,7 @@ private func deviceContactInfoEntries(account: Account, engine: TelegramEngine, 
         firstName = presentationData.strings.Message_Contact
     }
     
-    entries.append(.info(entries.count, presentationData.theme, presentationData.strings, presentationData.dateTimeFormat, peer: peer ?? TelegramUser(id: PeerId(namespace: .max, id: PeerId.Id._internalFromInt64Value(0)), accessHash: nil, firstName: firstName, lastName: isOrganization ? nil : personName.1, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: []), state: ItemListAvatarAndNameInfoItemState(editingName: editingName, updatingName: nil), job: isOrganization ? nil : jobSummary, isPlain: !isShare))
+    entries.append(.info(entries.count, presentationData.theme, presentationData.strings, presentationData.dateTimeFormat, peer: peer ?? TelegramUser(id: PeerId(namespace: .max, id: PeerId.Id._internalFromInt64Value(0)), accessHash: nil, firstName: firstName, lastName: isOrganization ? nil : personName.1, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: []), state: ItemListAvatarAndNameInfoItemState(editingName: editingName, updatingName: nil), job: isOrganization ? nil : jobSummary, isPlain: !isShare))
     
     if !selecting {
         if let _ = peer {
@@ -727,7 +727,7 @@ private func deviceContactInfoEntries(account: Account, engine: TelegramEngine, 
     
     var addressIndex = 0
     for address in contactData.addresses {
-        let signal = geocodeLocation(dictionary: address.dictionary)
+        let signal = geocodeLocation(address: address.asPostalAddress)
         |> mapToSignal { coordinates -> Signal<(TransformImageArguments) -> DrawingContext?, NoError> in
             if let (latitude, longitude) = coordinates {
                 let resource = MapSnapshotMediaResource(latitude: latitude, longitude: longitude, width: 90, height: 90)
@@ -865,12 +865,20 @@ public func deviceContactInfoController(context: AccountContext, updatedPresenta
     var displayCopyContextMenuImpl: ((DeviceContactInfoEntryTag, String) -> Void)?
     
     let callImpl: (String) -> Void = { number in
-        let _ = (context.account.postbox.transaction { transaction -> TelegramUser? in
-            if let peer = subject.peer {
-                return transaction.getPeer(peer.id) as? TelegramUser
+        let user: Signal<TelegramUser?, NoError>
+        if let peer = subject.peer {
+            user = context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peer.id))
+            |> map { peer -> TelegramUser? in
+                if case let .user(user) = peer {
+                    return user
+                } else {
+                    return nil
+                }
             }
-            return nil
+        } else {
+            user = .single(nil)
         }
+        let _ = (user
         |> deliverOnMainQueue).start(next: { user in
             if let user = user, let phone = user.phone, formatPhoneNumber(phone) == formatPhoneNumber(number) {
                 let presentationData = context.sharedContext.currentPresentationData.with { $0 }
@@ -1137,10 +1145,11 @@ public func deviceContactInfoController(context: AccountContext, updatedPresenta
                                             |> mapToSignal { _ -> Signal<(DeviceContactStableId, DeviceContactExtendedData, Peer?)?, AddContactError> in
                                             }
                                             |> then(
-                                                context.account.postbox.transaction { transaction -> (DeviceContactStableId, DeviceContactExtendedData, Peer?)? in
-                                                    return (id, data, transaction.getPeer(peer.id))
-                                                }
+                                                context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peer.id))
                                                 |> castError(AddContactError.self)
+                                                |> map { result -> (DeviceContactStableId, DeviceContactExtendedData, Peer?)? in
+                                                    return (id, data, result?._asPeer())
+                                                }
                                             )
                                         }
                                     default:
@@ -1151,10 +1160,11 @@ public func deviceContactInfoController(context: AccountContext, updatedPresenta
                                 |> castError(AddContactError.self)
                                 |> mapToSignal { peerId -> Signal<(DeviceContactStableId, DeviceContactExtendedData, Peer?)?, AddContactError> in
                                     if let peerId = peerId {
-                                        return context.account.postbox.transaction { transaction -> (DeviceContactStableId, DeviceContactExtendedData, Peer?)? in
-                                            return (id, data, transaction.getPeer(peerId))
-                                        }
+                                        return context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId))
                                         |> castError(AddContactError.self)
+                                        |> map { result -> (DeviceContactStableId, DeviceContactExtendedData, Peer?)? in
+                                            return (id, data, result?._asPeer())
+                                        }
                                     } else {
                                         return .single((id, data, nil))
                                     }
@@ -1239,9 +1249,16 @@ public func deviceContactInfoController(context: AccountContext, updatedPresenta
         })
     }
     openChatImpl = { [weak controller] peerId in
-        if let navigationController = (controller?.navigationController as? NavigationController) {
-            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(id: peerId)))
-        }
+        let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId))
+        |> deliverOnMainQueue).start(next: { peer in
+            guard let peer = peer else {
+                return
+            }
+            
+            if let navigationController = (controller?.navigationController as? NavigationController) {
+                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer)))
+            }
+        })
     }
     replaceControllerImpl = { [weak controller] value in
         (controller?.navigationController as? NavigationController)?.replaceTopController(value, animated: true)

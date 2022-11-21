@@ -58,5 +58,43 @@ public extension TelegramEngine {
                 return (peers.map(EnginePeer.init), presences.mapValues(EnginePeer.Presence.init))
             }
         }
+        
+        public func updateIsContactSynchronizationEnabled(isContactSynchronizationEnabled: Bool) -> Signal<Never, NoError> {
+            return self.account.postbox.transaction { transaction -> Void in
+                transaction.updatePreferencesEntry(key: PreferencesKeys.contactsSettings, { current in
+                    var settings = current?.get(ContactsSettings.self) ?? ContactsSettings.defaultSettings
+                    settings.synchronizeContacts = isContactSynchronizationEnabled
+                    return PreferencesEntry(settings)
+                })
+            }
+            |> ignoreValues
+        }
+        
+        public func findPeerByLocalContactIdentifier(identifier: String) -> Signal<EnginePeer?, NoError> {
+            return self.account.postbox.transaction { transaction -> EnginePeer? in
+                var foundPeerId: PeerId?
+                transaction.enumerateDeviceContactImportInfoItems({ _, value in
+                    if let value = value as? TelegramDeviceContactImportedData {
+                        switch value {
+                        case let .imported(data, _, peerId):
+                            if data.localIdentifiers.contains(identifier) {
+                                if let peerId = peerId {
+                                    foundPeerId = peerId
+                                    return false
+                                }
+                            }
+                        default:
+                            break
+                        }
+                    }
+                    return true
+                })
+                if let foundPeerId = foundPeerId {
+                    return transaction.getPeer(foundPeerId).flatMap(EnginePeer.init)
+                } else {
+                    return nil
+                }
+            }
+        }
     }
 }

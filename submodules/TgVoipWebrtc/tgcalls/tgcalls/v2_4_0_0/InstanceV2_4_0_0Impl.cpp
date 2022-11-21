@@ -49,6 +49,8 @@
 #include <random>
 #include <sstream>
 
+#include "FieldTrialsConfig.h"
+
 namespace tgcalls {
 namespace {
 
@@ -546,8 +548,6 @@ public:
             audioOptions.auto_gain_control = false;
             audioOptions.highpass_filter = false;
             audioOptions.typing_detection = false;
-            audioOptions.experimental_agc = false;
-            audioOptions.experimental_ns = false;
             audioOptions.residual_echo_detector = false;
         } else {
             audioOptions.echo_cancellation = true;
@@ -557,7 +557,10 @@ public:
         std::vector<std::string> streamIds;
         streamIds.push_back("1");
 
-        _outgoingAudioChannel = _channelManager->CreateVoiceChannel(call, cricket::MediaConfig(), rtpTransport, threads->getMediaThread(), "audio0", false, NativeNetworkingImpl::getDefaulCryptoOptions(), uniqueRandomIdGenerator, audioOptions);
+        _outgoingAudioChannel = _channelManager->CreateVoiceChannel(call, cricket::MediaConfig(), "audio0", false, NativeNetworkingImpl::getDefaulCryptoOptions(), audioOptions);
+        _threads->getNetworkThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
+            _outgoingAudioChannel->SetRtpTransport(rtpTransport);
+        });
 
         std::vector<cricket::AudioCodec> codecs;
         for (const auto &codec : mediaContent.codecs) {
@@ -602,20 +605,20 @@ public:
 
         _threads->getWorkerThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
             _outgoingAudioChannel->SetPayloadTypeDemuxingEnabled(false);
-            _outgoingAudioChannel->SetLocalContent(outgoingAudioDescription.get(), webrtc::SdpType::kOffer, nullptr);
-            _outgoingAudioChannel->SetRemoteContent(incomingAudioDescription.get(), webrtc::SdpType::kAnswer, nullptr);
+            std::string errorDesc;
+            _outgoingAudioChannel->SetLocalContent(outgoingAudioDescription.get(), webrtc::SdpType::kOffer, errorDesc);
+            _outgoingAudioChannel->SetRemoteContent(incomingAudioDescription.get(), webrtc::SdpType::kAnswer, errorDesc);
         });
-
-        //_outgoingAudioChannel->SignalSentPacket().connect(this, &OutgoingAudioChannel::OnSentPacket_w);
-        //_outgoingAudioChannel->UpdateRtpTransport(nullptr);
 
         setIsMuted(false);
     }
 
     ~OutgoingAudioChannel() {
-        //_outgoingAudioChannel->SignalSentPacket().disconnect(this);
         _outgoingAudioChannel->Enable(false);
-        _channelManager->DestroyVoiceChannel(_outgoingAudioChannel);
+        _threads->getNetworkThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
+            _outgoingAudioChannel->SetRtpTransport(nullptr);
+        });
+        _channelManager->DestroyChannel(_outgoingAudioChannel);
         _outgoingAudioChannel = nullptr;
     }
 
@@ -655,6 +658,7 @@ public:
         rtc::UniqueRandomIdGenerator *randomIdGenerator,
         NegotiatedMediaContent<cricket::AudioCodec> const &mediaContent,
         std::shared_ptr<Threads> threads) :
+    _threads(threads),
     _ssrc(mediaContent.ssrc),
     _channelManager(channelManager),
     _call(call) {
@@ -666,7 +670,10 @@ public:
 
         std::string streamId = std::string("stream1");
 
-        _audioChannel = _channelManager->CreateVoiceChannel(call, cricket::MediaConfig(), rtpTransport, threads->getMediaThread(), "0", false, NativeNetworkingImpl::getDefaulCryptoOptions(), randomIdGenerator, audioOptions);
+        _audioChannel = _channelManager->CreateVoiceChannel(call, cricket::MediaConfig(), "0", false, NativeNetworkingImpl::getDefaulCryptoOptions(), audioOptions);
+        _threads->getNetworkThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
+            _audioChannel->SetRtpTransport(rtpTransport);
+        });
 
         auto audioCodecs = mediaContent.codecs;
 
@@ -695,8 +702,9 @@ public:
 
         threads->getWorkerThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
             _audioChannel->SetPayloadTypeDemuxingEnabled(false);
-            _audioChannel->SetLocalContent(outgoingAudioDescription.get(), webrtc::SdpType::kOffer, nullptr);
-            _audioChannel->SetRemoteContent(incomingAudioDescription.get(), webrtc::SdpType::kAnswer, nullptr);
+            std::string errorDesc;
+            _audioChannel->SetLocalContent(outgoingAudioDescription.get(), webrtc::SdpType::kOffer, errorDesc);
+            _audioChannel->SetRemoteContent(incomingAudioDescription.get(), webrtc::SdpType::kAnswer, errorDesc);
         });
 
         outgoingAudioDescription.reset();
@@ -710,7 +718,10 @@ public:
 
     ~IncomingV2AudioChannel() {
         _audioChannel->Enable(false);
-        _channelManager->DestroyVoiceChannel(_audioChannel);
+        _threads->getNetworkThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
+            _audioChannel->SetRtpTransport(nullptr);
+        });
+        _channelManager->DestroyChannel(_audioChannel);
         _audioChannel = nullptr;
     }
 
@@ -732,6 +743,7 @@ private:
     }
 
 private:
+    std::shared_ptr<Threads> _threads;
     uint32_t _ssrc = 0;
     // Memory is managed by _channelManager
     cricket::VoiceChannel *_audioChannel = nullptr;
@@ -857,7 +869,10 @@ public:
     _rotationUpdated(rotationUpdated) {
         cricket::VideoOptions videoOptions;
         videoOptions.is_screencast = isScreencast;
-        _outgoingVideoChannel = _channelManager->CreateVideoChannel(call, cricket::MediaConfig(), rtpTransport, threads->getMediaThread(), "out" + intToString(mediaContent.ssrc), false, NativeNetworkingImpl::getDefaulCryptoOptions(), randomIdGenerator, videoOptions, videoBitrateAllocatorFactory);
+        _outgoingVideoChannel = _channelManager->CreateVideoChannel(call, cricket::MediaConfig(), "out" + intToString(mediaContent.ssrc), false, NativeNetworkingImpl::getDefaulCryptoOptions(), videoOptions, videoBitrateAllocatorFactory);
+        _threads->getNetworkThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
+            _outgoingVideoChannel->SetRtpTransport(rtpTransport);
+        });
 
         auto videoCodecs = mediaContent.codecs;
 
@@ -899,8 +914,9 @@ public:
 
         threads->getWorkerThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
             _outgoingVideoChannel->SetPayloadTypeDemuxingEnabled(false);
-            _outgoingVideoChannel->SetLocalContent(outgoingVideoDescription.get(), webrtc::SdpType::kOffer, nullptr);
-            _outgoingVideoChannel->SetRemoteContent(incomingVideoDescription.get(), webrtc::SdpType::kAnswer, nullptr);
+            std::string errorDesc;
+            _outgoingVideoChannel->SetLocalContent(outgoingVideoDescription.get(), webrtc::SdpType::kOffer, errorDesc);
+            _outgoingVideoChannel->SetRemoteContent(incomingVideoDescription.get(), webrtc::SdpType::kAnswer, errorDesc);
 
             webrtc::RtpParameters rtpParameters = _outgoingVideoChannel->media_channel()->GetRtpSendParameters(mediaContent.ssrc);
 
@@ -916,7 +932,10 @@ public:
 
     ~OutgoingVideoChannel() {
         _outgoingVideoChannel->Enable(false);
-        _channelManager->DestroyVideoChannel(_outgoingVideoChannel);
+        _threads->getNetworkThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
+            _outgoingVideoChannel->SetRtpTransport(nullptr);
+        });
+        _channelManager->DestroyChannel(_outgoingVideoChannel);
         _outgoingVideoChannel = nullptr;
     }
 
@@ -933,7 +952,7 @@ public:
 
             const auto weak = std::weak_ptr<OutgoingVideoChannel>(shared_from_this());
             videoCaptureImpl->setRotationUpdated([threads = _threads, weak](int angle) {
-                threads->getMediaThread()->PostTask(RTC_FROM_HERE, [=] {
+                threads->getMediaThread()->PostTask([=] {
                     const auto strong = weak.lock();
                     if (!strong) {
                         return;
@@ -1084,13 +1103,17 @@ public:
         NegotiatedMediaContent<cricket::VideoCodec> const &mediaContent,
         std::string const &streamId,
         std::shared_ptr<Threads> threads) :
+    _threads(threads),
     _channelManager(channelManager),
     _call(call) {
         _videoSink.reset(new VideoSinkImpl());
 
         _videoBitrateAllocatorFactory = webrtc::CreateBuiltinVideoBitrateAllocatorFactory();
 
-        _videoChannel = _channelManager->CreateVideoChannel(call, cricket::MediaConfig(), rtpTransport, threads->getMediaThread(), streamId, false, NativeNetworkingImpl::getDefaulCryptoOptions(), randomIdGenerator, cricket::VideoOptions(), _videoBitrateAllocatorFactory.get());
+        _videoChannel = _channelManager->CreateVideoChannel(call, cricket::MediaConfig(), streamId, false, NativeNetworkingImpl::getDefaulCryptoOptions(), cricket::VideoOptions(), _videoBitrateAllocatorFactory.get());
+        _threads->getNetworkThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
+            _videoChannel->SetRtpTransport(rtpTransport);
+        });
 
         std::vector<cricket::VideoCodec> videoCodecs = mediaContent.codecs;
 
@@ -1138,8 +1161,9 @@ public:
 
         threads->getWorkerThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
             _videoChannel->SetPayloadTypeDemuxingEnabled(false);
-            _videoChannel->SetLocalContent(outgoingVideoDescription.get(), webrtc::SdpType::kOffer, nullptr);
-            _videoChannel->SetRemoteContent(incomingVideoDescription.get(), webrtc::SdpType::kAnswer, nullptr);
+            std::string errorDesc;
+            _videoChannel->SetLocalContent(outgoingVideoDescription.get(), webrtc::SdpType::kOffer, errorDesc);
+            _videoChannel->SetRemoteContent(incomingVideoDescription.get(), webrtc::SdpType::kAnswer, errorDesc);
 
             _videoChannel->media_channel()->SetSink(_mainVideoSsrc, _videoSink.get());
         });
@@ -1149,7 +1173,10 @@ public:
 
     ~IncomingV2VideoChannel() {
         _videoChannel->Enable(false);
-        _channelManager->DestroyVideoChannel(_videoChannel);
+        _threads->getNetworkThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
+            _videoChannel->SetRtpTransport(nullptr);
+        });
+        _channelManager->DestroyChannel(_videoChannel);
         _videoChannel = nullptr;
     }
 
@@ -1163,6 +1190,7 @@ private:
     }
 
 private:
+    std::shared_ptr<Threads> _threads;
     uint32_t _mainVideoSsrc = 0;
     std::unique_ptr<VideoSinkImpl> _videoSink;
     std::unique_ptr<webrtc::VideoBitrateAllocatorFactory> _videoBitrateAllocatorFactory;
@@ -1195,10 +1223,6 @@ public:
     }
 
     ~InstanceV2_4_0_0ImplInternal() {
-        _networking->perform(RTC_FROM_HERE, [](NativeNetworkingImpl *networking) {
-            networking->stop();
-        });
-
         _incomingAudioChannel.reset();
         _incomingVideoChannel.reset();
         _incomingScreencastChannel.reset();
@@ -1207,11 +1231,17 @@ public:
         _outgoingScreencastChannel.reset();
         _currentSink.reset();
 
+        _channelManager.reset();
+
         _threads->getWorkerThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
-            _channelManager.reset();
             _call.reset();
             _audioDeviceModule = nullptr;
         });
+
+        _networking->perform(RTC_FROM_HERE, [](NativeNetworkingImpl *networking) {
+            networking->stop();
+        });
+
         _threads->getNetworkThread()->Invoke<void>(RTC_FROM_HERE, []() {
         });
     }
@@ -1227,7 +1257,7 @@ public:
                 .enableP2P = true,
                 .rtcServers = rtcServers,
                 .stateUpdated = [threads, weak](const NativeNetworkingImpl::State &state) {
-                    threads->getMediaThread()->PostTask(RTC_FROM_HERE, [=] {
+                    threads->getMediaThread()->PostTask([=] {
                         const auto strong = weak.lock();
                         if (!strong) {
                             return;
@@ -1236,7 +1266,7 @@ public:
                     });
                 },
                 .candidateGathered = [threads, weak](const cricket::Candidate &candidate) {
-                    threads->getMediaThread()->PostTask(RTC_FROM_HERE, [=] {
+                    threads->getMediaThread()->PostTask([=] {
                         const auto strong = weak.lock();
                         if (!strong) {
                             return;
@@ -1246,7 +1276,7 @@ public:
                     });
                 },
                 .transportMessageReceived = [threads, weak](rtc::CopyOnWriteBuffer const &packet, bool isMissing) {
-                    threads->getMediaThread()->PostTask(RTC_FROM_HERE, [=] {
+                    threads->getMediaThread()->PostTask([=] {
                         const auto strong = weak.lock();
                         if (!strong) {
                             return;
@@ -1261,7 +1291,7 @@ public:
                     strong->_call->Receiver()->DeliverPacket(webrtc::MediaType::ANY, packet, timestamp);
                 },
                 .dataChannelStateUpdated = [threads, weak](bool isDataChannelOpen) {
-                    threads->getMediaThread()->PostTask(RTC_FROM_HERE, [=] {
+                    threads->getMediaThread()->PostTask([=] {
                         const auto strong = weak.lock();
                         if (!strong) {
                             return;
@@ -1270,7 +1300,7 @@ public:
                     });
                 },
                 .dataChannelMessageReceived = [threads, weak](std::string const &message) {
-                    threads->getMediaThread()->PostTask(RTC_FROM_HERE, [=] {
+                    threads->getMediaThread()->PostTask([=] {
                         const auto strong = weak.lock();
                         if (!strong) {
                             return;
@@ -1288,36 +1318,40 @@ public:
         //setAudioOutputDevice(_initialOutputDeviceId);
 
         _threads->getWorkerThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
-            cricket::MediaEngineDependencies mediaDeps;
-            mediaDeps.task_queue_factory = _taskQueueFactory.get();
-            mediaDeps.audio_encoder_factory = webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus, webrtc::AudioEncoderL16>();
-            mediaDeps.audio_decoder_factory = webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus, webrtc::AudioDecoderL16>();
-
-            mediaDeps.video_encoder_factory = PlatformInterface::SharedInstance()->makeVideoEncoderFactory(true);
-            mediaDeps.video_decoder_factory = PlatformInterface::SharedInstance()->makeVideoDecoderFactory();
-
             _audioDeviceModule = createAudioDeviceModule();
-            /*if (!_audioDeviceModule) {
-                return;
-            }*/
-            mediaDeps.adm = _audioDeviceModule;
+        });
 
-            _availableVideoFormats = mediaDeps.video_encoder_factory->GetSupportedFormats();
+        cricket::MediaEngineDependencies mediaDeps;
+        mediaDeps.task_queue_factory = _taskQueueFactory.get();
+        mediaDeps.audio_encoder_factory = webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus, webrtc::AudioEncoderL16>();
+        mediaDeps.audio_decoder_factory = webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus, webrtc::AudioDecoderL16>();
 
-            std::unique_ptr<cricket::MediaEngineInterface> mediaEngine = cricket::CreateMediaEngine(std::move(mediaDeps));
+        mediaDeps.video_encoder_factory = PlatformInterface::SharedInstance()->makeVideoEncoderFactory(true);
+        mediaDeps.video_decoder_factory = PlatformInterface::SharedInstance()->makeVideoDecoderFactory();
 
-            _channelManager = cricket::ChannelManager::Create(
-                std::move(mediaEngine),
-                true,
-                _threads->getWorkerThread(),
-                _threads->getNetworkThread()
-            );
+        mediaDeps.adm = _audioDeviceModule;
 
-            webrtc::Call::Config callConfig(_eventLog.get());
-            callConfig.task_queue_factory = _taskQueueFactory.get();
-            callConfig.trials = &_fieldTrials;
+        _availableVideoFormats = mediaDeps.video_encoder_factory->GetSupportedFormats();
+
+        std::unique_ptr<cricket::MediaEngineInterface> mediaEngine = cricket::CreateMediaEngine(std::move(mediaDeps));
+
+        _channelManager = cricket::ChannelManager::Create(
+            std::move(mediaEngine),
+            true,
+            _threads->getWorkerThread(),
+            _threads->getNetworkThread()
+        );
+
+        webrtc::Call::Config callConfig(_eventLog.get(), _threads->getNetworkThread());
+        callConfig.task_queue_factory = _taskQueueFactory.get();
+        callConfig.trials = &fieldTrialsBasedConfig;
+
+        _threads->getNetworkThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
+            _rtpTransport = _networking->getSyncAssumingSameThread()->getRtpTransport();
+        });
+
+        _threads->getWorkerThread()->Invoke<void>(RTC_FROM_HERE, [&]() {
             callConfig.audio_state = _channelManager->media_engine()->voice().GetAudioState();
-
             _call.reset(webrtc::Call::Create(callConfig, webrtc::Clock::GetRealTimeClock(), _threads->getSharedModuleThread(), webrtc::ProcessThread::Create("PacerThread")));
         });
 
@@ -1382,7 +1416,7 @@ public:
                 _uniqueRandomIdGenerator.get(),
                 _videoBitrateAllocatorFactory.get(),
                 [threads = _threads, weak]() {
-                    threads->getMediaThread()->PostTask(RTC_FROM_HERE, [=] {
+                    threads->getMediaThread()->PostTask([=] {
                         const auto strong = weak.lock();
                         if (!strong) {
                             return;
@@ -1410,7 +1444,7 @@ public:
                 _uniqueRandomIdGenerator.get(),
                 _videoBitrateAllocatorFactory.get(),
                 [threads = _threads, weak]() {
-                    threads->getMediaThread()->PostTask(RTC_FROM_HERE, [=] {
+                    threads->getMediaThread()->PostTask([=] {
                         const auto strong = weak.lock();
                         if (!strong) {
                             return;
@@ -1460,7 +1494,7 @@ public:
             std::string ufrag = localIceParams.ufrag;
             std::string pwd = localIceParams.pwd;
 
-            threads->getMediaThread()->PostTask(RTC_FROM_HERE, [weak, ufrag, pwd, hash, fingerprint, setup, localIceParams]() {
+            threads->getMediaThread()->PostTask([weak, ufrag, pwd, hash, fingerprint, setup, localIceParams]() {
                 const auto strong = weak.lock();
                 if (!strong) {
                     return;
@@ -2057,7 +2091,6 @@ private:
     std::unique_ptr<webrtc::TaskQueueFactory> _taskQueueFactory;
     std::unique_ptr<cricket::MediaEngineInterface> _mediaEngine;
     std::unique_ptr<webrtc::Call> _call;
-    webrtc::FieldTrialBasedConfig _fieldTrials;
     webrtc::LocalAudioSinkAdapter _audioSource;
     rtc::scoped_refptr<webrtc::AudioDeviceModule> _audioDeviceModule;
 
@@ -2191,7 +2224,7 @@ void InstanceV2_4_0_0Impl::setEchoCancellationStrength(int strength) {
 
 std::vector<std::string> InstanceV2_4_0_0Impl::GetVersions() {
     std::vector<std::string> result;
-    result.push_back("4.0.0");
+    result.push_back("6.0.0");
     return result;
 }
 

@@ -113,10 +113,10 @@ class DefaultIntentHandler: INExtension, INSendMessageIntentHandling, INSearchFo
         
         TempBox.initializeShared(basePath: rootPath, processType: "siri", launchSpecificId: Int64.random(in: Int64.min ... Int64.max))
         
-        let logsPath = rootPath + "/siri-logs"
+        let logsPath = rootPath + "/logs/siri-logs"
         let _ = try? FileManager.default.createDirectory(atPath: logsPath, withIntermediateDirectories: true, attributes: nil)
         
-        setupSharedLogger(rootPath: rootPath, path: logsPath)
+        setupSharedLogger(rootPath: logsPath, path: logsPath)
         
         let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "unknown"
         
@@ -790,7 +790,7 @@ class DefaultIntentHandler: INExtension, INSendMessageIntentHandling, INSearchFo
                 accountResults.append(accountTransaction(rootPath: rootPath, id: accountId, encryptionParameters: encryptionParameters, isReadOnly: true, useCopy: false, transaction: { postbox, transaction -> INObjectSection<Friend> in
                     var accountTitle: String = ""
                     if let peer = transaction.getPeer(accountPeerId) as? TelegramUser {
-                        if let username = peer.username, !username.isEmpty {
+                        if let username = peer.addressName, !username.isEmpty {
                             accountTitle = "@\(username)"
                         } else {
                             accountTitle = peer.debugDisplayTitle
@@ -880,7 +880,7 @@ private final class WidgetIntentHandler {
         
         TempBox.initializeShared(basePath: rootPath, processType: "siri", launchSpecificId: Int64.random(in: Int64.min ... Int64.max))
         
-        let logsPath = rootPath + "/siri-logs"
+        let logsPath = rootPath + "/logs/siri-logs"
         let _ = try? FileManager.default.createDirectory(atPath: logsPath, withIntermediateDirectories: true, attributes: nil)
         
         setupSharedLogger(rootPath: rootPath, path: logsPath)
@@ -963,7 +963,7 @@ private final class WidgetIntentHandler {
                 accountResults.append(accountTransaction(rootPath: rootPath, id: accountId, encryptionParameters: encryptionParameters, isReadOnly: true, useCopy: false, transaction: { postbox, transaction -> INObjectSection<Friend> in
                     var accountTitle: String = ""
                     if let peer = transaction.getPeer(accountPeerId) as? TelegramUser {
-                        if let username = peer.username, !username.isEmpty {
+                        if let username = peer.addressName, !username.isEmpty {
                             accountTitle = "@\(username)"
                         } else {
                             accountTitle = peer.debugDisplayTitle

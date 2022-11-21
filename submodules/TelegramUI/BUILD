@@ -21,6 +21,13 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
+#filegroup(
+#    name = "Icons",
+#    srcs = glob([
+#        "Telegram-iOS/Icons.xcassets/**/*",
+#    ], exclude = ["Telegram-iOS/Icons.xcassets/**/.*"]),
+#)
+
 internal_bundle_ids = [
     "org.telegram.Telegram-iOS",
 ]
@@ -67,7 +74,6 @@ swift_library(
         "//submodules/TelegramVoip:TelegramVoip",
         "//submodules/DeviceAccess:DeviceAccess",
         "//submodules/WatchCommon/Host:WatchCommon",
-        "//submodules/LightweightAccountData:LightweightAccountData",
         "//submodules/BuildConfig:BuildConfig",
         "//submodules/BuildConfigExtra:BuildConfigExtra",
         "//submodules/rlottie:RLottieBinding",
@@ -271,6 +277,36 @@ swift_library(
         "//submodules/PeerInfoUI/CreateExternalMediaStreamScreen:CreateExternalMediaStreamScreen",
         "//submodules/TranslateUI:TranslateUI",
         "//submodules/BrowserUI:BrowserUI",
+        "//submodules/PremiumUI:PremiumUI",
+        "//submodules/Components/HierarchyTrackingLayer:HierarchyTrackingLayer",
+        "//submodules/Utils/RangeSet:RangeSet",
+        "//submodules/InAppPurchaseManager:InAppPurchaseManager",
+        "//submodules/TelegramUI/Components/AudioTranscriptionButtonComponent:AudioTranscriptionButtonComponent",
+        "//submodules/TelegramUI/Components/AudioTranscriptionPendingIndicatorComponent:AudioTranscriptionPendingIndicatorComponent",
+        "//submodules/TelegramUI/Components/AudioWaveformComponent:AudioWaveformComponent",
+        "//submodules/TelegramUI/Components/EditableChatTextNode:EditableChatTextNode",
+        "//submodules/TelegramUI/Components/EmojiTextAttachmentView:EmojiTextAttachmentView",
+        "//submodules/TelegramUI/Components/EntityKeyboard:EntityKeyboard",
+        "//submodules/TelegramUI/Components/AnimationCache:AnimationCache",
+        "//submodules/TelegramUI/Components/LottieAnimationCache:LottieAnimationCache",
+        "//submodules/TelegramUI/Components/VideoAnimationCache:VideoAnimationCache",
+        "//submodules/TelegramUI/Components/MultiAnimationRenderer:MultiAnimationRenderer",
+        "//submodules/TelegramUI/Components/ChatInputPanelContainer:ChatInputPanelContainer",
+        "//submodules/TelegramUI/Components/TextNodeWithEntities:TextNodeWithEntities",
+        "//submodules/TelegramUI/Components/EmojiSuggestionsComponent:EmojiSuggestionsComponent",
+        "//submodules/TelegramUI/Components/EmojiStatusSelectionComponent:EmojiStatusSelectionComponent",
+        "//submodules/TelegramUI/Components/EmojiStatusComponent:EmojiStatusComponent",
+        "//submodules/Components/ComponentDisplayAdapters:ComponentDisplayAdapters",
+        "//submodules/Media/ConvertOpusToAAC:ConvertOpusToAAC",
+        "//submodules/Media/LocalAudioTranscription:LocalAudioTranscription",
+        "//submodules/Components/PagerComponent:PagerComponent",
+        "//submodules/Components/LottieAnimationComponent:LottieAnimationComponent",
+        "//submodules/TelegramUI/Components/NotificationExceptionsScreen:NotificationExceptionsScreen",
+        "//submodules/TelegramUI/Components/ForumCreateTopicScreen:ForumCreateTopicScreen",
+        "//submodules/TelegramUI/Components/ChatTitleView",
+        "//submodules/InviteLinksUI:InviteLinksUI",
+        "//submodules/TelegramUI/Components/NotificationPeerExceptionController",
+        "//submodules/MediaPasteboardUI:MediaPasteboardUI",
     ] + select({
         "@build_bazel_rules_apple//apple:ios_armv7": [],
         "@build_bazel_rules_apple//apple:ios_arm64": appcenter_targets,

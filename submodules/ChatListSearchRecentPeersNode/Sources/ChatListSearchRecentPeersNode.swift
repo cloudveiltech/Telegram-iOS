@@ -10,6 +10,7 @@ import HorizontalPeerItem
 import ListSectionHeaderNode
 import ContextUI
 import AccountContext
+import Postbox
 
 private func calculateItemCustomWidth(width: CGFloat) -> CGFloat {
     let itemInsets = UIEdgeInsets(top: 0.0, left: 6.0, bottom: 0.0, right: 6.0)
@@ -73,9 +74,9 @@ private struct ChatListSearchRecentPeersEntry: Comparable, Identifiable {
         return lhs.index < rhs.index
     }
     
-    func item(context: AccountContext, mode: HorizontalPeerItemMode, peerSelected: @escaping (EnginePeer) -> Void, peerContextAction: @escaping (EnginePeer, ASDisplayNode, ContextGesture?) -> Void, isPeerSelected: @escaping (EnginePeer.Id) -> Bool) -> ListViewItem {
-        return HorizontalPeerItem(theme: self.theme, strings: self.strings, mode: mode, context: context, peer: self.peer, presence: self.presence, unreadBadge: self.unreadBadge, action: peerSelected, contextAction: { peer, node, gesture in
-            peerContextAction(peer, node, gesture)
+    func item(context: AccountContext, mode: HorizontalPeerItemMode, peerSelected: @escaping (EnginePeer) -> Void, peerContextAction: @escaping (EnginePeer, ASDisplayNode, ContextGesture?, CGPoint?) -> Void, isPeerSelected: @escaping (EnginePeer.Id) -> Bool) -> ListViewItem {
+        return HorizontalPeerItem(theme: self.theme, strings: self.strings, mode: mode, context: context, peer: self.peer, presence: self.presence, unreadBadge: self.unreadBadge, action: peerSelected, contextAction: { peer, node, gesture, location in
+            peerContextAction(peer, node, gesture, location)
         }, isPeerSelected: isPeerSelected, customWidth: self.itemCustomWidth)
     }
 }
@@ -88,7 +89,7 @@ private struct ChatListSearchRecentNodeTransition {
     let animated: Bool
 }
 
-private func preparedRecentPeersTransition(context: AccountContext, mode: HorizontalPeerItemMode, peerSelected: @escaping (EnginePeer) -> Void, peerContextAction: @escaping (EnginePeer, ASDisplayNode, ContextGesture?) -> Void, isPeerSelected: @escaping (EnginePeer.Id) -> Bool, share: Bool = false, from fromEntries: [ChatListSearchRecentPeersEntry], to toEntries: [ChatListSearchRecentPeersEntry], firstTime: Bool, animated: Bool) -> ChatListSearchRecentNodeTransition {
+private func preparedRecentPeersTransition(context: AccountContext, mode: HorizontalPeerItemMode, peerSelected: @escaping (EnginePeer) -> Void, peerContextAction: @escaping (EnginePeer, ASDisplayNode, ContextGesture?, CGPoint?) -> Void, isPeerSelected: @escaping (EnginePeer.Id) -> Bool, share: Bool = false, from fromEntries: [ChatListSearchRecentPeersEntry], to toEntries: [ChatListSearchRecentPeersEntry], firstTime: Bool, animated: Bool) -> ChatListSearchRecentNodeTransition {
     let (deleteIndices, indicesAndItems, updateIndices) = mergeListsStableWithUpdates(leftList: fromEntries, rightList: toEntries)
     
     let deletions = deleteIndices.map { ListViewDeleteItem(index: $0, directionHint: nil) }
@@ -107,7 +108,7 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
     private let share: Bool
     
     private let peerSelected: (EnginePeer) -> Void
-    private let peerContextAction: (EnginePeer, ASDisplayNode, ContextGesture?) -> Void
+    private let peerContextAction: (EnginePeer, ASDisplayNode, ContextGesture?, CGPoint?) -> Void
     private let isPeerSelected: (EnginePeer.Id) -> Bool
     
     private let disposable = MetaDisposable()
@@ -122,7 +123,7 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
         return self.ready.get()
     }
     
-    public init(context: AccountContext, theme: PresentationTheme, mode: HorizontalPeerItemMode, strings: PresentationStrings, peerSelected: @escaping (EnginePeer) -> Void, peerContextAction: @escaping (EnginePeer, ASDisplayNode, ContextGesture?) -> Void, isPeerSelected: @escaping (EnginePeer.Id) -> Bool, share: Bool = false) {
+    public init(context: AccountContext, theme: PresentationTheme, mode: HorizontalPeerItemMode, strings: PresentationStrings, peerSelected: @escaping (EnginePeer) -> Void, peerContextAction: @escaping (EnginePeer, ASDisplayNode, ContextGesture?, CGPoint?) -> Void, isPeerSelected: @escaping (EnginePeer.Id) -> Bool, share: Bool = false) {
         self.theme = theme
         self.strings = strings
         self.themeAndStringsPromise = Promise((self.theme, self.strings))
@@ -155,51 +156,51 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
         }
         |> mapToSignal { recent in
             switch recent {
-                case .disabled:
-                    return .single(([], [:], [:]))
-                case let .peers(peers):
-                    return combineLatest(queue: .mainQueue(),
-                        peers.filter {
-                            !$0.isDeleted
-                        }.map {
-                            context.account.postbox.peerView(id: $0.id)
-                        }
-                    )
-                    |> mapToSignal { peerViews -> Signal<([EnginePeer], [EnginePeer.Id: (Int32, Bool)], [EnginePeer.Id: EnginePeer.Presence]), NoError> in
-                        return context.account.postbox.unreadMessageCountsView(items: peerViews.map {
-                            .peer($0.peerId)
-                        })
-                        |> map { values in
-                            var peers: [EnginePeer] = []
-                            var unread: [EnginePeer.Id: (Int32, Bool)] = [:]
-                            var presences: [EnginePeer.Id: EnginePeer.Presence] = [:]
-                            for peerView in peerViews {
-                                if let peer = peerViewMainPeer(peerView) {
-                                    var isMuted: Bool = false
-                                    if let notificationSettings = peerView.notificationSettings as? TelegramPeerNotificationSettings {
-                                        switch notificationSettings.muteState {
-                                            case .muted:
-                                                isMuted = true
-                                            default:
-                                                break
-                                        }
+            case .disabled:
+                return .single(([], [:], [:]))
+            case let .peers(peers):
+                return combineLatest(queue: .mainQueue(),
+                                     peers.filter {
+                    !$0.isDeleted
+                }.map {
+                    context.account.postbox.peerView(id: $0.id)
+                }
+                )
+                |> mapToSignal { peerViews -> Signal<([EnginePeer], [EnginePeer.Id: (Int32, Bool)], [EnginePeer.Id: EnginePeer.Presence]), NoError> in
+                    return context.account.postbox.unreadMessageCountsView(items: peerViews.map { item -> UnreadMessageCountsItem in
+                        return UnreadMessageCountsItem.peer(id: item.peerId, handleThreads: true)
+                    })
+                    |> map { values in
+                        var peers: [EnginePeer] = []
+                        var unread: [EnginePeer.Id: (Int32, Bool)] = [:]
+                        var presences: [EnginePeer.Id: EnginePeer.Presence] = [:]
+                        for peerView in peerViews {
+                            if let peer = peerViewMainPeer(peerView) {
+                                var isMuted: Bool = false
+                                if let notificationSettings = peerView.notificationSettings as? TelegramPeerNotificationSettings {
+                                    switch notificationSettings.muteState {
+                                    case .muted:
+                                        isMuted = true
+                                    default:
+                                        break
                                     }
-                                    
-                                    let unreadCount = values.count(for: .peer(peerView.peerId))
-                                    if let unreadCount = unreadCount, unreadCount > 0 {
-                                        unread[peerView.peerId] = (unreadCount, isMuted)
-                                    }
-                                    
-                                    if let presence = peerView.peerPresences[peer.id] {
-                                        presences[peer.id] = EnginePeer.Presence(presence)
-                                    }
-                                    
-                                    peers.append(EnginePeer(peer))
                                 }
+                                
+                                let unreadCount = values.count(for: .peer(id: peerView.peerId, handleThreads: true))
+                                if let unreadCount = unreadCount, unreadCount > 0 {
+                                    unread[peerView.peerId] = (unreadCount, isMuted)
+                                }
+                                
+                                if let presence = peerView.peerPresences[peer.id] {
+                                    presences[peer.id] = EnginePeer.Presence(presence)
+                                }
+                                
+                                peers.append(EnginePeer(peer))
                             }
-                            return (peers, unread, presences)
                         }
+                        return (peers, unread, presences)
                     }
+                }
             }
         }
         

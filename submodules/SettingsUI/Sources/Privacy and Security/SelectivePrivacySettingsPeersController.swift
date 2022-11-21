@@ -18,9 +18,9 @@ private final class SelectivePrivacyPeersControllerArguments {
     let setPeerIdWithRevealedOptions: (PeerId?, PeerId?) -> Void
     let removePeer: (PeerId) -> Void
     let addPeer: () -> Void
-    let openPeer: (PeerId) -> Void
+    let openPeer: (EnginePeer) -> Void
     
-    init(context: AccountContext, setPeerIdWithRevealedOptions: @escaping (PeerId?, PeerId?) -> Void, removePeer: @escaping (PeerId) -> Void, addPeer: @escaping () -> Void, openPeer: @escaping (PeerId) -> Void) {
+    init(context: AccountContext, setPeerIdWithRevealedOptions: @escaping (PeerId?, PeerId?) -> Void, removePeer: @escaping (PeerId) -> Void, addPeer: @escaping () -> Void, openPeer: @escaping (EnginePeer) -> Void) {
         self.context = context
         self.setPeerIdWithRevealedOptions = setPeerIdWithRevealedOptions
         self.removePeer = removePeer
@@ -141,7 +141,7 @@ private enum SelectivePrivacyPeersEntry: ItemListNodeEntry {
                     }
                 }
                 return ItemListPeerItem(presentationData: presentationData, dateTimeFormat: dateTimeFormat, nameDisplayOrder: nameDisplayOrder, context: arguments.context, peer: EnginePeer(peer.peer), presence: nil, text: text, label: .none, editing: editing, switchValue: nil, enabled: enabled, selectable: true, sectionId: self.section, action: {
-                    arguments.openPeer(peer.peer.id)
+                    arguments.openPeer(EnginePeer(peer.peer))
                 }, setPeerIdWithRevealedOptions: { previousId, id in
                     arguments.setPeerIdWithRevealedOptions(previousId, id)
                 }, removePeer: { peerId in
@@ -222,9 +222,7 @@ public func selectivePrivacyPeersController(context: AccountContext, title: Stri
     actionsDisposable.add(removePeerDisposable)
     
     let peersPromise = Promise<[SelectivePrivacyPeer]>()
-    peersPromise.set(context.account.postbox.transaction { transaction -> [SelectivePrivacyPeer] in
-        return Array(initialPeers.values)
-    })
+    peersPromise.set(.single(Array(initialPeers.values)))
     
     let arguments = SelectivePrivacyPeersControllerArguments(context: context, setPeerIdWithRevealedOptions: { peerId, fromPeerId in
         updateState { state in
@@ -275,23 +273,34 @@ public func selectivePrivacyPeersController(context: AccountContext, title: Stri
             let applyPeers: Signal<Void, NoError> = peersPromise.get()
             |> take(1)
             |> mapToSignal { peers -> Signal<[SelectivePrivacyPeer], NoError> in
-                return context.account.postbox.transaction { transaction -> [SelectivePrivacyPeer] in
+                let filteredPeerIds = peerIds.compactMap { peerId -> EnginePeer.Id? in
+                    if case let .peer(value) = peerId {
+                        return value
+                    } else {
+                        return nil
+                    }
+                }
+                return context.engine.data.get(
+                    EngineDataMap(filteredPeerIds.map(TelegramEngine.EngineData.Item.Peer.Peer.init)),
+                    EngineDataMap(filteredPeerIds.map(TelegramEngine.EngineData.Item.Peer.ParticipantCount.init))
+                )
+                |> map { peerMap, participantCountMap -> [SelectivePrivacyPeer] in
                     var updatedPeers = peers
                     var existingIds = Set(updatedPeers.map { $0.peer.id })
                     for peerId in peerIds {
                         guard case let .peer(peerId) = peerId else {
                             continue
                         }
-                        if let peer = transaction.getPeer(peerId), !existingIds.contains(peerId) {
+                        if let maybePeer = peerMap[peerId], let peer = maybePeer, !existingIds.contains(peerId) {
                             existingIds.insert(peerId)
                             var participantCount: Int32?
-                            if let channel = peer as? TelegramChannel, case .group = channel.info {
-                                if let cachedData = transaction.getPeerCachedData(peerId: peerId) as? CachedChannelData {
-                                    participantCount = cachedData.participantsSummary.memberCount
+                            if case let .channel(channel) = peer, case .group = channel.info {
+                                if let maybeParticipantCount = participantCountMap[peerId], let participantCountValue = maybeParticipantCount {
+                                    participantCount = Int32(participantCountValue)
                                 }
                             }
                             
-                            updatedPeers.append(SelectivePrivacyPeer(peer: peer, participantCount: participantCount))
+                            updatedPeers.append(SelectivePrivacyPeer(peer: peer._asPeer(), participantCount: participantCount))
                         }
                     }
                     return updatedPeers
@@ -314,16 +323,11 @@ public func selectivePrivacyPeersController(context: AccountContext, title: Stri
             controller?.dismiss()
         }))
         presentControllerImpl?(controller, ViewControllerPresentationArguments(presentationAnimation: .modalSheet))
-    }, openPeer: { peerId in
-        let _ = (context.account.postbox.transaction { transaction -> Peer? in
-            return transaction.getPeer(peerId)
+    }, openPeer: { peer in
+        guard let controller = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer._asPeer(), mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) else {
+            return
         }
-        |> deliverOnMainQueue).start(next: { peer in
-            guard let peer = peer, let controller = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) else {
-                return
-            }
-            pushControllerImpl?(controller)
-        })
+        pushControllerImpl?(controller)
     })
     
     var previousPeers: [SelectivePrivacyPeer]?

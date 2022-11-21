@@ -91,10 +91,10 @@ private func getCommonTimeline(friends: [Friend]?, in context: TimelineProviderC
     
     TempBox.initializeShared(basePath: rootPath, processType: "widget", launchSpecificId: Int64.random(in: Int64.min ... Int64.max))
     
-    let logsPath = rootPath + "/widget-logs"
+    let logsPath = rootPath + "/logs/widget-logs"
     let _ = try? FileManager.default.createDirectory(atPath: logsPath, withIntermediateDirectories: true, attributes: nil)
     
-    setupSharedLogger(rootPath: rootPath, path: logsPath)
+    setupSharedLogger(rootPath: logsPath, path: logsPath)
     
     initializeAccountManagement()
     
@@ -159,7 +159,7 @@ private func getCommonTimeline(friends: [Friend]?, in context: TimelineProviderC
                 
                 if let readState = transaction.getCombinedPeerReadState(peer.id), readState.count > 0 {
                     var isMuted = false
-                    if let notificationSettings = transaction.getPeerNotificationSettings(peer.id) as? TelegramPeerNotificationSettings {
+                    if let notificationSettings = transaction.getPeerNotificationSettings(id: peer.id) as? TelegramPeerNotificationSettings {
                         isMuted = notificationSettings.isRemovedFromTotalUnreadCount(default: false)
                     }
                     badge = WidgetDataPeer.Badge(

@@ -55,7 +55,7 @@ final class WebAppWebView: WKWebView {
             handleScriptMessageImpl?(message)
         }, name: "performAction")
         
-        let selectionString = "var css = '*{-webkit-touch-callout:none;} :not(input):not(textarea){-webkit-user-select:none;}';"
+        let selectionString = "var css = '*{-webkit-touch-callout:none;} :not(input):not(textarea):not([\"contenteditable\"=\"true\"]){-webkit-user-select:none;}';"
                 + " var head = document.head || document.getElementsByTagName('head')[0];"
                 + " var style = document.createElement('style'); style.type = 'text/css';" +
                 " style.appendChild(document.createTextNode(css)); head.appendChild(style);"
@@ -68,8 +68,6 @@ final class WebAppWebView: WKWebView {
         configuration.allowsPictureInPictureMediaPlayback = false
         if #available(iOSApplicationExtension 10.0, iOS 10.0, *) {
             configuration.mediaTypesRequiringUserActionForPlayback = .all
-        } else if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
-            configuration.requiresUserActionForMediaPlayback = true
         } else {
             configuration.mediaPlaybackRequiresUserAction = true
         }
@@ -132,6 +130,7 @@ final class WebAppWebView: WKWebView {
         self.sendEvent(name: "viewport_changed", data: data)
     }
     
+    var lastTouchTimestamp: Double?
     private(set) var didTouchOnce = false
     var onFirstTouch: () -> Void = {}
     
@@ -161,6 +160,7 @@ final class WebAppWebView: WKWebView {
     
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let result = super.hitTest(point, with: event)
+        self.lastTouchTimestamp = CACurrentMediaTime()
         if result != nil && !self.didTouchOnce {
             self.didTouchOnce = true
             self.onFirstTouch()

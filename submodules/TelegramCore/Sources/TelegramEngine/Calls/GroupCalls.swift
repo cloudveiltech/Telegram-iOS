@@ -97,14 +97,12 @@ func _internal_getCurrentGroupCall(account: Account, callId: Int64, accessHash: 
                 }
                 
                 var peers: [Peer] = []
-                var peerPresences: [PeerId: PeerPresence] = [:]
+                var peerPresences: [PeerId: Api.User] = [:]
                 
                 for user in users {
                     let telegramUser = TelegramUser(user: user)
                     peers.append(telegramUser)
-                    if let presence = TelegramUserPresence(apiUser: user) {
-                        peerPresences[telegramUser.id] = presence
-                    }
+                    peerPresences[telegramUser.id] = user
                 }
                 
                 for chat in chats {
@@ -383,14 +381,12 @@ func _internal_getGroupCallParticipants(account: Account, callId: Int64, accessH
                 }
                 
                 var peers: [Peer] = []
-                var peerPresences: [PeerId: PeerPresence] = [:]
+                var peerPresences: [PeerId: Api.User] = [:]
                 
                 for user in users {
                     let telegramUser = TelegramUser(user: user)
                     peers.append(telegramUser)
-                    if let presence = TelegramUserPresence(apiUser: user) {
-                        peerPresences[telegramUser.id] = presence
-                    }
+                    peerPresences[telegramUser.id] = user
                 }
                 
                 for chat in chats {
@@ -480,6 +476,18 @@ func _internal_joinGroupCall(account: Account, peerId: PeerId, joinAs: PeerId?, 
             } else if error.errorDescription == "GROUPCALL_PARTICIPANTS_TOO_MUCH" {
                 return .fail(.tooManyParticipants)
             } else if error.errorDescription == "JOIN_AS_PEER_INVALID" {
+                let _ = (account.postbox.transaction { transaction -> Void in
+                    transaction.updatePeerCachedData(peerIds: Set([peerId]), update: { _, current in
+                        if let current = current as? CachedChannelData {
+                            return current.withUpdatedCallJoinPeerId(nil)
+                        } else if let current = current as? CachedGroupData {
+                            return current.withUpdatedCallJoinPeerId(nil)
+                        } else {
+                            return current
+                        }
+                    })
+                }).start()
+                
                 return .fail(.invalidJoinAsPeer)
             } else if error.errorDescription == "GROUPCALL_INVALID" {
                 return account.postbox.transaction { transaction -> Signal<Api.Updates, JoinGroupCallError> in
@@ -584,14 +592,12 @@ func _internal_joinGroupCall(account: Account, peerId: PeerId, joinAs: PeerId?, 
                 state.adminIds = Set(peerAdminIds)
                     
                 var peers: [Peer] = []
-                var peerPresences: [PeerId: PeerPresence] = [:]
+                var peerPresences: [PeerId: Api.User] = [:]
 
                 for user in apiUsers {
                     let telegramUser = TelegramUser(user: user)
                     peers.append(telegramUser)
-                    if let presence = TelegramUserPresence(apiUser: user) {
-                        peerPresences[telegramUser.id] = presence
-                    }
+                    peerPresences[telegramUser.id] = user
                 }
 
                 let connectionMode: JoinGroupCallResult.ConnectionMode
@@ -1886,6 +1892,9 @@ public final class GroupCallParticipantsContext {
             if let muteState = muteState, (!muteState.canUnmute || peerId == myPeerId || muteState.mutedByYou) {
                 flags |= 1 << 0
                 muted = .boolTrue
+            } else if peerId == myPeerId {
+                flags |= 1 << 0
+                muted = .boolFalse
             }
             let raiseHandApi: Api.Bool?
             if let raiseHand = raiseHand {
@@ -2289,7 +2298,7 @@ func _internal_groupCallDisplayAsAvailablePeers(network: Network, postbox: Postb
                 for chat in chats {
                     if let groupOrChannel = parseTelegramGroupOrChannel(chat: chat) {
                         switch chat {
-                        case let .channel(_, _, _, _, _, _, _, _, _, _, _, participantsCount):
+                        case let .channel(_, _, _, _, _, _, _, _, _, _, _, _, participantsCount, _):
                             if let participantsCount = participantsCount {
                                 subscribers[groupOrChannel.id] = participantsCount
                             }
@@ -2378,7 +2387,7 @@ func _internal_cachedGroupCallDisplayAsAvailablePeers(account: Account, peerId: 
                 return account.postbox.transaction { transaction -> [FoundPeer] in
                     let currentTimestamp = Int32(CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970)
                     if let entry = CodableEntry(CachedDisplayAsPeers(peerIds: peers.map { $0.peer.id }, timestamp: currentTimestamp)) {
-                        transaction.putItemCacheEntry(id: ItemCacheEntryId(collectionId: Namespaces.CachedItemCollection.cachedGroupCallDisplayAsPeers, key: key), entry: entry, collectionSpec: ItemCacheCollectionSpec(lowWaterItemCount: 10, highWaterItemCount: 20))
+                        transaction.putItemCacheEntry(id: ItemCacheEntryId(collectionId: Namespaces.CachedItemCollection.cachedGroupCallDisplayAsPeers, key: key), entry: entry)
                     }
                     return peers
                 }

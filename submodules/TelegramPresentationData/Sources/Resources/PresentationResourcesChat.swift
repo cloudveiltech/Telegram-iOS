@@ -75,6 +75,12 @@ public struct PresentationResourcesChat {
         })
     }
     
+    public static func chatPanelLockIcon(_ theme: PresentationTheme) -> UIImage? {
+        return theme.image(PresentationResourceKey.chatPanelLockIcon.rawValue, { theme in
+            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Accessory Panels/TextLockIcon"), color: theme.rootController.navigationBar.controlColor)
+        })
+    }
+    
     public static func chatTitleMuteIcon(_ theme: PresentationTheme) -> UIImage? {
         return theme.image(PresentationResourceKey.chatTitleMuteIcon.rawValue, { theme in
             return generateImage(CGSize(width: 9.0, height: 9.0), rotatedContext: { size, context in
@@ -98,6 +104,10 @@ public struct PresentationResourcesChat {
         return theme.object(key, { theme in
             return PrincipalThemeAdditionalGraphics(theme.chat, wallpaper: wallpaper, bubbleCorners: bubbleCorners)
         }) as! PrincipalThemeAdditionalGraphics
+    }
+    
+    public static func chatBubbleVerticalLineImage(color: UIColor) -> UIImage? {
+        return generateLineImage(color: color)
     }
     
     public static func chatBubbleVerticalLineIncomingImage(_ theme: PresentationTheme) -> UIImage? {
@@ -290,6 +300,31 @@ public struct PresentationResourcesChat {
         })
     }
     
+    public static func chatInputMediaPanelPremiumIcon(_ theme: PresentationTheme) -> UIImage? {
+        return theme.image(PresentationResourceKey.chatInputMediaPanelPremiumIcon.rawValue, { theme in
+            return generateImage(CGSize(width: 44.0, height: 42.0), contextGenerator: { size, context in
+                context.clear(CGRect(origin: CGPoint(), size: size))
+                if let image = UIImage(bundleImageName: "Peer Info/PremiumIcon") {
+                    if let cgImage = image.cgImage {
+                        context.clip(to: CGRect(origin: .zero, size: size), mask: cgImage)
+                    }
+                    
+                    let colorsArray: [CGColor] = [
+                        UIColor(rgb: 0x6B93FF).cgColor,
+                        UIColor(rgb: 0x6B93FF).cgColor,
+                        UIColor(rgb: 0x976FFF).cgColor,
+                        UIColor(rgb: 0xE46ACE).cgColor,
+                        UIColor(rgb: 0xE46ACE).cgColor
+                    ]
+                    var locations: [CGFloat] = [0.0, 0.35, 0.5, 0.65, 1.0]
+                    let gradient = CGGradient(colorsSpace: deviceColorSpace, colors: colorsArray as CFArray, locations: &locations)!
+
+                    context.drawLinearGradient(gradient, start: CGPoint(x: 0.0, y: 0.0), end: CGPoint(x: size.width, y: size.height), options: CGGradientDrawingOptions())
+                }
+            })
+        })
+    }
+    
     public static func chatInputMediaPanelRecentStickersIcon(_ theme: PresentationTheme) -> UIImage? {
         return theme.image(PresentationResourceKey.chatInputMediaPanelRecentStickersIconImage.rawValue, { theme in
             return generateImage(CGSize(width: 42.0, height: 42.0), contextGenerator: { size, context in
@@ -342,9 +377,9 @@ public struct PresentationResourcesChat {
         })
     }
     
-    public static func chatInputMediaPanelGridDismissImage(_ theme: PresentationTheme) -> UIImage? {
-        return theme.image(PresentationResourceKey.chatInputMediaPanelGridDismissImage.rawValue, { theme in
-            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Media/GridDismissIcon"), color: theme.chat.inputMediaPanel.panelIconColor.withAlphaComponent(0.65))
+    public static func chatInputMediaPanelGridDismissImage(_ theme: PresentationTheme, color: UIColor) -> UIImage? {
+        return theme.image(PresentationResourceParameterKey.chatInputMediaPanelGridDismissImage(color: color.argb), { theme in
+            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Media/GridDismissIcon"), color: color)
         })
     }
     
@@ -1250,6 +1285,12 @@ public struct PresentationResourcesChat {
     public static func chatKeyboardActionButtonWebAppIconImage(_ theme: PresentationTheme) -> UIImage? {
         return theme.image(PresentationResourceKey.chatKeyboardActionButtonWebAppIcon.rawValue, { theme in
             return generateTintedImage(image: UIImage(bundleImageName: "Chat/Message/BotWebApp"), color: theme.chat.inputButtonPanel.buttonTextColor)
+        })
+    }
+    
+    public static func chatEntityKeyboardLock(_ theme: PresentationTheme, color: UIColor) -> UIImage? {
+        return theme.image(PresentationResourceParameterKey.chatEntityKeyboardLock(color: color.argb), { theme in
+            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Media/PanelSectionLockIcon"), color: color)
         })
     }
 }

@@ -410,7 +410,7 @@ private func channelStatsControllerEntries(data: ChannelStats?, messages: [Messa
     return entries
 }
 
-public func channelStatsController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, peerId: PeerId, cachedPeerData: CachedPeerData) -> ViewController {
+public func channelStatsController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, peerId: PeerId, statsDatacenterId: Int32?) -> ViewController {
     var openMessageStatsImpl: ((MessageId) -> Void)?
     var contextActionImpl: ((MessageId, ASDisplayNode, ContextGesture?) -> Void)?
     
@@ -418,10 +418,7 @@ public func channelStatsController(context: AccountContext, updatedPresentationD
     let dataPromise = Promise<ChannelStats?>(nil)
     let messagesPromise = Promise<MessageHistoryView?>(nil)
     
-    var datacenterId: Int32 = 0
-    if let cachedData = cachedPeerData as? CachedChannelData {
-        datacenterId = cachedData.statsDatacenterId
-    }
+    let datacenterId: Int32 = statsDatacenterId ?? 0
         
     let statsContext = ChannelStatsContext(postbox: context.account.postbox, network: context.account.network, datacenterId: datacenterId, peerId: peerId)
     let dataSignal: Signal<ChannelStats?, NoError> = statsContext.state
@@ -450,7 +447,7 @@ public func channelStatsController(context: AccountContext, updatedPresentationD
         contextActionImpl?(messageId, node, gesture)
     })
     
-    let messageView = context.account.viewTracker.aroundMessageHistoryViewForLocation(.peer(peerId: peerId), index: .upperBound, anchorIndex: .upperBound, count: 100, fixedCombinedReadStates: nil)
+    let messageView = context.account.viewTracker.aroundMessageHistoryViewForLocation(.peer(peerId: peerId, threadId: nil), index: .upperBound, anchorIndex: .upperBound, count: 100, fixedCombinedReadStates: nil)
     |> map { messageHistoryView, _, _ -> MessageHistoryView? in
         return messageHistoryView
     }
@@ -505,7 +502,7 @@ public func channelStatsController(context: AccountContext, updatedPresentationD
         controller?.clearItemNodesHighlight(animated: true)
     }
     openMessageStatsImpl = { [weak controller] messageId in
-        controller?.push(messageStatsController(context: context, messageId: messageId, cachedPeerData: cachedPeerData))
+        controller?.push(messageStatsController(context: context, messageId: messageId, statsDatacenterId: statsDatacenterId))
     }
     contextActionImpl = { [weak controller] messageId, sourceNode, gesture in
         guard let controller = controller, let sourceNode = sourceNode as? ContextExtractedContentContainingNode else {
@@ -517,9 +514,16 @@ public func channelStatsController(context: AccountContext, updatedPresentationD
         var items: [ContextMenuItem] = []
         items.append(.action(ContextMenuActionItem(text: presentationData.strings.SharedMedia_ViewInChat, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/GoToMessage"), color: theme.contextMenu.primaryColor) }, action: { [weak controller] c, _ in
             c.dismiss(completion: {
-                if let navigationController = controller?.navigationController as? NavigationController {
-                    context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(id: peerId), subject: .message(id: .id(messageId), highlight: true, timecode: nil)))
-                }
+                let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId))
+                |> deliverOnMainQueue).start(next: { peer in
+                    guard let peer = peer else {
+                        return
+                    }
+                    
+                    if let navigationController = controller?.navigationController as? NavigationController {
+                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), subject: .message(id: .id(messageId), highlight: true, timecode: nil)))
+                    }
+                })
             })
         })))
         
@@ -544,7 +548,7 @@ private final class ChannelStatsContextExtractedContentSource: ContextExtractedC
     }
     
     func takeView() -> ContextControllerTakeViewInfo? {
-        return ContextControllerTakeViewInfo(contentContainingNode: self.sourceNode, contentAreaInScreenSpace: UIScreen.main.bounds)
+        return ContextControllerTakeViewInfo(containingItem: .node(self.sourceNode), contentAreaInScreenSpace: UIScreen.main.bounds)
     }
     
     func putBack() -> ContextControllerPutBackViewInfo? {

@@ -127,7 +127,7 @@ final class ChatChannelSubscriberInputPanelNode: ChatInputPanelNode {
     
     private var presentationInterfaceState: ChatPresentationInterfaceState?
     
-    private var layoutData: (CGFloat, CGFloat, CGFloat, UIEdgeInsets, CGFloat, Bool, LayoutMetrics)?
+    private var layoutData: (CGFloat, CGFloat, CGFloat, CGFloat, UIEdgeInsets, CGFloat, Bool, LayoutMetrics)?
     
     override init() {
         self.button = HighlightableButtonNode()
@@ -208,8 +208,8 @@ final class ChatChannelSubscriberInputPanelNode: ChatInputPanelNode {
             }
             
             self.isJoining = true
-            if let (width, leftInset, rightInset, additionalSideInsets, maxHeight, isSecondary, metrics) = self.layoutData, let presentationInterfaceState = self.presentationInterfaceState {
-                let _ = self.updateLayout(width: width, leftInset: leftInset, rightInset: rightInset, additionalSideInsets: additionalSideInsets, maxHeight: maxHeight, isSecondary: isSecondary, transition: .immediate, interfaceState: presentationInterfaceState, metrics: metrics, force: true)
+            if let (width, leftInset, rightInset, bottomInset, additionalSideInsets, maxHeight, isSecondary, metrics) = self.layoutData, let presentationInterfaceState = self.presentationInterfaceState {
+                let _ = self.updateLayout(width: width, leftInset: leftInset, rightInset: rightInset, bottomInset: bottomInset,  additionalSideInsets: additionalSideInsets, maxHeight: maxHeight, isSecondary: isSecondary, transition: .immediate, interfaceState: presentationInterfaceState, metrics: metrics, force: true)
             }
             self.actionDisposable.set((context.peerChannelMemberCategoriesContextsManager.join(engine: context.engine, peerId: peer.id, hash: nil)
             |> afterDisposed { [weak self] in
@@ -252,7 +252,7 @@ final class ChatChannelSubscriberInputPanelNode: ChatInputPanelNode {
             break
         case .muteNotifications, .unmuteNotifications:
             if let context = self.context, let presentationInterfaceState = self.presentationInterfaceState, let peer = presentationInterfaceState.renderedPeer?.peer {
-                self.actionDisposable.set(context.engine.peers.togglePeerMuted(peerId: peer.id).start())
+                self.actionDisposable.set(context.engine.peers.togglePeerMuted(peerId: peer.id, threadId: nil).start())
             }
         case .hidePinnedMessages, .unpinMessages:
             self.interfaceInteraction?.unpinAllMessages()
@@ -265,12 +265,12 @@ final class ChatChannelSubscriberInputPanelNode: ChatInputPanelNode {
         }
     }
     
-    override func updateLayout(width: CGFloat, leftInset: CGFloat, rightInset: CGFloat, additionalSideInsets: UIEdgeInsets, maxHeight: CGFloat, isSecondary: Bool, transition: ContainedViewLayoutTransition, interfaceState: ChatPresentationInterfaceState, metrics: LayoutMetrics) -> CGFloat {
-        return self.updateLayout(width: width, leftInset: leftInset, rightInset: rightInset, additionalSideInsets: additionalSideInsets, maxHeight: maxHeight, isSecondary: isSecondary, transition: transition, interfaceState: interfaceState, metrics: metrics, force: false)
+    override func updateLayout(width: CGFloat, leftInset: CGFloat, rightInset: CGFloat, bottomInset: CGFloat, additionalSideInsets: UIEdgeInsets, maxHeight: CGFloat, isSecondary: Bool, transition: ContainedViewLayoutTransition, interfaceState: ChatPresentationInterfaceState, metrics: LayoutMetrics, isMediaInputExpanded: Bool) -> CGFloat {
+        return self.updateLayout(width: width, leftInset: leftInset, rightInset: rightInset, bottomInset: bottomInset, additionalSideInsets: additionalSideInsets, maxHeight: maxHeight, isSecondary: isSecondary, transition: transition, interfaceState: interfaceState, metrics: metrics, force: false)
     }
     
-    private func updateLayout(width: CGFloat, leftInset: CGFloat, rightInset: CGFloat, additionalSideInsets: UIEdgeInsets, maxHeight: CGFloat, isSecondary: Bool, transition: ContainedViewLayoutTransition, interfaceState: ChatPresentationInterfaceState, metrics: LayoutMetrics, force: Bool) -> CGFloat {
-        self.layoutData = (width, leftInset, rightInset, additionalSideInsets, maxHeight, isSecondary, metrics)
+    private func updateLayout(width: CGFloat, leftInset: CGFloat, rightInset: CGFloat, bottomInset: CGFloat, additionalSideInsets: UIEdgeInsets, maxHeight: CGFloat, isSecondary: Bool, transition: ContainedViewLayoutTransition, interfaceState: ChatPresentationInterfaceState, metrics: LayoutMetrics, force: Bool) -> CGFloat {
+        self.layoutData = (width, leftInset, rightInset, bottomInset, additionalSideInsets, maxHeight, isSecondary, metrics)
         
         if self.presentationInterfaceState != interfaceState || force {
             let previousState = self.presentationInterfaceState

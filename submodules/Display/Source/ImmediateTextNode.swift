@@ -4,6 +4,13 @@ import UIKit
 public struct ImmediateTextNodeLayoutInfo {
     public let size: CGSize
     public let truncated: Bool
+    public let numberOfLines: Int
+    
+    public init(size: CGSize, truncated: Bool, numberOfLines: Int) {
+        self.size = size
+        self.truncated = truncated
+        self.numberOfLines = numberOfLines
+    }
 }
 
 public class ImmediateTextNode: TextNode {
@@ -18,7 +25,7 @@ public class ImmediateTextNode: TextNode {
     public var textStroke: (UIColor, CGFloat)?
     public var cutout: TextNodeCutout?
     public var displaySpoilers = false
-
+    
     public var truncationMode: NSLineBreakMode {
         get {
             switch self.truncationType {
@@ -106,7 +113,7 @@ public class ImmediateTextNode: TextNode {
         let makeLayout = TextNode.asyncLayout(self)
         let (layout, apply) = makeLayout(TextNodeLayoutArguments(attributedString: self.attributedText, backgroundColor: nil, maximumNumberOfLines: self.maximumNumberOfLines, truncationType: self.truncationType, constrainedSize: constrainedSize, alignment: self.textAlignment, verticalAlignment: self.verticalAlignment, lineSpacing: self.lineSpacing, cutout: self.cutout, insets: self.insets, displaySpoilers: self.displaySpoilers))
         let _ = apply()
-        return ImmediateTextNodeLayoutInfo(size: layout.size, truncated: layout.truncated)
+        return ImmediateTextNodeLayoutInfo(size: layout.size, truncated: layout.truncated, numberOfLines: layout.numberOfLines)
     }
     
     public func updateLayoutFullInfo(_ constrainedSize: CGSize) -> TextNodeLayout {
@@ -124,7 +131,7 @@ public class ImmediateTextNode: TextNode {
         }
     }
     
-    override public func didLoad() {
+    override open func didLoad() {
         super.didLoad()
         
         self.updateInteractiveActions()
@@ -225,7 +232,7 @@ public class ASTextNode: ImmediateTextNode {
     }
 }
 
-public class ImmediateTextView: TextView {
+open class ImmediateTextView: TextView {
     public var attributedText: NSAttributedString?
     public var textAlignment: NSTextAlignment = .natural
     public var verticalAlignment: TextVerticalAlignment = .top
@@ -237,7 +244,7 @@ public class ImmediateTextView: TextView {
     public var textStroke: (UIColor, CGFloat)?
     public var cutout: TextNodeCutout?
     public var displaySpoilers = false
-
+    
     public var truncationMode: NSLineBreakMode {
         get {
             switch self.truncationType {
@@ -302,7 +309,7 @@ public class ImmediateTextView: TextView {
         let makeLayout = TextView.asyncLayout(self)
         let (layout, apply) = makeLayout(TextNodeLayoutArguments(attributedString: self.attributedText, backgroundColor: nil, maximumNumberOfLines: self.maximumNumberOfLines, truncationType: self.truncationType, constrainedSize: constrainedSize, alignment: self.textAlignment, verticalAlignment: self.verticalAlignment, lineSpacing: self.lineSpacing, cutout: self.cutout, insets: self.insets, displaySpoilers: self.displaySpoilers))
         let _ = apply()
-        return ImmediateTextNodeLayoutInfo(size: layout.size, truncated: layout.truncated)
+        return ImmediateTextNodeLayoutInfo(size: layout.size, truncated: layout.truncated, numberOfLines: layout.numberOfLines)
     }
     
     public func updateLayoutFullInfo(_ constrainedSize: CGSize) -> TextNodeLayout {

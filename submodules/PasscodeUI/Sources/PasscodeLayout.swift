@@ -67,7 +67,7 @@ struct PasscodeKeyboardLayout {
                 self.topOffset = 226.0
                 self.biometricsOffset = 30.0
                 self.deleteOffset = 20.0
-            case .iPhoneX, .iPhone12Mini, .iPhone12:
+            case .iPhoneX, .iPhone12Mini, .iPhone12, .iPhone13Mini, .iPhone13, .iPhone13Pro, .iPhone14Pro, .iPhone14ProZoomed, .iPhone14ProMaxZoomed:
                 self.buttonSize = 75.0
                 self.horizontalSecond = 103.0
                 self.horizontalThird = 206.0
@@ -78,7 +78,7 @@ struct PasscodeKeyboardLayout {
                 self.topOffset = 294.0
                 self.biometricsOffset = 30.0
                 self.deleteOffset = 20.0
-            case .iPhoneXSMax, .iPhoneXr, .iPhone12ProMax:
+            case .iPhoneXSMax, .iPhoneXr, .iPhone12ProMax, .iPhone13ProMax, .iPhone14ProMax:
                 self.buttonSize = 85.0
                 self.horizontalSecond = 115.0
                 self.horizontalThird = 230.0
@@ -89,7 +89,7 @@ struct PasscodeKeyboardLayout {
                 self.topOffset = 329.0
                 self.biometricsOffset = 30.0
                 self.deleteOffset = 20.0
-            case .iPad, .iPad102Inch, .iPadPro10Inch, .iPadPro11Inch, .iPadPro, .iPadPro3rdGen, .iPadMini:
+            case .iPad, .iPad102Inch, .iPadPro10Inch, .iPadPro11Inch, .iPadPro, .iPadPro3rdGen, .iPadMini, .iPadMini6thGen:
                 self.buttonSize = 81.0
                 self.horizontalSecond = 106.0
                 self.horizontalThird = 212.0
@@ -151,15 +151,15 @@ public struct PasscodeLayout {
                 self.titleOffset = 112.0
                 self.subtitleOffset = -6.0
                 self.inputFieldOffset = 156.0
-            case .iPhoneX, .iPhone12Mini, .iPhone12:
+            case .iPhoneX, .iPhone12Mini, .iPhone12, .iPhone13Mini, .iPhone13, .iPhone13Pro, .iPhone14Pro, .iPhone14ProZoomed, .iPhone14ProMaxZoomed:
                 self.titleOffset = 162.0
                 self.subtitleOffset = 0.0
                 self.inputFieldOffset = 206.0
-            case .iPhoneXSMax, .iPhoneXr, .iPhone12ProMax:
+            case .iPhoneXSMax, .iPhoneXr, .iPhone12ProMax, .iPhone13ProMax, .iPhone14ProMax:
                 self.titleOffset = 180.0
                 self.subtitleOffset = 0.0
                 self.inputFieldOffset = 226.0
-            case .iPad, .iPad102Inch, .iPadPro10Inch, .iPadPro11Inch, .iPadPro, .iPadPro3rdGen, .iPadMini:
+            case .iPad, .iPad102Inch, .iPadPro10Inch, .iPadPro11Inch, .iPadPro, .iPadPro3rdGen, .iPadMini, .iPadMini6thGen:
                 self.titleOffset = self.keyboard.topOffset - 120.0
                 self.subtitleOffset = -2.0
                 self.inputFieldOffset = self.keyboard.topOffset - 76.0

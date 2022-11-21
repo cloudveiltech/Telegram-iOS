@@ -461,19 +461,14 @@ static NSData *base64_decode(NSString *str) {
         
 NSString *suffix = @"";
 #if TARGET_OS_OSX
-#ifdef BETA
-        suffix = @" BETA";
+        NSString *value = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"SOURCE"];
+        if (value != nil) {
+            suffix = [NSString stringWithFormat:@"%@", value];
+        }
 #endif
         
-#ifdef APPSTORE
-        suffix = @" APPSTORE";
-#endif
-        
-#ifdef STABLE
-        suffix = @" STABLE";
-#endif
-#endif
-        NSString *versionString = [[NSString alloc] initWithFormat:@"%@ (%@)%@", [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"], [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"], suffix];
+        //SOURCE
+        NSString *versionString = [[NSString alloc] initWithFormat:@"%@ (%@) %@", [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"], [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"], suffix];
         _appVersion = versionString;
         
         _systemLangCode = [[NSLocale preferredLanguages] objectAtIndex:0];
@@ -598,6 +593,14 @@ NSString *suffix = @"";
         return @"iPhone 13";
     if ([platform isEqualToString:@"iPhone14,6"])
         return @"iPhone SE (3rd gen)";
+    if ([platform isEqualToString:@"iPhone14,7"])
+        return @"iPhone 14";
+    if ([platform isEqualToString:@"iPhone14,8"])
+        return @"iPhone 14 Plus";
+    if ([platform isEqualToString:@"iPhone15,2"])
+        return @"iPhone 14 Pro";
+    if ([platform isEqualToString:@"iPhone15,3"])
+        return @"iPhone 14 Pro Max";
     
     if ([platform hasPrefix:@"iPod1"])
         return @"iPod touch 1G";

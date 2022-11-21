@@ -8,8 +8,6 @@ import MediaResources
 import Tuples
 import ImageBlur
 import FastBlur
-import CloudVeilSecurityManager
-
 
 private func imageFromAJpeg(data: Data) -> (UIImage, UIImage)? {
     if let (colorData, alphaData) = data.withUnsafeBytes({ bytes -> (Data, Data)? in

@@ -120,12 +120,12 @@ private func sendMessageContent(account: Account, peerId: PeerId, attributes: [M
             let sendMessageRequest: Signal<Api.Updates, NoError>
             switch content {
                 case let .text(text):
-                    sendMessageRequest = account.network.request(Api.functions.messages.sendMessage(flags: flags, peer: inputPeer, replyToMsgId: replyMessageId, message: text, randomId: uniqueId, replyMarkup: nil, entities: messageEntities, scheduleDate: scheduleTime, sendAs: sendAsInputPeer))
+                    sendMessageRequest = account.network.request(Api.functions.messages.sendMessage(flags: flags, peer: inputPeer, replyToMsgId: replyMessageId, topMsgId: nil, message: text, randomId: uniqueId, replyMarkup: nil, entities: messageEntities, scheduleDate: scheduleTime, sendAs: sendAsInputPeer))
                     |> `catch` { _ -> Signal<Api.Updates, NoError> in
                         return .complete()
                     }
                 case let .media(inputMedia, text):
-                    sendMessageRequest = account.network.request(Api.functions.messages.sendMedia(flags: flags, peer: inputPeer, replyToMsgId: replyMessageId, media: inputMedia, message: text, randomId: uniqueId, replyMarkup: nil, entities: messageEntities, scheduleDate: scheduleTime, sendAs: sendAsInputPeer))
+                    sendMessageRequest = account.network.request(Api.functions.messages.sendMedia(flags: flags, peer: inputPeer, replyToMsgId: replyMessageId, topMsgId: nil, media: inputMedia, message: text, randomId: uniqueId, replyMarkup: nil, entities: messageEntities, scheduleDate: scheduleTime, sendAs: sendAsInputPeer))
                     |> `catch` { _ -> Signal<Api.Updates, NoError> in
                             return .complete()
                     }
@@ -165,7 +165,7 @@ private func uploadedImage(account: Account, data: Data) -> Signal<UploadMediaEv
 }
 
 private func uploadedFile(account: Account, data: Data, mimeType: String, attributes: [TelegramMediaFileAttribute]) -> Signal<UploadMediaEvent, PendingMessageUploadError> {
-    return multipartUpload(network: account.network, postbox: account.postbox, source: .data(data), encrypt: false, tag: TelegramMediaResourceFetchTag(statsCategory: statsCategoryForFileWithAttributes(attributes)), hintFileSize: data.count, hintFileIsLarge: false, forceNoBigParts: false)
+    return multipartUpload(network: account.network, postbox: account.postbox, source: .data(data), encrypt: false, tag: TelegramMediaResourceFetchTag(statsCategory: statsCategoryForFileWithAttributes(attributes)), hintFileSize: Int64(data.count), hintFileIsLarge: false, forceNoBigParts: false)
         |> mapError { _ -> PendingMessageUploadError in return .generic }
         |> map { next -> UploadMediaEvent in
             switch next {

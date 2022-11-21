@@ -98,15 +98,15 @@ private final class TranslateScreenComponent: CombinedComponent {
             self.availableSpeakLanguages = supportedSpeakLanguages()
             
             super.init()
-            
-            self.translationDisposable.set((translateText(context: context, text: text, from: fromLanguage, to: toLanguage) |> deliverOnMainQueue).start(next: { [weak self] result in
+                        
+            self.translationDisposable.set((context.engine.messages.translate(text: text, fromLang: fromLanguage, toLang: toLanguage) |> deliverOnMainQueue).start(next: { [weak self] text in
                 guard let strongSelf = self else {
                     return
                 }
-                strongSelf.translatedText = result.text
-                if strongSelf.fromLanguage == nil {
-                    strongSelf.fromLanguage = result.detectedLanguage
-                }
+                strongSelf.translatedText = text
+//                if strongSelf.fromLanguage == nil {
+//                    strongSelf.fromLanguage = result.detectedLanguage
+//                }
                 strongSelf.updated(transition: .immediate)
             }, error: { error in
                 
@@ -127,14 +127,14 @@ private final class TranslateScreenComponent: CombinedComponent {
             self.translatedText = nil
             self.updated(transition: .immediate)
             
-            self.translationDisposable.set((translateText(context: self.context, text: text, from: fromLanguage, to: toLanguage) |> deliverOnMainQueue).start(next: { [weak self] result in
+            self.translationDisposable.set((self.context.engine.messages.translate(text: text, fromLang: fromLanguage, toLang: toLanguage) |> deliverOnMainQueue).start(next: { [weak self] text in
                 guard let strongSelf = self else {
                     return
                 }
-                strongSelf.translatedText = result.text
-                if strongSelf.fromLanguage == nil {
-                    strongSelf.fromLanguage = result.detectedLanguage
-                }
+                strongSelf.translatedText = text
+//                if strongSelf.fromLanguage == nil {
+//                    strongSelf.fromLanguage = result.detectedLanguage
+//                }
                 strongSelf.updated(transition: .immediate)
             }, error: { error in
                 
@@ -254,7 +254,7 @@ private final class TranslateScreenComponent: CombinedComponent {
             }
             let originalTitle = originalTitle.update(
                 component: MultilineTextComponent(
-                    text: NSAttributedString(string: fromLanguage, font: Font.medium(13.0), textColor: theme.list.itemPrimaryTextColor, paragraphAlignment: .natural),
+                    text: .plain(NSAttributedString(string: fromLanguage, font: Font.medium(13.0), textColor: theme.list.itemPrimaryTextColor, paragraphAlignment: .natural)),
                     horizontalAlignment: .natural,
                     maximumNumberOfLines: 1
                 ),
@@ -264,7 +264,7 @@ private final class TranslateScreenComponent: CombinedComponent {
                         
             let originalText = originalText.update(
                 component: MultilineTextComponent(
-                    text: NSAttributedString(string: state.text, font: Font.medium(17.0), textColor: theme.list.itemPrimaryTextColor, paragraphAlignment: .natural),
+                    text: .plain(NSAttributedString(string: state.text, font: Font.medium(17.0), textColor: theme.list.itemPrimaryTextColor, paragraphAlignment: .natural)),
                     horizontalAlignment: .natural,
                     maximumNumberOfLines: state.textExpanded ? 0 : 1,
                     lineSpacing: 0.1
@@ -276,7 +276,7 @@ private final class TranslateScreenComponent: CombinedComponent {
             let toLanguage = locale.localizedString(forLanguageCode: state.toLanguage) ?? ""
             let translationTitle = translationTitle.update(
                 component: MultilineTextComponent(
-                    text: NSAttributedString(string: toLanguage, font: Font.medium(13.0), textColor: theme.list.itemAccentColor, paragraphAlignment: .natural),
+                    text: .plain(NSAttributedString(string: toLanguage, font: Font.medium(13.0), textColor: theme.list.itemAccentColor, paragraphAlignment: .natural)),
                     horizontalAlignment: .natural,
                     maximumNumberOfLines: 1
                 ),
@@ -291,7 +291,7 @@ private final class TranslateScreenComponent: CombinedComponent {
             if let translatedText = state.translatedText {
                 maybeTranslationText = translationText.update(
                     component: MultilineTextComponent(
-                        text: NSAttributedString(string: translatedText, font: Font.medium(17.0), textColor: theme.list.itemAccentColor, paragraphAlignment: .natural),
+                        text: .plain(NSAttributedString(string: translatedText, font: Font.medium(17.0), textColor: theme.list.itemAccentColor, paragraphAlignment: .natural)),
                         horizontalAlignment: .natural,
                         maximumNumberOfLines: 0,
                         lineSpacing: 0.1
@@ -720,14 +720,18 @@ public class TranslateScreen: ViewController {
                 statusBarHeight: 0.0,
                 navigationHeight: navigationHeight,
                 safeInsets: UIEdgeInsets(top: layout.intrinsicInsets.top + layout.safeInsets.top, left: layout.safeInsets.left, bottom: layout.intrinsicInsets.bottom + layout.safeInsets.bottom, right: layout.safeInsets.right),
+                inputHeight: layout.inputHeight ?? 0.0,
+                metrics: layout.metrics,
+                deviceMetrics: layout.deviceMetrics,
                 isVisible: self.currentIsVisible,
                 theme: self.theme ?? self.presentationData.theme,
                 strings: self.presentationData.strings,
+                dateTimeFormat: self.presentationData.dateTimeFormat,
                 controller: { [weak self] in
                     return self?.controller
                 }
             )
-            let contentSize = self.hostView.update(
+            var contentSize = self.hostView.update(
                 transition: transition,
                 component: self.component,
                 environment: {
@@ -736,6 +740,7 @@ public class TranslateScreen: ViewController {
                 forceUpdate: true,
                 containerSize: CGSize(width: clipFrame.size.width, height: 10000.0)
             )
+            contentSize.height = max(layout.size.height - navigationHeight, contentSize.height)
             transition.setFrame(view: self.hostView, frame: CGRect(origin: CGPoint(), size: contentSize), completion: nil)
             
             self.scrollView.contentSize = contentSize

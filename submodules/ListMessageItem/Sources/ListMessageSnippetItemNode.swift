@@ -386,6 +386,10 @@ public final class ListMessageSnippetItemNode: ListMessageNode {
                                             title = NSAttributedString(string: urlString, font: titleFont, textColor: item.presentationData.theme.theme.list.itemPrimaryTextColor)
                                             
                                             iconText = NSAttributedString(string: "S", font: iconFont, textColor: UIColor.white)
+                                        } else if url.path.hasPrefix("/addemoji/") {
+                                            title = NSAttributedString(string: urlString, font: titleFont, textColor: item.presentationData.theme.theme.list.itemPrimaryTextColor)
+                                            
+                                            iconText = NSAttributedString(string: "E", font: iconFont, textColor: UIColor.white)
                                         } else {
                                             iconText = NSAttributedString(string: host[..<host.index(after: host.startIndex)].uppercased(), font: iconFont, textColor: UIColor.white)
                                             
@@ -432,6 +436,8 @@ public final class ListMessageSnippetItemNode: ListMessageNode {
                                         title = NSAttributedString(string: tempTitleString as String, font: titleFont, textColor: item.presentationData.theme.theme.list.itemPrimaryTextColor)
                                         if url.path.hasPrefix("/addstickers/") {
                                             iconText = NSAttributedString(string: "S", font: iconFont, textColor: UIColor.white)
+                                        } else if url.path.hasPrefix("/addemoji/") {
+                                            iconText = NSAttributedString(string: "E", font: iconFont, textColor: UIColor.white)
                                         } else {
                                             iconText = NSAttributedString(string: host[..<host.index(after: host.startIndex)].uppercased(), font: iconFont, textColor: UIColor.white)
                                         }
@@ -623,7 +629,7 @@ public final class ListMessageSnippetItemNode: ListMessageNode {
                     transition.updateFrame(node: strongSelf.titleNode, frame: CGRect(origin: CGPoint(x: leftOffset + leftInset, y: 9.0), size: titleNodeLayout.size))
                     let _ = titleNodeApply()
                     
-                    let descriptionFrame = CGRect(origin: CGPoint(x: leftOffset + leftInset, y: strongSelf.titleNode.frame.maxY + 1.0), size: descriptionNodeLayout.size)
+                    let descriptionFrame = CGRect(origin: CGPoint(x: leftOffset + leftInset - 1.0, y: strongSelf.titleNode.frame.maxY + 1.0), size: descriptionNodeLayout.size)
                     transition.updateFrame(node: strongSelf.descriptionNode, frame: descriptionFrame)
                     let _ = descriptionNodeApply()
                     
@@ -811,14 +817,16 @@ public final class ListMessageSnippetItemNode: ListMessageNode {
                                 if case .longTap = gesture {
                                     item.interaction.longTap(ChatControllerInteractionLongTapAction.url(url), message)
                                 } else if url == self.currentPrimaryUrl {
-                                    if !item.interaction.openMessage(message, .default) {
+                                    if let webpage = self.currentMedia as? TelegramMediaWebpage, case let .Loaded(content) = webpage.content, content.instantPage != nil {
+                                        item.interaction.openInstantPage(message, nil)
+                                    } else {
                                         item.interaction.openUrl(url, false, false, nil)
                                     }
                                 } else {
                                     item.interaction.openUrl(url, false, true, nil)
                                 }
                             }
-                        case .hold, .doubleTap:
+                        case .hold, .doubleTap, .secondaryTap:
                             break
                     }
                 }

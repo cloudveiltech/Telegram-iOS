@@ -209,7 +209,7 @@ func locallyRenderedMessage(message: StoreMessage, peers: [PeerId: Peer]) -> Mes
     let second = UInt32(hashValue & 0xffffffff)
     let stableId = first &+ second
     
-    return Message(stableId: stableId, stableVersion: 0, id: id, globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, threadId: message.threadId, timestamp: message.timestamp, flags: MessageFlags(message.flags), tags: message.tags, globalTags: message.globalTags, localTags: message.localTags, forwardInfo: forwardInfo, author: author, text: message.text, attributes: message.attributes, media: message.media, peers: messagePeers, associatedMessages: SimpleDictionary(), associatedMessageIds: [])
+    return Message(stableId: stableId, stableVersion: 0, id: id, globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, threadId: message.threadId, timestamp: message.timestamp, flags: MessageFlags(message.flags), tags: message.tags, globalTags: message.globalTags, localTags: message.localTags, forwardInfo: forwardInfo, author: author, text: message.text, attributes: message.attributes, media: message.media, peers: messagePeers, associatedMessages: SimpleDictionary(), associatedMessageIds: [], associatedMedia: [:], associatedThreadInfo: nil)
 }
 
 public extension Message {
@@ -322,6 +322,17 @@ public extension Message {
         }
         return nil
     }
+    var effectiveReactions: [MessageReaction]? {
+        if !self.hasReactions {
+            return nil
+        }
+        
+        if let result = mergedMessageReactions(attributes: self.attributes) {
+            return result.reactions
+        } else {
+            return nil
+        }
+    }
     var hasReactions: Bool {
         for attribute in self.attributes {
             if let attribute = attribute as? ReactionsMessageAttribute {
@@ -330,7 +341,7 @@ public extension Message {
         }
         for attribute in self.attributes {
             if let attribute = attribute as? PendingReactionsMessageAttribute {
-                return attribute.value != nil
+                return !attribute.reactions.isEmpty
             }
         }
         return false
@@ -339,6 +350,15 @@ public extension Message {
     var textEntitiesAttribute: TextEntitiesMessageAttribute? {
         for attribute in self.attributes {
             if let attribute = attribute as? TextEntitiesMessageAttribute {
+                return attribute
+            }
+        }
+        return nil
+    }
+    
+    var restrictedContentAttribute: RestrictedContentMessageAttribute? {
+        for attribute in self.attributes {
+            if let attribute = attribute as? RestrictedContentMessageAttribute {
                 return attribute
             }
         }

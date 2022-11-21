@@ -6,6 +6,8 @@ import SwiftSignalKit
 import Postbox
 import TelegramCore
 import TelegramUIPreferences
+import ComponentFlow
+import AudioTranscriptionButtonComponent
 
 class ChatMessageFileBubbleContentNode: ChatMessageBubbleContentNode {
     let interactiveFileNode: ChatMessageInteractiveFileNode
@@ -47,7 +49,7 @@ class ChatMessageFileBubbleContentNode: ChatMessageBubbleContentNode {
         
         self.interactiveFileNode.requestUpdateLayout = { [weak self] _ in
             if let strongSelf = self, let item = strongSelf.item {
-                let _ = item.controllerInteraction.requestMessageUpdate(item.message.id)
+                let _ = item.controllerInteraction.requestMessageUpdate(item.message.id, false)
             }
         }
         
@@ -72,8 +74,12 @@ class ChatMessageFileBubbleContentNode: ChatMessageBubbleContentNode {
             
             item.controllerInteraction.openMessageReactionContextMenu(item.topMessage, sourceNode, gesture, value)
         }
+        
+        self.interactiveFileNode.updateIsTextSelectionActive = { [weak self] value in
+            self?.updateIsTextSelectionActive?(value)
+        }
     }
-    
+        
     override func accessibilityActivate() -> Bool {
         if let item = self.item {
             let _ = item.controllerInteraction.openMessage(item.message, .default)
@@ -85,10 +91,10 @@ class ChatMessageFileBubbleContentNode: ChatMessageBubbleContentNode {
         fatalError("init(coder:) has not been implemented")
     }
     
-    override func asyncLayoutContent() -> (_ item: ChatMessageBubbleContentItem, _ layoutConstants: ChatMessageItemLayoutConstants, _ preparePosition: ChatMessageBubblePreparePosition, _ messageSelection: Bool?, _ constrainedSize: CGSize) -> (ChatMessageBubbleContentProperties, CGSize?, CGFloat, (CGSize, ChatMessageBubbleContentPosition) -> (CGFloat, (CGFloat) -> (CGSize, (ListViewItemUpdateAnimation, Bool) -> Void))) {
+    override func asyncLayoutContent() -> (_ item: ChatMessageBubbleContentItem, _ layoutConstants: ChatMessageItemLayoutConstants, _ preparePosition: ChatMessageBubblePreparePosition, _ messageSelection: Bool?, _ constrainedSize: CGSize, _ avatarInset: CGFloat) -> (ChatMessageBubbleContentProperties, CGSize?, CGFloat, (CGSize, ChatMessageBubbleContentPosition) -> (CGFloat, (CGFloat) -> (CGSize, (ListViewItemUpdateAnimation, Bool, ListViewItemApply?) -> Void))) {
         let interactiveFileLayout = self.interactiveFileNode.asyncLayout()
         
-        return { item, layoutConstants, preparePosition, selection, constrainedSize in
+        return { item, layoutConstants, preparePosition, selection, constrainedSize, _ in
             var selectedFile: TelegramMediaFile?
             for media in item.message.media {
                 if let telegramFile = media as? TelegramMediaFile {
@@ -135,7 +141,9 @@ class ChatMessageFileBubbleContentNode: ChatMessageBubbleContentNode {
                 dateAndStatusType: statusType,
                 displayReactions: true,
                 messageSelection: item.message.groupingKey != nil ? selection : nil,
-                constrainedSize: CGSize(width: constrainedSize.width - layoutConstants.file.bubbleInsets.left - layoutConstants.file.bubbleInsets.right, height: constrainedSize.height)
+                layoutConstants: layoutConstants,
+                constrainedSize: CGSize(width: constrainedSize.width - layoutConstants.file.bubbleInsets.left - layoutConstants.file.bubbleInsets.right, height: constrainedSize.height),
+                controllerInteraction: item.controllerInteraction
             ))
             
             let contentProperties = ChatMessageBubbleContentProperties(hidesSimpleAuthorHeader: false, headerSpacing: 0.0, hidesBackground: .never, forceFullCorners: false, forceAlignment: .none)
@@ -158,13 +166,13 @@ class ChatMessageFileBubbleContentNode: ChatMessageBubbleContentNode {
                         }
                     }
                     
-                    return (CGSize(width: fileSize.width + layoutConstants.file.bubbleInsets.left + layoutConstants.file.bubbleInsets.right, height: fileSize.height + layoutConstants.file.bubbleInsets.top + bottomInset), { [weak self] animation, synchronousLoads in
+                    return (CGSize(width: fileSize.width + layoutConstants.file.bubbleInsets.left + layoutConstants.file.bubbleInsets.right, height: fileSize.height + layoutConstants.file.bubbleInsets.top + bottomInset), { [weak self] animation, synchronousLoads, applyInfo in
                         if let strongSelf = self {
                             strongSelf.item = item
                             
                             strongSelf.interactiveFileNode.frame = CGRect(origin: CGPoint(x: layoutConstants.file.bubbleInsets.left, y: layoutConstants.file.bubbleInsets.top), size: fileSize)
                             
-                            fileApply(synchronousLoads, animation)
+                            fileApply(synchronousLoads, animation, applyInfo)
                         }
                     })
                 })
@@ -196,6 +204,14 @@ class ChatMessageFileBubbleContentNode: ChatMessageBubbleContentNode {
         self.interactiveFileNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, removeOnCompletion: false)
     }
     
+    override func willUpdateIsExtractedToContextPreview(_ value: Bool) {
+        self.interactiveFileNode.willUpdateIsExtractedToContextPreview(value)
+    }
+    
+    override func updateIsExtractedToContextPreview(_ value: Bool) {
+        self.interactiveFileNode.updateIsExtractedToContextPreview(value)
+    }
+    
     override func tapActionAtPoint(_ point: CGPoint, gesture: TapLongTapOrDoubleTapGesture, isEstimating: Bool) -> ChatMessageBubbleContentTapAction {
         if self.interactiveFileNode.dateAndStatusNode.supernode != nil, let _ = self.interactiveFileNode.dateAndStatusNode.hitTest(self.view.convert(point, to: self.interactiveFileNode.dateAndStatusNode.view), with: nil) {
             return .ignore
@@ -206,7 +222,14 @@ class ChatMessageFileBubbleContentNode: ChatMessageBubbleContentNode {
         return super.tapActionAtPoint(point, gesture: gesture, isEstimating: isEstimating)
     }
     
-    override func reactionTargetView(value: String) -> UIView? {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        if let result = self.interactiveFileNode.hitTest(self.view.convert(point, to: self.interactiveFileNode.view), with: event) {
+            return result
+        }
+        return super.hitTest(point, with: event)
+    }
+    
+    override func reactionTargetView(value: MessageReaction.Reaction) -> UIView? {
         if !self.interactiveFileNode.dateAndStatusNode.isHidden {
             return self.interactiveFileNode.dateAndStatusNode.reactionView(value: value)
         }

@@ -185,17 +185,14 @@ private func messageStatsControllerEntries(data: MessageStats?, messages: Search
     return entries
 }
 
-public func messageStatsController(context: AccountContext, messageId: MessageId, cachedPeerData: CachedPeerData) -> ViewController {
+public func messageStatsController(context: AccountContext, messageId: MessageId, statsDatacenterId: Int32?) -> ViewController {
     var navigateToMessageImpl: ((MessageId) -> Void)?
     
     let actionsDisposable = DisposableSet()
     let dataPromise = Promise<MessageStats?>(nil)
     let messagesPromise = Promise<(SearchMessagesResult, SearchMessagesState)?>(nil)
     
-    var datacenterId: Int32 = 0
-    if let cachedData = cachedPeerData as? CachedChannelData {
-        datacenterId = cachedData.statsDatacenterId
-    }
+    let datacenterId: Int32 = statsDatacenterId ?? 0
         
     let statsContext = MessageStatsContext(postbox: context.account.postbox, network: context.account.network, datacenterId: datacenterId, messageId: messageId)
     let dataSignal: Signal<MessageStats?, NoError> = statsContext.state
@@ -262,9 +259,17 @@ public func messageStatsController(context: AccountContext, messageId: MessageId
         controller?.clearItemNodesHighlight(animated: true)
     }
     navigateToMessageImpl = { [weak controller] messageId in
-        if let navigationController = controller?.navigationController as? NavigationController {
-            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(id: messageId.peerId), subject: .message(id: .id(messageId), highlight: true, timecode: nil), keepStack: .always, useExisting: false, purposefulAction: {}, peekData: nil))
-        }
+        let _ = (context.engine.data.get(
+            TelegramEngine.EngineData.Item.Peer.Peer(id: messageId.peerId)
+        )
+        |> deliverOnMainQueue).start(next: { peer in
+            guard let peer = peer else {
+                return
+            }
+            if let navigationController = controller?.navigationController as? NavigationController {
+                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), subject: .message(id: .id(messageId), highlight: true, timecode: nil), keepStack: .always, useExisting: false, purposefulAction: {}, peekData: nil))
+            }
+        })
     }
     return controller
 }

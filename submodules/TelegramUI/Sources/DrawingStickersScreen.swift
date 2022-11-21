@@ -40,7 +40,7 @@ private struct DrawingPaneArrangement {
 private final class DrawingStickersScreenNode: ViewControllerTracingNode {
     private let context: AccountContext
     private var presentationData: PresentationData
-    fileprivate var selectSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?
+    fileprivate var selectSticker: ((FileMediaReference, UIView, CGRect) -> Bool)?
     private var searchItemContext = StickerPaneSearchGlobalItemContext()
     private let themeAndStringsPromise: Promise<(PresentationTheme, PresentationStrings)>
     
@@ -98,7 +98,7 @@ private final class DrawingStickersScreenNode: ViewControllerTracingNode {
     
     fileprivate var dismiss: (() -> Void)?
     
-    init(context: AccountContext, selectSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?) {
+    init(context: AccountContext, selectSticker: ((FileMediaReference, UIView, CGRect) -> Bool)?) {
         self.context = context
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
         self.presentationData = presentationData
@@ -106,13 +106,13 @@ private final class DrawingStickersScreenNode: ViewControllerTracingNode {
         
         self.themeAndStringsPromise = Promise((self.presentationData.theme, self.presentationData.strings))
         
-        var selectStickerImpl: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?
+        var selectStickerImpl: ((FileMediaReference, UIView, CGRect) -> Bool)?
         
         self.controllerInteraction = ChatControllerInteraction(openMessage: { _, _ in
-            return false }, openPeer: { _, _, _, _ in }, openPeerMention: { _ in }, openMessageContextMenu: { _, _, _, _, _ in }, openMessageReactionContextMenu: { _, _, _, _ in
+            return false }, openPeer: { _, _, _, _ in }, openPeerMention: { _ in }, openMessageContextMenu: { _, _, _, _, _, _ in }, openMessageReactionContextMenu: { _, _, _, _ in
             }, updateMessageReaction: { _, _ in }, activateMessagePinch: { _ in
             }, openMessageContextActions: { _, _, _, _ in }, navigateToMessage: { _, _ in }, navigateToMessageStandalone: { _ in
-            }, tapMessage: nil, clickThroughMessage: { }, toggleMessagesSelection: { _, _ in }, sendCurrentMessage: { _ in }, sendMessage: { _ in }, sendSticker: { fileReference, _, _, _, _, node, rect in return selectStickerImpl?(fileReference, node, rect) ?? false }, sendGif: { _, _, _, _, _ in return false }, sendBotContextResultAsGif: { _, _, _, _, _ in return false }, requestMessageActionCallback: { _, _, _, _ in }, requestMessageActionUrlAuth: { _, _ in }, activateSwitchInline: { _, _ in }, openUrl: { _, _, _, _ in }, shareCurrentLocation: {}, shareAccountContact: {}, sendBotCommand: { _, _ in }, openInstantPage: { _, _ in  }, openWallpaper: { _ in  }, openTheme: { _ in  }, openHashtag: { _, _ in }, updateInputState: { _ in }, updateInputMode: { _ in }, openMessageShareMenu: { _ in
+            }, tapMessage: nil, clickThroughMessage: { }, toggleMessagesSelection: { _, _ in }, sendCurrentMessage: { _ in }, sendMessage: { _ in }, sendSticker: { fileReference, _, _, _, _, node, rect, _, _ in return selectStickerImpl?(fileReference, node, rect) ?? false }, sendEmoji: { _, _ in }, sendGif: { _, _, _, _, _ in return false }, sendBotContextResultAsGif: { _, _, _, _, _ in return false }, requestMessageActionCallback: { _, _, _, _ in }, requestMessageActionUrlAuth: { _, _ in }, activateSwitchInline: { _, _ in }, openUrl: { _, _, _, _ in }, shareCurrentLocation: {}, shareAccountContact: {}, sendBotCommand: { _, _ in }, openInstantPage: { _, _ in  }, openWallpaper: { _ in  }, openTheme: { _ in  }, openHashtag: { _, _ in }, updateInputState: { _ in }, updateInputMode: { _ in }, openMessageShareMenu: { _ in
         }, presentController: { _, _ in
         }, presentControllerInCurrent: { _, _ in
         }, navigationController: {
@@ -143,7 +143,8 @@ private final class DrawingStickersScreenNode: ViewControllerTracingNode {
         }, displayPollSolution: { _, _ in
         }, displayPsa: { _, _ in
         }, displayDiceTooltip: { _ in
-        }, animateDiceSuccess: { _ in
+        }, animateDiceSuccess: { _, _ in
+        }, displayPremiumStickerTooltip: { _, _ in
         }, openPeerContextMenu: { _, _, _, _, _ in
         }, openMessageReplies: { _, _, _ in
         }, openReplyThreadOriginalMessage: { _ in
@@ -160,10 +161,13 @@ private final class DrawingStickersScreenNode: ViewControllerTracingNode {
         }, openLargeEmojiInfo: { _, _, _ in
         }, openJoinLink: { _ in
         }, openWebView: { _, _, _, _ in
-        }, requestMessageUpdate: { _ in
+        }, activateAdAction: { _ in
+        }, requestMessageUpdate: { _, _ in
         }, cancelInteractiveKeyboardGestures: {
+        }, dismissTextInput: {
+        }, scrollToMessageId: { _ in
         }, automaticMediaDownloadSettings: MediaAutoDownloadSettings.defaultSettings,
-        pollActionState: ChatInterfacePollActionState(), stickerSettings: ChatInterfaceStickerSettings(loopAnimatedStickers: true), presentationContext: ChatPresentationContext(backgroundNode: nil))
+        pollActionState: ChatInterfacePollActionState(), stickerSettings: ChatInterfaceStickerSettings(loopAnimatedStickers: true), presentationContext: ChatPresentationContext(context: context, backgroundNode: nil))
         
         self.blurView = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
         
@@ -235,7 +239,7 @@ private final class DrawingStickersScreenNode: ViewControllerTracingNode {
                         sendSticker: {
                             fileReference, sourceNode, sourceRect in
                             if let strongSelf = self {
-                                return strongSelf.controllerInteraction.sendSticker(fileReference, false, false, nil, false, sourceNode, sourceRect)
+                                return strongSelf.controllerInteraction.sendSticker(fileReference, false, false, nil, false, sourceNode, sourceRect, nil, [])
                             } else {
                                 return false
                             }
@@ -325,9 +329,7 @@ private final class DrawingStickersScreenNode: ViewControllerTracingNode {
                 var items: [ActionSheetItem] = []
                 items.append(ActionSheetButtonItem(title: strongSelf.presentationData.strings.Stickers_ClearRecent, color: .destructive, action: { [weak actionSheet] in
                     actionSheet?.dismissAnimated()
-                    let _ = (context.account.postbox.transaction { transaction in
-                        clearRecentlyUsedStickers(transaction: transaction)
-                    }).start()
+                    let _ = context.engine.stickers.clearRecentlyUsedStickers().start()
                 }))
                 actionSheet.setItemGroups([ActionSheetItemGroup(items: items), ActionSheetItemGroup(items: [
                     ActionSheetButtonItem(title: strongSelf.presentationData.strings.Common_Cancel, color: .accent, font: .bold, action: { [weak actionSheet] in
@@ -350,7 +352,7 @@ private final class DrawingStickersScreenNode: ViewControllerTracingNode {
                         sendSticker: {
                             fileReference, sourceNode, sourceRect in
                             if let strongSelf = self {
-                                return strongSelf.controllerInteraction.sendSticker(fileReference, false, false, nil, false, sourceNode, sourceRect)
+                                return strongSelf.controllerInteraction.sendSticker(fileReference, false, false, nil, false, sourceNode, sourceRect, nil, [])
                             } else {
                                 return false
                             }
@@ -440,9 +442,7 @@ private final class DrawingStickersScreenNode: ViewControllerTracingNode {
                     var items: [ActionSheetItem] = []
                     items.append(ActionSheetButtonItem(title: strongSelf.presentationData.strings.Stickers_ClearRecent, color: .destructive, action: { [weak actionSheet] in
                         actionSheet?.dismissAnimated()
-                        let _ = (context.account.postbox.transaction { transaction in
-                            clearRecentlyUsedStickers(transaction: transaction)
-                        }).start()
+                        let _ = context.engine.stickers.clearRecentlyUsedStickers().start()
                     }))
                     actionSheet.setItemGroups([ActionSheetItemGroup(items: items), ActionSheetItemGroup(items: [
                         ActionSheetButtonItem(title: strongSelf.presentationData.strings.Common_Cancel, color: .accent, font: .bold, action: { [weak actionSheet] in
@@ -597,7 +597,7 @@ private final class DrawingStickersScreenNode: ViewControllerTracingNode {
             }
                         
             let panelEntries = chatMediaInputPanelEntries(view: view, savedStickers: savedStickers, recentStickers: recentStickers, peerSpecificPack: nil, canInstallPeerSpecificPack: .none, theme: theme, strings: strings, hasGifs: false, hasSettings: false)
-            let gridEntries = chatMediaInputGridEntries(view: view, savedStickers: savedStickers, recentStickers: recentStickers, peerSpecificPack: nil, canInstallPeerSpecificPack: .none, trendingPacks: [], installedPacks: installedPacks, hasSearch: false, hasAccessories: false, strings: strings, theme: theme)
+            let gridEntries = chatMediaInputGridEntries(view: view, savedStickers: savedStickers, recentStickers: recentStickers, peerSpecificPack: nil, canInstallPeerSpecificPack: .none, trendingPacks: [], installedPacks: installedPacks, hasSearch: false, hasAccessories: false, strings: strings, theme: theme, hasPremium: false, isPremiumDisabled: true, trendingIsPremium: false)
             
             let (previousPanelEntries, previousGridEntries) = previousStickerEntries.swap((panelEntries, gridEntries))
             return (view, preparedChatMediaInputPanelEntryTransition(context: context, from: previousPanelEntries, to: panelEntries, inputNodeInteraction: stickersInputNodeInteraction, scrollToItem: nil), previousPanelEntries.isEmpty, preparedChatMediaInputGridEntryTransition(account: context.account, view: view, from: previousGridEntries, to: gridEntries, update: update, interfaceInteraction: controllerInteraction, inputNodeInteraction: stickersInputNodeInteraction, trendingInteraction: trendingInteraction), previousGridEntries.isEmpty)
@@ -632,7 +632,7 @@ private final class DrawingStickersScreenNode: ViewControllerTracingNode {
             }
             
             let panelEntries = chatMediaInputPanelEntries(view: view, savedStickers: nil, recentStickers: nil, peerSpecificPack: nil, canInstallPeerSpecificPack: .none, theme: theme, strings: strings, hasGifs: false, hasSettings: false)
-            let gridEntries = chatMediaInputGridEntries(view: view, savedStickers: nil, recentStickers: nil, peerSpecificPack: nil, canInstallPeerSpecificPack: .none, trendingPacks: [], installedPacks: installedPacks, hasSearch: false, hasAccessories: false, strings: strings, theme: theme)
+            let gridEntries = chatMediaInputGridEntries(view: view, savedStickers: nil, recentStickers: nil, peerSpecificPack: nil, canInstallPeerSpecificPack: .none, trendingPacks: [], installedPacks: installedPacks, hasSearch: false, hasAccessories: false, strings: strings, theme: theme, hasPremium: false, isPremiumDisabled: true, trendingIsPremium: false)
                         
             let (previousPanelEntries, previousGridEntries) = previousMaskEntries.swap((panelEntries, gridEntries))
             return (view, preparedChatMediaInputPanelEntryTransition(context: context, from: previousPanelEntries, to: panelEntries, inputNodeInteraction: masksInputNodeInteraction, scrollToItem: nil), previousPanelEntries.isEmpty, preparedChatMediaInputGridEntryTransition(account: context.account, view: view, from: previousGridEntries, to: gridEntries, update: update, interfaceInteraction: controllerInteraction, inputNodeInteraction: masksInputNodeInteraction, trendingInteraction: trendingInteraction), previousGridEntries.isEmpty)
@@ -1309,7 +1309,7 @@ final class DrawingStickersScreen: ViewController, TGPhotoPaintStickersScreen {
     public var screenWillDisappear: (() -> Void)?
     
     private let context: AccountContext
-    var selectSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)?
+    var selectSticker: ((FileMediaReference, UIView, CGRect) -> Bool)?
     
     private var controllerNode: DrawingStickersScreenNode {
         return self.displayNode as! DrawingStickersScreenNode
@@ -1325,7 +1325,7 @@ final class DrawingStickersScreen: ViewController, TGPhotoPaintStickersScreen {
         return self._ready
     }
         
-    public init(context: AccountContext, selectSticker: ((FileMediaReference, ASDisplayNode, CGRect) -> Bool)? = nil) {
+    public init(context: AccountContext, selectSticker: ((FileMediaReference, UIView, CGRect) -> Bool)? = nil) {
         self.context = context
         self.selectSticker = selectSticker
         
@@ -1365,10 +1365,10 @@ final class DrawingStickersScreen: ViewController, TGPhotoPaintStickersScreen {
     override public func loadDisplayNode() {
         self.displayNode = DrawingStickersScreenNode(
             context: self.context,
-            selectSticker: { [weak self] file, sourceNode, sourceRect in
+            selectSticker: { [weak self] file, sourceView, sourceRect in
                 if let strongSelf = self, let selectSticker = strongSelf.selectSticker {
                     (strongSelf.displayNode as! DrawingStickersScreenNode).animateOut()
-                    return selectSticker(file, sourceNode, sourceRect)
+                    return selectSticker(file, sourceView, sourceRect)
                 } else {
                     return false
                 }

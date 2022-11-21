@@ -375,7 +375,7 @@ private final class ContextControllerContentSourceImpl: ContextControllerContent
         let sourceNode = self.sourceNode
         return ContextControllerTakeControllerInfo(contentAreaInScreenSpace: CGRect(origin: CGPoint(), size: CGSize(width: 10.0, height: 10.0)), sourceNode: { [weak sourceNode] in
             if let sourceNode = sourceNode {
-                return (sourceNode, sourceNode.bounds)
+                return (sourceNode.view, sourceNode.bounds)
             } else {
                 return nil
             }
@@ -387,11 +387,7 @@ private final class ContextControllerContentSourceImpl: ContextControllerContent
 }
 
 private func peerNearbyContextMenuItems(context: AccountContext, peerId: EnginePeer.Id, present: @escaping (ViewController) -> Void) -> Signal<[ContextMenuItem], NoError> {
-    return context.account.postbox.transaction { _ -> [ContextMenuItem] in
-        let items: [ContextMenuItem] = []
-        
-        return items
-    }
+    return .single([])
 }
 
 private class PeersNearbyControllerImpl: ItemListController {
@@ -494,7 +490,7 @@ public func peersNearbyController(context: AccountContext) -> ViewController {
         chatController.canReadHistory.set(false)
         let contextController = ContextController(account: context.account, presentationData: presentationData, source: .controller(ContextControllerContentSourceImpl(controller: chatController, sourceNode: node)), items: peerNearbyContextMenuItems(context: context, peerId: peer.id, present: { c in
             presentControllerImpl?(c, nil)
-        }) |> map { ContextController.Items(content: .list($0)) }, gesture: gesture)
+        }) |> map { ContextController.Items(content: .list($0), animationCache: nil) }, gesture: gesture)
         presentInGlobalOverlayImpl?(contextController)
     }, expandUsers: {
         expandedPromise.set(true)
@@ -524,26 +520,41 @@ public func peersNearbyController(context: AccountContext) -> ViewController {
                 guard let peersNearby = peersNearby else {
                     return .single(nil)
                 }
-                return context.account.postbox.transaction { transaction -> PeersNearbyData? in
+                let peerIds = peersNearby.map { entry -> EnginePeer.Id in
+                    switch entry {
+                    case let .peer(id, _, _):
+                        return id
+                    case .selfPeer:
+                        return context.account.peerId
+                    }
+                }
+                return context.engine.data.get(
+                    EngineDataMap(peerIds.map(TelegramEngine.EngineData.Item.Peer.Peer.init)),
+                    EngineDataMap(peerIds.map(TelegramEngine.EngineData.Item.Peer.ParticipantCount.init))
+                )
+                |> map { peerMap, participantCountMap -> PeersNearbyData? in
                     var users: [PeerNearbyEntry] = []
                     var groups: [PeerNearbyEntry] = []
                     var visible = false
                     for peerNearby in peersNearby {
                         switch peerNearby {
-                            case let .peer(id, expires, distance):
-                                if let peer = transaction.getPeer(id) {
-                                    if id.namespace == Namespaces.Peer.CloudUser {
-                                        users.append(PeerNearbyEntry(peer: EnginePeer(peer), memberCount: nil, expires: expires, distance: distance))
-                                    } else {
-                                        let cachedData = transaction.getPeerCachedData(peerId: id) as? CachedChannelData
-                                        groups.append(PeerNearbyEntry(peer: EnginePeer(peer), memberCount: cachedData?.participantsSummary.memberCount, expires: expires, distance: distance))
+                        case let .peer(id, expires, distance):
+                            if let maybePeer = peerMap[id], let peer = maybePeer {
+                                if id.namespace == Namespaces.Peer.CloudUser {
+                                    users.append(PeerNearbyEntry(peer: peer, memberCount: nil, expires: expires, distance: distance))
+                                } else {
+                                    var participantCount: Int32?
+                                    if let maybeParticipantCount = participantCountMap[id] {
+                                        participantCount = maybeParticipantCount.flatMap(Int32.init)
                                     }
+                                    groups.append(PeerNearbyEntry(peer: peer, memberCount: participantCount, expires: expires, distance: distance))
                                 }
-                            case let .selfPeer(expires):
-                                visible = true
-                                if let peer = transaction.getPeer(context.account.peerId) {
-                                    users.append(PeerNearbyEntry(peer: EnginePeer(peer), memberCount: nil, expires: expires, distance: 0))
-                                }
+                            }
+                        case let .selfPeer(expires):
+                            visible = true
+                            if let maybePeer = peerMap[context.account.peerId], let peer = maybePeer {
+                                users.append(PeerNearbyEntry(peer: peer, memberCount: nil, expires: expires, distance: 0))
+                            }
                         }
                     }
                     return PeersNearbyData(latitude: coordinate.latitude, longitude: coordinate.longitude, address: address, visible: visible, accountPeerId: context.account.peerId, users: users, groups: groups, channels: [])
@@ -604,7 +615,7 @@ public func peersNearbyController(context: AccountContext) -> ViewController {
     }
     navigateToChatImpl = { [weak controller] peer in
         if let navigationController = controller?.navigationController as? NavigationController {
-            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(id: peer.id), keepStack: .always, purposefulAction: {}, peekData: nil))
+            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), keepStack: .always, purposefulAction: {}, peekData: nil))
         }
     }
     pushControllerImpl = { [weak controller] c in

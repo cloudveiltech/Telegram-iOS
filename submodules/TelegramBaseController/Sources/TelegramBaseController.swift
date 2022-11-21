@@ -44,16 +44,14 @@ private func presentLiveLocationController(context: AccountContext, peerId: Peer
             }, callPeer: { _, _ in
             }, enqueueMessage: { message in
                 let _ = enqueueMessages(account: context.account, peerId: peerId, messages: [message]).start()
-            }, sendSticker: nil,
-            setupTemporaryHiddenMedia: { _, _, _ in
+            }, sendSticker: nil, sendEmoji: nil, setupTemporaryHiddenMedia: { _, _, _ in
             }, chatAvatarHiddenMedia: { _, _ in
             }))
         }
     }
     if let id = context.liveLocationManager?.internalMessageForPeerId(peerId) {
-        let _ = (context.account.postbox.transaction { transaction -> EngineMessage? in
-            return transaction.getMessage(id).flatMap(EngineMessage.init)
-        } |> deliverOnMainQueue).start(next: presentImpl)
+        let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Messages.Message(id: id))
+        |> deliverOnMainQueue).start(next: presentImpl)
     } else if let liveLocationManager = context.liveLocationManager {
         let _ = (liveLocationManager.summaryManager.peersBroadcastingTo(peerId: peerId)
         |> take(1)
@@ -748,20 +746,20 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                     guard let strongSelf = self, let _ = strongSelf.navigationController as? NavigationController, let (state, _, _, order, type, account) = strongSelf.playlistStateAndType else {
                         return
                     }
-                    if let id = state.id as? PeerMessagesMediaPlaylistItemId {
+                    if let id = state.id as? PeerMessagesMediaPlaylistItemId, let playlistLocation = strongSelf.playlistLocation as? PeerMessagesPlaylistLocation {
                         if type == .music {
-                            if let playlistLocation = strongSelf.playlistLocation as? PeerMessagesPlaylistLocation, case .custom = playlistLocation {
+                            if case .custom = playlistLocation {
                                 let controllerContext: AccountContext
                                 if account.id == strongSelf.context.account.id {
                                     controllerContext = strongSelf.context
                                 } else {
                                     controllerContext = strongSelf.context.sharedContext.makeTempAccountContext(account: account)
                                 }
-                                let controller = strongSelf.context.sharedContext.makeOverlayAudioPlayerController(context: controllerContext, peerId: id.messageId.peerId, type: type, initialMessageId: id.messageId, initialOrder: order, playlistLocation: playlistLocation, parentNavigationController: strongSelf.navigationController as? NavigationController)
+                                let controller = strongSelf.context.sharedContext.makeOverlayAudioPlayerController(context: controllerContext, chatLocation: .peer(id: id.messageId.peerId), type: type, initialMessageId: id.messageId, initialOrder: order, playlistLocation: playlistLocation, parentNavigationController: strongSelf.navigationController as? NavigationController)
                                 strongSelf.displayNode.view.window?.endEditing(true)
                                 strongSelf.present(controller, in: .window(.root))
-                            } else {
-                                let signal = strongSelf.context.sharedContext.messageFromPreloadedChatHistoryViewForLocation(id: id.messageId, location: ChatHistoryLocationInput(content: .InitialSearch(location: .id(id.messageId), count: 60, highlight: true), id: 0), context: strongSelf.context, chatLocation: .peer(id: id.messageId.peerId), subject: nil, chatLocationContextHolder: Atomic<ChatLocationContextHolder?>(value: nil), tagMask: MessageTags.music)
+                            } else if case let .messages(chatLocation, _, _) = playlistLocation {
+                                let signal = strongSelf.context.sharedContext.messageFromPreloadedChatHistoryViewForLocation(id: id.messageId, location: ChatHistoryLocationInput(content: .InitialSearch(location: .id(id.messageId), count: 60, highlight: true), id: 0), context: strongSelf.context, chatLocation: chatLocation, subject: nil, chatLocationContextHolder: Atomic<ChatLocationContextHolder?>(value: nil), tagMask: MessageTags.music)
                                 
                                 var cancelImpl: (() -> Void)?
                                 let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
@@ -798,7 +796,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                                         } else {
                                             controllerContext = strongSelf.context.sharedContext.makeTempAccountContext(account: account)
                                         }
-                                        let controller = strongSelf.context.sharedContext.makeOverlayAudioPlayerController(context: controllerContext, peerId: id.messageId.peerId, type: type, initialMessageId: id.messageId, initialOrder: order, playlistLocation: nil, parentNavigationController: strongSelf.navigationController as? NavigationController)
+                                        let controller = strongSelf.context.sharedContext.makeOverlayAudioPlayerController(context: controllerContext, chatLocation: chatLocation, type: type, initialMessageId: id.messageId, initialOrder: order, playlistLocation: nil, parentNavigationController: strongSelf.navigationController as? NavigationController)
                                         strongSelf.displayNode.view.window?.endEditing(true)
                                         strongSelf.present(controller, in: .window(.root))
                                     } else if index.1 {
@@ -881,28 +879,24 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             |> map { peer in
                 return [FoundPeer(peer: peer, subscribers: nil)]
             }
-            let cachedData = context.account.postbox.transaction { transaction -> CachedPeerData? in
-                return transaction.getPeerCachedData(peerId: peerId)
-            }
             
-            let _ = (combineLatest(currentAccountPeer, context.engine.calls.cachedGroupCallDisplayAsAvailablePeers(peerId: peerId), cachedData)
-            |> map { currentAccountPeer, availablePeers, cachedData -> ([FoundPeer], CachedPeerData?) in
+            let _ = (combineLatest(
+                currentAccountPeer,
+                context.engine.calls.cachedGroupCallDisplayAsAvailablePeers(peerId: peerId),
+                context.engine.data.get(TelegramEngine.EngineData.Item.Peer.CallJoinAsPeerId(id: peerId))
+            )
+            |> map { currentAccountPeer, availablePeers, callJoinAsPeerId -> ([FoundPeer], EnginePeer.Id?) in
                 var result = currentAccountPeer
                 result.append(contentsOf: availablePeers)
-                return (result, cachedData)
+                return (result, callJoinAsPeerId)
             }
             |> take(1)
-            |> deliverOnMainQueue).start(next: { [weak self] peers, cachedData in
+            |> deliverOnMainQueue).start(next: { [weak self] peers, callJoinAsPeerId in
                 guard let strongSelf = self else {
                     return
                 }
                 
-                var defaultJoinAsPeerId: PeerId?
-                if let cachedData = cachedData as? CachedChannelData {
-                    defaultJoinAsPeerId = cachedData.callJoinPeerId
-                } else if let cachedData = cachedData as? CachedGroupData {
-                    defaultJoinAsPeerId = cachedData.callJoinPeerId
-                }
+                let defaultJoinAsPeerId: PeerId? = callJoinAsPeerId
                                 
                 if peers.count == 1, let peer = peers.first {
                     completion(peer.peer.id)
@@ -956,7 +950,6 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             })
         }, activeCall: activeCall)
     }
-    
     
     //CloudVeil start
     public static func checkPeerIsAllowed(peerId: PeerId, controller: ViewController, account: Account, presentationData: PresentationData, attemption: Int = 0, callback: @escaping (Bool) -> ()) {
@@ -1071,12 +1064,12 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
         
         let alert = standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData), title: "CloudVeil", text: message,
                                                 actions: [TextAlertAction(type: .defaultAction, title: "Cancel", action: {
-                                                    
-                                                }),
-                                                TextAlertAction(type: .defaultAction, title: "Continue", action: {
-                                                    TelegramBaseController.openUnblockRequest(peerView: peerView, controller: controller, presentationData: presentationData)
-                                                })
-                                                ])
+            
+        }),
+                                                          TextAlertAction(type: .defaultAction, title: "Continue", action: {
+            TelegramBaseController.openUnblockRequest(peerView: peerView, controller: controller, presentationData: presentationData)
+        })
+                                                         ])
         
         controller.present(alert, in: .window(.root))
     }
@@ -1086,7 +1079,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
         
         let userId = TGUserController.shared.getUserID()
         let url = "https://messenger.cloudveil.org/unblock/\(userId)/\(conversationId)"
-                
+        
         if let _ = controller as? TelegramBaseController {
             if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
                 if let parsed = URL(string: url) {

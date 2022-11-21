@@ -15,12 +15,12 @@ import WallpaperBackgroundNode
 
 func canViewMessageReactionList(message: Message) -> Bool {
     var found = false
+    var canViewList = false
     for attribute in message.attributes {
         if let attribute = attribute as? ReactionsMessageAttribute {
-            if !attribute.canViewList {
-                return false
-            }
+            canViewList = attribute.canViewList
             found = true
+            break
         }
     }
     
@@ -33,9 +33,11 @@ func canViewMessageReactionList(message: Message) -> Bool {
             if case .broadcast = channel.info {
                 return false
             } else {
-                return true
+                return canViewList
             }
         } else if let _ = peer as? TelegramGroup {
+            return canViewList
+        } else if let _ = peer as? TelegramUser {
             return true
         } else {
             return false
@@ -60,15 +62,19 @@ final class MessageReactionButtonsNode: ASDisplayNode {
     private var bubbleBackgroundNode: WallpaperBubbleBackgroundNode?
     private let container: ReactionButtonsAsyncLayoutContainer
     private var backgroundMaskView: UIView?
-    private var backgroundMaskButtons: [String: UIView] = [:]
+    private var backgroundMaskButtons: [MessageReaction.Reaction: UIView] = [:]
     
-    var reactionSelected: ((String) -> Void)?
-    var openReactionPreview: ((ContextGesture?, ContextExtractedContentContainingNode, String) -> Void)?
+    var reactionSelected: ((MessageReaction.Reaction) -> Void)?
+    var openReactionPreview: ((ContextGesture?, ContextExtractedContentContainingView, MessageReaction.Reaction) -> Void)?
     
     override init() {
         self.container = ReactionButtonsAsyncLayoutContainer()
         
         super.init()
+    }
+    
+    deinit {
+        
     }
     
     func update() {
@@ -80,6 +86,7 @@ final class MessageReactionButtonsNode: ASDisplayNode {
         presentationContext: ChatPresentationContext,
         availableReactions: AvailableReactions?,
         reactions: ReactionsMessageAttribute,
+        accountPeer: EnginePeer?,
         message: Message,
         alignment: DisplayAlignment,
         constrainedWidth: CGFloat,
@@ -96,7 +103,9 @@ final class MessageReactionButtonsNode: ASDisplayNode {
                 deselectedForeground: themeColors.reactionInactiveForeground.argb,
                 selectedForeground: themeColors.reactionActiveForeground.argb,
                 extractedBackground: presentationData.theme.theme.contextMenu.backgroundColor.argb,
-                extractedForeground:  presentationData.theme.theme.contextMenu.primaryColor.argb
+                extractedForeground:  presentationData.theme.theme.contextMenu.primaryColor.argb,
+                deselectedMediaPlaceholder: themeColors.reactionInactiveMediaPlaceholder.argb,
+                selectedMediaPlaceholder: themeColors.reactionActiveMediaPlaceholder.argb
             )
         case .outgoing:
             themeColors = bubbleColorComponents(theme: presentationData.theme.theme, incoming: false, wallpaper: !presentationData.theme.wallpaper.isEmpty)
@@ -106,7 +115,9 @@ final class MessageReactionButtonsNode: ASDisplayNode {
                 deselectedForeground: themeColors.reactionInactiveForeground.argb,
                 selectedForeground: themeColors.reactionActiveForeground.argb,
                 extractedBackground: presentationData.theme.theme.contextMenu.backgroundColor.argb,
-                extractedForeground:  presentationData.theme.theme.contextMenu.primaryColor.argb
+                extractedForeground:  presentationData.theme.theme.contextMenu.primaryColor.argb,
+                deselectedMediaPlaceholder: themeColors.reactionInactiveMediaPlaceholder.argb,
+                selectedMediaPlaceholder: themeColors.reactionActiveMediaPlaceholder.argb
             )
         case .freeform:
             if presentationData.theme.wallpaper.isEmpty {
@@ -121,7 +132,9 @@ final class MessageReactionButtonsNode: ASDisplayNode {
                 deselectedForeground: themeColors.reactionInactiveForeground.argb,
                 selectedForeground: themeColors.reactionActiveForeground.argb,
                 extractedBackground: presentationData.theme.theme.contextMenu.backgroundColor.argb,
-                extractedForeground:  presentationData.theme.theme.contextMenu.primaryColor.argb
+                extractedForeground:  presentationData.theme.theme.contextMenu.primaryColor.argb,
+                deselectedMediaPlaceholder: themeColors.reactionInactiveMediaPlaceholder.argb,
+                selectedMediaPlaceholder: themeColors.reactionActiveMediaPlaceholder.argb
             )
         }
         
@@ -140,43 +153,59 @@ final class MessageReactionButtonsNode: ASDisplayNode {
             },
             reactions: reactions.reactions.map { reaction in
                 var centerAnimation: TelegramMediaFile?
-                var legacyIcon: TelegramMediaFile?
+                var animationFileId: Int64?
                 
-                if let availableReactions = availableReactions {
-                    for availableReaction in availableReactions.reactions {
-                        if availableReaction.value == reaction.value {
-                            centerAnimation = availableReaction.centerAnimation
-                            legacyIcon = availableReaction.staticIcon
-                            break
-                        }
-                    }
-                }
-                
-                var peers: [EnginePeer] = []
-                if let channel = message.peers[message.id.peerId] as? TelegramChannel, case .broadcast = channel.info {
-                } else {
-                    for recentPeer in reactions.recentPeers {
-                        if recentPeer.value == reaction.value {
-                            if let peer = message.peers[recentPeer.peerId] {
-                                peers.append(EnginePeer(peer))
+                switch reaction.value {
+                case .builtin:
+                    if let availableReactions = availableReactions {
+                        for availableReaction in availableReactions.reactions {
+                            if availableReaction.value == reaction.value {
+                                centerAnimation = availableReaction.centerAnimation
+                                break
                             }
                         }
                     }
+                case let .custom(fileId):
+                    animationFileId = fileId
                 }
                 
-                if peers.count != Int(reaction.count) || totalReactionCount != reactions.recentPeers.count {
-                    peers.removeAll()
+                var peers: [EnginePeer] = []
+                
+                if message.id.peerId.namespace == Namespaces.Peer.CloudUser {
+                    if reaction.isSelected, let accountPeer = accountPeer {
+                        peers.append(accountPeer)
+                    }
+                    if !reaction.isSelected || reaction.count >= 2 {
+                        if let peer = message.peers[message.id.peerId] {
+                            peers.append(EnginePeer(peer))
+                        }
+                    }
+                } else {
+                    if let channel = message.peers[message.id.peerId] as? TelegramChannel, case .broadcast = channel.info {
+                    } else {
+                        for recentPeer in reactions.recentPeers {
+                            if recentPeer.value == reaction.value {
+                                if let peer = message.peers[recentPeer.peerId] {
+                                    peers.append(EnginePeer(peer))
+                                }
+                            }
+                        }
+                    }
+                    
+                    if peers.count != Int(reaction.count) || totalReactionCount != reactions.recentPeers.count {
+                        peers.removeAll()
+                    }
                 }
                 
                 return ReactionButtonsAsyncLayoutContainer.Reaction(
                     reaction: ReactionButtonComponent.Reaction(
                         value: reaction.value,
                         centerAnimation: centerAnimation,
-                        legacyIcon: legacyIcon
+                        animationFileId: animationFileId
                     ),
                     count: Int(reaction.count),
                     peers: peers,
-                    isSelected: reaction.isSelected
+                    chosenOrder: reaction.chosenOrder
                 )
             },
             colors: reactionColors,
@@ -262,9 +291,15 @@ final class MessageReactionButtonsNode: ASDisplayNode {
                     reactionButtonPosition = CGPoint(x: size.width + 1.0, y: topInset)
                 }
                 
-                let reactionButtons = reactionButtonsResult.apply(animation)
+                let reactionButtons = reactionButtonsResult.apply(
+                    animation,
+                    ReactionButtonsAsyncLayoutContainer.Arguments(
+                        animationCache: presentationContext.animationCache,
+                        animationRenderer: presentationContext.animationRenderer
+                    )
+                )
                 
-                var validIds = Set<String>()
+                var validIds = Set<MessageReaction.Reaction>()
                 for item in reactionButtons.items {
                     validIds.insert(item.value)
                     
@@ -304,23 +339,24 @@ final class MessageReactionButtonsNode: ASDisplayNode {
                         strongSelf.backgroundMaskButtons[item.value] = itemMaskView
                     }
                     
-                    if item.node.supernode == nil {
-                        strongSelf.addSubnode(item.node)
+                    if item.node.view.superview != strongSelf.view {
+                        assert(item.node.view.superview == nil)
+                        strongSelf.view.addSubview(item.node.view)
                         if animation.isAnimated {
-                            item.node.layer.animateScale(from: 0.01, to: 1.0, duration: 0.4, timingFunction: kCAMediaTimingFunctionSpring)
-                            item.node.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2)
+                            item.node.view.layer.animateScale(from: 0.01, to: 1.0, duration: 0.4, timingFunction: kCAMediaTimingFunctionSpring)
+                            item.node.view.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2)
                         }
-                        item.node.frame = itemFrame
+                        item.node.view.frame = itemFrame
                     } else {
-                        animation.animator.updateFrame(layer: item.node.layer, frame: itemFrame, completion: nil)
+                        animation.animator.updateFrame(layer: item.node.view.layer, frame: itemFrame, completion: nil)
                     }
                     
                     let itemValue = item.value
                     let itemNode = item.node
-                    item.node.isGestureEnabled = true
+                    item.node.view.isGestureEnabled = true
                     let canViewReactionList = canViewMessageReactionList(message: message)
-                    item.node.activateAfterCompletion = !canViewReactionList
-                    item.node.activated = { [weak itemNode] gesture, _ in
+                    item.node.view.activateAfterCompletion = !canViewReactionList
+                    item.node.view.activated = { [weak itemNode] gesture, _ in
                         guard let strongSelf = self, let itemNode = itemNode else {
                             gesture.cancel()
                             return
@@ -328,29 +364,33 @@ final class MessageReactionButtonsNode: ASDisplayNode {
                         if !canViewReactionList {
                             return
                         }
-                        strongSelf.openReactionPreview?(gesture, itemNode.containerNode, itemValue)
+                        strongSelf.openReactionPreview?(gesture, itemNode.view.containerView, itemValue)
                     }
-                    item.node.additionalActivationProgressLayer = itemMaskView.layer
+                    item.node.view.additionalActivationProgressLayer = itemMaskView.layer
                     
-                    if itemMaskView.superview == nil {
-                        strongSelf.backgroundMaskView?.addSubview(itemMaskView)
-                        if animation.isAnimated {
-                            itemMaskView.layer.animateScale(from: 0.01, to: 1.0, duration: 0.4, timingFunction: kCAMediaTimingFunctionSpring)
-                            itemMaskView.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2)
+                    if let backgroundMaskView = strongSelf.backgroundMaskView {
+                        if itemMaskView.superview != backgroundMaskView {
+                            assert(itemMaskView.superview == nil)
+                            backgroundMaskView.addSubview(itemMaskView)
+                            if animation.isAnimated {
+                                itemMaskView.layer.animateScale(from: 0.01, to: 1.0, duration: 0.4, timingFunction: kCAMediaTimingFunctionSpring)
+                                itemMaskView.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2)
+                            }
+                            itemMaskView.frame = itemMaskFrame
+                        } else {
+                            animation.animator.updateFrame(layer: itemMaskView.layer, frame: itemMaskFrame, completion: nil)
                         }
-                        itemMaskView.frame = itemMaskFrame
-                    } else {
-                        animation.animator.updateFrame(layer: itemMaskView.layer, frame: itemMaskFrame, completion: nil)
                     }
                 }
                 
-                var removeMaskIds: [String] = []
+                var removeMaskIds: [MessageReaction.Reaction] = []
                 for (id, view) in strongSelf.backgroundMaskButtons {
                     if !validIds.contains(id) {
                         removeMaskIds.append(id)
                         if animation.isAnimated {
                             view.layer.animateScale(from: 1.0, to: 0.01, duration: 0.2, removeOnCompletion: false)
                             view.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, removeOnCompletion: false, completion: { [weak view] _ in
+                                view?.layer.removeAllAnimations()
                                 view?.removeFromSuperview()
                             })
                         } else {
@@ -364,12 +404,12 @@ final class MessageReactionButtonsNode: ASDisplayNode {
                 
                 for node in reactionButtons.removedNodes {
                     if animation.isAnimated {
-                        node.layer.animateScale(from: 1.0, to: 0.01, duration: 0.2, removeOnCompletion: false)
-                        node.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, removeOnCompletion: false, completion: { [weak node] _ in
-                            node?.removeFromSupernode()
+                        node.view.layer.animateScale(from: 1.0, to: 0.01, duration: 0.2, removeOnCompletion: false)
+                        node.view.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, removeOnCompletion: false, completion: { _ in
+                            node.view.removeFromSuperview()
                         })
                     } else {
-                        node.removeFromSupernode()
+                        node.view.removeFromSuperview()
                     }
                 }
             })
@@ -406,10 +446,10 @@ final class MessageReactionButtonsNode: ASDisplayNode {
         }
     }
     
-    func reactionTargetView(value: String) -> UIView? {
+    func reactionTargetView(value: MessageReaction.Reaction) -> UIView? {
         for (key, button) in self.container.buttons {
             if key == value {
-                return button.iconView
+                return button.view.iconView
             }
         }
         return nil
@@ -417,20 +457,20 @@ final class MessageReactionButtonsNode: ASDisplayNode {
     
     func animateIn(animation: ListViewItemUpdateAnimation) {
         for (_, button) in self.container.buttons {
-            animation.animator.animateScale(layer: button.layer, from: 0.01, to: 1.0, completion: nil)
+            animation.animator.animateScale(layer: button.view.layer, from: 0.01, to: 1.0, completion: nil)
         }
     }
     
     func animateOut(animation: ListViewItemUpdateAnimation) {
         for (_, button) in self.container.buttons {
-            animation.animator.updateScale(layer: button.layer, scale: 0.01, completion: nil)
+            animation.animator.updateScale(layer: button.view.layer, scale: 0.01, completion: nil)
         }
     }
     
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         for (_, button) in self.container.buttons {
-            if button.frame.contains(point) {
-                if let result = button.hitTest(self.view.convert(point, to: button.view), with: event) {
+            if button.view.frame.contains(point) {
+                if let result = button.view.hitTest(self.view.convert(point, to: button.view), with: event) {
                     return result
                 }
             }
@@ -471,10 +511,10 @@ final class ChatMessageReactionsFooterContentNode: ChatMessageBubbleContentNode 
         fatalError("init(coder:) has not been implemented")
     }
     
-    override func asyncLayoutContent() -> (_ item: ChatMessageBubbleContentItem, _ layoutConstants: ChatMessageItemLayoutConstants, _ preparePosition: ChatMessageBubblePreparePosition, _ messageSelection: Bool?, _ constrainedSize: CGSize) -> (ChatMessageBubbleContentProperties, CGSize?, CGFloat, (CGSize, ChatMessageBubbleContentPosition) -> (CGFloat, (CGFloat) -> (CGSize, (ListViewItemUpdateAnimation, Bool) -> Void))) {
+    override func asyncLayoutContent() -> (_ item: ChatMessageBubbleContentItem, _ layoutConstants: ChatMessageItemLayoutConstants, _ preparePosition: ChatMessageBubblePreparePosition, _ messageSelection: Bool?, _ constrainedSize: CGSize, _ avatarInset: CGFloat) -> (ChatMessageBubbleContentProperties, CGSize?, CGFloat, (CGSize, ChatMessageBubbleContentPosition) -> (CGFloat, (CGFloat) -> (CGSize, (ListViewItemUpdateAnimation, Bool, ListViewItemApply?) -> Void))) {
         let buttonsNode = self.buttonsNode
         
-        return { item, layoutConstants, preparePosition, _, constrainedSize in
+        return { item, layoutConstants, preparePosition, _, constrainedSize, _ in
             let contentProperties = ChatMessageBubbleContentProperties(hidesSimpleAuthorHeader: false, headerSpacing: 0.0, hidesBackground: .never, forceFullCorners: false, forceAlignment: .none)
             
             //let displaySeparator: Bool
@@ -493,7 +533,7 @@ final class ChatMessageReactionsFooterContentNode: ChatMessageBubbleContentNode 
                     context: item.context,
                     presentationData: item.presentationData,
                     presentationContext: item.controllerInteraction.presentationContext,
-                    availableReactions: item.associatedData.availableReactions, reactions: reactionsAttribute, message: item.message, alignment: .left, constrainedWidth: constrainedSize.width - layoutConstants.text.bubbleInsets.left - layoutConstants.text.bubbleInsets.right, type: item.message.effectivelyIncoming(item.context.account.peerId) ? .incoming : .outgoing)
+                    availableReactions: item.associatedData.availableReactions, reactions: reactionsAttribute, accountPeer: item.associatedData.accountPeer, message: item.message, alignment: .left, constrainedWidth: constrainedSize.width - layoutConstants.text.bubbleInsets.left - layoutConstants.text.bubbleInsets.right, type: item.message.effectivelyIncoming(item.context.account.peerId) ? .incoming : .outgoing)
                      
                 return (layoutConstants.text.bubbleInsets.left + layoutConstants.text.bubbleInsets.right + buttonsUpdate.proposedWidth, { boundingWidth in
                     var boundingSize = CGSize()
@@ -505,7 +545,7 @@ final class ChatMessageReactionsFooterContentNode: ChatMessageBubbleContentNode 
                     boundingSize.width += layoutConstants.text.bubbleInsets.left + layoutConstants.text.bubbleInsets.right
                     boundingSize.height += topOffset + 2.0
                     
-                    return (boundingSize, { [weak self] animation, synchronousLoad in
+                    return (boundingSize, { [weak self] animation, synchronousLoad, _ in
                         if let strongSelf = self {
                             strongSelf.item = item
                             
@@ -560,7 +600,7 @@ final class ChatMessageReactionsFooterContentNode: ChatMessageBubbleContentNode 
         return nil
     }
     
-    override func reactionTargetView(value: String) -> UIView? {
+    override func reactionTargetView(value: MessageReaction.Reaction) -> UIView? {
         return self.buttonsNode.reactionTargetView(value: value)
     }
 }
@@ -573,6 +613,7 @@ final class ChatMessageReactionButtonsNode: ASDisplayNode {
         let availableReactions: AvailableReactions?
         let reactions: ReactionsMessageAttribute
         let message: Message
+        let accountPeer: EnginePeer?
         let isIncoming: Bool
         let constrainedWidth: CGFloat
         
@@ -583,6 +624,7 @@ final class ChatMessageReactionButtonsNode: ASDisplayNode {
             availableReactions: AvailableReactions?,
             reactions: ReactionsMessageAttribute,
             message: Message,
+            accountPeer: EnginePeer?,
             isIncoming: Bool,
             constrainedWidth: CGFloat
         ) {
@@ -592,6 +634,7 @@ final class ChatMessageReactionButtonsNode: ASDisplayNode {
             self.availableReactions = availableReactions
             self.reactions = reactions
             self.message = message
+            self.accountPeer = accountPeer
             self.isIncoming = isIncoming
             self.constrainedWidth = constrainedWidth
         }
@@ -599,8 +642,8 @@ final class ChatMessageReactionButtonsNode: ASDisplayNode {
     
     private let buttonsNode: MessageReactionButtonsNode
     
-    var reactionSelected: ((String) -> Void)?
-    var openReactionPreview: ((ContextGesture?, ContextExtractedContentContainingNode, String) -> Void)?
+    var reactionSelected: ((MessageReaction.Reaction) -> Void)?
+    var openReactionPreview: ((ContextGesture?, ContextExtractedContentContainingView, MessageReaction.Reaction) -> Void)?
     
     override init() {
         self.buttonsNode = MessageReactionButtonsNode()
@@ -628,6 +671,7 @@ final class ChatMessageReactionButtonsNode: ASDisplayNode {
                 presentationContext: arguments.presentationContext,
                 availableReactions: arguments.availableReactions,
                 reactions: arguments.reactions,
+                accountPeer: arguments.accountPeer,
                 message: arguments.message,
                 alignment: arguments.isIncoming ? .left : .right,
                 constrainedWidth: arguments.constrainedWidth,
@@ -660,7 +704,7 @@ final class ChatMessageReactionButtonsNode: ASDisplayNode {
         animation.animator.updateFrame(layer: self.buttonsNode.layer, frame: self.buttonsNode.layer.frame.offsetBy(dx: 0.0, dy: -self.buttonsNode.layer.bounds.height / 2.0), completion: nil)
     }
     
-    func reactionTargetView(value: String) -> UIView? {
+    func reactionTargetView(value: MessageReaction.Reaction) -> UIView? {
         return self.buttonsNode.reactionTargetView(value: value)
     }
     

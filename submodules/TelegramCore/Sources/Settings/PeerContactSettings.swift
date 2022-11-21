@@ -39,7 +39,8 @@ extension PeerStatusSettings {
 
 public func unarchiveAutomaticallyArchivedPeer(account: Account, peerId: PeerId) {
     let _ = (account.postbox.transaction { transaction -> Void in
-        updatePeerGroupIdInteractively(transaction: transaction, peerId: peerId, groupId: .root)
+        _internal_updatePeerGroupIdInteractively(transaction: transaction, peerId: peerId, groupId: .root)
+        
         transaction.updatePeerCachedData(peerIds: Set([peerId]), update: { _, current in
             if let currentData = current as? CachedUserData, let currentStatusSettings = currentData.peerStatusSettings {
                 var statusSettings = currentStatusSettings
@@ -64,5 +65,5 @@ public func unarchiveAutomaticallyArchivedPeer(account: Account, peerId: PeerId)
     }
     |> deliverOnMainQueue).start()
     
-    let _ = _internal_updatePeerMuteSetting(account: account, peerId: peerId, muteInterval: nil).start()
+    let _ = _internal_updatePeerMuteSetting(account: account, peerId: peerId, threadId: nil, muteInterval: nil).start()
 }

@@ -45,11 +45,11 @@ func resolveChatListMessageTagSummaryResultCalculation(addSummary: MessageHistor
     return count > 0
 }
 
-func resolveChatListMessageTagSummaryResultCalculation(postbox: PostboxImpl, peerId: PeerId, calculation: ChatListMessageTagSummaryResultCalculation?) -> Bool? {
+func resolveChatListMessageTagSummaryResultCalculation(postbox: PostboxImpl, peerId: PeerId, threadId: Int64?, calculation: ChatListMessageTagSummaryResultCalculation?) -> Bool? {
     guard let calculation = calculation else {
         return nil
     }
-    let addSummary = postbox.messageHistoryTagsSummaryTable.get(MessageHistoryTagsSummaryKey(tag: calculation.addCount.tag, peerId: peerId, namespace: calculation.addCount.namespace))
+    let addSummary = postbox.messageHistoryTagsSummaryTable.get(MessageHistoryTagsSummaryKey(tag: calculation.addCount.tag, peerId: peerId, threadId: threadId, namespace: calculation.addCount.namespace))
     let subtractSummary = postbox.pendingMessageActionsMetadataTable.getCount(.peerNamespaceAction(peerId, calculation.subtractCount.namespace, calculation.subtractCount.type))
     let count = (addSummary?.count ?? 0) - subtractSummary
     return count > 0
@@ -62,15 +62,19 @@ public final class SeedConfiguration {
     public let upgradedMessageHoles: [PeerId.Namespace: [MessageId.Namespace: Set<MessageTags>]]
     public let messageThreadHoles: [PeerId.Namespace: [MessageId.Namespace]]
     public let messageTagsWithSummary: MessageTags
+    public let messageTagsWithThreadSummary: MessageTags
     public let existingGlobalMessageTags: GlobalMessageTags
     public let peerNamespacesRequiringMessageTextIndex: [PeerId.Namespace]
     public let peerSummaryCounterTags: (Peer, Bool) -> PeerSummaryCounterTags
+    public let peerSummaryIsThreadBased: (Peer) -> Bool
     public let additionalChatListIndexNamespace: MessageId.Namespace?
     public let messageNamespacesRequiringGroupStatsValidation: Set<MessageId.Namespace>
     public let defaultMessageNamespaceReadStates: [MessageId.Namespace: PeerReadState]
     public let chatMessagesNamespaces: Set<MessageId.Namespace>
     public let getGlobalNotificationSettings: (Transaction) -> PostboxGlobalNotificationSettings?
     public let defaultGlobalNotificationSettings: PostboxGlobalNotificationSettings
+    public let mergeMessageAttributes: ([MessageAttribute], inout [MessageAttribute]) -> Void
+    public let decodeMessageThreadInfo: (CodableEntry) -> Message.AssociatedThreadInfo?
     
     public init(
         globalMessageIdsPeerIdNamespaces: Set<GlobalMessageIdsNamespace>,
@@ -83,15 +87,19 @@ public final class SeedConfiguration {
         messageThreadHoles: [PeerId.Namespace: [MessageId.Namespace]],
         existingMessageTags: MessageTags,
         messageTagsWithSummary: MessageTags,
+        messageTagsWithThreadSummary: MessageTags,
         existingGlobalMessageTags: GlobalMessageTags,
         peerNamespacesRequiringMessageTextIndex: [PeerId.Namespace],
         peerSummaryCounterTags: @escaping (Peer, Bool) -> PeerSummaryCounterTags,
+        peerSummaryIsThreadBased: @escaping (Peer) -> Bool,
         additionalChatListIndexNamespace: MessageId.Namespace?,
         messageNamespacesRequiringGroupStatsValidation: Set<MessageId.Namespace>,
         defaultMessageNamespaceReadStates: [MessageId.Namespace: PeerReadState],
         chatMessagesNamespaces: Set<MessageId.Namespace>,
         getGlobalNotificationSettings: @escaping (Transaction) -> PostboxGlobalNotificationSettings?,
-        defaultGlobalNotificationSettings: PostboxGlobalNotificationSettings
+        defaultGlobalNotificationSettings: PostboxGlobalNotificationSettings,
+        mergeMessageAttributes: @escaping ([MessageAttribute], inout [MessageAttribute]) -> Void,
+        decodeMessageThreadInfo: @escaping (CodableEntry) -> Message.AssociatedThreadInfo?
     ) {
         self.globalMessageIdsPeerIdNamespaces = globalMessageIdsPeerIdNamespaces
         self.initializeChatListWithHole = initializeChatListWithHole
@@ -99,14 +107,18 @@ public final class SeedConfiguration {
         self.upgradedMessageHoles = upgradedMessageHoles
         self.messageThreadHoles = messageThreadHoles
         self.messageTagsWithSummary = messageTagsWithSummary
+        self.messageTagsWithThreadSummary = messageTagsWithThreadSummary
         self.existingGlobalMessageTags = existingGlobalMessageTags
         self.peerNamespacesRequiringMessageTextIndex = peerNamespacesRequiringMessageTextIndex
         self.peerSummaryCounterTags = peerSummaryCounterTags
+        self.peerSummaryIsThreadBased = peerSummaryIsThreadBased
         self.additionalChatListIndexNamespace = additionalChatListIndexNamespace
         self.messageNamespacesRequiringGroupStatsValidation = messageNamespacesRequiringGroupStatsValidation
         self.defaultMessageNamespaceReadStates = defaultMessageNamespaceReadStates
         self.chatMessagesNamespaces = chatMessagesNamespaces
         self.getGlobalNotificationSettings = getGlobalNotificationSettings
         self.defaultGlobalNotificationSettings = defaultGlobalNotificationSettings
+        self.mergeMessageAttributes = mergeMessageAttributes
+        self.decodeMessageThreadInfo = decodeMessageThreadInfo
     }
 }

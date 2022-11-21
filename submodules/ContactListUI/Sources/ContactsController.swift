@@ -323,7 +323,7 @@ public class ContactsController: ViewController {
                                 scrollToEndIfExists = true
                             }
                             
-                            strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(id: peer.id), purposefulAction: { [weak self] in
+                            strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(EnginePeer(peer)), purposefulAction: { [weak self] in
                                 if fromSearch {
                                     self?.deactivateSearch(animated: false)
                                     self?.switchToChatsController?()
@@ -395,6 +395,7 @@ public class ContactsController: ViewController {
         }
         
         self.contactsNode.openPeopleNearby = {// [weak self] in
+            
             //CloudVeil disabled
             /*
             let _ = (DeviceAccess.authorizationStatus(subject: .location(.tracking))
@@ -407,11 +408,10 @@ public class ContactsController: ViewController {
                     let controller = strongSelf.context.sharedContext.makePeersNearbyController(context: strongSelf.context)
                     controller.navigationPresentation = .master
                     if let navigationController = strongSelf.context.sharedContext.mainWindow?.viewController as? NavigationController {
-                        navigationController.pushViewController(controller, animated: true, completion: { [weak self] in
-                            if let strongSelf = self {
-                                strongSelf.contactsNode.contactListNode.listNode.clearHighlightAnimated(true)
-                            }
-                        })
+                        var controllers = navigationController.viewControllers.filter { !($0 is PermissionController) }
+                        controllers.append(controller)
+                        navigationController.setViewControllers(controllers, animated: true)
+                        strongSelf.contactsNode.contactListNode.listNode.clearHighlightAnimated(true)
                     }
                 }
                 
@@ -437,7 +437,8 @@ public class ContactsController: ViewController {
                             })
                         }
                 }
-            })*/
+            })
+            */
         }
         
         self.contactsNode.openInvite = { [weak self] in
@@ -490,7 +491,7 @@ public class ContactsController: ViewController {
                             let _ = (strongSelf.context.account.postbox.loadedPeerWithId(strongSelf.context.account.peerId)
                             |> deliverOnMainQueue).start(next: { [weak self, weak controller] peer in
                                 if let strongSelf = self, let controller = controller {
-                                    controller.present(strongSelf.context.sharedContext.makeChatQrCodeScreen(context: strongSelf.context, peer: peer), in: .window(.root))
+                                    controller.present(strongSelf.context.sharedContext.makeChatQrCodeScreen(context: strongSelf.context, peer: peer, threadId: nil), in: .window(.root))
                                 }
                             })
                         }
@@ -679,7 +680,8 @@ public class ContactsController: ViewController {
                 }
                 strongSelf.contactsNode.openPeopleNearby?()
             })
-        })))*/
+        })))
+        */
         
         let controller = ContextController(account: self.context.account, presentationData: self.presentationData, source: .extracted(ContactsTabBarContextExtractedContentSource(controller: self, sourceNode: sourceNode)), items: .single(ContextController.Items(content: .list(items))), recognizer: nil, gesture: gesture)
         self.context.sharedContext.mainWindow?.presentInGlobalOverlay(controller)
@@ -690,7 +692,7 @@ private final class ContactsTabBarContextExtractedContentSource: ContextExtracte
     let keepInPlace: Bool = true
     let ignoreContentTouches: Bool = true
     let blurBackground: Bool = true
-    let centerActionsHorizontally: Bool = true
+    let actionsHorizontalAlignment: ContextActionsHorizontalAlignment = .center
     
     private let controller: ViewController
     private let sourceNode: ContextExtractedContentContainingNode
@@ -701,7 +703,7 @@ private final class ContactsTabBarContextExtractedContentSource: ContextExtracte
     }
     
     func takeView() -> ContextControllerTakeViewInfo? {
-        return ContextControllerTakeViewInfo(contentContainingNode: self.sourceNode, contentAreaInScreenSpace: UIScreen.main.bounds)
+        return ContextControllerTakeViewInfo(containingItem: .node(self.sourceNode), contentAreaInScreenSpace: UIScreen.main.bounds)
     }
     
     func putBack() -> ContextControllerPutBackViewInfo? {

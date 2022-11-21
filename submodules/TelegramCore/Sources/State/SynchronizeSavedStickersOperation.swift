@@ -37,32 +37,32 @@ public func getIsStickerSaved(transaction: Transaction, fileId: MediaId) -> Bool
     }
 }
 
-public func addSavedSticker(postbox: Postbox, network: Network, file: TelegramMediaFile) -> Signal<Void, AddSavedStickerError> {
+public func addSavedSticker(postbox: Postbox, network: Network, file: TelegramMediaFile, limit: Int = 5) -> Signal<Void, AddSavedStickerError> {
     return postbox.transaction { transaction -> Signal<Void, AddSavedStickerError> in
         for attribute in file.attributes {
             if case let .Sticker(_, maybePackReference, _) = attribute, let packReference = maybePackReference {
                 var fetchReference: StickerPackReference?
                 switch packReference {
-                    case .name:
+                case .name:
+                    fetchReference = packReference
+                case let .id(id, _):
+                    let items = transaction.getItemCollectionItems(collectionId: ItemCollectionId(namespace: Namespaces.ItemCollection.CloudStickerPacks, id: id))
+                    var found = false
+                inner: for item in items {
+                    if let stickerItem = item as? StickerPackItem {
+                        if stickerItem.file.fileId == file.fileId {
+                            let stringRepresentations = stickerItem.getStringRepresentationsOfIndexKeys()
+                            found = true
+                            addSavedSticker(transaction: transaction, file: stickerItem.file, stringRepresentations: stringRepresentations)
+                            break inner
+                        }
+                    }
+                }
+                    if !found {
                         fetchReference = packReference
-                    case let .id(id, _):
-                        let items = transaction.getItemCollectionItems(collectionId: ItemCollectionId(namespace: Namespaces.ItemCollection.CloudStickerPacks, id: id))
-                        var found = false
-                        inner: for item in items {
-                            if let stickerItem = item as? StickerPackItem {
-                                if stickerItem.file.fileId == file.fileId {
-                                    let stringRepresentations = stickerItem.getStringRepresentationsOfIndexKeys()
-                                    found = true
-                                    addSavedSticker(transaction: transaction, file: stickerItem.file, stringRepresentations: stringRepresentations)
-                                    break inner
-                                }
-                            }
-                        }
-                        if !found {
-                            fetchReference = packReference
-                        }
-                    case .animatedEmoji, .animatedEmojiAnimations, .dice:
-                        break
+                    }
+                case .animatedEmoji, .animatedEmojiAnimations, .dice, .premiumGifts, .emojiGenericAnimations, .iconStatusEmoji, .iconTopicEmoji:
+                    break
                 }
                 if let fetchReference = fetchReference {
                     return network.request(Api.functions.messages.getStickerSet(stickerset: fetchReference.apiInputStickerSet, hash: 0))
@@ -74,7 +74,7 @@ public func addSavedSticker(postbox: Postbox, network: Network, file: TelegramMe
                             switch result {
                                 case .stickerSetNotModified:
                                     break
-                                case let .stickerSet(_, packs, _):
+                                case let .stickerSet(_, packs, _, _):
                                     var stringRepresentationsByFile: [MediaId: [String]] = [:]
                                     for pack in packs {
                                         switch pack {
@@ -107,10 +107,10 @@ public func addSavedSticker(postbox: Postbox, network: Network, file: TelegramMe
     } |> mapError { _ -> AddSavedStickerError in } |> switchToLatest
 }
 
-public func addSavedSticker(transaction: Transaction, file: TelegramMediaFile, stringRepresentations: [String]) {
+public func addSavedSticker(transaction: Transaction, file: TelegramMediaFile, stringRepresentations: [String], limit: Int = 5) {
     if let resource = file.resource as? CloudDocumentMediaResource {
         if let entry = CodableEntry(SavedStickerItem(file: file, stringRepresentations: stringRepresentations)) {
-            transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudSavedStickers, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: entry), removeTailIfCountExceeds: 5)
+            transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudSavedStickers, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: entry), removeTailIfCountExceeds: limit)
         }
         addSynchronizeSavedStickersOperation(transaction: transaction, operation: .add(id: resource.fileId, accessHash: resource.accessHash, fileReference: .standalone(media: file)))
     }

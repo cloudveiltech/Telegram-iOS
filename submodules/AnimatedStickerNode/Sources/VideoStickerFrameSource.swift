@@ -7,6 +7,7 @@ import CoreMedia
 import ManagedFile
 import Accelerate
 import TelegramCore
+import WebPBinding
 
 private let sharedStoreQueue = Queue.concurrentDefaultQueue()
 
@@ -272,12 +273,17 @@ private final class VideoStickerFrameSourceCache {
 
 private let useCache = true
 
+public func makeVideoStickerDirectFrameSource(queue: Queue, path: String, width: Int, height: Int, cachePathPrefix: String?, unpremultiplyAlpha: Bool) -> AnimatedStickerFrameSource? {
+    return VideoStickerDirectFrameSource(queue: queue, path: path, width: width, height: height, cachePathPrefix: cachePathPrefix, unpremultiplyAlpha: unpremultiplyAlpha)
+}
+
 final class VideoStickerDirectFrameSource: AnimatedStickerFrameSource {
     private let queue: Queue
     private let path: String
     private let width: Int
     private let height: Int
     private let cache: VideoStickerFrameSourceCache?
+    private let image: UIImage?
     private let bytesPerRow: Int
     var frameCount: Int
     let frameRate: Int
@@ -286,10 +292,14 @@ final class VideoStickerDirectFrameSource: AnimatedStickerFrameSource {
     private let source: SoftwareVideoSource?
     
     var frameIndex: Int {
-        return self.currentFrame % self.frameCount
+        if self.frameCount == 0 {
+            return 0
+        } else {
+            return self.currentFrame % self.frameCount
+        }
     }
     
-    init?(queue: Queue, path: String, width: Int, height: Int, cachePathPrefix: String?) {
+    init?(queue: Queue, path: String, width: Int, height: Int, cachePathPrefix: String?, unpremultiplyAlpha: Bool = true) {
         self.queue = queue
         self.path = path
         self.width = width
@@ -303,11 +313,18 @@ final class VideoStickerDirectFrameSource: AnimatedStickerFrameSource {
         
         if useCache, let cache = self.cache, cache.frameCount > 0 {
             self.source = nil
+            self.image = nil
             self.frameRate = Int(cache.frameRate)
             self.frameCount = Int(cache.frameCount)
+        } else if let data = try? Data(contentsOf: URL(fileURLWithPath: path)), let image = WebP.convert(fromWebP: data) {
+            self.source = nil
+            self.image = image
+            self.frameRate = 1
+            self.frameCount = 1
         } else {
-            let source = SoftwareVideoSource(path: path, hintVP9: true)
+            let source = SoftwareVideoSource(path: path, hintVP9: true, unpremultiplyAlpha: unpremultiplyAlpha)
             self.source = source
+            self.image = nil
             self.frameRate = min(30, source.getFramerate())
             self.frameCount = 0
         }
@@ -327,7 +344,15 @@ final class VideoStickerDirectFrameSource: AnimatedStickerFrameSource {
 
         self.currentFrame += 1
         if draw {
-            if useCache, let cache = self.cache, let yuvData = cache.readUncompressedYuvaFrame(index: frameIndex) {
+            if let image = self.image {
+                let context = DrawingContext(size: CGSize(width: self.width, height: self.height), scale: 1.0, opaque: false, clear: true, bytesPerRow: self.bytesPerRow)
+                context.withFlippedContext { c in
+                    c.draw(image.cgImage!, in: CGRect(origin: CGPoint(), size: context.size))
+                }
+                let frameData = Data(bytes: context.bytes, count: self.bytesPerRow * self.height)
+                                
+                return AnimatedStickerFrame(data: frameData, type: .argb, width: self.width, height: self.height, bytesPerRow: self.bytesPerRow, index: frameIndex, isLastFrame: frameIndex == self.frameCount - 1, totalFrames: self.frameCount, multiplyAlpha: true)
+            } else if useCache, let cache = self.cache, let yuvData = cache.readUncompressedYuvaFrame(index: frameIndex) {
                 return AnimatedStickerFrame(data: yuvData, type: .yuva, width: self.width, height: self.height, bytesPerRow: self.width * 2, index: frameIndex, isLastFrame: frameIndex == self.frameCount - 1, totalFrames: self.frameCount)
             } else if let source = self.source {
                 let frameAndLoop = source.readFrame(maxPts: nil)

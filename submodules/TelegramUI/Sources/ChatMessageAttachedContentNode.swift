@@ -15,6 +15,9 @@ import PhotoResources
 import WebsiteType
 import ChatMessageInteractiveMediaBadge
 import GalleryData
+import TextNodeWithEntities
+import AnimationCache
+import MultiAnimationRenderer
 
 private let buttonFont = Font.semibold(13.0)
 
@@ -217,7 +220,7 @@ final class ChatMessageAttachedContentButtonNode: HighlightTrackingButtonNode {
 
 final class ChatMessageAttachedContentNode: ASDisplayNode {
     private let lineNode: ASImageNode
-    private let textNode: TextNode
+    private let textNode: TextNodeWithEntities
     private let inlineImageNode: TransformImageNode
     private var contentImageNode: ChatMessageInteractiveMediaNode?
     private var contentInstantVideoNode: ChatMessageInteractiveInstantVideoNode?
@@ -235,11 +238,24 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
     
     var openMedia: ((InteractiveMediaNodeActivateContent) -> Void)?
     var activateAction: (() -> Void)?
+    var requestUpdateLayout: (() -> Void)?
     
     var visibility: ListViewItemNodeVisibility = .none {
         didSet {
-            self.contentImageNode?.visibility = self.visibility != .none
-            self.contentInstantVideoNode?.visibility = self.visibility != .none
+            if oldValue != self.visibility {
+                self.contentImageNode?.visibility = self.visibility != .none
+                self.contentInstantVideoNode?.visibility = self.visibility != .none
+                
+                switch self.visibility {
+                case .none:
+                    self.textNode.visibilityRect = nil
+                case let .visible(_, subRect):
+                    var subRect = subRect
+                    subRect.origin.x = 0.0
+                    subRect.size.width = 10000.0
+                    self.textNode.visibilityRect = subRect
+                }
+            }
         }
     }
     
@@ -249,11 +265,11 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
         self.lineNode.displaysAsynchronously = false
         self.lineNode.displayWithoutProcessing = true
         
-        self.textNode = TextNode()
-        self.textNode.isUserInteractionEnabled = false
-        self.textNode.displaysAsynchronously = false
-        self.textNode.contentsScale = UIScreenScale
-        self.textNode.contentMode = .topLeft
+        self.textNode = TextNodeWithEntities()
+        self.textNode.textNode.isUserInteractionEnabled = false
+        self.textNode.textNode.displaysAsynchronously = false
+        self.textNode.textNode.contentsScale = UIScreenScale
+        self.textNode.textNode.contentMode = .topLeft
         
         self.inlineImageNode = TransformImageNode()
         self.inlineImageNode.contentAnimations = [.subsequentUpdates]
@@ -265,13 +281,13 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
         super.init()
         
         self.addSubnode(self.lineNode)
-        self.addSubnode(self.textNode)
+        self.addSubnode(self.textNode.textNode)
         
         self.addSubnode(self.statusNode)
     }
     
-    func asyncLayout() -> (_ presentationData: ChatPresentationData, _ automaticDownloadSettings: MediaAutoDownloadSettings, _ associatedData: ChatMessageItemAssociatedData, _ attributes: ChatMessageEntryAttributes, _ context: AccountContext, _ controllerInteraction: ChatControllerInteraction, _ message: Message, _ messageRead: Bool, _ chatLocation: ChatLocation, _ title: String?, _ subtitle: NSAttributedString?, _ text: String?, _ entities: [MessageTextEntity]?, _ media: (Media, ChatMessageAttachedContentNodeMediaFlags)?, _ mediaBadge: String?, _ actionIcon: ChatMessageAttachedContentActionIcon?, _ actionTitle: String?, _ displayLine: Bool, _ layoutConstants: ChatMessageItemLayoutConstants, _ preparePosition: ChatMessageBubblePreparePosition, _ constrainedSize: CGSize) -> (CGFloat, (CGSize, ChatMessageBubbleContentPosition) -> (CGFloat, (CGFloat) -> (CGSize, (ListViewItemUpdateAnimation, Bool) -> Void))) {
-        let textAsyncLayout = TextNode.asyncLayout(self.textNode)
+    func asyncLayout() -> (_ presentationData: ChatPresentationData, _ automaticDownloadSettings: MediaAutoDownloadSettings, _ associatedData: ChatMessageItemAssociatedData, _ attributes: ChatMessageEntryAttributes, _ context: AccountContext, _ controllerInteraction: ChatControllerInteraction, _ message: Message, _ messageRead: Bool, _ chatLocation: ChatLocation, _ title: String?, _ subtitle: NSAttributedString?, _ text: String?, _ entities: [MessageTextEntity]?, _ media: (Media, ChatMessageAttachedContentNodeMediaFlags)?, _ mediaBadge: String?, _ actionIcon: ChatMessageAttachedContentActionIcon?, _ actionTitle: String?, _ displayLine: Bool, _ layoutConstants: ChatMessageItemLayoutConstants, _ preparePosition: ChatMessageBubblePreparePosition, _ constrainedSize: CGSize, _ animationCache: AnimationCache, _ animationRenderer: MultiAnimationRenderer) -> (CGFloat, (CGSize, ChatMessageBubbleContentPosition) -> (CGFloat, (CGFloat) -> (CGSize, (ListViewItemUpdateAnimation, Bool, ListViewItemApply?) -> Void))) {
+        let textAsyncLayout = TextNodeWithEntities.asyncLayout(self.textNode)
         let currentImage = self.media as? TelegramMediaImage
         let imageLayout = self.inlineImageNode.asyncLayout()
         let statusLayout = self.statusNode.asyncLayout()
@@ -283,7 +299,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
         
         let currentAdditionalImageBadgeNode = self.additionalImageBadgeNode
         
-        return { presentationData, automaticDownloadSettings, associatedData, attributes, context, controllerInteraction, message, messageRead, chatLocation, title, subtitle, text, entities, mediaAndFlags, mediaBadge, actionIcon, actionTitle, displayLine, layoutConstants, preparePosition, constrainedSize in
+        return { presentationData, automaticDownloadSettings, associatedData, attributes, context, controllerInteraction, message, messageRead, chatLocation, title, subtitle, text, entities, mediaAndFlags, mediaBadge, actionIcon, actionTitle, displayLine, layoutConstants, preparePosition, constrainedSize, animationCache, animationRenderer in
             let isPreview = presentationData.isPreview
             let fontSize: CGFloat
             if message.adAttribute != nil {
@@ -322,7 +338,10 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
             }
             var viewCount: Int?
             var dateReplies = 0
-            let dateReactionsAndPeers = mergedMessageReactionsAndPeers(message: message)
+            var dateReactionsAndPeers = mergedMessageReactionsAndPeers(accountPeer: associatedData.accountPeer, message: message)
+            if message.isRestricted(platform: "ios", contentSettings: context.currentContentSettings.with { $0 }) {
+                dateReactionsAndPeers = ([], [])
+            }
             for attribute in message.attributes {
                 if let attribute = attribute as? EditedMessageAttribute {
                     edited = !attribute.isHidden
@@ -361,7 +380,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
             var textCutout = TextNodeCutout()
             var initialWidth: CGFloat = CGFloat.greatestFiniteMagnitude
             var refineContentImageLayout: ((CGSize, Bool, Bool, ImageCorners) -> (CGFloat, (CGFloat) -> (CGSize, (ListViewItemUpdateAnimation, Bool) -> ChatMessageInteractiveMediaNode)))?
-            var refineContentFileLayout: ((CGSize) -> (CGFloat, (CGFloat) -> (CGSize, (Bool, ListViewItemUpdateAnimation) -> ChatMessageInteractiveFileNode)))?
+            var refineContentFileLayout: ((CGSize) -> (CGFloat, (CGFloat) -> (CGSize, (Bool, ListViewItemUpdateAnimation, ListViewItemApply?) -> ChatMessageInteractiveFileNode)))?
 
             var contentInstantVideoSizeAndApply: (ChatMessageInstantVideoItemLayoutResult, (ChatMessageInstantVideoItemLayoutData, ListViewItemUpdateAnimation) -> ChatMessageInteractiveInstantVideoNode)?
             
@@ -392,7 +411,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                     string.append(NSAttributedString(string: "\n", font: textFont, textColor: messageTheme.primaryTextColor))
                 }
                 if let entities = entities {
-                    string.append(stringWithAppliedEntities(text, entities: entities, baseColor: messageTheme.primaryTextColor, linkColor: messageTheme.linkTextColor, baseFont: textFont, linkFont: textFont, boldFont: textBoldFont, italicFont: textItalicFont, boldItalicFont: textBoldItalicFont, fixedFont: textFixedFont, blockQuoteFont: textBlockQuoteFont))
+                    string.append(stringWithAppliedEntities(text, entities: entities, baseColor: messageTheme.primaryTextColor, linkColor: messageTheme.linkTextColor, baseFont: textFont, linkFont: textFont, boldFont: textBoldFont, italicFont: textItalicFont, boldItalicFont: textBoldItalicFont, fixedFont: textFixedFont, blockQuoteFont: textBlockQuoteFont, message: nil))
                 } else {
                     string.append(NSAttributedString(string: text + "\n", font: textFont, textColor: messageTheme.primaryTextColor))
                 }
@@ -509,13 +528,13 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
             if let (media, flags) = mediaAndFlags {
                 if let file = media as? TelegramMediaFile {
                     if file.mimeType == "application/x-tgtheme-ios", let size = file.size, size < 16 * 1024 {
-                        let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, file, imageDateAndStatus, .full, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode)
+                        let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, file, imageDateAndStatus, .full, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode, controllerInteraction.presentationContext)
                         initialWidth = initialImageWidth + horizontalInsets.left + horizontalInsets.right
                         refineContentImageLayout = refineLayout
                     } else if file.isInstantVideo {
                         let displaySize = CGSize(width: 212.0, height: 212.0)
                         let automaticDownload = shouldDownloadMediaAutomatically(settings: automaticDownloadSettings, peerType: associatedData.automaticDownloadPeerType, networkType: associatedData.automaticDownloadNetworkType, authorPeerId: message.author?.id, contactsPeerIds: associatedData.contactsPeerIds, media: file)
-                        let (videoLayout, apply) = contentInstantVideoLayout(ChatMessageBubbleContentItem(context: context, controllerInteraction: controllerInteraction, message: message, topMessage: message, read: messageRead, chatLocation: chatLocation, presentationData: presentationData, associatedData: associatedData, attributes: attributes, isItemPinned: message.tags.contains(.pinned) && !isReplyThread, isItemEdited: false), constrainedSize.width - horizontalInsets.left - horizontalInsets.right, displaySize, displaySize, 0.0, .bubble, automaticDownload)
+                        let (videoLayout, apply) = contentInstantVideoLayout(ChatMessageBubbleContentItem(context: context, controllerInteraction: controllerInteraction, message: message, topMessage: message, read: messageRead, chatLocation: chatLocation, presentationData: presentationData, associatedData: associatedData, attributes: attributes, isItemPinned: message.tags.contains(.pinned) && !isReplyThread, isItemEdited: false), constrainedSize.width - horizontalInsets.left - horizontalInsets.right, displaySize, displaySize, 0.0, .bubble, automaticDownload, 0.0)
                         initialWidth = videoLayout.contentSize.width + videoLayout.overflowLeft + videoLayout.overflowRight
                         contentInstantVideoSizeAndApply = (videoLayout, apply)
                     } else if file.isVideo {
@@ -541,12 +560,12 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                             }
                         }
 
-                        let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, file, imageDateAndStatus, automaticDownload, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode)
+                        let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, file, imageDateAndStatus, automaticDownload, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode, controllerInteraction.presentationContext)
                         initialWidth = initialImageWidth + horizontalInsets.left + horizontalInsets.right
                         refineContentImageLayout = refineLayout
                     } else if file.isSticker || file.isAnimatedSticker {
                         let automaticDownload = shouldDownloadMediaAutomatically(settings: automaticDownloadSettings, peerType: associatedData.automaticDownloadPeerType, networkType: associatedData.automaticDownloadNetworkType, authorPeerId: message.author?.id, contactsPeerIds: associatedData.contactsPeerIds, media: file)
-                        let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, file, imageDateAndStatus, automaticDownload ? .full : .none, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode)
+                        let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, file, imageDateAndStatus, automaticDownload ? .full : .none, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode, controllerInteraction.presentationContext)
                         initialWidth = initialImageWidth + horizontalInsets.left + horizontalInsets.right
                         refineContentImageLayout = refineLayout
                     } else {
@@ -583,14 +602,16 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                             dateAndStatusType: statusType,
                             displayReactions: false,
                             messageSelection: nil,
-                            constrainedSize: CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)
+                            layoutConstants: layoutConstants,
+                            constrainedSize: CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height),
+                            controllerInteraction: controllerInteraction
                         ))
                         refineContentFileLayout = refineLayout
                     }
                 } else if let image = media as? TelegramMediaImage {
                     if !flags.contains(.preferMediaInline) {
                         let automaticDownload = shouldDownloadMediaAutomatically(settings: automaticDownloadSettings, peerType: associatedData.automaticDownloadPeerType, networkType: associatedData.automaticDownloadNetworkType, authorPeerId: message.author?.id, contactsPeerIds: associatedData.contactsPeerIds, media: image)
-                        let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, image, imageDateAndStatus, automaticDownload ? .full : .none, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode)
+                        let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, image, imageDateAndStatus, automaticDownload ? .full : .none, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode, controllerInteraction.presentationContext)
                         initialWidth = initialImageWidth + horizontalInsets.left + horizontalInsets.right
                         refineContentImageLayout = refineLayout
                     } else if let dimensions = largestImageRepresentation(image.representations)?.dimensions {
@@ -602,11 +623,11 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                     }
                 } else if let image = media as? TelegramMediaWebFile {
                     let automaticDownload = shouldDownloadMediaAutomatically(settings: automaticDownloadSettings, peerType: associatedData.automaticDownloadPeerType, networkType: associatedData.automaticDownloadNetworkType, authorPeerId: message.author?.id, contactsPeerIds: associatedData.contactsPeerIds, media: image)
-                    let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, image, imageDateAndStatus, automaticDownload ? .full : .none, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode)
+                    let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, image, imageDateAndStatus, automaticDownload ? .full : .none, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode, controllerInteraction.presentationContext)
                     initialWidth = initialImageWidth + horizontalInsets.left + horizontalInsets.right
                     refineContentImageLayout = refineLayout
                 } else if let wallpaper = media as? WallpaperPreviewMedia {
-                    let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, wallpaper, imageDateAndStatus, .full, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode)
+                    let (_, initialImageWidth, refineLayout) = contentImageLayout(context, presentationData, presentationData.dateTimeFormat, message, associatedData, attributes, wallpaper, imageDateAndStatus, .full, associatedData.automaticDownloadPeerType, .constrained(CGSize(width: constrainedSize.width - horizontalInsets.left - horizontalInsets.right, height: constrainedSize.height)), layoutConstants, contentMode, controllerInteraction.presentationContext)
                     initialWidth = initialImageWidth + horizontalInsets.left + horizontalInsets.right
                     refineContentImageLayout = refineLayout
                     if case let .file(_, _, _, _, isTheme, _) = wallpaper.content, isTheme {
@@ -660,15 +681,18 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                         impressionCount: viewCount,
                         dateText: dateText,
                         type: textStatusType,
-                        layoutInput: .trailingContent(contentWidth: trailingContentWidth, reactionSettings: shouldDisplayInlineDateReactions(message: message) ? ChatMessageDateAndStatusNode.TrailingReactionSettings(displayInline: true, preferAdditionalInset: false) : nil),
+                        layoutInput: .trailingContent(contentWidth: trailingContentWidth, reactionSettings: shouldDisplayInlineDateReactions(message: message, isPremium: associatedData.isPremium, forceInline: associatedData.forceInlineReactions) ? ChatMessageDateAndStatusNode.TrailingReactionSettings(displayInline: true, preferAdditionalInset: false) : nil),
                         constrainedSize: textConstrainedSize,
                         availableReactions: associatedData.availableReactions,
                         reactions: dateReactionsAndPeers.reactions,
                         reactionPeers: dateReactionsAndPeers.peers,
+                        displayAllReactionPeers: message.id.peerId.namespace == Namespaces.Peer.CloudUser,
                         replyCount: dateReplies,
                         isPinned: message.tags.contains(.pinned) && !associatedData.isInPinnedListMode && !isReplyThread,
                         hasAutoremove: message.isSelfExpiring,
-                        canViewReactionList: canViewMessageReactionList(message: message)
+                        canViewReactionList: canViewMessageReactionList(message: message),
+                        animationCache: controllerInteraction.presentationContext.animationCache,
+                        animationRenderer: controllerInteraction.presentationContext.animationRenderer
                     ))
                 }
                 let _ = statusSuggestedWidthAndContinue
@@ -701,7 +725,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                     
                     boundingSize.width = max(boundingSize.width, refinedWidth)
                 }
-                var finalizeContentFileLayout: ((CGFloat) -> (CGSize, (Bool, ListViewItemUpdateAnimation) -> ChatMessageInteractiveFileNode))?
+                var finalizeContentFileLayout: ((CGFloat) -> (CGSize, (Bool, ListViewItemUpdateAnimation, ListViewItemApply?) -> ChatMessageInteractiveFileNode))?
                 if let refineContentFileLayout = refineContentFileLayout {
                     let (refinedWidth, finalizeFileLayout) = refineContentFileLayout(textConstrainedSize)
                     finalizeContentFileLayout = finalizeFileLayout
@@ -782,7 +806,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                         adjustedLineHeight += imageHeightAddition + 4.0
                     }
                     
-                    var contentFileSizeAndApply: (CGSize, (Bool, ListViewItemUpdateAnimation) -> ChatMessageInteractiveFileNode)?
+                    var contentFileSizeAndApply: (CGSize, (Bool, ListViewItemUpdateAnimation, ListViewItemApply?) -> ChatMessageInteractiveFileNode)?
                     if let finalizeContentFileLayout = finalizeContentFileLayout {
                         let (size, apply) = finalizeContentFileLayout(boundingWidth - insets.left - insets.right)
                         contentFileSizeAndApply = (size, apply)
@@ -823,11 +847,53 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                     if let statusSizeAndApply = statusSizeAndApply {
                         adjustedBoundingSize.height += statusSizeAndApply.0.height
                         adjustedLineHeight += statusSizeAndApply.0.height
+                        
+                        if let imageFrame = imageFrame, statusSizeAndApply.0.height == 0.0 {
+                            if statusInText {
+                                adjustedBoundingSize.height = max(adjustedBoundingSize.height, imageFrame.maxY + 8.0 + 15.0)
+                            }
+                        }
                     }
                     
                     adjustedBoundingSize.width = max(boundingWidth, adjustedBoundingSize.width)
- 
-                    return (adjustedBoundingSize, { [weak self] animation, synchronousLoads in
+                    
+                    var contentMediaHeight: CGFloat?
+                    if let (contentImageSize, _) = contentImageSizeAndApply {
+                        contentMediaHeight = contentImageSize.height
+                    }
+                    
+                    if let (contentFileSize, _) = contentFileSizeAndApply {
+                        contentMediaHeight = contentFileSize.height
+                    }
+                    
+                    if let (videoLayout, _) = contentInstantVideoSizeAndApply {
+                        contentMediaHeight = videoLayout.contentSize.height
+                    }
+                    
+                    var textVerticalOffset: CGFloat = 0.0
+                    if let contentMediaHeight = contentMediaHeight, let (_, flags) = mediaAndFlags, flags.contains(.preferMediaBeforeText) {
+                        textVerticalOffset = contentMediaHeight + 7.0
+                    }
+                    let adjustedTextFrame = textFrame.offsetBy(dx: 0.0, dy: textVerticalOffset)
+                                        
+                    var statusFrame: CGRect?
+                    if let statusSizeAndApply = statusSizeAndApply {
+                        var finalStatusFrame = CGRect(origin: CGPoint(x: adjustedTextFrame.minX, y: adjustedTextFrame.maxY), size: statusSizeAndApply.0)
+                        if let imageFrame = imageFrame {
+                            if finalStatusFrame.maxY < imageFrame.maxY + 10.0 {
+                                finalStatusFrame.origin.y = max(finalStatusFrame.minY, imageFrame.maxY + 2.0)
+                                if finalStatusFrame.height == 0.0 {
+                                    finalStatusFrame.origin.y += 14.0
+                                    
+                                    adjustedBoundingSize.height += 14.0
+                                    adjustedLineHeight += 14.0
+                                }
+                            }
+                        }
+                        statusFrame = finalStatusFrame
+                    }
+                    
+                    return (adjustedBoundingSize, { [weak self] animation, synchronousLoads, applyInfo in
                         if let strongSelf = self {
                             strongSelf.context = context
                             strongSelf.message = message
@@ -835,12 +901,27 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                             strongSelf.theme = presentationData.theme
                             
                             strongSelf.lineNode.image = lineImage
-                            strongSelf.lineNode.frame = CGRect(origin: CGPoint(x: 13.0, y: insets.top), size: CGSize(width: 2.0, height: adjustedLineHeight - insets.top - insets.bottom - 2.0))
+                            animation.animator.updateFrame(layer: strongSelf.lineNode.layer, frame: CGRect(origin: CGPoint(x: 13.0, y: insets.top), size: CGSize(width: 2.0, height: adjustedLineHeight - insets.top - insets.bottom - 2.0)), completion: nil)
                             strongSelf.lineNode.isHidden = !displayLine
                             
-                            strongSelf.textNode.displaysAsynchronously = !isPreview
+                            strongSelf.textNode.textNode.displaysAsynchronously = !isPreview
                             
-                            let _ = textApply()
+                            let _ = textApply(TextNodeWithEntities.Arguments(
+                                context: context,
+                                cache: animationCache,
+                                renderer: animationRenderer,
+                                placeholderColor: messageTheme.mediaPlaceholderColor,
+                                attemptSynchronous: synchronousLoads
+                            ))
+                            switch strongSelf.visibility {
+                            case .none:
+                                strongSelf.textNode.visibilityRect = nil
+                            case let .visible(_, subRect):
+                                var subRect = subRect
+                                subRect.origin.x = 0.0
+                                subRect.size.width = 10000.0
+                                strongSelf.textNode.visibilityRect = subRect
+                            }
                             
                             if let imageFrame = imageFrame {
                                 if let updateImageSignal = updateInlineImageSignal {
@@ -858,12 +939,8 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                             } else if strongSelf.inlineImageNode.supernode != nil {
                                 strongSelf.inlineImageNode.removeFromSupernode()
                             }
-                            
-                            var contentMediaHeight: CGFloat?
-                            
+                                                        
                             if let (contentImageSize, contentImageApply) = contentImageSizeAndApply {
-                                contentMediaHeight = contentImageSize.height
-                                
                                 let contentImageNode = contentImageApply(animation, synchronousLoads)
                                 if strongSelf.contentImageNode !== contentImageNode {
                                     strongSelf.contentImageNode = contentImageNode
@@ -918,15 +995,18 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                             }
                             
                             if let (contentFileSize, contentFileApply) = contentFileSizeAndApply {
-                                contentMediaHeight = contentFileSize.height
-                                
-                                let contentFileNode = contentFileApply(synchronousLoads, animation)
+                                let contentFileNode = contentFileApply(synchronousLoads, animation, applyInfo)
                                 if strongSelf.contentFileNode !== contentFileNode {
                                     strongSelf.contentFileNode = contentFileNode
                                     strongSelf.addSubnode(contentFileNode)
                                     contentFileNode.activateLocalContent = { [weak strongSelf] in
                                         if let strongSelf = strongSelf {
                                             strongSelf.openMedia?(.default)
+                                        }
+                                    }
+                                    contentFileNode.requestUpdateLayout = { [weak strongSelf] _ in
+                                        if let strongSelf = strongSelf {
+                                            strongSelf.requestUpdateLayout?()
                                         }
                                     }
                                 }
@@ -941,7 +1021,6 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                             }
                             
                             if let (videoLayout, apply) = contentInstantVideoSizeAndApply {
-                                contentMediaHeight = videoLayout.contentSize.height
                                 let contentInstantVideoNode = apply(.unconstrained(width: boundingWidth - insets.left - insets.right), animation)
                                 if strongSelf.contentInstantVideoNode !== contentInstantVideoNode {
                                     strongSelf.contentInstantVideoNode = contentInstantVideoNode
@@ -956,18 +1035,9 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                                 contentInstantVideoNode.removeFromSupernode()
                                 strongSelf.contentInstantVideoNode = nil
                             }
-                            
-                            var textVerticalOffset: CGFloat = 0.0
-                            if let contentMediaHeight = contentMediaHeight, let (_, flags) = mediaAndFlags, flags.contains(.preferMediaBeforeText) {
-                                textVerticalOffset = contentMediaHeight + 7.0
-                            }
-                            
-                            strongSelf.textNode.frame = textFrame.offsetBy(dx: 0.0, dy: textVerticalOffset)
-                            if let statusSizeAndApply = statusSizeAndApply {
-                                var statusFrame = CGRect(origin: CGPoint(x: strongSelf.textNode.frame.minX, y: strongSelf.textNode.frame.maxY), size: statusSizeAndApply.0)
-                                if let imageFrame = imageFrame {
-                                    statusFrame.origin.y = max(statusFrame.minY, imageFrame.maxY + 2.0)
-                                }
+                                                        
+                            strongSelf.textNode.textNode.frame = adjustedTextFrame
+                            if let statusSizeAndApply = statusSizeAndApply, let statusFrame = statusFrame {
                                 if strongSelf.statusNode.supernode == nil {
                                     strongSelf.addSubnode(strongSelf.statusNode)
                                     strongSelf.statusNode.frame = statusFrame
@@ -1048,11 +1118,11 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
     }
     
     func tapActionAtPoint(_ point: CGPoint, gesture: TapLongTapOrDoubleTapGesture, isEstimating: Bool) -> ChatMessageBubbleContentTapAction {
-        let textNodeFrame = self.textNode.frame
-        if let (index, attributes) = self.textNode.attributesAtPoint(CGPoint(x: point.x - textNodeFrame.minX, y: point.y - textNodeFrame.minY)) {
+        let textNodeFrame = self.textNode.textNode.frame
+        if let (index, attributes) = self.textNode.textNode.attributesAtPoint(CGPoint(x: point.x - textNodeFrame.minX, y: point.y - textNodeFrame.minY)) {
             if let url = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)] as? String {
                 var concealed = true
-                if let (attributeText, fullText) = self.textNode.attributeSubstring(name: TelegramTextAttributes.URL, index: index) {
+                if let (attributeText, fullText) = self.textNode.textNode.attributeSubstring(name: TelegramTextAttributes.URL, index: index) {
                     concealed = !doesUrlMatchText(url: url, text: attributeText, fullText: fullText)
                 }
                 return .url(url: url, concealed: concealed)
@@ -1076,8 +1146,8 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
         if let context = self.context, let message = self.message, let theme = self.theme {
             var rects: [CGRect]?
             if let point = point {
-                let textNodeFrame = self.textNode.frame
-                if let (index, attributes) = self.textNode.attributesAtPoint(CGPoint(x: point.x - textNodeFrame.minX, y: point.y - textNodeFrame.minY)) {
+                let textNodeFrame = self.textNode.textNode.frame
+                if let (index, attributes) = self.textNode.textNode.attributesAtPoint(CGPoint(x: point.x - textNodeFrame.minX, y: point.y - textNodeFrame.minY)) {
                     let possibleNames: [String] = [
                         TelegramTextAttributes.URL,
                         TelegramTextAttributes.PeerMention,
@@ -1088,7 +1158,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                     ]
                     for name in possibleNames {
                         if let _ = attributes[NSAttributedString.Key(rawValue: name)] {
-                            rects = self.textNode.attributeRects(name: name, at: index)
+                            rects = self.textNode.textNode.attributeRects(name: name, at: index)
                             break
                         }
                     }
@@ -1102,9 +1172,9 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
                 } else {
                     linkHighlightingNode = LinkHighlightingNode(color: message.effectivelyIncoming(context.account.peerId) ? theme.theme.chat.message.incoming.linkHighlightColor : theme.theme.chat.message.outgoing.linkHighlightColor)
                     self.linkHighlightingNode = linkHighlightingNode
-                    self.insertSubnode(linkHighlightingNode, belowSubnode: self.textNode)
+                    self.insertSubnode(linkHighlightingNode, belowSubnode: self.textNode.textNode)
                 }
-                linkHighlightingNode.frame = self.textNode.frame
+                linkHighlightingNode.frame = self.textNode.textNode.frame
                 linkHighlightingNode.updateRects(rects)
             } else if let linkHighlightingNode = self.linkHighlightingNode {
                 self.linkHighlightingNode = nil
@@ -1115,7 +1185,7 @@ final class ChatMessageAttachedContentNode: ASDisplayNode {
         }
     }
     
-    func reactionTargetView(value: String) -> UIView? {
+    func reactionTargetView(value: MessageReaction.Reaction) -> UIView? {
         if !self.statusNode.isHidden {
             if let result = self.statusNode.reactionView(value: value) {
                 return result
