@@ -11,7 +11,7 @@ import Foundation
 import Alamofire
 import UIKit
 
-open class MainController: NSObject {
+open class CloudVeilSecurityController: NSObject {
 	public struct SecurityStaticSettings {
 		public static let disableGlobalSearch = true
 		public static let disableYoutubeVideoEmbedding = true
@@ -23,7 +23,7 @@ open class MainController: NSObject {
 	}
 	
 	
-	public static let shared = MainController()
+	public static let shared = CloudVeilSecurityController()
 	
 	
 	// MARK: - Properties
@@ -45,78 +45,123 @@ open class MainController: NSObject {
     
 	private var settings: TGSettingsResponse? {        
         var resp: TGSettingsResponse?
-        self.accessQueue.sync {
-            if settingsCache != nil {
-                resp = settingsCache
-            } else {
-                settingsCache = DataSource<TGSettingsResponse>.value(mapper: mapper)
-                resp = settingsCache
-            }
+        if settingsCache != nil {
+            resp = settingsCache
+        } else {
+            settingsCache = DataSource<TGSettingsResponse>.value(mapper: mapper)
+            resp = settingsCache
         }
 		return resp
 	}
     
     public var needOrganizationChange: Bool {
-        return settings?.organization?.needChange ?? false
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.organization?.needChange ?? false
+        }
+        return res
     }
     
 	public var disableStickers: Bool {
-		return settings?.disableSticker ?? false
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.disableSticker ?? false
+        }
+        return res
 	}
 	public var disableBio: Bool {
-		return settings?.disableBio ?? false
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.disableBio ?? false
+        }
+        return res
 	}
 	public var disableBioChange: Bool {
-		return settings?.disableBioChange ?? false
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.disableBioChange ?? false
+        }
+        return res
 	}
 	public var disableProfilePhoto: Bool {
-		return settings?.disableProfilePhoto ?? false
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.disableProfilePhoto ?? false
+        }
+        return res
 	}
 	public var disableProfilePhotoChange: Bool {
-		return settings?.disableProfilePhotoChange ?? false
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.disableProfilePhotoChange ?? false
+        }
+        return res
 	}
+    
 	public var isSecretChatAvailable: Bool {
-		return settings?.secretChat ?? false
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.secretChat ?? false
+        }
+        return res
 	}
 		
 	public var disableProfileVideo: Bool {
-		return settings?.disableProfileVideo ?? false
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.disableProfileVideo ?? false
+        }
+        return res
 	}
 	public var disableProfileVideoChange: Bool {
-		return settings?.disableProfileVideoChange ?? false
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.disableProfileVideoChange ?? false
+        }
+        return res
 	}
 	
 	public var isInChatVideoRecordingEnabled: Bool {
-		return settings?.inputToggleVoiceVideo ?? false
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.inputToggleVoiceVideo ?? false
+        }
+        return res
 	}
 		
 	public var profilePhotoLimit: Int {
-		var v = Int(settings?.profilePhotoLimit ?? "-1")!
-		if v < 0 {
-			return Int.max
-		} else if v == 0 {
-			v = 1
-		}
+        var v = 1
+        self.accessQueue.sync {
+            v = Int(settings?.profilePhotoLimit ?? "-1")!
+            if v < 0 {
+                v = Int.max
+            } else if v == 0 {
+                v = 1
+            }
+        }
 		return v
 	}
 		
 	
 	public var secretChatMinimumLength: NSInteger {
+        var res = -1
+        self.accessQueue.sync {
+            if let lenghtStr = settings?.secretChatMinimumLength {
+               res = Int(lenghtStr) ?? -1
+            }
+        }
 		
-		if let lenghtStr = settings?.secretChatMinimumLength {
-			return Int(lenghtStr) ?? -1
-		}
-		
-		return -1
+		return res
 	}
 	
 	private func sengSettingsRequest() {
-        if MainController.shared.lastRequest == nil {
+        if CloudVeilSecurityController.shared.lastRequest == nil {
             return
         }
 		NSLog("Downloading settings")
-		SecurityManager.shared.getSettings(withRequest: MainController.shared.lastRequest!) { (resp) in
-			MainController.shared.saveSettings(resp)
+		SecurityManager.shared.getSettings(withRequest: CloudVeilSecurityController.shared.lastRequest!) { (resp) in
+            CloudVeilSecurityController.shared.saveSettings(resp)
+            self.notifyObserbers()
 		}
 	}
 	
@@ -173,14 +218,12 @@ open class MainController: NSObject {
     
 	private func saveSettings(_ settings: TGSettingsResponse?) {
 		print("Save settings called")
-		if settings != nil {
-			DataSource<TGSettingsResponse>.set(settings)
-			settingsCache = settings
-		}
-		for observer in observers {
-			observer()
-		}
-		observers.removeAll()
+        self.accessQueue.sync {
+            if settings != nil {
+                DataSource<TGSettingsResponse>.set(settings)
+                settingsCache = settings
+            }
+        }
 	}
     
     open func isUrlWhitelisted(_ url: String) -> Bool {
@@ -193,47 +236,63 @@ open class MainController: NSObject {
         return false
     }
 	
-	open func isGroupAvailable(groupID: NSInteger) -> Bool {
-		if let dictArray = settings?.access?.groups {
-            if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(groupID)" }) {
-				return dictArray[index]["\(groupID)"] ?? false
-			}
-		}
-		
-		return true
+    open func isGroupAvailable(groupID: NSInteger) -> Bool {
+        var res = true
+        self.accessQueue.sync {
+            if let dictArray = settings?.access?.groups {
+                for arr in dictArray {
+                    if arr["\(groupID)"] != nil {
+                        res = arr["\(groupID)"] ?? false
+                    }
+                }
+            }
+        }
+		return res
 	}
     
     open func isStickerAvailable(stickerId: NSInteger) -> Bool {
-        if let dictArray = settings?.access?.stickers {
-            if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(stickerId)" }) {
-                return dictArray[index]["\(stickerId)"] ?? false
+        var res = true
+        self.accessQueue.sync {
+            if let dictArray = settings?.access?.stickers {
+                for arr in dictArray {
+                    if arr["\(stickerId)"] != nil {
+                        res = arr["\(stickerId)"] ?? false
+                    }
+                }
             }
         }
-        
-        return true
+        return res
     }
 	
 	open func isChannelAvailable(channelID: NSInteger) -> Bool {
-		if let dictArray = settings?.access?.channels {
-            if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(channelID)" }) {
-				return dictArray[index]["\(channelID)"] ?? false
-			}
-		}
-		
-		return true
+        var res = true
+        self.accessQueue.sync {
+            if let dictArray = settings?.access?.channels {
+                for arr in dictArray {
+                    if arr["\(channelID)"] != nil {
+                        res = arr["\(channelID)"] ?? false
+                    }
+                }
+            }
+        }
+		return res
 	}
 	
 	open func isBotAvailable(botID: NSInteger) -> Bool {
 		if SecurityStaticSettings.disableBots {
 			return false
 		}
-        
-		if let dictArray = settings?.access?.bots {
-            if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(botID)" }) {
-				return dictArray[index]["\(botID)"] ?? false
-			}
-		}
-		return true
+        var res = true
+        self.accessQueue.sync {
+            if let dictArray = settings?.access?.bots {
+                for arr in dictArray {
+                    if arr["\(botID)"] != nil {
+                        res = arr["\(botID)"] ?? false
+                    }
+                }
+            }
+        }
+		return res
 	}
 	
 	
@@ -254,36 +313,45 @@ open class MainController: NSObject {
 	}
 	
 	open func isConversationCheckedOnServer(conversationId: NSInteger, channelId: NSInteger) -> Bool {
-		if settings == nil {
-			print("settings is nil")
-			return true
-		} else {
-			print("settings is ok")
-		}
-		if let dictArray = settings?.access?.groups {
-			if isIdInDict(dictArray: dictArray, conversationId: channelId) {
-				return true
-			}
-		}
-		
-		if let dictArray = settings?.access?.channels {
-			if isIdInDict(dictArray: dictArray, conversationId: channelId) {
-				return true
-			}
-		}
-		
-		if let dictArray = settings?.access?.bots {
-			if isIdInDict(dictArray: dictArray, conversationId: conversationId) {
-				return true
-			}
-		}
-		
-		
-		return false
+		var res = false
+        self.accessQueue.sync {
+            if settings == nil {
+                print("settings is nil")
+                res = true
+            } else {
+                print("settings is ok")
+            }
+            
+            
+            if let dictArray = settings?.access?.groups {
+                if isIdInDict(dictArray: dictArray, conversationId: channelId) {
+                    res = true
+                } else {
+                    print("group is false")
+                }
+            }
+            
+            if let dictArray = settings?.access?.channels {
+                if isIdInDict(dictArray: dictArray, conversationId: channelId) {
+                    res = true
+                } else {
+                    print("channels is false")
+                }
+            }
+            
+            if let dictArray = settings?.access?.bots {
+                if isIdInDict(dictArray: dictArray, conversationId: conversationId) {
+                    res = true
+                } else {
+                    print("bots is false")
+                }
+            }
+        }
+		return res
 	}
 	
 	private func isIdInDict(dictArray: [[String:Bool]], conversationId: NSInteger) -> Bool {
-        if let index = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(conversationId)" }) {
+        if let _ = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(conversationId)" }) {
 			return true
 		}
 		return false
@@ -291,7 +359,8 @@ open class MainController: NSObject {
 	
 	open func replayRequestWithGroup(group: TGRow) {
 		if let dictArray = lastRequest?.groups {
-            if let index = dictArray.firstIndex(where: {$0.objectID == group.objectID}) {
+            if let _ = dictArray.firstIndex(where: {$0.objectID == group.objectID}) {
+                notifyObserbers()
 				return
 			}
 		}
@@ -303,7 +372,8 @@ open class MainController: NSObject {
 	
 	open func replayRequestWithChannel(channel: TGRow) {
 		if let dictArray = lastRequest?.channels {
-            if let index = dictArray.firstIndex(where: {$0.objectID == channel.objectID}) {
+            if let _ = dictArray.firstIndex(where: {$0.objectID == channel.objectID}) {
+                notifyObserbers()
 				return
 			}
 		}
@@ -315,7 +385,8 @@ open class MainController: NSObject {
 	
 	open func replayRequestWithBot(bot: TGRow) {
 		if let dictArray = lastRequest?.bots {
-			if let index = dictArray.firstIndex(where: {$0.objectID == bot.objectID}) {
+			if let _ = dictArray.firstIndex(where: {$0.objectID == bot.objectID}) {
+                notifyObserbers()
 				return
 			}
 		}
@@ -325,7 +396,7 @@ open class MainController: NSObject {
 		self.sengSettingsRequest()
 	}
 	
-	open func firstRunPopup(at viewController: UIViewController) {
+	open func showFirstRunPopup(_ viewController: UIViewController) {
 		if !wasFirstLoaded {
 			wasFirstLoaded = true
 			
@@ -335,6 +406,14 @@ open class MainController: NSObject {
 			viewController.present(alert, animated: false)
 		}
 	}
+    
+    
+    open func notifyObserbers() {
+        for observer in self.observers {
+            observer()
+        }
+        self.observers.removeAll()
+    }
 	
 	open func appendObserver(obs: @escaping () -> ()) {
 		observers.append(obs)

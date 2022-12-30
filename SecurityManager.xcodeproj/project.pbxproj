@@ -20,7 +20,7 @@
 		6389DF72245BEDBE00450397 /* NSError+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C40E245BE11700BFFC2B /* NSError+Ext.swift */; };
 		6389DF73245BEDBE00450397 /* DataResponse + Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C40F245BE11700BFFC2B /* DataResponse + Ext.swift */; };
 		6389DF74245BEDBE00450397 /* Array+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C410245BE11700BFFC2B /* Array+Ext.swift */; };
-		6389DF75245BEDBE00450397 /* MainController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C412245BE11700BFFC2B /* MainController.swift */; };
+		6389DF75245BEDBE00450397 /* CloudVeilSecurityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C412245BE11700BFFC2B /* CloudVeilSecurityController.swift */; };
 		6389DF76245BEDBE00450397 /* TGUserController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C413245BE11700BFFC2B /* TGUserController.swift */; };
 		6389DF77245BEDBE00450397 /* DataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6356C415245BE11700BFFC2B /* DataSource.swift */; };
 		6389DF7B245BEDC700450397 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 6389DF7A245BEDC700450397 /* Alamofire */; };
@@ -65,7 +65,7 @@
 		6356C40E245BE11700BFFC2B /* NSError+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSError+Ext.swift"; sourceTree = "<group>"; };
 		6356C40F245BE11700BFFC2B /* DataResponse + Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "DataResponse + Ext.swift"; sourceTree = "<group>"; };
 		6356C410245BE11700BFFC2B /* Array+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Array+Ext.swift"; sourceTree = "<group>"; };
-		6356C412245BE11700BFFC2B /* MainController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MainController.swift; sourceTree = "<group>"; };
+		6356C412245BE11700BFFC2B /* CloudVeilSecurityController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CloudVeilSecurityController.swift; sourceTree = "<group>"; };
 		6356C413245BE11700BFFC2B /* TGUserController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TGUserController.swift; sourceTree = "<group>"; };
 		6356C415245BE11700BFFC2B /* DataSource.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataSource.swift; sourceTree = "<group>"; };
 		6356C418245BE11700BFFC2B /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -178,7 +178,7 @@
 		6356C411245BE11700BFFC2B /* Controllers */ = {
 			isa = PBXGroup;
 			children = (
-				6356C412245BE11700BFFC2B /* MainController.swift */,
+				6356C412245BE11700BFFC2B /* CloudVeilSecurityController.swift */,
 				6356C413245BE11700BFFC2B /* TGUserController.swift */,
 			);
 			path = Controllers;
@@ -384,7 +384,7 @@
 				654C729D273BC67600678AB6 /* FromJSON.swift in Sources */,
 				654C729A273BC67600678AB6 /* Map.swift in Sources */,
 				654C72A1273BC67600678AB6 /* ToJSON.swift in Sources */,
-				6389DF75245BEDBE00450397 /* MainController.swift in Sources */,
+				6389DF75245BEDBE00450397 /* CloudVeilSecurityController.swift in Sources */,
 				654C728E273BC67600678AB6 /* CodableTransform.swift in Sources */,
 				654C728C273BC67600678AB6 /* ISO8601DateTransform.swift in Sources */,
 				654C72A3273BC67600678AB6 /* DateTransform.swift in Sources */,
@@ -516,7 +516,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = CloudVeilSecurityManager/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

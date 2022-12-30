@@ -33,8 +33,8 @@ class TGSettingsResponse: Mappable {
     public var blockedImageResourceUrl: String?
     public var profilePhotoLimit: String?
     public var organization: Organization?
-    
-    
+    public var updateRequired: Bool?
+
     // MARK: Mappable
     
     public required init?(map: Map) { }
@@ -60,6 +60,7 @@ class TGSettingsResponse: Mappable {
 		disableProfileVideo <- map["disable_profile_video"]
 		disableProfileVideoChange <- map["disable_profile_video_change"]
         organization <- map["organization"]
+        updateRequired <- map["update_required"]
     }
 }
 

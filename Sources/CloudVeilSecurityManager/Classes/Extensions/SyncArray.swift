@@ -11,13 +11,13 @@ public class SyncArray<T> {
     }
     
     public func append(_ newElement: T) {
-        self.accessQueue.async(flags:.barrier) {
+        self.accessQueue.sync {
             self.array.append(newElement)
         }
     }
 
     public func removeAtIndex(index: Int) {
-        self.accessQueue.async(flags:.barrier) {
+        self.accessQueue.sync {
             self.array.remove(at: index)
         }
     }
