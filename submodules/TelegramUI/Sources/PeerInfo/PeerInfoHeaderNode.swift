@@ -499,7 +499,7 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                 }
                 
                 //CloudVeil start
-                if MainController.shared.disableProfilePhoto || (MainController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peer.id] ?? false) {
+                if CloudVeilSecurityController.shared.disableProfilePhoto || (CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peer.id] ?? false) {
                     representations = []
                     videoRepresentations = []
                     immediateThumbnailData = nil
@@ -832,7 +832,7 @@ final class PeerInfoEditingAvatarNode: ASDisplayNode {
             }
             
             //CloudVeil start
-            if videoRepresentations.count > 0 && MainController.shared.disableProfileVideo {
+            if videoRepresentations.count > 0 && CloudVeilSecurityController.shared.disableProfileVideo {
                 videoRepresentations = []
             }
             //CloudVeil end
@@ -1952,7 +1952,7 @@ final class PeerInfoHeaderEditingContentNode: ASDisplayNode {
         var contentHeight: CGFloat = statusBarHeight + 10.0 + avatarSize + 20.0
         
         //CloudVeil start
-        if canEditPeerInfo(context: self.context, peer: peer, threadData: threadData) && !MainController.shared.disableProfilePhotoChange {
+        if canEditPeerInfo(context: self.context, peer: peer, threadData: threadData) && !CloudVeilSecurityController.shared.disableProfilePhotoChange {
             //CloudVeil end
             if self.avatarButtonNode.supernode == nil {
                 self.addSubnode(self.avatarButtonNode)
@@ -2139,10 +2139,10 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     //CloudVeil start
     var avatarCanBeExpanded: Bool {
         get {
-            if MainController.shared.disableProfilePhoto {
+            if CloudVeilSecurityController.shared.disableProfilePhoto {
                 return false
             }
-            if MainController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
+            if CloudVeilSecurityController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
                 return false
             }
             return true
@@ -2271,10 +2271,10 @@ final class PeerInfoHeaderNode: ASDisplayNode {
         
         self.editingContentNode.avatarNode.tapped = { [weak self] confirm in
             //CloudVeil start
-            if MainController.shared.disableProfilePhoto {
+            if CloudVeilSecurityController.shared.disableProfilePhoto {
                 return
             }
-            if MainController.shared.disableProfileVideo && self?.avatarListNode.listContainerNode.hasVideoAvatar ?? false {
+            if CloudVeilSecurityController.shared.disableProfileVideo && self?.avatarListNode.listContainerNode.hasVideoAvatar ?? false {
                 return
             }
             //CloudVeil end
@@ -3336,8 +3336,8 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     func updateIsAvatarExpanded(_ isAvatarExpanded: Bool, transition: ContainedViewLayoutTransition) {
         if self.isAvatarExpanded != isAvatarExpanded {
             //CloudVeil start
-            self.isAvatarExpanded = isAvatarExpanded && !MainController.shared.disableProfilePhoto
-            if MainController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
+            self.isAvatarExpanded = isAvatarExpanded && !CloudVeilSecurityController.shared.disableProfilePhoto
+            if CloudVeilSecurityController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
                 self.isAvatarExpanded = false
             }
             //CloudVeil end

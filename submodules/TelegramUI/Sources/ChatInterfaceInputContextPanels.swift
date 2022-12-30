@@ -67,7 +67,7 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
         switch inputQueryResult {
             case .stickers, .contextRequestResult:
                 //CloudVeil start
-                if MainController.shared.disableStickers {
+                if CloudVeilSecurityController.shared.disableStickers {
                     return nil
                 }
                 //CloudVeil end
@@ -87,7 +87,7 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
         case let .stickers(results):
             if !results.isEmpty {
                 //CloudVeil start
-                if MainController.shared.disableStickers {
+                if CloudVeilSecurityController.shared.disableStickers {
                     return nil
                 }
                 //CloudVeil end
@@ -159,7 +159,7 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
             }
         case let .contextRequestResult(_, results):
             //CloudVeil start
-            if MainController.SecurityStaticSettings.disableInlineBots {
+            if CloudVeilSecurityController.SecurityStaticSettings.disableInlineBots {
                 return nil
             }
             //CloudVeil end

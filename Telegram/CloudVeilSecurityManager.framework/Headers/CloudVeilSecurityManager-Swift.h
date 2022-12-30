@@ -252,11 +252,11 @@ using UInt = size_t;
 
 #if defined(__OBJC__)
 
-
-SWIFT_CLASS("_TtC24CloudVeilSecurityManager14MainController")
-@interface MainController : NSObject
+SWIFT_CLASS("_TtC24CloudVeilSecurityManager27CloudVeilSecurityController")
+@interface CloudVeilSecurityController : NSObject
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @end
+
 
 
 

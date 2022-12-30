@@ -1290,7 +1290,7 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
         }
         
         //CloudVeil start
-        if !MainController.shared.isUrlWhitelisted(baseUrl) {
+        if !CloudVeilSecurityController.shared.isUrlWhitelisted(baseUrl) {
             return
         }
         //CloudVeil end

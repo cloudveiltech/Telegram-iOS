@@ -385,7 +385,7 @@ func chatHistoryEntriesForView(
         switch message {
         case let .MessageEntry(messageData, _, _, _, _, _):
             if let author = messageData.author as? TelegramUser, author.botInfo != nil {
-                if MainController.shared.isBotAvailable(botID: NSInteger(author.id.id._internalGetInt64Value())) {
+                if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(author.id.id._internalGetInt64Value())) {
                     entriesFiltered.append(message)
                 }
             } else {

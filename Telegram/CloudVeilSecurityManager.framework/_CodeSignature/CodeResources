@@ -6,7 +6,7 @@
 	<dict>
 		<key>Headers/CloudVeilSecurityManager-Swift.h</key>
 		<data>
-		UE3g+/6UnVNAkFefJc6NoWthNow=
+		7/c9fCERIQKBoZ6igQBNg7/Kwuk=
 		</data>
 		<key>Headers/CloudVeilSecurityManager.h</key>
 		<data>
@@ -26,7 +26,7 @@
 		</data>
 		<key>Modules/CloudVeilSecurityManager.swiftmodule/arm64-apple-ios.swiftmodule</key>
 		<data>
-		oZYkfB07FRi43lkZhvC7hGOQ7ew=
+		Fv+ED06aSbDl54hJDzr3jHf7CXg=
 		</data>
 		<key>Modules/module.modulemap</key>
 		<data>
@@ -39,7 +39,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			bbLZFSj6qBdLgFt43PtVphUi+RT5VBCYAn5glXc0TnA=
+			Wu3Xuyu5J751juzA+3IQiba4pVVl8we0pVKSUDc04yA=
 			</data>
 		</dict>
 		<key>Headers/CloudVeilSecurityManager.h</key>
@@ -67,7 +67,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			R/ED5/K1VFf5y/yKqWY3GXNZ/aX6vCthPcYmqLI632k=
+			iZDW/OVR2tuzAurC0zcf05jcnzb9CWywkEsRgZJUo14=
 			</data>
 		</dict>
 		<key>Modules/module.modulemap</key>

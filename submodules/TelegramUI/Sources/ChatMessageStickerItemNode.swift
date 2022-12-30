@@ -1195,7 +1195,7 @@ class ChatMessageStickerItemNode: ChatMessageItemView {
                 if let item = self.item, self.imageNode.frame.contains(location) {
                     return .optionalAction({
                         //CloudVeil start
-                        if !MainController.shared.disableStickers {
+                        if !CloudVeilSecurityController.shared.disableStickers {
                             let _ = item.controllerInteraction.openMessage(item.message, .default)
                         }
                         //CloudVeil end
@@ -1205,7 +1205,7 @@ class ChatMessageStickerItemNode: ChatMessageItemView {
                 return nil
         case .longTap, .doubleTap, .secondaryTap:
                 //CloudVeil start
-                if !MainController.shared.disableStickers {
+                if !CloudVeilSecurityController.shared.disableStickers {
                     if let item = self.item, self.imageNode.frame.contains(location) {
                         return .openContextMenu(tapMessage: item.message, selectAll: false, subFrame: self.imageNode.frame)
                     }

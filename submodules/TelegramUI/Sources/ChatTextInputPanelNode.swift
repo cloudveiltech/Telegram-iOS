@@ -673,7 +673,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                         break
                     }
                     
-                    if !MainController.shared.disableStickers || !isStickerPanelItem {
+                    if !CloudVeilSecurityController.shared.disableStickers || !isStickerPanelItem {
                         if itemAndButton == nil {
                             let button = AccessoryItemIconButtonNode(item: item, theme: currentState.theme, strings: currentState.strings)
                             button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
@@ -1542,7 +1542,7 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate {
                     break
                 }
                 
-                if !MainController.shared.disableStickers || !isStickerPanelItem {
+                if !CloudVeilSecurityController.shared.disableStickers || !isStickerPanelItem {
                     if itemAndButton == nil {
                         let button = AccessoryItemIconButtonNode(item: item, theme: interfaceState.theme, strings: interfaceState.strings)
                         button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)

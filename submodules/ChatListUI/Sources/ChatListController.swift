@@ -2440,7 +2440,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
     }
     
     private func showOrganizationChangeAlert() {
-        if !MainController.shared.needOrganizationChange {
+        if !CloudVeilSecurityController.shared.needOrganizationChange {
             return
         }
         

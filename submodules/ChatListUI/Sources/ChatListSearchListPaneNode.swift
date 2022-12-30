@@ -1590,7 +1590,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 
                 var totalNumberOfGlobalPeers = 0
                 //CloudVeil start
-                if !MainController.SecurityStaticSettings.disableGlobalSearch {
+                if !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
                     for peer in foundRemotePeers.1 {
                         if !existingPeerIds.contains(peer.peer.id), filteredPeer(EnginePeer(peer.peer), EnginePeer(accountPeer)) {
                             totalNumberOfGlobalPeers += 1
@@ -1704,7 +1704,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 if let _ = tagMask {
                 } else {
                     //CloudVeil start
-                    if !MainController.SecurityStaticSettings.disableGlobalSearch {
+                    if !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
                         for peer in foundRemotePeers.1 {
                             if case .expand = globalExpandType, numberOfGlobalPeers >= 3 {
                                 break

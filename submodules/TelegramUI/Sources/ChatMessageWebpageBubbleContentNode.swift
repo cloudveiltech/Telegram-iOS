@@ -51,7 +51,7 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                     }
                 }
                 //CloudVeil start
-                let isYoutubeForbidden = self?.isYoutubeMessage(message: item.message) ?? false && MainController.SecurityStaticSettings.disableYoutubeVideoEmbedding
+                let isYoutubeForbidden = self?.isYoutubeMessage(message: item.message) ?? false && CloudVeilSecurityController.SecurityStaticSettings.disableYoutubeVideoEmbedding
                 if isYoutubeForbidden  {
                     return
                 }
@@ -269,7 +269,7 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                 }
                 
                 //CloudVeil start
-                if MainController.SecurityStaticSettings.disableAutoPlayGifs {
+                if CloudVeilSecurityController.SecurityStaticSettings.disableAutoPlayGifs {
                     automaticPlayback = false
                 }
                 //CloudVeil end

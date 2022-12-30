@@ -1107,7 +1107,7 @@ public final class ContactListNode: ASDisplayNode {
                     var foundRemoteContacts: Signal<([FoundPeer], [FoundPeer]), NoError> = .single(([], []))
                     
                     //CloudVeil start
-                    if globalSearch && !MainController.SecurityStaticSettings.disableGlobalSearch {
+                    if globalSearch && !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
                         foundRemoteContacts = foundRemoteContacts
                         |> then(
                             context.engine.contacts.searchRemotePeers(query: query)

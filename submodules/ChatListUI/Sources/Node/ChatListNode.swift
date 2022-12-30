@@ -1969,7 +1969,7 @@ public final class ChatListNode: ListView {
                 }
                 
                 if groups.count == 0 && channels.count == 0 {
-                    MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                    CloudVeilSecurityController.shared.getSettings(groups: groups, bots: bots, channels: channels)
                     Logger.shared.log("CVSettings", "getSettings fired from common block")
                 } else {
                     var processedPeers = groups.count
@@ -2002,7 +2002,7 @@ public final class ChatListNode: ListView {
                             self.backgroundQueue.sync {
                                 processedPeers = processedPeers - 1
                                 if processedPeers == 0 {
-                                    MainController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                                    CloudVeilSecurityController.shared.getSettings(groups: groups, bots: bots, channels: channels)
                                     Logger.shared.log("CVSettings", "getSettings fired from load peer members \(groupAndChannelsPeerIds.count)")
                                 }
                             }
@@ -2097,7 +2097,7 @@ public final class ChatListNode: ListView {
     func muteBlockedPeers(entries: [ChatListNodeEntry]) {
         for entry in entries {
             if case let .PeerEntry(_, _, _, _, _, _, peer, _, _, _, _, _, _, _, _, _, _, _, _) = entry {
-                if !MainController.shared.isConversationAvailable(conversationId: NSInteger(peer.peerId.id._internalGetInt64Value())) {
+                if !CloudVeilSecurityController.shared.isConversationAvailable(conversationId: NSInteger(peer.peerId.id._internalGetInt64Value())) {
                     let _ = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [peer.peerId], setToValue: false).start()
                 }
             }

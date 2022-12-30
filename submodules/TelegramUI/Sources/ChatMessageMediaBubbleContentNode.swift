@@ -107,7 +107,7 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                                     automaticPlayback = item.context.account.postbox.mediaBox.completedResourcePath(telegramFile.resource) != nil
                                 }
                                 //CloudVeil start
-                                automaticPlayback = automaticPlayback && !MainController.SecurityStaticSettings.disableAutoPlayGifs
+                                automaticPlayback = automaticPlayback && !CloudVeilSecurityController.SecurityStaticSettings.disableAutoPlayGifs
                                 //CloudVeil ends
                             } else if (telegramFile.isVideo && !telegramFile.isAnimated) && item.controllerInteraction.automaticMediaDownloadSettings.autoplayVideos {
                                 if case .full = automaticDownload {

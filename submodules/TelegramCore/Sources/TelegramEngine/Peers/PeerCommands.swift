@@ -33,7 +33,7 @@ func _internal_peerCommands(account: Account, id: PeerId) -> Signal<PeerCommands
                 if let botPeer = view.peers[id] {
                     var commands: [PeerCommand] = []
                     //CloudVeil start
-                    if MainController.shared.isBotAvailable(botID: NSInteger(botPeer.id.id._internalGetInt64Value())) {
+                    if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(botPeer.id.id._internalGetInt64Value())) {
                         for command in botInfo.commands {
                             commands.append(PeerCommand(peer: botPeer, command: command))
                         }
@@ -48,7 +48,7 @@ func _internal_peerCommands(account: Account, id: PeerId) -> Signal<PeerCommands
             for cachedBotInfo in cachedGroupData.botInfos {
                 if let botPeer = view.peers[cachedBotInfo.peerId] {
                     //CloudVeil start
-                    if MainController.shared.isBotAvailable(botID: NSInteger(botPeer.id.id._internalGetInt64Value())) {
+                    if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(botPeer.id.id._internalGetInt64Value())) {
                         for command in cachedBotInfo.botInfo.commands {
                             commands.append(PeerCommand(peer: botPeer, command: command))
                         }
@@ -62,7 +62,7 @@ func _internal_peerCommands(account: Account, id: PeerId) -> Signal<PeerCommands
             for cachedBotInfo in cachedChannelData.botInfos {
                 if let botPeer = view.peers[cachedBotInfo.peerId] {
                     //CloudVeil start
-                    if MainController.shared.isBotAvailable(botID: NSInteger(botPeer.id.id._internalGetInt64Value())) {
+                    if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(botPeer.id.id._internalGetInt64Value())) {
                         for command in cachedBotInfo.botInfo.commands {
                             commands.append(PeerCommand(peer: botPeer, command: command))
                         }

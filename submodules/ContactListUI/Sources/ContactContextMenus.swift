@@ -43,7 +43,7 @@ func contactContextMenuItems(context: AccountContext, peerId: EnginePeer.Id, con
         }
         
         //CloudVeil start
-        canStartSecretChat = canStartSecretChat && MainController.shared.isSecretChatAvailable
+        canStartSecretChat = canStartSecretChat && CloudVeilSecurityController.shared.isSecretChatAvailable
         //CloudVeil end
         
         if canStartSecretChat {

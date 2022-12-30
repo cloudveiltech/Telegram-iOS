@@ -747,11 +747,12 @@ watchos_extension(
 )
 
 
+
 genrule(
     name = "StripWatchosStubBinary",
     cmd_bash =
 """
-    echo 'lipo -remove armv7k -remove arm64 -remove arm64e $$1/TelegramWatch.app/_WatchKitStub/WK -output $$1/TelegramWatch.app/_WatchKitStub/WK' > $(location StripWatchosStubBinary.sh)
+    echo 'lipo -remove arm64e -remove arm64 -remove armv7k $$1/TelegramWatch.app/_WatchKitStub/WK -output $$1/TelegramWatch.app/_WatchKitStub/WK' > $(location StripWatchosStubBinary.sh)
     echo '' >> $(location StripWatchosStubBinary.sh)
 """,
     outs = [
@@ -782,7 +783,7 @@ watchos_application(
         ":disableProvisioningProfilesSetting": None,
         "//conditions:default": "@build_configuration//provisioning:WatchApp.mobileprovision",
     }),
-    ipa_post_processor = ":StripWatchosStubBinary",
+  #  ipa_post_processor = ":StripWatchosStubBinary",
     resources = [
         ":TelegramWatchAppResources",
         ":TelegramWatchAppAssets",
@@ -1980,6 +1981,24 @@ plist_fragment(
     )
 )
 
+
+genrule(
+    name = "StripWatchosStubBinary1",
+    cmd_bash =
+"""
+    echo 'lipo -remove arm64e -remove arm64 -remove armv7k $$1/WatchKitSupport2/WK -output $$1/WatchKitSupport2/WK' >> $(location StripWatchosStubBinary1.sh)
+    echo '' >> $(location StripWatchosStubBinary1.sh)
+""",
+    outs = [
+        "StripWatchosStubBinary1.sh",
+    ],
+    executable = True,
+    visibility = [
+        "//visibility:public",
+    ]
+)
+
+
 ios_application(
     name = "Telegram",
     bundle_id = "{telegram_bundle_id}".format(
@@ -2002,7 +2021,7 @@ ios_application(
     alternate_icons = [
         ":{}".format(name) for name in alternate_icon_folders
     ],
-    #ipa_post_processor = ":AddAlternateIcons",
+   # ipa_post_processor = ":StripWatchosStubBinary1",
     resources = [
         ":LaunchScreen",
         ":DefaultAppIcon",

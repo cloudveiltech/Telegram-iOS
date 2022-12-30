@@ -455,7 +455,7 @@ public final class PeerInfoAvatarListItemNode: ASDisplayNode {
         self.imageNode.setSignal(chatAvatarGalleryPhoto(account: self.context.account, representations: representations, immediateThumbnailData: immediateThumbnailData, autoFetchFullSize: true, attemptSynchronously: synchronous, skipThumbnail: fullSizeOnly, skipBlurIfLarge: isMain), attemptSynchronously: synchronous, dispatchOnDisplayLink: false)
         
         //CloudVeil start
-        if MainController.shared.disableProfileVideo {
+        if CloudVeilSecurityController.shared.disableProfileVideo {
             videoRepresentations = []
         }
         //CloudVeil end
@@ -1070,7 +1070,7 @@ public final class PeerInfoAvatarListContainerNode: ASDisplayNode {
         let previousExpanded = self.isExpanded
         
         //CloudVeil start
-        self.isExpanded = isExpanded && !MainController.shared.disableProfilePhoto
+        self.isExpanded = isExpanded && !CloudVeilSecurityController.shared.disableProfilePhoto
         //CloudVeil end
         
         self.isExpanded = isExpanded
@@ -1096,7 +1096,7 @@ public final class PeerInfoAvatarListContainerNode: ASDisplayNode {
                 var (complete, entries) = completeAndEntries
                 //CloudVeil start
                 var items: [PeerInfoAvatarListItem] = []
-                if !MainController.shared.disableProfilePhoto {
+                if !CloudVeilSecurityController.shared.disableProfilePhoto {
                     if strongSelf.galleryEntries.count > 1, entries.count == 1 && !complete {
                         return
                     }
@@ -1136,8 +1136,8 @@ public final class PeerInfoAvatarListContainerNode: ASDisplayNode {
                         }
                     }
                     //CloudVeil start
-                    entries = Array(entries.prefix(MainController.shared.profilePhotoLimit))
-                    items = Array(items.prefix(MainController.shared.profilePhotoLimit))
+                    entries = Array(entries.prefix(CloudVeilSecurityController.shared.profilePhotoLimit))
+                    items = Array(items.prefix(CloudVeilSecurityController.shared.profilePhotoLimit))
                     //CloudVeil end
                     
                     strongSelf.galleryEntries = entries

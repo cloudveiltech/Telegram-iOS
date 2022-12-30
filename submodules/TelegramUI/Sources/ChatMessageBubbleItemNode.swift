@@ -171,7 +171,7 @@ private func contentNodeMessagesAndClassesForItem(_ item: ChatMessageItem) -> ([
         }
         
         //CloudVeil start
-        if !MainController.SecurityStaticSettings.disableInAppBrowser {
+        if !CloudVeilSecurityController.SecurityStaticSettings.disableInAppBrowser {
         inner: for media in message.media {
             if let webpage = media as? TelegramMediaWebpage {
                 if case .Loaded = webpage.content {

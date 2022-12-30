@@ -2981,7 +2981,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                 return
             }
             //CloudVeil start
-            if MainController.SecurityStaticSettings.disablePayments {
+            if CloudVeilSecurityController.SecurityStaticSettings.disablePayments {
                 let alert = standardTextAlertController(theme: AlertControllerTheme(presentationData: strongSelf.presentationData), title: "CloudVeil", text: "This is disbled for your protection",
                                                         actions: [TextAlertAction(type: .defaultAction, title: "Ok", action: {})])
                 
@@ -4154,10 +4154,10 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                 }
                 
                 //CloudVeil start
-                if MainController.shared.disableProfilePhoto {
+                if CloudVeilSecurityController.shared.disableProfilePhoto {
                     return
                 }
-                if MainController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peer.id] ?? false {
+                if CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peer.id] ?? false {
                     return
                 }
                 //CloudVeil end
@@ -4648,7 +4648,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                 
                                 //CloudVeil start
                                 for cachedBotInfo in cachedGroupData.botInfos {
-                                    if MainController.shared.isBotAvailable(botID: NSInteger(cachedBotInfo.peerId.id._internalGetInt64Value())) {
+                                    if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(cachedBotInfo.peerId.id._internalGetInt64Value())) {
                                         hasAllowedBots = true
                                     }
                                 }
@@ -4671,7 +4671,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                 }
                                 //CloudVeil start
                                 for cachedBotInfo in cachedChannelData.botInfos {
-                                    if MainController.shared.isBotAvailable(botID: NSInteger(cachedBotInfo.peerId.id._internalGetInt64Value())) {
+                                    if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(cachedBotInfo.peerId.id._internalGetInt64Value())) {
                                         hasAllowedBots = true
                                     }
                                 }
@@ -8411,7 +8411,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                         switch current.mediaRecordingMode {
                             case .audio:
                                 //CloudVeil start
-                                if MainController.shared.isInChatVideoRecordingEnabled {
+                                if CloudVeilSecurityController.shared.isInChatVideoRecordingEnabled {
                                     mode = .video
                                 } else {
                                     mode = .audio
@@ -11009,7 +11009,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         //CloudVeil start
         if let peer = self.presentationInterfaceState.renderedPeer?.peer as? TelegramSecretChat {
             let timeout = peer.messageAutoremoveTimeout ?? 0
-            let minLength = Int32(MainController.shared.secretChatMinimumLength)
+            let minLength = Int32(CloudVeilSecurityController.shared.secretChatMinimumLength)
             if timeout < minLength {
                 let value = minLength
                 let _ = self.context.engine.peers.setChatMessageAutoremoveTimeoutInteractively(peerId: peer.id, timeout: value == 0 ? nil : value).start()
@@ -12993,7 +12993,11 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                 controller.getCaptionPanelView = { [weak self] in
                     return self?.getCaptionPanelView()
                 }
-                present(controller, ViewControllerPresentationArguments(presentationAnimation: .modalSheet))
+                
+                
+                //CloudVeil start disabled
+                // present(controller, ViewControllerPresentationArguments(presentationAnimation: .modalSheet))
+                //CloudVeil end
             }
         })
     }
@@ -16191,7 +16195,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     if let parsedUrl = parsedUrlValue {
                         if parsedUrl.scheme == "http" || parsedUrl.scheme == "https" {
                             //CloudVeil start
-                            if MainController.SecurityStaticSettings.disableInAppBrowser && !MainController.shared.isUrlWhitelisted(string)  {
+                            if CloudVeilSecurityController.SecurityStaticSettings.disableInAppBrowser && !CloudVeilSecurityController.shared.isUrlWhitelisted(string)  {
                                 return nil
                             }
                             //CloudVeil end

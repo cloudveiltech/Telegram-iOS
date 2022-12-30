@@ -48,7 +48,7 @@ final class ComposeControllerNode: ASDisplayNode {
                 openCreateNewGroupImpl?()
             })
         ]
-        if MainController.shared.isSecretChatAvailable {
+        if CloudVeilSecurityController.shared.isSecretChatAvailable {
             options.append(
                 ContactListAdditionalOption(title: self.presentationData.strings.NewContact_Title, icon: .generic(UIImage(bundleImageName: "Contact List/AddMemberIcon")!), action: {
                     openCreateContactImpl?()

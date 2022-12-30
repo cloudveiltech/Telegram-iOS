@@ -260,7 +260,7 @@ class ChatMessageActionBubbleContentNode: ChatMessageBubbleContentNode {
                             
                             //CloudVeil start
                             if let imageNode = strongSelf.imageNode {
-                                imageNode.isHidden = MainController.shared.disableProfilePhoto
+                                imageNode.isHidden = CloudVeilSecurityController.shared.disableProfilePhoto
                             }//CloudVeil end
                             
                             if let image = image, let video = image.videoRepresentations.last, let id = image.id?.id {

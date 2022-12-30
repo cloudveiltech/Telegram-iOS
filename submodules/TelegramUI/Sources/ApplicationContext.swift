@@ -338,7 +338,7 @@ final class AuthorizedApplicationContext {
                     }
                     
                     //CloudVeil start
-                    if !MainController.shared.isConversationAvailable(conversationId: NSInteger(firstMessage.id.peerId.id._internalGetInt64Value())) {
+                    if !CloudVeilSecurityController.shared.isConversationAvailable(conversationId: NSInteger(firstMessage.id.peerId.id._internalGetInt64Value())) {
                         return
                     }
                     //CloudVeil end

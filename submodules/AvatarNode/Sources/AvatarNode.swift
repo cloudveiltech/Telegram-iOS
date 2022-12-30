@@ -323,10 +323,10 @@ public final class AvatarNode: ASDisplayNode {
             representation = peer?.smallProfileImage
         }
         //CloudVeil start
-        if MainController.shared.disableProfilePhoto {
+        if CloudVeilSecurityController.shared.disableProfilePhoto {
             representation = nil
             setAvatar(account: account, icon: icon, representation: representation, context: genericContext, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
-        } else if MainController.shared.disableProfileVideo {
+        } else if CloudVeilSecurityController.shared.disableProfileVideo {
             if let isVideoAvatarCachedValue = isVideoAvatarCached(peer: peer) {
                 if isVideoAvatarCachedValue {
                     representation = nil
@@ -423,7 +423,7 @@ public final class AvatarNode: ASDisplayNode {
         if let v = cachedValue {
             return v
         }
-        if !MainController.shared.disableProfilePhoto && !MainController.shared.disableProfileVideo {
+        if !CloudVeilSecurityController.shared.disableProfilePhoto && !CloudVeilSecurityController.shared.disableProfileVideo {
             return false
         }
         return nil

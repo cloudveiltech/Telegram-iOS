@@ -171,7 +171,7 @@ private final class AutoremoveTimeoutSelectorItemNode: ActionSheetItemNode, UIPi
         //CloudVeil start
         timeoutValues.removeAll()
         for i in 0 ..< timeoutValuesInitial.count {
-            if timeoutValuesInitial[i] >= MainController.shared.secretChatMinimumLength {
+            if timeoutValuesInitial[i] >= CloudVeilSecurityController.shared.secretChatMinimumLength {
                 timeoutValues.append(timeoutValuesInitial[i])
             }
         }

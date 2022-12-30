@@ -297,7 +297,7 @@ public final class ContactsSearchContainerNode: SearchDisplayControllerContentNo
                 }
                 let foundRemoteContacts: Signal<([FoundPeer], [FoundPeer])?, NoError>
                 //CloudVeil start
-                if categories.contains(.global) && !MainController.SecurityStaticSettings.disableGlobalSearch {
+                if categories.contains(.global) && !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
                 //CloudVeil end
                     foundRemoteContacts = .single(previousFoundRemoteContacts.with({ $0 }))
                     |> then(

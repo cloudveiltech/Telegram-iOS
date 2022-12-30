@@ -1188,7 +1188,9 @@ public final class MediaPickerScreen: ViewController, AttachmentContainable {
             self.navigationItem.leftBarButtonItem = UIBarButtonItem(backButtonAppearanceWithTitle: self.presentationData.strings.Common_Back, target: self, action: #selector(self.backPressed))
         } else {
             self.navigationItem.leftBarButtonItem = UIBarButtonItem(title: self.presentationData.strings.Common_Cancel, style: .plain, target: self, action: #selector(self.cancelPressed))
-            self.navigationItem.rightBarButtonItem = UIBarButtonItem(customDisplayNode: self.moreButtonNode)
+            //CloudVeil start
+//            self.navigationItem.rightBarButtonItem = UIBarButtonItem(customDisplayNode: self.moreButtonNode)
+            //CloudVeil end
             self.navigationItem.rightBarButtonItem?.action = #selector(self.rightButtonPressed)
             self.navigationItem.rightBarButtonItem?.target = self
         }

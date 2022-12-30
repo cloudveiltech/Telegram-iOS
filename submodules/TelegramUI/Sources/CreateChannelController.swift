@@ -456,7 +456,7 @@ public func createChannelController(context: AccountContext) -> ViewController {
             }
             
             //CloudVeil start
-            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton:  !MainController.SecurityStaticSettings.disableGlobalSearch, hasDeleteButton: stateValue.with({ $0.avatar }) != nil, hasViewButton: false, personalPhoto: false, isVideo: false, saveEditedPhotos: false, saveCapturedMedia: false, signup: false)!
+            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton:  !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch, hasDeleteButton: stateValue.with({ $0.avatar }) != nil, hasViewButton: false, personalPhoto: false, isVideo: false, saveEditedPhotos: false, saveCapturedMedia: false, signup: false)!
             
             //CloudVeil end
 

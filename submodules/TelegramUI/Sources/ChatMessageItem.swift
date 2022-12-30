@@ -398,7 +398,7 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
     //CloudVeil start
     private func patchForbiddenStickerData() {
         self.originalMedia = self.message.media
-        if !MainController.shared.disableStickers {
+        if !CloudVeilSecurityController.shared.disableStickers {
             return
         }
         for media in self.message.media {

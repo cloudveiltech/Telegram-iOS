@@ -82,6 +82,7 @@ import NotificationExceptionsScreen
 import ChatTimerScreen
 import NotificationPeerExceptionController
 import CloudVeilSecurityManager
+import TelegramBaseController
 
 
 protocol PeerInfoScreenItem: AnyObject {
@@ -810,7 +811,7 @@ private func settingsItems(data: PeerInfoScreenData?, context: AccountContext, p
         stickersLabel = ""
     }
     //CloudVeil start
-    if !MainController.shared.disableStickers {
+    if !CloudVeilSecurityController.shared.disableStickers {
         items[.advanced]!.append(PeerInfoScreenDisclosureItem(id: 5, label: .badge(stickersLabel, presentationData.theme.list.itemAccentColor), text: presentationData.strings.ChatSettings_StickersAndReactions, icon: PresentationResourcesSettings.stickers, action: {
             interaction.openSettings(.stickers)
         }))
@@ -1008,7 +1009,7 @@ private func infoItems(data: PeerInfoScreenData?, context: AccountContext, prese
         }
         
         //CloudVeil start
-        if !MainController.shared.disableBio,  let cachedData = data.cachedData as? CachedUserData {
+        if !CloudVeilSecurityController.shared.disableBio,  let cachedData = data.cachedData as? CachedUserData {
             //CloudVeil end
             if user.isFake {
                 items[.peerInfo]!.append(PeerInfoScreenLabeledValueItem(id: 0, label: user.botInfo == nil ? presentationData.strings.Profile_About : presentationData.strings.Profile_BotInfo, text: user.botInfo != nil ? presentationData.strings.UserInfo_FakeBotWarning : presentationData.strings.UserInfo_FakeUserWarning, textColor: .primary, textBehavior: .multiLine(maxLines: 100, enabledEntities: user.botInfo != nil ? enabledPrivateBioEntities : []), action: nil, requestLayout: {
@@ -1197,7 +1198,7 @@ private func infoItems(data: PeerInfoScreenData?, context: AccountContext, prese
                 )
             }
             //CloudVeil start
-            if !MainController.shared.disableBio, let cachedData = data.cachedData as? CachedChannelData {
+            if !CloudVeilSecurityController.shared.disableBio, let cachedData = data.cachedData as? CachedChannelData {
                 //CloudVeil end
                 let aboutText: String?
                 if channel.isFake {
@@ -1257,7 +1258,7 @@ private func infoItems(data: PeerInfoScreenData?, context: AccountContext, prese
         }
     } else if let group = data.peer as? TelegramGroup {
         //CloudVeil start
-        if !MainController.shared.disableBio, let cachedData = data.cachedData as? CachedGroupData {
+        if !CloudVeilSecurityController.shared.disableBio, let cachedData = data.cachedData as? CachedGroupData {
             //CloudVeil end
             let aboutText: String?
             if group.isFake {
@@ -2815,7 +2816,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
             }
             galleryController.avatarPhotoEditCompletion = { [weak self] image in
                 //CloudVeil start
-                if MainController.shared.disableProfilePhotoChange {
+                if CloudVeilSecurityController.shared.disableProfilePhotoChange {
                     return
                 }
                 //CloudVeil end
@@ -2823,10 +2824,10 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
             }
             galleryController.avatarVideoEditCompletion = { [weak self] image, asset, adjustments in
                 //CloudVeil start
-                if MainController.shared.disableProfilePhotoChange {
+                if CloudVeilSecurityController.shared.disableProfilePhotoChange {
                     return
                 }
-                if MainController.shared.disableProfileVideoChange {
+                if CloudVeilSecurityController.shared.disableProfileVideoChange {
                     return
                 }
                 //CloudVeil end
@@ -2834,7 +2835,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
             }
             galleryController.removedEntry = { [weak self] entry in
                 //CloudVeil start
-                if MainController.shared.disableProfilePhotoChange {
+                if CloudVeilSecurityController.shared.disableProfilePhotoChange {
                     return
                 }
                 //CloudVeil end
@@ -4473,7 +4474,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
                     
                     if strongSelf.peerId.namespace == Namespaces.Peer.CloudUser && user.botInfo == nil && !user.flags.contains(.isSupport) {
                         //CloudVeil start
-                        if MainController.shared.isSecretChatAvailable {
+                        if CloudVeilSecurityController.shared.isSecretChatAvailable {
                             items.append(.action(ContextMenuActionItem(text: presentationData.strings.UserInfo_StartSecretChat, icon: { theme in
                                 generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Lock"), color: theme.contextMenu.primaryColor)
                             }, action: { _, f in
@@ -5067,7 +5068,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
     
     private func openStartSecretChat() {
         //CloudVeil start
-        if !MainController.shared.isSecretChatAvailable {
+        if !CloudVeilSecurityController.shared.isSecretChatAvailable {
             return
         }
         //CloudVeil end
@@ -6565,7 +6566,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
     
     private func deleteProfilePhoto(_ item: PeerInfoAvatarListItem) {
         //CloudVeil start
-        if MainController.shared.disableProfilePhotoChange {
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
             return
         }
         //CloudVeil end
@@ -6589,7 +6590,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
         }
         
         //CloudVeil start
-        if MainController.shared.disableProfilePhotoChange {
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
             return
         }
         //CloudVeil end
@@ -6639,7 +6640,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
             return
         }
         //CloudVeil start
-        if MainController.shared.disableProfilePhotoChange {
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
             return
         }
         //CloudVeil end
@@ -6783,7 +6784,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
         }
         
         //CloudVeil start
-        if MainController.shared.disableProfilePhotoChange {
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
             return
         }
         //CloudVeil end
@@ -6836,7 +6837,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
                 return controller
             }
             //CloudVeil start
-            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: !MainController.SecurityStaticSettings.disableGlobalSearch, hasDeleteButton: hasPhotos && !fromGallery, hasViewButton: false, personalPhoto: strongSelf.isSettings, isVideo: currentIsVideo, saveEditedPhotos: false, saveCapturedMedia: false, signup: false)!
+            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch, hasDeleteButton: hasPhotos && !fromGallery, hasViewButton: false, personalPhoto: strongSelf.isSettings, isVideo: currentIsVideo, saveEditedPhotos: false, saveCapturedMedia: false, signup: false)!
             //CloudVeil end
 
             mixin.stickersContext = paintStickersContext
@@ -7299,7 +7300,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, UIScrollViewDelegate 
     
     private func updateBio(_ bio: String) {
         //CloudVeil start
-        if MainController.shared.disableBioChange {
+        if CloudVeilSecurityController.shared.disableBioChange {
             return
         }
         //CloudVeil end
@@ -8653,10 +8654,10 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
         
         //CloudVeil start
         var expanded = avatarInitiallyExpanded
-        if MainController.shared.disableProfilePhoto {
+        if CloudVeilSecurityController.shared.disableProfilePhoto {
             expanded = false
         }
-        if MainController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peerId] ?? false {
+        if CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peerId] ?? false {
             expanded = false
         }
         self.avatarInitiallyExpanded = expanded
@@ -9029,6 +9030,14 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
     
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        
+        //CloudVeil start
+        TelegramBaseController.checkPeerIsAllowed(peerId: peerId, controller: self, account: self.context.account, presentationData: self.presentationData) { [weak self] result in
+            if !result {
+                self?.dismiss(animated: true, completion: nil)
+            }
+        }
+        //CloudVeil end
         
         var chatNavigationStack: [PeerId] = []
         if !self.isSettings, let summary = self.customNavigationDataSummary as? ChatControllerNavigationDataSummary {

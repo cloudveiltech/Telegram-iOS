@@ -338,7 +338,7 @@ private enum DataAndStorageEntry: ItemListNodeEntry {
                 return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
             case let .autoplayGifs(_, text, value):
                 //CloudVeil start
-                let v = value && !MainController.SecurityStaticSettings.disableAutoPlayGifs
+                let v = value && !CloudVeilSecurityController.SecurityStaticSettings.disableAutoPlayGifs
                 return ItemListSwitchItem(presentationData: presentationData, title: text, value: v, sectionId: self.section, style: .blocks, updated: { value in
                     arguments.toggleAutoplayGifs(value)
                 }, tag: DataAndStorageEntryTag.autoplayGifs)
@@ -643,7 +643,7 @@ public func dataAndStorageController(context: AccountContext, focusOnItemTag: Da
         let _ = updateMediaDownloadSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
             var settings = settings
             //CloudVeil start
-            settings.autoplayGifs = value && !MainController.SecurityStaticSettings.disableAutoPlayGifs
+            settings.autoplayGifs = value && !CloudVeilSecurityController.SecurityStaticSettings.disableAutoPlayGifs
             //CloudVeil end
             return settings
         }).start()

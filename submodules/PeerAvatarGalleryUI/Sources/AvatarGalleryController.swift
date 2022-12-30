@@ -437,7 +437,7 @@ public class AvatarGalleryController: ViewController, StandalonePresentableContr
                     }
                     
                     //CloudVeil start
-                    let maxEntries = min(MainController.shared.profilePhotoLimit, entries.count)
+                    let maxEntries = min(CloudVeilSecurityController.shared.profilePhotoLimit, entries.count)
                     strongSelf.entries = Array(entries.prefix(maxEntries))
                     //CloudVeil end
                     
