@@ -2980,16 +2980,6 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             guard let strongSelf = self else {
                 return
             }
-            //CloudVeil start
-            if CloudVeilSecurityController.SecurityStaticSettings.disablePayments {
-                let alert = standardTextAlertController(theme: AlertControllerTheme(presentationData: strongSelf.presentationData), title: "CloudVeil", text: "This is disbled for your protection",
-                                                        actions: [TextAlertAction(type: .defaultAction, title: "Ok", action: {})])
-                
-                strongSelf.present(alert, in: .window(.root))
-                return
-            }
-            //CloudVeil end
-
             
             strongSelf.commitPurposefulAction()
             
@@ -2998,6 +2988,19 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                 guard let strongSelf = self, let message = message else {
                     return
                 }
+                
+                //CloudVeil start
+                let PREMIUM_BOT_ID = 5314653481
+                if messageId.peerId.id._internalGetInt64Value() != PREMIUM_BOT_ID {
+                    if CloudVeilSecurityController.SecurityStaticSettings.disablePayments {
+                        let alert = standardTextAlertController(theme: AlertControllerTheme(presentationData: strongSelf.presentationData), title: "CloudVeil", text: "This is disbled for your protection",
+                                                                actions: [TextAlertAction(type: .defaultAction, title: "Ok", action: {})])
+                        
+                        strongSelf.present(alert, in: .window(.root))
+                        return
+                    }
+                }
+                //CloudVeil end
                 
                 for media in message.media {
                     if let invoice = media as? TelegramMediaInvoice {

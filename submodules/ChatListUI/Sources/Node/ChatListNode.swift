@@ -1927,7 +1927,8 @@ public final class ChatListNode: ListView {
                 var bots = [TGRow]()
                 var groups = [TGRow]()
                 var channels = [TGRow]()
-                
+                var stickers = [TGRow]()
+                                
                 var groupAndChannelsPeerIds: [EnginePeer.Id] = []
                 for entry in entries {
                     if case let .PeerEntry(_, _, _, _, _, _, peer, _, _, _, _, _, _, _, _, _, _, _, _) = entry {
@@ -2002,14 +2003,33 @@ public final class ChatListNode: ListView {
                             self.backgroundQueue.sync {
                                 processedPeers = processedPeers - 1
                                 if processedPeers == 0 {
-                                    CloudVeilSecurityController.shared.getSettings(groups: groups, bots: bots, channels: channels)
-                                    Logger.shared.log("CVSettings", "getSettings fired from load peer members \(groupAndChannelsPeerIds.count)")
+                                    let _ = context.account.postbox.combinedView(keys: [.itemCollectionInfos(namespaces: [Namespaces.ItemCollection.CloudStickerPacks])]).start(next: { combinedView in
+                                        
+                                        if let stickerPacksView = combinedView.views[.itemCollectionInfos(namespaces: [Namespaces.ItemCollection.CloudStickerPacks])] as? ItemCollectionInfosView {
+                                            if let packsEntries = stickerPacksView.entriesByNamespace[Namespaces.ItemCollection.CloudStickerPacks] {
+                                                 for entry in packsEntries {
+                                                    if let stickerInfo = entry.info as? StickerPackCollectionInfo {
+                                                        let row = TGRow()
+                                                        row.objectID = NSInteger(stickerInfo.id.id)
+                                                        row.title = stickerInfo.title as NSString
+                                                        row.userName = stickerInfo.shortName as NSString
+                                                        stickers.append(row)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        CloudVeilSecurityController.shared.getSettings(groups: groups, bots: bots, channels: channels, stickers: stickers)
+                                        Logger.shared.log("CVSettings", "getSettings fired from load peer members \(groupAndChannelsPeerIds.count)")
+                                    })
                                 }
                             }
                         })
                     }
                 }
-                
+                                
+              
+                                             
                 self.subscribeToCloudVeilSupportChannel(channels: channels)
                 peerViewDisplosable?.dispose()
                 Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel")

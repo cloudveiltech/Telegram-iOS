@@ -8,6 +8,7 @@ import Display
 import TelegramPresentationData
 import MergeLists
 import AccountContext
+import CloudVeilSecurityManager
 
 private let cancelFont = Font.regular(17.0)
 private let subtitleFont = Font.regular(12.0)
@@ -285,23 +286,27 @@ final class ShareSearchContainerNode: ASDisplayNode, ShareContentContainerNode {
                             index += 1
                         }
                     } else {
-                        for foundPeer in foundRemotePeers.0 {
-                            let peer = foundPeer.peer
-                            if !existingPeerIds.contains(peer.id) && canSendMessagesToPeer(peer) {
-                                existingPeerIds.insert(peer.id)
-                                entries.append(ShareSearchPeerEntry(index: index, peer: EngineRenderedPeer(RenderedPeer(peer: foundPeer.peer)), presence: nil, theme: theme, strings: strings))
-                                index += 1
+                        //CloudVeil start
+                        if !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
+                            for foundPeer in foundRemotePeers.0 {
+                                let peer = foundPeer.peer
+                                if !existingPeerIds.contains(peer.id) && canSendMessagesToPeer(peer) {
+                                    existingPeerIds.insert(peer.id)
+                                    entries.append(ShareSearchPeerEntry(index: index, peer: EngineRenderedPeer(RenderedPeer(peer: foundPeer.peer)), presence: nil, theme: theme, strings: strings))
+                                    index += 1
+                                }
+                            }
+                            
+                            for foundPeer in foundRemotePeers.1 {
+                                let peer = foundPeer.peer
+                                if !existingPeerIds.contains(peer.id) && canSendMessagesToPeer(peer) {
+                                    existingPeerIds.insert(peer.id)
+                                    entries.append(ShareSearchPeerEntry(index: index, peer: EngineRenderedPeer(RenderedPeer(peer: peer)), presence: nil, theme: theme, strings: strings))
+                                    index += 1
+                                }
                             }
                         }
-                        
-                        for foundPeer in foundRemotePeers.1 {
-                            let peer = foundPeer.peer
-                            if !existingPeerIds.contains(peer.id) && canSendMessagesToPeer(peer) {
-                                existingPeerIds.insert(peer.id)
-                                entries.append(ShareSearchPeerEntry(index: index, peer: EngineRenderedPeer(RenderedPeer(peer: peer)), presence: nil, theme: theme, strings: strings))
-                                index += 1
-                            }
-                        }
+                        //CloudVeil end
                     }
                     
                     return (entries, isPlaceholder)

@@ -16,6 +16,7 @@ import Emoji
 import AppBundle
 import OverlayStatusController
 import UndoUI
+import CloudVeilSecurityManager
 
 final class StickerPaneSearchInteraction {
     let open: (StickerPackCollectionInfo) -> Void
@@ -203,7 +204,8 @@ final class StickerPaneSearchContentNode: ASDisplayNode, PaneSearchContentNode {
         self.notFoundNode.addSubnode(self.notFoundLabel)
         
         self.gridNode.isHidden = true
-        self.trendingPane.isHidden = false
+        //CloudVeil disable global search
+        self.trendingPane.isHidden = CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch
         self.notFoundNode.isHidden = true
         
         super.init()
@@ -470,6 +472,13 @@ final class StickerPaneSearchContentNode: ASDisplayNode, PaneSearchContentNode {
                     if let remote = remote {
                         let _ = strongSelf.currentRemotePacks.swap(remote)
                     }
+                    
+                    //CloudVeil start
+                    if CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
+                        let _ = strongSelf.currentRemotePacks.swap(FoundStickerSets())
+                    }
+                    //CloudVeil end
+                    
                     strongSelf.gridNode.isHidden = false
                     strongSelf.trendingPane.isHidden = true
                     
@@ -492,6 +501,11 @@ final class StickerPaneSearchContentNode: ASDisplayNode, PaneSearchContentNode {
                     var isFirstGlobal = true
                     for (collectionId, info, _, installed) in packs.infos {
                         if let info = info as? StickerPackCollectionInfo {
+                            //CloudVeil start
+                            if !CloudVeilSecurityController.shared.isStickerAvailable(stickerId: NSInteger(info.id.id)) {
+                                continue
+                            }
+                            //CloudVeil end
                             var topItems: [StickerPackItem] = []
                             for e in packs.entries {
                                 if let item = e.item as? StickerPackItem {
@@ -514,7 +528,7 @@ final class StickerPaneSearchContentNode: ASDisplayNode, PaneSearchContentNode {
                     strongSelf.updateActivity?(false)
                     strongSelf.gridNode.isHidden = true
                     strongSelf.notFoundNode.isHidden = true
-                    strongSelf.trendingPane.isHidden = false
+                    strongSelf.trendingPane.isHidden = CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch
                 }
                 
                 let previousEntries = strongSelf.currentEntries.swap(entries)

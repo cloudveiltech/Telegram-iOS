@@ -398,17 +398,21 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
     //CloudVeil start
     private func patchForbiddenStickerData() {
         self.originalMedia = self.message.media
-        if !CloudVeilSecurityController.shared.disableStickers {
-            return
-        }
+
         for media in self.message.media {
             if let telegramFile = media as? TelegramMediaFile {
                 if telegramFile.isAnimatedSticker || telegramFile.isSticker {
                     for attribute in telegramFile.attributes {
-                        if case let .Sticker(text, _, _) = attribute {
+                        if case let .Sticker(text, packReference, _) = attribute {
                             let isAnimoji = text.isEmpty
                             if isAnimoji {
                                 return
+                            }
+                            
+                            if case let .id(id, _) = packReference {
+                                if CloudVeilSecurityController.shared.isStickerAvailable(stickerId: NSInteger(id)) {
+                                    return
+                                }
                             }
                             self.message.text = text
                             self.message.media = []
