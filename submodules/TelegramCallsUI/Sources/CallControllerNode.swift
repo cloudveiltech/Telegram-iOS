@@ -17,6 +17,7 @@ import AlertUI
 import PresentationDataUtils
 import DeviceAccess
 import ContextUI
+import CloudVeilSecurityManager
 
 private func interpolateFrame(from fromValue: CGRect, to toValue: CGRect, t: CGFloat) -> CGRect {
     return CGRect(x: floorToScreenPixels(toValue.origin.x * t + fromValue.origin.x * (1.0 - t)), y: floorToScreenPixels(toValue.origin.y * t + fromValue.origin.y * (1.0 - t)), width: floorToScreenPixels(toValue.size.width * t + fromValue.size.width * (1.0 - t)), height: floorToScreenPixels(toValue.size.height * t + fromValue.size.height * (1.0 - t)))
@@ -788,7 +789,9 @@ final class CallControllerNode: ViewControllerTracingNode, CallControllerNodePro
     func updatePeer(accountPeer: Peer, peer: Peer, hasOther: Bool) {
         if !arePeersEqual(self.peer, peer) {
             self.peer = peer
-            if let peerReference = PeerReference(peer), !peer.profileImageRepresentations.isEmpty {
+            //CloudVeil start
+            if !CloudVeilSecurityController.shared.disableProfilePhoto, let peerReference = PeerReference(peer), !peer.profileImageRepresentations.isEmpty {
+                //CloudVeil end
                 let representations: [ImageRepresentationWithReference] = peer.profileImageRepresentations.map({ ImageRepresentationWithReference(representation: $0, reference: .avatar(peer: peerReference, resource: $0.resource)) })
                 self.imageNode.setSignal(chatAvatarGalleryPhoto(account: self.account, representations: representations, immediateThumbnailData: nil, autoFetchFullSize: true))
                 self.dimNode.isHidden = false

@@ -25,6 +25,7 @@ import EmojiTextAttachmentView
 import EmojiStatusComponent
 import TelegramNotices
 import GenerateStickerPlaceholderImage
+import CloudVeilSecurityManager
 
 private let premiumBadgeIcon: UIImage? = generateTintedImage(image: UIImage(bundleImageName: "Chat List/PeerPremiumIcon"), color: .white)
 private let featuredBadgeIcon: UIImage? = generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Media/PanelBadgeAdd"), color: .white)
@@ -8523,6 +8524,36 @@ public final class EmojiPagerContentComponent: Component {
             }
             
             let isMasks = stickerNamespaces.contains(Namespaces.ItemCollection.CloudMaskPacks)
+
+            //CloudVeil start
+            var newGroups: [ItemGroup] = []
+            for group in itemGroups {
+                var itemAllowed = false
+                var items: [EmojiPagerContentComponent.Item] = []
+                for item in group.items {
+                    if let file = item.itemFile {
+                        for attribute in file.attributes {
+                            if case let .Sticker(_, pack, _) = attribute {
+                                if case let .id(id, _) = pack {
+                                    if CloudVeilSecurityController.shared.isStickerAvailable(stickerId: NSInteger(id)) {
+                                        itemAllowed = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if itemAllowed {
+                        items.append(item)
+                    }
+                }
+                if items.count > 0 {
+                    var group = group
+                    group.items = items
+                    newGroups.append(group)
+                }
+            }
+            itemGroups = newGroups
+            //CloudVeil end
             
             let allItemGroups = itemGroups.map { group -> EmojiPagerContentComponent.ItemGroup in
                 var hasClear = false

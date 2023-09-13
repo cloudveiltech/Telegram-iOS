@@ -10,6 +10,7 @@ import TelegramPresentationData
 import AccountContext
 import GridMessageSelectionNode
 import ChatControllerInteraction
+import CloudVeilSecurityManager
 
 class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
     override var supportsMosaic: Bool {
@@ -138,6 +139,9 @@ class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                                 } else {
                                     automaticPlayback = item.context.account.postbox.mediaBox.completedResourcePath(telegramFile.resource) != nil
                                 }
+                                //CloudVeil start
+                                automaticPlayback = automaticPlayback && !CloudVeilSecurityController.SecurityStaticSettings.disableAutoPlayGifs
+                                //CloudVeil ends
                             } else if (telegramFile.isVideo && !telegramFile.isAnimated) && item.context.sharedContext.energyUsageSettings.autoplayVideo {
                                 if case .full = automaticDownload {
                                     automaticPlayback = true

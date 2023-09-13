@@ -113,7 +113,7 @@ class BazelCommandLine:
             '--objc_enable_binary_stripping',
 
             # Always embed bitcode into Watch binaries. This is required by the App Store.
-            '--apple_bitcode=watchos=embedded',
+            '--apple_bitcode=watchos=none',
         ]
 
     def add_remote_cache(self, host):
@@ -454,6 +454,8 @@ def resolve_codesigning(arguments, base_path, build_configuration, provisioning_
         )
     elif arguments.xcodeManagedCodesigning is not None and arguments.xcodeManagedCodesigning == True:
         profile_source = XcodeManagedCodesigningSource()
+    elif arguments.noCodesigning is not None:
+        return ResolvedCodesigningData(aps_environment='production', use_xcode_managed_codesigning=False)
     else:
         raise Exception('Neither gitCodesigningRepository nor codesigningInformationPath are set')
 
@@ -600,6 +602,9 @@ def build(bazel, arguments):
     bazel_command_line.set_show_actions(arguments.showActions)
     bazel_command_line.set_enable_sandbox(arguments.sandbox)
 
+    if arguments.noCodesigning is not None:
+        bazel_command_line.set_disable_provisioning_profiles()
+
     bazel_command_line.set_split_swiftmodules(arguments.enableParallelSwiftmoduleGeneration)
 
     bazel_command_line.invoke_build()
@@ -607,15 +612,15 @@ def build(bazel, arguments):
     if arguments.outputBuildArtifactsPath is not None:
         artifacts_path = os.path.abspath(arguments.outputBuildArtifactsPath)
         if os.path.exists(artifacts_path + '/Telegram.ipa'):
-            os.remove(path)
+            os.remove(artifacts_path + '/Telegram.ipa')
         if os.path.exists(artifacts_path + '/DSYMs'):
             shutil.rmtree(artifacts_path + '/DSYMs')
         os.makedirs(artifacts_path, exist_ok=True)
         os.makedirs(artifacts_path + '/DSYMs', exist_ok=True)
 
-        ipa_paths = glob.glob('bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa')
+        ipa_paths = glob.glob('bazel-out/applebin_ios-*-*-ST-*/bin/Telegram/Telegram.ipa')
         if len(ipa_paths) == 0:
-            print('Could not find the IPA at bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa')
+            print('Could not find the IPA at bazel-out/applebin_ios-*-*-ST-*/bin/Telegram/Telegram.ipa')
             sys.exit(1)
         elif len(ipa_paths) > 1:
             print('Multiple matching IPA files found: {}'.format(ipa_paths))
@@ -695,6 +700,13 @@ def add_codesigning_common_arguments(current_parser: argparse.ArgumentParser):
         action='store_true',
         help='''
             Let Xcode manage your certificates and provisioning profiles.
+            ''',
+    )
+    codesigning_group.add_argument(
+        '--noCodesigning',
+        action='store_true',
+        help='''
+            Just build it without signing anything (only works for simulator builds).
             ''',
     )
 

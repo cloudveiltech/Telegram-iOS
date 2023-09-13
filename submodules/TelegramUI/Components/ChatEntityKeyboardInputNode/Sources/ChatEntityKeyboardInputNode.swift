@@ -33,6 +33,7 @@ import Pasteboard
 import StickerPackPreviewUI
 import EntityKeyboardGifContent
 import LegacyMessageInputPanelInputView
+import CloudVeilSecurityManager
 
 public final class EmptyInputView: UIView, UIInputViewAudioFeedback {
     public var enableInputClicksWhenVisible: Bool {

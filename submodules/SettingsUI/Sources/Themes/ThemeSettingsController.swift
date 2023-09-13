@@ -398,10 +398,11 @@ private func themeSettingsControllerEntries(presentationData: PresentationData, 
     entries.append(.powerSaving)
     entries.append(.stickersAndEmoji)
     
-    if !availableAppIcons.isEmpty {
-        entries.append(.iconHeader(presentationData.theme, strings.Appearance_AppIcon.uppercased()))
-        entries.append(.iconItem(presentationData.theme, presentationData.strings, availableAppIcons, isPremium, currentAppIconName))
-    }
+    //CloudVeil disabled
+    //if !availableAppIcons.isEmpty {
+    //    entries.append(.iconHeader(presentationData.theme, strings.Appearance_AppIcon.uppercased()))
+    //    entries.append(.iconItem(presentationData.theme, presentationData.strings, availableAppIcons, isPremium, currentAppIconName))
+    //}
     
     entries.append(.otherHeader(presentationData.theme, strings.Appearance_Other.uppercased()))
     entries.append(.showNextMediaOnTap(presentationData.theme, strings.Appearance_ShowNextMediaOnTap, mediaSettings.showNextMediaOnTap))

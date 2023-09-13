@@ -49,6 +49,10 @@ swift_library(
         "-warnings-as-errors",
     ],
     deps = [
+        #CloudVeil start
+        "//Telegram:CloudVeilSecurityManager",
+        "//Telegram:CloudVeilSentry",
+        #CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/SSignalKit/SSignalKit:SSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",

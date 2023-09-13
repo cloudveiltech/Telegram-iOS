@@ -20,6 +20,7 @@ import TelegramNotices
 import AuthenticationServices
 import Markdown
 import AlertUI
+import CloudVeilSecurityManager
 
 private enum InnerState: Equatable {
     case state(UnauthorizedAccountStateContents)
@@ -1287,6 +1288,12 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
+        //CloudVeil start
+        if let controller = self.viewControllers.last {
+            CloudVeilSecurityController.shared.showFirstRunPopup(controller)
+        }
+        //CloudVeil end
+
         if !self.didPlayPresentationAnimation {
             self.didPlayPresentationAnimation = true
             self.animateIn()

@@ -30,6 +30,7 @@ import ComponentFlow
 import EmojiStatusComponent
 import ChatControllerInteraction
 import ChatMessageForwardInfoNode
+import CloudVeilSecurityManager
 
 enum InternalBubbleTapAction {
     case action(() -> Void)
@@ -251,22 +252,26 @@ private func contentNodeMessagesAndClassesForItem(_ item: ChatMessageItem) -> ([
             }
         }
         
-        inner: for media in message.media {
-            if let webpage = media as? TelegramMediaWebpage {
-                if case let .Loaded(content) = webpage.content {
-                    if let story = content.story {
-                        if let storyItem = message.associatedStories[story.storyId], !storyItem.data.isEmpty {
-                        } else {
-                            break inner
+        //CloudVeil start
+        if !CloudVeilSecurityController.SecurityStaticSettings.disableInAppBrowser {
+            inner: for media in message.media {
+                if let webpage = media as? TelegramMediaWebpage {
+                    if case let .Loaded(content) = webpage.content {
+                        if let story = content.story {
+                            if let storyItem = message.associatedStories[story.storyId], !storyItem.data.isEmpty {
+                            } else {
+                                break inner
+                            }
                         }
+                        
+                        result.append((message, ChatMessageWebpageBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .freeform, neighborSpacing: .default)))
+                        needReactions = false
                     }
-                    
-                    result.append((message, ChatMessageWebpageBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .freeform, neighborSpacing: .default)))
-                    needReactions = false
+                    break inner
                 }
-                break inner
             }
         }
+        //CloudVeil end
 
         if message.adAttribute != nil {
             result.removeAll()

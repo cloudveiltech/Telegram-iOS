@@ -18,6 +18,7 @@ import ShareController
 import WebPBinding
 import ReactionImageComponent
 import FeaturedStickersScreen
+import CloudVeilSecurityManager
 
 private final class InstalledStickerPacksControllerArguments {
     let context: AccountContext
@@ -581,6 +582,11 @@ private func installedStickerPacksControllerEntries(context: AccountContext, pre
             var index: Int32 = 0
             for entry in sortedPacks {
                 if let info = entry.info as? StickerPackCollectionInfo {
+                    //CloudVeil start
+                    if !CloudVeilSecurityController.shared.isStickerAvailable(stickerId: NSInteger(info.id.id)) {
+                        continue
+                    }
+                    //CloudVeil end
                     let countTitle: String
                     if info.id.namespace == Namespaces.ItemCollection.CloudEmojiPacks {
                         countTitle = presentationData.strings.StickerPack_EmojiCount(info.count == 0 ? entry.count : info.count)

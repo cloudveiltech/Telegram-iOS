@@ -23,6 +23,7 @@ import AppBundle
 import ContextUI
 import PhoneNumberFormat
 import LocalizedPeerData
+import CloudVeilSecurityManager
 
 private let dropDownIcon = { () -> UIImage in
     UIGraphicsBeginImageContextWithOptions(CGSize(width: 12.0, height: 12.0), false, 0.0)
@@ -1059,7 +1060,9 @@ public final class ContactListNode: ASDisplayNode {
                         }
                     }
                     var foundRemoteContacts: Signal<([FoundPeer], [FoundPeer]), NoError> = .single(([], []))
-                    if globalSearch {
+                    
+                    //CloudVeil changed if conditions
+                    if globalSearch && !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
                         foundRemoteContacts = foundRemoteContacts
                         |> then(
                             context.engine.contacts.searchRemotePeers(query: query)
@@ -1067,6 +1070,7 @@ public final class ContactListNode: ASDisplayNode {
                             |> delay(0.2, queue: Queue.concurrentDefaultQueue())
                         )
                     }
+                    
                     let foundDeviceContacts: Signal<[DeviceContactStableId: (DeviceContactBasicData, EnginePeer.Id?)], NoError>
                     if searchDeviceContacts {
                         foundDeviceContacts = context.sharedContext.contactDataManager?.search(query: query) ?? .single([:])

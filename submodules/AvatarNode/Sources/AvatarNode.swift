@@ -14,6 +14,7 @@ import Accelerate
 import ComponentFlow
 import AvatarStoryIndicatorComponent
 import DirectMediaImageCache
+import CloudVeilSecurityManager
 
 private let deletedIcon = UIImage(bundleImageName: "Avatar/DeletedIcon")?.precomposed()
 private let phoneIcon = generateTintedImage(image: UIImage(bundleImageName: "Avatar/PhoneIcon"), color: .white)
@@ -227,6 +228,10 @@ public final class AvatarNode: ASDisplayNode {
     static let savedMessagesColors: [UIColor] = [
         UIColor(rgb: 0x2a9ef1), UIColor(rgb: 0x72d5fd)
     ]
+
+    //CloudVeil start
+    public static var videoAvatarsCache: [EnginePeer.Id:Bool] = [:]
+    //CloudVeil end
     
     public final class ContentNode: ASDisplayNode {
         private struct Params: Equatable {
@@ -614,6 +619,35 @@ public final class AvatarNode: ASDisplayNode {
             } else if peer?.restrictionText(platform: "ios", contentSettings: genericContext.currentContentSettings.with { $0 }) == nil {
                 representation = peer?.smallProfileImage
             }
+            //CloudVeil start
+            if CloudVeilSecurityController.shared.disableProfilePhoto {
+                representation = nil
+                setAvatar(account: account, icon: icon, representation: representation, context: genericContext, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
+            } else if CloudVeilSecurityController.shared.disableProfileVideo {
+                if let isVideoAvatarCachedValue = isVideoAvatarCached(peer: peer) {
+                    if isVideoAvatarCachedValue {
+                        representation = nil
+                    }
+                    setAvatar(account: account, icon: icon, representation: representation, context: genericContext, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
+                } else {
+                    self.setAvatar(account: account, icon: icon, representation: nil, context: genericContext, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
+                    isVideoAvatar(context: genericContext, peer: peer) { result in
+                        if result {
+                            representation = nil
+                        }
+                        DispatchQueue.main.sync {
+                            self.setAvatar(account: account, icon: icon, representation: representation, context: genericContext, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
+                        }
+                    }
+                }
+            } else {
+                setAvatar(account: account, icon: icon, representation: representation, context: genericContext, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
+            }
+            //CloudVeil end
+        }
+
+        //CloudVeil start
+        private func setAvatar(account: Account?, icon: AvatarNodeIcon, representation: TelegramMediaImageRepresentation?, context: AccountContext, theme: PresentationTheme, peer: EnginePeer?, authorOfMessage: MessageReference? = nil, overrideImage: AvatarNodeImageOverride? = nil, emptyColor: UIColor? = nil, clipStyle: AvatarNodeClipStyle = .round, synchronousLoad: Bool = false, displayDimensions: CGSize = CGSize(width: 60.0, height: 60.0), storeUnrounded: Bool = false) {
             let updatedState: AvatarNodeState = .peerAvatar(peer?.id ?? EnginePeer.Id(0), peer?.displayLetters ?? [], representation, clipStyle)
             if updatedState != self.state || overrideImage != self.overrideImage || theme !== self.theme {
                 self.state = updatedState
@@ -622,7 +656,7 @@ public final class AvatarNode: ASDisplayNode {
                 
                 let parameters: AvatarNodeParameters
                 
-                let account = account ?? genericContext.account
+                let account = account ?? context.account
                 
                 if let peer = peer, let signal = peerAvatarImage(account: account, peerReference: PeerReference(peer._asPeer()), authorOfMessage: authorOfMessage, representation: representation, displayDimensions: displayDimensions, clipStyle: clipStyle, emptyColor: emptyColor, synchronousLoad: synchronousLoad, provideUnrounded: storeUnrounded) {
                     self.contents = nil
@@ -682,6 +716,49 @@ public final class AvatarNode: ASDisplayNode {
                 }
             }
         }
+        
+        private let accessQueue = DispatchQueue(label: "videoAvatarsCacheAccessQueue", attributes: .concurrent)
+
+        private func isVideoAvatarCached(peer: EnginePeer?) -> Bool? {
+            guard let id = peer?.id else {
+                return false
+            }
+            var cachedValue: Bool?
+            accessQueue.sync {
+                cachedValue = AvatarNode.videoAvatarsCache[id]
+            }
+            if let v = cachedValue {
+                return v
+            }
+            if !CloudVeilSecurityController.shared.disableProfilePhoto && !CloudVeilSecurityController.shared.disableProfileVideo {
+                return false
+            }
+            return nil
+        }
+
+        private func isVideoAvatar(context: AccountContext, peer: EnginePeer?, callback: @escaping (Bool) -> ()) {
+            guard let id = peer?.id else {
+                callback(false)
+                return
+            }
+            let _ = context.engine.peers.requestPeerPhotos(peerId: id).start(next: { result in
+                for i in 0 ..< result.count {
+                    if let _ = result[i].image.videoRepresentations.first {
+                        self.accessQueue.async(flags: .barrier) {
+                            AvatarNode.videoAvatarsCache[id] = true
+                            callback(true)
+                        }
+                        return
+                    }
+                }
+
+                self.accessQueue.async(flags: .barrier) {
+                    AvatarNode.videoAvatarsCache[id] = false
+                }
+                callback(false)
+            })
+        }
+        //CloudVeil end
         
         public func setCustomLetters(_ letters: [String], explicitColor: AvatarNodeColorOverride? = nil, icon: AvatarNodeExplicitIcon? = nil) {
             var explicitIndex: Int?
@@ -1058,7 +1135,7 @@ public final class AvatarNode: ASDisplayNode {
             storeUnrounded: storeUnrounded
         )
     }
-    
+
     public func setCustomLetters(_ letters: [String], explicitColor: AvatarNodeColorOverride? = nil, icon: AvatarNodeExplicitIcon? = nil) {
         self.contentNode.setCustomLetters(letters, explicitColor: explicitColor, icon: icon)
     }

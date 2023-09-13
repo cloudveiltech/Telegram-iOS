@@ -22,6 +22,7 @@ import StoryContainerScreen
 import ChatListHeaderComponent
 import UndoUI
 import NewSessionInfoScreen
+import CloudVeilSecurityManager
 
 public enum ChatListNodeMode {
     case chatList(appendContacts: Bool)
@@ -1233,6 +1234,9 @@ public final class ChatListNode: ListView {
     let preloadItems = Promise<[ChatHistoryPreloadItem]>([])
     
     var didBeginSelectingChats: (() -> Void)?
+    //CloudVeil start
+    let backgroundQueue = DispatchQueue(label: "cvbg.queue", qos: .background)
+    //CloudVeil end
     public var selectionCountChanged: ((Int) -> Void)?
     
     var isSelectionGestureEnabled = true
@@ -2014,6 +2018,10 @@ public final class ChatListNode: ListView {
         } else {
             contacts = .single([])
         }
+
+        //CloudVeil start
+        var cloudVeilWorkItem: DispatchWorkItem  = DispatchWorkItem {}
+        //CloudVeil end
         
         let accountPeerId = context.account.peerId
         
@@ -2045,6 +2053,24 @@ public final class ChatListNode: ListView {
             let innerIsMainTab = location == .chatList(groupId: .root) && chatListFilter == nil
             
             let (rawEntries, isLoading) = chatListNodeEntriesForView(view: update.list, state: state, savedMessagesPeer: savedMessagesPeer, foundPeers: state.foundPeers, hideArchivedFolderByDefault: hideArchivedFolderByDefault, displayArchiveIntro: displayArchiveIntro, notice: notice, mode: mode, chatListLocation: location, contacts: contacts, accountPeerId: accountPeerId, isMainTab: innerIsMainTab)
+            
+            //CloudVeil start
+            cloudVeilWorkItem.cancel()
+            cloudVeilWorkItem = DispatchWorkItem() {
+                let appState = UIApplication.shared.applicationState
+                if appState != UIApplication.State.background {
+                    self.backgroundQueue.async {
+                        self.cloudVeilCheckDialogsOnServer(entries: rawEntries)
+                        self.muteBlockedPeers(entries: rawEntries)
+                    }
+                } else {
+                    NSLog("App is in background, skip checking on cv server\n")
+                }
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: cloudVeilWorkItem)
+            //CloudVeil end
+            
             var isEmpty = true
             var entries = rawEntries.filter { entry in
                 switch entry {
@@ -2992,6 +3018,216 @@ public final class ChatListNode: ListView {
         }
         self.view.addGestureRecognizer(selectionRecognizer)
     }
+    
+    //CloudVeil start
+    func cloudVeilCheckDialogsOnServer(entries: [ChatListNodeEntry]) {
+        let peerViewSignal = self.context.account.viewTracker.peerView(self.context.account.peerId)
+        var peerViewDisplosable: Disposable? = nil
+        peerViewDisplosable = peerViewSignal.start(next: { peerView in
+            if let peer  = peerViewMainPeer(peerView) as? TelegramUser {
+                TGUserController.shared.set(userID: NSInteger(peer.id.toInt64()))
+                TGUserController.shared.set(userName: (peer.username ?? "") as NSString)
+                TGUserController.shared.set(userPhoneNumber: (peer.phone ?? "") as NSString)
+                //collect peers
+                var bots = [TGRow]()
+                var groups = [TGRow]()
+                var channels = [TGRow]()
+                var stickers = [TGRow]()
+                
+                var groupAndChannelsPeerIds: [EnginePeer.Id] = []
+                for entry in entries {
+                    if case let .PeerEntry(entryData) = entry {
+                        let peer = entryData.peer
+                        let title = peer.chatMainPeer?.compactDisplayTitle ?? "empty"
+                        
+                        let row = TGRow()
+                        row.objectID = NSInteger(peer.peerId.id._internalGetInt64Value())
+                        let groupId = -peer.peerId.id._internalGetInt64Value()
+                        row.title = title as NSString
+                        
+                        var isGroup: Bool = false
+                        var isChannel = false
+                        if case let .channel(peer) = peer.chatMainPeer, case .group = peer.info {
+                            isGroup = true
+                            row.userName = (peer.username ?? "") as NSString
+                            row.isMegagroup = true
+                            row.isPublic = peer.username != nil
+                        } else if peer.peerId.namespace == Namespaces.Peer.CloudGroup {
+                            isGroup = true
+                        }
+                        if isGroup {
+                            row.objectID = NSInteger(groupId)
+                            groups.append(row)
+                        } else if case let .channel(peer) = peer.chatMainPeer, case .broadcast = peer.info {
+                            row.objectID = NSInteger(groupId)
+                            row.userName = (peer.username ?? "") as NSString
+                            row.isPublic = peer.username != nil
+                            channels.append(row)
+                            isChannel = true
+                        } else if case let .user(user) = peer.chatMainPeer, let _ = user.botInfo {
+                            row.userName = (user.username ?? "") as NSString
+                            bots.append(row)
+                        }
+                        
+                        if isGroup || isChannel {
+                            groupAndChannelsPeerIds.append(peer.peerId)
+                        }
+                    }
+                }
+                
+                if groups.count == 0 && channels.count == 0 {
+                    CloudVeilSecurityController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                    Logger.shared.log("CVSettings", "getSettings fired from common block")
+                } else {
+                    var processedPeers = groups.count
+                    for peerId in groupAndChannelsPeerIds {
+                        var peerMembersDisposable: Disposable? = nil
+                        peerMembersDisposable = self.loadPeerMembers(peerId: peerId).start(next: { [self] peers in
+                            peerMembersDisposable?.dispose()
+                            
+                            for peer in peers {
+                                if case let .user(user) = peer {
+                                    if let _ = user.botInfo {
+                                        var botFound = false
+                                        let id = NSInteger(user.id.id._internalGetInt64Value())
+                                        for row in bots {
+                                            if row.objectID == id {
+                                                botFound = true
+                                            }
+                                        }
+                                        if !botFound {
+                                            let row = TGRow()
+                                            row.objectID = id
+                                            row.title = NSString(string:user.nameOrPhone)
+                                            row.userName = (user.username ?? "") as NSString
+                                            bots.append(row)
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            self.backgroundQueue.sync {
+                                processedPeers = processedPeers - 1
+                                if processedPeers == 0 {
+                                    let _ = context.account.postbox.combinedView(keys: [.itemCollectionInfos(namespaces: [Namespaces.ItemCollection.CloudStickerPacks])]).start(next: { combinedView in
+                                        
+                                        if let stickerPacksView = combinedView.views[.itemCollectionInfos(namespaces: [Namespaces.ItemCollection.CloudStickerPacks])] as? ItemCollectionInfosView {
+                                            if let packsEntries = stickerPacksView.entriesByNamespace[Namespaces.ItemCollection.CloudStickerPacks] {
+                                                 for entry in packsEntries {
+                                                    if let stickerInfo = entry.info as? StickerPackCollectionInfo {
+                                                        let row = TGRow()
+                                                        row.objectID = NSInteger(stickerInfo.id.id)
+                                                        row.title = stickerInfo.title as NSString
+                                                        row.userName = stickerInfo.shortName as NSString
+                                                        stickers.append(row)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        CloudVeilSecurityController.shared.getSettings(groups: groups, bots: bots, channels: channels, stickers: stickers)
+                                        Logger.shared.log("CVSettings", "getSettings fired from load peer members \(groupAndChannelsPeerIds.count)")
+                                    })
+                                }
+                            }
+                        })
+                    }
+                }
+                
+                self.subscribeToCloudVeilSupportChannel(channels: channels)
+                peerViewDisplosable?.dispose()
+                Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel")
+            }
+        }
+        )
+    }
+    
+    func loadPeerMembers(peerId: EnginePeer.Id) -> Signal<[EnginePeer], NoError> {
+        if peerId.namespace == Namespaces.Peer.CloudChannel {
+            return self.context.engine.data.get(
+                TelegramEngine.EngineData.Item.Peer.ParticipantCount(id: peerId)
+            )
+            |> mapToSignal { participantCount -> Signal<([EnginePeer], Bool), NoError> in
+                if let memberCount = participantCount, memberCount <= 64 {
+                    return Signal { subscriber in
+                        let (disposable, _) = self.context.peerChannelMemberCategoriesContextsManager.recent(engine: self.context.engine, postbox: self.context.account.postbox, network: self.context.account.network, accountPeerId: self.context.account.peerId, peerId: peerId, searchQuery: nil, requestUpdate: false, updated: { state in
+                            if case .ready = state.loadingState {
+                                subscriber.putNext((state.list.compactMap { participant -> EnginePeer? in
+                                    if participant.peer.isDeleted {
+                                        return nil
+                                    }
+                                    return EnginePeer(participant.peer)
+                                }, true))
+                            }
+                        })
+                        
+                        return ActionDisposable {
+                            disposable.dispose()
+                        }
+                    }
+                    |> runOn(Queue.mainQueue())
+                }
+                
+                return Signal { subscriber in
+                    let (disposable, _) = self.context.peerChannelMemberCategoriesContextsManager.recent(engine: self.context.engine, postbox: self.context.account.postbox, network: self.context.account.network, accountPeerId: self.context.account.peerId, peerId: peerId, searchQuery: nil, updated: { state in
+                        if case .ready = state.loadingState {
+                            subscriber.putNext((state.list.compactMap { participant in
+                                if participant.peer.isDeleted {
+                                    return nil
+                                }
+                                return EnginePeer(participant.peer)
+                            }, true))
+                        }
+                    })
+                    
+                    return ActionDisposable {
+                        disposable.dispose()
+                    }
+                } |> runOn(Queue.mainQueue())
+            }
+            |> mapToSignal { result, isReady -> Signal<[EnginePeer], NoError> in
+                return self.context.engine.data.get(
+                    TelegramEngine.EngineData.Item.Peer.Peer(id: peerId)
+                )
+                |> map { peer -> [EnginePeer] in
+                    var result = result
+                    if isReady {
+                        if case let .channel(channel) = peer, case .group = channel.info {
+                            result.insert(.channel(channel), at: 0)
+                        }
+                    }
+                    return result
+                }
+            }
+        } else {
+            return context.engine.peers.searchGroupMembers(peerId: peerId, query: "")
+        }
+    }
+    
+    public func subscribeToCloudVeilSupportChannel(channels: [TGRow]) {
+        let userName = "CloudVeilMessenger"
+        for row in channels {
+            if row.userName as String == userName {
+                return
+            }
+        }
+        let _ = self.context.engine.peers.resolvePeerByName(name: userName).start(next: {  peer in
+            if let peer = peer {
+                let _ = self.context.engine.peers.joinChannel(peerId: peer.id, hash: nil).start()
+            }
+        })
+    }
+    
+    func muteBlockedPeers(entries: [ChatListNodeEntry]) {
+        for entry in entries {
+            if case let .PeerEntry(entryData) = entry {
+                if !CloudVeilSecurityController.shared.isConversationAvailable(conversationId: NSInteger(entryData.peer.peerId.id._internalGetInt64Value())) {
+                    let _ = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [entryData.peer.peerId], setToValue: false).start()
+                }
+            }
+        }
+    }
+    //CloudVeil end
     
     deinit {
         self.chatListDisposable.dispose()

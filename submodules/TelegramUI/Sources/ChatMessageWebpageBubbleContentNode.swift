@@ -13,6 +13,7 @@ import InstantPageUI
 import UrlHandling
 import GalleryData
 import TelegramPresentationData
+import CloudVeilSecurityManager
 
 private let titleFont: UIFont = Font.semibold(15.0)
 
@@ -49,6 +50,13 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                         return
                     }
                 }
+                //CloudVeil start
+                let isYoutubeForbidden = self?.isYoutubeMessage(message: item.message) ?? false && CloudVeilSecurityController.SecurityStaticSettings.disableYoutubeVideoEmbedding
+                if isYoutubeForbidden  {
+                    return
+                }
+                //CloudVeil end
+                
                 let openChatMessageMode: ChatControllerInteractionOpenMessageMode
                 switch mode {
                     case .default:
@@ -91,6 +99,105 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
             }
         }
     }
+    
+    //CloudVeil start
+    private func isYoutubeMessage(message: Message) -> Bool {
+        for media in message.media {
+            if let webpage = media as? TelegramMediaWebpage {
+                switch webpage.content {
+                case let .Loaded(content):
+                    if let embedUrl = content.embedUrl, !embedUrl.isEmpty {
+                        if isYoutube(url: embedUrl) {
+                            return true
+                        }
+                    }
+                case .Pending:
+                    break
+                }
+            }
+        }
+        return false
+    }
+    
+    func isYoutube(url: String) -> Bool {
+        guard let url = URL(string: url), let host = url.host?.lowercased() else {
+            return false
+        }
+        
+        let match = ["youtube.com", "youtu.be"].contains(where: { (domain) -> Bool in
+            return host == domain || host.contains(".\(domain)")
+        })
+        
+        guard match else {
+            return false
+        }
+        
+        var videoId: String?
+        var timestamp = 0
+        
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            if let queryItems = components.queryItems {
+                for queryItem in queryItems {
+                    if let value = queryItem.value {
+                        if queryItem.name == "v" {
+                            videoId = value
+                        } else if queryItem.name == "t" || queryItem.name == "time_continue" {
+                            if value.contains("s") {
+                                var range = value.startIndex..<value.endIndex
+                                if let hoursRange = value.range(of: "h", options: .caseInsensitive, range: range, locale: nil) {
+                                    let subvalue = String(value[range.lowerBound ..< hoursRange.lowerBound])
+                                    if let hours = Int(subvalue) {
+                                        timestamp = timestamp + hours * 3600
+                                    }
+                                    range = hoursRange.upperBound..<value.endIndex
+                                }
+                                
+                                if let minutesRange = value.range(of: "m", options: .caseInsensitive, range: range, locale: nil) {
+                                    let subvalue = String(value[range.lowerBound ..< minutesRange.lowerBound])
+                                    if let minutes = Int(subvalue) {
+                                        timestamp = timestamp + minutes * 60
+                                    }
+                                    range = minutesRange.upperBound..<value.endIndex
+                                }
+                                
+                                if let secondsRange = value.range(of: "s", options: .caseInsensitive, range: range, locale: nil) {
+                                    let subvalue = String(value[range.lowerBound ..< secondsRange.lowerBound])
+                                    if let seconds = Int(subvalue) {
+                                        timestamp = timestamp + seconds
+                                    }
+                                }
+                            } else {
+                                if let seconds = Int(value) {
+                                    timestamp = seconds
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if videoId == nil {
+                let pathComponents = components.path.components(separatedBy: "/")
+                var nextComponentIsVideoId = host.contains("youtu.be")
+                
+                for component in pathComponents {
+                    if component.count > 0 && nextComponentIsVideoId {
+                        videoId = component
+                        break
+                    } else if component == "embed" {
+                        nextComponentIsVideoId = true
+                    }
+                }
+            }
+        }
+        
+        if let _ = videoId {
+            return true
+        }
+        
+        return false
+    }
+    //CloudVeil end
     
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
@@ -165,6 +272,12 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                     }
                 }
                 
+                //CloudVeil start
+                if CloudVeilSecurityController.SecurityStaticSettings.disableAutoPlayGifs {
+                    automaticPlayback = false
+                }
+                //CloudVeil end
+                
                 switch type {
                     case .instagram, .twitter:
                         if automaticPlayback {
@@ -173,7 +286,13 @@ final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContentNode {
                             mainMedia = webpage.story ?? webpage.image ?? webpage.file
                         }
                     default:
-                        mainMedia = webpage.story ?? webpage.file ?? webpage.image
+                        //CloudVeil start
+                        if automaticPlayback {
+                            mainMedia = webpage.story ?? webpage.file ?? webpage.image
+                        } else {
+                            mainMedia = webpage.story ?? webpage.image ?? webpage.file
+                        }
+                        //CloudVeil end
                 }
                 
                 let themeMimeType = "application/x-tgtheme-ios"

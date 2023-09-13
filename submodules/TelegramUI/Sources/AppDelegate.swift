@@ -46,6 +46,11 @@ import AppCenter
 import AppCenterCrashes
 #endif
 
+//CloudVeil start
+import Sentry
+import CloudVeilSecurityManager
+//CloudVeil end
+
 private let handleVoipNotifications = false
 
 private var testIsLaunched = false
@@ -309,8 +314,26 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     private var alertActions: (primary: (() -> Void)?, other: (() -> Void)?)?
     
     private let deviceToken = Promise<Data?>(nil)
-        
+    
+    //CloudVeil start
+    static var shared: AppDelegate?
+    static var isAppInForeground: Bool {
+        get {
+            return shared?.isInForegroundValue ?? false
+        }
+    }
+    //CloudVeil end
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        //CloudVeil start
+        // Create a Sentry client and start crash handler
+        AppDelegate.shared = self
+        SentrySDK.start { options in
+            options.dsn = "https://18449652be1c40099b14b44e1b44904e@o1077369.ingest.sentry.io/6080242"
+            options.debug = false // Helpful to see what's going on
+        }
+        //CloudVeil end
+        
         precondition(!testIsLaunched)
         testIsLaunched = true
         

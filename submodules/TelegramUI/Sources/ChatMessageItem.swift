@@ -11,6 +11,7 @@ import AccountContext
 import Emoji
 import PersistentStringHash
 import ChatControllerInteraction
+import CloudVeilSecurityManager
 
 public enum ChatMessageItemContent: Sequence {
     case message(message: Message, read: Bool, selection: ChatHistoryMessageSelection, attributes: ChatMessageEntryAttributes, location: MessageHistoryEntryLocation?)
@@ -271,6 +272,9 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
     let avatarHeader: ChatMessageAvatarHeader?
 
     let headers: [ListViewItemHeader]
+    //CloudVeil start
+    var originalMedia: [Media] = []
+    //CloudVeil end
     
     var message: Message {
         switch self.content {
@@ -431,12 +435,48 @@ public final class ChatMessageItem: ListViewItem, CustomStringConvertible {
             headers.append(avatarHeader)
         }
         self.headers = headers
+        
+        //CloudVeil start
+        patchForbiddenStickerData()
+        //CloudVeil end
     }
+    
+    //CloudVeil start
+    private func patchForbiddenStickerData() {
+        self.originalMedia = self.message.media
+
+        for media in self.message.media {
+            if let telegramFile = media as? TelegramMediaFile {
+                if telegramFile.isAnimatedSticker || telegramFile.isSticker {
+                    for attribute in telegramFile.attributes {
+                        if case let .Sticker(text, packReference, _) = attribute {
+                            let isAnimoji = text.isEmpty
+                            if isAnimoji {
+                                return
+                            }
+                            
+                            if case let .id(id, _) = packReference {
+                                if CloudVeilSecurityController.shared.isStickerAvailable(stickerId: NSInteger(id)) {
+                                    return
+                                }
+                            }
+                            self.message.text = text
+                            self.message.media = []
+                            break
+                        }
+                    }
+                }
+            }
+        }
+    }
+    //CloudVeil end
     
     public func nodeConfiguredForParams(async: @escaping (@escaping () -> Void) -> Void, params: ListViewItemLayoutParams, synchronousLoads: Bool, previousItem: ListViewItem?, nextItem: ListViewItem?, completion: @escaping (ListViewItemNode, @escaping () -> (Signal<Void, NoError>?, (ListViewItemApply) -> Void)) -> Void) {
         var viewClassName: AnyClass = ChatMessageBubbleItemNode.self
         
-        loop: for media in self.message.media {
+        //CloudVeil start
+        loop: for media in self.originalMedia {
+        //CloudVeil end
             if let telegramFile = media as? TelegramMediaFile {
                 if telegramFile.isVideoSticker {
                     viewClassName = ChatMessageAnimatedStickerItemNode.self

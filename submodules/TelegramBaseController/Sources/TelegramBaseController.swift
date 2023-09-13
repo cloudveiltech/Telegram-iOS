@@ -13,6 +13,9 @@ import OverlayStatusController
 import PresentationDataUtils
 import TelegramCallsUI
 import UndoUI
+import CloudVeilSecurityManager
+import MessageUI
+import SafariServices
 
 public enum MediaAccessoryPanelVisibility {
     case none
@@ -1020,4 +1023,186 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             })
         }, activeCall: activeCall)
     }
+    
+    //CloudVeil start
+    public static func checkPeerIsAllowed(peerId: PeerId, controller: ViewController, account: Account, presentationData: PresentationData, attemption: Int = 0, callback: @escaping (Bool) -> ()) {
+        let checked = CloudVeilSecurityController.shared.isConversationCheckedOnServer(conversationId: NSInteger(peerId.id._internalGetInt64Value()), channelId: -NSInteger(peerId.id._internalGetInt64Value()))
+        
+        let peerView = account.viewTracker.peerView(peerId)
+        
+        var disposable: Disposable? = nil
+        disposable = peerView.start(next: { peerView in
+            if disposable == nil { return }
+            
+            disposable!.dispose()
+            
+            var isDialogAllowed = true
+            var isGroup = false
+            var isChannel = false
+            var isBot = false
+            var isUser = false
+            let row = TGRow()
+            row.objectID = NSInteger(peerView.peerId.id._internalGetInt64Value())
+            let groupId = -NSInteger(peerView.peerId.id._internalGetInt64Value())
+            
+            let peerView = peerViewMainPeer(peerView)
+            row.title = (peerView?.debugDisplayTitle ?? "") as NSString
+            
+            if peerId.namespace == Namespaces.Peer.SecretChat && !CloudVeilSecurityController.shared.isSecretChatAvailable {
+                isDialogAllowed = false
+                isUser = true
+            } else if let peer = peerView as? TelegramChannel, case .group = peer.info {
+                isDialogAllowed = CloudVeilSecurityController.shared.isGroupAvailable(groupID: NSInteger(-peerId.id._internalGetInt64Value()))
+                isGroup = true
+                row.userName = (peer.username ?? "") as NSString
+                row.objectID = groupId
+            } else if peerId.namespace == Namespaces.Peer.CloudGroup {
+                isDialogAllowed = CloudVeilSecurityController.shared.isGroupAvailable(groupID: NSInteger(-peerId.id._internalGetInt64Value()))
+                isGroup = true
+                row.objectID = groupId
+            } else if let peer = peerView as? TelegramChannel, case .broadcast = peer.info {
+                isDialogAllowed = CloudVeilSecurityController.shared.isChannelAvailable(channelID: NSInteger(-peerId.id._internalGetInt64Value()))
+                isChannel = true
+                row.userName = (peer.username ?? "") as NSString
+                row.objectID = groupId
+            } else if let user = peerView as? TelegramUser, let _ = user.botInfo {
+                isDialogAllowed = CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(peerId.id._internalGetInt64Value()))
+                isBot = true
+                row.userName = (user.username ?? "") as NSString
+            } else {
+                isUser = true
+            }
+            
+            if !checked && !isUser {
+                let task = DispatchWorkItem {
+                    print("Timeout checking dialog")
+                    CloudVeilSecurityController.shared.clearObservers()
+                    DispatchQueue.main.async {
+                        let appState = UIApplication.shared.applicationState
+                        if appState != UIApplication.State.background {
+                            callback(true)
+                        }
+                    }
+                    return
+                }
+                
+                if attemption > 2 {
+                    print("Attemption > 3, skip checking dialog")
+                    CloudVeilSecurityController.shared.clearObservers()
+                    DispatchQueue.main.async {
+                        let appState = UIApplication.shared.applicationState
+                        if appState != UIApplication.State.background {
+                            callback(true)
+                        }
+                    }
+                    return
+                }
+                
+                CloudVeilSecurityController.shared.appendObserver {
+                    task.cancel()
+                    if peerId.namespace == Namespaces.Peer.SecretChat && !CloudVeilSecurityController.shared.isSecretChatAvailable {
+                        isDialogAllowed = false
+                    } else if let peer = peerView as? TelegramChannel, case .group = peer.info {
+                        isDialogAllowed = CloudVeilSecurityController.shared.isGroupAvailable(groupID: NSInteger(-peerId.id._internalGetInt64Value()))
+                    } else if peerId.namespace == Namespaces.Peer.CloudGroup {
+                        isDialogAllowed = CloudVeilSecurityController.shared.isGroupAvailable(groupID: NSInteger(-peerId.id._internalGetInt64Value()))
+                    } else if let peer = peerView as? TelegramChannel, case .broadcast = peer.info {
+                        isDialogAllowed = CloudVeilSecurityController.shared.isChannelAvailable(channelID: NSInteger(-peerId.id._internalGetInt64Value()))
+                    } else if let user = peerView as? TelegramUser, let _ = user.botInfo {
+                        isDialogAllowed = CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(peerId.id._internalGetInt64Value()))
+                    } else {
+                        isUser = true
+                    }
+                    
+                    DispatchQueue.main.async {
+                        if !isDialogAllowed {
+                            let appState = UIApplication.shared.applicationState
+                            if appState != UIApplication.State.background {
+                                TelegramBaseController.showBlockedPopup(peerView: peerView!, controller: controller, presentationData: presentationData)
+                            }
+                        }
+                        callback(isDialogAllowed)
+                    }
+                }
+                
+                if isBot {
+                    CloudVeilSecurityController.shared.replayRequestWithBot(bot: row)
+                } else if isChannel {
+                    CloudVeilSecurityController.shared.replayRequestWithChannel(channel: row)
+                } else if isGroup {
+                    CloudVeilSecurityController.shared.replayRequestWithGroup(group: row)
+                }
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(10000), execute: task)
+                
+                return
+            }
+       
+            
+            DispatchQueue.main.async {
+                if !isDialogAllowed {
+                    let appState = UIApplication.shared.applicationState
+                    if appState != UIApplication.State.background {
+                        TelegramBaseController.showBlockedPopup(peerView: peerView!, controller: controller, presentationData: presentationData)
+                    }
+                }
+                callback(isDialogAllowed)
+            }
+        })
+    }
+    
+    public static func showBlockedPopup(peerView: Peer, controller: ViewController, presentationData: PresentationData) {
+        var type = "secret chat"
+        if let peer = peerView as? TelegramChannel, case .group = peer.info {
+            type = "group"
+        } else if peerView.id.namespace == Namespaces.Peer.CloudGroup {
+            type = "group"
+        } else if let peer = peerView as? TelegramChannel, case .broadcast = peer.info {
+            type = "channel"
+        } else if let user = peerView as? TelegramUser, let _ = user.botInfo {
+            type = "bot"
+        }
+        
+        let message = "This \(type) is blocked by server policy. Please fill out the form to request it be unblocked."
+        
+        let alert = standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData), title: "CloudVeil", text: message,
+                                                actions: [TextAlertAction(type: .defaultAction, title: "Cancel", action: {
+            
+        }),
+                                                          TextAlertAction(type: .defaultAction, title: "Continue", action: {
+            TelegramBaseController.openUnblockRequest(peerView: peerView, controller: controller, presentationData: presentationData)
+        })
+                                                         ])
+        
+        controller.present(alert, in: .window(.root))
+    }
+    
+    private static func openUnblockRequest(peerView: Peer, controller: UIViewController, presentationData: PresentationData) {
+        let conversationId = peerView.id.id._internalGetInt64Value()
+        
+        let userId = TGUserController.shared.getUserID()
+        let url = "https://messenger.cloudveil.org/unblock/\(userId)/\(conversationId)"
+        
+        if let _ = controller as? TelegramBaseController {
+            if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
+                if let parsed = URL(string: url) {
+                    let safariController = SFSafariViewController(url: parsed)
+                    if #available(iOSApplicationExtension 10.0, iOS 10.0, *) {
+                        safariController.preferredBarTintColor = presentationData.theme.rootController.navigationBar.opaqueBackgroundColor
+                        safariController.preferredControlTintColor = presentationData.theme.rootController.navigationBar.accentTextColor
+                    }
+                    controller.present(safariController, animated: true)
+                }
+            }
+        }
+    }
+    
+    public func dismissCurrent() {
+        if attemptNavigation({
+            self.navigationController?.popViewController(animated: true)
+        }) {
+            navigationController?.popViewController(animated: true)
+        }
+    }
+    //CloudVeil end
 }

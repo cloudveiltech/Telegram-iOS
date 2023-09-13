@@ -10,6 +10,7 @@ import BundleIconComponent
 import AudioToolbox
 import SwiftSignalKit
 import LocalizedPeerData
+import CloudVeilSecurityManager
 
 public final class EntityKeyboardChildEnvironment: Equatable {
     public let theme: PresentationTheme
@@ -404,7 +405,11 @@ public final class EntityKeyboardComponent: Component {
             
             if let gifContent = component.gifContent {
                 contents.append(AnyComponentWithIdentity(id: "gifs", component: AnyComponent(gifContent)))
-                contentIcons.append(PagerComponentContentIcon(id: "gifs", imageName: "Chat/Input/Media/EntityInputGifsIcon", title: component.strings.EmojiInput_TabGifs))
+                // CloudVeil start
+                if !CloudVeilSecurityController.SecurityStaticSettings.disableGifs {
+                    contentIcons.append(PagerComponentContentIcon(id: "gifs", imageName: "Chat/Input/Media/EntityInputGifsIcon", title: component.strings.EmojiInput_TabGifs))
+                }
+                // CloudVeil end
                 if let addImage = component.stickerContent?.inputInteractionHolder.inputInteraction?.addImage {
                     contentAccessoryLeftButtons.append(AnyComponentWithIdentity(id: "gifs", component: AnyComponent(Button(
                         content: AnyComponent(BundleIconComponent(
