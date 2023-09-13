@@ -34,6 +34,7 @@ import PeerInfoVisualMediaPaneNode
 import AvatarStoryIndicatorComponent
 import ComponentDisplayAdapters
 import ChatAvatarNavigationNode
+import CloudVeilSecurityManager
 
 enum PeerInfoHeaderButtonKey: Hashable {
     case message
@@ -618,9 +619,11 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
             self.avatarNode.font = avatarPlaceholderFont(size: floor(avatarSize * 16.0 / 37.0))
 
             if let item = item {
-                let representations: [ImageRepresentationWithReference]
-                let videoRepresentations: [VideoRepresentationWithReference]
-                let immediateThumbnailData: Data?
+                //CloudVeil start
+                var representations: [ImageRepresentationWithReference]
+                var videoRepresentations: [VideoRepresentationWithReference]
+                var immediateThumbnailData: Data?
+                //CloudVeil end
                 var videoId: Int64
                 let markup: TelegramMediaImage.EmojiMarkup?
                 switch item {
@@ -650,6 +653,14 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                     }
                     markup = markupValue
                 }
+                
+                //CloudVeil start
+                if CloudVeilSecurityController.shared.disableProfilePhoto || (CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peer.id] ?? false) {
+                    representations = []
+                    videoRepresentations = []
+                    immediateThumbnailData = nil
+                }
+                //CloudVeil end
                 
                 self.containerNode.isGestureEnabled = !isSettings
                 
@@ -1015,7 +1026,9 @@ final class PeerInfoEditingAvatarNode: ASDisplayNode {
         
         if let item = item {
             let representations: [ImageRepresentationWithReference]
-            let videoRepresentations: [VideoRepresentationWithReference]
+            //CloudVeil start
+            var videoRepresentations: [VideoRepresentationWithReference]
+            //CloudVeil end
             let immediateThumbnailData: Data?
             var videoId: Int64
             let markup: TelegramMediaImage.EmojiMarkup?
@@ -1046,6 +1059,12 @@ final class PeerInfoEditingAvatarNode: ASDisplayNode {
                     }
                     markup = markupValue
             }
+
+            //CloudVeil start
+            if videoRepresentations.count > 0 && CloudVeilSecurityController.shared.disableProfileVideo {
+                videoRepresentations = []
+            }
+            //CloudVeil end
             
             if let markup {
                 if let videoNode = self.videoNode {
@@ -2258,7 +2277,9 @@ final class PeerInfoHeaderEditingContentNode: ASDisplayNode {
         
         var contentHeight: CGFloat = statusBarHeight + 10.0 + avatarSize + 20.0
         
-        if canEditPeerInfo(context: self.context, peer: peer, chatLocation: chatLocation, threadData: threadData)  {
+        //CloudVeil start
+        if canEditPeerInfo(context: self.context, peer: peer, chatLocation: chatLocation, threadData: threadData) && !CloudVeilSecurityController.shared.disableProfilePhotoChange {
+            //CloudVeil end
             if self.avatarButtonNode.supernode == nil {
                 self.addSubnode(self.avatarButtonNode)
             }
@@ -2467,7 +2488,21 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     
     var emojiStatusPackDisposable = MetaDisposable()
     var emojiStatusFileAndPackTitle = Promise<(TelegramMediaFile, LoadedStickerPack)?>()
-    
+
+    //CloudVeil start
+    var avatarCanBeExpanded: Bool {
+        get {
+            if CloudVeilSecurityController.shared.disableProfilePhoto {
+                return false
+            }
+            if CloudVeilSecurityController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
+                return false
+            }
+            return true
+        }
+    }
+    //CloudVeil end
+
     private var validLayout: (width: CGFloat, deviceMetrics: DeviceMetrics)?
     
     init(context: AccountContext, avatarInitiallyExpanded: Bool, isOpenedFromChat: Bool, isMediaOnly: Bool, isSettings: Bool, forumTopicThreadId: Int64?, chatLocation: ChatLocation) {
@@ -2596,6 +2631,14 @@ final class PeerInfoHeaderNode: ASDisplayNode {
         }
         
         self.editingContentNode.avatarNode.tapped = { [weak self] confirm in
+            //CloudVeil start
+            if CloudVeilSecurityController.shared.disableProfilePhoto {
+                return
+            }
+            if CloudVeilSecurityController.shared.disableProfileVideo && self?.avatarListNode.listContainerNode.hasVideoAvatar ?? false {
+                return
+            }
+            //CloudVeil end
             self?.initiateAvatarExpansion(gallery: true, first: true)
         }
         self.editingContentNode.requestEditing = { [weak self] in
@@ -3970,6 +4013,12 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     
     func updateIsAvatarExpanded(_ isAvatarExpanded: Bool, transition: ContainedViewLayoutTransition) {
         if self.isAvatarExpanded != isAvatarExpanded {
+            //CloudVeil start
+            self.isAvatarExpanded = isAvatarExpanded && !CloudVeilSecurityController.shared.disableProfilePhoto
+            if CloudVeilSecurityController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
+                self.isAvatarExpanded = false
+            }
+            //CloudVeil end
             self.isAvatarExpanded = isAvatarExpanded
             if isAvatarExpanded {
                 self.avatarListNode.listContainerNode.selectFirstItem()

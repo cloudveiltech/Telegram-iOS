@@ -17,6 +17,7 @@ import LocationUI
 import UndoUI
 import ContextUI
 import TranslateUI
+import CloudVeilSecurityManager
 
 final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
     private weak var controller: InstantPageController?
@@ -1292,6 +1293,12 @@ final class InstantPageControllerNode: ASDisplayNode, UIScrollViewDelegate {
             self.scrollToAnchor(anchor)
             return
         }
+        
+        //CloudVeil start
+        if !CloudVeilSecurityController.shared.isUrlWhitelisted(baseUrl) {
+            return
+        }
+        //CloudVeil end
         
         self.loadProgress.set(0.0)
         self.loadProgress.set(0.02)

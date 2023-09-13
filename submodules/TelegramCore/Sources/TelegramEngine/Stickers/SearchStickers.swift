@@ -2,6 +2,7 @@ import Foundation
 import Postbox
 import TelegramApi
 import SwiftSignalKit
+import CloudVeilSecurityManager
 
 private struct SearchStickersConfiguration {
     static var defaultValue: SearchStickersConfiguration {

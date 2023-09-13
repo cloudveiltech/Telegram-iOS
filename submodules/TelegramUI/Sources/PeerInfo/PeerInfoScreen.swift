@@ -95,6 +95,10 @@ import WebUI
 import ShareWithPeersScreen
 import ItemListPeerItem
 import PeerNameColorScreen
+//CloudVeil start
+import CloudVeilSecurityManager
+import TelegramBaseController
+//CloudVeil end
 
 enum PeerInfoAvatarEditingMode {
     case generic
@@ -896,12 +900,14 @@ private func settingsItems(data: PeerInfoScreenData?, context: AccountContext, p
         interaction.openSettings(.language)
     }))
     
-    let premiumConfiguration = PremiumConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
-    if !premiumConfiguration.isPremiumDisabled {
-        items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 100, label: .text(""), text: presentationData.strings.Settings_Premium, icon: PresentationResourcesSettings.premium, action: {
-            interaction.openSettings(.premium)
-        }))
-    }
+    
+    //CloudVeil disabled
+    //let premiumConfiguration = PremiumConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
+    //if !premiumConfiguration.isPremiumDisabled {
+    //    items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 100, label: .text(""), text: presentationData.strings.Settings_Premium, icon: PresentationResourcesSettings.premium, action: {
+    //        interaction.openSettings(.premium)
+    //    }))
+    //}
     
     /*items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 100, label: .text(""), text: "Payment Method", icon: PresentationResourcesSettings.language, action: {
         interaction.openPaymentMethod()
@@ -913,9 +919,13 @@ private func settingsItems(data: PeerInfoScreenData?, context: AccountContext, p
     } else {
         stickersLabel = ""
     }
-    items[.advanced]!.append(PeerInfoScreenDisclosureItem(id: 5, label: .badge(stickersLabel, presentationData.theme.list.itemAccentColor), text: presentationData.strings.ChatSettings_StickersAndReactions, icon: PresentationResourcesSettings.stickers, action: {
-        interaction.openSettings(.stickers)
-    }))*/
+    //CloudVeil start
+    if !CloudVeilSecurityController.shared.disableStickers {
+        items[.advanced]!.append(PeerInfoScreenDisclosureItem(id: 5, label: .badge(stickersLabel, presentationData.theme.list.itemAccentColor), text: presentationData.strings.ChatSettings_StickersAndReactions, icon: PresentationResourcesSettings.stickers, action: {
+            interaction.openSettings(.stickers)
+        }))
+    }*/
+    //CloudVeil end
     
     if let settings = data.globalSettings {
         if settings.hasPassport {
@@ -1112,8 +1122,10 @@ private func infoItems(data: PeerInfoScreenData?, context: AccountContext, prese
                 )
             )
         }
-    
-        if let cachedData = data.cachedData as? CachedUserData {
+        
+        //CloudVeil start
+        if !CloudVeilSecurityController.shared.disableBio,  let cachedData = data.cachedData as? CachedUserData {
+            //CloudVeil end
             if user.isFake {
                 items[.peerInfo]!.append(PeerInfoScreenLabeledValueItem(id: 0, label: "", text: user.botInfo != nil ? presentationData.strings.UserInfo_FakeBotWarning : presentationData.strings.UserInfo_FakeUserWarning, textColor: .primary, textBehavior: .multiLine(maxLines: 100, enabledEntities: user.botInfo != nil ? enabledPrivateBioEntities : []), action: nil, requestLayout: {
                     interaction.requestLayout(false)
@@ -1300,7 +1312,9 @@ private func infoItems(data: PeerInfoScreenData?, context: AccountContext, prese
                     )
                 )
             }
-            if let cachedData = data.cachedData as? CachedChannelData {
+            //CloudVeil start
+            if !CloudVeilSecurityController.shared.disableBio, let cachedData = data.cachedData as? CachedChannelData {
+                //CloudVeil end
                 let aboutText: String?
                 if channel.isFake {
                     if case .broadcast = channel.info {
@@ -1358,7 +1372,9 @@ private func infoItems(data: PeerInfoScreenData?, context: AccountContext, prese
             }
         }
     } else if let group = data.peer as? TelegramGroup {
-        if let cachedData = data.cachedData as? CachedGroupData {
+        //CloudVeil start
+        if !CloudVeilSecurityController.shared.disableBio, let cachedData = data.cachedData as? CachedGroupData {
+            //CloudVeil end
             let aboutText: String?
             if group.isFake {
                 aboutText = presentationData.strings.GroupInfo_FakeGroupWarning
@@ -3163,12 +3179,30 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
                 })
             }
             galleryController.avatarPhotoEditCompletion = { [weak self] image in
+                //CloudVeil start
+                if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+                    return
+                }
+                //CloudVeil end
                 self?.updateProfilePhoto(image, mode: .generic)
             }
             galleryController.avatarVideoEditCompletion = { [weak self] image, asset, adjustments in
+                //CloudVeil start
+                if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+                    return
+                }
+                if CloudVeilSecurityController.shared.disableProfileVideoChange {
+                    return
+                }
+                //CloudVeil end
                 self?.updateProfileVideo(image, asset: asset, adjustments: adjustments, mode: .generic)
             }
             galleryController.removedEntry = { [weak self] entry in
+                //CloudVeil start
+                if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+                    return
+                }
+                //CloudVeil end
                 if let item = PeerInfoAvatarListItem(entry: entry) {
                     let _ = self?.headerNode.avatarListNode.listContainerNode.deleteItem(item)
                 }
@@ -5267,13 +5301,17 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
                     }
                     
                     if strongSelf.peerId.namespace == Namespaces.Peer.CloudUser && user.botInfo == nil && !user.flags.contains(.isSupport) {
-                        items.append(.action(ContextMenuActionItem(text: presentationData.strings.UserInfo_StartSecretChat, icon: { theme in
-                            generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Lock"), color: theme.contextMenu.primaryColor)
-                        }, action: { _, f in
-                            f(.dismissWithoutContent)
-                            
-                            self?.openStartSecretChat()
-                        })))
+                        //CloudVeil start
+                        if CloudVeilSecurityController.shared.isSecretChatAvailable {
+                            items.append(.action(ContextMenuActionItem(text: presentationData.strings.UserInfo_StartSecretChat, icon: { theme in
+                                generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Lock"), color: theme.contextMenu.primaryColor)
+                            }, action: { _, f in
+                                f(.dismissWithoutContent)
+                                
+                                self?.openStartSecretChat()
+                            })))
+                        }
+                        //CloudVeil end
                     }
                     
                     if user.botInfo == nil && data.isContact, let peer = strongSelf.data?.peer as? TelegramUser, let phone = peer.phone {
@@ -6003,6 +6041,11 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
     }
     
     private func openStartSecretChat() {
+        //CloudVeil start
+        if !CloudVeilSecurityController.shared.isSecretChatAvailable {
+            return
+        }
+        //CloudVeil end
         let peerId = self.peerId
         
         let _ = (combineLatest(
@@ -7683,6 +7726,12 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
     }
     
     private func deleteProfilePhoto(_ item: PeerInfoAvatarListItem) {
+        //CloudVeil start
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+            return
+        }
+        //CloudVeil end
+        
         let dismiss = self.headerNode.avatarListNode.listContainerNode.deleteItem(item)
         if dismiss {
             if self.headerNode.isAvatarExpanded {
@@ -7700,7 +7749,13 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
         guard let data = image.jpegData(compressionQuality: 0.6) else {
             return
         }
-
+        
+        //CloudVeil start
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+            return
+        }
+        //CloudVeil end
+        
         if self.headerNode.isAvatarExpanded {
             self.headerNode.ignoreCollapse = true
             self.headerNode.updateIsAvatarExpanded(false, transition: .immediate)
@@ -7819,6 +7874,11 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
         guard let data = image.jpegData(compressionQuality: 0.6) else {
             return
         }
+        //CloudVeil start
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+            return
+        }
+        //CloudVeil end
         
         if self.headerNode.isAvatarExpanded {
             self.headerNode.ignoreCollapse = true
@@ -8056,6 +8116,12 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
             return
         }
         
+        //CloudVeil start
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+            return
+        }
+        //CloudVeil end
+        
         var currentIsVideo = false
         var emojiMarkup: TelegramMediaImage.EmojiMarkup?
         let item = self.headerNode.avatarListNode.listContainerNode.currentItemNode?.item
@@ -8135,7 +8201,9 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
             let keyboardInputData = Promise<AvatarKeyboardInputData>()
             keyboardInputData.set(AvatarEditorScreen.inputData(context: strongSelf.context, isGroup: peer.id.namespace != Namespaces.Peer.CloudUser))
             
-            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: true, hasDeleteButton: hasDeleteButton, hasViewButton: false, personalPhoto: strongSelf.isSettings, isVideo: currentIsVideo, saveEditedPhotos: false, saveCapturedMedia: false, signup: false, forum: isForum, title: title, isSuggesting: [.custom, .suggest].contains(mode))!
+            //CloudVeil start
+            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch, hasDeleteButton: hasDeleteButton, hasViewButton: false, personalPhoto: strongSelf.isSettings, isVideo: currentIsVideo, saveEditedPhotos: false, saveCapturedMedia: false, signup: false, forum: isForum, title: title, isSuggesting: [.custom, .suggest].contains(mode))!
+            //CloudVeil end
             mixin.stickersContext = LegacyPaintStickersContext(context: strongSelf.context)
             let _ = strongSelf.currentAvatarMixin.swap(mixin)
             mixin.requestSearchController = { [weak self] assetsController in
@@ -8553,22 +8621,32 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
             case .watch:
                 push(watchSettingsController(context: self.context))
             case .support:
-                let supportPeer = Promise<PeerId?>()
-                supportPeer.set(context.engine.peers.supportPeerId())
-                
-                self.controller?.present(textAlertController(context: self.context, updatedPresentationData: self.controller?.updatedPresentationData, title: nil, text: self.presentationData.strings.Settings_FAQ_Intro, actions: [
-                TextAlertAction(type: .genericAction, title: presentationData.strings.Settings_FAQ_Button, action: { [weak self] in
-                    self?.openFaq()
-                }), TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: { [weak self] in
-                    guard let self else {
-                        return
-                    }
-                    self.supportPeerDisposable.set((supportPeer.get() |> take(1) |> deliverOnMainQueue).startStrict(next: { [weak self] peerId in
-                        if let strongSelf = self, let peerId = peerId {
-                            push(strongSelf.context.sharedContext.makeChatController(context: strongSelf.context, chatLocation: .peer(id: peerId), subject: nil, botStart: nil, mode: .standard(previewing: false)))
+                //CloudVeil start open bot
+                let resolveSignal = context.engine.peers.resolvePeerByName(name: "@cloudveilbot")
+                    |> take(1)
+                    |> mapToSignal { result -> Signal<EnginePeer, NoError> in
+                        guard case let .result(result) = result else {
+                            return .complete()
                         }
-                    }))
-                })]), in: .window(.root))
+                        guard let result = result else {
+                            return .complete()
+                        }
+                        return .single(result)
+                    }
+                    |> deliverOnMainQueue
+
+                // FIXME: Leaked Disposable. This was also leaked in the CloudVeil original.
+                let _ = resolveSignal.start(next: { [weak self] peer in
+                    if let self = self {
+                        self.controller?.push(self.context.sharedContext.makeChatController(
+                            context: self.context,
+                            chatLocation: .peer(id: peer.id),
+                            subject: nil, botStart: nil,
+                            mode: .standard(previewing: false)
+                        ))
+                    }
+                })
+                //CloudVeil end
             case .faq:
                 self.openFaq()
             case .tips:
@@ -8791,6 +8869,11 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
     }
     
     private func updateBio(_ bio: String) {
+        //CloudVeil start
+        if CloudVeilSecurityController.shared.disableBioChange {
+            return
+        }
+        //CloudVeil end
         self.state = self.state.withUpdatingBio(bio)
         if let (layout, navigationHeight) = self.validLayout {
             self.containerLayoutUpdated(layout: layout, navigationHeight: navigationHeight, transition: .animated(duration: 0.2, curve: .easeInOut), additive: false)
@@ -10019,7 +10102,9 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
                 shouldBeExpanded = false
                 self.canOpenAvatarByDragging = false
             }
-            if let shouldBeExpanded = shouldBeExpanded, shouldBeExpanded != self.headerNode.isAvatarExpanded {
+            //CloudVeil start
+            if let shouldBeExpanded = shouldBeExpanded, shouldBeExpanded != self.headerNode.isAvatarExpanded, self.headerNode.avatarCanBeExpanded {
+                //CloudVeil end
                 let transition: ContainedViewLayoutTransition = .animated(duration: 0.35, curve: .spring)
                 
                 if shouldBeExpanded {
@@ -10064,6 +10149,13 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
     }
     
     private func updateNavigationExpansionPresentation(isExpanded: Bool, animated: Bool) {
+        //CloudVeil start
+        var isExpanded = isExpanded
+        if !self.headerNode.avatarCanBeExpanded {
+            isExpanded = false
+        }
+        //CloudVeil end
+        
         if let controller = self.controller {
             controller.setStatusBarStyle(isExpanded ? .White : self.presentationData.theme.rootController.statusBarStyle.style, animated: animated)
             
@@ -10223,7 +10315,18 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
         self.context = context
         self.updatedPresentationData = updatedPresentationData
         self.peerId = peerId
-        self.avatarInitiallyExpanded = avatarInitiallyExpanded
+        
+        //CloudVeil start
+        var expanded = avatarInitiallyExpanded
+        if CloudVeilSecurityController.shared.disableProfilePhoto {
+            expanded = false
+        }
+        if CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peerId] ?? false {
+            expanded = false
+        }
+        self.avatarInitiallyExpanded = expanded
+        //CloudVeil end
+        
         self.isOpenedFromChat = isOpenedFromChat
         self.nearbyPeerDistance = nearbyPeerDistance
         self.reactionSourceMessageId = reactionSourceMessageId
@@ -10465,6 +10568,9 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
         }
         
         self.setStatusBarStyle(avatarInitiallyExpanded ? .White : self.presentationData.theme.rootController.statusBarStyle.style, animated: false)
+        //CloudVeil start
+        self.setStatusBarStyle(expanded ? .White : self.presentationData.theme.rootController.statusBarStyle.style, animated: false)
+        //CloudVeil end
         
         self.scrollToTop = { [weak self] in
             self?.controllerNode.scrollToTop()
@@ -10721,6 +10827,14 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
     
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        
+        //CloudVeil start
+        TelegramBaseController.checkPeerIsAllowed(peerId: peerId, controller: self, account: self.context.account, presentationData: self.presentationData) { [weak self] result in
+            if !result {
+                self?.dismiss(animated: true, completion: nil)
+            }
+        }
+        //CloudVeil end
         
         var chatNavigationStack: [ChatNavigationStackItem] = []
         if !self.isSettings, let summary = self.customNavigationDataSummary as? ChatControllerNavigationDataSummary {

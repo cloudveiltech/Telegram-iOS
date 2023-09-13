@@ -13,6 +13,7 @@ import LegacyMediaPickerUI
 import SaveToCameraRoll
 import OverlayStatusController
 import PresentationDataUtils
+import CloudVeilSecurityManager
 
 public enum AvatarGalleryEntryId: Hashable {
     case topImage
@@ -487,7 +488,11 @@ public class AvatarGalleryController: ViewController, StandalonePresentableContr
                         entries.insert(firstEntry, at: 0)
                     }
                     
-                    strongSelf.entries = entries
+                    //CloudVeil start
+                    let maxEntries = min(CloudVeilSecurityController.shared.profilePhotoLimit, entries.count)
+                    strongSelf.entries = Array(entries.prefix(maxEntries))
+                    //CloudVeil end
+                    
                     if strongSelf.centralEntryIndex == nil {
                         strongSelf.centralEntryIndex = 0
                     }

@@ -19,6 +19,7 @@ import AvatarVideoNode
 import ComponentFlow
 import ComponentDisplayAdapters
 import StorySetIndicatorComponent
+import CloudVeilSecurityManager
 
 private class PeerInfoAvatarListLoadingStripNode: ASImageNode {
     private var currentInHierarchy = false
@@ -452,7 +453,8 @@ public final class PeerInfoAvatarListItemNode: ASDisplayNode {
         }
         
         let representations: [ImageRepresentationWithReference]
-        let videoRepresentations: [VideoRepresentationWithReference]
+        //CloudVeil changed variable mutability
+        var videoRepresentations: [VideoRepresentationWithReference]
         let immediateThumbnailData: Data?
         var id: Int64
         let markup: TelegramMediaImage.EmojiMarkup?
@@ -487,6 +489,12 @@ public final class PeerInfoAvatarListItemNode: ASDisplayNode {
             markup = markupValue
         }
         self.imageNode.setSignal(chatAvatarGalleryPhoto(account: self.context.account, representations: representations, immediateThumbnailData: immediateThumbnailData, autoFetchFullSize: true, attemptSynchronously: synchronous, skipThumbnail: fullSizeOnly, skipBlurIfLarge: isMain), attemptSynchronously: synchronous, dispatchOnDisplayLink: false)
+
+        //CloudVeil start
+        if CloudVeilSecurityController.shared.disableProfileVideo {
+            videoRepresentations = []
+        }
+        //CloudVeil end
         
         if let markup {
             if let videoNode = self.videoNode {
@@ -630,6 +638,19 @@ public final class PeerInfoAvatarListContainerNode: ASDisplayNode {
     
     public let isReady = Promise<Bool>()
     private var didSetReady = false
+    
+    //CloudVeil start
+    public var hasVideoAvatar: Bool {
+        get {
+            for i in 0 ..< items.count {
+                if self.items[i].videoRepresentations.count > 0 {
+                    return true
+                }
+            }
+            return false
+        }
+    }
+    //CloudVeil end
     
     public var currentItemNode: PeerInfoAvatarListItemNode? {
         if self.currentIndex >= 0 && self.currentIndex < self.items.count {
@@ -1174,6 +1195,11 @@ public final class PeerInfoAvatarListContainerNode: ASDisplayNode {
     public func update(size: CGSize, peer: EnginePeer?, customNode: ASDisplayNode? = nil, additionalEntry: Signal<(TelegramMediaImageRepresentation, Float)?, NoError> = .single(nil), isExpanded: Bool, transition: ContainedViewLayoutTransition) {
         self.validLayout = size
         let previousExpanded = self.isExpanded
+        
+        //CloudVeil start
+        self.isExpanded = isExpanded && !CloudVeilSecurityController.shared.disableProfilePhoto
+        //CloudVeil end
+        
         self.isExpanded = isExpanded
         if !isExpanded && previousExpanded {
             self.isCollapsing = true
@@ -1196,51 +1222,58 @@ public final class PeerInfoAvatarListContainerNode: ASDisplayNode {
                 
                 var (complete, entries) = completeAndEntries
                 
-                if strongSelf.galleryEntries.count > 1, entries.count == 1 && !complete {
-                    return
-                }
-                
-                var synchronous = false
-                if !strongSelf.galleryEntries.isEmpty, let updated = entries.first, case let .image(mediaId, reference, _, videoRepresentations, peer, index, indexData, messageId, thumbnailData, caption, _, emojiMarkup) = updated, !videoRepresentations.isEmpty, let previous = strongSelf.galleryEntries.first, case let .topImage(representations, _, _, _, _, _) = previous {
-                    let firstEntry = AvatarGalleryEntry.image(mediaId, reference, representations, videoRepresentations, peer, index, indexData, messageId, thumbnailData, caption, false, emojiMarkup)
-                    entries.remove(at: 0)
-                    entries.insert(firstEntry, at: 0)
-                    synchronous = true
-                }
-                
-                if let entry = entry {
-                    entries.insert(entry, at: 0)
-                    
-                    strongSelf.additionalEntryProgress = additionalEntry
-                    |> map { value -> Float? in
-                        return value?.1
-                    }
-                }
-                
-                if strongSelf.ignoreNextProfilePhotoUpdate {
-                    if entries.count == 1, let first = entries.first, case .topImage = first {
+                //CloudVeil start
+                var items: [PeerInfoAvatarListItem] = []
+                if !CloudVeilSecurityController.shared.disableProfilePhoto {
+                    if strongSelf.galleryEntries.count > 1, entries.count == 1 && !complete {
                         return
-                    } else {
-                        strongSelf.ignoreNextProfilePhotoUpdate = false
+                    }
+                    
+                    var synchronous = false
+                    if !strongSelf.galleryEntries.isEmpty, let updated = entries.first, case let .image(mediaId, reference, _, videoRepresentations, peer, index, indexData, messageId, thumbnailData, caption, _, emojiMarkup) = updated, !videoRepresentations.isEmpty, let previous = strongSelf.galleryEntries.first, case let .topImage(representations, _, _, _, _, _) = previous {
+                        let firstEntry = AvatarGalleryEntry.image(mediaId, reference, representations, videoRepresentations, peer, index, indexData, messageId, thumbnailData, caption, false, emojiMarkup)
+                        entries.remove(at: 0)
+                        entries.insert(firstEntry, at: 0)
                         synchronous = true
                     }
-                }
-                
-                var items: [PeerInfoAvatarListItem] = []
-                if let customNode = customNode {
-                    items.append(.custom(customNode))
-                }
-                for entry in entries {
-                    if let item = PeerInfoAvatarListItem(entry: entry) {
-                        items.append(item)
+                    
+                    if let entry = entry {
+                        entries.insert(entry, at: 0)
+                        
+                        strongSelf.additionalEntryProgress = additionalEntry
+                        |> map { value -> Float? in
+                            return value?.1
+                        }
                     }
+                    
+                    if strongSelf.ignoreNextProfilePhotoUpdate {
+                        if entries.count == 1, let first = entries.first, case .topImage = first {
+                            return
+                        } else {
+                            strongSelf.ignoreNextProfilePhotoUpdate = false
+                            synchronous = true
+                        }
+                    }
+                    
+                    if let customNode = customNode {
+                        items.append(.custom(customNode))
+                    }
+                    for entry in entries {
+                        if let item = PeerInfoAvatarListItem(entry: entry) {
+                            items.append(item)
+                        }
+                    }
+                    strongSelf.galleryEntries = entries
+                    strongSelf.items = items
+                    strongSelf.itemsUpdated?(items)
+                    if let size = strongSelf.validLayout {
+                        strongSelf.updateItems(size: size, update: true, transition: .immediate, stripTransition: .immediate, synchronous: synchronous)
+                    }
+                } else {
+                    strongSelf.galleryEntries = []
+                    strongSelf.items = []
                 }
-                strongSelf.galleryEntries = entries
-                strongSelf.items = items
-                strongSelf.itemsUpdated?(items)
-                if let size = strongSelf.validLayout {
-                    strongSelf.updateItems(size: size, update: true, transition: .immediate, stripTransition: .immediate, synchronous: synchronous)
-                }
+                //CloudVeil end
                 if items.isEmpty {
                     if !strongSelf.didSetReady {
                         strongSelf.didSetReady = true

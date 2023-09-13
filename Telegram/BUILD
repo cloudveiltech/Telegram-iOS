@@ -39,6 +39,31 @@ load("//build-system/bazel-utils:plist_fragment.bzl",
     "plist_fragment",
 )
 
+#CloudVeil start
+load(
+    "@build_bazel_rules_apple//apple:apple.bzl",
+    "apple_dynamic_framework_import"
+)
+
+apple_dynamic_framework_import(
+  name = "CloudVeilSentry",
+  framework_imports = glob(["Sentry.framework/**"]),
+
+   visibility = [
+        "//visibility:public",
+    ],
+)
+
+apple_dynamic_framework_import(
+  name = "CloudVeilSecurityManager",
+  framework_imports = glob(["CloudVeilSecurityManager.framework/**"]),
+
+   visibility = [
+        "//visibility:public",
+    ],
+)
+#CloudVeil end
+
 load(
     "@build_configuration//:variables.bzl",
     "telegram_bazel_path",
@@ -643,7 +668,7 @@ plist_fragment(
     template =
     """
     <key>CFBundleDisplayName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     """
 )
 
@@ -691,7 +716,7 @@ plist_fragment(
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}.watchkitapp.watchkitextension</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>WKExtensionDelegateClassName</key>
@@ -711,7 +736,7 @@ plist_fragment(
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}.watchkitapp</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
@@ -791,7 +816,7 @@ watchos_application(
         ":disableProvisioningProfilesSetting": None,
         "//conditions:default": "@build_configuration//provisioning:WatchApp.mobileprovision",
     }),
-    ipa_post_processor = ":StripWatchosStubBinary",
+    #ipa_post_processor = ":StripWatchosStubBinary", # CloudVeil changed?
     resources = [
         ":TelegramWatchAppResources",
         ":TelegramWatchAppAssets",
@@ -1155,7 +1180,7 @@ plist_fragment(
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}.Share</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>NSExtension</key>
@@ -1247,7 +1272,7 @@ plist_fragment(
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}.NotificationContent</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>NSExtension</key>
@@ -1354,7 +1379,7 @@ plist_fragment(
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}.Widget</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>NSExtension</key>
@@ -1467,7 +1492,7 @@ plist_fragment(
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}.SiriIntents</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>NSExtension</key>
@@ -1598,7 +1623,7 @@ plist_fragment(
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}.BroadcastUpload</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>NSExtension</key>
@@ -1692,7 +1717,7 @@ plist_fragment(
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}.NotificationService</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>NSExtension</key>
@@ -1779,11 +1804,11 @@ plist_fragment(
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>CloudVeil Messenger</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -1940,6 +1965,24 @@ plist_fragment(
     )
 )
 
+# CloudVeil start?
+genrule(
+    name = "StripWatchosStubBinary1",
+    cmd_bash =
+"""
+    echo 'lipo -remove arm64e -remove arm64 -remove armv7k $$1/WatchKitSupport2/WK -output $$1/WatchKitSupport2/WK' >> $(location StripWatchosStubBinary1.sh)
+    echo '' >> $(location StripWatchosStubBinary1.sh)
+""",
+    outs = [
+        "StripWatchosStubBinary1.sh",
+    ],
+    executable = True,
+    visibility = [
+        "//visibility:public",
+    ]
+)
+# CloudVeil end?
+
 local_provisioning_profile(
     name = "Telegram_local_profile",
     profile_name = "iOS Team Provisioning Profile: {}".format(telegram_bundle_id),
@@ -1974,7 +2017,7 @@ ios_application(
     alternate_icons = [
         ":{}".format(name) for name in alternate_icon_folders
     ],
-    #ipa_post_processor = ":AddAlternateIcons",
+    #ipa_post_processor = ":StripWatchosStubBinary1", # CloudVeil changed?
     resources = [
         ":LaunchScreen",
         ":DefaultAppIcon",

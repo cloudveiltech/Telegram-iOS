@@ -14,6 +14,7 @@ import ChatMessageDateAndStatusNode
 import ChatMessageBubbleContentNode
 import ChatMessageItemCommon
 import ChatMessageInteractiveMediaNode
+import CloudVeilSecurityManager
 
 public class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
     override public var supportsMosaic: Bool {
@@ -142,6 +143,9 @@ public class ChatMessageMediaBubbleContentNode: ChatMessageBubbleContentNode {
                                 } else {
                                     automaticPlayback = item.context.account.postbox.mediaBox.completedResourcePath(telegramFile.resource) != nil
                                 }
+                                //CloudVeil start
+                                automaticPlayback = automaticPlayback && !CloudVeilSecurityController.SecurityStaticSettings.disableAutoPlayGifs
+                                //CloudVeil ends
                             } else if (telegramFile.isVideo && !telegramFile.isAnimated) && item.context.sharedContext.energyUsageSettings.autoplayVideo {
                                 if case .full = automaticDownload {
                                     automaticPlayback = true

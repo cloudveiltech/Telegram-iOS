@@ -27,9 +27,9 @@ final class WebSearchNavigationContentNode: NavigationBarContentNode {
         self.searchBar.placeholderString = NSAttributedString(string: attachment ? strings.Attachment_SearchWeb : strings.Common_Search, font: searchBarFont, textColor: theme.rootController.navigationSearchBar.inputPlaceholderTextColor)
         
         super.init()
-        
-        self.addSubnode(self.searchBar)
-        
+        //CloudVeil disabled
+        //self.addSubnode(self.searchBar)
+        //CloudVeil end
         self.searchBar.textUpdated = { [weak self] query, _ in
             self?.queryUpdated?(query)
         }

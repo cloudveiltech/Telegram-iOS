@@ -28,6 +28,7 @@ import ChatMessageThreadInfoNode
 import ChatMessageActionButtonsNode
 import ChatMessageReactionsFooterContentNode
 import ChatSwipeToReplyRecognizer
+import CloudVeilSecurityManager
 
 private let nameFont = Font.medium(14.0)
 private let inlineBotPrefixFont = Font.regular(14.0)
@@ -1416,15 +1417,24 @@ public class ChatMessageStickerItemNode: ChatMessageItemView {
             
                 if let item = self.item, self.imageNode.frame.contains(location) {
                     return .optionalAction({
-                        let _ = item.controllerInteraction.openMessage(item.message, .default)
+                        //CloudVeil start
+                        if !CloudVeilSecurityController.shared.disableStickers {
+                            let _ = item.controllerInteraction.openMessage(item.message, .default)
+                        }
+                        //CloudVeil end
                     })
                 }
             
                 return nil
             case .longTap, .doubleTap, .secondaryTap:
-                if let item = self.item, self.imageNode.frame.contains(location) {
-                    return .openContextMenu(InternalBubbleTapAction.OpenContextMenu(tapMessage: item.message, selectAll: false, subFrame: self.imageNode.frame))
+                //CloudVeil start
+                if !CloudVeilSecurityController.shared.disableStickers {
+                    if let item = self.item, self.imageNode.frame.contains(location) {
+                        return .openContextMenu(InternalBubbleTapAction.OpenContextMenu(tapMessage: item.message, selectAll: false, subFrame: self.imageNode.frame))
+                    }
                 }
+                //CloudVeil end
+             
             case .hold:
                 break
         }

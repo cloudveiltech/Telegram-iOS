@@ -28,6 +28,7 @@ import TelegramCallsUI
 import AuthorizationUI
 import ChatListUI
 import StoryContainerScreen
+import CloudVeilSecurityManager
 
 final class UnauthorizedApplicationContext {
     let sharedContext: SharedAccountContextImpl
@@ -332,6 +333,12 @@ final class AuthorizedApplicationContext {
                     if !notify {
                         chatIsVisible = true
                     }
+                    
+                    //CloudVeil start
+                    if !CloudVeilSecurityController.shared.isConversationAvailable(conversationId: NSInteger(firstMessage.id.peerId.id._internalGetInt64Value())) {
+                        return
+                    }
+                    //CloudVeil end
                     
                     if !chatIsVisible {
                         strongSelf.mainWindow.forEachViewController({ controller in

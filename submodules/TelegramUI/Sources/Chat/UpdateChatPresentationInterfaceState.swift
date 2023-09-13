@@ -13,6 +13,7 @@ import TelegramNotices
 import PresentationDataUtils
 import TelegramCallsUI
 import AttachmentUI
+import CloudVeilSecurityManager
 
 func updateChatPresentationInterfaceStateImpl(
     selfController: ChatControllerImpl,
@@ -513,4 +514,15 @@ func updateChatPresentationInterfaceStateImpl(
     }
     
     selfController.presentationInterfaceStatePromise.set(selfController.presentationInterfaceState)
+        
+    //CloudVeil start
+    if let peer = selfController.presentationInterfaceState.renderedPeer?.peer as? TelegramSecretChat {
+        let timeout = peer.messageAutoremoveTimeout ?? 0
+        let minLength = Int32(CloudVeilSecurityController.shared.secretChatMinimumLength)
+        if timeout < minLength {
+            let value = minLength
+            let _ = selfController.context.engine.peers.setChatMessageAutoremoveTimeoutInteractively(peerId: peer.id, timeout: value == 0 ? nil : value).start()
+        }
+    }
+    //CloudVeil end
 }

@@ -31,6 +31,7 @@ import FetchManagerImpl
 import AnimationCache
 import MultiAnimationRenderer
 import AvatarNode
+import CloudVeilSecurityManager
 
 private enum ChatListRecentEntryStableId: Hashable {
     case topPeers
@@ -1908,11 +1909,15 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 }
                 
                 var totalNumberOfGlobalPeers = 0
-                for peer in foundRemotePeers.1 {
-                    if !existingPeerIds.contains(peer.peer.id), filteredPeer(EnginePeer(peer.peer), EnginePeer(accountPeer)) {
-                        totalNumberOfGlobalPeers += 1
+                //CloudVeil start
+                if !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
+                    for peer in foundRemotePeers.1 {
+                        if !existingPeerIds.contains(peer.peer.id), filteredPeer(EnginePeer(peer.peer), EnginePeer(accountPeer)) {
+                            totalNumberOfGlobalPeers += 1
+                        }
                     }
                 }
+                //CloudVeil end
                 
                 existingPeerIds.removeAll()
                 
@@ -2018,18 +2023,22 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 index = 0
                 if let _ = tagMask {
                 } else {
-                    for peer in foundRemotePeers.1 {
-                        if case .expand = globalExpandType, numberOfGlobalPeers >= 3 {
-                            break
-                        }
-                        
-                        if !existingPeerIds.contains(peer.peer.id), filteredPeer(EnginePeer(peer.peer), EnginePeer(accountPeer)) {
-                            existingPeerIds.insert(peer.peer.id)
-                            entries.append(.globalPeer(peer, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, globalExpandType, nil))
-                            index += 1
-                            numberOfGlobalPeers += 1
+                    //CloudVeil start
+                    if !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
+                        for peer in foundRemotePeers.1 {
+                            if case .expand = globalExpandType, numberOfGlobalPeers >= 3 {
+                                break
+                            }
+                            
+                            if !existingPeerIds.contains(peer.peer.id), filteredPeer(EnginePeer(peer.peer), EnginePeer(accountPeer)) {
+                                existingPeerIds.insert(peer.peer.id)
+                                entries.append(.globalPeer(peer, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, globalExpandType, nil))
+                                index += 1
+                                numberOfGlobalPeers += 1
+                            }
                         }
                     }
+                    //CloudVeil end
                 }
                 
                 if let message = resolvedMessage {
