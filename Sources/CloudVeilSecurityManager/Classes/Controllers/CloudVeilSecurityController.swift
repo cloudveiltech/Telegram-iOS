@@ -20,6 +20,7 @@ open class CloudVeilSecurityController: NSObject {
 		public static let disablePayments = true
 		public static let disableBots = false
 		public static let disableInlineBots = true
+        public static let disableGifs = true
 	}
 	
 	
@@ -165,7 +166,7 @@ open class CloudVeilSecurityController: NSObject {
 		}
 	}
 	
-	open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = []) {
+    open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = [], stickers: [TGRow] = []) {
 		let request = TGSettingsRequest(JSON: [:])!
 		request.id = TGUserController.shared.getUserID()
 		request.userName = TGUserController.shared.getUserName() as String
@@ -173,6 +174,7 @@ open class CloudVeilSecurityController: NSObject {
         request.groups = SyncArray<TGRow>(groups)
 		request.bots = SyncArray<TGRow>(bots)
 		request.channels = SyncArray<TGRow>(channels)
+        request.stickers = SyncArray<TGRow>(stickers)
         
         let dictionary = Bundle.main.infoDictionary!
         let version = dictionary["CFBundleShortVersionString"] as! String
@@ -251,7 +253,11 @@ open class CloudVeilSecurityController: NSObject {
 	}
     
     open func isStickerAvailable(stickerId: NSInteger) -> Bool {
-        var res = true
+        if disableStickers {
+            return false
+        }
+        
+        var res = false
         self.accessQueue.sync {
             if let dictArray = settings?.access?.stickers {
                 for arr in dictArray {

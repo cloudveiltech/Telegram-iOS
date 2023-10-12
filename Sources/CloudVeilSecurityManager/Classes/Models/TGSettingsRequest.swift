@@ -18,6 +18,7 @@ open class TGSettingsRequest: NSObject, Mappable {
     public var groups = SyncArray<TGRow>()
     public var channels = SyncArray<TGRow>()
     public var bots = SyncArray<TGRow>()
+    public var stickers = SyncArray<TGRow>()
     public var clientOsType = "iOS"
     public var clientSessionId = ""
     public var clientVersionCode = ""
@@ -35,6 +36,7 @@ open class TGSettingsRequest: NSObject, Mappable {
         groups.array <- map["groups"]
         channels.array <- map["channels"]
         bots.array <- map["bots"]
+        stickers.array <- map["stickers"]
         clientOsType <- map["client_os_type"]
         clientSessionId <- map["client_session_id"]
         clientVersionCode <- map["client_version_code"]
@@ -60,6 +62,9 @@ open class TGSettingsRequest: NSObject, Mappable {
             return false
         }
         if !TGRow.compareArrays(lhs: lhs.bots, rhs: rhs.bots) {
+            return false
+        }
+        if !TGRow.compareArrays(lhs: lhs.stickers, rhs: rhs.stickers) {
             return false
         }
         return true

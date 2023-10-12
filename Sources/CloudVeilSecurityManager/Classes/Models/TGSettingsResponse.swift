@@ -85,8 +85,8 @@ class AccessObject: Mappable {
         groups <- map["groups"]
         bots <- map["bots"]
         channels <- map["channels"]
-        stickers <- map["channels"]
-        users <- map["channels"]
+        stickers <- map["stickers"]
+        users <- map["users"]
     }
 }
 
