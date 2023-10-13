@@ -7,6 +7,8 @@
 //
 import Foundation
 
+import ObjectMapper
+
 // MARK: - DataStorage
 class DataSource<T: Mappable> {
     

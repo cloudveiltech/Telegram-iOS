@@ -1,0 +1,22 @@
+load("@build_bazel_rules_apple//apple:ios.bzl", "ios_framework")
+
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+
+swift_library(
+    name = "Lib",
+    module_name = "CloudVeilSecurityManager",
+    srcs = glob(["Sources/CloudVeilSecurityManager/**/*.swift"]),
+    deps = [
+        "@Alamofire//:Alamofire",
+        "@ObjectMapper//:ObjectMapper",
+    ],
+)
+
+ios_framework(
+    name = "CloudVeilSecurityManager",
+    bundle_id = "org.cloudveil.CloudVeilSecurityManager",
+    families = ["iphone", "ipad"],
+    infoplists = ["Sources/CloudVeilSecurityManager/Info.plist"],#
+    minimum_os_version = "12.0",
+    deps = [":Lib"],
+)

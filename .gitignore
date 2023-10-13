@@ -49,3 +49,10 @@ Carthage/Build
 
 fastlane/report.xml
 fastlane/screenshots
+
+# Bazel build
+bazel-bin
+bazel-out
+bazel-testlogs
+bazel-CloudVeil-securityManager-ios
+.build

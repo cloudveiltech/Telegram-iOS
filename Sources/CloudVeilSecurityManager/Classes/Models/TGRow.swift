@@ -8,6 +8,8 @@
 
 import UIKit
 
+import ObjectMapper
+
 
 @objc public class TGRow: NSObject, Mappable {
     

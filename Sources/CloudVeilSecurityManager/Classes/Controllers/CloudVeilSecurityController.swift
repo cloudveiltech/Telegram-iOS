@@ -8,8 +8,10 @@
 
 import Foundation
 
-import Alamofire
 import UIKit
+
+import Alamofire
+import ObjectMapper
 
 open class CloudVeilSecurityController: NSObject {
 	public struct SecurityStaticSettings {

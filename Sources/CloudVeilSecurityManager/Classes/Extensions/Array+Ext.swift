@@ -8,6 +8,8 @@
 
 import Foundation
 
+import ObjectMapper
+
 extension Sequence where Element == String {
     
     func mostCommon() -> String {
