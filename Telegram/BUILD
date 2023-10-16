@@ -39,31 +39,6 @@ load("//build-system/bazel-utils:plist_fragment.bzl",
     "plist_fragment",
 )
 
-#CloudVeil start
-load(
-    "@build_bazel_rules_apple//apple:apple.bzl",
-    "apple_dynamic_framework_import"
-)
-
-apple_dynamic_framework_import(
-  name = "CloudVeilSentry",
-  framework_imports = glob(["Sentry.framework/**"]),
-
-   visibility = [
-        "//visibility:public",
-    ],
-)
-
-apple_dynamic_framework_import(
-  name = "CloudVeilSecurityManager",
-  framework_imports = glob(["CloudVeilSecurityManager.framework/**"]),
-
-   visibility = [
-        "//visibility:public",
-    ],
-)
-#CloudVeil end
-
 load(
     "@build_configuration//:variables.bzl",
     "telegram_bazel_path",

@@ -54,7 +54,7 @@ swift_library(
     ],
     deps = [
        #CloudVeil start
-        "//Telegram:CloudVeilSecurityManager",
+        "@CloudVeilSecurityManager//:CloudVeilSecurityManager",
         #CloudVeil end
     	"//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/Display:Display",
