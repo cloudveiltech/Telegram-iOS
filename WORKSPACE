@@ -79,3 +79,49 @@ load("@build_bazel_rules_apple//apple:apple.bzl", "provisioning_profile_reposito
 provisioning_profile_repository(
     name = "local_provisioning_profiles",
 )
+
+# CloudVeil start
+# For if you have CloudVeil-securityManager-ios checked out locally. Update the
+# path to where you have it checked out.
+#local_repository(
+#    name = "CloudVeilSecurityManager",
+#    path = "../CloudVeil-securityManager-ios",
+#)
+
+# For fetching CloudVeil-securityManager-ios from GitHub. Comment this out if
+# you have it checked out locally.
+http_archive(
+    name = "CloudVeilSecurityManager",
+    strip_prefix = "CloudVeil-securityManager-ios-31fc79ac61463bf4834f1f0943dbcef59bcea4d6",
+    urls = ["https://github.com/cloudveiltech/CloudVeil-securityManager-ios/archive/31fc79ac61463bf4834f1f0943dbcef59bcea4d6.zip"],
+    sha256 = "88e149f54d407b898a39b04d99a208ada05957e4dace818788d84ea06364d65d",
+)
+
+http_archive(
+    name = "rules_pods",
+    urls = ["https://github.com/pinterest/PodToBUILD/releases/download/6.3.2-370b622/PodToBUILD.zip"],
+    sha256 = "ffdfe8c7a4c73cca5d7b7a67daa6ccdd046355637dbdb9b1366d021b4ad339b5",
+)
+
+load("@rules_pods//BazelExtensions:workspace.bzl", "new_pod_repository")
+
+new_pod_repository(
+    name = "Sentry",
+    url = "https://github.com/getsentry/sentry-cocoa/archive/8.13.1.zip",
+)
+
+new_pod_repository(
+    name = "SentryPrivate",
+    url = "https://github.com/getsentry/sentry-cocoa/archive/8.13.1.zip",
+)
+
+new_pod_repository(
+    name = "ObjectMapper",
+    url = "https://github.com/tristanhimmelman/ObjectMapper/archive/3.3.0.zip",
+)
+
+new_pod_repository(
+    name = "Alamofire",
+    url = "https://github.com/Alamofire/Alamofire/archive/4.9.1.zip",
+)
+# CloudVeil end

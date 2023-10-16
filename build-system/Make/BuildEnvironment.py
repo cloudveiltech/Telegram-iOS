@@ -13,7 +13,7 @@ def is_apple_silicon():
 
 def get_clean_env():
     clean_env = os.environ.copy()
-    clean_env['PATH'] = '/usr/bin:/bin:/usr/sbin:/sbin'
+    clean_env['PATH'] = '/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
     return clean_env
 
 
