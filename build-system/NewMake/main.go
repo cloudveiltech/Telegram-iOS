@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,12 +32,21 @@ type BuildConfig struct {
 	EnableIcloud         bool   `json:"enable_icloud"`
 }
 
+type MakeConfig struct {
+	IpaPath      string `json:"ipa-archive-path"`
+	DsymsPath    string `json:"dsyms-archive-path"`
+	DevProvision string `json:"dev-provisioning-path"`
+	DistPovision string `json:"dist-provisioning-path"`
+}
+
 const USAGE = `
 usage: ./make clean
 	remove build outputs
 
 usage: ./make rebuild-me
 	rebuild this tool
+
+usage: ./make test
 
 usage: ./make build [-for sim|dev|dist] [-mode debug|release]
 	build telegram
@@ -50,8 +60,14 @@ usage: ./make build [-for sim|dev|dist] [-mode debug|release]
 	-mode	Embed debug symbols in unoptimized binaries, or output optimized binaries with separate
 		debugging symbols.
 
-	development provisioning files and build configuration will be taken from ../ProvisionDev
-	distribution provisioning files and build configuration will be taken from ../ProvisionDist
+	If a file make.json is present in the working directory, this tool will read it. If it isn't
+	present, the tool will continue as if the file had the following contents:
+		{
+			"ipa-archive-path": null,
+			"dsyms-archive-path": null,
+			"dev-provisioning-path": "../ProvisionDev",
+			"dist-provisioning-path": "../ProvisionDist"
+		}
 `
 
 // VARIABLES contains the variables.bzl template
@@ -131,6 +147,21 @@ func copyFile(src, dst string) error {
 	return err
 }
 
+// copyDir copies the directory at src to dst. dst will be created with src's
+// permissions.
+func copyDir(src, dst string) error {
+	// for better error reporting
+	_, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	err = os.RemoveAll(dst)
+	if err != nil {
+		return err
+	}
+	return exec.Command("cp", "-R", src, dst).Run()
+}
+
 func main() {
 	os.Exit(func() int {
 		// Make sure we have a command
@@ -173,15 +204,28 @@ func main() {
 			}
 			flag.CommandLine.Parse(os.Args[2:])
 
+			// parse our configuration
+			makeConfig := MakeConfig{
+				DevProvision: "../ProvisionDev",
+				DistPovision: "../ProvisionDist",
+			}
+			err := withOpenFile("make.json", func(file *os.File) error {
+				return json.NewDecoder(file).Decode(&makeConfig)
+			})
+			if err != nil && !errors.Is(err, fs.ErrNotExist) {
+				fmt.Fprintf(os.Stderr, "Failed reading make configuration: %v\n", err)
+				return 1
+			}
+
 			// figure out where the build configuration and provisioning profiles are
-			provisionPath := "../ProvisionDev"
+			provisionPath := makeConfig.DevProvision
 			if buildFor == "dist" {
-				provisionPath = "../ProvisionDist"
+				provisionPath = makeConfig.DistPovision
 			}
 
 			// read and decode the build config
 			var buildConfig BuildConfig
-			err := withOpenFile(filepath.Join(provisionPath, "configuration.json"), func(configJsonFile *os.File) error {
+			err = withOpenFile(filepath.Join(provisionPath, "configuration.json"), func(configJsonFile *os.File) error {
 				return json.NewDecoder(configJsonFile).Decode(&buildConfig)
 			})
 			if err != nil {
@@ -306,6 +350,7 @@ func main() {
 				"build", "Telegram/Telegram", "--announce_rc", "--verbose_failures",
 				"--features=swift.use_global_module_cache", "--experimental_remote_cache_async",
 				"--features=swift.skip_function_bodyies_for_derived_files",
+				"--apple_generate_dsym", "--output_groups=+dsyms",
 				fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
 				fmt.Sprintf("--jobs=%d", runtime.NumCPU()), "--watchos_cpus=arm64_32",
 				fmt.Sprintf("--define=buildNumber=%d", buildNumber),
@@ -336,13 +381,14 @@ func main() {
 			case "debug":
 				args = append(args,
 					"-c", "dbg", "--features=swift.enable_batch_mode",
+					"--//Telegram:disableStripping",
 					fmt.Sprintf("--swiftcopt=-j%d", min(runtime.NumCPU()-1, 1)),
 				)
 			case "release":
 				args = append(args,
-					"-c", "opt", "--apple_generate_dsym", "--output_groups=+dsyms",
-					"--features=swift.opt_uses_wmo", "--swiftcopt=-num-threads", "--swiftcopt=1",
-					"--swiftcopt=-j1", "--features=dead_strip", "--objc_enable_binary_stripping",
+					"-c", "opt", "--features=swift.opt_uses_wmo", "--swiftcopt=-num-threads",
+					"--swiftcopt=1", "--swiftcopt=-j1", "--features=dead_strip",
+					"--objc_enable_binary_stripping",
 				)
 			}
 
@@ -366,18 +412,41 @@ func main() {
 				return 3
 			}
 
-			// copy the IPA to the builds archive
-			err = os.MkdirAll("../builds-archive", 0755)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed creating build archive dir: %v\n", err)
-				return 3
+			archiveName := fmt.Sprintf("Telegram_%s_%s_%d", buildFor, buildMode, buildNumber)
+
+			// copy the IPA to the archive
+			if makeConfig.IpaPath != "" {
+				err = os.MkdirAll(makeConfig.IpaPath, 0755)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed creating IPA archive: %v\n", err)
+					return 3
+				}
+
+				err = copyFile("bazel-bin/Telegram/Telegram.ipa", makeConfig.IpaPath+archiveName+".ipa")
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed copying IPA to archive: %v\n", err)
+					return 3
+				}
 			}
 
-			archiveNameBase := fmt.Sprintf("../builds-archive/Telegram_%s_%s_%d", buildFor, buildMode, buildNumber)
-			err = copyFile("bazel-bin/Telegram/Telegram.ipa", archiveNameBase+".ipa")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed copying IPA to build archive dir: %v\n", err)
-				return 3
+			// copy the dSYMs to the archive
+			if makeConfig.DsymsPath != "" {
+				dsyms, _ := filepath.Glob("bazel-bin/Telegram/*.dSYM")
+				if dsyms != nil && len(dsyms) != 0 {
+					err = os.MkdirAll(makeConfig.DsymsPath+archiveName+".dSYMs", 0755)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Failed creating dSYM archive: %v\n", err)
+						return 3
+					}
+					for _, dsym := range dsyms {
+						dst := makeConfig.DsymsPath + archiveName + "dSYMs/" + filepath.Base(dsym)
+						err = copyDir(dsym, dst)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Failed copying dSYM to archive: %v\n", err)
+							return 3
+						}
+					}
+				}
 			}
 		default:
 			fmt.Fprintln(os.Stderr, "Unknown command")
