@@ -422,7 +422,7 @@ func main() {
 					return 3
 				}
 
-				err = copyFile("bazel-bin/Telegram/Telegram.ipa", makeConfig.IpaPath+archiveName+".ipa")
+				err = copyFile("bazel-bin/Telegram/Telegram.ipa", makeConfig.IpaPath+"/"+archiveName+".ipa")
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed copying IPA to archive: %v\n", err)
 					return 3
@@ -433,13 +433,13 @@ func main() {
 			if makeConfig.DsymsPath != "" {
 				dsyms, _ := filepath.Glob("bazel-bin/Telegram/*.dSYM")
 				if dsyms != nil && len(dsyms) != 0 {
-					err = os.MkdirAll(makeConfig.DsymsPath+archiveName+".dSYMs", 0755)
+					err = os.MkdirAll(makeConfig.DsymsPath+"/"+archiveName+".dSYMs", 0755)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "Failed creating dSYM archive: %v\n", err)
 						return 3
 					}
 					for _, dsym := range dsyms {
-						dst := makeConfig.DsymsPath + archiveName + "dSYMs/" + filepath.Base(dsym)
+						dst := makeConfig.DsymsPath + "/" + archiveName + ".dSYMs/" + filepath.Base(dsym)
 						err = copyDir(dsym, dst)
 						if err != nil {
 							fmt.Fprintf(os.Stderr, "Failed copying dSYM to archive: %v\n", err)
