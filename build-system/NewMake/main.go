@@ -21,6 +21,7 @@ import (
 type BuildConfig struct {
 	BuildNumber          uint   `json:"-"`
 	ProvisioningPath     string `json:"-"`
+	ApsEnvironment       string `json:"-"`
 	BundleId             string `json:"bundle_id"`
 	ApiId                string `json:"api_id"`
 	ApiHash              string `json:"api_hash"`
@@ -79,12 +80,12 @@ telegram_api_id = "{{ .ApiId }}"
 telegram_api_hash = "{{ .ApiHash }}"
 telegram_team_id = "{{ .TeamId }}"
 telegram_app_center_id = "0"
-telegram_is_internal_build = "false"
-telegram_is_appstore_build = "true"
+telegram_is_internal_build = "{{ printf "%t" (eq "development" .ApsEnvironment) }}"
+telegram_is_appstore_build = "{{ printf "%t" (eq "production" .ApsEnvironment) }}"
 telegram_appstore_id = "{{ .AppStoreId }}"
 telegram_app_specific_url_scheme = "{{ .AppSpecificUrlScheme }}"
 telegram_premium_iap_product_id = "{{ .PremiumIapProductId }}"
-telegram_aps_environment = "production"
+telegram_aps_environment = "{{ .ApsEnvironment }}"
 telegram_enable_siri = {{ if .EnableSiri -}} True {{- else -}} False {{- end }}
 telegram_enable_icloud = {{ if .EnableIcloud -}} True {{- else -}} False {{- end }}
 telegram_enable_watch = True
@@ -231,6 +232,15 @@ func main() {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed reading build configuration: %v\n", err)
 				return 1
+			}
+			switch buildFor {
+			case "dev":
+				buildConfig.ApsEnvironment = "development"
+			case "dist":
+				buildConfig.ApsEnvironment = "production"
+			default:
+				// this will probably cause a build error
+				buildConfig.ApsEnvironment = "unknown"
 			}
 
 			// read the Telegram version we will build
