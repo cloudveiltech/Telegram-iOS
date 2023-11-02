@@ -359,7 +359,7 @@ func main() {
 			args := []string{
 				"build", "Telegram/Telegram", "--announce_rc", "--verbose_failures",
 				"--features=swift.use_global_module_cache", "--experimental_remote_cache_async",
-				"--features=swift.skip_function_bodyies_for_derived_files",
+				"--features=swift.skip_function_bodies_for_derived_files",
 				"--apple_generate_dsym", "--output_groups=+dsyms",
 				"--features=-no_warn_duplicate_libraries",
 				fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
