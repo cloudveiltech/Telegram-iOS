@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"text/tabwriter"
 	"text/template"
 )
@@ -38,6 +39,16 @@ type MakeConfig struct {
 	DsymsPath    string `json:"dsyms-archive-path"`
 	DevProvision string `json:"dev-provisioning-path"`
 	DistPovision string `json:"dist-provisioning-path"`
+}
+
+// ArchiveData is the data object used when executing the archive destination templates
+type ArchiveData struct {
+	BundleID    string
+	BundleName  string
+	BuildNumber uint
+	Version     string
+	BuildFor    string
+	BuildMode   string
 }
 
 const USAGE = `
@@ -217,6 +228,16 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Failed reading make configuration: %v\n", err)
 				return 1
 			}
+			ipaPathTmpl, err := template.New("ipa-path").Parse(makeConfig.IpaPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed parsing ipa-archive-path template: %v\n", err)
+				return 1
+			}
+			dsymsPathTmpl, err := template.New("dsyms-path").Parse(makeConfig.DsymsPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed parsing dsyms-archive-path template: %v\n", err)
+				return 1
+			}
 
 			// figure out where the build configuration and provisioning profiles are
 			provisionPath := makeConfig.DevProvision
@@ -257,7 +278,7 @@ func main() {
 			appVersion := versions.App
 
 			// read the build number to use
-			buildNumber := 0
+			buildNumber := uint(0)
 			_ = withOpenFile("buildNumber.txt", func(bnumFile *os.File) error {
 				_, err := fmt.Fscanf(bnumFile, "%d", &buildNumber)
 				return err
@@ -423,34 +444,55 @@ func main() {
 				return 3
 			}
 
-			archiveName := fmt.Sprintf("Telegram_%s_%s_%d", buildFor, buildMode, buildNumber)
+			// fill out the data given to the archive path templates
+			sb := strings.Builder{}
+			bundleIdElems := strings.Split(buildConfig.BundleId, ".")
+			bundleName := ""
+			if len(bundleIdElems) > 0 {
+				bundleName = bundleIdElems[len(bundleIdElems)-1]
+			}
+			archiveData := ArchiveData{
+				BundleID:    buildConfig.BundleId,
+				BundleName:  bundleName,
+				BuildNumber: buildNumber,
+				Version:     appVersion,
+				BuildFor:    buildFor,
+				BuildMode:   buildMode,
+			}
 
 			// copy the IPA to the archive
-			if makeConfig.IpaPath != "" {
-				err = os.MkdirAll(makeConfig.IpaPath, 0755)
+			err = ipaPathTmpl.Execute(&sb, archiveData)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed running IPA archive path template: %v\n", err)
+			} else if ipaPath := sb.String(); ipaPath != "" {
+				err = os.MkdirAll(filepath.Dir(ipaPath), 0755)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed creating IPA archive: %v\n", err)
+					fmt.Fprintf(os.Stderr, "Failed creating IPA archive dir: %v\n", err)
 					return 3
 				}
 
-				err = copyFile("bazel-bin/Telegram/Telegram.ipa", makeConfig.IpaPath+"/"+archiveName+".ipa")
+				err = copyFile("bazel-bin/Telegram/Telegram.ipa", ipaPath)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed copying IPA to archive: %v\n", err)
 					return 3
 				}
 			}
+			sb.Reset()
 
 			// copy the dSYMs to the archive
-			if makeConfig.DsymsPath != "" {
+			err = dsymsPathTmpl.Execute(&sb, archiveData)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed running dSYMs archive path template: %v\n", err)
+			} else if dsymsPath := sb.String(); dsymsPath != "" {
 				dsyms, _ := filepath.Glob("bazel-bin/Telegram/*.dSYM")
 				if dsyms != nil && len(dsyms) != 0 {
-					err = os.MkdirAll(makeConfig.DsymsPath+"/"+archiveName+".dSYMs", 0755)
+					err = os.MkdirAll(dsymsPath, 0755)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "Failed creating dSYM archive: %v\n", err)
+						fmt.Fprintf(os.Stderr, "Failed creating dSYMs archive: %v\n", err)
 						return 3
 					}
 					for _, dsym := range dsyms {
-						dst := makeConfig.DsymsPath + "/" + archiveName + ".dSYMs/" + filepath.Base(dsym)
+						dst := dsymsPath + "/" + filepath.Base(dsym)
 						err = copyDir(dsym, dst)
 						if err != nil {
 							fmt.Fprintf(os.Stderr, "Failed copying dSYM to archive: %v\n", err)
