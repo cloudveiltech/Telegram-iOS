@@ -60,7 +60,7 @@ usage: ./make rebuild-me
 
 usage: ./make test
 
-usage: ./make build [-for sim|dev|dist] [-mode debug|release]
+usage: ./make build [-noarchive] [-for sim|dev|dist] [-mode debug|release]
 	build telegram
 
 	-for	Build for simulator, development, or distribution. Controls the type of codesigning.
@@ -71,6 +71,8 @@ usage: ./make build [-for sim|dev|dist] [-mode debug|release]
 
 	-mode	Embed debug symbols in unoptimized binaries, or output optimized binaries with separate
 		debugging symbols.
+
+	-noarchive	Don't copy the build outputs to the archive paths. Don't bump the build number.
 
 	If a file make.json is present in the working directory, this tool will read it. If it isn't
 	present, the tool will continue as if the file had the following contents:
@@ -209,8 +211,10 @@ func main() {
 		case "build":
 			// parse command line args
 			var buildFor, buildMode string
+			var skipArchive bool
 			flag.StringVar(&buildFor, "for", "sim", "")
 			flag.StringVar(&buildMode, "mode", "debug", "")
+			flag.BoolVar(&skipArchive, "noarchive", false, "")
 			flag.CommandLine.Usage = func() {
 				usage(os.Stderr)
 			}
@@ -437,66 +441,68 @@ func main() {
 				return 2
 			}
 
-			// update the build number
-			err = os.WriteFile("buildNumber.txt", []byte(fmt.Sprintf("%d\n", buildNumber+1)), 0644)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed incrementing build number: %v\n", err)
-				return 3
-			}
-
-			// fill out the data given to the archive path templates
-			sb := strings.Builder{}
-			bundleIdElems := strings.Split(buildConfig.BundleId, ".")
-			bundleName := ""
-			if len(bundleIdElems) > 0 {
-				bundleName = bundleIdElems[len(bundleIdElems)-1]
-			}
-			archiveData := ArchiveData{
-				BundleID:    buildConfig.BundleId,
-				BundleName:  bundleName,
-				BuildNumber: buildNumber,
-				Version:     appVersion,
-				BuildFor:    buildFor,
-				BuildMode:   buildMode,
-			}
-
-			// copy the IPA to the archive
-			err = ipaPathTmpl.Execute(&sb, archiveData)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed running IPA archive path template: %v\n", err)
-			} else if ipaPath := sb.String(); ipaPath != "" {
-				err = os.MkdirAll(filepath.Dir(ipaPath), 0755)
+			if !skipArchive {
+				// update the build number
+				err = os.WriteFile("buildNumber.txt", []byte(fmt.Sprintf("%d\n", buildNumber+1)), 0644)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed creating IPA archive dir: %v\n", err)
+					fmt.Fprintf(os.Stderr, "Failed incrementing build number: %v\n", err)
 					return 3
 				}
 
-				err = copyFile("bazel-bin/Telegram/Telegram.ipa", ipaPath)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed copying IPA to archive: %v\n", err)
-					return 3
+				// fill out the data given to the archive path templates
+				sb := strings.Builder{}
+				bundleIdElems := strings.Split(buildConfig.BundleId, ".")
+				bundleName := ""
+				if len(bundleIdElems) > 0 {
+					bundleName = bundleIdElems[len(bundleIdElems)-1]
 				}
-			}
-			sb.Reset()
+				archiveData := ArchiveData{
+					BundleID:    buildConfig.BundleId,
+					BundleName:  bundleName,
+					BuildNumber: buildNumber,
+					Version:     appVersion,
+					BuildFor:    buildFor,
+					BuildMode:   buildMode,
+				}
 
-			// copy the dSYMs to the archive
-			err = dsymsPathTmpl.Execute(&sb, archiveData)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed running dSYMs archive path template: %v\n", err)
-			} else if dsymsPath := sb.String(); dsymsPath != "" {
-				dsyms, _ := filepath.Glob("bazel-bin/Telegram/*.dSYM")
-				if dsyms != nil && len(dsyms) != 0 {
-					err = os.MkdirAll(dsymsPath, 0755)
+				// copy the IPA to the archive
+				err = ipaPathTmpl.Execute(&sb, archiveData)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed running IPA archive path template: %v\n", err)
+				} else if ipaPath := sb.String(); ipaPath != "" {
+					err = os.MkdirAll(filepath.Dir(ipaPath), 0755)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "Failed creating dSYMs archive: %v\n", err)
+						fmt.Fprintf(os.Stderr, "Failed creating IPA archive dir: %v\n", err)
 						return 3
 					}
-					for _, dsym := range dsyms {
-						dst := dsymsPath + "/" + filepath.Base(dsym)
-						err = copyDir(dsym, dst)
+
+					err = copyFile("bazel-bin/Telegram/Telegram.ipa", ipaPath)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Failed copying IPA to archive: %v\n", err)
+						return 3
+					}
+				}
+				sb.Reset()
+
+				// copy the dSYMs to the archive
+				err = dsymsPathTmpl.Execute(&sb, archiveData)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed running dSYMs archive path template: %v\n", err)
+				} else if dsymsPath := sb.String(); dsymsPath != "" {
+					dsyms, _ := filepath.Glob("bazel-bin/Telegram/*.dSYM")
+					if dsyms != nil && len(dsyms) != 0 {
+						err = os.MkdirAll(dsymsPath, 0755)
 						if err != nil {
-							fmt.Fprintf(os.Stderr, "Failed copying dSYM to archive: %v\n", err)
+							fmt.Fprintf(os.Stderr, "Failed creating dSYMs archive: %v\n", err)
 							return 3
+						}
+						for _, dsym := range dsyms {
+							dst := dsymsPath + "/" + filepath.Base(dsym)
+							err = copyDir(dsym, dst)
+							if err != nil {
+								fmt.Fprintf(os.Stderr, "Failed copying dSYM to archive: %v\n", err)
+								return 3
+							}
 						}
 					}
 				}
