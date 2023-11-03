@@ -51,6 +51,7 @@ type ArchiveData struct {
 	BuildMode   string
 }
 
+// the trailing whitespace in this literal is important to align the text properly
 const USAGE = `
 usage: ./make clean
 	remove build outputs
@@ -68,10 +69,10 @@ usage: ./make build [-noarchive] [-for sim|dev|dist] [-mode debug|release]
 		files, with the device id of every device the app will be installed on. distribution
 		requires Apple Distribution mobile provisioning files, and doesn't allow attaching a
 		debugger to the running app.
-
+		
 	-mode	Embed debug symbols in unoptimized binaries, or output optimized binaries with separate
 		debugging symbols.
-
+		
 	-noarchive	Don't copy the build outputs to the archive paths. Don't bump the build number.
 
 	If a file make.json is present in the working directory, this tool will read it. If it isn't
@@ -106,7 +107,7 @@ telegram_enable_watch = True
 
 // usage outputs command usage to the given writer
 func usage(w io.Writer) {
-	tw := tabwriter.NewWriter(w, 0, 8, 0, '\t', 0)
+	tw := tabwriter.NewWriter(w, 4, 8, 1, ' ', 0)
 	fmt.Fprint(tw, USAGE)
 	tw.Flush()
 }
