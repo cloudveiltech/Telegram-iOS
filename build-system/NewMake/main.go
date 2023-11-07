@@ -23,6 +23,8 @@ type BuildConfig struct {
 	BuildNumber          uint   `json:"-"`
 	ProvisioningPath     string `json:"-"`
 	ApsEnvironment       string `json:"-"`
+	AppVersion           string `json:"-"`
+	BazelPath            string `json:"-"`
 	BundleId             string `json:"bundle_id"`
 	ApiId                string `json:"api_id"`
 	ApiHash              string `json:"api_hash"`
@@ -35,10 +37,12 @@ type BuildConfig struct {
 }
 
 type MakeConfig struct {
-	IpaPath      string `json:"ipa-archive-path"`
-	DsymsPath    string `json:"dsyms-archive-path"`
-	DevProvision string `json:"dev-provisioning-path"`
-	DistPovision string `json:"dist-provisioning-path"`
+	IpaPath       string             `json:"ipa-archive-path"`
+	IpaPathTmpl   *template.Template `json:"-"`
+	DsymsPath     string             `json:"dsyms-archive-path"`
+	DsymsPathTmpl *template.Template `json:"-"`
+	DevProvision  string             `json:"dev-provisioning-path"`
+	DistPovision  string             `json:"dist-provisioning-path"`
 }
 
 // ArchiveData is the data object used when executing the archive destination templates
@@ -60,6 +64,9 @@ usage: ./make rebuild-me
 	rebuild this tool
 
 usage: ./make test
+
+usage: ./make project
+	generate an Xcode project
 
 usage: ./make build [-noarchive] [-for sim|dev|dist] [-mode debug|release]
 	build telegram
@@ -87,7 +94,7 @@ usage: ./make build [-noarchive] [-for sim|dev|dist] [-mode debug|release]
 
 // VARIABLES contains the variables.bzl template
 const VARIABLES = `
-telegram_bazel_path = "/does/not/exist/bazel"
+telegram_bazel_path = "{{ .BazelPath }}"
 telegram_use_xcode_managed_codesigning = False
 telegram_bundle_id = "{{ .BundleId }}"
 telegram_api_id = "{{ .ApiId }}"
@@ -177,6 +184,157 @@ func copyDir(src, dst string) error {
 	return exec.Command("cp", "-R", src, dst).Run()
 }
 
+func readConfig(buildFor string) (*MakeConfig, *BuildConfig, error) {
+	makeConfig := &MakeConfig{
+		DevProvision: "../ProvisionDev",
+		DistPovision: "../ProvisionDist",
+	}
+	err := withOpenFile("make.json", func(file *os.File) error {
+		return json.NewDecoder(file).Decode(&makeConfig)
+	})
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, nil, fmt.Errorf("Failed reading make configuration: %v\n", err)
+	}
+	makeConfig.IpaPathTmpl, err = template.New("ipa-path").Parse(makeConfig.IpaPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed parsing ipa-archive-path template: %v\n", err)
+	}
+	makeConfig.DsymsPathTmpl, err = template.New("dsyms-path").Parse(makeConfig.DsymsPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed parsing dsyms-archive-path template: %v\n", err)
+	}
+
+	// figure out where the build configuration and provisioning profiles are
+	buildConfig := &BuildConfig{
+		ProvisioningPath: makeConfig.DevProvision,
+	}
+	if buildFor == "dist" {
+		buildConfig.ProvisioningPath = makeConfig.DistPovision
+	}
+
+	// read and decode the build config
+	buildConfigFile := filepath.Join(buildConfig.ProvisioningPath, "configuration.json")
+	err = withOpenFile(buildConfigFile, func(configJsonFile *os.File) error {
+		return json.NewDecoder(configJsonFile).Decode(&buildConfig)
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed reading build configuration: %v\n", err)
+	}
+	switch buildFor {
+	case "dev":
+		buildConfig.ApsEnvironment = "development"
+	case "dist":
+		buildConfig.ApsEnvironment = "production"
+	default:
+		// this will probably cause a build error
+		buildConfig.ApsEnvironment = "unknown"
+	}
+
+	// read the Telegram version we will build
+	var versions struct {
+		App string `json:"app"`
+	}
+	err = withOpenFile("versions.json", func(versionsFile *os.File) error {
+		return json.NewDecoder(versionsFile).Decode(&versions)
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed reading telegram version: %v\n", err)
+	}
+	buildConfig.AppVersion = versions.App
+
+	// find the Bazel we will use
+	buildConfig.BazelPath, err = exec.LookPath("bazel")
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed locating bazel: %v\n", err)
+	}
+
+	// read the build number to use
+	_ = withOpenFile("buildNumber.txt", func(bnumFile *os.File) error {
+		_, err := fmt.Fscanf(bnumFile, "%d", &buildConfig.BuildNumber)
+		return err
+	})
+
+	return makeConfig, buildConfig, nil
+}
+
+func updateBuildConfigRepo(cfgdir string, makeConfig *MakeConfig, buildConfig *BuildConfig) error {
+	// create the dir to contain the build configuration repository
+	err := os.MkdirAll(cfgdir, 0755)
+	if err != nil {
+		return fmt.Errorf("Failed creating %s: %v\n", cfgdir, err)
+	}
+
+	// make the build configuration repository a bazel repo
+	err = os.WriteFile(filepath.Join(cfgdir, "WORKSPACE"), []byte{}, 0644)
+	if err != nil {
+		return fmt.Errorf("Failed creating WORKSPACE: %v\n", err)
+	}
+	err = os.WriteFile(filepath.Join(cfgdir, "BUILD"), []byte{}, 0644)
+	if err != nil {
+		return fmt.Errorf("Failed creating BUILD: %v\n", err)
+	}
+
+	// write the build configuration variables to the repo
+	varsFile, err := os.Create(filepath.Join(cfgdir, "variables.bzl"))
+	if err != nil {
+		return fmt.Errorf("Failed creating variables.bzl: %v\n", err)
+	}
+	varsTmpl := template.Must(template.New("variables.bzl").Parse(VARIABLES))
+	err = varsTmpl.Execute(varsFile, buildConfig)
+	if err != nil {
+		return fmt.Errorf("Failed writing variables.bzl: %v\n", err)
+	}
+
+	// create the dir for the provisioning profiles module in the config repo
+	err = os.RemoveAll(filepath.Join(cfgdir, "provisioning"))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("Failed removing stale provisioning: %v\n", err)
+	}
+	err = os.Mkdir(filepath.Join(cfgdir, "provisioning"), 0755)
+	if err != nil {
+		return fmt.Errorf("Failed creating provisioning: %v\n", err)
+	}
+
+	// find the provisioning profiles to use
+	found, err := filepath.Glob(filepath.Join(buildConfig.ProvisioningPath, "*.mobileprovision"))
+	if err != nil {
+		return fmt.Errorf("Failed finding provisioning profiles: %v\n", err)
+	}
+
+	// create the provisioning profiles module, and symlink the
+	// provisioning profiles to use into it
+	buildFile, err := os.Create(filepath.Join(cfgdir, "provisioning", "BUILD"))
+	if err != nil {
+		return fmt.Errorf("Failed creating provisioning/BUILD: %v\n", err)
+	}
+	defer buildFile.Close()
+	_, err = fmt.Fprintf(buildFile, "exports_files([\n")
+	if err != nil {
+		return fmt.Errorf("Failed writing provisioning/BUILD: %v\n", err)
+	}
+	for _, src := range found {
+		name := filepath.Base(src)
+		dst := filepath.Join(cfgdir, "provisioning", name)
+		src, err = filepath.Abs(src)
+		if err != nil {
+			return fmt.Errorf("Failed creating provisioning profile symlinks: %v\n", err)
+		}
+		err = os.Symlink(src, dst)
+		if err != nil {
+			return fmt.Errorf("Failed creating provisioning profile symlinks: %v\n", err)
+		}
+		_, err = fmt.Fprintf(buildFile, "\t\"%s\",\n", name)
+		if err != nil {
+			return fmt.Errorf("Failed writing provisioning/BUILD: %v\n", err)
+		}
+	}
+	_, err = fmt.Fprintf(buildFile, "])\n")
+	if err != nil {
+		return fmt.Errorf("Failed writing provisioning/BUILD: %v\n", err)
+	}
+	return nil
+}
+
 func main() {
 	os.Exit(func() int {
 		// Make sure we have a command
@@ -209,6 +367,62 @@ func main() {
 				return 1
 			}
 			return 0
+		case "project":
+			cfgdir := "build-input/xcode-config-repo"
+
+			makeConfig, buildConfig, err := readConfig("dev")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+			err = updateBuildConfigRepo(cfgdir, makeConfig, buildConfig)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+
+			buildArgs := []string{
+				"--features=swift.use_global_module_cache",
+				"--features=swift.skip_function_bodies_for_derived_files",
+				"--features=swift.debug_prefix_map",
+				"--apple_generate_dsym", "--output_groups=+dsyms",
+				"--features=-no_warn_duplicate_libraries",
+				fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
+				fmt.Sprintf("--jobs=%d", runtime.NumCPU()),
+
+				// These don't belong here, but the crummy build system demands they exist.
+				fmt.Sprintf("--define=buildNumber=%d", buildConfig.BuildNumber),
+				fmt.Sprintf("--define=telegramVersion=%s", buildConfig.AppVersion),
+
+				// The xcode project generator, in a COMPLETELY ASININE
+				// decision, thinks it's reasonable to call bazel like so by
+				// default: `PATH=/bin:/usr/bin`. Since we need a Homebrew
+				// installed tool on the path, we have to fix it with this
+				// kludge. (The other fix is worse: it could cause merge
+				// conflicts).
+				fmt.Sprintf("--action_env=PATH=%s", os.Getenv("PATH")),
+			}
+			bazelrc, err := os.Create("xcodeproj.bazelrc")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed writing xcodeproj.bazelrc: %v\n", err)
+				return 1
+			}
+			defer bazelrc.Close()
+			for _, arg := range buildArgs {
+				_, err = fmt.Fprintf(bazelrc, "build %s\n", arg)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed writing xcodeproj.bazelrc: %v\n", err)
+					return 1
+				}
+			}
+			bazelrc.Close()
+
+			err = runCmd(
+				"bazel", "run", "//Telegram:Telegram_xcodeproj",
+				fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
+				fmt.Sprintf("--jobs=%d", runtime.NumCPU()),
+			)
+			if err != nil {
+				return 2
+			}
 		case "build":
 			// parse command line args
 			var buildFor, buildMode string
@@ -221,165 +435,16 @@ func main() {
 			}
 			flag.CommandLine.Parse(os.Args[2:])
 
-			// parse our configuration
-			makeConfig := MakeConfig{
-				DevProvision: "../ProvisionDev",
-				DistPovision: "../ProvisionDist",
-			}
-			err := withOpenFile("make.json", func(file *os.File) error {
-				return json.NewDecoder(file).Decode(&makeConfig)
-			})
-			if err != nil && !errors.Is(err, fs.ErrNotExist) {
-				fmt.Fprintf(os.Stderr, "Failed reading make configuration: %v\n", err)
-				return 1
-			}
-			ipaPathTmpl, err := template.New("ipa-path").Parse(makeConfig.IpaPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed parsing ipa-archive-path template: %v\n", err)
-				return 1
-			}
-			dsymsPathTmpl, err := template.New("dsyms-path").Parse(makeConfig.DsymsPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed parsing dsyms-archive-path template: %v\n", err)
-				return 1
-			}
-
-			// figure out where the build configuration and provisioning profiles are
-			provisionPath := makeConfig.DevProvision
-			if buildFor == "dist" {
-				provisionPath = makeConfig.DistPovision
-			}
-
-			// read and decode the build config
-			var buildConfig BuildConfig
-			err = withOpenFile(filepath.Join(provisionPath, "configuration.json"), func(configJsonFile *os.File) error {
-				return json.NewDecoder(configJsonFile).Decode(&buildConfig)
-			})
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed reading build configuration: %v\n", err)
-				return 1
-			}
-			switch buildFor {
-			case "dev":
-				buildConfig.ApsEnvironment = "development"
-			case "dist":
-				buildConfig.ApsEnvironment = "production"
-			default:
-				// this will probably cause a build error
-				buildConfig.ApsEnvironment = "unknown"
-			}
-
-			// read the Telegram version we will build
-			var versions struct {
-				App string `json:"app"`
-			}
-			err = withOpenFile("versions.json", func(versionsFile *os.File) error {
-				return json.NewDecoder(versionsFile).Decode(&versions)
-			})
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed reading telegram version: %v\n", err)
-				return 1
-			}
-			appVersion := versions.App
-
-			// read the build number to use
-			buildNumber := uint(0)
-			_ = withOpenFile("buildNumber.txt", func(bnumFile *os.File) error {
-				_, err := fmt.Fscanf(bnumFile, "%d", &buildNumber)
-				return err
-			})
-
 			cfgdir := "build-input/configuration-repository"
 
-			// create the dir to contain the build configuration repository
-			err = os.MkdirAll(cfgdir, 0755)
+			makeConfig, buildConfig, err := readConfig(buildFor)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed creating %s: %v\n", cfgdir, err)
-				return 1
+				fmt.Fprintln(os.Stderr, err)
 			}
-
-			// make the build configuration repository a bazel repo
-			err = os.WriteFile(filepath.Join(cfgdir, "WORKSPACE"), []byte{}, 0644)
+			err = updateBuildConfigRepo(cfgdir, makeConfig, buildConfig)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed creating WORKSPACE: %v\n", err)
-				return 1
+				fmt.Fprintln(os.Stderr, err)
 			}
-			err = os.WriteFile(filepath.Join(cfgdir, "BUILD"), []byte{}, 0644)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed creating BUILD: %v\n", err)
-				return 1
-			}
-
-			// write the build configuration variables to the repo
-			varsFile, err := os.Create(filepath.Join(cfgdir, "variables.bzl"))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed creating variables.bzl: %v\n", err)
-				return 1
-			}
-			varsTmpl := template.Must(template.New("variables.bzl").Parse(VARIABLES))
-			err = varsTmpl.Execute(varsFile, buildConfig)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed writing variables.bzl: %v\n", err)
-				return 1
-			}
-
-			// create the dir for the provisioning profiles module in the config repo
-			err = os.RemoveAll(filepath.Join(cfgdir, "provisioning"))
-			if err != nil && !errors.Is(err, os.ErrNotExist) {
-				fmt.Fprintf(os.Stderr, "Failed removing stale provisioning: %v\n", err)
-				return 1
-			}
-			err = os.Mkdir(filepath.Join(cfgdir, "provisioning"), 0755)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed creating provisioning: %v\n", err)
-				return 1
-			}
-
-			// find the provisioning profiles to use
-			found, err := filepath.Glob(filepath.Join(provisionPath, "*.mobileprovision"))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed finding provisioning profiles: %v\n", err)
-				return 1
-			}
-
-			// create the provisioning profiles module, and symlink the
-			// provisioning profiles to use into it
-			buildFile, err := os.Create(filepath.Join(cfgdir, "provisioning", "BUILD"))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed creating provisioning/BUILD: %v\n", err)
-				return 1
-			}
-			defer buildFile.Close()
-			_, err = fmt.Fprintf(buildFile, "exports_files([\n")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed writing provisioning/BUILD: %v\n", err)
-				return 1
-			}
-			for _, src := range found {
-				name := filepath.Base(src)
-				dst := filepath.Join(cfgdir, "provisioning", name)
-				src, err = filepath.Abs(src)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed creating provisioning profile symlinks: %v\n", err)
-					return 1
-				}
-				err = os.Symlink(src, dst)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed creating provisioning profile symlinks: %v\n", err)
-					return 1
-				}
-				_, err = fmt.Fprintf(buildFile, "\t\"%s\",\n", name)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed writing provisioning/BUILD: %v\n", err)
-					return 1
-				}
-			}
-			_, err = fmt.Fprintf(buildFile, "])\n")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed writing provisioning/BUILD: %v\n", err)
-				return 1
-			}
-			buildFile.Close()
 
 			// run bazel
 			args := []string{
@@ -390,8 +455,8 @@ func main() {
 				"--features=-no_warn_duplicate_libraries",
 				fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
 				fmt.Sprintf("--jobs=%d", runtime.NumCPU()), "--watchos_cpus=arm64_32",
-				fmt.Sprintf("--define=buildNumber=%d", buildNumber),
-				fmt.Sprintf("--define=telegramVersion=%s", appVersion),
+				fmt.Sprintf("--define=buildNumber=%d", buildConfig.BuildNumber),
+				fmt.Sprintf("--define=telegramVersion=%s", buildConfig.AppVersion),
 			}
 
 			switch buildFor {
@@ -444,7 +509,7 @@ func main() {
 
 			if !skipArchive {
 				// update the build number
-				err = os.WriteFile("buildNumber.txt", []byte(fmt.Sprintf("%d\n", buildNumber+1)), 0644)
+				err = os.WriteFile("buildNumber.txt", []byte(fmt.Sprintf("%d\n", buildConfig.BuildNumber+1)), 0644)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed incrementing build number: %v\n", err)
 					return 3
@@ -460,14 +525,14 @@ func main() {
 				archiveData := ArchiveData{
 					BundleID:    buildConfig.BundleId,
 					BundleName:  bundleName,
-					BuildNumber: buildNumber,
-					Version:     appVersion,
+					BuildNumber: buildConfig.BuildNumber,
+					Version:     buildConfig.AppVersion,
 					BuildFor:    buildFor,
 					BuildMode:   buildMode,
 				}
 
 				// copy the IPA to the archive
-				err = ipaPathTmpl.Execute(&sb, archiveData)
+				err = makeConfig.IpaPathTmpl.Execute(&sb, archiveData)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed running IPA archive path template: %v\n", err)
 				} else if ipaPath := sb.String(); ipaPath != "" {
@@ -486,7 +551,7 @@ func main() {
 				sb.Reset()
 
 				// copy the dSYMs to the archive
-				err = dsymsPathTmpl.Execute(&sb, archiveData)
+				err = makeConfig.DsymsPathTmpl.Execute(&sb, archiveData)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed running dSYMs archive path template: %v\n", err)
 				} else if dsymsPath := sb.String(); dsymsPath != "" {
