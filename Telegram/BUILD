@@ -1773,6 +1773,7 @@ plist_fragment(
     <array>
         <string>{telegram_bundle_id}.refresh</string>
         <string>{telegram_bundle_id}.cleanup</string>
+        <string>com.cloudveil.CloudVeilMessenger.shiplogs</string>
     </array>
     <key>CFBundleAllowMixedLocalizations</key>
     <true/>
