@@ -116,17 +116,6 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
         #endif
     }
 
-    func application(
-        _ application: UIApplication,
-        willFinishLaunchingWithOptions opts: [UIApplication.LaunchOptionsKey: Any]? = nil
-    ) -> Bool {
-        CVLog.log("CVApp \(self.episodeId)", """
-            application(willFinishLaunchingWithOptions:\(String(describing: opts)))
-            """)
-        return true
-        //return application(application, willFinishLaunchingWithOptions: opts)
-    }
-
     override func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOpts: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -174,36 +163,6 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
         uploadCompletionHandler = completionHandler
     }
 
-    override func applicationDidBecomeActive(_ application: UIApplication) {
-        CVLog.log("CVApp \(self.episodeId)", "applicationDidBecomeActive()")
-        super.applicationDidBecomeActive(application)
-    }
-
-    override func applicationWillResignActive(_ application: UIApplication) {
-        CVLog.log("CVApp \(self.episodeId)", "applicationWillResignActive()")
-        super.applicationWillResignActive(application)
-    }
-
-    override func applicationDidEnterBackground(_ application: UIApplication) {
-        CVLog.log("CVApp \(self.episodeId)", "applicationDidEnterBackground()")
-        super.applicationDidEnterBackground(application)
-    }
-
-    override func applicationWillEnterForeground(_ application: UIApplication) {
-        CVLog.log("CVApp \(self.episodeId)", "applicationWillEnterForeground()")
-        super.applicationWillEnterForeground(application)
-    }
-
-    override func applicationWillTerminate(_ application: UIApplication) {
-        CVLog.log("CVApp \(self.episodeId)", "applicationWillTerminate()")
-        super.applicationWillTerminate(application)
-    }
-
-    func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
-        CVLog.log("CVApp \(self.episodeId)", "applicationDidReceiveMemoryWarning()")
-        //super.applicationDidReceiveMemoryWarning(application)
-    }
-
     override func application(
         _ app: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken token: Data
     ) {
@@ -220,20 +179,6 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
             application(didFailToRegisterForRemoteNotificationsWithError:\(error))
             """)
         super.application(app, didFailToRegisterForRemoteNotificationsWithError: error)
-    }
-
-    override func application(
-        _ app: UIApplication,
-        didReceiveRemoteNotification userInfo: [AnyHashable : Any],
-        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
-    ) {
-        CVLog.log("CVApp \(self.episodeId)", """
-            application(didReceiveRemoteNotification:)
-            """)
-        super.application(
-            app, didReceiveRemoteNotification: userInfo,
-            fetchCompletionHandler: completionHandler
-        )
     }
 
     @available(iOS 14, *)
