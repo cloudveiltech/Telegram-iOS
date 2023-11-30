@@ -22,7 +22,7 @@ import (
 type BuildConfig struct {
 	BuildNumber          uint   `json:"-"`
 	ProvisioningPath     string `json:"-"`
-	ApsEnvironment       string `json:"-"`
+	BuildFor             string `json:"-"`
 	AppVersion           string `json:"-"`
 	BazelPath            string `json:"-"`
 	BundleId             string `json:"bundle_id"`
@@ -37,12 +37,13 @@ type BuildConfig struct {
 }
 
 type MakeConfig struct {
-	IpaPath       string             `json:"ipa-archive-path"`
-	IpaPathTmpl   *template.Template `json:"-"`
-	DsymsPath     string             `json:"dsyms-archive-path"`
-	DsymsPathTmpl *template.Template `json:"-"`
-	DevProvision  string             `json:"dev-provisioning-path"`
-	DistPovision  string             `json:"dist-provisioning-path"`
+	IpaPath        string             `json:"ipa-archive-path"`
+	IpaPathTmpl    *template.Template `json:"-"`
+	DsymsPath      string             `json:"dsyms-archive-path"`
+	DsymsPathTmpl  *template.Template `json:"-"`
+	DevProvision   string             `json:"dev-provisioning-path"`
+	DistPovision   string             `json:"dist-provisioning-path"`
+	AdHocProvision string             `json:"adhoc-provisioning-path"`
 }
 
 // ArchiveData is the data object used when executing the archive destination templates
@@ -88,7 +89,8 @@ usage: ./make build [-noarchive] [-for sim|dev|dist] [-mode debug|release]
 			"ipa-archive-path": null,
 			"dsyms-archive-path": null,
 			"dev-provisioning-path": "../ProvisionDev",
-			"dist-provisioning-path": "../ProvisionDist"
+			"dist-provisioning-path": "../ProvisionDist",
+			"adhoc-provisioning-path": "../ProvisionAdHoc"
 		}
 `
 
@@ -101,12 +103,16 @@ telegram_api_id = "{{ .ApiId }}"
 telegram_api_hash = "{{ .ApiHash }}"
 telegram_team_id = "{{ .TeamId }}"
 telegram_app_center_id = "0"
-telegram_is_internal_build = "{{ printf "%t" (eq "development" .ApsEnvironment) }}"
-telegram_is_appstore_build = "{{ printf "%t" (eq "production" .ApsEnvironment) }}"
+telegram_is_internal_build = "{{ printf "%t" (or (eq "sim" .BuildFor) (eq "dev" .BuildFor)) }}"
+telegram_is_appstore_build = "{{ printf "%t" (eq "dist" .BuildFor) }}"
 telegram_appstore_id = "{{ .AppStoreId }}"
 telegram_app_specific_url_scheme = "{{ .AppSpecificUrlScheme }}"
 telegram_premium_iap_product_id = "{{ .PremiumIapProductId }}"
-telegram_aps_environment = "{{ .ApsEnvironment }}"
+{{ if (or (eq "dist" .BuildFor) (eq "adhoc" .BuildFor)) -}}
+telegram_aps_environment = "production"
+{{- else -}}
+telegram_aps_environment = "development"
+{{- end }}
 telegram_enable_siri = {{ if .EnableSiri -}} True {{- else -}} False {{- end }}
 telegram_enable_icloud = {{ if .EnableIcloud -}} True {{- else -}} False {{- end }}
 telegram_enable_watch = True
@@ -186,8 +192,9 @@ func copyDir(src, dst string) error {
 
 func readConfig(buildFor string) (*MakeConfig, *BuildConfig, error) {
 	makeConfig := &MakeConfig{
-		DevProvision: "../ProvisionDev",
-		DistPovision: "../ProvisionDist",
+		DevProvision:   "../ProvisionDev",
+		DistPovision:   "../ProvisionDist",
+		AdHocProvision: "../ProvisionAdHoc",
 	}
 	err := withOpenFile("make.json", func(file *os.File) error {
 		return json.NewDecoder(file).Decode(&makeConfig)
@@ -205,11 +212,14 @@ func readConfig(buildFor string) (*MakeConfig, *BuildConfig, error) {
 	}
 
 	// figure out where the build configuration and provisioning profiles are
-	buildConfig := &BuildConfig{
-		ProvisioningPath: makeConfig.DevProvision,
-	}
-	if buildFor == "dist" {
+	buildConfig := &BuildConfig{BuildFor: buildFor}
+	switch buildFor {
+	case "sim", "dev":
+		buildConfig.ProvisioningPath = makeConfig.DevProvision
+	case "dist":
 		buildConfig.ProvisioningPath = makeConfig.DistPovision
+	case "adhoc":
+		buildConfig.ProvisioningPath = makeConfig.AdHocProvision
 	}
 
 	// read and decode the build config
@@ -219,15 +229,6 @@ func readConfig(buildFor string) (*MakeConfig, *BuildConfig, error) {
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed reading build configuration: %v\n", err)
-	}
-	switch buildFor {
-	case "dev":
-		buildConfig.ApsEnvironment = "development"
-	case "dist":
-		buildConfig.ApsEnvironment = "production"
-	default:
-		// this will probably cause a build error
-		buildConfig.ApsEnvironment = "unknown"
 	}
 
 	// read the Telegram version we will build
@@ -425,10 +426,26 @@ func main() {
 			}
 		case "build":
 			// parse command line args
-			var buildFor, buildMode string
+			buildFor, buildMode := "dev", "debug"
 			var skipArchive bool
-			flag.StringVar(&buildFor, "for", "sim", "")
-			flag.StringVar(&buildMode, "mode", "debug", "")
+			flag.Func("for", "", func(s string) error {
+				switch s {
+				case "sim", "dev", "dist", "adhoc":
+					buildFor = s
+					return nil
+				default:
+					return fmt.Errorf("unknown build for: %q", s)
+				}
+			})
+			flag.Func("mode", "", func(s string) error {
+				switch s {
+				case "debug", "release":
+					buildMode = s
+					return nil
+				default:
+					return fmt.Errorf("unknown build mode: %q", s)
+				}
+			})
 			flag.BoolVar(&skipArchive, "noarchive", false, "")
 			flag.CommandLine.Usage = func() {
 				usage(os.Stderr)
@@ -460,7 +477,7 @@ func main() {
 			}
 
 			switch buildFor {
-			case "dist":
+			case "dist", "adhoc":
 				args = append(args,
 					"--define=apple.add_debugger_entitlement=no",
 					"--apple_bitcode=watchos=none",
@@ -483,7 +500,7 @@ func main() {
 			case "debug":
 				args = append(args,
 					"-c", "dbg", "--features=swift.enable_batch_mode",
-					"--//Telegram:disableStripping",
+					"--//Telegram:disableStripping", "--strip=never",
 					fmt.Sprintf("--swiftcopt=-j%d", min(runtime.NumCPU()-1, 1)),
 				)
 			case "release":
@@ -547,6 +564,7 @@ func main() {
 						fmt.Fprintf(os.Stderr, "Failed copying IPA to archive: %v\n", err)
 						return 3
 					}
+					fmt.Printf("IPA copied to %q\n", ipaPath)
 				}
 				sb.Reset()
 
@@ -570,6 +588,7 @@ func main() {
 								return 3
 							}
 						}
+						fmt.Printf("dSYMs copied to %q\n", dsymsPath)
 					}
 				}
 			}
