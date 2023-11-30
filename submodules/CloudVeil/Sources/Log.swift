@@ -15,22 +15,16 @@ public final class CVLog {
     )
 
     @available(iOS 14, *)
-    private static let logQueue = DispatchQueue(
-        label: "com.cloudveil.CloudVeilMessenger.log", qos: .utility
-    )
-
-    @available(iOS 14, *)
-    private static var logFile: URL? = {
-        var url = try? FileManager.default
-            .url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
-        // iOS 16 or later:
-        // return url?.appending(path: "cvlogs/current.log")
-        url?.appendPathComponent("cvlogs", isDirectory: true)
-        return url?.appendingPathComponent("current.log", isDirectory: false)
+    private static var logFile: URL? = { () -> URL? in
+        guard let bundleId = Bundle.main.bundleIdentifier else { return nil }
+        let appGroupRoot = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: "group.\(bundleId)")
+        let url = appGroupRoot?
+            .appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent("CVLogs", isDirectory: true)
+            .appendingPathComponent("current.log", isDirectory: false)
+        return url
     }()
-
-    @available(iOS 14, *)
-    private static var logHandle: FileHandle?
 
     @available(iOS 14, *)
     private static var iso8601 = {
@@ -43,83 +37,122 @@ public final class CVLog {
     @available(iOS 14, *)
     private static let maxLogSize = 50 * 1024 * 1024
 
+    private static func coordWrite(
+        _ file: URL, _ options: NSFileCoordinator.WritingOptions, _ write: (URL) throws -> Void
+    ) throws {
+        let fc = NSFileCoordinator(filePresenter: nil)
+        var nserror: NSError? = nil
+        var error1: Error? = nil
+        fc.coordinate(
+            writingItemAt: file,
+            options: options,
+            error: &nserror,
+            byAccessor: { file in
+                do {
+                    try write(file)
+                } catch {
+                    error1 = error
+                }
+            }
+        )
+        if let error = error1 {
+            throw error
+        }
+        if let error = nserror {
+            throw error
+        }
+    }
+
     public static func log(_ tag: String, _ what: String) {
         guard #available(iOS 14, *) else {
             return
         }
-        #if targetEnvironment(simulator)
+        #if DEBUG
         Self.tglogs.info("[\(tag, privacy: .public)] \(what, privacy: .public)")
         #endif
-        self.logQueue.async {
-            guard let logFile = self.logFile else {
-                Self.os.info("log message dropped: logFile is nil")
-                return
-            }
-            let rvals = try? logFile.resourceValues(forKeys: [.fileSizeKey])
-            if let logSize = rvals?.fileSize, logSize > Self.maxLogSize {
-                Self.os.info("log size triggered log rotation: \(logSize) > \(Self.maxLogSize)")
-                self.rotate()
-            }
-            if self.logHandle == nil {
+        #if CLOUDVEIL_SHIPLOGS
+        guard let logFile = self.logFile else {
+            Self.os.warning("log message dropped: logFile is nil")
+            return
+        }
+        do {
+            try self.coordWrite(logFile, [.forReplacing], { logFile in
+                // rotate logs if necessary
+                let rvals = try? logFile.resourceValues(forKeys: [.fileSizeKey])
+                if let logSize = rvals?.fileSize, logSize > Self.maxLogSize {
+                    self.doRotate(logFile)
+                }
+
+                // make log file
                 do {
-                    Self.os.info("opening log file")
                     try FileManager.default.createDirectory(
                         at: logFile.deletingLastPathComponent(),
                         withIntermediateDirectories: true
                     )
-                    do {
-                        // APPLE'S APIS ARE GARBAGE!!!
-                        try Data().write(to: logFile, options: [
-                            .withoutOverwriting, .noFileProtection,
-                        ])
-                    } catch {}
-                    self.logHandle = try FileHandle.init(forWritingTo: logFile)
-                    try self.logHandle?.seekToEnd()
+                    // APPLE'S APIS ARE GARBAGE!!!
+                    try Data().write(to: logFile, options: [
+                        .withoutOverwriting, .noFileProtection,
+                    ])
                 } catch {
-                    Self.os.error("opening log file failed: \(error, privacy: .public)")
                 }
-            }
-            guard let logHandle = self.logHandle else {
-                Self.os.info("log message dropped: logHandle is nil")
-                return
-            }
-            // Date.formatted requires IOS 15
-            let data = "[\(tag)] \(self.iso8601.string(from: Date())) \(what)\n".data(using: .utf8)
-            guard let data = data else {
-                Self.os.info("log message dropped: encoding failed")
-                return
-            }
-            do {
+
+                // write to log file
+                let logHandle = try FileHandle.init(forWritingTo: logFile)
+                try logHandle.seekToEnd()
+                // Date.formatted requires IOS 15
+                let data = """
+                    [\(tag)] \(self.iso8601.string(from: Date())) \(what)\n
+                    """.data(using: .utf8)
+                guard let data = data else {
+                    Self.os.error("writing log message failed: encoding as utf-8 failed")
+                    return
+                }
                 try logHandle.write(contentsOf: data)
-            } catch {
-                Self.os.error("writing log message failed: \(error, privacy: .public)")
-                self.logHandle = nil
-            }
+            })
+        } catch {
+            Self.os.error("writing log message failed: \(error)")
+        }
+        #endif
+    }
+
+    @available(iOS 14, *)
+    private static func doRotate(_ logFile: URL) {
+        let now = Int(Date().timeIntervalSince1970)
+        let archiveName = "archive-\(now).log"
+        guard let archiveFile = URL.init(string: archiveName, relativeTo: logFile) else {
+            Self.os.info("log rotation canceled: archiveFile is nil")
+            return
+        }
+        do {
+            try FileManager.default.moveItem(at: logFile, to: archiveFile)
+            Self.os.info("log rotated to \(archiveFile)")
+        } catch {
+            Self.os.error("log rotation failed: \(error)")
         }
     }
 
     @available(iOS 14, *)
     public static func rotate() {
-        Self.os.info("log rotation requested")
-        self.logQueue.async {
-            Self.os.info("log rotation begun")
-            guard let logFile = self.logFile else {
-                Self.os.info("log rotation canceled: logFile is nil")
-                return
-            }
-            logHandle = nil
-            let now = Int(Date().timeIntervalSince1970)
-            let archiveName = "archive-\(now).log"
-            guard let archiveFile = URL.init(string: archiveName, relativeTo: logFile) else {
-                Self.os.info("log rotation canceled: archiveFile is nil")
-                return
-            }
-            do {
-                try FileManager.default.moveItem(at: logFile, to: archiveFile)
-                Self.os.info("log rotated to \(archiveFile, privacy: .public)")
-            } catch {
-                Self.os.error("log rotation failed: \(error, privacy: .public)")
-            }
+        guard let logFile = self.logFile else {
+            Self.os.info("log rotation canceled: logFile is nil")
+            return
+        }
+        do {
+            try self.coordWrite(logFile, [.forReplacing], self.doRotate)
+        } catch {
+            Self.os.error("log rotation failed: \(error)")
+        }
+    }
+
+    @available(iOS 14, *)
+    public static func deleteArchive(_ file: URL) {
+        do {
+            try self.coordWrite(file, [.forDeleting], { file in
+                try FileManager.default.removeItem(at: file)
+                Self.os.info("removed local copy of uploaded log: \(file)")
+            })
+        } catch {
+            Self.os.error("removing local copy of uploaded log failed: \(error)")
         }
     }
 

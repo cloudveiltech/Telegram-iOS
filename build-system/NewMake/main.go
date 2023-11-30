@@ -25,6 +25,7 @@ type BuildConfig struct {
 	BuildFor             string `json:"-"`
 	AppVersion           string `json:"-"`
 	BazelPath            string `json:"-"`
+	ShipLogs             bool   `json:"-"`
 	BundleId             string `json:"bundle_id"`
 	ApiId                string `json:"api_id"`
 	ApiHash              string `json:"api_hash"`
@@ -69,7 +70,7 @@ usage: ./make test
 usage: ./make project
 	generate an Xcode project
 
-usage: ./make build [-noarchive] [-for sim|dev|dist] [-mode debug|release]
+usage: ./make build [-noarchive] [-shiplogs] [-for sim|dev|dist] [-mode debug|release]
 	build telegram
 
 	-for	Build for simulator, development, or distribution. Controls the type of codesigning.
@@ -82,6 +83,8 @@ usage: ./make build [-noarchive] [-for sim|dev|dist] [-mode debug|release]
 		debugging symbols.
 		
 	-noarchive	Don't copy the build outputs to the archive paths. Don't bump the build number.
+		
+	-shiplogs	Enable uploading telegram logs to Sandy Creek Technologies servers.
 
 	If a file make.json is present in the working directory, this tool will read it. If it isn't
 	present, the tool will continue as if the file had the following contents:
@@ -116,6 +119,11 @@ telegram_aps_environment = "development"
 telegram_enable_siri = {{ if .EnableSiri -}} True {{- else -}} False {{- end }}
 telegram_enable_icloud = {{ if .EnableIcloud -}} True {{- else -}} False {{- end }}
 telegram_enable_watch = True
+{{ if .ShipLogs -}}
+cloudveil_shiplogs = True
+{{- else -}}
+cloudveil_shiplogs = False
+{{- end }}
 `
 
 // usage outputs command usage to the given writer
@@ -190,7 +198,7 @@ func copyDir(src, dst string) error {
 	return exec.Command("cp", "-R", src, dst).Run()
 }
 
-func readConfig(buildFor string) (*MakeConfig, *BuildConfig, error) {
+func readConfig(buildFor string, shipLogs bool) (*MakeConfig, *BuildConfig, error) {
 	makeConfig := &MakeConfig{
 		DevProvision:   "../ProvisionDev",
 		DistPovision:   "../ProvisionDist",
@@ -212,7 +220,7 @@ func readConfig(buildFor string) (*MakeConfig, *BuildConfig, error) {
 	}
 
 	// figure out where the build configuration and provisioning profiles are
-	buildConfig := &BuildConfig{BuildFor: buildFor}
+	buildConfig := &BuildConfig{BuildFor: buildFor, ShipLogs: shipLogs}
 	switch buildFor {
 	case "sim", "dev":
 		buildConfig.ProvisioningPath = makeConfig.DevProvision
@@ -371,7 +379,7 @@ func main() {
 		case "project":
 			cfgdir := "build-input/xcode-config-repo"
 
-			makeConfig, buildConfig, err := readConfig("dev")
+			makeConfig, buildConfig, err := readConfig("dev", false)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
@@ -427,7 +435,7 @@ func main() {
 		case "build":
 			// parse command line args
 			buildFor, buildMode := "dev", "debug"
-			var skipArchive bool
+			var skipArchive, shipLogs bool
 			flag.Func("for", "", func(s string) error {
 				switch s {
 				case "sim", "dev", "dist", "adhoc":
@@ -447,6 +455,7 @@ func main() {
 				}
 			})
 			flag.BoolVar(&skipArchive, "noarchive", false, "")
+			flag.BoolVar(&shipLogs, "shiplogs", false, "")
 			flag.CommandLine.Usage = func() {
 				usage(os.Stderr)
 			}
@@ -454,7 +463,7 @@ func main() {
 
 			cfgdir := "build-input/configuration-repository"
 
-			makeConfig, buildConfig, err := readConfig(buildFor)
+			makeConfig, buildConfig, err := readConfig(buildFor, shipLogs)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}

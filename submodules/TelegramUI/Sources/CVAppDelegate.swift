@@ -10,7 +10,9 @@ import TelegramCore
 import Sentry
 import CloudVeil
 
+#if CLOUDVEIL_SHIPLOGS
 fileprivate let CVM_SHIPLOGS = "com.cloudveil.CloudVeilMessenger.shiplogs"
+#endif
 fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
 
 @objc(CVAppDelegate) class CVAppDelegate: AppDelegate {
@@ -53,6 +55,7 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
 
     @available(iOS 14, *)
     private func scheduleLogUpload() {
+        #if CLOUDVEIL_SHIPLOGS
         let when = Date(timeIntervalSinceNow: Self.logUploadInterval)
         let request = BGAppRefreshTaskRequest(identifier: CVM_SHIPLOGS)
         request.earliestBeginDate = when
@@ -62,6 +65,7 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
         } catch {
             Self.log.error("log upload scheduling failed: \(error, privacy: .public)")
         }
+        #endif
     }
 
     @available(iOS 14, *)
@@ -69,6 +73,7 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
         rotate: Bool = false,
         whenDone done: @escaping (_ succeeded: Bool) -> Void
     ) {
+        #if CLOUDVEIL_SHIPLOGS
         Self.log.info("log upload requested")
         self.scheduleLogUpload()
         DispatchQueue.global(qos: .background).async {
@@ -106,6 +111,9 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
             Self.log.info("log upload tasks begun")
             done(true)
         }
+        #else
+        done(true)
+        #endif
     }
 
     func application(
@@ -131,6 +139,7 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
             options.dsn = "https://18449652be1c40099b14b44e1b44904e@o1077369.ingest.sentry.io/6080242"
             options.debug = false // Helpful to see what's going on
         }
+        #if CLOUDVEIL_SHIPLOGS
         if #available(iOS 14, *) {
             Self.log.info("log upload background task registered")
             BGTaskScheduler.shared.register(forTaskWithIdentifier: CVM_SHIPLOGS, using: nil) { task in
@@ -138,6 +147,7 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
             }
             self.startLogUpload(rotate: true, whenDone: { _ in })
         }
+        #endif
         return super.application(application, didFinishLaunchingWithOptions: launchOpts)
     }
 
@@ -280,10 +290,9 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
         var idontcare = false
         do {
             let file = try URL(resolvingBookmarkData: bookmark, bookmarkDataIsStale: &idontcare)
-            try FileManager.default.removeItem(at: file)
-            Self.log.info("removing local copy of uploaded log: \(file, privacy: .public)")
+            CVLog.deleteArchive(file)
         } catch {
-            Self.log.error("removing local copy of uploaded log failed: \(error, privacy: .public)")
+            Self.log.error("removing local copy of uploaded log failed: \(error)")
         }
     }
 }
