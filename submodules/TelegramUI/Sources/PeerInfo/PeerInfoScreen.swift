@@ -8623,6 +8623,12 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
             case .support:
                 //CloudVeil start open bot
                 let resolveSignal = context.engine.peers.resolvePeerByName(name: "@cloudveilbot")
+                    |> filter { result in
+                        switch result {
+                        case .progress: return false
+                        default: return true
+                        }
+                    }
                     |> take(1)
                     |> mapToSignal { result -> Signal<EnginePeer, NoError> in
                         guard case let .result(result) = result else {
