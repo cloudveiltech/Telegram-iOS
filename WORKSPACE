@@ -92,9 +92,9 @@ provisioning_profile_repository(
 # you have it checked out locally.
 http_archive(
     name = "CloudVeilSecurityManager",
-    strip_prefix = "CloudVeil-securityManager-ios-31fc79ac61463bf4834f1f0943dbcef59bcea4d6",
-    urls = ["https://github.com/cloudveiltech/CloudVeil-securityManager-ios/archive/31fc79ac61463bf4834f1f0943dbcef59bcea4d6.zip"],
-    sha256 = "88e149f54d407b898a39b04d99a208ada05957e4dace818788d84ea06364d65d",
+    strip_prefix = "CloudVeil-securityManager-ios-c55c6b660795c1993ac648c5a1168662e98224d1",
+    urls = ["https://github.com/cloudveiltech/CloudVeil-securityManager-ios/archive/c55c6b660795c1993ac648c5a1168662e98224d1.zip"],
+    sha256 = "fc3b0d7344e72789bc0715c775d5c68ef4f3c147b26a9b5efd0f7743a1f6e396",
 )
 
 http_archive(

@@ -26,6 +26,7 @@ type BuildConfig struct {
 	AppVersion           string `json:"-"`
 	BazelPath            string `json:"-"`
 	ShipLogs             bool   `json:"-"`
+	FakeMode             bool   `json:"-"`
 	BundleId             string `json:"bundle_id"`
 	ApiId                string `json:"api_id"`
 	ApiHash              string `json:"api_hash"`
@@ -70,7 +71,7 @@ usage: ./make test
 usage: ./make project
 	generate an Xcode project
 
-usage: ./make build [-noarchive] [-shiplogs] [-for sim|dev|dist] [-mode debug|release]
+usage: ./make build [-noarchive] [-shiplogs] [-fakecv] [-for sim|dev|dist] [-mode debug|release]
 	build telegram
 
 	-for	Build for simulator, development, or distribution. Controls the type of codesigning.
@@ -85,6 +86,8 @@ usage: ./make build [-noarchive] [-shiplogs] [-for sim|dev|dist] [-mode debug|re
 	-noarchive	Don't copy the build outputs to the archive paths. Don't bump the build number.
 		
 	-shiplogs	Enable uploading telegram logs to Sandy Creek Technologies servers.
+		
+	-fakecv	Use fake response from CloudVeil servers
 
 	If a file make.json is present in the working directory, this tool will read it. If it isn't
 	present, the tool will continue as if the file had the following contents:
@@ -198,7 +201,7 @@ func copyDir(src, dst string) error {
 	return exec.Command("cp", "-R", src, dst).Run()
 }
 
-func readConfig(buildFor string, shipLogs bool) (*MakeConfig, *BuildConfig, error) {
+func readConfig(buildFor string, shipLogs, fakeMode bool) (*MakeConfig, *BuildConfig, error) {
 	makeConfig := &MakeConfig{
 		DevProvision:   "../ProvisionDev",
 		DistPovision:   "../ProvisionDist",
@@ -220,7 +223,7 @@ func readConfig(buildFor string, shipLogs bool) (*MakeConfig, *BuildConfig, erro
 	}
 
 	// figure out where the build configuration and provisioning profiles are
-	buildConfig := &BuildConfig{BuildFor: buildFor, ShipLogs: shipLogs}
+	buildConfig := &BuildConfig{BuildFor: buildFor, ShipLogs: shipLogs, FakeMode: fakeMode}
 	switch buildFor {
 	case "sim", "dev":
 		buildConfig.ProvisioningPath = makeConfig.DevProvision
@@ -379,7 +382,7 @@ func main() {
 		case "project":
 			cfgdir := "build-input/xcode-config-repo"
 
-			makeConfig, buildConfig, err := readConfig("dev", false)
+			makeConfig, buildConfig, err := readConfig("dev", false, false)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
@@ -435,7 +438,7 @@ func main() {
 		case "build":
 			// parse command line args
 			buildFor, buildMode := "dev", "debug"
-			var skipArchive, shipLogs bool
+			var skipArchive, shipLogs, fakeMode bool
 			flag.Func("for", "", func(s string) error {
 				switch s {
 				case "sim", "dev", "dist", "adhoc":
@@ -456,6 +459,7 @@ func main() {
 			})
 			flag.BoolVar(&skipArchive, "noarchive", false, "")
 			flag.BoolVar(&shipLogs, "shiplogs", false, "")
+			flag.BoolVar(&fakeMode, "fakecv", false, "")
 			flag.CommandLine.Usage = func() {
 				usage(os.Stderr)
 			}
@@ -463,7 +467,7 @@ func main() {
 
 			cfgdir := "build-input/configuration-repository"
 
-			makeConfig, buildConfig, err := readConfig(buildFor, shipLogs)
+			makeConfig, buildConfig, err := readConfig(buildFor, shipLogs, fakeMode)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
@@ -503,6 +507,10 @@ func main() {
 				)
 			default:
 				args = append(args, "--ios_multi_cpus=arm64")
+			}
+
+			if fakeMode {
+				args = append(args, "--@CloudVeilSecurityManager//:FakeMode")
 			}
 
 			switch buildMode {
