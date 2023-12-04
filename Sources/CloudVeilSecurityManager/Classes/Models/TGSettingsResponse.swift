@@ -37,6 +37,30 @@ class TGSettingsResponse: Mappable {
     public var organization: Organization?
     public var updateRequired: Bool?
 
+    // MARK: FakeResponse
+
+    public init(denyAll: Bool = false) {
+        if denyAll {
+            self.secretChat = false
+            self.disableBio = true
+            self.disableBioChange = true
+            self.disableProfilePhoto = true
+            self.disableProfilePhotoChange = true
+            self.disableProfileVideo = true
+            self.disableProfileVideoChange = true
+            self.disableSticker = true
+            self.disableStickers = true
+            self.manageUsers = false
+            self.inputToggleVoiceVideo = false
+            self.blockedImageResourceUrl = "data:text/html;base64,PGgzPkJsb2NrZWQ8L2gzPgo="
+            self.organization = Organization()
+            self.organization!.id = 23945601
+            self.organization!.name = "FakeTestingOrg"
+            self.organization!.needChange = false
+            self.updateRequired = false
+        }
+    }
+
     // MARK: Mappable
     
     public required init?(map: Map) { }
@@ -96,6 +120,8 @@ class Organization: Mappable {
     public var id: Int?
     public var name: String?
     public var needChange: Bool?
+    
+    public init() { }
     
     public required init?(map: Map) { }
     

@@ -22,6 +22,9 @@ class SecurityManager: ObjectManager {
     
     func getSettings(withRequest tgRequest: TGSettingsRequest,_ completion: @escaping (TGSettingsResponse?) -> ()) {
         
+        #if FAKE_MODE
+        completion(TGSettingsResponse(denyAll: true))
+        #else
         let params: Parameters = tgRequest.toJSON()
         print("CloudVeil request: \(params)")
         request(.post, serverConstant: .settings, parameters: params).responseJSON { (response) in
@@ -33,5 +36,6 @@ class SecurityManager: ObjectManager {
                 completion(nil)
             }
         }
+        #endif
     }
 }
