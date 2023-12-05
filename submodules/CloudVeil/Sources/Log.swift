@@ -68,7 +68,7 @@ public final class CVLog {
             return
         }
         #if DEBUG
-        Self.tglogs.info("[\(tag, privacy: .public)] \(what, privacy: .public)")
+        Self.tglogs.log("CloudVeilMessenger: [\(tag, privacy: .public)] \(what, privacy: .public)")
         #endif
         #if CLOUDVEIL_SHIPLOGS
         guard let logFile = self.logFile else {
