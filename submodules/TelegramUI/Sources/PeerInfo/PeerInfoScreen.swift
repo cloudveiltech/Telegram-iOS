@@ -8654,7 +8654,15 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
             case .faq:
                 self.openFaq()
             case .tips:
-                self.openTips()
+                // CloudVeil start
+                let navCtrl = self.controller?.navigationController as? NavigationController
+                self.context.sharedContext.openExternalUrl(
+                    context: self.context, urlContext: .generic,
+                    url: "https://messenger.cloudveil.org",
+                    forceExternal: false, presentationData: self.presentationData,
+                    navigationController: navCtrl, dismissInput: {}
+                )
+                // CloudVeil end
             case .phoneNumber:
                 if let user = self.data?.peer as? TelegramUser, let phoneNumber = user.phone {
                     let introController = PrivacyIntroController(context: self.context, mode: .changePhoneNumber(phoneNumber), proceedAction: { [weak self] in
