@@ -10841,7 +10841,7 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
         super.viewDidAppear(animated)
         
         //CloudVeil start
-        TelegramBaseController.checkPeerIsAllowed(peerId: peerId, controller: self, account: self.context.account, presentationData: self.presentationData) { [weak self] result in
+        TelegramBaseController.checkPeerIsAllowed(peerId: peerId, controller: self, context: self.context, presentationData: self.presentationData) { [weak self] result in
             if !result {
                 self?.dismiss(animated: true, completion: nil)
             }

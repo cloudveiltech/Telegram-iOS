@@ -1057,7 +1057,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                     }
                     
                     //CloudVeil start
-                    TelegramBaseController.checkPeerIsAllowed(peerId: peer.id, controller: strongSelf, account: strongSelf.context.account, presentationData: strongSelf.presentationData) { [weak self] result in
+                    TelegramBaseController.checkPeerIsAllowed(peerId: peer.id, controller: strongSelf, context: strongSelf.context, presentationData: strongSelf.presentationData) { [weak self] result in
                         if result {
                             if case let .channel(channel) = peer, channel.flags.contains(.isForum), threadId == nil {
                                 strongSelf.chatListDisplayNode.clearHighlightAnimated(true)

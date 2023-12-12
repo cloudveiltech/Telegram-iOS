@@ -1025,7 +1025,8 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
     }
     
     //CloudVeil start
-    public static func checkPeerIsAllowed(peerId: PeerId, controller: ViewController, account: Account, presentationData: PresentationData, attemption: Int = 0, callback: @escaping (Bool) -> ()) {
+    public static func checkPeerIsAllowed(peerId: PeerId, controller: ViewController, context: AccountContext, presentationData: PresentationData, attemption: Int = 0, callback: @escaping (Bool) -> ()) {
+        let account = context.account
         let checked = CloudVeilSecurityController.shared.isConversationCheckedOnServer(conversationId: NSInteger(peerId.id._internalGetInt64Value()), channelId: -NSInteger(peerId.id._internalGetInt64Value()))
         
         let peerView = account.viewTracker.peerView(peerId)
@@ -1118,7 +1119,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                         if !isDialogAllowed {
                             let appState = UIApplication.shared.applicationState
                             if appState != UIApplication.State.background {
-                                TelegramBaseController.showBlockedPopup(peerView: peerView!, controller: controller, presentationData: presentationData)
+                                TelegramBaseController.showBlockedPopup(peerView: peerView!, context: context, controller: controller, presentationData: presentationData)
                             }
                         }
                         callback(isDialogAllowed)
@@ -1143,7 +1144,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                 if !isDialogAllowed {
                     let appState = UIApplication.shared.applicationState
                     if appState != UIApplication.State.background {
-                        TelegramBaseController.showBlockedPopup(peerView: peerView!, controller: controller, presentationData: presentationData)
+                        TelegramBaseController.showBlockedPopup(peerView: peerView!, context: context, controller: controller, presentationData: presentationData)
                     }
                 }
                 callback(isDialogAllowed)
@@ -1151,7 +1152,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
         })
     }
     
-    public static func showBlockedPopup(peerView: Peer, controller: ViewController, presentationData: PresentationData) {
+    public static func showBlockedPopup(peerView: Peer, context: AccountContext, controller: ViewController, presentationData: PresentationData) {
         var type = "secret chat"
         if let peer = peerView as? TelegramChannel, case .group = peer.info {
             type = "group"
@@ -1165,36 +1166,30 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
         
         let message = "This \(type) is blocked by server policy. Please fill out the form to request it be unblocked."
         
-        let alert = standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData), title: "CloudVeil", text: message,
-                                                actions: [TextAlertAction(type: .defaultAction, title: "Cancel", action: {
-            
-        }),
-                                                          TextAlertAction(type: .defaultAction, title: "Continue", action: {
-            TelegramBaseController.openUnblockRequest(peerView: peerView, controller: controller, presentationData: presentationData)
-        })
-                                                         ])
-        
+        let alert = standardTextAlertController(
+            theme: AlertControllerTheme(presentationData: presentationData),
+            title: "CloudVeil", text: message,
+            actions: [
+                TextAlertAction(type: .defaultAction, title: "Cancel", action: {}),
+                TextAlertAction(type: .defaultAction, title: "Continue", action: {
+                    TelegramBaseController.openUnblockRequest(
+                        peerView: peerView, context: context, controller: controller,
+                        presentationData: presentationData)
+                })])
         controller.present(alert, in: .window(.root))
     }
     
-    private static func openUnblockRequest(peerView: Peer, controller: UIViewController, presentationData: PresentationData) {
+    private static func openUnblockRequest(peerView: Peer, context: AccountContext, controller: ViewController, presentationData: PresentationData) {
         let conversationId = peerView.id.id._internalGetInt64Value()
         
         let userId = TGUserController.shared.getUserID()
         let url = "https://messenger.cloudveil.org/unblock/\(userId)/\(conversationId)"
-        
-        if let _ = controller as? TelegramBaseController {
-            if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
-                if let parsed = URL(string: url) {
-                    let safariController = SFSafariViewController(url: parsed)
-                    if #available(iOSApplicationExtension 10.0, iOS 10.0, *) {
-                        safariController.preferredBarTintColor = presentationData.theme.rootController.navigationBar.opaqueBackgroundColor
-                        safariController.preferredControlTintColor = presentationData.theme.rootController.navigationBar.accentTextColor
-                    }
-                    controller.present(safariController, animated: true)
-                }
-            }
-        }
+
+        context.sharedContext.openExternalUrl(
+            context: context, urlContext: .generic, url: url, forceExternal: false,
+            presentationData: presentationData,
+            navigationController: controller.navigationController as? NavigationController,
+            dismissInput: {})
     }
     
     public func dismissCurrent() {

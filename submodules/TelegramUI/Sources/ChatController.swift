@@ -11515,7 +11515,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         
         //CloudVeil start
         if case let .peer(peerId) = self.chatLocation {
-            ChatControllerImpl.checkPeerIsAllowed(peerId: peerId, controller: self, account: context.account, presentationData: self.presentationData) { [weak self] result in
+            ChatControllerImpl.checkPeerIsAllowed(peerId: peerId, controller: self, context: context, presentationData: self.presentationData) { [weak self] result in
                 if result == false {
                     self?.dismissCurrent()
                 }
@@ -17562,7 +17562,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             }
             
             //CloudVeil start
-            ChatControllerImpl.checkPeerIsAllowed(peerId: peerId.id, controller: strongSelf, account: strongSelf.context.account, presentationData: strongSelf.presentationData) { [weak self] result in
+            ChatControllerImpl.checkPeerIsAllowed(peerId: peerId.id, controller: strongSelf, context: strongSelf.context, presentationData: strongSelf.presentationData) { [weak self] result in
                 if result == false {
                     return
                 }
