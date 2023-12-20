@@ -11,7 +11,7 @@ swift_library(
     ],
     deps = [
         #CloudVeil start
-        "@CloudVeilSecurityManager//:CloudVeilSecurityManager",
+        "//CloudVeil/SecurityManager:CloudVeilSecurityManager",
         "//submodules/CloudVeil:CloudVeil",
         #CloudVeil end
         "//submodules/TelegramApi:TelegramApi",

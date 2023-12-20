@@ -510,7 +510,7 @@ func main() {
 			}
 
 			if fakeMode {
-				args = append(args, "--@CloudVeilSecurityManager//:FakeMode")
+				args = append(args, "--//CloudVeil/SecurityManager:FakeMode")
 			}
 
 			switch buildMode {

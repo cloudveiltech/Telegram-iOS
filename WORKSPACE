@@ -81,22 +81,6 @@ provisioning_profile_repository(
 )
 
 # CloudVeil start
-# For if you have CloudVeil-securityManager-ios checked out locally. Update the
-# path to where you have it checked out.
-#local_repository(
-#    name = "CloudVeilSecurityManager",
-#    path = "../CloudVeil-securityManager-ios",
-#)
-
-# For fetching CloudVeil-securityManager-ios from GitHub. Comment this out if
-# you have it checked out locally.
-http_archive(
-    name = "CloudVeilSecurityManager",
-    strip_prefix = "CloudVeil-securityManager-ios-c55c6b660795c1993ac648c5a1168662e98224d1",
-    urls = ["https://github.com/cloudveiltech/CloudVeil-securityManager-ios/archive/c55c6b660795c1993ac648c5a1168662e98224d1.zip"],
-    sha256 = "fc3b0d7344e72789bc0715c775d5c68ef4f3c147b26a9b5efd0f7743a1f6e396",
-)
-
 http_archive(
     name = "rules_pods",
     urls = ["https://github.com/pinterest/PodToBUILD/releases/download/6.3.2-370b622/PodToBUILD.zip"],

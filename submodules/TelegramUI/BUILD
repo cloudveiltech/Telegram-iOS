@@ -55,7 +55,7 @@ swift_library(
     #CloudVeil end
     deps = [
         #CloudVeil start
-        "@CloudVeilSecurityManager//:CloudVeilSecurityManager",
+        "//CloudVeil/SecurityManager:CloudVeilSecurityManager",
         "@Sentry//:Sentry",
         #CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
