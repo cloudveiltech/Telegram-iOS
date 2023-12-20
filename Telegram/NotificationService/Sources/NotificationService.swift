@@ -927,6 +927,16 @@ private final class NotificationServiceHandler {
                         messageId = Int32(messageIdString)
                     }
                     if let storyIdString = payloadJson["story_id"] as? String {
+                        // CloudVeil start
+                        // uncomment to suppress stories notifications
+                        //Logger.shared.log("NotificationService \(episode)", "suppressing story notification")
+                        //
+                        //let content = NotificationContent(isLockedMessage: nil)
+                        //updateCurrentContent(content)
+                        //completed()
+                        //
+                        //return
+                        // CloudVeil end
                         storyId = Int32(storyIdString)
                     }
 

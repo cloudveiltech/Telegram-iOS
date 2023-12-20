@@ -312,6 +312,23 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             self.forumChannelTracker = ForumChannelTopics(account: self.context.account, peerId: peerId)
         }
         
+        //CloudVeil start
+        let storyPostingAvailable: Signal<Bool, NoError>
+        if CloudVeilSecurityController.SecurityStaticSettings.disableStories {
+            storyPostingAvailable = .single(false)
+        } else {
+            storyPostingAvailable = self.storyPostingAvailabilityValue.get()
+                |> map { availability -> Bool in
+                    switch availability {
+                    case .enabled, .premium:
+                        return true
+                    default:
+                        return false
+                    }
+                }
+        }
+        //CloudVeil end
+        
         let primaryContext = ChatListLocationContext(
             context: context,
             location: self.location,
@@ -319,14 +336,9 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             hideNetworkActivityStatus: self.hideNetworkActivityStatus,
             containerNode: self.chatListDisplayNode.mainContainerNode,
             isReorderingTabs: self.isReorderingTabsValue.get(),
-            storyPostingAvailable: self.storyPostingAvailabilityValue.get() |> map { availability -> Bool in
-                switch availability {
-                case .enabled, .premium:
-                    return true
-                default:
-                    return false
-                }
-            }
+            // CloudVeil start
+            storyPostingAvailable: storyPostingAvailable
+            // CloudVeil end
         )
         self.primaryContext = primaryContext
         self.primaryInfoReady.set(primaryContext.ready.get())
@@ -1930,101 +1942,69 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             if self.previewing {
                 self.storiesReady.set(.single(true))
             } else {
-                self.storySubscriptionsDisposable = (self.context.engine.messages.storySubscriptions(isHidden: self.location == .chatList(groupId: .archive))
-                |> deliverOnMainQueue).startStrict(next: { [weak self] rawStorySubscriptions in
-                    guard let self else {
-                        return
-                    }
-                    
-                    self.rawStorySubscriptions = rawStorySubscriptions
-                    var items: [EngineStorySubscriptions.Item] = []
-                    if self.shouldFixStorySubscriptionOrder {
-                        for peerId in self.fixedStorySubscriptionOrder {
-                            if let item = rawStorySubscriptions.items.first(where: { $0.peer.id == peerId }) {
-                                items.append(item)
-                            }
-                        }
-                    }
-                    for item in rawStorySubscriptions.items {
-                        if !items.contains(where: { $0.peer.id == item.peer.id }) {
-                            items.append(item)
-                        }
-                    }
-                    self.orderedStorySubscriptions = EngineStorySubscriptions(
-                        accountItem: rawStorySubscriptions.accountItem,
-                        items: items,
-                        hasMoreToken: rawStorySubscriptions.hasMoreToken
-                    )
-                    self.fixedStorySubscriptionOrder = items.map(\.peer.id)
-                    
-                    let transition: ContainedViewLayoutTransition
-                    if self.didAppear {
-                        transition = .animated(duration: 0.4, curve: .spring)
-                    } else {
-                        transition = .immediate
-                    }
-                    
-                    self.chatListDisplayNode.temporaryContentOffsetChangeTransition = transition
-                    self.requestLayout(transition: transition)
-                    self.chatListDisplayNode.temporaryContentOffsetChangeTransition = nil
-                    
-                    if !shouldDisplayStoriesInChatListHeader(storySubscriptions: rawStorySubscriptions, isHidden: self.location == .chatList(groupId: .archive)) {
-                        self.chatListDisplayNode.scrollToTopIfStoriesAreExpanded()
-                    }
-                    
-                    self.storiesReady.set(.single(true))
-                    
+                //CloudVeil start
+                if CloudVeilSecurityController.SecurityStaticSettings.disableStories {
                     Queue.mainQueue().after(1.0, { [weak self] in
                         guard let self else {
                             return
                         }
-                        self.maybeDisplayStoryTooltip()
+                        
+                        self.rawStorySubscriptions = EngineStorySubscriptions(accountItem: nil, items: [], hasMoreToken: nil)
+                        self.orderedStorySubscriptions = self.rawStorySubscriptions
+                        self.fixedStorySubscriptionOrder = []
+                        let transition: ContainedViewLayoutTransition
+                        if self.didAppear {
+                            transition = .animated(duration: 0.4, curve: .spring)
+                        } else {
+                            transition = .immediate
+                        }
+                        
+                        self.chatListDisplayNode.temporaryContentOffsetChangeTransition = transition
+                        self.requestLayout(transition: transition)
+                        self.chatListDisplayNode.temporaryContentOffsetChangeTransition = nil
+                        self.storiesReady.set(.single(true))
                     })
-                })
-                self.storyProgressDisposable = (self.context.engine.messages.allStoriesUploadProgress()
-                |> deliverOnMainQueue).startStrict(next: { [weak self] progress in
-                    guard let self else {
-                        return
-                    }
-                    self.updateStoryUploadProgress(progress)
-                })
-                
-                if case .chatList(.root) = self.location {
-                    self.storyArchiveSubscriptionsDisposable = (self.context.engine.messages.storySubscriptions(isHidden: true)
-                    |> deliverOnMainQueue).startStrict(next: { [weak self] rawStoryArchiveSubscriptions in
+                } else {
+                    self.storySubscriptionsDisposable = (self.context.engine.messages.storySubscriptions(isHidden: self.location == .chatList(groupId: .archive))
+                    |> deliverOnMainQueue).startStrict(next: { [weak self] rawStorySubscriptions in
                         guard let self else {
                             return
                         }
                         
-                        self.rawStoryArchiveSubscriptions = rawStoryArchiveSubscriptions
-                        
-                        let archiveStoryState: ChatListNodeState.StoryState?
-                        if rawStoryArchiveSubscriptions.items.isEmpty {
-                            archiveStoryState = nil
-                        } else {
-                            var unseenCount = 0
-                            for item in rawStoryArchiveSubscriptions.items {
-                                if item.hasUnseen {
-                                    unseenCount += 1
+                        self.rawStorySubscriptions = rawStorySubscriptions
+                        var items: [EngineStorySubscriptions.Item] = []
+                        if self.shouldFixStorySubscriptionOrder {
+                            for peerId in self.fixedStorySubscriptionOrder {
+                                if let item = rawStorySubscriptions.items.first(where: { $0.peer.id == peerId }) {
+                                    items.append(item)
                                 }
                             }
-                            let hasUnseenCloseFriends = rawStoryArchiveSubscriptions.items.contains(where: { $0.hasUnseenCloseFriends })
-                            archiveStoryState = ChatListNodeState.StoryState(
-                                stats: EngineChatList.StoryStats(
-                                    totalCount: rawStoryArchiveSubscriptions.items.count,
-                                    unseenCount: unseenCount,
-                                    hasUnseenCloseFriends: hasUnseenCloseFriends
-                                ),
-                                hasUnseenCloseFriends: hasUnseenCloseFriends
-                            )
+                        }
+                        for item in rawStorySubscriptions.items {
+                            if !items.contains(where: { $0.peer.id == item.peer.id }) {
+                                items.append(item)
+                            }
+                        }
+                        self.orderedStorySubscriptions = EngineStorySubscriptions(
+                            accountItem: rawStorySubscriptions.accountItem,
+                            items: items,
+                            hasMoreToken: rawStorySubscriptions.hasMoreToken
+                        )
+                        self.fixedStorySubscriptionOrder = items.map(\.peer.id)
+                        
+                        let transition: ContainedViewLayoutTransition
+                        if self.didAppear {
+                            transition = .animated(duration: 0.4, curve: .spring)
+                        } else {
+                            transition = .immediate
                         }
                         
-                        self.chatListDisplayNode.mainContainerNode.currentItemNode.updateState { chatListState in
-                            var chatListState = chatListState
-                            
-                            chatListState.archiveStoryState = archiveStoryState
-                            
-                            return chatListState
+                        self.chatListDisplayNode.temporaryContentOffsetChangeTransition = transition
+                        self.requestLayout(transition: transition)
+                        self.chatListDisplayNode.temporaryContentOffsetChangeTransition = nil
+                        
+                        if !shouldDisplayStoriesInChatListHeader(storySubscriptions: rawStorySubscriptions, isHidden: self.location == .chatList(groupId: .archive)) {
+                            self.chatListDisplayNode.scrollToTopIfStoriesAreExpanded()
                         }
                         
                         self.storiesReady.set(.single(true))
@@ -2035,10 +2015,67 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                             }
                             self.maybeDisplayStoryTooltip()
                         })
-                        
-                        self.hasPendingStoriesPromise.set(rawStoryArchiveSubscriptions.accountItem?.hasPending ?? false)
                     })
+                    self.storyProgressDisposable = (self.context.engine.messages.allStoriesUploadProgress()
+                    |> deliverOnMainQueue).startStrict(next: { [weak self] progress in
+                        guard let self else {
+                            return
+                        }
+                        self.updateStoryUploadProgress(progress)
+                    })
+                    
+                    if case .chatList(.root) = self.location {
+                        self.storyArchiveSubscriptionsDisposable = (self.context.engine.messages.storySubscriptions(isHidden: true)
+                        |> deliverOnMainQueue).startStrict(next: { [weak self] rawStoryArchiveSubscriptions in
+                            guard let self else {
+                                return
+                            }
+                            
+                            self.rawStoryArchiveSubscriptions = rawStoryArchiveSubscriptions
+                            
+                            let archiveStoryState: ChatListNodeState.StoryState?
+                            if rawStoryArchiveSubscriptions.items.isEmpty {
+                                archiveStoryState = nil
+                            } else {
+                                var unseenCount = 0
+                                for item in rawStoryArchiveSubscriptions.items {
+                                    if item.hasUnseen {
+                                        unseenCount += 1
+                                    }
+                                }
+                                let hasUnseenCloseFriends = rawStoryArchiveSubscriptions.items.contains(where: { $0.hasUnseenCloseFriends })
+                                archiveStoryState = ChatListNodeState.StoryState(
+                                    stats: EngineChatList.StoryStats(
+                                        totalCount: rawStoryArchiveSubscriptions.items.count,
+                                        unseenCount: unseenCount,
+                                        hasUnseenCloseFriends: hasUnseenCloseFriends
+                                    ),
+                                    hasUnseenCloseFriends: hasUnseenCloseFriends
+                                )
+                            }
+                            
+                            self.chatListDisplayNode.mainContainerNode.currentItemNode.updateState { chatListState in
+                                var chatListState = chatListState
+                                
+                                chatListState.archiveStoryState = archiveStoryState
+                                
+                                return chatListState
+                            }
+                            
+                            self.storiesReady.set(.single(true))
+                            
+                            Queue.mainQueue().after(1.0, { [weak self] in
+                                guard let self else {
+                                    return
+                                }
+                                self.maybeDisplayStoryTooltip()
+                            })
+                                
+                            self.hasPendingStoriesPromise.set(rawStoryArchiveSubscriptions.accountItem?.hasPending ?? false)
+                        })
+                    }
                 }
+                //CloudVeil end
             }
         }
     }

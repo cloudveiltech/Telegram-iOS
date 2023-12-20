@@ -23,6 +23,7 @@ open class CloudVeilSecurityController: NSObject {
 		public static let disableBots = false
 		public static let disableInlineBots = true
         public static let disableGifs = true
+        public static let disableStories = false
 	}
 	
 	

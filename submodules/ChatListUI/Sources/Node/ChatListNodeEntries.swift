@@ -5,6 +5,7 @@ import TelegramCore
 import TelegramPresentationData
 import MergeLists
 import AccountContext
+import CloudVeilSecurityManager
 
 enum ChatListNodeEntryId: Hashable {
     case Header
@@ -695,12 +696,15 @@ func chatListNodeEntriesForView(view: EngineChatList, state: ChatListNodeState, 
             forumTopicData: entry.forumTopicData,
             topForumTopicItems: entry.topForumTopicItems,
             revealed: threadId == 1 && (state.hiddenItemShouldBeTemporaryRevealed || state.editing),
-            storyState: entry.renderedPeer.peerId == accountPeerId ? nil : entry.storyStats.flatMap { stats -> ChatListNodeState.StoryState in
-                return ChatListNodeState.StoryState(
-                    stats: stats,
-                    hasUnseenCloseFriends: stats.hasUnseenCloseFriends
-                )
-            }
+            //CloudVeil start
+            storyState: entry.renderedPeer.peerId == accountPeerId || CloudVeilSecurityController.SecurityStaticSettings.disableStories ? nil :
+                entry.storyStats.flatMap { stats -> ChatListNodeState.StoryState in
+                    return ChatListNodeState.StoryState(
+                        stats: stats,
+                        hasUnseenCloseFriends: stats.hasUnseenCloseFriends
+                    )
+                }
+            //CloudVeil end
         ))
         
         if let threadInfo, threadInfo.isHidden {
