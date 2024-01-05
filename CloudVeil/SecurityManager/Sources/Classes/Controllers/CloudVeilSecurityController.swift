@@ -244,13 +244,7 @@ open class CloudVeilSecurityController: NSObject {
     open func isGroupAvailable(groupID: NSInteger) -> Bool {
         var res = true
         self.accessQueue.sync {
-            if let dictArray = settings?.access?.groups {
-                for arr in dictArray {
-                    if arr["\(groupID)"] != nil {
-                        res = arr["\(groupID)"] ?? false
-                    }
-                }
-            }
+            res = settings?.access?.groups?["\(groupID)"] ?? res
         }
 		return res
 	}
@@ -262,13 +256,7 @@ open class CloudVeilSecurityController: NSObject {
         
         var res = false
         self.accessQueue.sync {
-            if let dictArray = settings?.access?.stickers {
-                for arr in dictArray {
-                    if arr["\(stickerId)"] != nil {
-                        res = arr["\(stickerId)"] ?? false
-                    }
-                }
-            }
+            res = settings?.access?.stickers?["\(stickerId)"] ?? res
         }
         return res
     }
@@ -276,13 +264,7 @@ open class CloudVeilSecurityController: NSObject {
 	open func isChannelAvailable(channelID: NSInteger) -> Bool {
         var res = true
         self.accessQueue.sync {
-            if let dictArray = settings?.access?.channels {
-                for arr in dictArray {
-                    if arr["\(channelID)"] != nil {
-                        res = arr["\(channelID)"] ?? false
-                    }
-                }
-            }
+            res = settings?.access?.channels?["\(channelID)"] ?? res
         }
 		return res
 	}
@@ -293,13 +275,7 @@ open class CloudVeilSecurityController: NSObject {
 		}
         var res = true
         self.accessQueue.sync {
-            if let dictArray = settings?.access?.bots {
-                for arr in dictArray {
-                    if arr["\(botID)"] != nil {
-                        res = arr["\(botID)"] ?? false
-                    }
-                }
-            }
+            res = settings?.access?.bots?["\(botID)"] ?? res
         }
 		return res
 	}
@@ -324,46 +300,22 @@ open class CloudVeilSecurityController: NSObject {
 	open func isConversationCheckedOnServer(conversationId: NSInteger, channelId: NSInteger) -> Bool {
 		var res = false
         self.accessQueue.sync {
-            if settings == nil {
-                print("settings is nil")
+            guard let settings = settings else {
                 res = true
-            } else {
-                print("settings is ok")
+                return
             }
-            
-            
-            if let dictArray = settings?.access?.groups {
-                if isIdInDict(dictArray: dictArray, conversationId: channelId) {
-                    res = true
-                } else {
-                    print("group is false")
-                }
+
+            guard let access = settings.access else {
+                return
             }
-            
-            if let dictArray = settings?.access?.channels {
-                if isIdInDict(dictArray: dictArray, conversationId: channelId) {
-                    res = true
-                } else {
-                    print("channels is false")
-                }
-            }
-            
-            if let dictArray = settings?.access?.bots {
-                if isIdInDict(dictArray: dictArray, conversationId: conversationId) {
-                    res = true
-                } else {
-                    print("bots is false")
-                }
-            }
+
+            let haveGroup = access.groups?["\(channelId)"] != nil
+            let haveChannel = access.channels?["\(channelId)"] != nil
+            let haveBot = access.bots?["\(conversationId)"] != nil
+
+            res = haveGroup || haveChannel || haveBot
         }
 		return res
-	}
-	
-	private func isIdInDict(dictArray: [[String:Bool]], conversationId: NSInteger) -> Bool {
-        if let _ = dictArray.flatMap({ $0.keys }).firstIndex(where: { $0 == "\(conversationId)" }) {
-			return true
-		}
-		return false
 	}
 	
 	open func replayRequestWithGroup(group: TGRow) {

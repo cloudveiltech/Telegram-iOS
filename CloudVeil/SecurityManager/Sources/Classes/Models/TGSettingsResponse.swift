@@ -95,11 +95,11 @@ class AccessObject: Mappable {
     
     // MARK: - Properties
     
-    public var groups: [[String: Bool]]?
-    public var bots: [[String: Bool]]?
-    public var channels: [[String: Bool]]?
-    public var stickers: [[String: Bool]]?
-    public var users: [[String: Bool]]?
+    public var groups: [String: Bool]?
+    public var bots: [String: Bool]?
+    public var channels: [String: Bool]?
+    public var stickers: [String: Bool]?
+    public var users: [String: Bool]?
     
     
     // MARK: Mappable
@@ -107,12 +107,12 @@ class AccessObject: Mappable {
     public required init?(map: Map) { }
     
     public func mapping(map: Map) {
-        
-        groups <- map["groups"]
-        bots <- map["bots"]
-        channels <- map["channels"]
-        stickers <- map["stickers"]
-        users <- map["users"]
+        let merge = ObjMerge<String, Bool>()
+        groups <- (map["groups"], merge)
+        bots <- (map["bots"], merge)
+        channels <- (map["channels"], merge)
+        stickers <- (map["stickers"], merge)
+        users <- (map["users"], merge)
     }
 }
 
