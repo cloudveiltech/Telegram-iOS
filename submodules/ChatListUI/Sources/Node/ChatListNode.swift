@@ -3234,7 +3234,8 @@ public final class ChatListNode: ListView {
     func muteBlockedPeers(entries: [ChatListNodeEntry]) {
         for entry in entries {
             if case let .PeerEntry(entryData) = entry {
-                if !CloudVeilSecurityController.shared.isConversationAvailable(conversationId: NSInteger(entryData.peer.peerId.id._internalGetInt64Value())) {
+                let avail = CloudVeilSecurityController.shared.isConversationAvailable(conversationId: NSInteger(entryData.peer.peerId.id._internalGetInt64Value())) ?? true
+                if !avail {
                     let _ = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [entryData.peer.peerId], setToValue: false).start()
                 }
             }

@@ -288,20 +288,19 @@ open class CloudVeilSecurityController: NSObject {
         return isAvailable(stickerId: stickerId) ?? false
     }
 	
-	open func isConversationAvailable(conversationId: NSInteger) -> Bool {
-		if !(isAvailable(botID: conversationId) ?? false) {
-			return false
-		}
+	open func isConversationAvailable(conversationId: NSInteger) -> Bool? {
+        var res: Bool?
+        if let avail = isAvailable(botID: conversationId) {
+            res = (res ?? false) || avail
+        }
+        if let avail = isAvailable(channelID: -conversationId) {
+            res = (res ?? false) || avail
+        }
+        if let avail = isAvailable(groupID: -conversationId) {
+            res = (res ?? false) || avail
+        }
 		
-		if !(isAvailable(channelID: -conversationId) ?? false) {
-			return false
-		}
-		
-		if !(isAvailable(groupID: -conversationId) ?? false) {
-			return false
-		}
-		
-		return true
+		return res
 	}
 	
 	open func isConversationCheckedOnServer(conversationId: NSInteger, channelId: NSInteger) -> Bool {
