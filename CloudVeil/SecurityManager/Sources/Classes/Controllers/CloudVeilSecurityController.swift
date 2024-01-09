@@ -241,56 +241,63 @@ open class CloudVeilSecurityController: NSObject {
         return false
     }
 	
-    open func isGroupAvailable(groupID: NSInteger) -> Bool {
-        var res = true
+    open func isAvailable(groupID: NSInteger) -> Bool? {
+        var res: Bool?
         self.accessQueue.sync {
-            res = settings?.access?.groups?["\(groupID)"] ?? res
+            res = settings?.access?.groups?["\(groupID)"]
+        }
+		return res
+	}
+	
+	open func isAvailable(channelID: NSInteger) -> Bool? {
+        var res: Bool?
+        self.accessQueue.sync {
+            res = settings?.access?.channels?["\(channelID)"]
         }
 		return res
 	}
     
-    open func isStickerAvailable(stickerId: NSInteger) -> Bool {
+	open func isAvailable(botID: NSInteger) -> Bool? {
+		if SecurityStaticSettings.disableBots {
+			return false
+		}
+        var res: Bool?
+        self.accessQueue.sync {
+            res = settings?.access?.bots?["\(botID)"]
+        }
+		return res
+	}
+    
+    open func isAvailable(stickerId: NSInteger) -> Bool? {
         if disableStickers {
             return false
         }
         
-        var res = false
+        var res: Bool?
         self.accessQueue.sync {
-            res = settings?.access?.stickers?["\(stickerId)"] ?? res
+            res = settings?.access?.stickers?["\(stickerId)"]
         }
         return res
     }
 	
-	open func isChannelAvailable(channelID: NSInteger) -> Bool {
-        var res = true
-        self.accessQueue.sync {
-            res = settings?.access?.channels?["\(channelID)"] ?? res
-        }
-		return res
-	}
-	
 	open func isBotAvailable(botID: NSInteger) -> Bool {
-		if SecurityStaticSettings.disableBots {
-			return false
-		}
-        var res = true
-        self.accessQueue.sync {
-            res = settings?.access?.bots?["\(botID)"] ?? res
-        }
-		return res
+        return isAvailable(botID: botID) ?? false
 	}
-	
+    
+    open func isStickerAvailable(stickerId: NSInteger) -> Bool {
+        return isAvailable(stickerId: stickerId) ?? false
+    }
 	
 	open func isConversationAvailable(conversationId: NSInteger) -> Bool {
-		if !isBotAvailable(botID: conversationId) {
+		if !(isAvailable(botID: conversationId) ?? false) {
 			return false
 		}
 		
-		if !isChannelAvailable(channelID: -conversationId) {
+		if !(isAvailable(channelID: -conversationId) ?? false) {
 			return false
 		}
 		
-		if !isGroupAvailable(groupID: -conversationId) {
+		if !(isAvailable(groupID: -conversationId) ?? false) {
 			return false
 		}
 		
