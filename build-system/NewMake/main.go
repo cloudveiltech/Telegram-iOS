@@ -435,35 +435,39 @@ func main() {
 			if err != nil {
 				return 2
 			}
-		case "build":
+		case "build", "test":
 			// parse command line args
 			buildFor, buildMode := "dev", "debug"
 			var skipArchive, shipLogs, fakeMode bool
-			flag.Func("for", "", func(s string) error {
-				switch s {
-				case "sim", "dev", "dist", "adhoc":
-					buildFor = s
-					return nil
-				default:
-					return fmt.Errorf("unknown build for: %q", s)
+			if cmd == "test" {
+				skipArchive = true
+			} else {
+				flag.Func("for", "", func(s string) error {
+					switch s {
+					case "sim", "dev", "dist", "adhoc":
+						buildFor = s
+						return nil
+					default:
+						return fmt.Errorf("unknown build for: %q", s)
+					}
+				})
+				flag.Func("mode", "", func(s string) error {
+					switch s {
+					case "debug", "release":
+						buildMode = s
+						return nil
+					default:
+						return fmt.Errorf("unknown build mode: %q", s)
+					}
+				})
+				flag.BoolVar(&skipArchive, "noarchive", false, "")
+				flag.BoolVar(&shipLogs, "shiplogs", false, "")
+				flag.BoolVar(&fakeMode, "fakecv", false, "")
+				flag.CommandLine.Usage = func() {
+					usage(os.Stderr)
 				}
-			})
-			flag.Func("mode", "", func(s string) error {
-				switch s {
-				case "debug", "release":
-					buildMode = s
-					return nil
-				default:
-					return fmt.Errorf("unknown build mode: %q", s)
-				}
-			})
-			flag.BoolVar(&skipArchive, "noarchive", false, "")
-			flag.BoolVar(&shipLogs, "shiplogs", false, "")
-			flag.BoolVar(&fakeMode, "fakecv", false, "")
-			flag.CommandLine.Usage = func() {
-				usage(os.Stderr)
+				flag.CommandLine.Parse(os.Args[2:])
 			}
-			flag.CommandLine.Parse(os.Args[2:])
 
 			cfgdir := "build-input/configuration-repository"
 
@@ -477,17 +481,25 @@ func main() {
 			}
 
 			// run bazel
-			args := []string{
-				"build", "Telegram/Telegram", "--announce_rc", "--verbose_failures",
+			args := []string{}
+			if cmd == "test" {
+				args = append(args, "test", "Tests/AllTests")
+			} else {
+				args = append(args,
+					"build", "Telegram/Telegram",
+					"--apple_generate_dsym", "--output_groups=+dsyms",
+				)
+			}
+			args = append(args,
+				"--announce_rc", "--verbose_failures", "--watchos_cpus=arm64_32",
 				"--features=swift.use_global_module_cache", "--experimental_remote_cache_async",
 				"--features=swift.skip_function_bodies_for_derived_files",
-				"--apple_generate_dsym", "--output_groups=+dsyms",
 				"--features=-no_warn_duplicate_libraries",
 				fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
-				fmt.Sprintf("--jobs=%d", runtime.NumCPU()), "--watchos_cpus=arm64_32",
+				fmt.Sprintf("--jobs=%d", runtime.NumCPU()),
 				fmt.Sprintf("--define=buildNumber=%d", buildConfig.BuildNumber),
 				fmt.Sprintf("--define=telegramVersion=%s", buildConfig.AppVersion),
-			}
+			)
 
 			switch buildFor {
 			case "dist", "adhoc":
