@@ -101,6 +101,7 @@ class AccessObject: Mappable {
     public var stickers: [String: Bool]?
     public var users: [String: Bool]?
     
+    public init() { }
     
     // MARK: Mappable
     

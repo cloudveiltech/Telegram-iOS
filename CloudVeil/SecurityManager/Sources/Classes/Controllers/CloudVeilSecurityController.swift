@@ -224,7 +224,37 @@ open class CloudVeilSecurityController: NSObject {
 	private func saveSettings(_ settings: TGSettingsResponse?) {
 		print("Save settings called")
         self.accessQueue.sync {
-            if settings != nil {
+            if let settings = settings {
+                // if last response's org is this response's org,
+                // keep old peers around even when this response doesn't have them
+                if settings.organization?.id == settingsCache?.organization?.id {
+                    settings.access = settings.access ?? AccessObject()
+
+                    settings.access?.groups = settings.access?.groups ?? [:]
+                    settings.access?.groups?.merge(
+                        settingsCache?.access?.groups ?? [:],
+                        uniquingKeysWith: { x, _ in x })
+
+                    settings.access?.channels = settings.access?.channels ?? [:]
+                    settings.access?.channels?.merge(
+                        settingsCache?.access?.channels ?? [:],
+                        uniquingKeysWith: { x, _ in x })
+
+                    settings.access?.bots = settings.access?.bots ?? [:]
+                    settings.access?.bots?.merge(
+                        settingsCache?.access?.bots ?? [:],
+                        uniquingKeysWith: { x, _ in x })
+
+                    settings.access?.stickers = settings.access?.stickers ?? [:]
+                    settings.access?.stickers?.merge(
+                        settingsCache?.access?.stickers ?? [:],
+                        uniquingKeysWith: { x, _ in x })
+
+                    settings.access?.users = settings.access?.users ?? [:]
+                    settings.access?.users?.merge(
+                        settingsCache?.access?.users ?? [:],
+                        uniquingKeysWith: { x, _ in x })
+                }
                 DataSource<TGSettingsResponse>.set(settings)
                 settingsCache = settings
             }
