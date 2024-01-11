@@ -145,7 +145,14 @@ open class CloudVeilSecurityController: NSObject {
         }
 		return v
 	}
-		
+
+    public var organizationId: Int? {
+        var res: Int?
+        self.accessQueue.sync {
+            res = settings?.organization?.id
+        }
+        return res
+    }
 	
 	public var secretChatMinimumLength: NSInteger {
         var res = -1

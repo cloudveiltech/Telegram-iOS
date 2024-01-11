@@ -496,6 +496,9 @@ private enum PeerInfoSettingsSection {
     case rememberPassword
     case emojiStatus
     case powerSaving
+    //CloudVeil start
+    case policy
+    //CloudVeil end
 }
 
 private enum PeerInfoReportType {
@@ -947,6 +950,11 @@ private func settingsItems(data: PeerInfoScreenData?, context: AccountContext, p
     items[.support]!.append(PeerInfoScreenDisclosureItem(id: 2, text: presentationData.strings.Settings_Tips, icon: PresentationResourcesSettings.tips, action: {
         interaction.openSettings(.tips)
     }))
+    // CloudVeil start
+    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 3, text: presentationData.strings.Settings_Policy, icon: PresentationResourcesSettings.proxy, action: {
+        interaction.openSettings(.policy)
+    }))
+    // CloudVeil end
     
     var result: [(AnyHashable, [PeerInfoScreenItem])] = []
     for section in SettingsSection.allCases {
@@ -8662,6 +8670,16 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
                     forceExternal: false, presentationData: self.presentationData,
                     navigationController: navCtrl, dismissInput: {}
                 )
+            case .policy:
+                if let orgId = CloudVeilSecurityController.shared.organizationId {
+                    let navCtrl = self.controller?.navigationController as? NavigationController
+                    context.sharedContext.openExternalUrl(
+                        context: context, urlContext: .generic,
+                        url: "https://messenger.cloudveil.org/organization/policy/\(orgId)",
+                        forceExternal: false, presentationData: presentationData,
+                        navigationController: navCtrl, dismissInput: {}
+                    )
+                }
                 // CloudVeil end
             case .phoneNumber:
                 if let user = self.data?.peer as? TelegramUser, let phoneNumber = user.phone {
