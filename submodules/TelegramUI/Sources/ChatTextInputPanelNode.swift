@@ -1877,26 +1877,12 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate, Ch
                         break
                     }
                 }
-                //CloudVeil start
-                var isStickerPanelItem = false
-                switch item {
-                case let .input(_, inputMode), let .botInput(_, inputMode):
-                    if case .stickers = inputMode {
-                        isStickerPanelItem = true
-                    }
-                default:
-                    break
+                if itemAndButton == nil {
+                    let button = AccessoryItemIconButtonNode(item: item, theme: interfaceState.theme, strings: interfaceState.strings)
+                    button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
+                    itemAndButton = (item, button)
                 }
-                
-                if !CloudVeilSecurityController.shared.disableStickers || !isStickerPanelItem {
-                    if itemAndButton == nil {
-                        let button = AccessoryItemIconButtonNode(item: item, theme: interfaceState.theme, strings: interfaceState.strings)
-                        button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
-                        itemAndButton = (item, button)
-                    }
-                    updatedButtons.append(itemAndButton!)
-                }
-                //CloudVeil end
+                updatedButtons.append(itemAndButton!)
             }
             for (_, button) in self.accessoryItemButtons {
                 if animatedTransition {

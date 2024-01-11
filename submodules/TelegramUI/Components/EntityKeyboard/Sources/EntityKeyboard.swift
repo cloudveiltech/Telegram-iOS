@@ -167,10 +167,12 @@ public final class EntityKeyboardComponent: Component {
         self.isContentInFocus = isContentInFocus
         self.containerInsets = containerInsets
         self.topPanelInsets = topPanelInsets
+        // CloudVeil start
         self.emojiContent = emojiContent
-        self.stickerContent = stickerContent
+        self.stickerContent = CloudVeilSecurityController.shared.disableStickers ? nil : stickerContent
         self.maskContent = maskContent
-        self.gifContent = gifContent
+        self.gifContent = CloudVeilSecurityController.SecurityStaticSettings.disableGifs ? nil : gifContent
+        // CloudVeil end
         self.hasRecentGifs = hasRecentGifs
         self.availableGifSearchEmojies = availableGifSearchEmojies
         self.defaultToEmojiTab = defaultToEmojiTab
@@ -412,11 +414,7 @@ public final class EntityKeyboardComponent: Component {
             
             if let gifContent = component.gifContent {
                 contents.append(AnyComponentWithIdentity(id: "gifs", component: AnyComponent(gifContent)))
-                // CloudVeil start
-                if !CloudVeilSecurityController.SecurityStaticSettings.disableGifs {
-                    contentIcons.append(PagerComponentContentIcon(id: "gifs", imageName: "Chat/Input/Media/EntityInputGifsIcon", title: component.strings.EmojiInput_TabGifs))
-                }
-                // CloudVeil end
+                contentIcons.append(PagerComponentContentIcon(id: "gifs", imageName: "Chat/Input/Media/EntityInputGifsIcon", title: component.strings.EmojiInput_TabGifs))
                 if let addImage = component.stickerContent?.inputInteractionHolder.inputInteraction?.addImage {
                     contentAccessoryLeftButtons.append(AnyComponentWithIdentity(id: "gifs", component: AnyComponent(Button(
                         content: AnyComponent(BundleIconComponent(
