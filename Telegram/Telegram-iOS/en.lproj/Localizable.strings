@@ -754,6 +754,7 @@
 "Settings.FAQ_Intro" = "Please note that CloudVeil Messenger Support is done by volunteers. We try to respond as quickly as possible, but it may take a while.\n\nPlease take a look at the CloudVeil Messenger FAQ: it has important troubleshooting tips and answers to most questions.";
 "Settings.FAQ_Button" = "FAQ";
 "Settings.Policy" = "Organization policy";
+"Settings.AboutUs" = "About Us";
 "Settings.SaveIncomingPhotos" = "Save Incoming Photos";
 
 // Notifications and Sounds

@@ -498,6 +498,7 @@ private enum PeerInfoSettingsSection {
     case powerSaving
     //CloudVeil start
     case policy
+    case aboutUs
     //CloudVeil end
 }
 
@@ -953,6 +954,9 @@ private func settingsItems(data: PeerInfoScreenData?, context: AccountContext, p
     // CloudVeil start
     items[.support]!.append(PeerInfoScreenDisclosureItem(id: 3, text: presentationData.strings.Settings_Policy, icon: PresentationResourcesSettings.proxy, action: {
         interaction.openSettings(.policy)
+    }))
+    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 4, text: presentationData.strings.Settings_AboutUs, icon: PresentationResourcesSettings.editProfile, action: {
+        interaction.openSettings(.aboutUs)
     }))
     // CloudVeil end
     
@@ -8677,6 +8681,16 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
                         context: context, urlContext: .generic,
                         url: "https://messenger.cloudveil.org/organization/policy/\(orgId)",
                         forceExternal: false, presentationData: presentationData,
+                        navigationController: navCtrl, dismissInput: {}
+                    )
+                }
+            case .aboutUs:
+                if let orgId = CloudVeilSecurityController.shared.organizationId {
+                    let navCtrl = self.controller?.navigationController as? NavigationController
+                    self.context.sharedContext.openExternalUrl(
+                        context: self.context, urlContext: .generic,
+                        url: "https://messenger.cloudveil.org/organization/about/\(orgId)",
+                        forceExternal: false, presentationData: self.presentationData,
                         navigationController: navCtrl, dismissInput: {}
                     )
                 }
