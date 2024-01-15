@@ -10365,7 +10365,7 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
         if CloudVeilSecurityController.shared.disableProfilePhoto {
             expanded = false
         }
-        if CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peerId] ?? false {
+        if CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.isVideoAvatarCached(peerId: peerId) ?? false {
             expanded = false
         }
         self.avatarInitiallyExpanded = expanded

@@ -256,7 +256,53 @@ public final class AvatarNode: ASDisplayNode {
     ]
 
     //CloudVeil start
-    public static var videoAvatarsCache: [EnginePeer.Id:Bool] = [:]
+    private static var videoAvatarsCache: [EnginePeer.Id:Bool] = [:]
+    
+    private static let videoAvatarsCacheQueue = DispatchQueue(label: "videoAvatarsCacheQueue")
+
+    public static func isVideoAvatarCached(peer: EnginePeer?) -> Bool? {
+        return isVideoAvatarCached(peerId: peer?.id)
+    }
+
+    public static func isVideoAvatarCached(peerId: EnginePeer.Id?) -> Bool? {
+        guard let id = peerId else {
+            return false
+        }
+        var cachedValue: Bool?
+        videoAvatarsCacheQueue.sync {
+            cachedValue = AvatarNode.videoAvatarsCache[id]
+        }
+        if let v = cachedValue {
+            return v
+        }
+        if !CloudVeilSecurityController.shared.disableProfilePhoto && !CloudVeilSecurityController.shared.disableProfileVideo {
+            return false
+        }
+        return nil
+    }
+
+    public static func isVideoAvatar(context: AccountContext, peer: EnginePeer?, callback: @escaping (Bool) -> ()) {
+        guard let id = peer?.id else {
+            callback(false)
+            return
+        }
+        let _ = context.engine.peers.requestPeerPhotos(peerId: id).start(next: { result in
+            for i in 0 ..< result.count {
+                if let _ = result[i].image.videoRepresentations.first {
+                    self.videoAvatarsCacheQueue.async(flags: .barrier) {
+                        AvatarNode.videoAvatarsCache[id] = true
+                    }
+                    callback(true)
+                    return
+                }
+            }
+
+            self.videoAvatarsCacheQueue.async(flags: .barrier) {
+                AvatarNode.videoAvatarsCache[id] = false
+            }
+            callback(false)
+        })
+    }
     //CloudVeil end
     
     public final class ContentNode: ASDisplayNode {
@@ -650,14 +696,14 @@ public final class AvatarNode: ASDisplayNode {
                 representation = nil
                 setAvatar(account: account, icon: icon, representation: representation, context: genericContext, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
             } else if CloudVeilSecurityController.shared.disableProfileVideo {
-                if let isVideoAvatarCachedValue = isVideoAvatarCached(peer: peer) {
+                if let isVideoAvatarCachedValue = AvatarNode.isVideoAvatarCached(peer: peer) {
                     if isVideoAvatarCachedValue {
                         representation = nil
                     }
                     setAvatar(account: account, icon: icon, representation: representation, context: genericContext, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
                 } else {
                     self.setAvatar(account: account, icon: icon, representation: nil, context: genericContext, theme: theme, peer: peer, authorOfMessage: authorOfMessage, overrideImage: overrideImage, emptyColor: emptyColor, clipStyle: clipStyle, synchronousLoad: synchronousLoad, displayDimensions: displayDimensions, storeUnrounded: storeUnrounded)
-                    isVideoAvatar(context: genericContext, peer: peer) { result in
+                    AvatarNode.isVideoAvatar(context: genericContext, peer: peer) { result in
                         if result {
                             representation = nil
                         }
@@ -741,48 +787,6 @@ public final class AvatarNode: ASDisplayNode {
                     }
                 }
             }
-        }
-        
-        private let accessQueue = DispatchQueue(label: "videoAvatarsCacheAccessQueue", attributes: .concurrent)
-
-        private func isVideoAvatarCached(peer: EnginePeer?) -> Bool? {
-            guard let id = peer?.id else {
-                return false
-            }
-            var cachedValue: Bool?
-            accessQueue.sync {
-                cachedValue = AvatarNode.videoAvatarsCache[id]
-            }
-            if let v = cachedValue {
-                return v
-            }
-            if !CloudVeilSecurityController.shared.disableProfilePhoto && !CloudVeilSecurityController.shared.disableProfileVideo {
-                return false
-            }
-            return nil
-        }
-
-        private func isVideoAvatar(context: AccountContext, peer: EnginePeer?, callback: @escaping (Bool) -> ()) {
-            guard let id = peer?.id else {
-                callback(false)
-                return
-            }
-            let _ = context.engine.peers.requestPeerPhotos(peerId: id).start(next: { result in
-                for i in 0 ..< result.count {
-                    if let _ = result[i].image.videoRepresentations.first {
-                        self.accessQueue.async(flags: .barrier) {
-                            AvatarNode.videoAvatarsCache[id] = true
-                            callback(true)
-                        }
-                        return
-                    }
-                }
-
-                self.accessQueue.async(flags: .barrier) {
-                    AvatarNode.videoAvatarsCache[id] = false
-                }
-                callback(false)
-            })
         }
         //CloudVeil end
         

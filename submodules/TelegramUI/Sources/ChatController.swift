@@ -5034,7 +5034,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                 if CloudVeilSecurityController.shared.disableProfilePhoto {
                     return
                 }
-                if CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peer.id] ?? false {
+                if CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.isVideoAvatarCached(peerId: peer.id) ?? false {
                     return
                 }
                 //CloudVeil end

@@ -655,7 +655,7 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                 }
                 
                 //CloudVeil start
-                if CloudVeilSecurityController.shared.disableProfilePhoto || (CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.videoAvatarsCache[peer.id] ?? false) {
+                if CloudVeilSecurityController.shared.disableProfilePhoto || (CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.isVideoAvatarCached(peerId: peer.id) ?? false) {
                     representations = []
                     videoRepresentations = []
                     immediateThumbnailData = nil
