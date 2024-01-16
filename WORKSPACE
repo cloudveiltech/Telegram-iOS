@@ -103,9 +103,4 @@ new_pod_repository(
     name = "ObjectMapper",
     url = "https://github.com/tristanhimmelman/ObjectMapper/archive/3.3.0.zip",
 )
-
-new_pod_repository(
-    name = "Alamofire",
-    url = "https://github.com/Alamofire/Alamofire/archive/4.9.1.zip",
-)
 # CloudVeil end

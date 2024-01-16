@@ -29,7 +29,6 @@ swift_library(
         "//conditions:default": [],
     }),
     deps = [
-        "@Alamofire//:Alamofire",
         "@ObjectMapper//:ObjectMapper",
     ],
 )

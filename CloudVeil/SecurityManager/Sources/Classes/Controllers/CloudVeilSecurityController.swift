@@ -10,7 +10,6 @@ import Foundation
 
 import UIKit
 
-import Alamofire
 import ObjectMapper
 
 open class CloudVeilSecurityController: NSObject {
@@ -166,14 +165,20 @@ open class CloudVeilSecurityController: NSObject {
 	}
 	
 	private func sengSettingsRequest() {
-        if CloudVeilSecurityController.shared.lastRequest == nil {
+        guard let body = CloudVeilSecurityController.shared.lastRequest else {
             return
         }
-		NSLog("Downloading settings")
-		SecurityManager.shared.getSettings(withRequest: CloudVeilSecurityController.shared.lastRequest!) { (resp) in
-            CloudVeilSecurityController.shared.saveSettings(resp)
-            self.notifyObserbers()
-		}
+        let url = URL(string: "https://manage.cloudveil.org/api/v1/messenger/settings")!
+        var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+        req.httpMethod = "POST"
+        req.httpBody = body.toJSONString(prettyPrint: false)!.data(using: .utf8)!
+        let task = URLSession.shared.dataTask(with: req) { data, response, error in
+            if let data = data, let str = String(data: data, encoding: .utf8) {
+                Self.shared.saveSettings(TGSettingsResponse(JSONString: str))
+                self.notifyObserbers()
+            }
+        }
+        task.resume()
 	}
 	
     open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = [], stickers: [TGRow] = []) {

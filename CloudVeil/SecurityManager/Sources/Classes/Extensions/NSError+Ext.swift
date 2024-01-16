@@ -8,7 +8,6 @@
 
 import Foundation
 import CFNetwork
-import Alamofire
 
 let kServerURLResponse = "kServerURLResponse"
 let kServerResponseData = "kServerResponseData"
@@ -51,18 +50,6 @@ extension NSError {
             }
         }
         return nil
-    }
-    
-    func with<T: Any>(dataResponse: DataResponse<T>) -> NSError {
-        
-        var newUserInfo = userInfo
-        if let urlResponse = dataResponse.response {
-            newUserInfo[kServerURLResponse] = urlResponse
-        }
-        if let serverData = dataResponse.data {
-            newUserInfo[kServerResponseData] = serverData
-        }
-        return NSError(domain: domain, code: code, userInfo: newUserInfo)
     }
     
     var message: String? {
