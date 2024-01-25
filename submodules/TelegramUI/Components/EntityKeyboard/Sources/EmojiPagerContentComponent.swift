@@ -2732,7 +2732,9 @@ public final class EmojiPagerContentComponent: Component {
         self.searchState = searchState
         self.warpContentsOnEdges = warpContentsOnEdges
         self.hideBackground = hideBackground
-        self.displaySearchWithPlaceholder = displaySearchWithPlaceholder
+        // CloudVeil start "Disable emoji search"
+        self.displaySearchWithPlaceholder = CloudVeilSecurityController.SecurityStaticSettings.disableGifs ? nil : displaySearchWithPlaceholder
+        // CloudVeil end
         self.searchCategories = searchCategories
         self.searchInitiallyHidden = searchInitiallyHidden
         self.searchAlwaysActive = searchAlwaysActive
