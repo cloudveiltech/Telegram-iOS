@@ -22,7 +22,6 @@ open class CloudVeilSecurityController: NSObject {
 		public static let disableBots = false
 		public static let disableInlineBots = true
         public static let disableGifs = true
-        public static let disableStories = false
 	}
 	
 	
@@ -61,6 +60,13 @@ open class CloudVeilSecurityController: NSObject {
         var res = false
         self.accessQueue.sync {
             res = settings?.organization?.needChange ?? false
+        }
+        return res
+    }
+    public var disableStories: Bool {
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.disableStories ?? false
         }
         return res
     }

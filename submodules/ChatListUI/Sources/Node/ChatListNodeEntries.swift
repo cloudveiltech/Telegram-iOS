@@ -696,8 +696,8 @@ func chatListNodeEntriesForView(view: EngineChatList, state: ChatListNodeState, 
             forumTopicData: entry.forumTopicData,
             topForumTopicItems: entry.topForumTopicItems,
             revealed: threadId == 1 && (state.hiddenItemShouldBeTemporaryRevealed || state.editing),
-            //CloudVeil start
-            storyState: entry.renderedPeer.peerId == accountPeerId || CloudVeilSecurityController.SecurityStaticSettings.disableStories ? nil :
+            //CloudVeil start "Disable stories"
+            storyState: entry.renderedPeer.peerId == accountPeerId || CloudVeilSecurityController.shared.disableStories ? nil :
                 entry.storyStats.flatMap { stats -> ChatListNodeState.StoryState in
                     return ChatListNodeState.StoryState(
                         stats: stats,

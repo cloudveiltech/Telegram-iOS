@@ -312,9 +312,9 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             self.forumChannelTracker = ForumChannelTopics(account: self.context.account, peerId: peerId)
         }
         
-        //CloudVeil start
+        //CloudVeil start "Disable stories"
         let storyPostingAvailable: Signal<Bool, NoError>
-        if CloudVeilSecurityController.SecurityStaticSettings.disableStories {
+        if CloudVeilSecurityController.shared.disableStories {
             storyPostingAvailable = .single(false)
         } else {
             storyPostingAvailable = self.storyPostingAvailabilityValue.get()
@@ -336,7 +336,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             hideNetworkActivityStatus: self.hideNetworkActivityStatus,
             containerNode: self.chatListDisplayNode.mainContainerNode,
             isReorderingTabs: self.isReorderingTabsValue.get(),
-            // CloudVeil start
+            // CloudVeil start "Disable stories"
             storyPostingAvailable: storyPostingAvailable
             // CloudVeil end
         )
@@ -1942,8 +1942,8 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             if self.previewing {
                 self.storiesReady.set(.single(true))
             } else {
-                //CloudVeil start
-                if CloudVeilSecurityController.SecurityStaticSettings.disableStories {
+                //CloudVeil start "Disable stories"
+                if CloudVeilSecurityController.shared.disableStories {
                     Queue.mainQueue().after(1.0, { [weak self] in
                         guard let self else {
                             return
