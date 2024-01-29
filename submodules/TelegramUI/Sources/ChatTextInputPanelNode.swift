@@ -684,18 +684,21 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate, Ch
                         }
                     }
                     
-                    //CloudVeil start
-                    var isStickerPanelItem = false
+                    // CloudVeil start "Disable custom keyboard"
+                    var shouldBeHidden = false
                     switch item {
-                        case let .input(_, inputMode), let .botInput(_, inputMode):
-                            if case .stickers = inputMode {
-                                isStickerPanelItem = true
-                            }
+                    case let .input(_, inputMode), let .botInput(_, inputMode):
+                        switch inputMode {
+                        case .stickers, .emoji:
+                            shouldBeHidden = true
                         default:
+                            break
+                        }
+                    default:
                         break
                     }
                     
-                    if !CloudVeilSecurityController.shared.disableStickers || !isStickerPanelItem {
+                    if !CloudVeilSecurityController.shared.disableStickers || !shouldBeHidden {
                         if itemAndButton == nil {
                             let button = AccessoryItemIconButtonNode(item: item, theme: currentState.theme, strings: currentState.strings)
                             button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
@@ -1877,12 +1880,29 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate, Ch
                         break
                     }
                 }
-                if itemAndButton == nil {
-                    let button = AccessoryItemIconButtonNode(item: item, theme: interfaceState.theme, strings: interfaceState.strings)
-                    button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
-                    itemAndButton = (item, button)
+                // CloudVeil start "Disable custom keyboard"
+                var shouldBeHidden = false
+                switch item {
+                case let .input(_, inputMode), let .botInput(_, inputMode):
+                    switch inputMode {
+                    case .stickers, .emoji:
+                        shouldBeHidden = true
+                    default:
+                        break
+                    }
+                default:
+                    break
                 }
-                updatedButtons.append(itemAndButton!)
+                
+                if !CloudVeilSecurityController.shared.disableStickers || !shouldBeHidden {
+                    if itemAndButton == nil {
+                        let button = AccessoryItemIconButtonNode(item: item, theme: interfaceState.theme, strings: interfaceState.strings)
+                        button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
+                        itemAndButton = (item, button)
+                    }
+                    updatedButtons.append(itemAndButton!)
+                }
+                // CloudVeil end
             }
             for (_, button) in self.accessoryItemButtons {
                 if animatedTransition {
