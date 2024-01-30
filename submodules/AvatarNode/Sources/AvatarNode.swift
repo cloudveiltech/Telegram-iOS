@@ -1137,6 +1137,9 @@ public final class AvatarNode: ASDisplayNode {
     }
     
     public func setStoryStats(storyStats: StoryStats?, presentationParams: StoryPresentationParams, transition: Transition) {
+        // CloudVeil start "Disable stories"
+        let storyStats = CloudVeilSecurityController.shared.disableStories ? nil : storyStats
+        // CloudVeil end
         if self.storyStats != storyStats || self.storyPresentationParams != presentationParams {
             self.storyStats = storyStats
             self.storyPresentationParams = presentationParams
