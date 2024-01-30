@@ -1,3 +1,4 @@
+import CloudVeilSecurityManager
 import Foundation
 import UIKit
 import Display
@@ -283,9 +284,13 @@ public final class StorySetIndicatorComponent: Component {
             super.init(frame: frame)
             
             self.button.addSubview(self.imageView)
-            self.addSubview(self.button)
-            
-            self.button.addTarget(self, action: #selector(self.pressed), for: .touchUpInside)
+            // CloudVeil start "Disable stories"
+            if !CloudVeilSecurityController.shared.disableStories {
+                self.addSubview(self.button)
+                
+                self.button.addTarget(self, action: #selector(self.pressed), for: .touchUpInside)
+            }
+            // CloudVeil end
             self.button.highligthedChanged = { [weak self] highlighted in
                 guard let self else {
                     return

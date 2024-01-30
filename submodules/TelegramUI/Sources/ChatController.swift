@@ -5477,7 +5477,9 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                     (strongSelf.chatInfoNavigationButton?.buttonItem.customDisplayNode as? ChatAvatarNavigationNode)?.contextActionIsEnabled = strongSelf.chatLocation.threadId == nil && peer.restrictionText(platform: "ios", contentSettings: strongSelf.context.currentContentSettings.with { $0 }) == nil
                                     strongSelf.chatInfoNavigationButton?.buttonItem.accessibilityLabel = presentationInterfaceState.strings.Conversation_ContextMenuOpenProfile
                                     
-                                    strongSelf.storyStats = peerView.storyStats
+                                    // CloudVeil start "Disable stories"
+                                    strongSelf.storyStats = CloudVeilSecurityController.shared.disableStories ? nil : peerView.storyStats
+                                    // CloudVeil end
                                     if let avatarNode = strongSelf.avatarNode {
                                         avatarNode.avatarNode.setStoryStats(storyStats: peerView.storyStats.flatMap { storyStats -> AvatarNode.StoryStats? in
                                             if storyStats.totalCount == 0 {
