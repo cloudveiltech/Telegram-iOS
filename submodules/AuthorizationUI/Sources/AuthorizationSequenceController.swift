@@ -21,6 +21,7 @@ import AuthenticationServices
 import Markdown
 import AlertUI
 import CloudVeilSecurityManager
+import CVUI
 
 private enum InnerState: Equatable {
     case state(UnauthorizedAccountStateContents)
@@ -51,6 +52,10 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
         return self._ready
     }
     private var didSetReady = false
+
+    // CloudVeil start "Terms of Service"
+    private var cvAgreements = loadCloudVeilAgreements()
+    // CloudVeil end
     
     public init(sharedContext: SharedAccountContext, account: UnauthorizedAccount, otherAccountPhoneNumbers: ((String, AccountRecordId, Bool)?, [(String, AccountRecordId, Bool)]), presentationData: PresentationData, openUrl: @escaping (String) -> Void, apiId: Int32, apiHash: String, authorizationCompleted: @escaping () -> Void) {
         self.sharedContext = sharedContext
@@ -1144,6 +1149,18 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
     }
     
     private func updateState(state: InnerState) {
+        // CloudVeil start "Terms of Service"
+        if let agreement = self.cvAgreements.last {
+            let tosVC = CVMustAccept(
+                agreement: agreement, theme: self.presentationData.theme,
+                hasAgreed: { [weak self] in
+                    let _ = self?.cvAgreements.popLast()
+                    self?.updateState(state: state)
+                })
+            self.setViewControllers([CVVCWrapper(tosVC)], animated: !self.viewControllers.isEmpty)
+            return
+        }
+        // CloudVeil end "Terms of Service"
         switch state {
         case .authorized:
             self.authorizationCompleted()

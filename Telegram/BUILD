@@ -374,6 +374,9 @@ swift_library(
         "//submodules/TelegramUI:TelegramUIResources",
         "//submodules/TelegramUI:TelegramUIAssets",
         ":GeneratedPresentationStrings/Resources/PresentationStrings.data",
+        # CloudVeil start
+        "//CloudVeil/UI:Resources",
+        # CloudVeil end
     ],
     deps = [
         "//submodules/TelegramUI:TelegramUI",
