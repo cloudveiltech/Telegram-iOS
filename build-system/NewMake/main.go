@@ -19,14 +19,21 @@ import (
 	"text/template"
 )
 
-type BuildConfig struct {
-	BuildNumber          uint   `json:"-"`
-	ProvisioningPath     string `json:"-"`
-	BuildFor             string `json:"-"`
-	AppVersion           string `json:"-"`
-	BazelPath            string `json:"-"`
-	ShipLogs             bool   `json:"-"`
-	FakeMode             bool   `json:"-"`
+type Config struct {
+	BuildNumber      uint
+	ProvisioningPath string
+	BuildFor         string
+	BuildMode        string
+	AppVersion       string
+	BazelPath        string
+	ShipLogs         bool
+	FakeMode         bool
+	SkipArchive      bool
+	BazelConfig      *BazelConfig
+	MakeConfig       *MakeConfig
+}
+
+type BazelConfig struct {
 	BundleId             string `json:"bundle_id"`
 	ApiId                string `json:"api_id"`
 	ApiHash              string `json:"api_hash"`
@@ -104,23 +111,23 @@ usage: ./make build [-noarchive] [-shiplogs] [-fakecv] [-for sim|dev|dist] [-mod
 const VARIABLES = `
 telegram_bazel_path = "{{ .BazelPath }}"
 telegram_use_xcode_managed_codesigning = False
-telegram_bundle_id = "{{ .BundleId }}"
-telegram_api_id = "{{ .ApiId }}"
-telegram_api_hash = "{{ .ApiHash }}"
-telegram_team_id = "{{ .TeamId }}"
+telegram_bundle_id = "{{ .BazelConfig.BundleId }}"
+telegram_api_id = "{{ .BazelConfig.ApiId }}"
+telegram_api_hash = "{{ .BazelConfig.ApiHash }}"
+telegram_team_id = "{{ .BazelConfig.TeamId }}"
 telegram_app_center_id = "0"
 telegram_is_internal_build = "{{ printf "%t" (or (eq "sim" .BuildFor) (eq "dev" .BuildFor)) }}"
 telegram_is_appstore_build = "{{ printf "%t" (eq "dist" .BuildFor) }}"
-telegram_appstore_id = "{{ .AppStoreId }}"
-telegram_app_specific_url_scheme = "{{ .AppSpecificUrlScheme }}"
-telegram_premium_iap_product_id = "{{ .PremiumIapProductId }}"
+telegram_appstore_id = "{{ .BazelConfig.AppStoreId }}"
+telegram_app_specific_url_scheme = "{{ .BazelConfig.AppSpecificUrlScheme }}"
+telegram_premium_iap_product_id = "{{ .BazelConfig.PremiumIapProductId }}"
 {{ if (or (eq "dist" .BuildFor) (eq "adhoc" .BuildFor)) -}}
 telegram_aps_environment = "production"
 {{- else -}}
 telegram_aps_environment = "development"
 {{- end }}
-telegram_enable_siri = {{ if .EnableSiri -}} True {{- else -}} False {{- end }}
-telegram_enable_icloud = {{ if .EnableIcloud -}} True {{- else -}} False {{- end }}
+telegram_enable_siri = {{ if .BazelConfig.EnableSiri -}} True {{- else -}} False {{- end }}
+telegram_enable_icloud = {{ if .BazelConfig.EnableIcloud -}} True {{- else -}} False {{- end }}
 telegram_enable_watch = True
 {{ if .ShipLogs -}}
 cloudveil_shiplogs = True
@@ -139,8 +146,12 @@ func usage(w io.Writer) {
 // runBazel run a bazel command, sending all it's output to the given writer
 func runBazel(w io.Writer, args ...string) error {
 	bazel := exec.Command("bazel", args...)
-	bazel.Stdout = w
-	bazel.Stderr = w
+	if w != os.Stderr {
+		bazel.Stdout = w
+	}
+	if w != os.Stdout {
+		bazel.Stderr = w
+	}
 	bazel.Env = append(os.Environ(), "USE_BAZEL_VERSION=6.3.2")
 	return bazel.Run()
 }
@@ -201,45 +212,74 @@ func copyDir(src, dst string) error {
 	return exec.Command("cp", "-R", src, dst).Run()
 }
 
-func readConfig(buildFor string, shipLogs, fakeMode bool) (*MakeConfig, *BuildConfig, error) {
-	makeConfig := &MakeConfig{
+func readConfig(cmd string) (*Config, error) {
+	cfg := &Config{BuildFor: "dev", BuildMode: "debug", SkipArchive: true}
+	if cmd == "build" {
+		flag.Func("for", "", func(s string) error {
+			switch s {
+			case "sim", "dev", "dist", "adhoc":
+				cfg.BuildFor = s
+				return nil
+			default:
+				return fmt.Errorf("unknown build for: %q", s)
+			}
+		})
+		flag.Func("mode", "", func(s string) error {
+			switch s {
+			case "debug", "release":
+				cfg.BuildMode = s
+				return nil
+			default:
+				return fmt.Errorf("unknown build mode: %q", s)
+			}
+		})
+		flag.BoolVar(&cfg.SkipArchive, "noarchive", false, "")
+		flag.BoolVar(&cfg.ShipLogs, "shiplogs", false, "")
+		flag.BoolVar(&cfg.FakeMode, "fakecv", false, "")
+		flag.CommandLine.Usage = func() {
+			usage(os.Stderr)
+		}
+		flag.CommandLine.Parse(os.Args[2:])
+	}
+
+	cfg.MakeConfig = &MakeConfig{
 		DevProvision:   "../ProvisionDev",
 		DistPovision:   "../ProvisionDist",
 		AdHocProvision: "../ProvisionAdHoc",
 	}
 	err := withOpenFile("make.json", func(file *os.File) error {
-		return json.NewDecoder(file).Decode(&makeConfig)
+		return json.NewDecoder(file).Decode(cfg.MakeConfig)
 	})
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, nil, fmt.Errorf("Failed reading make configuration: %v\n", err)
+		return nil, fmt.Errorf("Failed reading make configuration: %v\n", err)
 	}
-	makeConfig.IpaPathTmpl, err = template.New("ipa-path").Parse(makeConfig.IpaPath)
+	cfg.MakeConfig.IpaPathTmpl, err = template.New("ipa-path").Parse(cfg.MakeConfig.IpaPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed parsing ipa-archive-path template: %v\n", err)
+		return nil, fmt.Errorf("Failed parsing ipa-archive-path template: %v\n", err)
 	}
-	makeConfig.DsymsPathTmpl, err = template.New("dsyms-path").Parse(makeConfig.DsymsPath)
+	cfg.MakeConfig.DsymsPathTmpl, err = template.New("dsyms-path").Parse(cfg.MakeConfig.DsymsPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed parsing dsyms-archive-path template: %v\n", err)
+		return nil, fmt.Errorf("Failed parsing dsyms-archive-path template: %v\n", err)
 	}
 
 	// figure out where the build configuration and provisioning profiles are
-	buildConfig := &BuildConfig{BuildFor: buildFor, ShipLogs: shipLogs, FakeMode: fakeMode}
-	switch buildFor {
+	switch cfg.BuildFor {
 	case "sim", "dev":
-		buildConfig.ProvisioningPath = makeConfig.DevProvision
+		cfg.ProvisioningPath = cfg.MakeConfig.DevProvision
 	case "dist":
-		buildConfig.ProvisioningPath = makeConfig.DistPovision
+		cfg.ProvisioningPath = cfg.MakeConfig.DistPovision
 	case "adhoc":
-		buildConfig.ProvisioningPath = makeConfig.AdHocProvision
+		cfg.ProvisioningPath = cfg.MakeConfig.AdHocProvision
 	}
 
 	// read and decode the build config
-	buildConfigFile := filepath.Join(buildConfig.ProvisioningPath, "configuration.json")
-	err = withOpenFile(buildConfigFile, func(configJsonFile *os.File) error {
-		return json.NewDecoder(configJsonFile).Decode(&buildConfig)
+	cfg.BazelConfig = &BazelConfig{}
+	bazelConfigFile := filepath.Join(cfg.ProvisioningPath, "configuration.json")
+	err = withOpenFile(bazelConfigFile, func(configJsonFile *os.File) error {
+		return json.NewDecoder(configJsonFile).Decode(cfg.BazelConfig)
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed reading build configuration: %v\n", err)
+		return nil, fmt.Errorf("Failed reading bazel configuration: %v\n", err)
 	}
 
 	// read the Telegram version we will build
@@ -250,26 +290,26 @@ func readConfig(buildFor string, shipLogs, fakeMode bool) (*MakeConfig, *BuildCo
 		return json.NewDecoder(versionsFile).Decode(&versions)
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed reading telegram version: %v\n", err)
+		return nil, fmt.Errorf("Failed reading telegram version: %v\n", err)
 	}
-	buildConfig.AppVersion = versions.App
+	cfg.AppVersion = versions.App
 
 	// find the Bazel we will use
-	buildConfig.BazelPath, err = exec.LookPath("bazel")
+	cfg.BazelPath, err = exec.LookPath("bazel")
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed locating bazel: %v\n", err)
+		return nil, fmt.Errorf("Failed locating bazel: %v\n", err)
 	}
 
 	// read the build number to use
 	_ = withOpenFile("buildNumber.txt", func(bnumFile *os.File) error {
-		_, err := fmt.Fscanf(bnumFile, "%d", &buildConfig.BuildNumber)
+		_, err := fmt.Fscanf(bnumFile, "%d", &cfg.BuildNumber)
 		return err
 	})
 
-	return makeConfig, buildConfig, nil
+	return cfg, nil
 }
 
-func updateBuildConfigRepo(cfgdir string, makeConfig *MakeConfig, buildConfig *BuildConfig) error {
+func updateBuildConfigRepo(cfgdir string, cfg *Config) error {
 	// create the dir to contain the build configuration repository
 	err := os.MkdirAll(cfgdir, 0755)
 	if err != nil {
@@ -292,7 +332,7 @@ func updateBuildConfigRepo(cfgdir string, makeConfig *MakeConfig, buildConfig *B
 		return fmt.Errorf("Failed creating variables.bzl: %v\n", err)
 	}
 	varsTmpl := template.Must(template.New("variables.bzl").Parse(VARIABLES))
-	err = varsTmpl.Execute(varsFile, buildConfig)
+	err = varsTmpl.Execute(varsFile, cfg)
 	if err != nil {
 		return fmt.Errorf("Failed writing variables.bzl: %v\n", err)
 	}
@@ -308,7 +348,7 @@ func updateBuildConfigRepo(cfgdir string, makeConfig *MakeConfig, buildConfig *B
 	}
 
 	// find the provisioning profiles to use
-	found, err := filepath.Glob(filepath.Join(buildConfig.ProvisioningPath, "*.mobileprovision"))
+	found, err := filepath.Glob(filepath.Join(cfg.ProvisioningPath, "*.mobileprovision"))
 	if err != nil {
 		return fmt.Errorf("Failed finding provisioning profiles: %v\n", err)
 	}
@@ -347,6 +387,74 @@ func updateBuildConfigRepo(cfgdir string, makeConfig *MakeConfig, buildConfig *B
 	return nil
 }
 
+func bazelArgs(cfg *Config, cfgdir, cmd string, extras ...string) []string {
+	args := []string{cmd,
+		fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
+	}
+
+	args = append(args, extras...)
+
+	if cmd != "query" {
+		args = append(args,
+			"--features=swift.use_global_module_cache", "--experimental_remote_cache_async",
+			"--features=swift.skip_function_bodies_for_derived_files",
+			"--features=-no_warn_duplicate_libraries", "--watchos_cpus=arm64_32",
+			"--apple_generate_dsym", "--output_groups=+dsyms",
+			fmt.Sprintf("--jobs=%d", runtime.NumCPU()),
+			fmt.Sprintf("--define=buildNumber=%d", cfg.BuildNumber),
+			fmt.Sprintf("--define=telegramVersion=%s", cfg.AppVersion),
+		)
+
+		switch cfg.BuildFor {
+		case "dist", "adhoc":
+			args = append(args,
+				"--define=apple.add_debugger_entitlement=no",
+				"--apple_bitcode=watchos=none",
+			)
+		default:
+			args = append(args, "--define=apple.add_debugger_entitlement=yes")
+		}
+
+		switch cfg.BuildFor {
+		case "sim":
+			args = append(args,
+				"--//Telegram:disableProvisioningProfiles",
+				fmt.Sprintf("--ios_multi_cpus=sim_%s", runtime.GOARCH),
+			)
+		default:
+			args = append(args, "--ios_multi_cpus=arm64")
+		}
+
+		switch cfg.BuildMode {
+		case "debug":
+			args = append(args,
+				"-c", "dbg", "--features=swift.enable_batch_mode",
+				"--//Telegram:disableStripping", "--strip=never",
+				fmt.Sprintf("--swiftcopt=-j%d", min(runtime.NumCPU()-1, 1)),
+			)
+		case "release":
+			args = append(args,
+				"-c", "opt", "--features=swift.opt_uses_wmo", "--swiftcopt=-num-threads",
+				"--swiftcopt=1", "--swiftcopt=-j1", "--features=dead_strip",
+				"--objc_enable_binary_stripping",
+			)
+		}
+	} else {
+		if cfg.BuildFor == "sim" {
+			args = append(args, "--//Telegram:disableProvisioningProfiles")
+		}
+		if cfg.BuildMode == "debug" {
+			args = append(args, "--//Telegram:disableStripping")
+		}
+	}
+
+	if cfg.FakeMode {
+		args = append(args, "--//CloudVeil/SecurityManager:FakeMode")
+	}
+
+	return args
+}
+
 func main() {
 	os.Exit(func() int {
 		// Make sure we have a command
@@ -379,39 +487,59 @@ func main() {
 				return 1
 			}
 			return 0
+		case "query":
+			if len(os.Args) < 3 {
+				fmt.Fprintln(os.Stderr, "No query specified")
+				usage(os.Stderr)
+				return 1
+			}
+
+			cfgdir := "build-input/configuration-repository"
+
+			cfg, err := readConfig(cmd)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+			err = updateBuildConfigRepo(cfgdir, cfg)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+
+			args := bazelArgs(cfg, cfgdir, "query", os.Args[2:]...)
+
+			bazel := exec.Command("bazel", args...)
+			bazel.Stdout = os.Stdout
+			bazel.Stderr = os.Stderr
+			bazel.Env = append(os.Environ(), "USE_BAZEL_VERSION=6.3.2")
+			err = bazel.Run()
+			err = runBazel(os.Stdout, args...)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "bazel error: %v\n", err)
+				return 2
+			}
+			return 0
 		case "project":
 			cfgdir := "build-input/xcode-config-repo"
 
-			makeConfig, buildConfig, err := readConfig("dev", false, false)
+			cfg, err := readConfig(cmd)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
-			err = updateBuildConfigRepo(cfgdir, makeConfig, buildConfig)
+			err = updateBuildConfigRepo(cfgdir, cfg)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
 
-			buildArgs := []string{
-				"--features=swift.use_global_module_cache",
-				"--features=swift.skip_function_bodies_for_derived_files",
-				"--features=swift.debug_prefix_map",
-				"--apple_generate_dsym", "--output_groups=+dsyms",
-				"--features=-no_warn_duplicate_libraries",
-				fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
-				fmt.Sprintf("--jobs=%d", runtime.NumCPU()),
+			buildArgs := bazelArgs(cfg, cfgdir, "build", "Telegram/Telegram")
 
-				// These don't belong here, but the crummy build system demands they exist.
-				fmt.Sprintf("--define=buildNumber=%d", buildConfig.BuildNumber),
-				fmt.Sprintf("--define=telegramVersion=%s", buildConfig.AppVersion),
+			// The xcode project generator, in a COMPLETELY ASININE
+			// decision, thinks it's reasonable to call bazel like so by
+			// default: `PATH=/bin:/usr/bin`. Since we need a Homebrew
+			// installed tool on the path, we have to fix it with this
+			// kludge. (The other fix is worse: it could cause merge
+			// conflicts).
+			buildArgs = append(buildArgs, fmt.Sprintf("--action_env=PATH=%s", os.Getenv("PATH")))
 
-				// The xcode project generator, in a COMPLETELY ASININE
-				// decision, thinks it's reasonable to call bazel like so by
-				// default: `PATH=/bin:/usr/bin`. Since we need a Homebrew
-				// installed tool on the path, we have to fix it with this
-				// kludge. (The other fix is worse: it could cause merge
-				// conflicts).
-				fmt.Sprintf("--action_env=PATH=%s", os.Getenv("PATH")),
-			}
 			bazelrc, err := os.Create("xcodeproj.bazelrc")
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed writing xcodeproj.bazelrc: %v\n", err)
@@ -436,108 +564,23 @@ func main() {
 				return 2
 			}
 		case "build", "test":
-			// parse command line args
-			buildFor, buildMode := "dev", "debug"
-			var skipArchive, shipLogs, fakeMode bool
-			if cmd == "test" {
-				skipArchive = true
-			} else {
-				flag.Func("for", "", func(s string) error {
-					switch s {
-					case "sim", "dev", "dist", "adhoc":
-						buildFor = s
-						return nil
-					default:
-						return fmt.Errorf("unknown build for: %q", s)
-					}
-				})
-				flag.Func("mode", "", func(s string) error {
-					switch s {
-					case "debug", "release":
-						buildMode = s
-						return nil
-					default:
-						return fmt.Errorf("unknown build mode: %q", s)
-					}
-				})
-				flag.BoolVar(&skipArchive, "noarchive", false, "")
-				flag.BoolVar(&shipLogs, "shiplogs", false, "")
-				flag.BoolVar(&fakeMode, "fakecv", false, "")
-				flag.CommandLine.Usage = func() {
-					usage(os.Stderr)
-				}
-				flag.CommandLine.Parse(os.Args[2:])
-			}
-
 			cfgdir := "build-input/configuration-repository"
 
-			makeConfig, buildConfig, err := readConfig(buildFor, shipLogs, fakeMode)
+			cfg, err := readConfig(cmd)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
-			err = updateBuildConfigRepo(cfgdir, makeConfig, buildConfig)
+			err = updateBuildConfigRepo(cfgdir, cfg)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
 
 			// run bazel
-			args := []string{}
+			var args []string
 			if cmd == "test" {
-				args = append(args, "test", "Tests/AllTests")
+				args = bazelArgs(cfg, cfgdir, "test", "Tests/AllTests")
 			} else {
-				args = append(args,
-					"build", "Telegram/Telegram",
-					"--apple_generate_dsym", "--output_groups=+dsyms",
-				)
-			}
-			args = append(args,
-				"--announce_rc", "--verbose_failures", "--watchos_cpus=arm64_32",
-				"--features=swift.use_global_module_cache", "--experimental_remote_cache_async",
-				"--features=swift.skip_function_bodies_for_derived_files",
-				"--features=-no_warn_duplicate_libraries",
-				fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
-				fmt.Sprintf("--jobs=%d", runtime.NumCPU()),
-				fmt.Sprintf("--define=buildNumber=%d", buildConfig.BuildNumber),
-				fmt.Sprintf("--define=telegramVersion=%s", buildConfig.AppVersion),
-			)
-
-			switch buildFor {
-			case "dist", "adhoc":
-				args = append(args,
-					"--define=apple.add_debugger_entitlement=no",
-					"--apple_bitcode=watchos=none",
-				)
-			default:
-				args = append(args, "--define=apple.add_debugger_entitlement=yes")
-			}
-
-			switch buildFor {
-			case "sim":
-				args = append(args,
-					"--//Telegram:disableProvisioningProfiles",
-					fmt.Sprintf("--ios_multi_cpus=sim_%s", runtime.GOARCH),
-				)
-			default:
-				args = append(args, "--ios_multi_cpus=arm64")
-			}
-
-			if fakeMode {
-				args = append(args, "--//CloudVeil/SecurityManager:FakeMode")
-			}
-
-			switch buildMode {
-			case "debug":
-				args = append(args,
-					"-c", "dbg", "--features=swift.enable_batch_mode",
-					"--//Telegram:disableStripping", "--strip=never",
-					fmt.Sprintf("--swiftcopt=-j%d", min(runtime.NumCPU()-1, 1)),
-				)
-			case "release":
-				args = append(args,
-					"-c", "opt", "--features=swift.opt_uses_wmo", "--swiftcopt=-num-threads",
-					"--swiftcopt=1", "--swiftcopt=-j1", "--features=dead_strip",
-					"--objc_enable_binary_stripping",
-				)
+				args = bazelArgs(cfg, cfgdir, "build", "Telegram/Telegram")
 			}
 
 			buildLog, err := os.Create("build.log")
@@ -553,9 +596,9 @@ func main() {
 				return 2
 			}
 
-			if !skipArchive {
+			if !cfg.SkipArchive {
 				// update the build number
-				err = os.WriteFile("buildNumber.txt", []byte(fmt.Sprintf("%d\n", buildConfig.BuildNumber+1)), 0644)
+				err = os.WriteFile("buildNumber.txt", []byte(fmt.Sprintf("%d\n", cfg.BuildNumber+1)), 0644)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed incrementing build number: %v\n", err)
 					return 3
@@ -563,22 +606,22 @@ func main() {
 
 				// fill out the data given to the archive path templates
 				sb := strings.Builder{}
-				bundleIdElems := strings.Split(buildConfig.BundleId, ".")
+				bundleIdElems := strings.Split(cfg.BazelConfig.BundleId, ".")
 				bundleName := ""
 				if len(bundleIdElems) > 0 {
 					bundleName = bundleIdElems[len(bundleIdElems)-1]
 				}
 				archiveData := ArchiveData{
-					BundleID:    buildConfig.BundleId,
+					BundleID:    cfg.BazelConfig.BundleId,
 					BundleName:  bundleName,
-					BuildNumber: buildConfig.BuildNumber,
-					Version:     buildConfig.AppVersion,
-					BuildFor:    buildFor,
-					BuildMode:   buildMode,
+					BuildNumber: cfg.BuildNumber,
+					Version:     cfg.AppVersion,
+					BuildFor:    cfg.BuildFor,
+					BuildMode:   cfg.BuildMode,
 				}
 
 				// copy the IPA to the archive
-				err = makeConfig.IpaPathTmpl.Execute(&sb, archiveData)
+				err = cfg.MakeConfig.IpaPathTmpl.Execute(&sb, archiveData)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed running IPA archive path template: %v\n", err)
 				} else if ipaPath := sb.String(); ipaPath != "" {
@@ -598,7 +641,7 @@ func main() {
 				sb.Reset()
 
 				// copy the dSYMs to the archive
-				err = makeConfig.DsymsPathTmpl.Execute(&sb, archiveData)
+				err = cfg.MakeConfig.DsymsPathTmpl.Execute(&sb, archiveData)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed running dSYMs archive path template: %v\n", err)
 				} else if dsymsPath := sb.String(); dsymsPath != "" {
