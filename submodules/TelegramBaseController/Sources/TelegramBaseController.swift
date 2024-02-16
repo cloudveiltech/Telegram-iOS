@@ -1150,7 +1150,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
     private static func openUnblockRequest(peerView: Peer, context: AccountContext, controller: ViewController, presentationData: PresentationData) {
         let conversationId = peerView.id.id._internalGetInt64Value()
         
-        let userId = TGUserController.shared.getUserID()
+        let userId = TGUserController.userID
         let url = "https://messenger.cloudveil.org/unblock/\(userId)/\(conversationId)"
 
         context.sharedContext.openExternalUrl(

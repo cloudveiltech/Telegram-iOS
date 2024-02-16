@@ -6,14 +6,21 @@
 //  Copyright © 2018 Requestum. All rights reserved.
 //
 
-import UIKit
+import Foundation
 
 @objc open class TGUserController: NSObject {
+    private static let lock = NSLock()
+    private static let shared = TGUserController()
     
     // MARK: - Singleton
+
+    public static func withLock<R>(_ body: (TGUserController) throws -> R) rethrows -> R {
+        return try Self.lock.withLock({ try body(Self.shared) })
+    }
     
-    @objc public static let shared = TGUserController()
-    
+    public static var userID: Int {
+        return Self.withLock({ $0.getUserID() })
+    }
     
     // MARK: - Actions
     

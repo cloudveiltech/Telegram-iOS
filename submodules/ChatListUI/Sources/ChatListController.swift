@@ -2599,7 +2599,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             let alert = UIAlertController(title: "Change Organization.", message: "Please Select Your Organization. It is important that you select your correct church organization so that your app works as expected. Unblock requests will NOT work correctly if you select the wrong group. This one-time step is required to allow organizations more flexibility in supporting their own members and is based off of church membership.", preferredStyle: UIAlertController.Style.alert)
             alert.addAction(UIAlertAction(title: "Cancel", style: UIAlertAction.Style.default, handler: nil))
             alert.addAction(UIAlertAction(title: "Change", style: UIAlertAction.Style.default, handler: { [self] _ in
-                let userId = TGUserController.shared.getUserID()
+                let userId = TGUserController.userID
                 let url =  "https://messenger.cloudveil.org/unblock_status/\(userId)"
                 if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
                     if let parsed = URL(string: url) {

@@ -3025,9 +3025,11 @@ public final class ChatListNode: ListView {
         var peerViewDisplosable: Disposable? = nil
         peerViewDisplosable = peerViewSignal.start(next: { peerView in
             if let peer  = peerViewMainPeer(peerView) as? TelegramUser {
-                TGUserController.shared.set(userID: NSInteger(peer.id.toInt64()))
-                TGUserController.shared.set(userName: (peer.username ?? "") as NSString)
-                TGUserController.shared.set(userPhoneNumber: (peer.phone ?? "") as NSString)
+                TGUserController.withLock({
+                    $0.set(userID: NSInteger(peer.id.toInt64()))
+                    $0.set(userName: (peer.username ?? "") as NSString)
+                    $0.set(userPhoneNumber: (peer.phone ?? "") as NSString)
+                })
                 //collect peers
                 var bots = [TGRow]()
                 var groups = [TGRow]()
