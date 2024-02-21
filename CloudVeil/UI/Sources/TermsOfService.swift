@@ -30,14 +30,17 @@ public final class CVMustAccept : UIViewController, CVWrappedViewController {
 	private let btnColor: UIColor
 	private let btnTextColor: UIColor
 
-	public private(set) var statusBarStyle: PresentationThemeStatusBarStyle
+	public let presentationData: PresentationData
+	public let needsNavBar = false
 
-	public init(agreement: NSAttributedString, theme: PresentationTheme, hasAgreed: @escaping () -> Void) {
+	public init(agreement: NSAttributedString, presentationData: PresentationData, hasAgreed: @escaping () -> Void) {
+		let theme = presentationData.theme
+		self.presentationData = presentationData
+
 		self.bgColor = theme.list.blocksBackgroundColor
 		self.textColor = theme.list.itemPrimaryTextColor
 		self.btnColor = theme.list.itemCheckColors.fillColor
 		self.btnTextColor = theme.list.itemCheckColors.foregroundColor
-		self.statusBarStyle = theme.intro.statusBarStyle
 		let text = NSMutableAttributedString(attributedString: agreement)
 		text.removeAttribute(.foregroundColor, range: NSMakeRange(0, text.length))
 		text.removeAttribute(.backgroundColor, range: NSMakeRange(0, text.length))

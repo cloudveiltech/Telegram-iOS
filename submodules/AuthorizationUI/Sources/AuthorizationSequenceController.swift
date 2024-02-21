@@ -1152,7 +1152,7 @@ public final class AuthorizationSequenceController: NavigationController, MFMail
         // CloudVeil start "Terms of Service"
         if let agreement = self.cvAgreements.last {
             let tosVC = CVMustAccept(
-                agreement: agreement, theme: self.presentationData.theme,
+                agreement: agreement, presentationData: self.presentationData,
                 hasAgreed: { [weak self] in
                     let _ = self?.cvAgreements.popLast()
                     self?.updateState(state: state)

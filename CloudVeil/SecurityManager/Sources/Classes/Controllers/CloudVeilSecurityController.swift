@@ -12,6 +12,36 @@ import UIKit
 
 import ObjectMapper
 
+fileprivate let SETTINGS_URL = URL(string: "https://messenger.cloudveil.org/api/v1/messenger/settings")!
+
+public class UserBlacklist {
+    private var cache: [Int64] = []
+    private let key = "userBlacklist"
+
+    fileprivate init() {
+        cache = UserDefaults.standard.array(forKey: key)?.compactMap { $0 as? Int64 } ?? []
+    }
+
+    fileprivate func clear() {
+        cache = []
+        UserDefaults.standard.set(cache, forKey: key)
+    }
+
+    fileprivate func contains(_ id: Int64) -> Bool {
+        return cache.contains(id)
+    }
+
+    fileprivate func remove(_ id: Int64) {
+        cache.removeAll(where: { $0 == id })
+        UserDefaults.standard.set(cache, forKey: key)
+    }
+
+    fileprivate func blacklist(_ id: Int64) {
+        cache.append(id)
+        UserDefaults.standard.set(cache, forKey: key)
+    }
+}
+
 open class CloudVeilSecurityController: NSObject {
 	public struct SecurityStaticSettings {
 		public static let disableGlobalSearch = true
@@ -24,23 +54,15 @@ open class CloudVeilSecurityController: NSObject {
         public static let disableGifs = true
 	}
 	
-	
 	public static let shared = CloudVeilSecurityController()
 	
-	
-	// MARK: - Properties
 	private let mapper = Mapper<TGSettingsResponse>()
-	private var observers: [() -> ()] = []
-	internal var lastRequest: TGSettingsRequest? = nil
-	private var lastRequestTime: TimeInterval = 0.0
-	private let UPADTE_INTERVAL = 10*60.0 //10min
 	
 	private let kWasFirstLoaded = "wasFirstLoaded" 
 	private var wasFirstLoaded: Bool {
 		get { return UserDefaults.standard.bool(forKey: kWasFirstLoaded) }
 		set { UserDefaults.standard.set(newValue, forKey: kWasFirstLoaded) }
 	}
-	
     
     private let accessQueue = DispatchQueue(label: "TGSettingsResponseAccess", attributes: .concurrent)
 	private var settingsCache: TGSettingsResponse?
@@ -169,74 +191,165 @@ open class CloudVeilSecurityController: NSObject {
 		
 		return res
 	}
-	
-	private func sengSettingsRequest() {
-        guard let body = CloudVeilSecurityController.shared.lastRequest else {
+
+
+    // MARK - Networking
+    private let netQueue = DispatchQueue(label: "CloudVeilNetwork")
+	private var nextRequest: TGSettingsRequest? = nil
+	private var lastRequestTime: TimeInterval = 0.0
+	private let UPDATE_INTERVAL = 10*60.0 //10min
+
+    // Blacklist of Telegram users who we shouldn't sent settings requests for.
+    private let userBlacklist = UserBlacklist()
+
+    public func clearUserBlacklist() {
+        self.netQueue.async {
+            self.userBlacklist.clear()
+        }
+    }
+
+    // temporary: for use by web ui account delete only
+    public func blacklistUser(_ userId: Int64) {
+        self.netQueue.sync {
+            self.userBlacklist.blacklist(userId)
+        }
+    }
+
+    // temporary: for use by web ui account delete only
+    public func withDeleteAccountUrl(_ userId: Int64, completion: @escaping (URL) -> Void) {
+        let req = TGSettingsRequest(userId: userId)
+        let task = self.sendSettingsRequest(req, ignoreBlacklist: true) { resp in
+            if let resp = resp, let str = resp.removeAccountUrl, let url = URL(string: str) {
+                completion(url)
+            }
+        }
+        task?.resume()
+    }
+
+    private var getSettingsTask: URLSessionTask? = nil
+
+    public func deleteAccount(_ tgUserID: Int64, onSucceed: @escaping () -> Void, onFail: @escaping () -> Void) {
+        self.netQueue.async {
+            self.userBlacklist.blacklist(tgUserID)
+            let req = TGSettingsRequest(userId: tgUserID)
+            let task = self.sendSettingsRequest(req, ignoreBlacklist: true) { resp in
+                guard let resp = resp, let str = resp.removeAccountUrl, let url = URL(string: str) else {
+                    self.netQueue.async { self.userBlacklist.remove(tgUserID) }
+                    onFail()
+                    return
+                }
+                var req = URLRequest(url: url)
+                req.httpMethod = "GET"
+                let task = URLSession.shared.dataTask(with: req) { data, response, error in
+                    guard let resp = response, let resp = resp as? HTTPURLResponse else {
+                        self.netQueue.async { self.userBlacklist.remove(tgUserID) }
+                        onFail()
+                        return
+                    }
+                    if resp.statusCode < 200 || resp.statusCode >= 300 {
+                        self.netQueue.async { self.userBlacklist.remove(tgUserID) }
+                        onFail()
+                        return
+                    }
+                    onSucceed()
+                }
+                task.resume()
+            }
+            task?.resume()
+        }
+    }
+
+    // Must only be called from code running on netQueue
+	private func sendSettingsRequest(_ body: TGSettingsRequest) {
+        if let state = self.getSettingsTask?.state, state != .completed && state != .canceling {
             return
         }
-        let url = URL(string: "https://manage.cloudveil.org/api/v1/messenger/settings")!
-        var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
-        req.httpMethod = "POST"
-        req.httpBody = body.toJSONString(prettyPrint: false)!.data(using: .utf8)!
-        let task = URLSession.shared.dataTask(with: req) { data, response, error in
-            if let data = data, let str = String(data: data, encoding: .utf8) {
-                Self.shared.saveSettings(TGSettingsResponse(JSONString: str))
-                self.notifyObserbers()
-            }
-        }
-        task.resume()
-	}
-	
-    open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = [], stickers: [TGRow] = []) {
-		let request = TGSettingsRequest(JSON: [:])!
-		request.id = TGUserController.shared.getUserID()
-		request.userName = TGUserController.shared.getUserName() as String
-		request.phoneNumber = TGUserController.shared.getUserPhoneNumber() as String
-        request.groups = SyncArray<TGRow>(groups)
-		request.bots = SyncArray<TGRow>(bots)
-		request.channels = SyncArray<TGRow>(channels)
-        request.stickers = SyncArray<TGRow>(stickers)
-        
-        let dictionary = Bundle.main.infoDictionary!
-        let version = dictionary["CFBundleShortVersionString"] as! String
-        let build = dictionary["CFBundleVersion"] as! String
-        request.clientVersionName = version
-        request.clientVersionCode = build
-		
-        if let lastReq = self.lastRequest {
-            if TGSettingsRequest.compareRequests(lhs: lastReq, rhs: request) {
-                let now = Date().timeIntervalSince1970
-                if now - self.lastRequestTime < self.UPADTE_INTERVAL {
-                    NSLog("No changes, didn't load settings");
-                    return
-                } else {
-                    NSLog("It was too long since last update, running request")
+        let task = self.sendSettingsRequest(body) { response in
+            self.saveSettings(response)
+            self.netQueue.async {
+                if let nextReq = self.nextRequest, nextReq != body {
+                    self.sendSettingsRequest(nextReq)
                 }
             }
-            
-            request.clientSessionId = lastReq.clientSessionId
-        } else {
-            request.clientSessionId = getClientId(userId: request.id!)
         }
-		
-		self.lastRequest = request
-		self.lastRequestTime = Date().timeIntervalSince1970
-		self.sengSettingsRequest()
+        if let task = task {
+            task.resume()
+            self.getSettingsTask = task
+        }
 	}
-	
-    private func getClientId(userId: Int) -> String {
-        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
-            let key = "client_id__\(userId)"
-            
-            if let v = userDefaults.string(forKey: key) {
-                return v
-            }
-            let guid = UUID().uuidString
-            userDefaults.set(guid, forKey: key)
-            userDefaults.synchronize()
-            return guid
+
+    private func sendSettingsRequest(_ body: TGSettingsRequest, ignoreBlacklist: Bool = false, _ callback: @escaping (TGSettingsResponse?) -> Void) -> URLSessionTask? {
+        if let id = body.id, self.userBlacklist.contains(Int64(id)) && !ignoreBlacklist {
+            return nil
         }
-        return ""
+        var req = URLRequest(url: SETTINGS_URL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+        req.httpMethod = "POST"
+        req.httpBody = body.toJSONString(prettyPrint: false)!.data(using: .utf8)!
+        return URLSession.shared.dataTask(with: req) { data, response, error in
+            if let data = data, let str = String(data: data, encoding: .utf8) {
+                callback(TGSettingsResponse(JSONString: str))
+            } else {
+                callback(nil)
+            }
+        }
+    }
+
+    open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = [], stickers: [TGRow] = []) {
+        self.netQueue.async {
+            let request = TGSettingsRequest(
+                sessionId: self.nextRequest?.clientSessionId,
+                groups: groups, bots: bots, channels: channels, stickers: stickers)
+
+            if let nextReq = self.nextRequest,  nextReq == request {
+                let now = Date().timeIntervalSince1970
+                if now - self.lastRequestTime < self.UPDATE_INTERVAL {
+                    return
+                }
+            }
+
+            self.lastRequestTime = Date().timeIntervalSince1970
+            self.nextRequest = request
+            self.sendSettingsRequest(request)
+        }
+    }
+
+    public func replayRequestWith(group: TGRow? = nil, channel: TGRow? = nil, bot: TGRow? = nil) {
+        self.netQueue.async {
+            guard let nextReq = self.nextRequest else {
+                return
+            }
+
+            var send = false
+            if let g = group, !nextReq.groups.contains(g) {
+                nextReq.groups.append(g)
+                send = true
+            }
+            if let c = channel, !nextReq.channels.contains(c) {
+                nextReq.channels.append(c)
+                send = true
+            }
+            if let b = bot, !nextReq.bots.contains(b) {
+                nextReq.bots.append(b)
+                send = true
+            }
+
+            if send {
+                self.nextRequest = nextReq
+                self.sendSettingsRequest(nextReq)
+            }
+        }
+    }
+
+    open func replayRequestWithGroup(group: TGRow) {
+        self.replayRequestWith(group: group)
+    }
+
+    open func replayRequestWithChannel(channel: TGRow) {
+        self.replayRequestWith(channel: channel)
+    }
+
+    open func replayRequestWithBot(bot: TGRow) {
+        self.replayRequestWith(bot: bot)
     }
     
 	private func saveSettings(_ settings: TGSettingsResponse?) {
@@ -372,45 +485,6 @@ open class CloudVeilSecurityController: NSObject {
 		return res
 	}
 	
-	open func replayRequestWithGroup(group: TGRow) {
-		if let dictArray = lastRequest?.groups {
-            if let _ = dictArray.firstIndex(where: {$0.objectID == group.objectID}) {
-                notifyObserbers()
-				return
-			}
-		}
-		
-		lastRequest?.groups.append(group)
-		
-		self.sengSettingsRequest()
-	}
-	
-	open func replayRequestWithChannel(channel: TGRow) {
-		if let dictArray = lastRequest?.channels {
-            if let _ = dictArray.firstIndex(where: {$0.objectID == channel.objectID}) {
-                notifyObserbers()
-				return
-			}
-		}
-		
-		lastRequest?.channels.append(channel)
-		
-		self.sengSettingsRequest()
-	}
-	
-	open func replayRequestWithBot(bot: TGRow) {
-		if let dictArray = lastRequest?.bots {
-			if let _ = dictArray.firstIndex(where: {$0.objectID == bot.objectID}) {
-                notifyObserbers()
-				return
-			}
-		}
-		
-		lastRequest?.bots.append(bot)
-		
-		self.sengSettingsRequest()
-	}
-	
 	open func showFirstRunPopup(_ viewController: UIViewController) {
 		if !wasFirstLoaded {
 			wasFirstLoaded = true
@@ -421,21 +495,4 @@ open class CloudVeilSecurityController: NSObject {
 			viewController.present(alert, animated: false)
 		}
 	}
-    
-    
-    open func notifyObserbers() {
-        for observer in self.observers {
-            observer()
-        }
-        self.observers.removeAll()
-    }
-	
-	open func appendObserver(obs: @escaping () -> ()) {
-		observers.append(obs)
-	}
-	
-	open func clearObservers() {
-		observers.removeAll()
-	}
 }
-			

@@ -37,6 +37,7 @@ class TGSettingsResponse: Mappable {
     public var profilePhotoLimit: String?
     public var organization: Organization?
     public var updateRequired: Bool?
+    public var removeAccountUrl: String?
 
     // MARK: FakeResponse
 
@@ -59,6 +60,7 @@ class TGSettingsResponse: Mappable {
             self.organization!.name = "FakeTestingOrg"
             self.organization!.needChange = false
             self.updateRequired = false
+            self.removeAccountUrl = nil
         }
     }
 
@@ -89,6 +91,7 @@ class TGSettingsResponse: Mappable {
 		disableProfileVideoChange <- map["disable_profile_video_change"]
         organization <- map["organization"]
         updateRequired <- map["update_required"]
+        removeAccountUrl <- map["remove_account_url"]
     }
 }
 

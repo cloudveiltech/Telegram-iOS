@@ -9,6 +9,7 @@ import TelegramCore
 
 import Sentry
 import CloudVeil
+import CloudVeilSecurityManager
 
 #if CLOUDVEIL_SHIPLOGS
 fileprivate let CVM_SHIPLOGS = "com.cloudveil.CloudVeilMessenger.shiplogs"
@@ -128,6 +129,7 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
             options.dsn = "https://18449652be1c40099b14b44e1b44904e@o1077369.ingest.sentry.io/6080242"
             options.debug = false // Helpful to see what's going on
         }
+        CloudVeilSecurityController.shared.clearUserBlacklist()
         #if CLOUDVEIL_SHIPLOGS
         if #available(iOS 14, *) {
             Self.log.info("log upload background task registered")

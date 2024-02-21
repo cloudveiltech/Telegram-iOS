@@ -5,7 +5,7 @@ import AsyncDisplayKit
 import Display
 import TelegramPresentationData
 
-private final class CVVWrapper<C> : ASDisplayNode where C: UIViewController, C: CVWrappedViewController {
+private final class CVVWrapper<C> : ASDisplayNode where C: UIViewController {
 	let wrapped: C
 	let wrapping: CVVCWrapper<C>
 
@@ -30,16 +30,27 @@ private final class CVVWrapper<C> : ASDisplayNode where C: UIViewController, C: 
 }
 
 public protocol CVWrappedViewController {
-	var statusBarStyle: PresentationThemeStatusBarStyle { get }
+	var presentationData: PresentationData { get }
+	var needsNavBar: Bool { get }
 }
 
 // Wraps the Telegram stupidity around a standard UIKit UIViewController.
-public final class CVVCWrapper<C> : ViewController where C: UIViewController, C: CVWrappedViewController {
+public final class CVVCWrapper<C> : ViewController where C: UIViewController {
 	var wrapped: C
-	public init(_ wrapped: C, _ presentationData: NavigationBarPresentationData? = nil) {
+	public init(_ wrapped: C, showNavBar: Bool = true, presentationData: PresentationData) {
 		self.wrapped = wrapped
-		super.init(navigationBarPresentationData: presentationData)
-		self.statusBar.statusBarStyle = wrapped.statusBarStyle.style
+		if showNavBar {
+			super.init(navigationBarPresentationData: NavigationBarPresentationData(presentationData: presentationData))
+		} else {
+			super.init(navigationBarPresentationData: nil)
+		}
+		self.title = wrapped.title
+
+		self.statusBar.statusBarStyle = presentationData.theme.intro.statusBarStyle.style
+	}
+
+	public convenience init(_ wrapped: C) where C: CVWrappedViewController {
+		self.init(wrapped, showNavBar: wrapped.needsNavBar, presentationData: wrapped.presentationData)
 	}
 
 	required public init(coder: NSCoder) {
