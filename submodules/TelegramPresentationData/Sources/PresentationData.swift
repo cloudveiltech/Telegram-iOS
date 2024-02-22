@@ -403,12 +403,16 @@ public func currentPresentationDataAndSettings(accountManager: AccountManager<Te
         }
         
         let dateTimeFormat = currentDateTimeFormat()
-        let stringsValue: PresentationStrings
-        if let localizationSettings = localizationSettings {
-            stringsValue = PresentationStrings(primaryComponent: PresentationStrings.Component(languageCode: localizationSettings.primaryComponent.languageCode, localizedName: localizationSettings.primaryComponent.localizedName, pluralizationRulesCode: localizationSettings.primaryComponent.customPluralizationCode, dict: dictFromLocalization(localizationSettings.primaryComponent.localization)), secondaryComponent: localizationSettings.secondaryComponent.flatMap({ PresentationStrings.Component(languageCode: $0.languageCode, localizedName: $0.localizedName, pluralizationRulesCode: $0.customPluralizationCode, dict: dictFromLocalization($0.localization)) }), groupingSeparator: dateTimeFormat.groupingSeparator)
-        } else {
-            stringsValue = defaultPresentationStrings
-        }
+        // CloudVeil start "Force using embedded localization strings"
+        let _ = localizationSettings
+        let stringsValue = defaultPresentationStrings
+        //let stringsValue: PresentationStrings
+        //if let localizationSettings = localizationSettings {
+        //    stringsValue = PresentationStrings(primaryComponent: PresentationStrings.Component(languageCode: localizationSettings.primaryComponent.languageCode, localizedName: localizationSettings.primaryComponent.localizedName, pluralizationRulesCode: localizationSettings.primaryComponent.customPluralizationCode, dict: dictFromLocalization(localizationSettings.primaryComponent.localization)), secondaryComponent: localizationSettings.secondaryComponent.flatMap({ PresentationStrings.Component(languageCode: $0.languageCode, localizedName: $0.localizedName, pluralizationRulesCode: $0.customPluralizationCode, dict: dictFromLocalization($0.localization)) }), groupingSeparator: dateTimeFormat.groupingSeparator)
+        //} else {
+        //    stringsValue = defaultPresentationStrings
+        //}
+        // CloudVeil end
         let nameDisplayOrder = contactSettings.nameDisplayOrder
         let nameSortOrder = currentPersonNameSortOrder()
         
@@ -803,20 +807,23 @@ public func updatedPresentationData(accountManager: AccountManager<TelegramAccou
                             }
                         }
                         
-                        let localizationSettings: LocalizationSettings?
-                        if let current = sharedData.entries[SharedDataKeys.localizationSettings]?.get(LocalizationSettings.self) {
-                            localizationSettings = current
-                        } else {
-                            localizationSettings = nil
-                        }
-                        
+                        // CloudVeil start "Force using embedded localization strings"
+                        //let localizationSettings: LocalizationSettings?
+                        //if let current = sharedData.entries[SharedDataKeys.localizationSettings]?.get(LocalizationSettings.self) {
+                        //    localizationSettings = current
+                        //} else {
+                        //    localizationSettings = nil
+                        //}
+                        //
                         let dateTimeFormat = currentDateTimeFormat()
-                        let stringsValue: PresentationStrings
-                        if let localizationSettings = localizationSettings {
-                            stringsValue = PresentationStrings(primaryComponent: PresentationStrings.Component(languageCode: localizationSettings.primaryComponent.languageCode, localizedName: localizationSettings.primaryComponent.localizedName, pluralizationRulesCode: localizationSettings.primaryComponent.customPluralizationCode, dict: dictFromLocalization(localizationSettings.primaryComponent.localization)), secondaryComponent: localizationSettings.secondaryComponent.flatMap({ PresentationStrings.Component(languageCode: $0.languageCode, localizedName: $0.localizedName, pluralizationRulesCode: $0.customPluralizationCode, dict: dictFromLocalization($0.localization)) }), groupingSeparator: dateTimeFormat.groupingSeparator)
-                        } else {
-                            stringsValue = defaultPresentationStrings
-                        }
+                        let stringsValue = defaultPresentationStrings
+                        //let stringsValue: PresentationStrings
+                        //if let localizationSettings = localizationSettings {
+                        //    stringsValue = PresentationStrings(primaryComponent: PresentationStrings.Component(languageCode: localizationSettings.primaryComponent.languageCode, localizedName: localizationSettings.primaryComponent.localizedName, pluralizationRulesCode: localizationSettings.primaryComponent.customPluralizationCode, dict: dictFromLocalization(localizationSettings.primaryComponent.localization)), secondaryComponent: localizationSettings.secondaryComponent.flatMap({ PresentationStrings.Component(languageCode: $0.languageCode, localizedName: $0.localizedName, pluralizationRulesCode: $0.customPluralizationCode, dict: dictFromLocalization($0.localization)) }), groupingSeparator: dateTimeFormat.groupingSeparator)
+                        //} else {
+                        //    stringsValue = defaultPresentationStrings
+                        //}
+                        // CloudVeil end
                         let nameDisplayOrder = contactSettings.nameDisplayOrder
                         let nameSortOrder = currentPersonNameSortOrder()
                         
