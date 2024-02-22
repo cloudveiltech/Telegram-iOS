@@ -904,12 +904,14 @@ private func settingsItems(data: PeerInfoScreenData?, context: AccountContext, p
         interaction.openSettings(.language)
     }))
     
-    let premiumConfiguration = PremiumConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
-    if !premiumConfiguration.isPremiumDisabled {
-        items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 100, label: .text(""), text: presentationData.strings.Settings_Premium, icon: PresentationResourcesSettings.premium, action: {
-            interaction.openSettings(.premium)
-        }))
-    }
+    // CloudVeil start "Disable buying premium"
+    //let premiumConfiguration = PremiumConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
+    //if !premiumConfiguration.isPremiumDisabled {
+    //    items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 100, label: .text(""), text: presentationData.strings.Settings_Premium, icon: PresentationResourcesSettings.premium, action: {
+    //        interaction.openSettings(.premium)
+    //    }))
+    //}
+    // CloudVeil end
     
     /*items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 100, label: .text(""), text: "Payment Method", icon: PresentationResourcesSettings.language, action: {
         interaction.openPaymentMethod()
@@ -8619,7 +8621,10 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
             case .language:
                 push(LocalizationListController(context: self.context))
             case .premium:
-                self.controller?.push(PremiumIntroScreen(context: self.context, modal: false, source: .settings))
+                // CloudVeil start "Disable buying premium"
+                break
+                //self.controller?.push(PremiumIntroScreen(context: self.context, modal: false, source: .settings))
+                // CloudVeil end
             case .stickers:
                 if let settings = self.data?.globalSettings {
                     push(installedStickerPacksController(context: self.context, mode: .general, archivedPacks: settings.archivedStickerPacks, updatedPacks: { [weak self] packs in

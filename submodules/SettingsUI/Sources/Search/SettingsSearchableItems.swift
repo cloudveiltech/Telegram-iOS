@@ -1037,8 +1037,10 @@ func settingsSearchableItems(context: AccountContext, notificationExceptionsList
         let languageItems = languageSearchableItems(context: context, localizations: localizations)
         allItems.append(contentsOf: languageItems)
         
-        let premiumItems = premiumSearchableItems(context: context)
-        allItems.append(contentsOf: premiumItems)
+        // CloudVeil start "Disable buying premium"
+        //let premiumItems = premiumSearchableItems(context: context)
+        //allItems.append(contentsOf: premiumItems)
+        // CloudVeil end
 
         let storiesItems = storiesSearchableItems(context: context)
         allItems.append(contentsOf: storiesItems)
