@@ -143,18 +143,7 @@ func usage(w io.Writer) {
 	tw.Flush()
 }
 
-// runBazel run a bazel command, sending all it's output to the given writer
-func runBazel(w io.Writer, args ...string) error {
-	bazel := exec.Command("bazel", args...)
-	if w != os.Stderr {
-		bazel.Stdout = w
-	}
-	if w != os.Stdout {
-		bazel.Stderr = w
-	}
-	bazel.Env = append(os.Environ(), "USE_BAZEL_VERSION=6.3.2")
-	return bazel.Run()
-}
+const BAZEL_VERSION_ENV = "USE_BAZEL_VERSION=6.3.2"
 
 // runCmd runs an arbitrary command, passing through its stdout and stderr to ours
 func runCmd(cmd string, args ...string) error {
@@ -214,33 +203,31 @@ func copyDir(src, dst string) error {
 
 func readConfig(cmd string) (*Config, error) {
 	cfg := &Config{BuildFor: "dev", BuildMode: "debug", SkipArchive: true}
-	if cmd == "build" {
-		flag.Func("for", "", func(s string) error {
-			switch s {
-			case "sim", "dev", "dist", "adhoc":
-				cfg.BuildFor = s
-				return nil
-			default:
-				return fmt.Errorf("unknown build for: %q", s)
-			}
-		})
-		flag.Func("mode", "", func(s string) error {
-			switch s {
-			case "debug", "release":
-				cfg.BuildMode = s
-				return nil
-			default:
-				return fmt.Errorf("unknown build mode: %q", s)
-			}
-		})
-		flag.BoolVar(&cfg.SkipArchive, "noarchive", false, "")
-		flag.BoolVar(&cfg.ShipLogs, "shiplogs", false, "")
-		flag.BoolVar(&cfg.FakeMode, "fakecv", false, "")
-		flag.CommandLine.Usage = func() {
-			usage(os.Stderr)
+	flag.Func("for", "", func(s string) error {
+		switch s {
+		case "sim", "dev", "dist", "adhoc":
+			cfg.BuildFor = s
+			return nil
+		default:
+			return fmt.Errorf("unknown build for: %q", s)
 		}
-		flag.CommandLine.Parse(os.Args[2:])
+	})
+	flag.Func("mode", "", func(s string) error {
+		switch s {
+		case "debug", "release":
+			cfg.BuildMode = s
+			return nil
+		default:
+			return fmt.Errorf("unknown build mode: %q", s)
+		}
+	})
+	flag.BoolVar(&cfg.SkipArchive, "noarchive", false, "")
+	flag.BoolVar(&cfg.ShipLogs, "shiplogs", false, "")
+	flag.BoolVar(&cfg.FakeMode, "fakecv", false, "")
+	flag.CommandLine.Usage = func() {
+		usage(os.Stderr)
 	}
+	flag.CommandLine.Parse(os.Args[2:])
 
 	cfg.MakeConfig = &MakeConfig{
 		DevProvision:   "../ProvisionDev",
@@ -481,7 +468,11 @@ func main() {
 			}
 			return cmd.ProcessState.ExitCode()
 		case "clean":
-			err := runBazel(os.Stderr, "clean", "--expunge")
+			bazel := exec.Command("bazel", "clean", "--expunge")
+			bazel.Stdout = os.Stdout
+			bazel.Stderr = os.Stderr
+			bazel.Env = append(os.Environ(), BAZEL_VERSION_ENV)
+			err := bazel.Run()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed running bazel: %v\n", err)
 				return 1
@@ -510,9 +501,8 @@ func main() {
 			bazel := exec.Command("bazel", args...)
 			bazel.Stdout = os.Stdout
 			bazel.Stderr = os.Stderr
-			bazel.Env = append(os.Environ(), "USE_BAZEL_VERSION=6.3.2")
+			bazel.Env = append(os.Environ(), BAZEL_VERSION_ENV)
 			err = bazel.Run()
-			err = runBazel(os.Stdout, args...)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "bazel error: %v\n", err)
 				return 2
@@ -530,7 +520,19 @@ func main() {
 				fmt.Fprintln(os.Stderr, err)
 			}
 
-			buildArgs := bazelArgs(cfg, cfgdir, "build", "Telegram/Telegram")
+			buildArgs := []string{}
+			runArgs := []string{}
+			for _, arg := range bazelArgs(cfg, cfgdir, "build") {
+				if strings.HasPrefix(arg, "--ios_multi_cpus=") {
+					continue
+				}
+				if arg != "build" {
+					buildArgs = append(buildArgs, arg)
+				}
+				if strings.HasPrefix(arg, "--//") {
+					runArgs = append(runArgs, arg)
+				}
+			}
 
 			// The xcode project generator, in a COMPLETELY ASININE
 			// decision, thinks it's reasonable to call bazel like so by
@@ -546,20 +548,34 @@ func main() {
 				return 1
 			}
 			defer bazelrc.Close()
+			_, err = bazelrc.WriteString("common")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed writing xcodeproj.bazelrc: %v\n", err)
+				return 1
+			}
 			for _, arg := range buildArgs {
-				_, err = fmt.Fprintf(bazelrc, "build %s\n", arg)
+				_, err = fmt.Fprintf(bazelrc, " %s", arg)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed writing xcodeproj.bazelrc: %v\n", err)
 					return 1
 				}
 			}
+			_, err = bazelrc.WriteString("\n")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed writing xcodeproj.bazelrc: %v\n", err)
+				return 1
+			}
 			bazelrc.Close()
 
-			err = runCmd(
-				"bazel", "run", "//Telegram:Telegram_xcodeproj",
+			runArgs = append([]string{"run", "//Telegram:Telegram_xcodeproj",
 				fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
-				fmt.Sprintf("--jobs=%d", runtime.NumCPU()),
-			)
+				fmt.Sprintf("--jobs=%d", runtime.NumCPU()), "--noenable_bzlmod",
+			}, runArgs...)
+			bazel := exec.Command("bazel", runArgs...)
+			bazel.Stdout = os.Stdout
+			bazel.Stderr = os.Stderr
+			bazel.Env = append(os.Environ(), BAZEL_VERSION_ENV)
+			err = bazel.Run()
 			if err != nil {
 				return 2
 			}
@@ -589,7 +605,12 @@ func main() {
 				return 1
 			}
 
-			err = runBazel(io.MultiWriter(os.Stdout, buildLog), args...)
+			bazelOut := io.MultiWriter(os.Stdout, buildLog)
+			bazel := exec.Command("bazel", args...)
+			bazel.Stdout = bazelOut
+			bazel.Stderr = bazelOut
+			bazel.Env = append(os.Environ(), BAZEL_VERSION_ENV)
+			err = bazel.Run()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "bazel error: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Full build log at build.log\n")
