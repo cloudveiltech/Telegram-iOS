@@ -19,10 +19,23 @@ import CloudVeilSecurityManager
     }
 
     public func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
-        let _ = logoutFromAccount(
-            id: self.context.account.id,
-            accountManager: self.context.sharedContext.accountManager,
-            alreadyLoggedOutRemotely: false).start()
+        // make sure the change org popup appears promptly
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            userDefaults.set(0.0, forKey: "organization_alert_shown_time")
+        }
+        // update SecurityManager user state
+        let peerViewSignal = self.context.account.viewTracker.peerView(self.context.account.peerId)
+        let _ = peerViewSignal.start(next: { peerView in
+            if let peer = peerViewMainPeer(peerView) as? TelegramUser {
+                TGUserController.withLock({
+                    $0.set(userID: NSInteger(peer.id.toInt64()))
+                    $0.set(userName: (peer.username ?? "") as NSString)
+                    $0.set(userPhoneNumber: (peer.phone ?? "") as NSString)
+                })
+                // force sync now
+                CloudVeilSecurityController.shared.getSettings()
+            }
+        })
         self.refCycle = nil
     }
 }
@@ -34,7 +47,6 @@ public func CVPresentWebUIAccountDelete(
         return
     }
     let userId = context.account.peerId.toInt64()
-    CloudVeilSecurityController.shared.blacklistUser(userId)
     CloudVeilSecurityController.shared.withDeleteAccountUrl(userId) { url in
         DispatchQueue.main.async {
             let safari = SFSafariViewController(url: url)
