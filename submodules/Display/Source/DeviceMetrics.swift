@@ -363,6 +363,6 @@ public enum DeviceMetrics: CaseIterable, Equatable {
         if case .iPhoneX = self {
             return false
         }
-        return self.hasTopNotch
+        return self.hasTopNotch || self.hasDynamicIsland
     }
 }
