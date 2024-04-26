@@ -375,7 +375,12 @@ public func fetchedAvatarGalleryEntries(engine: TelegramEngine, account: Account
                     }
                 }
             }
-            return (true, result)
+
+            
+            //CloudVeil start
+            let maxEntries = min(CloudVeilSecurityController.shared.profilePhotoLimit, result.count)
+            return (true, Array(result.prefix(maxEntries)))
+            //CloudVeil end
         }
     )
 }
@@ -488,10 +493,8 @@ public class AvatarGalleryController: ViewController, StandalonePresentableContr
                         entries.insert(firstEntry, at: 0)
                     }
                     
-                    //CloudVeil start
-                    let maxEntries = min(CloudVeilSecurityController.shared.profilePhotoLimit, entries.count)
+                    let maxEntries = entries.count
                     strongSelf.entries = Array(entries.prefix(maxEntries))
-                    //CloudVeil end
                     
                     if strongSelf.centralEntryIndex == nil {
                         strongSelf.centralEntryIndex = 0

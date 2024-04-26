@@ -68,7 +68,7 @@ open class ItemListRevealOptionsItemNode: ListViewItemNode, UIGestureRecognizerD
     
     private var initialRevealOffset: CGFloat = 0.0
     public private(set) var revealOffset: CGFloat = 0.0
-    
+     
     private var recognizer: ItemListRevealOptionsGestureRecognizer?
     private var tapRecognizer: UITapGestureRecognizer?
     private var hapticFeedback: HapticFeedback?
