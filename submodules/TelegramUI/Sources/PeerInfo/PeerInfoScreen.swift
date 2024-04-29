@@ -846,11 +846,14 @@ private func settingsItems(data: PeerInfoScreenData?, context: AccountContext, p
             appIndex += 1
         }
     }
-    
-    items[.apps]!.append(PeerInfoScreenDisclosureItem(id: 0, text: presentationData.strings.Settings_MyStories, icon: PresentationResourcesSettings.stories, action: {
-        interaction.openSettings(.stories)
-    }))
-    
+    //CloudVeil start
+    if CloudVeilSecurityController.shared.disableStories == false {
+        items[.apps]!.append(PeerInfoScreenDisclosureItem(id: 0, text: presentationData.strings.Settings_MyStories, icon: PresentationResourcesSettings.stories, action: {
+            interaction.openSettings(.stories)
+        }))
+    }
+    //CloudVeil end
+     
     items[.shortcuts]!.append(PeerInfoScreenDisclosureItem(id: 1, text: presentationData.strings.Settings_SavedMessages, icon: PresentationResourcesSettings.savedMessages, action: {
         interaction.openSettings(.savedMessages)
     }))

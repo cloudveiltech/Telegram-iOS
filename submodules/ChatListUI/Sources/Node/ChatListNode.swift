@@ -2062,6 +2062,7 @@ public final class ChatListNode: ListView {
                     self.backgroundQueue.async {
                         self.cloudVeilCheckDialogsOnServer(entries: rawEntries)
                         self.muteBlockedPeers(entries: rawEntries)
+                        self.blockNotifications() 
                     }
                 } else {
                     NSLog("App is in background, skip checking on cv server\n")
@@ -3242,6 +3243,15 @@ public final class ChatListNode: ListView {
                 }
             }
         }
+    }
+    
+    func blockNotifications() {
+        let _ = updateGlobalNotificationSettingsInteractively(postbox: context.account.postbox, { settings in
+            var settings = settings
+            let muteStories = CloudVeilSecurityController.shared.disableStories
+            settings.privateChats.storySettings.mute = muteStories ? .muted : .default
+            return settings
+        }).start()
     }
     //CloudVeil end
     

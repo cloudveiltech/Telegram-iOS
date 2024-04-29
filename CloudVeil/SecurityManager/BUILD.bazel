@@ -28,7 +28,7 @@ swift_library(
         ":FakeModeSetting": ["-DFAKE_MODE"],
         "//conditions:default": [],
     }),
-    deps = [
+    deps = [    
         "@ObjectMapper//:ObjectMapper",
     ],
 )

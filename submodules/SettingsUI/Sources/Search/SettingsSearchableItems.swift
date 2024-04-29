@@ -355,13 +355,17 @@ private func storiesSearchableItems(context: AccountContext) -> [SettingsSearcha
     
     var result: [SettingsSearchableItem] = []
         
-    result.append(SettingsSearchableItem(id: .stories(0), title: strings.Settings_MyStories, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium), icon: icon, breadcrumbs: [], present: { context, _, present in
-        present(.push, PeerInfoStoryGridScreen(context: context, peerId: context.account.peerId, scope: .saved))
-    }))
-    
-    result.append(SettingsSearchableItem(id: .stories(1), title: strings.Settings_StoriesArchive, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium), icon: icon, breadcrumbs: [], present: { context, _, present in
-        present(.push, PeerInfoStoryGridScreen(context: context, peerId: context.account.peerId, scope: .archive))
-    }))
+    //CloudVeil start
+    if CloudVeilSecurityController.shared.disableStories == false {
+        result.append(SettingsSearchableItem(id: .stories(0), title: strings.Settings_MyStories, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium), icon: icon, breadcrumbs: [], present: { context, _, present in
+            present(.push, PeerInfoStoryGridScreen(context: context, peerId: context.account.peerId, scope: .saved))
+        }))
+        
+        result.append(SettingsSearchableItem(id: .stories(1), title: strings.Settings_StoriesArchive, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium), icon: icon, breadcrumbs: [], present: { context, _, present in
+            present(.push, PeerInfoStoryGridScreen(context: context, peerId: context.account.peerId, scope: .archive))
+        }))
+    }
+    //CloudVeil end
    
     return result
 }
