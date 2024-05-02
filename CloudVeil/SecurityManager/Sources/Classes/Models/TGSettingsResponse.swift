@@ -38,6 +38,7 @@ class TGSettingsResponse: Mappable {
     public var organization: Organization?
     public var updateRequired: Bool?
     public var removeAccountUrl: String?
+    public var disableEmojiStatus: Bool?
 
     // MARK: FakeResponse
 
@@ -50,6 +51,7 @@ class TGSettingsResponse: Mappable {
             self.disableProfilePhotoChange = true
             self.disableProfileVideo = true
             self.disableProfileVideoChange = true
+            self.disableEmojiStatus = false
             self.disableSticker = true
             self.disableStickers = true
             self.manageUsers = false
@@ -92,6 +94,7 @@ class TGSettingsResponse: Mappable {
         organization <- map["organization"]
         updateRequired <- map["update_required"]
         removeAccountUrl <- map["remove_account_url"]
+        disableEmojiStatus <- map["disable_emoji_status"]
     }
 }
 

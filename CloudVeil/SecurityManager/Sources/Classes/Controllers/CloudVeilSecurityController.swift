@@ -17,7 +17,7 @@ fileprivate let SETTINGS_URL = URL(string: "https://messenger.cloudveil.org/api/
 public class UserBlacklist {
     private var cache: [Int64] = []
     private let key = "userBlacklist"
-
+    
     fileprivate init() {
         cache = UserDefaults.standard.array(forKey: key)?.compactMap { $0 as? Int64 } ?? []
     }
@@ -43,6 +43,8 @@ public class UserBlacklist {
 }
 
 open class CloudVeilSecurityController: NSObject {
+    private let SUPPORT_BOT_ID = 689684671
+    
 	public struct SecurityStaticSettings {
 		public static let disableGlobalSearch = true
 		public static let disableYoutubeVideoEmbedding = true
@@ -422,6 +424,9 @@ open class CloudVeilSecurityController: NSObject {
 		if SecurityStaticSettings.disableBots {
 			return false
 		}
+        if botID == self.SUPPORT_BOT_ID {
+            return true
+        }
         var res: Bool?
         self.accessQueue.sync {
             res = settings?.access?.bots?["\(botID)"]
