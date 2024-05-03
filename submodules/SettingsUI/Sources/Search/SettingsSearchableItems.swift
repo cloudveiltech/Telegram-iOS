@@ -314,9 +314,14 @@ private func premiumSearchableItems(context: AccountContext) -> [SettingsSearcha
         presentDemo(.noAds, present)
     }))
     
-    result.append(SettingsSearchableItem(id: .premium(6), title: strings.Premium_EmojiStatus, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium_EmojiStatus), icon: icon, breadcrumbs: [strings.Settings_Premium], present: { context, _, present in
-        presentDemo(.emojiStatus, present)
-    }))
+    
+    //CloudVeil start
+    if CloudVeilSecurityController.shared.disableEmojiStatus {
+        result.append(SettingsSearchableItem(id: .premium(6), title: strings.Premium_EmojiStatus, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium_EmojiStatus), icon: icon, breadcrumbs: [strings.Settings_Premium], present: { context, _, present in
+            presentDemo(.emojiStatus, present)
+        }))
+    }
+    //CloudVeil end
     
     result.append(SettingsSearchableItem(id: .premium(7), title: strings.Premium_Reactions, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium_Reactions), icon: icon, breadcrumbs: [strings.Settings_Premium], present: { context, _, present in
         presentDemo(.uniqueReactions, present)

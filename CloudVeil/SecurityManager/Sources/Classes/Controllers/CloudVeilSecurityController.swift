@@ -162,6 +162,15 @@ open class CloudVeilSecurityController: NSObject {
         return res
 	}
 		
+    public var disableEmojiStatus: Bool {
+        var res = false
+        self.accessQueue.sync {
+            res = settings?.disableEmojiStatus ?? false
+        }
+        return res
+    }
+    
+    
 	public var profilePhotoLimit: Int {
         var v = 1
         self.accessQueue.sync {

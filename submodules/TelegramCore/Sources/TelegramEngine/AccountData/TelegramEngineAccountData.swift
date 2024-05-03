@@ -2,6 +2,7 @@ import Foundation
 import SwiftSignalKit
 import Postbox
 import TelegramApi
+import CloudVeilSecurityManager
 
 public extension TelegramEngine {
     final class AccountData {
@@ -68,20 +69,29 @@ public extension TelegramEngine {
         }
         
         public func setEmojiStatus(file: TelegramMediaFile?, expirationDate: Int32?) -> Signal<Never, NoError> {
+            
             let peerId = self.account.peerId
             
-            let remoteApply = self.account.network.request(Api.functions.account.updateEmojiStatus(emojiStatus: file.flatMap({ file in
+            //CloudVeil start
+            var status = file.flatMap({ file in
                 if let expirationDate = expirationDate {
                     return Api.EmojiStatus.emojiStatusUntil(documentId: file.fileId.id, until: expirationDate)
                 } else {
                     return Api.EmojiStatus.emojiStatus(documentId: file.fileId.id)
                 }
-            }) ?? Api.EmojiStatus.emojiStatusEmpty))
+            }) ?? Api.EmojiStatus.emojiStatusEmpty
+            
+            if CloudVeilSecurityController.shared.disableEmojiStatus {
+                status = Api.EmojiStatus.emojiStatusEmpty
+            }
+            //CloudVeil end
+        
+            let remoteApply = self.account.network.request(Api.functions.account.updateEmojiStatus(emojiStatus: status))
             |> `catch` { _ -> Signal<Api.Bool, NoError> in
                 return .single(.boolFalse)
             }
             |> ignoreValues
-            
+                    
             return self.account.postbox.transaction { transaction -> Void in
                 if let file = file {
                     transaction.storeMediaIfNotPresent(media: file)

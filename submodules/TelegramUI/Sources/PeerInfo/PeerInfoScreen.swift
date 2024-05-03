@@ -710,7 +710,7 @@ private func settingsItems(data: PeerInfoScreenData?, context: AccountContext, p
     }
     
     var setStatusTitle: String = ""
-    let displaySetStatus: Bool
+    var displaySetStatus: Bool
     var hasEmojiStatus = false
     if let peer = data.peer as? TelegramUser, peer.isPremium {
         if peer.emojiStatus != nil {
@@ -723,6 +723,13 @@ private func settingsItems(data: PeerInfoScreenData?, context: AccountContext, p
     } else {
         displaySetStatus = false
     }
+    
+    //CloudVeil start
+    if CloudVeilSecurityController.shared.disableEmojiStatus {
+        hasEmojiStatus = false
+        displaySetStatus = false
+    }
+    //CloudVeil end
     
     if displaySetStatus {
         items[.edit]!.append(PeerInfoScreenActionItem(id: 0, text: setStatusTitle, icon: UIImage(bundleImageName: hasEmojiStatus ? "Settings/EditEmojiStatus" : "Settings/SetEmojiStatus"), action: {
