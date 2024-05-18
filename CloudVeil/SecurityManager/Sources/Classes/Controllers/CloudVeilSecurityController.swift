@@ -280,6 +280,7 @@ open class CloudVeilSecurityController: NSObject {
             self.netQueue.async {
                 if let nextReq = self.nextRequest, nextReq != body {
                     self.sendSettingsRequest(nextReq)
+                    self.nextRequest = nil
                 }
             }
         }
@@ -305,19 +306,19 @@ open class CloudVeilSecurityController: NSObject {
         }
     }
 
-    open func getSettings(groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = [], stickers: [TGRow] = []) {
-        self.netQueue.async {
-            let request = TGSettingsRequest(
-                sessionId: self.nextRequest?.clientSessionId,
-                groups: groups, bots: bots, channels: channels, stickers: stickers)
-
-            if let nextReq = self.nextRequest,  nextReq == request {
-                let now = Date().timeIntervalSince1970
-                if now - self.lastRequestTime < self.UPDATE_INTERVAL {
-                    return
-                }
+    open func getSettings(groups: inout [TGRow], bots: inout [TGRow], channels: inout [TGRow], stickers: inout [TGRow]) {
+        let request = TGSettingsRequest(
+            sessionId: self.nextRequest?.clientSessionId,
+            groups: groups, bots: bots, channels: channels, stickers: stickers)
+        
+        if let nextReq = self.nextRequest,  nextReq == request {
+            let now = Date().timeIntervalSince1970
+            if now - self.lastRequestTime < self.UPDATE_INTERVAL {
+                return
             }
-
+        }
+        
+        self.netQueue.async {
             self.lastRequestTime = Date().timeIntervalSince1970
             self.nextRequest = request
             self.sendSettingsRequest(request)

@@ -2020,7 +2020,7 @@ public final class ChatListNode: ListView {
         }
 
         //CloudVeil start
-        var cloudVeilWorkItem: DispatchWorkItem  = DispatchWorkItem {}
+        var cloudVeilTimer: Foundation.Timer? = nil
         //CloudVeil end
         
         let accountPeerId = context.account.peerId
@@ -2055,21 +2055,23 @@ public final class ChatListNode: ListView {
             let (rawEntries, isLoading) = chatListNodeEntriesForView(view: update.list, state: state, savedMessagesPeer: savedMessagesPeer, foundPeers: state.foundPeers, hideArchivedFolderByDefault: hideArchivedFolderByDefault, displayArchiveIntro: displayArchiveIntro, notice: notice, mode: mode, chatListLocation: location, contacts: contacts, accountPeerId: accountPeerId, isMainTab: innerIsMainTab)
             
             //CloudVeil start
-            cloudVeilWorkItem.cancel()
-            cloudVeilWorkItem = DispatchWorkItem() {
-                let appState = UIApplication.shared.applicationState
-                if appState != UIApplication.State.background {
-                    self.backgroundQueue.async {
-                        self.cloudVeilCheckDialogsOnServer(entries: rawEntries)
-                        self.muteBlockedPeers(entries: rawEntries)
-                        self.blockNotifications() 
+            if case let .chatList(appendContacts) = mode, appendContacts && innerIsMainTab {
+                if(!isLoading) {
+                    DispatchQueue.main.async {
+                        cloudVeilTimer?.invalidate()
+                        cloudVeilTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                            let appState = UIApplication.shared.applicationState
+                            if appState != UIApplication.State.background {
+                                self.cloudVeilCheckDialogsOnServer(entries: rawEntries)
+                                self.muteBlockedPeers(entries: rawEntries)
+                                self.blockNotifications()
+                            } else {
+                                NSLog("App is in background, skip checking on cv server\n")
+                            }
+                        }
                     }
-                } else {
-                    NSLog("App is in background, skip checking on cv server\n")
                 }
             }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: cloudVeilWorkItem)
             //CloudVeil end
             
             var isEmpty = true
@@ -3024,7 +3026,9 @@ public final class ChatListNode: ListView {
     func cloudVeilCheckDialogsOnServer(entries: [ChatListNodeEntry]) {
         let peerViewSignal = self.context.account.viewTracker.peerView(self.context.account.peerId)
         var peerViewDisplosable: Disposable? = nil
-        peerViewDisplosable = peerViewSignal.start(next: { peerView in
+        peerViewDisplosable = peerViewSignal.start(next: { [weak self] peerView in
+            peerViewDisplosable?.dispose()
+            
             if let peer  = peerViewMainPeer(peerView) as? TelegramUser {
                 TGUserController.withLock({
                     $0.set(userID: NSInteger(peer.id.toInt64()))
@@ -3079,13 +3083,13 @@ public final class ChatListNode: ListView {
                 }
                 
                 if groups.count == 0 && channels.count == 0 {
-                    CloudVeilSecurityController.shared.getSettings(groups: groups, bots: bots, channels: channels)
+                    CloudVeilSecurityController.shared.getSettings(groups: &groups, bots: &bots, channels: &channels, stickers: &stickers)
                     Logger.shared.log("CVSettings", "getSettings fired from common block")
                 } else {
-                    var processedPeers = groups.count
+                    var processedPeers = groupAndChannelsPeerIds.count
                     for peerId in groupAndChannelsPeerIds {
                         var peerMembersDisposable: Disposable? = nil
-                        peerMembersDisposable = self.loadPeerMembers(peerId: peerId).start(next: { [self] peers in
+                        peerMembersDisposable = self?.loadPeerMembers(peerId: peerId).start(next: { [weak self] peers in
                             peerMembersDisposable?.dispose()
                             
                             for peer in peers {
@@ -3109,11 +3113,11 @@ public final class ChatListNode: ListView {
                                 }
                             }
                             
-                            self.backgroundQueue.sync {
+                            self?.backgroundQueue.sync {
                                 processedPeers = processedPeers - 1
                                 if processedPeers == 0 {
-                                    let _ = context.account.postbox.combinedView(keys: [.itemCollectionInfos(namespaces: [Namespaces.ItemCollection.CloudStickerPacks])]).start(next: { combinedView in
-                                        
+                                  //  var combinedViewDisposable: Disposable? = nil
+                                    let _ = self?.context.account.postbox.combinedView(keys: [.itemCollectionInfos(namespaces: [Namespaces.ItemCollection.CloudStickerPacks])]).start(next: { combinedView in
                                         if let stickerPacksView = combinedView.views[.itemCollectionInfos(namespaces: [Namespaces.ItemCollection.CloudStickerPacks])] as? ItemCollectionInfosView {
                                             if let packsEntries = stickerPacksView.entriesByNamespace[Namespaces.ItemCollection.CloudStickerPacks] {
                                                  for entry in packsEntries {
@@ -3128,18 +3132,17 @@ public final class ChatListNode: ListView {
                                             }
                                         }
                                         
-                                        CloudVeilSecurityController.shared.getSettings(groups: groups, bots: bots, channels: channels, stickers: stickers)
+                                        CloudVeilSecurityController.shared.getSettings(groups: &groups, bots: &bots, channels: &channels, stickers: &stickers)
                                         Logger.shared.log("CVSettings", "getSettings fired from load peer members \(groupAndChannelsPeerIds.count)")
+                                        self?.subscribeToCloudVeilSupportChannel(channels: channels)
+                                    }, completed: {
+                                        //combinedViewDisposable?.dispose()
                                     })
                                 }
                             }
                         })
                     }
                 }
-                
-                self.subscribeToCloudVeilSupportChannel(channels: channels)
-                peerViewDisplosable?.dispose()
-                Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel")
             }
         }
         )
@@ -3207,15 +3210,23 @@ public final class ChatListNode: ListView {
         }
     }
 
-    private let supportSubscribeDisposable = MetaDisposable()
+    private var supportSubscribeDisposable: Disposable? = nil
+    private var lastSubscribeCallTime: TimeInterval = 0
     
     public func subscribeToCloudVeilSupportChannel(channels: [TGRow]) {
+        let now = Date().timeIntervalSince1970
+        if now - lastSubscribeCallTime < 10 {
+          //  Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel dropped, less than 10 seconds passed")
+            return
+        }
+        lastSubscribeCallTime = now
         let userName = "CloudVeilMessenger"
         for row in channels {
             if row.userName as String == userName {
                 return
             }
         }
+        Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel")
 
         let resolveSignal = self.context.engine.peers.resolvePeerByName(name: userName)
             |> mapToSignal { result -> Signal<EnginePeer, NoError> in
@@ -3231,7 +3242,12 @@ public final class ChatListNode: ListView {
                 return self.context.engine.peers.joinChannel(peerId: peer.id, hash: nil)
             }
 
-        self.supportSubscribeDisposable.set(resolveSignal.startStrict())
+        if supportSubscribeDisposable == nil {
+            self.supportSubscribeDisposable = resolveSignal.start(completed: {
+                self.supportSubscribeDisposable?.dispose()
+                self.supportSubscribeDisposable = nil
+            })
+        }
     }
     
     func muteBlockedPeers(entries: [ChatListNodeEntry]) {
@@ -3239,14 +3255,19 @@ public final class ChatListNode: ListView {
             if case let .PeerEntry(entryData) = entry {
                 let avail = CloudVeilSecurityController.shared.isConversationAvailable(conversationId: NSInteger(entryData.peer.peerId.id._internalGetInt64Value())) ?? true
                 if !avail {
-                    let _ = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [entryData.peer.peerId], setToValue: false).start()
+                    var chatListDisposable: Disposable?
+                    chatListDisposable = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [entryData.peer.peerId], setToValue: false).start(next: { _ in
+                        chatListDisposable?.dispose()
+                    })
                 }
             }
         }
     }
     
     func blockNotifications() {
-        let _ = updateGlobalNotificationSettingsInteractively(postbox: context.account.postbox, { settings in
+        var muteDisposable: Disposable?
+        muteDisposable = updateGlobalNotificationSettingsInteractively(postbox: context.account.postbox, { settings in
+            muteDisposable?.dispose()
             var settings = settings
             let muteStories = CloudVeilSecurityController.shared.disableStories
             settings.privateChats.storySettings.mute = muteStories ? .muted : .default
@@ -3263,7 +3284,7 @@ public final class ChatListNode: ListView {
         self.chatFilterUpdatesDisposable?.dispose()
         self.updateIsMainTabDisposable?.dispose()
         // CloudVeil start
-        self.supportSubscribeDisposable.dispose()
+        self.supportSubscribeDisposable?.dispose()
         // CloudVeil end
     }
     

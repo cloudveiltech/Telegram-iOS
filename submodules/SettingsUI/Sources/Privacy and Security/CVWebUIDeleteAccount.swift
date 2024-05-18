@@ -23,19 +23,6 @@ import CloudVeilSecurityManager
         if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
             userDefaults.set(0.0, forKey: "organization_alert_shown_time")
         }
-        // update SecurityManager user state
-        let peerViewSignal = self.context.account.viewTracker.peerView(self.context.account.peerId)
-        let _ = peerViewSignal.start(next: { peerView in
-            if let peer = peerViewMainPeer(peerView) as? TelegramUser {
-                TGUserController.withLock({
-                    $0.set(userID: NSInteger(peer.id.toInt64()))
-                    $0.set(userName: (peer.username ?? "") as NSString)
-                    $0.set(userPhoneNumber: (peer.phone ?? "") as NSString)
-                })
-                // force sync now
-                CloudVeilSecurityController.shared.getSettings()
-            }
-        })
         self.refCycle = nil
     }
 }
