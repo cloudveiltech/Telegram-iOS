@@ -7425,6 +7425,11 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
         case .remove:
             data.members?.membersContext.removeMember(memberId: member.id)
         case let .openStories(sourceView):
+            //CloudVeil start
+            if CloudVeilSecurityController.shared.disableStories {
+                return
+            }
+            //CloudVeil end
             guard let controller = self.controller else {
                 return
             }
