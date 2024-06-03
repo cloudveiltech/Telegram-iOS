@@ -1180,8 +1180,7 @@ public final class ChatListNode: ListView {
             self.chatListFilterValue.set(.single(self.chatListFilter))
             
             if self.chatListFilter != oldValue {
-                //CloudVeil fix count
-                self.setChatListLocation(.initial(count: 500000, filter: self.chatListFilter))
+                self.setChatListLocation(.initial(count: 50, filter: self.chatListFilter))
             }
         }
     }
@@ -2573,9 +2572,9 @@ public final class ChatListNode: ListView {
         let initialLocation: ChatListNodeLocation
         switch mode {
         case .chatList:
-            initialLocation = .initial(count: 500000, filter: self.chatListFilter)
+            initialLocation = .initial(count: 50, filter: self.chatListFilter)
         case .peers, .peerType:
-            initialLocation = .initial(count: 200000, filter: self.chatListFilter)
+            initialLocation = .initial(count: 20, filter: self.chatListFilter)
         }
         self.setChatListLocation(initialLocation)
         
@@ -3004,12 +3003,24 @@ public final class ChatListNode: ListView {
     }
     
     //CloudVeil start
+    static let timeoutCallInSec = 0.1
+    var lastCallTime = Date().timeIntervalSince1970 - 10*ChatListNode.timeoutCallInSec
+    static var subscriptionDisposable: Disposable? = nil
     func cloudVeilSubscribeToChatListChanges() {
+        if ChatListNode.subscriptionDisposable != nil {
+            return
+        }
         self.blockNotifications()
-        let _ = (context.engine.messages.chatList(group: .root, count: 10000) |> distinctUntilChanged{ l, r in
+        ChatListNode.subscriptionDisposable = (context.engine.messages.chatList(group: .root, count: Int(Int16.max)) |> distinctUntilChanged{ l, r in
             if l.items.count != r.items.count {
                 return false
             }
+            let now = Date().timeIntervalSince1970
+            if now - self.lastCallTime < ChatListNode.timeoutCallInSec {
+                Logger.shared.log("CVSettings", "getSettings timeout passed")
+                return true
+            }
+            self.lastCallTime = now
             for (i, _) in l.items.enumerated() {
                 let left = l.items[i]
                 let right = r.items[i]
@@ -4081,7 +4092,7 @@ public final class ChatListNode: ListView {
                     guard case let .chatList(groupId) = self.location else {
                         return
                     }
-                    let _ = (chatListViewForLocation(chatListLocation: .chatList(groupId: groupId), location: .initial(count: 10000, filter: filter), account: self.context.account)
+                    let _ = (chatListViewForLocation(chatListLocation: .chatList(groupId: groupId), location: .initial(count: 100, filter: filter), account: self.context.account)
                     |> take(1)
                     |> deliverOnMainQueue).startStandalone(next: { update in
                         let items = update.list.items
