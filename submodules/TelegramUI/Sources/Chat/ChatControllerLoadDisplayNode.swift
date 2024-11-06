@@ -123,6 +123,7 @@ import PeerNameColorScreen
 import ChatEmptyNode
 import ChatMediaInputStickerGridItem
 import AdsInfoScreen
+import CloudVeilSecurityManager
 
 extension ChatControllerImpl {
     func loadDisplayNodeImpl() {
@@ -3078,7 +3079,13 @@ extension ChatControllerImpl {
                     let mode: ChatTextInputMediaRecordingButtonMode
                     switch current.mediaRecordingMode {
                         case .audio:
-                            mode = .video
+                            //CloudVeil start
+                            if CloudVeilSecurityController.shared.isInChatVideoRecordingEnabled {
+                                mode = .video
+                            } else {
+                                mode = .audio
+                            }
+                            //CloudVeil end
                         case .video:
                             mode = .audio
                     }

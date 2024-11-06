@@ -12,6 +12,7 @@ import PhotoResources
 import GalleryUI
 import TelegramUniversalVideoContent
 import UndoUI
+import CloudVeilSecurityManager
 
 private struct PeerAvatarImageGalleryThumbnailItem: GalleryThumbnailItem {
     let account: Account
@@ -70,7 +71,10 @@ class PeerAvatarImageGalleryItem: GalleryItem {
         let node = PeerAvatarImageGalleryItemNode(context: self.context, presentationData: self.presentationData, peer: self.peer, sourceCorners: self.sourceCorners)
         
         if let indexData = self.entry.indexData {
-            node._title.set(.single(self.presentationData.strings.Items_NOfM("\(indexData.position + 1)", "\(indexData.totalCount)").string))
+            //CloudVeil start
+            let totalCount = min(CloudVeilSecurityController.shared.profilePhotoLimit, Int(indexData.totalCount))
+            node._title.set(.single(self.presentationData.strings.Items_NOfM("\(indexData.position + 1)", "\(totalCount)").string))
+            //CloudVeil end
         }
         
         node.setEntry(self.entry, synchronous: synchronous)
@@ -84,7 +88,10 @@ class PeerAvatarImageGalleryItem: GalleryItem {
     func updateNode(node: GalleryItemNode, synchronous: Bool) {
         if let node = node as? PeerAvatarImageGalleryItemNode {
             if let indexData = self.entry.indexData {
-                node._title.set(.single(self.presentationData.strings.Items_NOfM("\(indexData.position + 1)", "\(indexData.totalCount)").string))
+                //CloudVeil start
+                let totalCount = min(CloudVeilSecurityController.shared.profilePhotoLimit, Int(indexData.totalCount))
+                node._title.set(.single(self.presentationData.strings.Items_NOfM("\(indexData.position + 1)", "\(totalCount)").string))
+                //CloudVeil end
             }
             let previousContentAnimations = node.imageNode.contentAnimations
             if synchronous {

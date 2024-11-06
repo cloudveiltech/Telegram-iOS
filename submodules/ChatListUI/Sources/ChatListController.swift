@@ -51,6 +51,52 @@ import PeerInfoStoryGridScreen
 import ArchiveInfoScreen
 import BirthdayPickerScreen
 import OldChannelsController
+//CloudVeil start
+import CloudVeilSecurityManager
+import SafariServices
+//CloudVeil end
+
+private func fixListNodeScrolling(_ listNode: ListView, searchNode: NavigationBarSearchContentNode) -> Bool {
+    if listNode.scroller.isDragging {
+        return false
+    }
+    if searchNode.expansionProgress > 0.0 && searchNode.expansionProgress < 1.0 {
+        let offset: CGFloat
+        if searchNode.expansionProgress < 0.6 {
+            offset = navigationBarSearchContentHeight
+        } else {
+            offset = 0.0
+        }
+        let _ = listNode.scrollToOffsetFromTop(offset, animated: true)
+        return true
+    } else if searchNode.expansionProgress == 1.0 {
+        var sortItemNode: ListViewItemNode?
+        var nextItemNode: ListViewItemNode?
+        
+        listNode.forEachItemNode({ itemNode in
+            if sortItemNode == nil, let itemNode = itemNode as? ChatListItemNode, let item = itemNode.item, case .groupReference = item.content {
+                sortItemNode = itemNode
+            } else if sortItemNode != nil && nextItemNode == nil {
+                nextItemNode = itemNode as? ListViewItemNode
+            }
+        })
+        
+        if false, let sortItemNode = sortItemNode {
+            let itemFrame = sortItemNode.apparentFrame
+            if itemFrame.contains(CGPoint(x: 0.0, y: listNode.insets.top)) {
+                var scrollToItem: ListViewScrollToItem?
+                if itemFrame.minY + itemFrame.height * 0.6 < listNode.insets.top {
+                    scrollToItem = ListViewScrollToItem(index: 0, position: .top(-76.0), animated: true, curve: .Default(duration: 0.3), directionHint: .Up)
+                } else {
+                    scrollToItem = ListViewScrollToItem(index: 0, position: .top(0), animated: true, curve: .Default(duration: 0.3), directionHint: .Up)
+                }
+                listNode.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: ListViewDeleteAndInsertOptions(), scrollToItem: scrollToItem, updateSizeAndInsets: nil, stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
+                return true
+            }
+        }
+    }
+    return false
+}
 
 private final class ContextControllerContentSourceImpl: ContextControllerContentSource {
     let controller: ViewController
@@ -274,6 +320,23 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             title = ""
         }
         
+        //CloudVeil start "Disable stories"
+        let storyPostingAvailable: Signal<Bool, NoError>
+        if CloudVeilSecurityController.shared.disableStories {
+            storyPostingAvailable = .single(false)
+        } else {
+            storyPostingAvailable = self.storyPostingAvailabilityValue.get()
+                |> map { availability -> Bool in
+                    switch availability {
+                    case .enabled, .premium:
+                        return true
+                    default:
+                        return false
+                    }
+                }
+        }
+        //CloudVeil end
+        
         let primaryContext = ChatListLocationContext(
             context: context,
             location: self.location,
@@ -281,14 +344,9 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             hideNetworkActivityStatus: self.hideNetworkActivityStatus,
             containerNode: self.chatListDisplayNode.mainContainerNode,
             isReorderingTabs: self.isReorderingTabsValue.get(),
-            storyPostingAvailable: self.storyPostingAvailabilityValue.get() |> map { availability -> Bool in
-                switch availability {
-                case .enabled, .premium:
-                    return true
-                default:
-                    return false
-                }
-            }
+            // CloudVeil start "Disable stories"
+            storyPostingAvailable: storyPostingAvailable
+            // CloudVeil end
         )
         self.primaryContext = primaryContext
         self.primaryInfoReady.set(primaryContext.ready.get())
@@ -1067,50 +1125,76 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                         }
                     }
                     
-                    let chatLocation: NavigateToChatControllerParams.Location
-                    chatLocation = .peer(peer)
-                    
-                    self.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: self.context, chatLocation: chatLocation, activateInput: (activateInput && !peer.isDeleted) ? .text : nil, scrollToEndIfExists: scrollToEndIfExists, animated: !scrollToEndIfExists, options: navigationAnimationOptions, parentGroupId: groupId._asGroup(), chatListFilter: self.chatListDisplayNode.mainContainerNode.currentItemNode.chatListFilter?.id, completion: { [weak self] controller in
-                        guard let self else {
-                            return
-                        }
-                        self.chatListDisplayNode.mainContainerNode.currentItemNode.clearHighlightAnimated(true)
-                        
-                        if let promoInfo = promoInfo {
-                            switch promoInfo {
-                            case .proxy:
-                                let _ = (ApplicationSpecificNotice.getProxyAdsAcknowledgment(accountManager: self.context.sharedContext.accountManager)
-                                |> deliverOnMainQueue).startStandalone(next: { [weak self] value in
-                                    guard let self else {
-                                        return
-                                    }
-                                    if !value {
-                                        controller.displayPromoAnnouncement(text: self.presentationData.strings.DialogList_AdNoticeAlert)
-                                        let _ = ApplicationSpecificNotice.setProxyAdsAcknowledgment(accountManager: self.context.sharedContext.accountManager).startStandalone()
-                                    }
-                                })
-                            case let .psa(type, _):
-                                let _ = (ApplicationSpecificNotice.getPsaAcknowledgment(accountManager: self.context.sharedContext.accountManager, peerId: peer.id)
-                                |> deliverOnMainQueue).startStandalone(next: { [weak self] value in
-                                    guard let self else {
-                                        return
-                                    }
-                                    if !value {
-                                        var text = self.presentationData.strings.ChatList_GenericPsaAlert
-                                        let key = "ChatList.PsaAlert.\(type)"
-                                        if let string = self.presentationData.strings.primaryComponent.dict[key] {
-                                            text = string
-                                        } else if let string = self.presentationData.strings.secondaryComponent?.dict[key] {
-                                            text = string
+                    //CloudVeil start
+                    TelegramBaseController.checkPeerIsAllowed(peerId: peer.id, controller: strongSelf, context: strongSelf.context, presentationData: strongSelf.presentationData) { [weak self] result in
+                        if result {
+                            if case let .channel(channel) = peer, channel.flags.contains(.isForum), threadId == nil {
+                                strongSelf.chatListDisplayNode.clearHighlightAnimated(true)
+                                
+                                if strongSelf.chatListDisplayNode.inlineStackContainerNode?.location == .forum(peerId: channel.id) {
+                                    strongSelf.setInlineChatList(location: nil)
+                                } else {
+                                    strongSelf.setInlineChatList(location: .forum(peerId: channel.id))
+                                }
+                            } else {
+                                if case let .channel(channel) = peer, channel.flags.contains(.isForum), let threadId {
+                                    let _ = strongSelf.context.sharedContext.navigateToForumThread(context: strongSelf.context, peerId: peer.id, threadId: threadId, messageId: nil, navigationController: navigationController, activateInput: nil, keepStack: .never).startStandalone()
+                                    strongSelf.chatListDisplayNode.clearHighlightAnimated(true)
+                                } else {
+                                    var navigationAnimationOptions: NavigationAnimationOptions = []
+                                    var groupId: EngineChatList.Group = .root
+                                    if case let .chatList(groupIdValue) = strongSelf.location {
+                                        groupId = groupIdValue
+                                        if case .root = groupIdValue {
+                                            navigationAnimationOptions = .removeOnMasterDetails
                                         }
-                                        
-                                        controller.displayPromoAnnouncement(text: text)
-                                        let _ = ApplicationSpecificNotice.setPsaAcknowledgment(accountManager: self.context.sharedContext.accountManager, peerId: peer.id).startStandalone()
                                     }
-                                })
+                                    
+                                    let chatLocation: NavigateToChatControllerParams.Location
+                                    chatLocation = .peer(peer)
+                                    
+                                    strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: chatLocation, activateInput: (activateInput && !peer.isDeleted) ? .text : nil, scrollToEndIfExists: scrollToEndIfExists, animated: !scrollToEndIfExists, options: navigationAnimationOptions, parentGroupId: groupId._asGroup(), chatListFilter: strongSelf.chatListDisplayNode.mainContainerNode.currentItemNode.chatListFilter?.id, completion: { [weak self] controller in
+                                        self?.chatListDisplayNode.mainContainerNode.currentItemNode.clearHighlightAnimated(true)
+                                        if let promoInfo = promoInfo {
+                                            switch promoInfo {
+                                            case .proxy:
+                                                let _ = (ApplicationSpecificNotice.getProxyAdsAcknowledgment(accountManager: strongSelf.context.sharedContext.accountManager)
+                                                |> deliverOnMainQueue).startStandalone(next: { value in
+                                                    guard let strongSelf = self else {
+                                                        return
+                                                    }
+                                                    if !value {
+                                                        controller.displayPromoAnnouncement(text: strongSelf.presentationData.strings.DialogList_AdNoticeAlert)
+                                                        let _ = ApplicationSpecificNotice.setProxyAdsAcknowledgment(accountManager: strongSelf.context.sharedContext.accountManager).startStandalone()
+                                                    }
+                                                })
+                                            case let .psa(type, _):
+                                                let _ = (ApplicationSpecificNotice.getPsaAcknowledgment(accountManager: strongSelf.context.sharedContext.accountManager, peerId: peer.id)
+                                                |> deliverOnMainQueue).startStandalone(next: { value in
+                                                    guard let strongSelf = self else {
+                                                        return
+                                                    }
+                                                    if !value {
+                                                        var text = strongSelf.presentationData.strings.ChatList_GenericPsaAlert
+                                                        let key = "ChatList.PsaAlert.\(type)"
+                                                        if let string = strongSelf.presentationData.strings.primaryComponent.dict[key] {
+                                                            text = string
+                                                        } else if let string = strongSelf.presentationData.strings.secondaryComponent?.dict[key] {
+                                                            text = string
+                                                        }
+                                                        
+                                                        controller.displayPromoAnnouncement(text: text)
+                                                        let _ = ApplicationSpecificNotice.setPsaAcknowledgment(accountManager: strongSelf.context.sharedContext.accountManager, peerId: peer.id).startStandalone()
+                                                    }
+                                                })
+                                            }
+                                        }
+                                    }))
+                                }
                             }
                         }
-                    }))
+                    }
+                    //CloudVeil end
                 }
             })
         }
@@ -1979,101 +2063,69 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             if self.previewing {
                 self.storiesReady.set(.single(true))
             } else {
-                self.storySubscriptionsDisposable = (self.context.engine.messages.storySubscriptions(isHidden: self.location == .chatList(groupId: .archive))
-                |> deliverOnMainQueue).startStrict(next: { [weak self] rawStorySubscriptions in
-                    guard let self else {
-                        return
-                    }
-                    
-                    self.rawStorySubscriptions = rawStorySubscriptions
-                    var items: [EngineStorySubscriptions.Item] = []
-                    if self.shouldFixStorySubscriptionOrder {
-                        for peerId in self.fixedStorySubscriptionOrder {
-                            if let item = rawStorySubscriptions.items.first(where: { $0.peer.id == peerId }) {
-                                items.append(item)
-                            }
-                        }
-                    }
-                    for item in rawStorySubscriptions.items {
-                        if !items.contains(where: { $0.peer.id == item.peer.id }) {
-                            items.append(item)
-                        }
-                    }
-                    self.orderedStorySubscriptions = EngineStorySubscriptions(
-                        accountItem: rawStorySubscriptions.accountItem,
-                        items: items,
-                        hasMoreToken: rawStorySubscriptions.hasMoreToken
-                    )
-                    self.fixedStorySubscriptionOrder = items.map(\.peer.id)
-                    
-                    let transition: ContainedViewLayoutTransition
-                    if self.didAppear {
-                        transition = .animated(duration: 0.4, curve: .spring)
-                    } else {
-                        transition = .immediate
-                    }
-                    
-                    self.chatListDisplayNode.temporaryContentOffsetChangeTransition = transition
-                    self.requestLayout(transition: transition)
-                    self.chatListDisplayNode.temporaryContentOffsetChangeTransition = nil
-                    
-                    if !shouldDisplayStoriesInChatListHeader(storySubscriptions: rawStorySubscriptions, isHidden: self.location == .chatList(groupId: .archive)) {
-                        self.chatListDisplayNode.scrollToTopIfStoriesAreExpanded()
-                    }
-                    
-                    self.storiesReady.set(.single(true))
-                    
+                //CloudVeil start "Disable stories"
+                if CloudVeilSecurityController.shared.disableStories {
                     Queue.mainQueue().after(1.0, { [weak self] in
                         guard let self else {
                             return
                         }
-                        self.maybeDisplayStoryTooltip()
+                        
+                        self.rawStorySubscriptions = EngineStorySubscriptions(accountItem: nil, items: [], hasMoreToken: nil)
+                        self.orderedStorySubscriptions = self.rawStorySubscriptions
+                        self.fixedStorySubscriptionOrder = []
+                        let transition: ContainedViewLayoutTransition
+                        if self.didAppear {
+                            transition = .animated(duration: 0.4, curve: .spring)
+                        } else {
+                            transition = .immediate
+                        }
+                        
+                        self.chatListDisplayNode.temporaryContentOffsetChangeTransition = transition
+                        self.requestLayout(transition: transition)
+                        self.chatListDisplayNode.temporaryContentOffsetChangeTransition = nil
+                        self.storiesReady.set(.single(true))
                     })
-                })
-                self.storyProgressDisposable = (self.context.engine.messages.allStoriesUploadProgress()
-                |> deliverOnMainQueue).startStrict(next: { [weak self] progress in
-                    guard let self else {
-                        return
-                    }
-                    self.updateStoryUploadProgress(progress)
-                })
-                
-                if case .chatList(.root) = self.location {
-                    self.storyArchiveSubscriptionsDisposable = (self.context.engine.messages.storySubscriptions(isHidden: true)
-                    |> deliverOnMainQueue).startStrict(next: { [weak self] rawStoryArchiveSubscriptions in
+                } else {
+                    self.storySubscriptionsDisposable = (self.context.engine.messages.storySubscriptions(isHidden: self.location == .chatList(groupId: .archive))
+                    |> deliverOnMainQueue).startStrict(next: { [weak self] rawStorySubscriptions in
                         guard let self else {
                             return
                         }
                         
-                        self.rawStoryArchiveSubscriptions = rawStoryArchiveSubscriptions
-                        
-                        let archiveStoryState: ChatListNodeState.StoryState?
-                        if rawStoryArchiveSubscriptions.items.isEmpty {
-                            archiveStoryState = nil
-                        } else {
-                            var unseenCount = 0
-                            for item in rawStoryArchiveSubscriptions.items {
-                                if item.hasUnseen {
-                                    unseenCount += 1
+                        self.rawStorySubscriptions = rawStorySubscriptions
+                        var items: [EngineStorySubscriptions.Item] = []
+                        if self.shouldFixStorySubscriptionOrder {
+                            for peerId in self.fixedStorySubscriptionOrder {
+                                if let item = rawStorySubscriptions.items.first(where: { $0.peer.id == peerId }) {
+                                    items.append(item)
                                 }
                             }
-                            let hasUnseenCloseFriends = rawStoryArchiveSubscriptions.items.contains(where: { $0.hasUnseenCloseFriends })
-                            archiveStoryState = ChatListNodeState.StoryState(
-                                stats: EngineChatList.StoryStats(
-                                    totalCount: rawStoryArchiveSubscriptions.items.count,
-                                    unseenCount: unseenCount,
-                                    hasUnseenCloseFriends: hasUnseenCloseFriends
-                                ),
-                                hasUnseenCloseFriends: hasUnseenCloseFriends
-                            )
+                        }
+                        for item in rawStorySubscriptions.items {
+                            if !items.contains(where: { $0.peer.id == item.peer.id }) {
+                                items.append(item)
+                            }
+                        }
+                        self.orderedStorySubscriptions = EngineStorySubscriptions(
+                            accountItem: rawStorySubscriptions.accountItem,
+                            items: items,
+                            hasMoreToken: rawStorySubscriptions.hasMoreToken
+                        )
+                        self.fixedStorySubscriptionOrder = items.map(\.peer.id)
+                        
+                        let transition: ContainedViewLayoutTransition
+                        if self.didAppear {
+                            transition = .animated(duration: 0.4, curve: .spring)
+                        } else {
+                            transition = .immediate
                         }
                         
-                        self.chatListDisplayNode.mainContainerNode.currentItemNode.updateState { chatListState in
-                            var chatListState = chatListState
-                            
-                            chatListState.archiveStoryState = archiveStoryState
-                            
-                            return chatListState
+                        self.chatListDisplayNode.temporaryContentOffsetChangeTransition = transition
+                        self.requestLayout(transition: transition)
+                        self.chatListDisplayNode.temporaryContentOffsetChangeTransition = nil
+                        
+                        if !shouldDisplayStoriesInChatListHeader(storySubscriptions: rawStorySubscriptions, isHidden: self.location == .chatList(groupId: .archive)) {
+                            self.chatListDisplayNode.scrollToTopIfStoriesAreExpanded()
                         }
                         
                         self.storiesReady.set(.single(true))
@@ -2084,10 +2136,67 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                             }
                             self.maybeDisplayStoryTooltip()
                         })
-                        
-                        self.hasPendingStoriesPromise.set(rawStoryArchiveSubscriptions.accountItem?.hasPending ?? false)
                     })
+                    self.storyProgressDisposable = (self.context.engine.messages.allStoriesUploadProgress()
+                    |> deliverOnMainQueue).startStrict(next: { [weak self] progress in
+                        guard let self else {
+                            return
+                        }
+                        self.updateStoryUploadProgress(progress)
+                    })
+                    
+                    if case .chatList(.root) = self.location {
+                        self.storyArchiveSubscriptionsDisposable = (self.context.engine.messages.storySubscriptions(isHidden: true)
+                        |> deliverOnMainQueue).startStrict(next: { [weak self] rawStoryArchiveSubscriptions in
+                            guard let self else {
+                                return
+                            }
+                            
+                            self.rawStoryArchiveSubscriptions = rawStoryArchiveSubscriptions
+                            
+                            let archiveStoryState: ChatListNodeState.StoryState?
+                            if rawStoryArchiveSubscriptions.items.isEmpty {
+                                archiveStoryState = nil
+                            } else {
+                                var unseenCount = 0
+                                for item in rawStoryArchiveSubscriptions.items {
+                                    if item.hasUnseen {
+                                        unseenCount += 1
+                                    }
+                                }
+                                let hasUnseenCloseFriends = rawStoryArchiveSubscriptions.items.contains(where: { $0.hasUnseenCloseFriends })
+                                archiveStoryState = ChatListNodeState.StoryState(
+                                    stats: EngineChatList.StoryStats(
+                                        totalCount: rawStoryArchiveSubscriptions.items.count,
+                                        unseenCount: unseenCount,
+                                        hasUnseenCloseFriends: hasUnseenCloseFriends
+                                    ),
+                                    hasUnseenCloseFriends: hasUnseenCloseFriends
+                                )
+                            }
+                            
+                            self.chatListDisplayNode.mainContainerNode.currentItemNode.updateState { chatListState in
+                                var chatListState = chatListState
+                                
+                                chatListState.archiveStoryState = archiveStoryState
+                                
+                                return chatListState
+                            }
+                            
+                            self.storiesReady.set(.single(true))
+                            
+                            Queue.mainQueue().after(1.0, { [weak self] in
+                                guard let self else {
+                                    return
+                                }
+                                self.maybeDisplayStoryTooltip()
+                            })
+                                
+                            self.hasPendingStoriesPromise.set(rawStoryArchiveSubscriptions.accountItem?.hasPending ?? false)
+                        })
+                    }
                 }
+                //CloudVeil end
             }
         }
     }
@@ -2562,8 +2671,74 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                 }
             }))
         }
+        
+        //CloudVeil start
+        showNotificationWarning()
+        //CloudVeil end
     }
     
+    //CloudVeil start
+    private func showNotificationWarning() {
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            let lastShownTime = userDefaults.double(forKey: "notification_alert_shown_time")
+            let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+            let appBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+            let dontShowKey = "notification_alert_shown_time_\(appVersion)_\(appBuild)"
+            
+            let dontShowAgainChecked = userDefaults.bool(forKey: dontShowKey)
+            if dontShowAgainChecked {
+                showOrganizationChangeAlert()
+                return
+            }
+            let now = Date().timeIntervalSince1970
+            if now - lastShownTime < 24*60*60 {//one day
+                showOrganizationChangeAlert()
+                return
+            }
+            userDefaults.set(now, forKey: "notification_alert_shown_time")
+            
+            let alert = UIAlertController(title: "Improve Notifications", message: "CloudVeil Messenger must remain running in the background to receive notifications.", preferredStyle: UIAlertController.Style.alert)
+            alert.addAction(UIAlertAction(title: "Ok", style: UIAlertAction.Style.default, handler: nil))
+            alert.addAction(UIAlertAction(title: "Don't show again", style: UIAlertAction.Style.default, handler: { _ in
+                userDefaults.set(true, forKey: dontShowKey)
+            }))
+            self.present(alert, animated: true, completion: nil)
+        }
+    }
+    
+    private func showOrganizationChangeAlert() {
+        if !CloudVeilSecurityController.shared.needOrganizationChange {
+            return
+        }
+        
+        if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
+            let lastShownTime = userDefaults.double(forKey: "organization_alert_shown_time")
+            let now = Date().timeIntervalSince1970
+            if now - lastShownTime < 24*60*60 {//one day
+                return
+            }
+            userDefaults.set(now, forKey: "organization_alert_shown_time")
+            
+            let alert = UIAlertController(title: "Change Organization.", message: "Please Select Your Organization. It is important that you select your correct church organization so that your app works as expected. Unblock requests will NOT work correctly if you select the wrong group. This one-time step is required to allow organizations more flexibility in supporting their own members and is based off of church membership.", preferredStyle: UIAlertController.Style.alert)
+            alert.addAction(UIAlertAction(title: "Cancel", style: UIAlertAction.Style.default, handler: nil))
+            alert.addAction(UIAlertAction(title: "Change", style: UIAlertAction.Style.default, handler: { [self] _ in
+                let userId = TGUserController.userID
+                let url =  "https://messenger.cloudveil.org/unblock_status/\(userId)"
+                if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
+                    if let parsed = URL(string: url) {
+                        let safariController = SFSafariViewController(url: parsed)
+                        if #available(iOSApplicationExtension 10.0, iOS 10.0, *) {
+                            safariController.preferredBarTintColor = self.presentationData.theme.rootController.navigationBar.opaqueBackgroundColor
+                            safariController.preferredControlTintColor = self.presentationData.theme.rootController.navigationBar.accentTextColor
+                        }
+                        self.present(safariController, animated: true)
+                    }
+                }
+            }))
+            self.present(alert, animated: true, completion: nil)
+        }
+    }
+    //CloudVeil end
     func dismissAllUndoControllers() {
         self.forEachController({ controller in
             if let controller = controller as? UndoOverlayController {

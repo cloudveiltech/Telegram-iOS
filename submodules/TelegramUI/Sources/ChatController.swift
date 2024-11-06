@@ -132,6 +132,7 @@ import BrowserUI
 import NotificationPeerExceptionController
 import AdsReportScreen
 import AdUI
+import CloudVeilSecurityManager
 
 public enum ChatControllerPeekActions {
     case standard
@@ -2841,6 +2842,19 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     return
                 }
                 
+                //CloudVeil start
+                let PREMIUM_BOT_ID = 5314653481
+                if messageId.peerId.id._internalGetInt64Value() != PREMIUM_BOT_ID {
+                    if CloudVeilSecurityController.SecurityStaticSettings.disablePayments {
+                        let alert = standardTextAlertController(theme: AlertControllerTheme(presentationData: strongSelf.presentationData), title: "CloudVeil", text: "This is disbled for your protection",
+                                                                actions: [TextAlertAction(type: .defaultAction, title: "Ok", action: {})])
+                        
+                        strongSelf.present(alert, in: .window(.root))
+                        return
+                    }
+                }
+                //CloudVeil end
+                
                 for media in message.media {
                     if let paidContent = media as? TelegramMediaPaidContent {
                         let progressSignal = Signal<Never, NoError> { _ in
@@ -4747,6 +4761,19 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     return
                 }
                 
+                //CloudVeil start
+                if CloudVeilSecurityController.shared.disableProfilePhoto {
+                    return
+                }
+                if CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.isVideoAvatarCached(peerId: peer.id) ?? false {
+                    return
+                }
+                //CloudVeil end
+                
+                let galleryController = AvatarGalleryController(context: strongSelf.context, peer: EnginePeer(peer), remoteEntries: nil, replaceRootController: { controller, ready in
+                }, synchronousLoad: true)
+                galleryController.setHintWillBePresentedInPreviewingContext(true)
+                
                 let items: Signal<[ContextMenuItem], NoError>
                 switch chatLocation {
                 case .peer:
@@ -5478,8 +5505,9 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                     (strongSelf.chatInfoNavigationButton?.buttonItem.customDisplayNode as? ChatAvatarNavigationNode)?.contextActionIsEnabled = peer.restrictionText(platform: "ios", contentSettings: strongSelf.context.currentContentSettings.with { $0 }) == nil
                                 }
                                 strongSelf.chatInfoNavigationButton?.buttonItem.accessibilityLabel = presentationInterfaceState.strings.Conversation_ContextMenuOpenProfile
-                                
-                                strongSelf.storyStats = peerView.storyStats
+                                // CloudVeil start "Disable stories"
+                                strongSelf.storyStats = CloudVeilSecurityController.shared.disableStories ? nil : peerView.storyStats
+                                // CloudVeil end
                                 if let avatarNode = strongSelf.avatarNode {
                                     avatarNode.avatarNode.setStoryStats(storyStats: peerView.storyStats.flatMap { storyStats -> AvatarNode.StoryStats? in
                                         if storyStats.totalCount == 0 {
@@ -5722,6 +5750,9 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                         var autoremoveTimeout: Int32?
                         var copyProtectionEnabled: Bool = false
                         var hasBirthdayToday = false
+                        //CloudVeil start
+                        var hasAllowedBots = false
+                        //CloudVeil end
                         if let peer = peerView.peers[peerView.peerId] {
                             copyProtectionEnabled = peer.isCopyProtectionEnabled
                             if let cachedGroupData = peerView.cachedData as? CachedGroupData {
@@ -5737,6 +5768,14 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                 if case let .known(value) = cachedGroupData.autoremoveTimeout {
                                     autoremoveTimeout = value?.effectiveValue
                                 }
+                                
+                                //CloudVeil start
+                                for cachedBotInfo in cachedGroupData.botInfos {
+                                    if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(cachedBotInfo.peerId.id._internalGetInt64Value())) {
+                                        hasAllowedBots = true
+                                    }
+                                }
+                                //CloudVeil end
                             } else if let cachedChannelData = peerView.cachedData as? CachedChannelData {
                                 currentSendAsPeerId = cachedChannelData.sendAsPeerId
                                 if let channel = peer as? TelegramChannel, case .group = channel.info {
@@ -5753,6 +5792,13 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                 if case let .known(value) = cachedChannelData.autoremoveTimeout {
                                     autoremoveTimeout = value?.effectiveValue
                                 }
+                                //CloudVeil start
+                                for cachedBotInfo in cachedChannelData.botInfos {
+                                    if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(cachedBotInfo.peerId.id._internalGetInt64Value())) {
+                                        hasAllowedBots = true
+                                    }
+                                }
+                                //CloudVeil end
                             } else if let cachedUserData = peerView.cachedData as? CachedUserData {
                                 botMenuButton = cachedUserData.botInfo?.menuButton ?? .commands
                                 if case let .known(value) = cachedUserData.autoremoveTimeout {
@@ -5769,6 +5815,10 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                 }
                             }
                         }
+                        
+                        //CloudVeil start
+                        hasBots = hasBots && hasAllowedBots
+                        //CloudVeil end
                         
                         let isArchived: Bool = peerView.groupId == Namespaces.PeerGroup.archive
                         
@@ -7744,6 +7794,16 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             }
             self.hasBrowserOrAppInFront.set(hasBrowserOrWebAppInFront)
         }
+        
+        //CloudVeil start
+        if case let .peer(peerId) = self.chatLocation {
+            ChatControllerImpl.checkPeerIsAllowed(peerId: peerId, controller: self, context: context, presentationData: self.presentationData) { [weak self] result in
+                if result == false {
+                    self?.dismissCurrent()
+                }
+            }
+        }
+        //CloudVeil end
     }
     
     var returnInputViewFocus = false
@@ -9808,69 +9868,76 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             let dismissWebAppControllers: () -> Void = {
             }
             
-            switch navigation {
-                case let .chat(textInputState, subject, peekData):
-                    dismissWebAppControllers()
-                    if case .peer(peerId.id) = strongSelf.chatLocation {
-                        if let subject = subject, case let .message(messageSubject, _, timecode, _) = subject {
-                            if case let .id(messageId) = messageSubject {
-                                strongSelf.navigateToMessage(from: sourceMessageId, to: .id(messageId, NavigateToMessageParams(timestamp: timecode, quote: nil)))
-                            }
-                        } else {
-                            self?.playShakeAnimation()
-                        }
-                    } else if let navigationController = strongSelf.effectiveNavigationController {
-                        if case let .channel(channel) = peerId, channel.flags.contains(.isForum) {
-                            strongSelf.context.sharedContext.navigateToForumChannel(context: strongSelf.context, peerId: peerId.id, navigationController: navigationController)
-                        } else {
-                            strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peerId), subject: subject, updateTextInputState: !peerId.id.isGroupOrChannel ? textInputState : nil, keepStack: .always, peekData: peekData))
-                        }
-                    }
-                    commit()
-                case .info:
-                    dismissWebAppControllers()
-                    strongSelf.navigationActionDisposable.set((strongSelf.context.account.postbox.loadedPeerWithId(peerId.id)
-                    |> take(1)
-                    |> deliverOnMainQueue).startStrict(next: { [weak self] peer in
-                        if let strongSelf = self, peer.restrictionText(platform: "ios", contentSettings: strongSelf.context.currentContentSettings.with { $0 }) == nil {
-                            if let infoController = strongSelf.context.sharedContext.makePeerInfoController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
-                                strongSelf.effectiveNavigationController?.pushViewController(infoController)
-                            }
-                        }
-                    }))
-                    commit()
-                case let .withBotStartPayload(startPayload):
-                    dismissWebAppControllers()
-                    if case .peer(peerId.id) = strongSelf.chatLocation {
-                        strongSelf.startBot(startPayload.payload)
-                    } else if let navigationController = strongSelf.effectiveNavigationController {
-                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peerId), botStart: startPayload, keepStack: .always))
-                    }
-                    commit()
-                case let .withAttachBot(attachBotStart):
-                    dismissWebAppControllers()
-                    if let navigationController = strongSelf.effectiveNavigationController {
-                        strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peerId), attachBotStart: attachBotStart))
-                    }
-                    commit()
-                case let .withBotApp(botAppStart):
-                    let _ = (strongSelf.context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId.id))
-                    |> deliverOnMainQueue).startStandalone(next: { [weak self] peer in
-                        if let strongSelf = self, let peer {
-                            if let botApp = botAppStart.botApp {
-                                strongSelf.presentBotApp(botApp: botApp, botPeer: peer, payload: botAppStart.payload, compact: botAppStart.compact, concealed: concealed, commit: {
-                                    dismissWebAppControllers()
-                                    commit()
-                                })
-                            } else {
-                                strongSelf.context.sharedContext.openWebApp(context: strongSelf.context, parentController: strongSelf, updatedPresentationData: strongSelf.updatedPresentationData, peer: peer, threadId: nil, buttonText: "", url: "", simple: true, source: .generic, skipTermsOfService: false, payload: botAppStart.payload)
-                                commit()
-                            }
-                        }
-                    })
-                default:
-                    break
+            //CloudVeil start
+            ChatControllerImpl.checkPeerIsAllowed(peerId: peerId.id, controller: strongSelf, context: strongSelf.context, presentationData: strongSelf.presentationData) { [weak self] result in
+                if result == false {
+                    return
                 }
+                switch navigation {
+                    case let .chat(textInputState, subject, peekData):
+                            dismissWebAppControllers()
+                            if case .peer(peerId.id) = strongSelf.chatLocation {
+                                if let subject = subject, case let .message(messageSubject, _, timecode, _) = subject {
+                                    if case let .id(messageId) = messageSubject {
+                                        strongSelf.navigateToMessage(from: sourceMessageId, to: .id(messageId, NavigateToMessageParams(timestamp: timecode, quote: nil)))
+                                    }
+                                } else {
+                                    self?.playShakeAnimation()
+                                }
+                            } else if let navigationController = strongSelf.effectiveNavigationController {
+                                if case let .channel(channel) = peerId, channel.flags.contains(.isForum) {
+                                    strongSelf.context.sharedContext.navigateToForumChannel(context: strongSelf.context, peerId: peerId.id, navigationController: navigationController)
+                                } else {
+                                    strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peerId), subject: subject, updateTextInputState: !peerId.id.isGroupOrChannel ? textInputState : nil, keepStack: .always, peekData: peekData))
+                                }
+                            }
+                            commit()
+                        case .info:
+                            dismissWebAppControllers()
+                            strongSelf.navigationActionDisposable.set((strongSelf.context.account.postbox.loadedPeerWithId(peerId.id)
+                            |> take(1)
+                            |> deliverOnMainQueue).startStrict(next: { [weak self] peer in
+                                if let strongSelf = self, peer.restrictionText(platform: "ios", contentSettings: strongSelf.context.currentContentSettings.with { $0 }) == nil {
+                                    if let infoController = strongSelf.context.sharedContext.makePeerInfoController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
+                                        strongSelf.effectiveNavigationController?.pushViewController(infoController)
+                                    }
+                                }
+                            }))
+                            commit()
+                        case let .withBotStartPayload(startPayload):
+                            dismissWebAppControllers()
+                            if case .peer(peerId.id) = strongSelf.chatLocation {
+                                strongSelf.startBot(startPayload.payload)
+                            } else if let navigationController = strongSelf.effectiveNavigationController {
+                                strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peerId), botStart: startPayload, keepStack: .always))
+                            }
+                            commit()
+                        case let .withAttachBot(attachBotStart):
+                            dismissWebAppControllers()
+                            if let navigationController = strongSelf.effectiveNavigationController {
+                                strongSelf.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: strongSelf.context, chatLocation: .peer(peerId), attachBotStart: attachBotStart))
+                            }
+                            commit()
+                        case let .withBotApp(botAppStart):
+                            let _ = (strongSelf.context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId.id))
+                            |> deliverOnMainQueue).startStandalone(next: { [weak self] peer in
+                                if let strongSelf = self, let peer {
+                                    if let botApp = botAppStart.botApp {
+                                        strongSelf.presentBotApp(botApp: botApp, botPeer: peer, payload: botAppStart.payload, compact: botAppStart.compact, concealed: concealed, commit: {
+                                            dismissWebAppControllers()
+                                            commit()
+                                        })
+                                    } else {
+                                        strongSelf.context.sharedContext.openWebApp(context: strongSelf.context, parentController: strongSelf, updatedPresentationData: strongSelf.updatedPresentationData, peer: peer, threadId: nil, buttonText: "", url: "", simple: true, source: .generic, skipTermsOfService: false, payload: botAppStart.payload)
+                                        commit()
+                                    }
+                                }
+                            })
+                    default:
+                        break
+                    }
+            }
+            //CloudVeil end
         }, sendFile: nil, sendSticker: { [weak self] f, sourceView, sourceRect in
             return self?.interfaceInteraction?.sendSticker(f, true, sourceView, sourceRect, nil, []) ?? false
         }, sendEmoji: { [weak self] text, attribute in
@@ -10022,80 +10089,81 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     }
     
     func displayMediaRecordingTooltip() {
-        guard let peer = self.presentationInterfaceState.renderedPeer?.peer else {
-            return
-        }
+        //CloudVeil disabled
+        // guard let peer = self.presentationInterfaceState.renderedPeer?.peer else {
+        //     return
+        // }
         
-        if self.birthdayTooltipController != nil {
-            return
-        }
+        // if self.birthdayTooltipController != nil {
+        //     return
+        // }
         
-        let rect: CGRect? = self.chatDisplayNode.frameForInputActionButton()
+        // let rect: CGRect? = self.chatDisplayNode.frameForInputActionButton()
         
-        let updatedMode: ChatTextInputMediaRecordingButtonMode = self.presentationInterfaceState.interfaceState.mediaRecordingMode
+        // let updatedMode: ChatTextInputMediaRecordingButtonMode = self.presentationInterfaceState.interfaceState.mediaRecordingMode
         
-        let text: String
+        // let text: String
         
-        var canSwitch = true
-        if let channel = peer as? TelegramChannel {
-            if channel.hasBannedPermission(.banSendVoice) != nil && channel.hasBannedPermission(.banSendInstantVideos) != nil {
-                canSwitch = false
-            } else if channel.hasBannedPermission(.banSendVoice) != nil {
-                if channel.hasBannedPermission(.banSendInstantVideos) == nil {
-                    canSwitch = false
-                }
-            } else if channel.hasBannedPermission(.banSendInstantVideos) != nil {
-                if channel.hasBannedPermission(.banSendVoice) == nil {
-                    canSwitch = false
-                }
-            }
-        } else if let group = peer as? TelegramGroup {
-            if group.hasBannedPermission(.banSendVoice) && group.hasBannedPermission(.banSendInstantVideos) {
-                canSwitch = false
-            } else if group.hasBannedPermission(.banSendVoice) {
-                if !group.hasBannedPermission(.banSendInstantVideos) {
-                    canSwitch = false
-                }
-            } else if group.hasBannedPermission(.banSendInstantVideos) {
-                if !group.hasBannedPermission(.banSendVoice) {
-                    canSwitch = false
-                }
-            }
-        }
+        // var canSwitch = true
+        // if let channel = peer as? TelegramChannel {
+        //     if channel.hasBannedPermission(.banSendVoice) != nil && channel.hasBannedPermission(.banSendInstantVideos) != nil {
+        //         canSwitch = false
+        //     } else if channel.hasBannedPermission(.banSendVoice) != nil {
+        //         if channel.hasBannedPermission(.banSendInstantVideos) == nil {
+        //             canSwitch = false
+        //         }
+        //     } else if channel.hasBannedPermission(.banSendInstantVideos) != nil {
+        //         if channel.hasBannedPermission(.banSendVoice) == nil {
+        //             canSwitch = false
+        //         }
+        //     }
+        // } else if let group = peer as? TelegramGroup {
+        //     if group.hasBannedPermission(.banSendVoice) && group.hasBannedPermission(.banSendInstantVideos) {
+        //         canSwitch = false
+        //     } else if group.hasBannedPermission(.banSendVoice) {
+        //         if !group.hasBannedPermission(.banSendInstantVideos) {
+        //             canSwitch = false
+        //         }
+        //     } else if group.hasBannedPermission(.banSendInstantVideos) {
+        //         if !group.hasBannedPermission(.banSendVoice) {
+        //             canSwitch = false
+        //         }
+        //     }
+        // }
         
-        if updatedMode == .audio {
-            if canSwitch {
-                text = self.presentationData.strings.Conversation_HoldForAudio
-            } else {
-                text = self.presentationData.strings.Conversation_HoldForAudioOnly
-            }
-        } else {
-            if canSwitch {
-                text = self.presentationData.strings.Conversation_HoldForVideo
-            } else {
-                text = self.presentationData.strings.Conversation_HoldForVideoOnly
-            }
-        }
+        // if updatedMode == .audio {
+        //     if canSwitch {
+        //         text = self.presentationData.strings.Conversation_HoldForAudio
+        //     } else {
+        //         text = self.presentationData.strings.Conversation_HoldForAudioOnly
+        //     }
+        // } else {
+        //     if canSwitch {
+        //         text = self.presentationData.strings.Conversation_HoldForVideo
+        //     } else {
+        //         text = self.presentationData.strings.Conversation_HoldForVideoOnly
+        //     }
+        // }
         
-        self.silentPostTooltipController?.dismiss()
+        // self.silentPostTooltipController?.dismiss()
         
-        if let tooltipController = self.mediaRecordingModeTooltipController {
-            tooltipController.updateContent(.text(text), animated: true, extendTimer: true)
-        } else if let rect = rect {
-            let tooltipController = TooltipController(content: .text(text), baseFontSize: self.presentationData.listsFontSize.baseDisplaySize, padding: 2.0)
-            self.mediaRecordingModeTooltipController = tooltipController
-            tooltipController.dismissed = { [weak self, weak tooltipController] _ in
-                if let strongSelf = self, let tooltipController = tooltipController, strongSelf.mediaRecordingModeTooltipController === tooltipController {
-                    strongSelf.mediaRecordingModeTooltipController = nil
-                }
-            }
-            self.present(tooltipController, in: .window(.root), with: TooltipControllerPresentationArguments(sourceNodeAndRect: { [weak self] in
-                if let strongSelf = self {
-                    return (strongSelf.chatDisplayNode, rect)
-                }
-                return nil
-            }))
-        }
+        // if let tooltipController = self.mediaRecordingModeTooltipController {
+        //     tooltipController.updateContent(.text(text), animated: true, extendTimer: true)
+        // } else if let rect = rect {
+        //     let tooltipController = TooltipController(content: .text(text), baseFontSize: self.presentationData.listsFontSize.baseDisplaySize, padding: 2.0)
+        //     self.mediaRecordingModeTooltipController = tooltipController
+        //     tooltipController.dismissed = { [weak self, weak tooltipController] _ in
+        //         if let strongSelf = self, let tooltipController = tooltipController, strongSelf.mediaRecordingModeTooltipController === tooltipController {
+        //             strongSelf.mediaRecordingModeTooltipController = nil
+        //         }
+        //     }
+        //     self.present(tooltipController, in: .window(.root), with: TooltipControllerPresentationArguments(sourceNodeAndRect: { [weak self] in
+        //         if let strongSelf = self {
+        //             return (strongSelf.chatDisplayNode, rect)
+        //         }
+        //         return nil
+        //     }))
+        // }
     }
     
     func displaySendWhenOnlineTooltip() {

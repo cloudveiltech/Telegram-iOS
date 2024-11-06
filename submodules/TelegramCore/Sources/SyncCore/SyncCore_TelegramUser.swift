@@ -1,4 +1,5 @@
 import Postbox
+import CloudVeilSecurityManager
 
 public struct UserInfoFlags: OptionSet {
     public var rawValue: Int32
@@ -220,7 +221,13 @@ public final class TelegramUser: Peer, Equatable {
         self.botInfo = botInfo
         self.restrictionInfo = restrictionInfo
         self.flags = flags
-        self.emojiStatus = emojiStatus
+        //CloudVeil start
+        if CloudVeilSecurityController.shared.disableEmojiStatus {
+            self.emojiStatus = nil
+        } else {
+            self.emojiStatus = emojiStatus
+        }
+        //CloudVeil end
         self.usernames = usernames
         self.storiesHidden = storiesHidden
         self.nameColor = nameColor

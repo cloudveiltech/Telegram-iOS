@@ -15,6 +15,7 @@ import OpenInExternalAppUI
 import BrowserUI
 import OverlayStatusController
 import PresentationDataUtils
+import CloudVeilSecurityManager
 
 public struct ParsedSecureIdUrl {
     public let peerId: PeerId
@@ -1085,6 +1086,14 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                             context.sharedContext.applicationBindings.openUrl(url)
                         }
                     } else {
+
+                        //CloudVeil start
+                        if CloudVeilSecurityController.SecurityStaticSettings.disableInAppBrowser && !CloudVeilSecurityController.shared.isUrlWhitelisted(url) {
+                            context.sharedContext.applicationBindings.openUrl(parsedUrl.absoluteString)
+                            return
+                        }
+                        //CloudVeil end
+
                         var isExceptedDomain = false
                         let host = ".\((parsedUrl.host ?? "").lowercased())"
                         for exception in settings.exceptions {

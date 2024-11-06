@@ -20,6 +20,7 @@ import LegacyMediaPickerUI
 import TextFormat
 import AvatarEditorScreen
 import OldChannelsController
+import CloudVeilSecurityManager
 
 private struct CreateChannelArguments {
     let context: AccountContext
@@ -632,7 +633,9 @@ public func createChannelController(context: AccountContext, mode: CreateChannel
             let keyboardInputData = Promise<AvatarKeyboardInputData>()
             keyboardInputData.set(AvatarEditorScreen.inputData(context: context, isGroup: true))
             
-            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: true, hasDeleteButton: stateValue.with({ $0.avatar }) != nil, hasViewButton: false, personalPhoto: false, isVideo: false, saveEditedPhotos: false, saveCapturedMedia: false, signup: false, forum: false, title: nil, isSuggesting: false)!
+            //CloudVeil start
+            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch, hasDeleteButton: stateValue.with({ $0.avatar }) != nil, hasViewButton: false, personalPhoto: false, isVideo: false, saveEditedPhotos: false, saveCapturedMedia: false, signup: false, forum: false, title: nil, isSuggesting: false)!
+            //CloudVeil end
             mixin.stickersContext = LegacyPaintStickersContext(context: context)
             let _ = currentAvatarMixin.swap(mixin)
             mixin.requestSearchController = { assetsController in

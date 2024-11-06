@@ -12,6 +12,8 @@ int main(int argc, char *argv[]) {
      1*/
     
     @autoreleasepool {
-        return UIApplicationMain(argc, argv, @"Application", @"AppDelegate");
+        // CloudVeil: the following line has the original Telegram app delegate replaced
+        // by a CloudVeil subclass of the original app delegate
+        return UIApplicationMain(argc, argv, @"Application", @"CVAppDelegate");
     }
 }

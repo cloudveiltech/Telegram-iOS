@@ -43,6 +43,7 @@ import ChatInputPanelNode
 import TelegramNotices
 import AnimatedCountLabelNode
 import TelegramStringFormatting
+import CloudVeilSecurityManager
 
 private let accessoryButtonFont = Font.medium(14.0)
 private let counterFont = Font.with(size: 14.0, design: .regular, traits: [.monospacedNumbers])
@@ -702,12 +703,30 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate, Ch
                             break
                         }
                     }
-                    if itemAndButton == nil {
-                        let button = AccessoryItemIconButtonNode(item: item, theme: currentState.theme, strings: currentState.strings)
-                        button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
-                        itemAndButton = (item, button)
+                    
+                    // CloudVeil start "Disable custom keyboard"
+                    var shouldBeHidden = false
+                    switch item {
+                    case let .input(_, inputMode), let .botInput(_, inputMode):
+                        switch inputMode {
+                        case .stickers, .emoji:
+                            shouldBeHidden = true
+                        default:
+                            break
+                        }
+                    default:
+                        break
                     }
-                    updatedButtons.append(itemAndButton!)
+                    
+                    if !CloudVeilSecurityController.shared.disableStickers || !shouldBeHidden {
+                        if itemAndButton == nil {
+                            let button = AccessoryItemIconButtonNode(item: item, theme: currentState.theme, strings: currentState.strings)
+                            button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
+                            itemAndButton = (item, button)
+                        }
+                        updatedButtons.append(itemAndButton!)
+                    }
+                    //CloudVeil end
                 }
                 for (_, button) in self.accessoryItemButtons {
                     button.removeFromSupernode()
@@ -2034,12 +2053,29 @@ class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDelegate, Ch
                         break
                     }
                 }
-                if itemAndButton == nil {
-                    let button = AccessoryItemIconButtonNode(item: item, theme: interfaceState.theme, strings: interfaceState.strings)
-                    button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
-                    itemAndButton = (item, button)
+                // CloudVeil start "Disable custom keyboard"
+                var shouldBeHidden = false
+                switch item {
+                case let .input(_, inputMode), let .botInput(_, inputMode):
+                    switch inputMode {
+                    case .stickers, .emoji:
+                        shouldBeHidden = true
+                    default:
+                        break
+                    }
+                default:
+                    break
                 }
-                updatedButtons.append(itemAndButton!)
+                
+                if !CloudVeilSecurityController.shared.disableStickers || !shouldBeHidden {
+                    if itemAndButton == nil {
+                        let button = AccessoryItemIconButtonNode(item: item, theme: interfaceState.theme, strings: interfaceState.strings)
+                        button.addTarget(self, action: #selector(self.accessoryItemButtonPressed(_:)), forControlEvents: .touchUpInside)
+                        itemAndButton = (item, button)
+                    }
+                    updatedButtons.append(itemAndButton!)
+                }
+                // CloudVeil end
             }
             for (_, button) in self.accessoryItemButtons {
                 if animatedTransition {

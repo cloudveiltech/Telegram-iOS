@@ -4,6 +4,9 @@ import Postbox
 import TelegramApi
 import NetworkLogging
 import ManagedFile
+//CloudVeil start
+import CloudVeil
+//CloudVeil end
 
 private let queue = DispatchQueue(label: "org.telegram.Telegram.trace", qos: .utility)
 
@@ -282,6 +285,9 @@ public final class Logger {
     }
     
     public func log(_ tag: String, _ what: @autoclosure () -> String) {
+        //CloudVeil start
+        CVLog.log(tag, what())
+        //CloudVeil end
         if !self.logToFile && !self.logToConsole {
             return
         }
@@ -398,6 +404,10 @@ public final class Logger {
     
     public func shortLog(_ tag: String, _ what: @autoclosure () -> String) {
         let string = what()
+
+        //CloudVeil start
+        CVLog.log(tag, string)
+        //CloudVeil end
         
         var rawTime = time_t()
         time(&rawTime)

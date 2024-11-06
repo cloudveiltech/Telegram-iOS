@@ -7,6 +7,7 @@ import Display
 import Postbox
 import TelegramCore
 import SwiftSignalKit
+import CloudVeilSecurityManager
 
 final class PeerInfoHeaderEditingContentNode: ASDisplayNode {
     private let context: AccountContext
@@ -55,8 +56,10 @@ final class PeerInfoHeaderEditingContentNode: ASDisplayNode {
         transition.updateFrameAdditiveToCenter(node: self.avatarNode, frame: CGRect(origin: avatarFrame.center, size: CGSize()))
         
         var contentHeight: CGFloat = statusBarHeight + 10.0 + avatarSize + 20.0
-        
-        if canEditPeerInfo(context: self.context, peer: peer, chatLocation: chatLocation, threadData: threadData)  {
+
+        //CloudVeil start
+        if canEditPeerInfo(context: self.context, peer: peer, chatLocation: chatLocation, threadData: threadData) && !CloudVeilSecurityController.shared.disableProfilePhotoChange {
+            //CloudVeil end
             if self.avatarButtonNode.supernode == nil {
                 self.addSubnode(self.avatarButtonNode)
             }

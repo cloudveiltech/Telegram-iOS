@@ -21,6 +21,7 @@ import InvisibleInkDustNode
 import TextNodeWithEntities
 import ChatMessageBubbleContentNode
 import ChatMessageItemCommon
+import CloudVeilSecurityManager
 
 private func attributedServiceMessageString(theme: ChatPresentationThemeData, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, dateTimeFormat: PresentationDateTimeFormat, message: Message, accountPeerId: PeerId, forForumOverview: Bool) -> NSAttributedString? {
     return universalServiceMessageString(presentationData: (theme.theme, theme.wallpaper), strings: strings, nameDisplayOrder: nameDisplayOrder, dateTimeFormat: dateTimeFormat, message: EngineMessage(message), accountPeerId: accountPeerId, forChatList: false, forForumOverview: forForumOverview)
@@ -270,6 +271,11 @@ public class ChatMessageActionBubbleContentNode: ChatMessageBubbleContentNode {
                                 strongSelf.imageNode = nil
                             }
                             strongSelf.mediaBackgroundNode.image = backgroundImage
+                            
+                            //CloudVeil start
+                            if let imageNode = strongSelf.imageNode {
+                                imageNode.isHidden = CloudVeilSecurityController.shared.disableProfilePhoto
+                            }//CloudVeil end
                             
                             if let image = image, let video = image.videoRepresentations.last, let id = image.id?.id {
                                 let videoFileReference = FileMediaReference.message(message: MessageReference(item.message), media: TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: 0), partialReference: nil, resource: video.resource, previewRepresentations: image.representations, videoThumbnails: [], immediateThumbnailData: image.immediateThumbnailData, mimeType: "video/mp4", size: nil, attributes: [.Animated, .Video(duration: 0, size: video.dimensions, flags: [], preloadSize: nil, coverTime: nil, videoCodec: nil)], alternativeRepresentations: []))

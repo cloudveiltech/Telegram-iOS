@@ -10,6 +10,7 @@ import BundleIconComponent
 import AudioToolbox
 import SwiftSignalKit
 import LocalizedPeerData
+import CloudVeilSecurityManager
 
 public final class EntityKeyboardChildEnvironment: Equatable {
     public let theme: PresentationTheme
@@ -166,10 +167,12 @@ public final class EntityKeyboardComponent: Component {
         self.isContentInFocus = isContentInFocus
         self.containerInsets = containerInsets
         self.topPanelInsets = topPanelInsets
+        // CloudVeil start
         self.emojiContent = emojiContent
-        self.stickerContent = stickerContent
+        self.stickerContent = CloudVeilSecurityController.shared.disableStickers ? nil : stickerContent
         self.maskContent = maskContent
-        self.gifContent = gifContent
+        self.gifContent = CloudVeilSecurityController.SecurityStaticSettings.disableGifs ? nil : gifContent
+        // CloudVeil end
         self.hasRecentGifs = hasRecentGifs
         self.availableGifSearchEmojies = availableGifSearchEmojies
         self.defaultToEmojiTab = defaultToEmojiTab
