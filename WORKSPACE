@@ -99,12 +99,9 @@ load("@rules_pods//BazelExtensions:workspace.bzl", "new_pod_repository")
 
 new_pod_repository(
     name = "Sentry",
-    url = "https://github.com/getsentry/sentry-cocoa/archive/8.21.0.zip",
-)
-
-new_pod_repository(
-    name = "SentryPrivate",
-    url = "https://github.com/getsentry/sentry-cocoa/archive/8.21.0.zip",
+    url = "https://github.com/getsentry/sentry-cocoa/releases/download/8.41.0/Sentry.xcframework.zip",
+    podspec_url = "Sentry.podspec.json",
+    is_xcframework = True,
 )
 
 new_pod_repository(
