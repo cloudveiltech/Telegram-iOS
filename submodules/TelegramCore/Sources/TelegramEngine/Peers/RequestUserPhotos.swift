@@ -25,12 +25,12 @@ public struct TelegramPeerPhoto {
 
 // CloudVeil start
 // TODO: KJ: recheck me
-public func requestPeerPhotos(postbox: Postbox, network: Network, peerId: PeerId) -> Signal<[TelegramPeerPhoto], NoError> {
-    return _internal_requestPeerPhotos(postbox: postbox, network: network, peerId: peerId)
+public func requestPeerPhotos(accountPeerId: PeerId, postbox: Postbox, network: Network, peerId: PeerId) -> Signal<[TelegramPeerPhoto], NoError> {
+    return _internal_requestPeerPhotos(accountPeerId: accountPeerId, postbox: postbox, network: network, peerId: peerId)
 }
 // CloudVeil end
 
-func _internal_requestPeerPhotos(postbox: Postbox, network: Network, peerId: PeerId) -> Signal<[TelegramPeerPhoto], NoError> {
+func _internal_requestPeerPhotos(accountPeerId: PeerId, postbox: Postbox, network: Network, peerId: PeerId) -> Signal<[TelegramPeerPhoto], NoError> {
     return postbox.transaction{ transaction -> Peer? in
         return transaction.getPeer(peerId)
     }
