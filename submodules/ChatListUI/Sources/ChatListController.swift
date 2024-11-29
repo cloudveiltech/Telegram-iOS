@@ -1126,7 +1126,10 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                     }
                     
                     //CloudVeil start
-                    TelegramBaseController.checkPeerIsAllowed(peerId: peer.id, controller: strongSelf, context: strongSelf.context, presentationData: strongSelf.presentationData) { [weak self] result in
+                    TelegramBaseController.checkPeerIsAllowed(peerId: peer.id, controller: self, context: self.context, presentationData: self.presentationData) { [weak self] result in
+                        guard let strongSelf = self else {
+                            return
+                        }
                         if result {
                             if case let .channel(channel) = peer, channel.flags.contains(.isForum), threadId == nil {
                                 strongSelf.chatListDisplayNode.clearHighlightAnimated(true)
@@ -1138,7 +1141,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                                 }
                             } else {
                                 if case let .channel(channel) = peer, channel.flags.contains(.isForum), let threadId {
-                                    let _ = strongSelf.context.sharedContext.navigateToForumThread(context: strongSelf.context, peerId: peer.id, threadId: threadId, messageId: nil, navigationController: navigationController, activateInput: nil, keepStack: .never).startStandalone()
+                                    let _ = strongSelf.context.sharedContext.navigateToForumThread(context: strongSelf.context, peerId: peer.id, threadId: threadId, messageId: nil, navigationController: navigationController, activateInput: nil, scrollToEndIfExists: scrollToEndIfExists, keepStack: .never).startStandalone()
                                     strongSelf.chatListDisplayNode.clearHighlightAnimated(true)
                                 } else {
                                     var navigationAnimationOptions: NavigationAnimationOptions = []
