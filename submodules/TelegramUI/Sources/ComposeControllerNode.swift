@@ -62,7 +62,8 @@ final class ComposeControllerNode: ASDisplayNode {
             })
         )
         
-        self.contactListNode = ContactListNode(context: context, presentation: .single(.natural(options: options, includeChatList: false)), displayPermissionPlaceholder: false)
+        self.contactListNode = ContactListNode(context: context, presentation: .single(.natural(options: options, 
+            includeChatList: false, topPeers: .none)), onlyWriteable: false, isGroupInvitation: false, displayPermissionPlaceholder: false)
         //CloudVeil end
                       
         super.init()
