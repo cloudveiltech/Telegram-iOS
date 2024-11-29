@@ -10366,7 +10366,8 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
                         context: self.context,
                         chatLocation: .peer(id: peer.id),
                         subject: nil, botStart: nil,
-                        mode: .standard(previewing: false)
+                        mode: .standard(.default),
+                        params: nil
                     ))
                 }
             })
@@ -12219,10 +12220,11 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
     
     private func updateNavigationExpansionPresentation(isExpanded: Bool, animated: Bool) {
         //CloudVeil start
-        var isExpanded = isExpanded
-        if !self.headerNode.avatarCanBeExpanded {
-            isExpanded = false
-        }
+        //That code below may not be needed, keep it for reference only
+        //var isExpanded = isExpanded
+        //if !self.headerNode.avatarCanBeExpanded {
+        //    isExpanded = false
+        //}
         //CloudVeil end
         
         /*if let controller = self.controller {
