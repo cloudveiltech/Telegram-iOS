@@ -90,7 +90,7 @@ public final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContent
                 }
                 //CloudVeil end
                 
-                let openChatMessageMode: ChatControllerInteractionOpenMessageMode
+                var openChatMessageMode: ChatControllerInteractionOpenMessageMode
                 switch mode {
                     case .default:
                         openChatMessageMode = .default
