@@ -402,6 +402,7 @@ final class ShareSearchContainerNode: ASDisplayNode, ShareContentContainerNode {
                                     existingPeerIds.insert(peer.id)
                                     entries.append(ShareSearchPeerEntry(index: index, peer: EngineRenderedPeer(peer: EnginePeer(peer)), presence: nil, requiresPremiumForMessaging: peerRequiresPremiumForMessaging[peer.id] ?? false, theme: theme, strings: strings, isGlobal: true))
                                     index += 1
+                                }
                             }
                         }
                         //CloudVeil end
