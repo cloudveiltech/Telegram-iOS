@@ -1996,38 +1996,42 @@ final class StoryItemSetContainerSendMessage {
                                         
                     configureLegacyAssetPicker(controller, context: component.context, peer: peer._asPeer(), chatLocation: .peer(id: peer.id), initialCaption: inputText, hasSchedule: peer.id.namespace != Namespaces.Peer.SecretChat, presentWebSearch: editingMedia ? nil : { [weak view, weak legacyController] in
                         //CloudVeil disabled
-                        // if let view, let component = view.component {
-                        //     let theme = component.theme
-                        //     let updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>) = (component.context.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: theme), component.context.sharedContext.presentationData |> map { $0.withUpdated(theme: theme) })
-                        //     let controller = WebSearchController(context: component.context, updatedPresentationData: updatedPresentationData, peer: peer, chatLocation: .peer(id: peer.id), configuration: searchBotsConfiguration, mode: .media(attachment: false, completion: { [weak view] results, selectionState, editingState, silentPosting in
-                        //         if let legacyController = legacyController {
-                        //             legacyController.dismiss()
-                        //         }
-                        //         guard let view else {
-                        //             return
-                        //         }
-                        //         legacyEnqueueWebSearchMessages(selectionState, editingState, enqueueChatContextResult: { [weak view] result in
-                        //             if let strongSelf = self, let view {
-                        //                 strongSelf.enqueueChatContextResult(view: view, peer: peer, replyMessageId: replyMessageId, storyId: replyToStoryId, results: results, result: result, hideVia: true)
-                        //             }
-                        //         }, enqueueMediaMessages: { [weak view] signals in
-                        //             if let strongSelf = self, let view {
-                        //                 if editingMedia {
-                        //                     strongSelf.editMessageMediaWithLegacySignals(view: view, signals: signals)
-                        //                 } else {
-                        //                     strongSelf.enqueueMediaMessages(view: view, peer: peer, replyToMessageId: replyMessageId, replyToStoryId: replyToStoryId, signals: signals, silentPosting: silentPosting)
-                        //                 }
-                        //             }
-                        //         })
-                        //     }))
-                        //     controller.getCaptionPanelView = { [weak view] in
-                        //         guard let self, let view else {
-                        //             return nil
-                        //         }
-                        //         return self.getCaptionPanelView(view: view, peer: peer)
-                        //     }
-                        //     component.controller()?.push(controller)
-                        // }
+                        let disable = true
+                        if disable {
+                            return
+                        }
+                        if let view, let component = view.component {
+                            let theme = component.theme
+                            let updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>) = (component.context.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: theme), component.context.sharedContext.presentationData |> map { $0.withUpdated(theme: theme) })
+                            let controller = WebSearchController(context: component.context, updatedPresentationData: updatedPresentationData, peer: peer, chatLocation: .peer(id: peer.id), configuration: searchBotsConfiguration, mode: .media(attachment: false, completion: { [weak view] results, selectionState, editingState, silentPosting in
+                                if let legacyController = legacyController {
+                                    legacyController.dismiss()
+                                }
+                                guard let view else {
+                                    return
+                                }
+                                legacyEnqueueWebSearchMessages(selectionState, editingState, enqueueChatContextResult: { [weak view] result in
+                                    if let strongSelf = self, let view {
+                                        strongSelf.enqueueChatContextResult(view: view, peer: peer, replyMessageId: replyMessageId, storyId: replyToStoryId, results: results, result: result, hideVia: true)
+                                    }
+                                }, enqueueMediaMessages: { [weak view] signals in
+                                    if let strongSelf = self, let view {
+                                        if editingMedia {
+                                            strongSelf.editMessageMediaWithLegacySignals(view: view, signals: signals)
+                                        } else {
+                                            strongSelf.enqueueMediaMessages(view: view, peer: peer, replyToMessageId: replyMessageId, replyToStoryId: replyToStoryId, signals: signals, silentPosting: silentPosting)
+                                        }
+                                    }
+                                })
+                            }))
+                            controller.getCaptionPanelView = { [weak view] in
+                                guard let self, let view else {
+                                    return nil
+                                }
+                                return self.getCaptionPanelView(view: view, peer: peer)
+                            }
+                            component.controller()?.push(controller)
+                        }
                     }, presentSelectionLimitExceeded: { [weak view] in
                         guard let view else {
                             return
