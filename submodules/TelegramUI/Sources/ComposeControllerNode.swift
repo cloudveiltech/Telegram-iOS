@@ -60,7 +60,7 @@ final class ComposeControllerNode: ASDisplayNode {
             ContactListAdditionalOption(title: self.presentationData.strings.Compose_NewChannel, icon: .generic(UIImage(bundleImageName: "Contact List/CreateChannelActionIcon")!), action: {
                 openCreateNewChannelImpl?()
             })
-        ], includeChatList: false, topPeers: .none)), onlyWriteable: false, isGroupInvitation: false, displayPermissionPlaceholder: false)
+        )
         
         self.contactListNode = ContactListNode(context: context, presentation: .single(.natural(options: options, includeChatList: false)), displayPermissionPlaceholder: false)
         //CloudVeil end
