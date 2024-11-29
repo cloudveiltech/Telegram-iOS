@@ -1287,31 +1287,37 @@ extension ChatControllerImpl {
                     legacyController.deferScreenEdgeGestures = [.top]
                                         
                     configureLegacyAssetPicker(controller, context: strongSelf.context, peer: peer, chatLocation: strongSelf.chatLocation, initialCaption: inputText, hasSchedule: strongSelf.presentationInterfaceState.subject != .scheduledMessages && peer.id.namespace != Namespaces.Peer.SecretChat, presentWebSearch: editingMedia ? nil : { [weak self, weak legacyController] in
-                        //CloudVeil disabled
-                        // if let strongSelf = self {
-                        //     let controller = WebSearchController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, peer: EnginePeer(peer), chatLocation: strongSelf.chatLocation, configuration: searchBotsConfiguration, mode: .media(attachment: false, completion: { results, selectionState, editingState, silentPosting in
-                        //         if let legacyController = legacyController {
-                        //             legacyController.dismiss()
-                        //         }
-                        //         legacyEnqueueWebSearchMessages(selectionState, editingState, enqueueChatContextResult: { result in
-                        //             if let strongSelf = self {
-                        //                 strongSelf.enqueueChatContextResult(results, result, hideVia: true)
-                        //             }
-                        //         }, enqueueMediaMessages: { signals in
-                        //             if let strongSelf = self {
-                        //                 if editingMedia {
-                        //                     strongSelf.editMessageMediaWithLegacySignals(signals)
-                        //                 } else {
-                        //                     strongSelf.enqueueMediaMessages(signals: signals, silentPosting: silentPosting)
-                        //                 }
-                        //             }
-                        //         })
-                        //     }))
-                        //     controller.getCaptionPanelView = { [weak self] in
-                        //         return self?.getCaptionPanelView(isFile: fileMode)
-                        //     }
-                        //     strongSelf.effectiveNavigationController?.pushViewController(controller)
-                        // }
+                        //CloudVeil start
+                        //Disable all code below, and keep the code for future reference also prevent build failure
+                        let disable = true
+                        if disable {
+                            return
+                        }
+                        //CloudVeil end
+                        if let strongSelf = self {
+                            let controller = WebSearchController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, peer: EnginePeer(peer), chatLocation: strongSelf.chatLocation, configuration: searchBotsConfiguration, mode: .media(attachment: false, completion: { results, selectionState, editingState, silentPosting in
+                                if let legacyController = legacyController {
+                                    legacyController.dismiss()
+                                }
+                                legacyEnqueueWebSearchMessages(selectionState, editingState, enqueueChatContextResult: { result in
+                                    if let strongSelf = self {
+                                        strongSelf.enqueueChatContextResult(results, result, hideVia: true)
+                                    }
+                                }, enqueueMediaMessages: { signals in
+                                    if let strongSelf = self {
+                                        if editingMedia {
+                                            strongSelf.editMessageMediaWithLegacySignals(signals)
+                                        } else {
+                                            strongSelf.enqueueMediaMessages(signals: signals, silentPosting: silentPosting)
+                                        }
+                                    }
+                                })
+                            }))
+                            controller.getCaptionPanelView = { [weak self] in
+                                return self?.getCaptionPanelView(isFile: fileMode)
+                            }
+                            strongSelf.effectiveNavigationController?.pushViewController(controller)
+                        }
                     }, presentSelectionLimitExceeded: {
                         guard let strongSelf = self else {
                             return
