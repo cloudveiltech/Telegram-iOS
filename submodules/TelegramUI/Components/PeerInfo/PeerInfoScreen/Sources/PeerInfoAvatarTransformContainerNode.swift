@@ -17,7 +17,7 @@ import Postbox
 import TelegramCore
 import EmojiStatusComponent
 import GalleryUI
-
+import CloudVeilSecurityManager
 
 final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
     let context: AccountContext

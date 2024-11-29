@@ -13,6 +13,7 @@ import Postbox
 import TelegramCore
 import Display
 import GalleryUI
+import CloudVeilSecurityManager
 
 final class PeerInfoEditingAvatarNode: ASDisplayNode {
     private let context: AccountContext

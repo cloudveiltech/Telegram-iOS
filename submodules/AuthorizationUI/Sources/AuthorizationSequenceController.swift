@@ -23,8 +23,8 @@ import AlertUI
 import ObjectiveC
 
 private var ObjCKey_Delegate: Int?
-import CloudVeilSecurityManager
 import CVUI
+import CloudVeilSecurityManager
 
 private enum InnerState: Equatable {
     case state(UnauthorizedAccountStateContents)
