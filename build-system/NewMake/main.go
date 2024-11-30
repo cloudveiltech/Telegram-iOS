@@ -396,7 +396,6 @@ func bazelArgs(cfg *Config, cfgdir, cmd string, extras ...string) []string {
 		case "dist", "adhoc":
 			args = append(args,
 				"--define=apple.add_debugger_entitlement=no",
-				"--apple_bitcode=watchos=none",
 			)
 		default:
 			args = append(args, "--define=apple.add_debugger_entitlement=yes")
