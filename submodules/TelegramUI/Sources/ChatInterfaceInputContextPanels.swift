@@ -5,6 +5,7 @@ import AccountContext
 import ChatPresentationInterfaceState
 import ChatControllerInteraction
 import ChatInputContextPanelNode
+import CloudVeilSecurityManager
 
 private func inputQueryResultPriority(_ result: ChatPresentationInputQueryResult) -> (Int, Bool) {
     switch result {
@@ -63,6 +64,11 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
     if hasBannedInlineContent {
         switch inputQueryResult {
             case .stickers, .contextRequestResult:
+                //CloudVeil start
+                if CloudVeilSecurityController.shared.disableStickers {
+                    return nil
+                }
+                //CloudVeil end
                 if let currentPanel = currentPanel as? DisabledContextResultsChatInputContextPanelNode {
                     return currentPanel
                 } else {
@@ -78,6 +84,12 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
     switch inputQueryResult {
         case let .stickers(unfilteredResults):
             if !unfilteredResults.isEmpty {
+                //CloudVeil start
+                if CloudVeilSecurityController.shared.disableStickers {
+                    return nil
+                }
+                //CloudVeil end
+
                 var results: [FoundStickerItem] = []
                 for result in unfilteredResults {
                     if !results.contains(where: { $0.file.fileId == result.file.fileId }) {
@@ -155,6 +167,12 @@ func inputContextPanelForChatPresentationIntefaceState(_ chatPresentationInterfa
                 return nil
             }
         case let .contextRequestResult(_, results):
+            //CloudVeil start
+            if CloudVeilSecurityController.SecurityStaticSettings.disableInlineBots {
+                return nil
+            }
+            //CloudVeil end
+            
             if let results = results, (!results.results.isEmpty || results.switchPeer != nil || results.webView != nil) {
                 switch results.presentation {
                     case .list:

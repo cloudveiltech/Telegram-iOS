@@ -33,6 +33,7 @@ import PhoneNumberFormat
 import AttachmentUI
 import MinimizedContainer
 import BrowserUI
+import CloudVeilSecurityManager
 
 final class UnauthorizedApplicationContext {
     let sharedContext: SharedAccountContextImpl
@@ -344,6 +345,13 @@ final class AuthorizedApplicationContext {
                     if !notify {
                         chatIsVisible = true
                     }
+                    
+                    //CloudVeil start
+                    let avail = CloudVeilSecurityController.shared.isConversationAvailable(conversationId: NSInteger(firstMessage.id.peerId.id._internalGetInt64Value())) ?? false
+                    if !avail  {
+                        return
+                    }
+                    //CloudVeil end
                     
                     if !chatIsVisible {
                         strongSelf.mainWindow.forEachViewController({ controller in

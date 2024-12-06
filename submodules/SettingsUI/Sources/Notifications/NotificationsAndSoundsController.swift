@@ -16,6 +16,7 @@ import TelegramNotices
 import NotificationSoundSelectionUI
 import TelegramStringFormatting
 import NotificationPeerExceptionController
+import CloudVeilSecurityManager
 
 private struct CounterTagSettings: OptionSet {
     var rawValue: Int32
@@ -566,18 +567,22 @@ private func notificationsAndSoundsEntries(authorizationStatus: AccessType, warn
     entries.append(.privateChats(presentationData.theme, presentationData.strings.Notifications_PrivateChats, !exceptions.users.isEmpty ? presentationData.strings.Notifications_CategoryExceptions(Int32(exceptions.users.peerIds.count)) : "", globalSettings.privateChats.enabled ? presentationData.strings.Notifications_On : presentationData.strings.Notifications_Off))
     entries.append(.groupChats(presentationData.theme, presentationData.strings.Notifications_GroupChats, !exceptions.groups.isEmpty ? presentationData.strings.Notifications_CategoryExceptions(Int32(exceptions.groups.peerIds.count)) : "", globalSettings.groupChats.enabled ? presentationData.strings.Notifications_On : presentationData.strings.Notifications_Off))
     entries.append(.channels(presentationData.theme, presentationData.strings.Notifications_Channels, !exceptions.channels.isEmpty ? presentationData.strings.Notifications_CategoryExceptions(Int32(exceptions.channels.peerIds.count)) : "", globalSettings.channels.enabled ? presentationData.strings.Notifications_On : presentationData.strings.Notifications_Off))
+   
+    //CloudVeil start
+    if !CloudVeilSecurityController.shared.disableStories {
+        let storiesValue: String
+        switch globalSettings.privateChats.storySettings.mute {
+        case .default:
+            storiesValue = presentationData.strings.Notifications_TopChats
+        case .muted:
+            storiesValue = presentationData.strings.Notifications_Off
+        case .unmuted:
+            storiesValue = presentationData.strings.Notifications_On
+        }
     
-    let storiesValue: String
-    switch globalSettings.privateChats.storySettings.mute {
-    case .default:
-        storiesValue = presentationData.strings.Notifications_TopChats
-    case .muted:
-        storiesValue = presentationData.strings.Notifications_Off
-    case .unmuted:
-        storiesValue = presentationData.strings.Notifications_On
+        entries.append(.stories(presentationData.theme, presentationData.strings.Notifications_Stories, !exceptions.stories.isEmpty ? presentationData.strings.Notifications_CategoryExceptions(Int32(exceptions.stories.peerIds.count)) : "", storiesValue))
     }
-    
-    entries.append(.stories(presentationData.theme, presentationData.strings.Notifications_Stories, !exceptions.stories.isEmpty ? presentationData.strings.Notifications_CategoryExceptions(Int32(exceptions.stories.peerIds.count)) : "", storiesValue))
+    //CloudVeil end 
     
     var reactionsValue: String = ""
     var hasReactionNotifications = false
@@ -602,7 +607,6 @@ private func notificationsAndSoundsEntries(authorizationStatus: AccessType, warn
         reactionsValue.append(presentationData.strings.Notifications_Reactions_SubtitleStories)
     }
     entries.append(.reactions(presentationData.theme, presentationData.strings.Notifications_Reactions, reactionsValue, hasReactionNotifications ? presentationData.strings.Notifications_On : presentationData.strings.Notifications_Off))
-    
     entries.append(.inAppHeader(presentationData.theme, presentationData.strings.Notifications_InAppNotifications.uppercased()))
     entries.append(.inAppSounds(presentationData.theme, presentationData.strings.Notifications_InAppNotificationsSounds, inAppSettings.playSounds))
     entries.append(.inAppVibrate(presentationData.theme, presentationData.strings.Notifications_InAppNotificationsVibrate, inAppSettings.vibrate))

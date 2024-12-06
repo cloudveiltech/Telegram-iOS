@@ -11,6 +11,7 @@ import OverlayStatusController
 import LocalizedPeerData
 import UndoUI
 import TooltipUI
+import CloudVeilSecurityManager
 
 func contactContextMenuItems(context: AccountContext, peerId: EnginePeer.Id, contactsController: ContactsController?, isStories: Bool) -> Signal<[ContextMenuItem], NoError> {
     let strings = context.sharedContext.currentPresentationData.with({ $0 }).strings
@@ -121,6 +122,10 @@ func contactContextMenuItems(context: AccountContext, peerId: EnginePeer.Id, con
         if case let .user(user) = peer, user.flags.contains(.isSupport) {
             canStartSecretChat = false
         }
+        
+        //CloudVeil start
+        canStartSecretChat = canStartSecretChat && CloudVeilSecurityController.shared.isSecretChatAvailable
+        //CloudVeil end
         
         if canStartSecretChat {
             items.append(.action(ContextMenuActionItem(text: strings.ContactList_Context_StartSecretChat, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Timer"), color: theme.contextMenu.primaryColor) }, action: { _, f in

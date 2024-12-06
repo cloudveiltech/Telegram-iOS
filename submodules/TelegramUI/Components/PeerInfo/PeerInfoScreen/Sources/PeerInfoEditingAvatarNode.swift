@@ -13,6 +13,7 @@ import Postbox
 import TelegramCore
 import Display
 import GalleryUI
+import CloudVeilSecurityManager
 
 final class PeerInfoEditingAvatarNode: ASDisplayNode {
     private let context: AccountContext
@@ -105,7 +106,9 @@ final class PeerInfoEditingAvatarNode: ASDisplayNode {
         
         if let item = item {
             let representations: [ImageRepresentationWithReference]
-            let videoRepresentations: [VideoRepresentationWithReference]
+            //CloudVeil start
+            var videoRepresentations: [VideoRepresentationWithReference]
+            //CloudVeil end
             let immediateThumbnailData: Data?
             var videoId: Int64
             let markup: TelegramMediaImage.EmojiMarkup?
@@ -136,7 +139,11 @@ final class PeerInfoEditingAvatarNode: ASDisplayNode {
                     }
                     markup = markupValue
             }
-            
+            //CloudVeil start
+            if videoRepresentations.count > 0 && CloudVeilSecurityController.shared.disableProfileVideo {
+                videoRepresentations = []
+            }
+            //CloudVeil end
             if let markup {
                 if let videoNode = self.videoNode {
                     self.videoContent = nil

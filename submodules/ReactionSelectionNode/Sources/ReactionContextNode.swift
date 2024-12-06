@@ -1,3 +1,4 @@
+import CloudVeilSecurityManager
 import Foundation
 import AsyncDisplayKit
 import Display
@@ -494,7 +495,10 @@ public final class ReactionContextNode: ASDisplayNode, ASScrollViewDelegate {
         self.presentationData = presentationData
         self.items = items
         self.selectedItems = selectedItems
-        self.getEmojiContent = getEmojiContent
+        // CloudVeil start "Disable custom keyboard"
+        self.getEmojiContent = CloudVeilSecurityController.shared.disableStickers ? nil : getEmojiContent
+        let getEmojiContent = self.getEmojiContent
+        // CloudVeil end
         self.isExpandedUpdated = isExpandedUpdated
         self.requestLayout = requestLayout
         self.requestUpdateOverlayWantsToBeBelowKeyboard = requestUpdateOverlayWantsToBeBelowKeyboard

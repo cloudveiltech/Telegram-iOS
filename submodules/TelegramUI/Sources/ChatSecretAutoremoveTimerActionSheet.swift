@@ -8,6 +8,7 @@ import SwiftSignalKit
 import Photos
 import TelegramPresentationData
 import AccountContext
+import CloudVeilSecurityManager
 
 final class ChatSecretAutoremoveTimerActionSheetController: ActionSheetController {
     private var presentationDisposable: Disposable?
@@ -85,7 +86,33 @@ private final class AutoremoveTimeoutSelectorItem: ActionSheetItem {
     }
 }
 
-private let defaultTimeoutValues: [Int32] = [
+//CloudVeil start
+private let timeoutValuesInitial: [Int32] = [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    30,
+    1 * 60,
+    1 * 60 * 60,
+    24 * 60 * 60,
+    7 * 24 * 60 * 60
+]
+
+private var defaultTimeoutValues: [Int32] = [
+    //CloudVeil end
     0,
     1,
     2,
@@ -113,7 +140,8 @@ private final class AutoremoveTimeoutSelectorItemNode: ActionSheetItemNode, UIPi
     private let theme: ActionSheetControllerTheme
     private let strings: PresentationStrings
     
-    private let timeoutValues: [Int32]
+    //CloudVeil changed variable mutability
+    private var timeoutValues: [Int32]
     
     private let valueChanged: (Int32) -> Void
     private let pickerView: UIPickerView
@@ -138,6 +166,15 @@ private final class AutoremoveTimeoutSelectorItemNode: ActionSheetItemNode, UIPi
         self.view.addSubview(self.pickerView)
         
         self.pickerView.reloadAllComponents()
+        //CloudVeil start
+        timeoutValues.removeAll()
+        for i in 0 ..< timeoutValuesInitial.count {
+            if timeoutValuesInitial[i] >= CloudVeilSecurityController.shared.secretChatMinimumLength {
+                timeoutValues.append(timeoutValuesInitial[i])
+            }
+        }
+        //CloudVeil end
+        
         var index: Int = 0
         for i in 0 ..< self.timeoutValues.count {
             if currentValue <= self.timeoutValues[i] {

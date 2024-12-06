@@ -23,6 +23,9 @@ swift_library(
         "//submodules/PersistentStringHash:PersistentStringHash",
         "//submodules/Utils/RangeSet",
         "//submodules/Media/ConvertOpusToAAC",
+        # CloudVeil start
+        "//CloudVeil/SecurityManager:CloudVeilSecurityManager"
+        # CloudVeil end
     
     ],
     visibility = [

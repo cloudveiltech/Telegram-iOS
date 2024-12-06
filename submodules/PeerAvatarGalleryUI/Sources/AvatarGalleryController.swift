@@ -13,6 +13,7 @@ import LegacyMediaPickerUI
 import SaveToCameraRoll
 import OverlayStatusController
 import PresentationDataUtils
+import CloudVeilSecurityManager
 
 public enum AvatarGalleryEntryId: Hashable {
     case topImage
@@ -374,7 +375,12 @@ public func fetchedAvatarGalleryEntries(engine: TelegramEngine, account: Account
                     }
                 }
             }
-            return (true, result)
+
+            
+            //CloudVeil start
+            let maxEntries = min(CloudVeilSecurityController.shared.profilePhotoLimit, result.count)
+            return (true, Array(result.prefix(maxEntries)))
+            //CloudVeil end
         }
     )
 }
@@ -487,7 +493,9 @@ public class AvatarGalleryController: ViewController, StandalonePresentableContr
                         entries.insert(firstEntry, at: 0)
                     }
                     
-                    strongSelf.entries = entries
+                    let maxEntries = entries.count
+                    strongSelf.entries = Array(entries.prefix(maxEntries))
+                    
                     if strongSelf.centralEntryIndex == nil {
                         strongSelf.centralEntryIndex = 0
                     }

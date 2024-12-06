@@ -1929,7 +1929,8 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
             
             if self.bannedSendPhotos != nil && self.bannedSendVideos != nil {
             } else {
-                self.navigationItem.rightBarButtonItem = UIBarButtonItem(customDisplayNode: self.moreButtonNode)
+                //CloudVeil disabled
+                //self.navigationItem.rightBarButtonItem = UIBarButtonItem(customDisplayNode: self.moreButtonNode)
                 self.navigationItem.rightBarButtonItem?.action = #selector(self.rightButtonPressed)
                 self.navigationItem.rightBarButtonItem?.target = self
             }

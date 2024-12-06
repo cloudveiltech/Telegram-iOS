@@ -19,6 +19,7 @@ import WebPBinding
 import ReactionImageComponent
 import FeaturedStickersScreen
 import QuickReactionSetupController
+import CloudVeilSecurityManager
 
 private final class InstalledStickerPacksControllerArguments {
     let context: AccountContext
@@ -535,18 +536,22 @@ private func installedStickerPacksControllerEntries(context: AccountContext, pre
     
     switch mode {
     case .general, .modal:
-        if !featured.isEmpty {
-            entries.append(.trending(presentationData.theme, presentationData.strings.StickerPacksSettings_TrendingStickers, Int32(featured.count)))
+        // CloudVeil start "Disable stickers"
+        if !CloudVeilSecurityController.shared.disableStickers {
+            if !featured.isEmpty {
+                entries.append(.trending(presentationData.theme, presentationData.strings.StickerPacksSettings_TrendingStickers, Int32(featured.count)))
+            }
+            if let archived = archived, !archived.isEmpty  {
+                entries.append(.archived(presentationData.theme, presentationData.strings.StickerPacksSettings_ArchivedPacks, Int32(archived.count), archived))
+            }
+            if emojiCount != 0 {
+                entries.append(.emoji(presentationData.theme, presentationData.strings.StickerPacksSettings_Emoji, emojiCount))
+            }
+            if let quickReaction = quickReaction, let availableReactions = availableReactions {
+                entries.append(.quickReaction(presentationData.strings.Settings_QuickReactionSetup_NavigationTitle, quickReaction, availableReactions))
+            }
         }
-        if let archived = archived, !archived.isEmpty  {
-            entries.append(.archived(presentationData.theme, presentationData.strings.StickerPacksSettings_ArchivedPacks, Int32(archived.count), archived))
-        }
-        if emojiCount != 0 {
-            entries.append(.emoji(presentationData.theme, presentationData.strings.StickerPacksSettings_Emoji, emojiCount))
-        }
-        if let quickReaction = quickReaction, let availableReactions = availableReactions {
-            entries.append(.quickReaction(presentationData.strings.Settings_QuickReactionSetup_NavigationTitle, quickReaction, availableReactions))
-        }
+        // CloudVeil end
         
         let suggestString: String
         switch stickerSettings.emojiStickerSuggestionMode {
@@ -603,6 +608,11 @@ private func installedStickerPacksControllerEntries(context: AccountContext, pre
             var index: Int32 = 0
             for entry in sortedPacks {
                 if let info = entry.info as? StickerPackCollectionInfo {
+                    //CloudVeil start
+                    if !CloudVeilSecurityController.shared.isStickerAvailable(stickerId: NSInteger(info.id.id)) {
+                        continue
+                    }
+                    //CloudVeil end
                     let countTitle: String
                     if info.id.namespace == Namespaces.ItemCollection.CloudEmojiPacks {
                         countTitle = presentationData.strings.StickerPack_EmojiCount(info.count == 0 ? entry.count : info.count)

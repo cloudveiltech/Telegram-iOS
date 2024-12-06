@@ -31,6 +31,7 @@ struct ChatHistoryEntriesForViewState {
         }
     }
 }
+import CloudVeilSecurityManager
 
 func chatHistoryEntriesForView(
     currentState: ChatHistoryEntriesForViewState,
@@ -665,6 +666,23 @@ func chatHistoryEntriesForView(
         }
     }
     
+    //CloudVeil start
+    var entriesFiltered: [ChatHistoryEntry] = []
+    for message in entries {
+        switch message {
+        case let .MessageEntry(messageData, _, _, _, _, _):
+            if let author = messageData.author as? TelegramUser, author.botInfo != nil {
+                if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(author.id.id._internalGetInt64Value())) {
+                    entriesFiltered.append(message)
+                }
+            } else {
+                entriesFiltered.append(message)
+            }
+        default:
+            entriesFiltered.append(message)
+        }
+    }
+    
     if reverse {
         return (entries.reversed(), currentState)
     } else {
@@ -673,4 +691,5 @@ func chatHistoryEntriesForView(
 //        #endif
         return (entries, currentState)
     }
+    //CloudVeil end
 }

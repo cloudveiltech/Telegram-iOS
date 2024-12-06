@@ -23,6 +23,7 @@ import PremiumUI
 import StorageUsageScreen
 import PeerInfoStoryGridScreen
 import WallpaperGridScreen
+import CloudVeilSecurityManager
 
 enum SettingsSearchableItemIcon {
     case profile
@@ -314,9 +315,14 @@ private func premiumSearchableItems(context: AccountContext) -> [SettingsSearcha
         presentDemo(.noAds, present)
     }))
     
-    result.append(SettingsSearchableItem(id: .premium(6), title: strings.Premium_EmojiStatus, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium_EmojiStatus), icon: icon, breadcrumbs: [strings.Settings_Premium], present: { context, _, present in
-        presentDemo(.emojiStatus, present)
-    }))
+    
+    //CloudVeil start
+    if CloudVeilSecurityController.shared.disableEmojiStatus {
+        result.append(SettingsSearchableItem(id: .premium(6), title: strings.Premium_EmojiStatus, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium_EmojiStatus), icon: icon, breadcrumbs: [strings.Settings_Premium], present: { context, _, present in
+            presentDemo(.emojiStatus, present)
+        }))
+    }
+    //CloudVeil end
     
     result.append(SettingsSearchableItem(id: .premium(7), title: strings.Premium_Reactions, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium_Reactions), icon: icon, breadcrumbs: [strings.Settings_Premium], present: { context, _, present in
         presentDemo(.uniqueReactions, present)
@@ -355,13 +361,17 @@ private func storiesSearchableItems(context: AccountContext) -> [SettingsSearcha
     
     var result: [SettingsSearchableItem] = []
         
-    result.append(SettingsSearchableItem(id: .stories(0), title: strings.Settings_MyStories, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium), icon: icon, breadcrumbs: [], present: { context, _, present in
-        present(.push, PeerInfoStoryGridScreen(context: context, peerId: context.account.peerId, scope: .saved))
-    }))
-    
-    result.append(SettingsSearchableItem(id: .stories(1), title: strings.Settings_StoriesArchive, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium), icon: icon, breadcrumbs: [], present: { context, _, present in
-        present(.push, PeerInfoStoryGridScreen(context: context, peerId: context.account.peerId, scope: .archive))
-    }))
+    //CloudVeil start
+    if CloudVeilSecurityController.shared.disableStories == false {
+        result.append(SettingsSearchableItem(id: .stories(0), title: strings.Settings_MyStories, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium), icon: icon, breadcrumbs: [], present: { context, _, present in
+            present(.push, PeerInfoStoryGridScreen(context: context, peerId: context.account.peerId, scope: .saved))
+        }))
+        
+        result.append(SettingsSearchableItem(id: .stories(1), title: strings.Settings_StoriesArchive, alternate: synonyms(strings.SettingsSearch_Synonyms_Premium), icon: icon, breadcrumbs: [], present: { context, _, present in
+            present(.push, PeerInfoStoryGridScreen(context: context, peerId: context.account.peerId, scope: .archive))
+        }))
+    }
+    //CloudVeil end
    
     return result
 }
@@ -404,14 +414,18 @@ private func stickerSearchableItems(context: AccountContext, archivedStickerPack
     /*items.append(SettingsSearchableItem(id: .stickers(2), title: strings.StickerPacksSettings_AnimatedStickers, alternate: synonyms(strings.StickerPacksSettings_AnimatedStickers), icon: icon, breadcrumbs: [strings.ChatSettings_Stickers], present: { context, _, present in
         presentStickerSettings(context, present, .loopAnimatedStickers)
     }))*/
-    items.append(SettingsSearchableItem(id: .stickers(3), title: strings.StickerPacksSettings_FeaturedPacks, alternate: synonyms(strings.SettingsSearch_Synonyms_Stickers_FeaturedPacks), icon: icon, breadcrumbs: [strings.ChatSettings_Stickers], present: { context, _, present in
-        present(.push, featuredStickerPacksController(context: context))
-    }))
-    if !(archivedStickerPacks?.isEmpty ?? true) {
-        items.append(SettingsSearchableItem(id: .stickers(4), title: strings.StickerPacksSettings_ArchivedPacks, alternate: synonyms(strings.SettingsSearch_Synonyms_Stickers_ArchivedPacks), icon: icon, breadcrumbs: [strings.ChatSettings_Stickers], present: { context, _, present in
-            present(.push, archivedStickerPacksController(context: context, mode: .stickers, archived: archivedStickerPacks, updatedPacks: { _ in }))
+    // CloudVeil start "Disable stickers"
+    if !CloudVeilSecurityController.shared.disableStickers {
+        items.append(SettingsSearchableItem(id: .stickers(3), title: strings.StickerPacksSettings_FeaturedPacks, alternate: synonyms(strings.SettingsSearch_Synonyms_Stickers_FeaturedPacks), icon: icon, breadcrumbs: [strings.ChatSettings_Stickers], present: { context, _, present in
+            present(.push, featuredStickerPacksController(context: context))
         }))
+        if !(archivedStickerPacks?.isEmpty ?? true) {
+            items.append(SettingsSearchableItem(id: .stickers(4), title: strings.StickerPacksSettings_ArchivedPacks, alternate: synonyms(strings.SettingsSearch_Synonyms_Stickers_ArchivedPacks), icon: icon, breadcrumbs: [strings.ChatSettings_Stickers], present: { context, _, present in
+                present(.push, archivedStickerPacksController(context: context, mode: .stickers, archived: archivedStickerPacks, updatedPacks: { _ in }))
+            }))
+        }
     }
+    // CloudVeil end
     items.append(SettingsSearchableItem(id: .stickers(5), title: strings.MaskStickerSettings_Title, alternate: synonyms(strings.SettingsSearch_Synonyms_Stickers_Masks), icon: icon, breadcrumbs: [strings.ChatSettings_Stickers], present: { context, _, present in
         present(.push, installedStickerPacksController(context: context, mode: .masks, archivedPacks: nil, updatedPacks: { _ in }))
     }))
@@ -1037,8 +1051,10 @@ func settingsSearchableItems(context: AccountContext, notificationExceptionsList
         let languageItems = languageSearchableItems(context: context, localizations: localizations)
         allItems.append(contentsOf: languageItems)
         
-        let premiumItems = premiumSearchableItems(context: context)
-        allItems.append(contentsOf: premiumItems)
+        // CloudVeil start "Disable buying premium"
+        //let premiumItems = premiumSearchableItems(context: context)
+        //allItems.append(contentsOf: premiumItems)
+        // CloudVeil end
 
         let storiesItems = storiesSearchableItems(context: context)
         allItems.append(contentsOf: storiesItems)

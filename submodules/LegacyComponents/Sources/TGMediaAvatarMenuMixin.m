@@ -247,7 +247,8 @@
         }];
         [itemViews addObject:viewItem];
     }
-    
+    //CloudVeil disabled
+    //TODO: fix me ? this code below also commented out on the Telegram-iOS master branch
 //    if (_hasSearchButton)
 //    {
 //        TGMenuSheetButtonItemView *viewItem = [[TGMenuSheetButtonItemView alloc] initWithTitle:TGLocalized(@"ProfilePhoto.SearchWeb") type:TGMenuSheetButtonTypeDefault fontSize:20.0 action:^

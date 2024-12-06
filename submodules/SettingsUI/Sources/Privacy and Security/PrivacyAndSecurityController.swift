@@ -20,6 +20,12 @@ import AuthorizationUI
 import AuthenticationServices
 import ChatTimerScreen
 
+// CloudVeil start
+import CVUI
+import CloudVeilSecurityManager
+import SafariServices
+// CloudVeil end
+
 private final class PrivacyAndSecurityControllerArguments {
     let account: Account
     let openBlockedUsers: () -> Void
@@ -1210,7 +1216,53 @@ public func privacyAndSecurityController(
                         timeoutAction(value)
                     })
                 }
-                timeoutItems.append(ActionSheetButtonItem(title: presentationData.strings.PrivacySettings_DeleteAccountNow, color: .destructive, action: {
+                // CloudVeil start "Delete account"
+                timeoutItems.append(ActionSheetButtonItem(title: "Delete CloudVeil Account", color: .destructive, action: {
+                    dismissAction()
+
+                    guard let navCtrl = getNavigationControllerImpl?() as? NavigationController else {
+                        return
+                    }
+
+                    CVPresentWebUIAccountDelete(navigationController: navCtrl, context: context, presentationData: presentationData)
+
+                    // TODO: switch to native UI delete screen (replacement code follows)
+                    //let onSucceed = {
+                    //    DispatchQueue.main.async {
+                    //        let presentGlobal = context.sharedContext.presentGlobalController
+                    //        let _ = logoutFromAccount(
+                    //            id: context.account.id,
+                    //            accountManager: context.sharedContext.accountManager,
+                    //            alreadyLoggedOutRemotely: false).start(completed: {
+                    //                Queue.mainQueue().after(0.1) {
+                    //                    presentGlobal(UndoOverlayController(
+                    //                        presentationData: presentationData,
+                    //                        content: .info(
+                    //                            title: nil, text: "CloudVeil account deleted",
+                    //                            timeout: nil, customUndoText: nil),
+                    //                        elevatedLayout: true, animateInAsReplacement: false,
+                    //                        action: { _ in return false }), nil)
+                    //                }
+                    //            })
+                    //    }
+                    //}
+                    //let onFail = {
+                    //    DispatchQueue.main.async {
+                    //        presentControllerImpl?(textAlertController(
+                    //            context: context, title: nil, text: "Account deletion failed",
+                    //            actions: [TextAlertAction(
+                    //                type: .defaultAction,
+                    //                title: presentationData.strings.Common_OK,
+                    //                action: {})]))
+                    //    }
+                    //}
+
+                    //pushControllerImpl?(CVVCWrapper(CVDeleteAccount(
+                    //    context.account.peerId.toInt64(), presentationData,
+                    //    onSucceed: onSucceed, onFail: onFail)), true)
+                }))
+                timeoutItems.append(ActionSheetButtonItem(title: "Delete Telegram Account", color: .destructive, action: {
+                    // CloudVeil end
                     dismissAction()
                     
                     guard let navigationController = getNavigationControllerImpl?() else {

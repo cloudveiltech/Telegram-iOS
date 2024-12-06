@@ -48,6 +48,10 @@ import AppCenter
 import AppCenterCrashes
 #endif
 
+//CloudVeil start
+import CloudVeilSecurityManager
+//CloudVeil end
+
 private let handleVoipNotifications = false
 
 private var testIsLaunched = false
@@ -323,6 +327,17 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     private let voipDeviceToken = Promise<Data?>(nil)
     private let regularDeviceToken = Promise<Data?>(nil)
         
+    private let deviceToken = Promise<Data?>(nil)
+    
+    //CloudVeil start
+    static var shared: AppDelegate?
+    static var isAppInForeground: Bool {
+        get {
+            return shared?.isInForegroundValue ?? false
+        }
+    }
+    //CloudVeil end
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         precondition(!testIsLaunched)
         testIsLaunched = true

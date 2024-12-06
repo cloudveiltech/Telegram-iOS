@@ -29,16 +29,20 @@ func accessoryPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceS
     
     if let editMessage = chatPresentationInterfaceState.interfaceState.editMessage {
         if let editingUrlPreview = chatPresentationInterfaceState.editingUrlPreview, !editMessage.disableUrlPreviews.contains(editingUrlPreview.url) {
-            if let previewPanelNode = currentPanel as? WebpagePreviewAccessoryPanelNode {
-                previewPanelNode.interfaceInteraction = interfaceInteraction
-                previewPanelNode.replaceWebpage(url: editingUrlPreview.url, webpage: editingUrlPreview.webPage)
-                previewPanelNode.updateThemeAndStrings(theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings)
-                return previewPanelNode
-            } else {
-                let panelNode = WebpagePreviewAccessoryPanelNode(context: context, url: editingUrlPreview.url, webpage: editingUrlPreview.webPage, theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings)
-                panelNode.interfaceInteraction = interfaceInteraction
-                return panelNode
-            }
+            // CloudVeil start
+            return nil
+            // CloudVeil disabled
+            //if let previewPanelNode = currentPanel as? WebpagePreviewAccessoryPanelNode {
+            //    previewPanelNode.interfaceInteraction = interfaceInteraction
+            //    previewPanelNode.replaceWebpage(url: editingUrlPreview.url, webpage: editingUrlPreview.webPage)
+            //    previewPanelNode.updateThemeAndStrings(theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings)
+            //    return previewPanelNode
+            //} else {
+            //    let panelNode = WebpagePreviewAccessoryPanelNode(context: context, url: editingUrlPreview.url, webpage: editingUrlPreview.webPage, theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings)
+            //    panelNode.interfaceInteraction = interfaceInteraction
+            //    return panelNode
+            //}
+            // CloudVeil end
         }
         
         if let editPanelNode = currentPanel as? EditAccessoryPanelNode, editPanelNode.messageId == editMessage.messageId {
@@ -51,16 +55,20 @@ func accessoryPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceS
             return panelNode
         }
     } else if let urlPreview = chatPresentationInterfaceState.urlPreview, !chatPresentationInterfaceState.interfaceState.composeDisableUrlPreviews.contains(urlPreview.url) {
-        if let previewPanelNode = currentPanel as? WebpagePreviewAccessoryPanelNode {
-            previewPanelNode.interfaceInteraction = interfaceInteraction
-            previewPanelNode.replaceWebpage(url: urlPreview.url, webpage: urlPreview.webPage)
-            previewPanelNode.updateThemeAndStrings(theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings)
-            return previewPanelNode
-        } else {
-            let panelNode = WebpagePreviewAccessoryPanelNode(context: context, url: urlPreview.url, webpage: urlPreview.webPage, theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings)
-            panelNode.interfaceInteraction = interfaceInteraction
-            return panelNode
-        }
+        // CloudVeil start
+        return nil
+        // CloudVeil disabled
+        //if let previewPanelNode = currentPanel as? WebpagePreviewAccessoryPanelNode {
+        //    previewPanelNode.interfaceInteraction = interfaceInteraction
+        //    previewPanelNode.replaceWebpage(url: urlPreview.url, webpage: urlPreview.webPage)
+        //    previewPanelNode.updateThemeAndStrings(theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings)
+        //    return previewPanelNode
+        //} else {
+        //    let panelNode = WebpagePreviewAccessoryPanelNode(context: context, url: urlPreview.url, webpage: urlPreview.webPage, theme: chatPresentationInterfaceState.theme, strings: chatPresentationInterfaceState.strings)
+        //    panelNode.interfaceInteraction = interfaceInteraction
+        //    return panelNode
+        //}
+        // CloudVeil end
     } else if let forwardMessageIds = chatPresentationInterfaceState.interfaceState.forwardMessageIds {
         if let forwardPanelNode = currentPanel as? ForwardAccessoryPanelNode, forwardPanelNode.messageIds == forwardMessageIds {
             forwardPanelNode.interfaceInteraction = interfaceInteraction

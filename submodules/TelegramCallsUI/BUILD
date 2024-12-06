@@ -53,6 +53,9 @@ swift_library(
         ":TelegramCallsUIBundle",
     ],
     deps = [
+       #CloudVeil start
+        "//CloudVeil/SecurityManager:CloudVeilSecurityManager",
+        #CloudVeil end
     	"//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/Display:Display",
         "//submodules/TelegramPresentationData:TelegramPresentationData",

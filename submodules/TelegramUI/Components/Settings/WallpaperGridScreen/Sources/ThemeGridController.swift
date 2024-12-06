@@ -101,6 +101,13 @@ public final class ThemeGridController: ViewController {
                 }
             }
         })
+        
+        //CloudVeil disable theme search
+        //TODO: KJ: recheck me later. This code is no longer exist in the latest version of TelegramUI
+        //self.searchContentNode = NavigationBarSearchContentNode(theme: self.presentationData.theme, placeholder: self.presentationData.strings.Wallpaper_Search, activate: { [weak self] in
+        //    self?.activateSearch()
+        //})
+        //self.navigationBar?.setContentNode(self.searchContentNode, animated: false)
     }
     
     required public init(coder aDecoder: NSCoder) {
