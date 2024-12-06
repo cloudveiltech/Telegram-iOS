@@ -3,6 +3,9 @@ load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 load(
     "@build_configuration//:variables.bzl",
     "telegram_bundle_id",
+    #CloudVeil start
+    "cloudveil_shiplogs",
+    #CloudVeil end
 )
 
 
@@ -47,8 +50,14 @@ swift_library(
     ]),
     copts = [
         "-warnings-as-errors",
-    ],
+        #CloudVeil start
+    ] + ["-D", "CLOUDVEIL_SHIPLOGS"] if cloudveil_shiplogs else [],
+    #CloudVeil end
     deps = [
+        #CloudVeil start
+        "//CloudVeil/SecurityManager:CloudVeilSecurityManager",
+        "@Sentry//:Sentry",
+        #CloudVeil end
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/SSignalKit/SSignalKit:SSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",

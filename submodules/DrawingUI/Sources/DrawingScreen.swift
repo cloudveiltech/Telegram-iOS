@@ -26,6 +26,7 @@ import FastBlur
 import MediaEditor
 import StickerPickerScreen
 import ImageObjectSeparation
+import CloudVeilSecurityManager
 
 public struct DrawingResultData {
     public let data: Data?
@@ -2033,9 +2034,13 @@ private final class DrawingScreenComponent: CombinedComponent {
             case .drawing:
                 selectedIndex = 0
             case .sticker:
-                selectedIndex = 1
+                // CloudVeil start "Disable custom keyboard"
+                selectedIndex = CloudVeilSecurityController.shared.disableStickers ? 0 : 1
+                // CloudVeil end
             case .text:
-                selectedIndex = 2
+                // CloudVeil start "Disable custom keyboard"
+                selectedIndex = CloudVeilSecurityController.shared.disableStickers ? 1 : 2
+                // CloudVeil end
             }
                         
             var selectedSize: CGFloat = 0.0
@@ -2047,7 +2052,11 @@ private final class DrawingScreenComponent: CombinedComponent {
                   
             let modeAndSize = modeAndSize.update(
                 component: ModeAndSizeComponent(
-                    values: [ strings.Paint_Draw, strings.Paint_Sticker, strings.Paint_Text],
+                    // CloudVeil start "Disable custom keyboard"
+                    values: CloudVeilSecurityController.shared.disableStickers ?
+                        [ strings.Paint_Draw, strings.Paint_Text] :
+                        [ strings.Paint_Draw, strings.Paint_Sticker, strings.Paint_Text],
+                    // CloudVeil end
                     sizeValue: selectedSize,
                     isEditing: false,
                     isEnabled: true,
@@ -2061,7 +2070,13 @@ private final class DrawingScreenComponent: CombinedComponent {
                         }
                         switch index {
                         case 1:
-                            state.presentStickerPicker()
+                            // CloudVeil start "Disable custom keyboard"
+                            if CloudVeilSecurityController.shared.disableStickers {
+                                state.addTextEntity()
+                            } else {
+                                state.presentStickerPicker()
+                            }
+                            // CloudVeil end
                         case 2:
                             state.addTextEntity()
                         default:

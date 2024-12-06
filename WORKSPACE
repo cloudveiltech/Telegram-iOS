@@ -87,3 +87,25 @@ load("@build_bazel_rules_apple//apple:apple.bzl", "provisioning_profile_reposito
 provisioning_profile_repository(
     name = "local_provisioning_profiles",
 )
+
+# CloudVeil start
+http_archive(
+    name = "rules_pods",
+    urls = ["https://github.com/pinterest/PodToBUILD/releases/download/6.3.2-370b622/PodToBUILD.zip"],
+    sha256 = "ffdfe8c7a4c73cca5d7b7a67daa6ccdd046355637dbdb9b1366d021b4ad339b5",
+)
+
+load("@rules_pods//BazelExtensions:workspace.bzl", "new_pod_repository")
+
+new_pod_repository(
+    name = "Sentry",
+    url = "https://github.com/getsentry/sentry-cocoa/releases/download/8.41.0/Sentry.xcframework.zip",
+    podspec_url = "Sentry.podspec.json",
+    is_xcframework = True,
+)
+
+new_pod_repository(
+    name = "ObjectMapper",
+    url = "https://github.com/tristanhimmelman/ObjectMapper/archive/3.3.0.zip",
+)
+# CloudVeil end

@@ -7,6 +7,7 @@ import SwiftSignalKit
 import AnimationCache
 import MultiAnimationRenderer
 import TelegramNotices
+import CloudVeilSecurityManager
 
 public extension EmojiPagerContentComponent {    
     private static func hasPremium(context: AccountContext, chatPeerId: EnginePeer.Id?, premiumIfSavedMessages: Bool) -> Signal<Bool, NoError> {
@@ -2124,6 +2125,36 @@ public extension EmojiPagerContentComponent {
             }
             
             let isMasks = stickerNamespaces.contains(Namespaces.ItemCollection.CloudMaskPacks)
+            
+            //CloudVeil start
+            var newGroups: [ItemGroup] = []
+            for group in itemGroups {
+                var itemAllowed = false
+                var items: [EmojiPagerContentComponent.Item] = []
+                for item in group.items {
+                    if let file = item.itemFile {
+                        for attribute in file.attributes {
+                            if case let .Sticker(_, pack, _) = attribute {
+                                if case let .id(id, _) = pack {
+                                    if CloudVeilSecurityController.shared.isStickerAvailable(stickerId: NSInteger(id)) {
+                                        itemAllowed = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if itemAllowed {
+                        items.append(item)
+                    }
+                }
+                if items.count > 0 {
+                    var group = group
+                    group.items = items
+                    newGroups.append(group)
+                }
+            }
+            itemGroups = newGroups
+            //CloudVeil end
             
             let allItemGroups = itemGroups.map { group -> EmojiPagerContentComponent.ItemGroup in
                 var hasClear = false

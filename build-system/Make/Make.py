@@ -399,6 +399,8 @@ def resolve_codesigning(arguments, base_path, build_configuration, provisioning_
         )
     elif arguments.xcodeManagedCodesigning is not None and arguments.xcodeManagedCodesigning == True:
         profile_source = XcodeManagedCodesigningSource()
+    elif arguments.noCodesigning is not None and arguments.noCodesigning:
+        return ResolvedCodesigningData(aps_environment='production', use_xcode_managed_codesigning=False)
     else:
         raise Exception('Neither gitCodesigningRepository nor codesigningInformationPath are set')
 
@@ -549,6 +551,9 @@ def build(bazel, arguments):
     bazel_command_line.set_show_actions(arguments.showActions)
     bazel_command_line.set_enable_sandbox(arguments.sandbox)
 
+    if arguments.noCodesigning is not None and arguments.noCodesigning:
+        bazel_command_line.set_disable_provisioning_profiles()
+
     bazel_command_line.set_split_swiftmodules(arguments.enableParallelSwiftmoduleGeneration)
 
     bazel_command_line.invoke_build()
@@ -565,7 +570,7 @@ def build(bazel, arguments):
         built_ipa_path_prefix = 'bazel-out/ios_arm64-opt-ios-arm64-min12.0-applebin_ios-ST-*'
         ipa_paths = glob.glob('{}/bin/Telegram/Telegram.ipa'.format(built_ipa_path_prefix))
         if len(ipa_paths) == 0:
-            print('Could not find the IPA at bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa')
+            print('Could not find the IPA at bazel-out/applebin_ios-*-*-ST-*/bin/Telegram/Telegram.ipa')
             sys.exit(1)
         elif len(ipa_paths) > 1:
             print('Multiple matching IPA files found: {}'.format(ipa_paths))
@@ -645,6 +650,13 @@ def add_codesigning_common_arguments(current_parser: argparse.ArgumentParser):
         action='store_true',
         help='''
             Let Xcode manage your certificates and provisioning profiles.
+            ''',
+    )
+    codesigning_group.add_argument(
+        '--noCodesigning',
+        action='store_true',
+        help='''
+            Just build it without signing anything (only works for simulator builds).
             ''',
     )
 

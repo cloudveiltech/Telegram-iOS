@@ -22,6 +22,9 @@ swift_library(
         "//submodules/GZip:GZip",
         "//submodules/PersistentStringHash:PersistentStringHash",
         "//submodules/Utils/RangeSet",
+        # CloudVeil start
+        "//CloudVeil/SecurityManager:CloudVeilSecurityManager"
+        # CloudVeil end
     
     ],
     visibility = [

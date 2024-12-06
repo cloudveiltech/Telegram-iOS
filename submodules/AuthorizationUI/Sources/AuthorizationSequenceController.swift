@@ -23,6 +23,8 @@ import AlertUI
 import ObjectiveC
 
 private var ObjCKey_Delegate: Int?
+import CVUI
+import CloudVeilSecurityManager
 
 private enum InnerState: Equatable {
     case state(UnauthorizedAccountStateContents)
@@ -54,6 +56,10 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
         return self._ready
     }
     private var didSetReady = false
+
+    // CloudVeil start "Terms of Service"
+    private var cvAgreements = loadCloudVeilAgreements()
+    // CloudVeil end
     
     fileprivate var engine: TelegramEngineUnauthorized {
         return TelegramEngineUnauthorized(account: self.account)
@@ -1181,6 +1187,18 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
     }
     
     private func updateState(state: InnerState) {
+        // CloudVeil start "Terms of Service"
+        if let agreement = self.cvAgreements.last {
+            let tosVC = CVMustAccept(
+                agreement: agreement, presentationData: self.presentationData,
+                hasAgreed: { [weak self] in
+                    let _ = self?.cvAgreements.popLast()
+                    self?.updateState(state: state)
+                })
+            self.setViewControllers([CVVCWrapper(tosVC)], animated: !self.viewControllers.isEmpty)
+            return
+        }
+        // CloudVeil end "Terms of Service"
         switch state {
         case .authorized:
             self.authorizationCompleted()
@@ -1352,6 +1370,12 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
+        //CloudVeil start
+        if let controller = self.viewControllers.last {
+            CloudVeilSecurityController.shared.showFirstRunPopup(controller)
+        }
+        //CloudVeil end
+
         if !self.didPlayPresentationAnimation {
             self.didPlayPresentationAnimation = true
             self.animateIn()

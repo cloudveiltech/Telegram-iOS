@@ -15,6 +15,9 @@ import PeerInfoChatListPaneNode
 import PeerInfoChatPaneNode
 import TextFormat
 import EmojiTextAttachmentView
+//CloudVeil start
+import CloudVeilSecurityManager
+//CloudVeil end
 
 final class PeerInfoPaneWrapper {
     let key: PeerInfoPaneKey
@@ -887,13 +890,21 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
     
     func update(size: CGSize, sideInset: CGFloat, bottomInset: CGFloat, deviceMetrics: DeviceMetrics, visibleHeight: CGFloat, expansionFraction: CGFloat, presentationData: PresentationData, data: PeerInfoScreenData?, areTabsHidden: Bool, disableTabSwitching: Bool, navigationHeight: CGFloat, transition: ContainedViewLayoutTransition) {
         let previousAvailablePanes = self.currentAvailablePanes
-        let availablePanes = data?.availablePanes ?? []
+        var availablePanes = data?.availablePanes ?? []
         self.currentAvailablePanes = data?.availablePanes
         
         let previousPaneKeys = Set<PeerInfoPaneKey>(self.currentPanes.keys)
         
         let previousCurrentPaneKey = self.currentPaneKey
         var updateCurrentPaneStatus = false
+        
+        //CloudVeil start
+        if CloudVeilSecurityController.shared.disableStories {
+            if let index = availablePanes.firstIndex(of: .stories) {
+                availablePanes.remove(at: index)
+            }
+        }
+        //CloudVeil end
         
         if let previousAvailablePanes, !previousAvailablePanes.contains(.stories), availablePanes.contains(.stories) {
             self.pendingSwitchToPaneKey = .stories

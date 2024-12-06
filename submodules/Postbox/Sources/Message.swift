@@ -695,9 +695,11 @@ public final class Message {
     public let customTags: [MemoryBuffer]
     public let forwardInfo: MessageForwardInfo?
     public let author: Peer?
-    public let text: String
+    // CloudVeil changed variable mutability
+    public var text: String
     public let attributes: [MessageAttribute]
-    public let media: [Media]
+    // CloudVeil changed variable mutability
+    public var media: [Media]
     public let peers: SimpleDictionary<PeerId, Peer>
     public let associatedMessages: SimpleDictionary<MessageId, Message>
     public let associatedMessageIds: [MessageId]

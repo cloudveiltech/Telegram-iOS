@@ -13,7 +13,7 @@ def is_apple_silicon():
 
 def get_clean_env():
     clean_env = os.environ.copy()
-    clean_env['PATH'] = '/usr/bin:/bin:/usr/sbin:/sbin'
+    clean_env['PATH'] = '/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
     return clean_env
 
 
@@ -92,10 +92,10 @@ def call_executable(arguments, use_clean_environment=True, check_result=True):
     if executable_path is None:
         raise Exception('Could not resolve {} to a valid executable file'.format(arguments[0]))
 
-    if use_clean_environment:
-        resolved_env = get_clean_env()
-    else:
-        resolved_env = os.environ
+    #if use_clean_environment:
+   #     resolved_env = get_clean_env()
+   # else:
+    resolved_env = get_clean_env()
 
     resolved_arguments = [executable_path] + arguments[1:]
 
