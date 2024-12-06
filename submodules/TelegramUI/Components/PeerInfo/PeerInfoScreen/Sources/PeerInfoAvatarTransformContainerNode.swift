@@ -17,7 +17,7 @@ import Postbox
 import TelegramCore
 import EmojiStatusComponent
 import GalleryUI
-
+import CloudVeilSecurityManager
 
 final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
     let context: AccountContext
@@ -272,9 +272,11 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
             self.avatarNode.font = avatarPlaceholderFont(size: floor(avatarSize * 16.0 / 37.0))
 
             if let item = item {
-                let representations: [ImageRepresentationWithReference]
-                let videoRepresentations: [VideoRepresentationWithReference]
-                let immediateThumbnailData: Data?
+                //CloudVeil start
+                var representations: [ImageRepresentationWithReference]
+                var videoRepresentations: [VideoRepresentationWithReference]
+                var immediateThumbnailData: Data?
+                //CloudVeil end
                 var videoId: Int64
                 let markup: TelegramMediaImage.EmojiMarkup?
                 switch item {
@@ -304,6 +306,14 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                     }
                     markup = markupValue
                 }
+
+                //CloudVeil start
+                if CloudVeilSecurityController.shared.disableProfilePhoto || (CloudVeilSecurityController.shared.disableProfileVideo && AvatarNode.isVideoAvatarCached(peerId: peer.id) ?? false) {
+                    representations = []
+                    videoRepresentations = []
+                    immediateThumbnailData = nil
+                }
+                //CloudVeil end
                 
                 self.containerNode.isGestureEnabled = !isSettings
                 

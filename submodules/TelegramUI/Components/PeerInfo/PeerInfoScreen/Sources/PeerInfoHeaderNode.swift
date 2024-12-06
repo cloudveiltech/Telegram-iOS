@@ -38,6 +38,7 @@ import MultiScaleTextNode
 import PeerInfoCoverComponent
 import PeerInfoPaneNode
 import MultilineTextComponent
+import CloudVeilSecurityManager
 
 final class PeerInfoHeaderNavigationTransition {
     let sourceNavigationBar: NavigationBar
@@ -176,6 +177,21 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     var emojiStatusFileAndPackTitle = Promise<(TelegramMediaFile, LoadedStickerPack)?>()
     
     var customNavigationContentNode: PeerInfoPanelNodeNavigationContentNode?
+
+    //CloudVeil start
+    var avatarCanBeExpanded: Bool {
+        get {
+            if CloudVeilSecurityController.shared.disableProfilePhoto {
+                return false
+            }
+            if CloudVeilSecurityController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
+                return false
+            }
+            return true
+        }
+    }
+    //CloudVeil end
+
     private var appliedCustomNavigationContentNode: PeerInfoPanelNodeNavigationContentNode?
     
     private var validLayout: (width: CGFloat, deviceMetrics: DeviceMetrics)?
@@ -332,6 +348,14 @@ final class PeerInfoHeaderNode: ASDisplayNode {
         }
         
         self.editingContentNode.avatarNode.tapped = { [weak self] confirm in
+            //CloudVeil start
+            if CloudVeilSecurityController.shared.disableProfilePhoto {
+                return
+            }
+            if CloudVeilSecurityController.shared.disableProfileVideo && self?.avatarListNode.listContainerNode.hasVideoAvatar ?? false {
+                return
+            }
+            //CloudVeil end
             self?.initiateAvatarExpansion(gallery: true, first: true)
         }
         self.editingContentNode.requestEditing = { [weak self] in
@@ -2257,7 +2281,12 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     
     func updateIsAvatarExpanded(_ isAvatarExpanded: Bool, transition: ContainedViewLayoutTransition) {
         if self.isAvatarExpanded != isAvatarExpanded {
-            self.isAvatarExpanded = isAvatarExpanded
+            //CloudVeil start
+            self.isAvatarExpanded = isAvatarExpanded && !CloudVeilSecurityController.shared.disableProfilePhoto
+            if CloudVeilSecurityController.shared.disableProfileVideo && self.avatarListNode.listContainerNode.hasVideoAvatar {
+                self.isAvatarExpanded = false
+            }
+            //CloudVeil end
             if isAvatarExpanded {
                 self.avatarListNode.listContainerNode.selectFirstItem()
             }

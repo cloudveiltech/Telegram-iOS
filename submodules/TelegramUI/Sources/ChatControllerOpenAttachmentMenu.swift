@@ -33,6 +33,7 @@ import AutomaticBusinessMessageSetupScreen
 import MediaEditorScreen
 import CameraScreen
 import ShareController
+import CloudVeilSecurityManager
 
 extension ChatControllerImpl {
     enum AttachMenuSubject {
@@ -918,9 +919,13 @@ extension ChatControllerImpl {
                 }, openFileGallery: {
                     self?.presentFileMediaPickerOptions(editingMessage: true)
                 }, openWebSearch: { [weak self] in
-                    self?.presentWebSearch(editingMessage: editMediaOptions != nil, attachment: false, present: { [weak self] c, a in
-                        self?.present(c, in: .window(.root), with: a)
-                    })
+                    //CloudVeil start
+                    self?.presentFileMediaPickerOptions(editingMessage: editMediaOptions != nil)
+                    //CloudVeil end
+                    //CloudVeil disabled
+                    //self?.presentWebSearch(editingMessage: editMediaOptions != nil, attachment: false, present: { [weak self] c, a in
+                    //    self?.present(c, in: .window(.root), with: a)
+                    //})
                 }, openMap: {
                     self?.presentLocationPicker()
                 }, openContacts: {
@@ -1282,6 +1287,13 @@ extension ChatControllerImpl {
                     legacyController.deferScreenEdgeGestures = [.top]
                                         
                     configureLegacyAssetPicker(controller, context: strongSelf.context, peer: peer, chatLocation: strongSelf.chatLocation, initialCaption: inputText, hasSchedule: strongSelf.presentationInterfaceState.subject != .scheduledMessages && peer.id.namespace != Namespaces.Peer.SecretChat, presentWebSearch: editingMedia ? nil : { [weak self, weak legacyController] in
+                        //CloudVeil start
+                        //Disable all code below, and keep the code for future reference also prevent build failure
+                        let disable = true
+                        if disable {
+                            return
+                        }
+                        //CloudVeil end
                         if let strongSelf = self {
                             let controller = WebSearchController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, peer: EnginePeer(peer), chatLocation: strongSelf.chatLocation, configuration: searchBotsConfiguration, mode: .media(attachment: false, completion: { results, selectionState, editingState, silentPosting in
                                 if let legacyController = legacyController {
@@ -1467,7 +1479,8 @@ extension ChatControllerImpl {
                 controller.getCaptionPanelView = { [weak strongSelf] in
                     return strongSelf?.getCaptionPanelView(isFile: false)
                 }
-                present(controller, ViewControllerPresentationArguments(presentationAnimation: .modalSheet))
+                //CloudVeil disabled
+                //present(controller, ViewControllerPresentationArguments(presentationAnimation: .modalSheet))
             }
         })
     }

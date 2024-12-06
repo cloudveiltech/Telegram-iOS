@@ -78,6 +78,7 @@ import ChatMessageTransitionNode
 import AnimatedStickerNode
 import TelegramAnimatedStickerNode
 import LottieMetal
+import CloudVeilSecurityManager
 
 private struct BubbleItemAttributes {
     var index: Int?
@@ -303,24 +304,27 @@ private func contentNodeMessagesAndClassesForItem(_ item: ChatMessageItem) -> ([
             messageWithFactCheckToAdd = (message, itemAttributes)
         }
         
-        inner: for media in message.media {
-            if let webpage = media as? TelegramMediaWebpage {
-                if case let .Loaded(content) = webpage.content {
-                    if let story = content.story {
-                        if let storyItem = message.associatedStories[story.storyId], !storyItem.data.isEmpty {
-                        } else {
-                            break inner
+        //CloudVeil start
+        if !CloudVeilSecurityController.SecurityStaticSettings.disableInAppBrowser {
+            inner: for media in message.media {
+                if let webpage = media as? TelegramMediaWebpage {
+                    if case let .Loaded(content) = webpage.content {
+                        if let story = content.story {
+                            if let storyItem = message.associatedStories[story.storyId], !storyItem.data.isEmpty {
+                            } else {
+                                break inner
+                            }
+                            
+                            if let attribute = message.attributes.first(where: { $0 is WebpagePreviewMessageAttribute }) as? WebpagePreviewMessageAttribute, attribute.leadingPreview {
+                                result.insert((message, ChatMessageWebpageBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .text, neighborSpacing: .default)), at: 0)
+                            } else {
+                                result.append((message, ChatMessageWebpageBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .text, neighborSpacing: .default)))
+                            }
+                            needReactions = false
                         }
+                        break inner
                     }
-                    
-                    if let attribute = message.attributes.first(where: { $0 is WebpagePreviewMessageAttribute }) as? WebpagePreviewMessageAttribute, attribute.leadingPreview {
-                        result.insert((message, ChatMessageWebpageBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .text, neighborSpacing: .default)), at: 0)
-                    } else {
-                        result.append((message, ChatMessageWebpageBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .text, neighborSpacing: .default)))
-                    }
-                    needReactions = false
                 }
-                break inner
             }
         }
         

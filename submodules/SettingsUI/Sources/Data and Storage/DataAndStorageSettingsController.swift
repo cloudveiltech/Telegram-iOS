@@ -14,6 +14,7 @@ import OpenInExternalAppUI
 import ItemListPeerActionItem
 import StorageUsageScreen
 import PresentationDataUtils
+import CloudVeilSecurityManager
 
 public enum AutomaticSaveIncomingPeerType {
     case privateChats

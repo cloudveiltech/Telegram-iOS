@@ -16,6 +16,7 @@ import PhoneNumberFormat
 import ItemListUI
 import AnimatedStickerNode
 import TelegramAnimatedStickerNode
+import CloudVeilSecurityManager
 
 private enum ContactListSearchGroup {
     case contacts
@@ -304,7 +305,8 @@ public final class ContactsSearchContainerNode: SearchDisplayControllerContentNo
                     foundLocalContacts = .single(([], [:]))
                 }
                 let foundRemoteContacts: Signal<([FoundPeer], [FoundPeer])?, NoError>
-                if categories.contains(.global) {
+                //CloudVeil changed if conditions
+                if categories.contains(.global) && !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
                     foundRemoteContacts = .single(previousFoundRemoteContacts.with({ $0 }))
                     |> then(
                         context.engine.contacts.searchRemotePeers(query: query)
