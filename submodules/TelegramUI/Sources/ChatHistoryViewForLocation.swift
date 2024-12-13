@@ -122,6 +122,7 @@ func chatHistoryViewForLocation(
                         case .known:
                             return true
                         case .unknown:
+                            //RYAN: BUG HERE
                             return false
                         }
                     }
