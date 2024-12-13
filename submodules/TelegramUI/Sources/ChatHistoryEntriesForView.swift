@@ -684,12 +684,12 @@ func chatHistoryEntriesForView(
     }
     
     if reverse {
-        return (entries.reversed(), currentState)
+        return (entriesFiltered.reversed(), currentState)
     } else {
         #if DEBUG
-        assert(entries.map(\.stableId) == entries.sorted().map(\.stableId))
+        assert(entriesFiltered.map(\.stableId) == entriesFiltered.sorted().map(\.stableId))
         #endif
-        return (entries, currentState)
+        return (entriesFiltered, currentState)
     }
     //CloudVeil end
 }
