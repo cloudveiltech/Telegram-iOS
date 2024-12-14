@@ -113,6 +113,8 @@ private final class BrowserScreenComponent: CombinedComponent {
                 let contentType = context.component.contentState?.contentType ?? .instantPage
                 switch contentType {
                 case .webPage:
+                    // CloudVeil disable web-browser with address bar
+                    /*
                     navigationContent = AnyComponentWithIdentity(
                         id: "addressBar",
                         component: AnyComponent(
@@ -127,6 +129,21 @@ private final class BrowserScreenComponent: CombinedComponent {
                             )
                         )
                     )
+                     */
+                    // CloudVeil end
+                    
+                    // CloudVeil start : Open webpage like an instantPage
+                    let title = context.component.contentState?.title ?? ""
+                    navigationContent = AnyComponentWithIdentity(
+                        id: "titleBar_\(title)",
+                        component: AnyComponent(
+                            TitleBarContentComponent(
+                                theme: environment.theme,
+                                title: title
+                            )
+                        )
+                    )
+                    // CloudVeil end
                 case .instantPage, .document:
                     let title = context.component.contentState?.title ?? ""
                     navigationContent = AnyComponentWithIdentity(
