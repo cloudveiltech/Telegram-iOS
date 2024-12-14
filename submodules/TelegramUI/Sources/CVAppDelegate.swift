@@ -112,9 +112,10 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
                 task.resume()
             }
             Self.log.info("log upload tasks begun")
-            */
             done(true)
         }
+        */
+        done(true)
         #else
         done(true)
         #endif
