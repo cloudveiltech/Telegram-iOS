@@ -1,14 +1,16 @@
 {
-	"bundle_id": "org.{! a random string !}.Telegram",
-	"api_id": "{! get one at https://my.telegram.org/apps !}",
-	"api_hash": "{! get one at https://my.telegram.org/apps !}",
-	"team_id": "{! check README.md !}",
+	"bundle_id": "com.cloudveil.CloudVeilMessenger",
+	"api_id": "27951901",
+	"api_hash": "e19427f71c03e9daef25bd3879e07471",
+	"team_id": "L95C8867HX",
 	"app_center_id": "0",
+	"appstore_id": "27095",
+	"app_specific_url_scheme": "tg",
+	"premium_iap_product_id": "org.telegram.telegramPremium.monthly",
+	"enable_siri": true,
+	"enable_icloud": true,
 	"is_internal_build": "true",
 	"is_appstore_build": "false",
-	"appstore_id": "0",
-	"app_specific_url_scheme": "tg",
-	"premium_iap_product_id": "",
-	"enable_siri": false,
-	"enable_icloud": false
+	"cloudveil_shiplogs": true,
+	"telegram_use_xcode_managed_codesigning": "true"
 }

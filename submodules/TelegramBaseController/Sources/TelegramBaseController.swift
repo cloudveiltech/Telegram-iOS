@@ -1077,8 +1077,6 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
         disposable = peerView.start(next: { peerView in
             if disposable == nil { return }
             
-            disposable!.dispose()
-            
             var isDialogAllowed: Bool? = true
             var isGroup = false
             var isChannel = false
@@ -1126,6 +1124,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                         TelegramBaseController.showWaitingPopup(peerView: peerView!, context: context, controller: controller, presentationData: presentationData)
                     }
                     callback(false)
+                    disposable!.dispose()
                 }
             } else if !isDialogAllowed! {
                 DispatchQueue.main.async {
@@ -1134,10 +1133,12 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                         TelegramBaseController.showBlockedPopup(peerView: peerView!, context: context, controller: controller, presentationData: presentationData)
                     }
                     callback(false)
+                    disposable!.dispose()
                 }
             } else {
                 DispatchQueue.main.async {
                     callback(true)
+                    disposable!.dispose()
                 }
             }
         })
