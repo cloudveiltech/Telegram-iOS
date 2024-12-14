@@ -72,3 +72,7 @@
    - `provisioning/dist/Widget.mobileprovision`: `XC com cloudveil CloudVeilMessenger Widget (com.cloudveil.CloudVeilMessenger.Widget)`
 
 * Use `./make build -for dist -mode release` to make a build.
+
+# Build number
+- Create a file `buildNumber.txt` at root folder
+- Put the build number on this before start a new build
