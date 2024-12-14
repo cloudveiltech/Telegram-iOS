@@ -76,6 +76,7 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
     ) {
         #if CLOUDVEIL_SHIPLOGS
         Self.log.info("log upload requested")
+        /* Disable log upload for now
         self.scheduleLogUpload()
         DispatchQueue.global(qos: .background).async {
             Self.log.info("log upload begun")
@@ -92,7 +93,8 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
             if archives.count == 0 {
                 Self.log.info("no logs to upload")
             }
-            let url = URL(string: "https://minerva1.raswith.com:17171/receive")!
+            let logServerUrl = "ENTER_LOG_SERVER_URL_HERE"
+            let url = URL(string: "")!
             for entry in archives {
                 let (file, time) = entry
                 var request = URLRequest(url: url)
@@ -110,6 +112,7 @@ fileprivate let CVM_UPLOAD = "com.cloudveil.CloudVeilMessenger.upload"
                 task.resume()
             }
             Self.log.info("log upload tasks begun")
+            */
             done(true)
         }
         #else
