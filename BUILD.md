@@ -9,21 +9,24 @@
 * Create a json file named `configuration.json` in that directory with the CloudVeil Messenger build configuration.
 
   Example contents:
-
   ```json
-  {
+    {
   	"bundle_id": "com.cloudveil.CloudVeilMessenger",
   	"api_id": "{- get from my.telgram.org/apps -}",
   	"api_hash": "{- get from my.telgram.org/apps -}",
-  	"team_id": "L95C8867HX",
-  	"app_center_id": "0",
-  	"appstore_id": "27095",
-  	"app_specific_url_scheme": "tg",
-  	"premium_iap_product_id": "org.telegram.telegramPremium.monthly",
-  	"enable_siri": true,
-  	"enable_icloud": true
+    "team_id": "L95C8867HX",
+    "app_center_id": "0",
+    "appstore_id": "27095",
+    "app_specific_url_scheme": "tg",
+    "premium_iap_product_id": "org.telegram.telegramPremium.monthly",
+    "enable_siri": false,
+    "enable_icloud": true,
+    "is_internal_build": "true",
+    "is_appstore_build": "true",
+    "cloudveil_shiplogs": false,
+    "telegram_use_xcode_managed_codesigning": "true"
   }
-  ```
+```
 
 * Create a json file named `make.json` in the repository root.
 
@@ -39,11 +42,17 @@
   }
   ```
 
-* Install Xcode 15 and its command line tools.
+* Install Xcode 16 and its command line tools.
 
 * Install cocoapods.
 
+* Install bazel using balzelish https://bazel.build/install/bazelisk
+  
+* Update bazel version in `.bazelversion` if needed. More details https://github.com/bazelbuild/bazelisk
+
 * Install go
+
+* Update bazel version in `build-system/NewMake/main.go` if needed
 
 * Run `go build -C build-system/NewMake && mv build-system/NewMake/NewMake make` from the repository root.
 

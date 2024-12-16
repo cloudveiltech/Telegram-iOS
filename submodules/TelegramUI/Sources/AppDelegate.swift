@@ -2731,6 +2731,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     private let currentCheckForUpdatesDisposable = MetaDisposable()
     
     private func maybeCheckForUpdates() {
+        // CloudVeil disable the AppCenter for all build
+        let cloudVeilDisable = true
+        guard cloudVeilDisable == false else { return }
+        // CloudVeil end
         #if targetEnvironment(simulator)
         #else
         guard let buildConfig = self.buildConfig, !buildConfig.isAppStoreBuild, let appCenterId = buildConfig.appCenterId, !appCenterId.isEmpty else {
