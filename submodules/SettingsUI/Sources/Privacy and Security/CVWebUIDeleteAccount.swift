@@ -33,7 +33,7 @@ public func CVPresentWebUIAccountDelete(
     guard let root = navigationController.view.window?.rootViewController else {
         return
     }
-    let userId = context.account.peerId.toInt64()
+    let userId = context.account.peerId.id._internalGetInt64Value()
     CloudVeilSecurityController.shared.withDeleteAccountUrl(userId) { url in
         DispatchQueue.main.async {
             let safari = SFSafariViewController(url: url)
