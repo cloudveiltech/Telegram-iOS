@@ -3299,7 +3299,7 @@ public final class ChatListNode: ListView {
                 
                 if let peer  = peerViewMainPeer(peerView) as? TelegramUser {
                     TGUserController.withLock({
-                        $0.set(userID: NSInteger(peer.id.toInt64()))
+                        $0.set(userID: NSInteger(peer.id.id._internalGetInt64Value()))
                         $0.set(userName: (peer.username ?? "") as NSString)
                         $0.set(userPhoneNumber: (peer.phone ?? "") as NSString)
                     })
@@ -3427,7 +3427,7 @@ public final class ChatListNode: ListView {
             
             if let peer  = peerViewMainPeer(peerView) as? TelegramUser {
                 TGUserController.withLock({
-                    $0.set(userID: NSInteger(peer.id.toInt64()))
+                    $0.set(userID: NSInteger(peer.id.id._internalGetInt64Value()))
                     $0.set(userName: (peer.username ?? "") as NSString)
                     $0.set(userPhoneNumber: (peer.phone ?? "") as NSString)
                 })
