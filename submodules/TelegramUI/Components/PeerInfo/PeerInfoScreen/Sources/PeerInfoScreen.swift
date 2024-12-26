@@ -10538,7 +10538,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
             push(watchSettingsController(context: self.context))
         case .support:
         //CloudVeil start open bot
-            let resolveSignal = context.engine.peers.resolvePeerByName(name: "@cloudveilbot")
+            let resolveSignal = context.engine.peers.resolvePeerByName(name: "@cloudveilbot", referrer: nil)
                 |> filter { result in
                     switch result {
                     case .progress: return false

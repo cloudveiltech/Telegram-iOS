@@ -3651,7 +3651,7 @@ public final class ChatListNode: ListView {
         }
         Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel")
 
-        let resolveSignal = self.context.engine.peers.resolvePeerByName(name: userName)
+        let resolveSignal = self.context.engine.peers.resolvePeerByName(name: userName, referrer: nil)
             |> mapToSignal { result -> Signal<EnginePeer, NoError> in
                 guard case let .result(result) = result else {
                     return .complete()
