@@ -1077,35 +1077,33 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
         disposable = peerView.start(next: { peerView in
             if disposable == nil { return }
             
+            let peerView = peerViewMainPeer(peerView)
+            
             var isDialogAllowed: Bool? = true
             var isGroup = false
             var isChannel = false
             var isBot = false
             let row = TGRow()
-            row.objectID = NSInteger(peerView.peerId.id._internalGetInt64Value())
-            let groupId = -NSInteger(peerView.peerId.id._internalGetInt64Value())
             
-            let peerView = peerViewMainPeer(peerView)
+            let (_, objectID) = readPeerTypeAndId(peerView: peerView!)
+            row.objectID = objectID
             row.title = (peerView?.debugDisplayTitle ?? "") as NSString
             
             if peerId.namespace == Namespaces.Peer.SecretChat && !CloudVeilSecurityController.shared.isSecretChatAvailable {
                 isDialogAllowed = false
             } else if let peer = peerView as? TelegramChannel, case .group = peer.info {
-                isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(groupID: NSInteger(-peerId.id._internalGetInt64Value()))
+                isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(groupID: objectID)
                 isGroup = true
                 row.userName = (peer.username ?? "") as NSString
-                row.objectID = groupId
             } else if peerId.namespace == Namespaces.Peer.CloudGroup {
-                isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(groupID: NSInteger(-peerId.id._internalGetInt64Value()))
+                isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(groupID: objectID)
                 isGroup = true
-                row.objectID = groupId
             } else if let peer = peerView as? TelegramChannel, case .broadcast = peer.info {
-                isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(channelID: NSInteger(-peerId.id._internalGetInt64Value()))
+                isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(channelID: objectID)
                 isChannel = true
                 row.userName = (peer.username ?? "") as NSString
-                row.objectID = groupId
             } else if let user = peerView as? TelegramUser, let _ = user.botInfo {
-                isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(botID: NSInteger(peerId.id._internalGetInt64Value()))
+                isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(botID: objectID)
                 isBot = true
                 row.userName = (user.username ?? "") as NSString
             }
@@ -1145,17 +1143,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
     }
 
     public static func showWaitingPopup(peerView: Peer, context: AccountContext, controller: ViewController, presentationData: PresentationData) {
-        var type = "secret chat"
-        if let peer = peerView as? TelegramChannel, case .group = peer.info {
-            type = "group"
-        } else if peerView.id.namespace == Namespaces.Peer.CloudGroup {
-            type = "group"
-        } else if let peer = peerView as? TelegramChannel, case .broadcast = peer.info {
-            type = "channel"
-        } else if let user = peerView as? TelegramUser, let _ = user.botInfo {
-            type = "bot"
-        }
-        
+        let (type, _) = readPeerTypeAndId(peerView: peerView)
         let message = "Checking server policy for \(type). Try again in a few seconds."
         
         let alert = standardTextAlertController(
@@ -1166,19 +1154,9 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
     }
     
     public static func showBlockedPopup(peerView: Peer, context: AccountContext, controller: ViewController, presentationData: PresentationData) {
-        var type = "secret chat"
-        if let peer = peerView as? TelegramChannel, case .group = peer.info {
-            type = "group"
-        } else if peerView.id.namespace == Namespaces.Peer.CloudGroup {
-            type = "group"
-        } else if let peer = peerView as? TelegramChannel, case .broadcast = peer.info {
-            type = "channel"
-        } else if let user = peerView as? TelegramUser, let _ = user.botInfo {
-            type = "bot"
-        }
-        
+        let (type, _) = readPeerTypeAndId(peerView: peerView)
         let message = "This \(type) is blocked by server policy. Please fill out the form to request it be unblocked."
-        
+    
         let alert = standardTextAlertController(
             theme: AlertControllerTheme(presentationData: presentationData),
             title: "CloudVeil", text: message,
@@ -1193,9 +1171,9 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
     }
     
     private static func openUnblockRequest(peerView: Peer, context: AccountContext, controller: ViewController, presentationData: PresentationData) {
-        let conversationId = -NSInteger(peerView.id.id._internalGetInt64Value())
+        let (_, peerId) = readPeerTypeAndId(peerView: peerView)
         let userId = TGUserController.userID
-        let url = "https://messenger.cloudveil.org/unblock/\(userId)/\(conversationId)"
+        let url = "https://messenger.cloudveil.org/unblock/\(userId)/\(peerId)"
 
         context.sharedContext.openExternalUrl(
             context: context, urlContext: .generic, url: url, forceExternal: false,
@@ -1210,6 +1188,30 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
         }) {
             navigationController?.popViewController(animated: true)
         }
+    }
+    
+    private static func readPeerTypeAndId(peerView: Peer) -> (String, NSInteger) {
+        let peerId = peerView.id.id._internalGetInt64Value()
+        let negativePeerId = -peerId
+        let contextId: Int64
+        let type: String
+        if let peer = peerView as? TelegramChannel, case .group = peer.info {
+            type = "group"
+            contextId = negativePeerId
+        } else if peerView.id.namespace == Namespaces.Peer.CloudGroup {
+            type = "group"
+            contextId = negativePeerId
+        } else if let peer = peerView as? TelegramChannel, case .broadcast = peer.info {
+            type = "channel"
+            contextId = negativePeerId
+        } else if let user = peerView as? TelegramUser, let _ = user.botInfo {
+            type = "bot"
+            contextId = peerId
+        } else {
+            type = "secret chat"
+            contextId = peerId
+        }
+        return (type, NSInteger(contextId))
     }
     //CloudVeil end
 }
