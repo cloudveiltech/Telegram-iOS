@@ -1122,7 +1122,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                         TelegramBaseController.showWaitingPopup(peerView: peerView!, context: context, controller: controller, presentationData: presentationData)
                     }
                     callback(false)
-                    disposable!.dispose()
+                    disposable?.dispose()
                 }
             } else if !isDialogAllowed! {
                 DispatchQueue.main.async {
@@ -1131,12 +1131,16 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                         TelegramBaseController.showBlockedPopup(peerView: peerView!, context: context, controller: controller, presentationData: presentationData)
                     }
                     callback(false)
-                    disposable!.dispose()
+                    disposable?.dispose()
                 }
             } else {
                 DispatchQueue.main.async {
                     callback(true)
-                    disposable!.dispose()
+                    // This delay is a temporary solution.
+                    // The infinite loading issue might be related to how the database is being accessed.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        disposable?.dispose()
+                    }
                 }
             }
         })
