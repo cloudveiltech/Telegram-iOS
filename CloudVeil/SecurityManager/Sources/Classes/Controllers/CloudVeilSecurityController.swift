@@ -7,10 +7,10 @@
 //
 
 import Foundation
-
 import UIKit
-
 import ObjectMapper
+import Sentry
+import CloudVeil
 
 fileprivate let SETTINGS_URL = URL(string: "https://messenger.cloudveil.org/api/v1/messenger/settings")!
 
@@ -44,6 +44,7 @@ public class UserBlacklist {
 
 open class CloudVeilSecurityController: NSObject {
     private let SUPPORT_BOT_ID = 689684671
+    private let TAG = "CloudVeilSecurityController"
     
 	public struct SecurityStaticSettings {
 		public static let disableGlobalSearch = true
@@ -294,13 +295,62 @@ open class CloudVeilSecurityController: NSObject {
         if let id = body.id, self.userBlacklist.contains(Int64(id)) && !ignoreBlacklist {
             return nil
         }
-        var req = URLRequest(url: SETTINGS_URL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+        var req = URLRequest(url: SETTINGS_URL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 10)
         req.httpMethod = "POST"
         req.httpBody = body.toJSONString(prettyPrint: false)!.data(using: .utf8)!
         return URLSession.shared.dataTask(with: req) { data, response, error in
-            if let data = data, let str = String(data: data, encoding: .utf8) {
-                callback(TGSettingsResponse(JSONString: str))
+            if let error = error {
+                SentrySDK.capture(error: error)
+                CVLog.log(self.TAG, "Error: \(error)")
+                callback(nil)
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                let networkError = NSError(
+                    domain: self.TAG,
+                    code: 101,
+                    userInfo: ["error": "Invalid HTTP response"]
+                )
+                SentrySDK.capture(error: networkError)
+                CVLog.log(self.TAG, "Invalid HTTP response")
+                callback(nil)
+                return
+            }
+            
+            // Validate HTTP response status code
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let errorDetails: String
+                if let data = data, let errorString = String(data: data, encoding: .utf8) {
+                    errorDetails = "Request failed with status \(httpResponse.statusCode): \(errorString)"
+                } else {
+                    errorDetails = "Request failed with status \(httpResponse.statusCode) and no parsable response"
+                }
+                
+                let requestError = NSError(
+                    domain: self.TAG,
+                    code: 102,
+                    userInfo: ["error": errorDetails]
+                )
+                SentrySDK.capture(error: requestError)
+                CVLog.log(self.TAG, errorDetails)
+                callback(nil)
+                return
+            }
+            
+            // Parse Response
+            if let data = data, let responseString = String(data: data, encoding: .utf8),
+               let settingsResponse = TGSettingsResponse(JSONString: responseString) {
+                callback(settingsResponse)
             } else {
+                let errorDetails = "Successful request but failed to parse response"
+                let parsingError = NSError(
+                    domain: self.TAG,
+                    code: 103,
+                    userInfo: ["error": errorDetails]
+                )
+                SentrySDK.capture(error: parsingError)
+                CVLog.log(self.TAG, errorDetails)
                 callback(nil)
             }
         }
