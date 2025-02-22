@@ -295,8 +295,9 @@ open class CloudVeilSecurityController: NSObject {
         if let id = body.id, self.userBlacklist.contains(Int64(id)) && !ignoreBlacklist {
             return nil
         }
-        var req = URLRequest(url: SETTINGS_URL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 10)
+        var req = URLRequest(url: SETTINGS_URL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
         req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = body.toJSONString(prettyPrint: false)!.data(using: .utf8)!
         return URLSession.shared.dataTask(with: req) { data, response, error in
             if let error = error {
