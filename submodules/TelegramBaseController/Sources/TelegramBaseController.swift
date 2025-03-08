@@ -1088,6 +1088,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             let (_, objectID) = readPeerTypeAndId(peerView: peerView!)
             row.objectID = objectID
             row.title = (peerView?.debugDisplayTitle ?? "") as NSString
+            row.userNames = peerView?.usernames.map({ $0.username }) ?? []
             
             if peerId.namespace == Namespaces.Peer.SecretChat && !CloudVeilSecurityController.shared.isSecretChatAvailable {
                 isDialogAllowed = false

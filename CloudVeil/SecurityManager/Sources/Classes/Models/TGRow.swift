@@ -15,6 +15,7 @@ public class TGRow: Mappable, Equatable {
     public var objectID: NSInteger = -1
     public var title: NSString = ""
     public var userName: NSString = ""
+    public var userNames: [String] = []
     public var isMegagroup: Bool?
     public var isPublic: Bool?
 
@@ -30,6 +31,7 @@ public class TGRow: Mappable, Equatable {
         objectID <- map["id"]
         title <- map["title"]
         userName <- map["user_name"]
+        userNames <- map["user_names"]
         isMegagroup <- map["is_megagroup"]
         isPublic <- map["is_public"]
     }

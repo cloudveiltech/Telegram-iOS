@@ -3344,6 +3344,7 @@ public final class ChatListNode: ListView {
                         row.objectID = NSInteger(peer.peerId.id._internalGetInt64Value())
                         let groupId = -peer.peerId.id._internalGetInt64Value()
                         row.title = title as NSString
+                        row.userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
                         
                         var isGroup: Bool = false
                         var isChannel = false
@@ -3399,6 +3400,7 @@ public final class ChatListNode: ListView {
                                                 row.objectID = id
                                                 row.title = NSString(string:user.nameOrPhone)
                                                 row.userName = (user.username ?? "") as NSString
+                                                row.userNames = user.usernames.map({ $0.username })
                                                 bots.append(row)
                                             }
                                         }
@@ -3473,6 +3475,7 @@ public final class ChatListNode: ListView {
                         row.objectID = NSInteger(peer.peerId.id._internalGetInt64Value())
                         let groupId = -peer.peerId.id._internalGetInt64Value()
                         row.title = title as NSString
+                        row.userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
                         
                         var isGroup: Bool = false
                         var isChannel = false
@@ -3529,6 +3532,7 @@ public final class ChatListNode: ListView {
                                             row.objectID = id
                                             row.title = NSString(string:user.nameOrPhone)
                                             row.userName = (user.username ?? "") as NSString
+                                            row.userNames = user.usernames.map({ $0.username })
                                             bots.append(row)
                                         }
                                     }
