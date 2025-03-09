@@ -3346,6 +3346,9 @@ public final class ChatListNode: ListView {
                         row.title = title as NSString
                         row.userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
                         
+                        let isPublic = !(peerView?.addressName?.isEmpty ?? true)
+                        row.isPublic = isPublic
+                        
                         var isGroup: Bool = false
                         var isChannel = false
                         if case let .channel(peer) = peer.chatMainPeer, case .group = peer.info {
@@ -3401,6 +3404,10 @@ public final class ChatListNode: ListView {
                                                 row.title = NSString(string:user.nameOrPhone)
                                                 row.userName = (user.username ?? "") as NSString
                                                 row.userNames = user.usernames.map({ $0.username })
+                                                
+                                                let isPublic = !(user.addressName?.isEmpty ?? true)
+                                                row.isPublic = isPublic
+                                                
                                                 bots.append(row)
                                             }
                                         }
@@ -3477,6 +3484,9 @@ public final class ChatListNode: ListView {
                         row.title = title as NSString
                         row.userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
                         
+                        let isPublic = !(peer.chatMainPeer?.addressName?.isEmpty ?? true)
+                        row.isPublic = isPublic
+                        
                         var isGroup: Bool = false
                         var isChannel = false
                         if case let .channel(peer) = peer.chatMainPeer, case .group = peer.info {
@@ -3533,6 +3543,10 @@ public final class ChatListNode: ListView {
                                             row.title = NSString(string:user.nameOrPhone)
                                             row.userName = (user.username ?? "") as NSString
                                             row.userNames = user.usernames.map({ $0.username })
+                                            
+                                            let isPublic = !(user.addressName?.isEmpty ?? true)
+                                            row.isPublic = isPublic
+                                            
                                             bots.append(row)
                                         }
                                     }

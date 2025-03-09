@@ -1090,6 +1090,11 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             row.title = (peerView?.debugDisplayTitle ?? "") as NSString
             row.userNames = peerView?.usernames.map({ $0.username }) ?? []
             
+            // this logic is extract from InviteLinkEditorController::L693
+            // and PeerInfoScreen::L2033
+            let isPublic = !(peerView?.addressName?.isEmpty ?? true)
+            row.isPublic = isPublic
+            
             if peerId.namespace == Namespaces.Peer.SecretChat && !CloudVeilSecurityController.shared.isSecretChatAvailable {
                 isDialogAllowed = false
             } else if let peer = peerView as? TelegramChannel, case .group = peer.info {
