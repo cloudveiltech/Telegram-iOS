@@ -16,6 +16,7 @@ public class TGSettingsRequest: Mappable, Equatable {
     public private(set) var id: Int64?
     public var phoneNumber: String?
     public var userName: String?
+    public var userNames: [String] = []
     public var groups: [TGRow] = []
     public var channels: [TGRow] = []
     public var bots: [TGRow] = []
@@ -30,14 +31,17 @@ public class TGSettingsRequest: Mappable, Equatable {
         if self.id == nil {
             var id = Int64()
             var userName = ""
+            var userNames: [String] = []
             var phoneNumber = ""
             TGUserController.withLock({
                 id = Int64($0.getUserID())
                 userName = $0.getUserName() as String
+                userNames = $0.getUserNames()
                 phoneNumber = $0.getUserPhoneNumber() as String
             })
             self.id = id
             self.userName = userName
+            self.userNames = userNames
             self.phoneNumber = phoneNumber
         }
         self.clientSessionId = sessionId ?? Self.getClientId(self.id!)
@@ -69,6 +73,7 @@ public class TGSettingsRequest: Mappable, Equatable {
         return lhs.id == rhs.id &&
             lhs.phoneNumber == rhs.phoneNumber &&
             lhs.userName == rhs.userName &&
+            lhs.userNames == rhs.userNames &&
             lhs.groups == rhs.groups &&
             lhs.channels == rhs.channels &&
             lhs.bots == rhs.bots &&
@@ -85,6 +90,7 @@ public class TGSettingsRequest: Mappable, Equatable {
         id <- map["user_id"]
         phoneNumber <- map["user_phone"]
         userName <- map["user_name"]
+        userNames <- map["user_names"]
         groups <- map["groups"]
         channels <- map["channels"]
         bots <- map["bots"]

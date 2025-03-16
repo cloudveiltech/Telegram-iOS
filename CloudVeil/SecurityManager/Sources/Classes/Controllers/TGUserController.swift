@@ -36,6 +36,10 @@ import Foundation
         TGUserModel1.set(userName: name)
     }
     
+    @objc open func set(userNames names: [String]) {
+        TGUserModel1.set(userNames: names)
+    }
+    
     @objc open func getUserID() -> NSInteger {
         return TGUserModel1.id
     }
@@ -46,5 +50,9 @@ import Foundation
     
     @objc open func getUserName() -> NSString {
         return TGUserModel1.userName
+    }
+    
+    @objc open func getUserNames() -> [String] {
+        return TGUserModel1.userNames
     }
 }

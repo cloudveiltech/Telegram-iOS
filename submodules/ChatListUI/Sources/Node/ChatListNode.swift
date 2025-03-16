@@ -3327,6 +3327,7 @@ public final class ChatListNode: ListView {
                     TGUserController.withLock({
                         $0.set(userID: NSInteger(peer.id.id._internalGetInt64Value()))
                         $0.set(userName: (peer.username ?? "") as NSString)
+                        $0.set(userNames: peer.usernames.map({ $0.username }))
                         $0.set(userPhoneNumber: (peer.phone ?? "") as NSString)
                     })
                     //collect peers
@@ -3346,7 +3347,7 @@ public final class ChatListNode: ListView {
                         row.title = title as NSString
                         row.userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
                         
-                        let isPublic = !(peerView?.addressName?.isEmpty ?? true)
+                        let isPublic = !(peer.chatMainPeer?.addressName?.isEmpty ?? true)
                         row.isPublic = isPublic
                         
                         var isGroup: Bool = false
@@ -3426,6 +3427,7 @@ public final class ChatListNode: ListView {
                                                             row.objectID = NSInteger(stickerInfo.id.id)
                                                             row.title = stickerInfo.title as NSString
                                                             row.userName = stickerInfo.shortName as NSString
+                                                            row.userNames = [stickerInfo.shortName]
                                                             stickers.append(row)
                                                         }
                                                     }
@@ -3464,6 +3466,7 @@ public final class ChatListNode: ListView {
                 TGUserController.withLock({
                     $0.set(userID: NSInteger(peer.id.id._internalGetInt64Value()))
                     $0.set(userName: (peer.username ?? "") as NSString)
+                    $0.set(userNames: peer.usernames.map({ $0.username }))
                     $0.set(userPhoneNumber: (peer.phone ?? "") as NSString)
                 })
                 //collect peers
@@ -3565,6 +3568,7 @@ public final class ChatListNode: ListView {
                                                         row.objectID = NSInteger(stickerInfo.id.id)
                                                         row.title = stickerInfo.title as NSString
                                                         row.userName = stickerInfo.shortName as NSString
+                                                        row.userNames = [stickerInfo.shortName]
                                                         stickers.append(row)
                                                     }
                                                 }
