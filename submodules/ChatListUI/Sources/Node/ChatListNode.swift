@@ -3659,40 +3659,41 @@ public final class ChatListNode: ListView {
     private var lastSubscribeCallTime: TimeInterval = 0
     
     public func subscribeToCloudVeilSupportChannel(channels: [TGRow]) {
-        let now = Date().timeIntervalSince1970
-        if now - lastSubscribeCallTime < 10 {
-          //  Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel dropped, less than 10 seconds passed")
-            return
-        }
-        lastSubscribeCallTime = now
-        let userName = "CloudVeilMessenger"
-        for row in channels {
-            if row.userName as String == userName {
-                return
-            }
-        }
-        Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel")
-
-        let resolveSignal = self.context.engine.peers.resolvePeerByName(name: userName, referrer: nil)
-            |> mapToSignal { result -> Signal<EnginePeer, NoError> in
-                guard case let .result(result) = result else {
-                    return .complete()
-                }
-                guard let result = result else {
-                    return .complete()
-                }
-                return .single(result)
-            }
-            |> mapToSignalPromotingError { peer -> Signal<RenderedChannelParticipant?, JoinChannelError> in
-                return self.context.engine.peers.joinChannel(peerId: peer.id, hash: nil)
-            }
-
-        if supportSubscribeDisposable == nil {
-            self.supportSubscribeDisposable = resolveSignal.start(completed: {
-                self.supportSubscribeDisposable?.dispose()
-                self.supportSubscribeDisposable = nil
-            })
-        }
+        // Disable forcing to join CloudVeil Messenger Announcements channel - iOS
+//        let now = Date().timeIntervalSince1970
+//        if now - lastSubscribeCallTime < 10 {
+//          //  Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel dropped, less than 10 seconds passed")
+//            return
+//        }
+//        lastSubscribeCallTime = now
+//        let userName = "CloudVeilMessenger"
+//        for row in channels {
+//            if row.userNames.contains(userName) {
+//                return
+//            }
+//        }
+//        Logger.shared.log("CVSettings", "subscribeToCloudVeilSupportChannel")
+//
+//        let resolveSignal = self.context.engine.peers.resolvePeerByName(name: userName, referrer: nil)
+//            |> mapToSignal { result -> Signal<EnginePeer, NoError> in
+//                guard case let .result(result) = result else {
+//                    return .complete()
+//                }
+//                guard let result = result else {
+//                    return .complete()
+//                }
+//                return .single(result)
+//            }
+//            |> mapToSignalPromotingError { peer -> Signal<RenderedChannelParticipant?, JoinChannelError> in
+//                return self.context.engine.peers.joinChannel(peerId: peer.id, hash: nil)
+//            }
+//
+//        if supportSubscribeDisposable == nil {
+//            self.supportSubscribeDisposable = resolveSignal.start(completed: {
+//                self.supportSubscribeDisposable?.dispose()
+//                self.supportSubscribeDisposable = nil
+//            })
+//        }
     }
     
     func muteBlockedPeers(list: EngineChatList) {
