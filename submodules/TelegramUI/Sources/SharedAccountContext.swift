@@ -75,6 +75,7 @@ import GiftViewScreen
 import StarsIntroScreen
 import ContentReportScreen
 import AffiliateProgramSetupScreen
+import CloudVeilSecurityManager
 
 private final class AccountUserInterfaceInUseContext {
     let subscribers = Bag<(Bool) -> Void>()
@@ -1528,6 +1529,15 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     }
     
     public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext, url: String, forceExternal: Bool, presentationData: PresentationData, navigationController: NavigationController?, dismissInput: @escaping () -> Void) {
+        //Cloudveil start
+        if CloudVeilUriFilter.shouldIgnoreURLString(url) {
+            presentGlobalController(textAlertController(context: context, title: "Warning", text: "Content blocked for your protection", actions: [
+                TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
+                }),
+            ], parseMarkdown: true), nil)
+            return
+        }
+        //Cloudveil end
         openExternalUrlImpl(context: context, urlContext: urlContext, url: url, forceExternal: forceExternal, presentationData: presentationData, navigationController: navigationController, dismissInput: dismissInput)
     }
     

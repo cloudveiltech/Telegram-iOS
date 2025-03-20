@@ -9985,6 +9985,15 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         progress: Promise<Bool>? = nil,
         commit: @escaping () -> Void = {}
     ) {
+        //Cloudveil start
+        if CloudVeilUriFilter.shouldIgnoreURLString(url) {
+            context.sharedContext.presentGlobalController(textAlertController(context: context, title: "Warning", text: "Content blocked for your protection", actions: [
+                TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
+                }),
+            ], parseMarkdown: true), nil)
+            return
+        }
+        //Cloudveil end
         self.commitPurposefulAction()
         
         if allowInlineWebpageResolution, let message, let webpage = message.media.first(where: { $0 is TelegramMediaWebpage }) as? TelegramMediaWebpage, case let .Loaded(content) = webpage.content, content.url == url {
