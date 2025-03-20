@@ -561,4 +561,10 @@ open class CloudVeilSecurityController: NSObject {
 			viewController.present(alert, animated: false)
 		}
 	}
+    
+    open func showContentDisableWarningPopup(_ viewController: UIViewController) {
+        let alert = UIAlertController(title: "CloudVeil!", message: "Blocked", preferredStyle: .alert)
+        alert.addAction(.init(title: "OK", style: .default, handler: nil))
+        viewController.present(alert, animated: false)
+    }
 }
