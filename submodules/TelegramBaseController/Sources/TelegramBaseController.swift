@@ -1088,7 +1088,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             let (_, objectID) = readPeerTypeAndId(peerView: peerView!)
             row.objectID = objectID
             row.title = (peerView?.debugDisplayTitle ?? "") as NSString
-            row.userNames = peerView?.usernames.map({ $0.username }) ?? []
+            var userNames = peerView?.usernames.map({ $0.username }) ?? []
             
             // this logic is extract from InviteLinkEditorController::L693
             // and PeerInfoScreen::L2033
@@ -1113,6 +1113,12 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                 isBot = true
                 row.userName = (user.username ?? "") as NSString
             }
+            
+            let userName = row.userName as String
+            if userName != "" && !userNames.contains(userName) {
+                userNames.append(userName)
+            }
+            row.userNames = userNames
 
             if isDialogAllowed == nil {
                 if isBot {

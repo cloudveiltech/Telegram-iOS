@@ -3345,7 +3345,7 @@ public final class ChatListNode: ListView {
                         row.objectID = NSInteger(peer.peerId.id._internalGetInt64Value())
                         let groupId = -peer.peerId.id._internalGetInt64Value()
                         row.title = title as NSString
-                        row.userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
+                        var userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
                         
                         let isPublic = !(peer.chatMainPeer?.addressName?.isEmpty ?? true)
                         row.isPublic = isPublic
@@ -3377,6 +3377,14 @@ public final class ChatListNode: ListView {
                         if isGroup || isChannel {
                             groupAndChannelsPeerIds.append(peer.peerId)
                         }
+                        
+                        // Logic to collect userNames is a bit duplicate in a few places in the code
+                        // But its simple way to not add too much change on the code base
+                        let userName = row.userName as String
+                        if userName != "" && !userNames.contains(userName) {
+                            userNames.append(userName)
+                        }
+                        row.userNames = userNames
                     }
                     
                     if groups.count == 0 && channels.count == 0 {
@@ -3404,7 +3412,13 @@ public final class ChatListNode: ListView {
                                                 row.objectID = id
                                                 row.title = NSString(string:user.nameOrPhone)
                                                 row.userName = (user.username ?? "") as NSString
-                                                row.userNames = user.usernames.map({ $0.username })
+                                                var userNames = user.usernames.map({ $0.username })
+                                                
+                                                let userName = row.userName as String
+                                                if userName != "" && !userNames.contains(userName) {
+                                                    userNames.append(userName)
+                                                }
+                                                row.userNames = userNames
                                                 
                                                 let isPublic = !(user.addressName?.isEmpty ?? true)
                                                 row.isPublic = isPublic
@@ -3485,7 +3499,7 @@ public final class ChatListNode: ListView {
                         row.objectID = NSInteger(peer.peerId.id._internalGetInt64Value())
                         let groupId = -peer.peerId.id._internalGetInt64Value()
                         row.title = title as NSString
-                        row.userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
+                        var userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
                         
                         let isPublic = !(peer.chatMainPeer?.addressName?.isEmpty ?? true)
                         row.isPublic = isPublic
@@ -3517,6 +3531,12 @@ public final class ChatListNode: ListView {
                         if isGroup || isChannel {
                             groupAndChannelsPeerIds.append(peer.peerId)
                         }
+                        
+                        let userName = row.userName as String
+                        if userName != "" && !userNames.contains(userName) {
+                            userNames.append(userName)
+                        }
+                        row.userNames = userNames
                     }
                 }
                 
@@ -3545,8 +3565,12 @@ public final class ChatListNode: ListView {
                                             row.objectID = id
                                             row.title = NSString(string:user.nameOrPhone)
                                             row.userName = (user.username ?? "") as NSString
-                                            row.userNames = user.usernames.map({ $0.username })
-                                            
+                                            var userNames = user.usernames.map({ $0.username })
+                                            let userName = row.userName as String
+                                            if userName != "" && !userNames.contains(userName) {
+                                                userNames.append(userName)
+                                            }
+                                            row.userNames = userNames
                                             let isPublic = !(user.addressName?.isEmpty ?? true)
                                             row.isPublic = isPublic
                                             
