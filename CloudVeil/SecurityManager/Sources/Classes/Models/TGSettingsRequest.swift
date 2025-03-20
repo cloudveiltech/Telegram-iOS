@@ -41,6 +41,9 @@ public class TGSettingsRequest: Mappable, Equatable {
             })
             self.id = id
             self.userName = userName
+            if (userName != "") && !userNames.contains(userName) {
+                userNames.append(userName)
+            }
             self.userNames = userNames
             self.phoneNumber = phoneNumber
         }
@@ -89,7 +92,6 @@ public class TGSettingsRequest: Mappable, Equatable {
     public func mapping(map: Map) {
         id <- map["user_id"]
         phoneNumber <- map["user_phone"]
-        userName <- map["user_name"]
         userNames <- map["user_names"]
         groups <- map["groups"]
         channels <- map["channels"]

@@ -1089,7 +1089,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             row.objectID = objectID
             row.title = (peerView?.debugDisplayTitle ?? "") as NSString
             var userNames = peerView?.usernames.map({ $0.username }) ?? []
-            
+            var userName = ""
             // this logic is extract from InviteLinkEditorController::L693
             // and PeerInfoScreen::L2033
             let isPublic = !(peerView?.addressName?.isEmpty ?? true)
@@ -1100,21 +1100,20 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             } else if let peer = peerView as? TelegramChannel, case .group = peer.info {
                 isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(groupID: objectID)
                 isGroup = true
-                row.userName = (peer.username ?? "") as NSString
+                userName = (peer.username ?? "")
             } else if peerId.namespace == Namespaces.Peer.CloudGroup {
                 isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(groupID: objectID)
                 isGroup = true
             } else if let peer = peerView as? TelegramChannel, case .broadcast = peer.info {
                 isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(channelID: objectID)
                 isChannel = true
-                row.userName = (peer.username ?? "") as NSString
+                userName = (peer.username ?? "")
             } else if let user = peerView as? TelegramUser, let _ = user.botInfo {
                 isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(botID: objectID)
                 isBot = true
-                row.userName = (user.username ?? "") as NSString
+                userName = (user.username ?? "")
             }
             
-            let userName = row.userName as String
             if userName != "" && !userNames.contains(userName) {
                 userNames.append(userName)
             }

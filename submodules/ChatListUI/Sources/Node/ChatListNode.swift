@@ -3346,6 +3346,7 @@ public final class ChatListNode: ListView {
                         let groupId = -peer.peerId.id._internalGetInt64Value()
                         row.title = title as NSString
                         var userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
+                        var userName = ""
                         
                         let isPublic = !(peer.chatMainPeer?.addressName?.isEmpty ?? true)
                         row.isPublic = isPublic
@@ -3354,7 +3355,7 @@ public final class ChatListNode: ListView {
                         var isChannel = false
                         if case let .channel(peer) = peer.chatMainPeer, case .group = peer.info {
                             isGroup = true
-                            row.userName = (peer.username ?? "") as NSString
+                            userName = (peer.username ?? "")
                             row.isMegagroup = true
                             row.isPublic = peer.username != nil
                         } else if peer.peerId.namespace == Namespaces.Peer.CloudGroup {
@@ -3365,12 +3366,12 @@ public final class ChatListNode: ListView {
                             groups.append(row)
                         } else if case let .channel(peer) = peer.chatMainPeer, case .broadcast = peer.info {
                             row.objectID = NSInteger(groupId)
-                            row.userName = (peer.username ?? "") as NSString
+                            userName = (peer.username ?? "")
                             row.isPublic = peer.username != nil
                             channels.append(row)
                             isChannel = true
                         } else if case let .user(user) = peer.chatMainPeer, let _ = user.botInfo {
-                            row.userName = (user.username ?? "") as NSString
+                            userName = (user.username ?? "")
                             bots.append(row)
                         }
                         
@@ -3380,7 +3381,6 @@ public final class ChatListNode: ListView {
                         
                         // Logic to collect userNames is a bit duplicate in a few places in the code
                         // But its simple way to not add too much change on the code base
-                        let userName = row.userName as String
                         if userName != "" && !userNames.contains(userName) {
                             userNames.append(userName)
                         }
@@ -3411,10 +3411,9 @@ public final class ChatListNode: ListView {
                                                 let row = TGRow()
                                                 row.objectID = id
                                                 row.title = NSString(string:user.nameOrPhone)
-                                                row.userName = (user.username ?? "") as NSString
+                                                let userName = (user.username ?? "")
                                                 var userNames = user.usernames.map({ $0.username })
-                                                
-                                                let userName = row.userName as String
+
                                                 if userName != "" && !userNames.contains(userName) {
                                                     userNames.append(userName)
                                                 }
@@ -3440,7 +3439,6 @@ public final class ChatListNode: ListView {
                                                             let row = TGRow()
                                                             row.objectID = NSInteger(stickerInfo.id.id)
                                                             row.title = stickerInfo.title as NSString
-                                                            row.userName = stickerInfo.shortName as NSString
                                                             row.userNames = [stickerInfo.shortName]
                                                             stickers.append(row)
                                                         }
@@ -3500,6 +3498,7 @@ public final class ChatListNode: ListView {
                         let groupId = -peer.peerId.id._internalGetInt64Value()
                         row.title = title as NSString
                         var userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
+                        var userName = ""
                         
                         let isPublic = !(peer.chatMainPeer?.addressName?.isEmpty ?? true)
                         row.isPublic = isPublic
@@ -3508,7 +3507,7 @@ public final class ChatListNode: ListView {
                         var isChannel = false
                         if case let .channel(peer) = peer.chatMainPeer, case .group = peer.info {
                             isGroup = true
-                            row.userName = (peer.username ?? "") as NSString
+                            userName = (peer.username ?? "")
                             row.isMegagroup = true
                             row.isPublic = peer.username != nil
                         } else if peer.peerId.namespace == Namespaces.Peer.CloudGroup {
@@ -3519,12 +3518,12 @@ public final class ChatListNode: ListView {
                             groups.append(row)
                         } else if case let .channel(peer) = peer.chatMainPeer, case .broadcast = peer.info {
                             row.objectID = NSInteger(groupId)
-                            row.userName = (peer.username ?? "") as NSString
+                            userName = (peer.username ?? "")
                             row.isPublic = peer.username != nil
                             channels.append(row)
                             isChannel = true
                         } else if case let .user(user) = peer.chatMainPeer, let _ = user.botInfo {
-                            row.userName = (user.username ?? "") as NSString
+                            userName = (user.username ?? "")
                             bots.append(row)
                         }
                         
@@ -3532,7 +3531,6 @@ public final class ChatListNode: ListView {
                             groupAndChannelsPeerIds.append(peer.peerId)
                         }
                         
-                        let userName = row.userName as String
                         if userName != "" && !userNames.contains(userName) {
                             userNames.append(userName)
                         }
@@ -3564,9 +3562,8 @@ public final class ChatListNode: ListView {
                                             let row = TGRow()
                                             row.objectID = id
                                             row.title = NSString(string:user.nameOrPhone)
-                                            row.userName = (user.username ?? "") as NSString
+                                            let userName = (user.username ?? "")
                                             var userNames = user.usernames.map({ $0.username })
-                                            let userName = row.userName as String
                                             if userName != "" && !userNames.contains(userName) {
                                                 userNames.append(userName)
                                             }
@@ -3591,7 +3588,6 @@ public final class ChatListNode: ListView {
                                                         let row = TGRow()
                                                         row.objectID = NSInteger(stickerInfo.id.id)
                                                         row.title = stickerInfo.title as NSString
-                                                        row.userName = stickerInfo.shortName as NSString
                                                         row.userNames = [stickerInfo.shortName]
                                                         stickers.append(row)
                                                     }
