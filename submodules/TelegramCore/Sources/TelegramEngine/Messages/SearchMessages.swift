@@ -567,6 +567,9 @@ func _internal_searchMessages(account: Account, location: SearchMessagesLocation
 }
 
 func _internal_searchHashtagPosts(account: Account, hashtag: String, state: SearchMessagesState?, limit: Int32 = 100) -> Signal<(SearchMessagesResult, SearchMessagesState), NoError> {
+    //CloudVeil start
+    let remoteSearchResult: Signal<(Api.messages.Messages?, Api.messages.Messages?), NoError> = .single((nil, nil))
+    /* CloudVeil disableSearchHashtag
     let remoteSearchResult = account.postbox.transaction { transaction -> (Int32, MessageIndex?, Api.InputPeer) in
         var lowerBound: MessageIndex?
         var peer: Peer?
@@ -589,6 +592,8 @@ func _internal_searchHashtagPosts(account: Account, hashtag: String, state: Sear
             return .single((nil, nil))
         }
     }
+    */
+    //CloudVeil end
     return remoteSearchResult
     |> mapToSignal { result, additionalResult -> Signal<(SearchMessagesResult, SearchMessagesState), NoError> in
         return account.postbox.transaction { transaction -> (SearchMessagesResult, SearchMessagesState) in
