@@ -378,9 +378,9 @@ open class CloudVeilSecurityController: NSObject {
 
     public func replayRequestWith(group: TGRow? = nil, channel: TGRow? = nil, bot: TGRow? = nil) {
         self.netQueue.async {
-            guard let nextReq = self.nextRequest else {
-                return
-            }
+            let nextReq = self.nextRequest ?? TGSettingsRequest(
+                sessionId: self.nextRequest?.clientSessionId,
+                groups: [], bots: [], channels: [], stickers: [])
 
             var send = false
             if let g = group, !nextReq.groups.contains(g) {
