@@ -1377,6 +1377,9 @@ public final class SearchStoryListContext: StoryListContext {
                 } else {
                     searchHashtag = query
                 }
+                //CloudVeil block hashtag search
+                searchHashtag = ""
+                //CloudVeil end
                 flags |= (1 << 0)
                 
                 if let peerId {
