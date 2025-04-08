@@ -114,7 +114,9 @@ public func authorizationNextOptionText(currentType: SentAuthorizationCodeType, 
             case .fragment:
                 return (NSAttributedString(string: strings.Login_GetCodeViaFragment, font: font, textColor: accentColor, paragraphAlignment: .center), true)
             case .none:
-                return (NSAttributedString(string: strings.Login_HaveNotReceivedCodeInternal, font: font, textColor: accentColor, paragraphAlignment: .center), true)
+                //CloudVeil start
+                return (NSAttributedString(string: "Didn't get the code?\nPress here for instructions", font: font, textColor: accentColor, paragraphAlignment: .center), true)
+                //CloudVeil end
             }
         default:
             switch nextType {
@@ -127,7 +129,9 @@ public func authorizationNextOptionText(currentType: SentAuthorizationCodeType, 
             case .fragment:
                 return (NSAttributedString(string: strings.Login_GetCodeViaFragment, font: font, textColor: accentColor, paragraphAlignment: .center), true)
             case .none:
-                return (NSAttributedString(string: strings.Login_HaveNotReceivedCodeInternal, font: font, textColor: accentColor, paragraphAlignment: .center), true)
+                //CloudVeil start
+                return (NSAttributedString(string: "Didn't get the code?\nPress here for instructions", font: font, textColor: accentColor, paragraphAlignment: .center), true)
+                //CloudVeil end
             }
         }
     }

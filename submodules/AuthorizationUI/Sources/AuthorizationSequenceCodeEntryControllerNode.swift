@@ -156,6 +156,9 @@ final class AuthorizationSequenceCodeEntryControllerNode: ASDisplayNode, UITextF
         self.currentOptionInfoActivateAreaNode.accessibilityTraits = .staticText
         
         self.nextOptionTitleNode = ImmediateTextNode()
+        //CloudVeil start
+        nextOptionTitleNode.maximumNumberOfLines = 2
+        //CloudVeil end
         
         self.nextOptionButtonNode = HighlightableButtonNode()
         self.nextOptionButtonNode.displaysAsynchronously = false

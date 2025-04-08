@@ -1411,24 +1411,21 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
         phoneNumber: String,
         mnc: String
     ) {
-        if MFMailComposeViewController.canSendMail() {
-            let formattedNumber = formatPhoneNumber(phoneNumber)
-            
-            var emailBody = ""
-            emailBody.append(presentationData.strings.Login_EmailCodeBody(formattedNumber).string)
-            emailBody.append("\n\n")
-            
-            let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "unknown"
-            let systemVersion = UIDevice.current.systemVersion
-            let locale = Locale.current.identifier
-            emailBody.append("Telegram: \(appVersion)\n")
-            emailBody.append("OS: \(systemVersion)\n")
-            emailBody.append("Locale: \(locale)\n")
-            emailBody.append("MNC: \(mnc)")
-            
-            AuthorizationSequenceController.presentEmailComposeController(address: "sms@telegram.org", subject: presentationData.strings.Login_EmailCodeSubject(formattedNumber).string, body: emailBody, from: controller, presentationData: presentationData)
-        } else {
-            controller.present(standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData), title: nil, text: presentationData.strings.Login_EmailNotConfiguredError, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), in: .window(.root))
-        }
+        let instructionsText = """
+        If you don't receive the code, follow these steps.
+
+        1. Log into the Telegram app on this device or a different device.
+        2. Log into CloudVeil Messenger on this device.
+        3. Enter the code that you receive in the Telegram app.
+
+        For assistance, email support at:
+        [messenger@cloudveil.org](messenger@cloudveil.org)
+        """
+        controller.present(
+            standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData),
+                                        title: "CloudVeil Messenger",
+                                        text: instructionsText,
+                                        actions: [TextAlertAction(type: .defaultAction,
+                                                                  title: presentationData.strings.Common_OK, action: {})], parseMarkdown: true), in: .window(.root))
     }
 }
