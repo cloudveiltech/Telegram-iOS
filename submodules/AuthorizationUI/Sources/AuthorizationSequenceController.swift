@@ -1411,7 +1411,53 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
         phoneNumber: String,
         mnc: String
     ) {
-        let instructionsText = """
+        //CloudVeil start
+        let popup = CustomAlertViewController()
+        popup.modalPresentationStyle = .overCurrentContext
+        popup.modalTransitionStyle = .crossDissolve
+        controller.present(popup, animated: true)
+        //CloudVeil end
+    }
+}
+
+//CloudVeil start
+class CustomAlertViewController: UIViewController {
+
+    private let containerView = UIView()
+    private let logoImageView = UIImageView()
+    private let titleLabel = UILabel()
+    private let messageTextView = UITextView()
+    private let okButton = UIButton(type: .system)
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupUI()
+    }
+
+    private func setupUI() {
+        view.backgroundColor = UIColor.black.withAlphaComponent(0.2)
+
+        // Container
+        containerView.backgroundColor = .white
+        containerView.layer.cornerRadius = 12
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(containerView)
+
+        // Logo
+        logoImageView.contentMode = .scaleAspectFit
+        logoImageView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(logoImageView)
+        loadLogoImage()
+
+        // Title
+        titleLabel.text = "CloudVeil Messenger"
+        titleLabel.font = UIFont.boldSystemFont(ofSize: 17)
+        titleLabel.textAlignment = .center
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(titleLabel)
+
+        // Message (UITextView)
+        messageTextView.text = """
         If you don't receive the code, follow these steps.
 
         1. Log into the Telegram app on this device or a different device.
@@ -1419,13 +1465,56 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
         3. Enter the code that you receive in the Telegram app.
 
         For assistance, email support at:
-        [messenger@cloudveil.org](messenger@cloudveil.org)
+        messenger@cloudveil.org
         """
-        controller.present(
-            standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData),
-                                        title: "CloudVeil Messenger",
-                                        text: instructionsText,
-                                        actions: [TextAlertAction(type: .defaultAction,
-                                                                  title: presentationData.strings.Common_OK, action: {})], parseMarkdown: true), in: .window(.root))
+        messageTextView.isEditable = false
+        messageTextView.isScrollEnabled = false
+        messageTextView.dataDetectorTypes = .link
+        messageTextView.font = UIFont.systemFont(ofSize: 15)
+        messageTextView.textAlignment = .left
+        messageTextView.textColor = .black
+        messageTextView.backgroundColor = .clear
+        messageTextView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(messageTextView)
+
+        // OK Button
+        okButton.setTitle("OK", for: .normal)
+        okButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .medium)
+        okButton.translatesAutoresizingMaskIntoConstraints = false
+        okButton.addTarget(self, action: #selector(dismissAlert), for: .touchUpInside)
+        containerView.addSubview(okButton)
+
+        // Constraints
+        NSLayoutConstraint.activate([
+            containerView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
+            containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30),
+
+            logoImageView.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 16),
+            logoImageView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            logoImageView.heightAnchor.constraint(equalToConstant: 60),
+            logoImageView.widthAnchor.constraint(equalToConstant: 60),
+
+            titleLabel.topAnchor.constraint(equalTo: logoImageView.bottomAnchor, constant: 8),
+            titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 16),
+            titleLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16),
+
+            messageTextView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
+            messageTextView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 16),
+            messageTextView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16),
+
+            okButton.topAnchor.constraint(equalTo: messageTextView.bottomAnchor, constant: 20),
+            okButton.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -12),
+            okButton.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+        ])
+    }
+
+    @objc private func dismissAlert() {
+        dismiss(animated: true, completion: nil)
+    }
+
+    private func loadLogoImage() {
+        self.logoImageView.image = UIImage(named: "CVM-Icon")
     }
 }
+//CloudVeil end
