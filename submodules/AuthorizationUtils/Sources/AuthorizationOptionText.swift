@@ -16,7 +16,12 @@ public func authorizationCurrentOptionText(_ type: SentAuthorizationCodeType, ph
     case .sms:
         return parseMarkdownIntoAttributedString(strings.Login_EnterCodeSMSText(phoneNumber).string, attributes: attributes, textAlignment: .center)
     case .otherSession:
-        return parseMarkdownIntoAttributedString(strings.Login_EnterCodeTelegramText(phoneNumber).string, attributes: attributes, textAlignment: .center)
+        //CloudVeil start
+        //Note: Telegram is using remote language file. what was stored in the bundle - its just a place holder
+        let text = "We've sent the code to the **CloudVeil Messenger app** for \(phoneNumber) on your other device, **if it's logged in**."
+        return parseMarkdownIntoAttributedString(text, attributes: attributes, textAlignment: .center)
+        //return parseMarkdownIntoAttributedString(strings.Login_EnterCodeTelegramText(phoneNumber).string, attributes: attributes, textAlignment: .center)
+        //CloudVeil end
     case .missedCall:
         let body = MarkdownAttributeSet(font: Font.regular(fontSize), textColor: primaryColor)
         let bold = MarkdownAttributeSet(font: Font.semibold(fontSize), textColor: primaryColor)
@@ -114,7 +119,11 @@ public func authorizationNextOptionText(currentType: SentAuthorizationCodeType, 
             case .fragment:
                 return (NSAttributedString(string: strings.Login_GetCodeViaFragment, font: font, textColor: accentColor, paragraphAlignment: .center), true)
             case .none:
-                return (NSAttributedString(string: strings.Login_HaveNotReceivedCodeInternal, font: font, textColor: accentColor, paragraphAlignment: .center), true)
+                //CloudVeil start
+                //Note: Telegram is using remote language file. what was stored in the bundle - its just a place holder
+                return (NSAttributedString(string: "Didn't get the code?\nPress here for instructions", font: font, textColor: accentColor, paragraphAlignment: .center), true)
+                //return (NSAttributedString(string: strings.Login_HaveNotReceivedCodeInternal, font: font, textColor: accentColor, paragraphAlignment: .center), true)
+                //CloudVeil end
             }
         default:
             switch nextType {
@@ -127,7 +136,11 @@ public func authorizationNextOptionText(currentType: SentAuthorizationCodeType, 
             case .fragment:
                 return (NSAttributedString(string: strings.Login_GetCodeViaFragment, font: font, textColor: accentColor, paragraphAlignment: .center), true)
             case .none:
-                return (NSAttributedString(string: strings.Login_HaveNotReceivedCodeInternal, font: font, textColor: accentColor, paragraphAlignment: .center), true)
+                //CloudVeil start
+                //Note: Telegram is using remote language file. what was stored in the bundle - its just a place holder
+                return (NSAttributedString(string: "Didn't get the code?\nPress here for instructions", font: font, textColor: accentColor, paragraphAlignment: .center), true)
+                //return (NSAttributedString(string: strings.Login_HaveNotReceivedCodeInternal, font: font, textColor: accentColor, paragraphAlignment: .center), true)
+                //CloudVeil end
             }
         }
     }
