@@ -1,5 +1,5 @@
 /* Localized versions of Info.plist keys */
-/*"CFBundleDisplayName" = "CloudVeil Messenger"; */
+
 "NSContactsUsageDescription" = "سيقوم CloudVeil Messenger برفع جهات الاتصال الخاصة بك باستمرار إلى خوادم التخزين السحابية ذات التشفير العالي لتتمكن من التواصل مع أصدقائك من خلال جميع أجهزتك.";
 "NSLocationWhenInUseUsageDescription" = "عندما ترغب في مشاركة مكانك مع أصدقائك، CloudVeil Messenger يحتاج لصلاحيات لعرض الخريطة لهم.";
 "NSLocationAlwaysAndWhenInUseUsageDescription" = "عندما تختار أن تشارك مكانك بشكل حي مع أصدقائك في المحادثة، يحتاج CloudVeil Messenger إلى الوصول لموقعك في الخلفية حتى بعد إغلاق CloudVeil Messenger خلال فترة المشاركة.";
