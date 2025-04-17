@@ -71,6 +71,19 @@ func openResolvedUrlImpl(
     progress: Promise<Bool>?,
     completion: (() -> Void)?
 ) {
+    //CloudVeil start
+    // block resolvedUrl for `addemoji`,`addsticker`,`folder`,`addlist` path
+    switch resolvedUrl {
+    case .stickerPack(_, _), .chatFolder(_):
+        context.sharedContext.presentGlobalController(textAlertController(context: context, title: "Warning", text: "Content blocked for your protection", actions: [
+            TextAlertAction(type: .genericAction, title: "OK", action: {
+            }),
+        ], parseMarkdown: true), nil)
+        return
+    default:
+        break
+    }
+    //CloudVeil end
     let updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?
     if case let .chat(_, _, maybeUpdatedPresentationData) = urlContext {
         updatedPresentationData = maybeUpdatedPresentationData
