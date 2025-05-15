@@ -4,12 +4,12 @@
 
 * Run `git submodule update --init --recursive`.
 
-* Create a directory at the path `provisioning/dev` inside the repository.
+* Create a directory at the path `provisioning/cvm/dev` inside the repository.
 
 * Create a json file named `configuration.json` in that directory with the CloudVeil Messenger build configuration.
 
   Example contents:
-  ```json
+```json
     {
   	"bundle_id": "com.cloudveil.CloudVeilMessenger",
   	"api_id": "{- get from my.telgram.org/apps -}",
@@ -32,7 +32,7 @@
 
   Example contents:
 
-  ```json
+```json
   {
   	"ipa-archive-path": "build-archives/CVM_{{.BuildNumber}}_{{.Version}}_{{.BuildFor}}_{{.BuildMode}}.ipa",
   	"dsyms-archive-path": "build-archives/CVM_{{.BuildNumber}}_{{.Version}}_{{.BuildFor}}_{{.BuildMode}}.dSYMs",
@@ -40,17 +40,26 @@
   	"dist-provisioning-path": "provisioning/cvm/dist",
   	"adhoc-provisioning-path": "provisioning/cvm/adhoc"
   }
-  ```
+```
 
 * Install Xcode 16 and its command line tools.
 
 * Install cocoapods.
+```sh
+brew install cocoapods
+```
 
-* Install bazel using balzelish https://bazel.build/install/bazelisk
+* Install bazel using balzelisk https://bazel.build/install/bazelisk
+```sh
+brew install bazelisk
+```
   
 * Update bazel version in `.bazelversion` if needed. More details https://github.com/bazelbuild/bazelisk
 
 * Install go
+```sh
+brew install go
+```
 
 * Update bazel version in `build-system/NewMake/main.go` if needed
 
