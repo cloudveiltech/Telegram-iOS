@@ -42,14 +42,33 @@
   }
 ```
 
-* Install Xcode 16 and its command line tools.
+* This build requires Xcode 16.0 at /Applications/Xcode.app. If you already have another version of Xcode installed, rename it to avoid conflicts:
+```sh
+  sudo mv /Applications/Xcode.app /Applications/Xcode-previous.app
+```
+
+* Install Xcode 16 and its command line tools. You need to be logged in to developer.apple.com for this.
+  https://download.developer.apple.com/Developer_Tools/Xcode_16/Xcode_16.xip
+
+* Extract the downloaded .xip archive and move the extracted Xcode.app to Applications:
+```sh
+  sudo mv ~/Downloads/Xcode.app /Applications/Xcode.app
+```
+
+* Select Xcode 16.0 in terminal, and ensure you're running the correct version:
+```sh
+  sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+  xcodebuild -version
+```
+
+* Open Xcode 16.0 once after install to allow it to finalize setup and install iOS SDKs if prompted.
 
 * Install cocoapods.
 ```sh
 brew install cocoapods
 ```
 
-* Install bazel using balzelisk https://bazel.build/install/bazelisk
+* Install Bazel using Bazelisk https://bazel.build/install/bazelisk
 ```sh
 brew install bazelisk
 ```
@@ -92,5 +111,9 @@ brew install go
 * Use `./make build -for dist -mode release` to make a build.
 
 # Build number
-- Create a file `buildNumber.txt` at root folder
-- Put the build number on this before start a new build
+The build system uses a numeric build number from a file at the project root.
+
+* Create a file named `buildNumber.txt` in the repository root.
+* Place a single integer in it (e.g. `101`) before starting a build.
+
+This value will be embedded in the generated .ipa and .dSYM archive filenames.
