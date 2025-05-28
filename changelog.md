@@ -1,6 +1,6 @@
 # v11.5.2 - 10 Apr 2025
-Updated source code
-Improved sign-in instructions
+Updated source code  
+Improved sign-in instructions  
 Many bug fixes and improvements
 #public
 
