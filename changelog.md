@@ -1,3 +1,9 @@
+# v11.5.2 - 10 Apr 2025
+Updated source code
+Improved sign-in instructions
+Many bug fixes and improvements
+#public
+
 # v10.2.5 - 21 Oct 2024
 Improvements to syncing.
 #public
