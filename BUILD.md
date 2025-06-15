@@ -9,40 +9,40 @@
 * Create a json file named `configuration.json` in that directory with the CloudVeil Messenger build configuration.
 
   Example contents:
-  ```json
-    {
-  	"bundle_id": "com.cloudveil.CloudVeilMessenger",
-  	"api_id": "{- get from my.telgram.org/apps -}",
-  	"api_hash": "{- get from my.telgram.org/apps -}",
-    "team_id": "L95C8867HX",
-    "app_center_id": "0",
-    "appstore_id": "27095",
-    "app_specific_url_scheme": "tg",
-    "premium_iap_product_id": "org.telegram.telegramPremium.monthly",
-    "enable_siri": false,
-    "enable_icloud": true,
-    "is_internal_build": "true",
-    "is_appstore_build": "true",
-    "cloudveil_shiplogs": false,
-    "telegram_use_xcode_managed_codesigning": "true"
-  }
+```json
+{
+  "bundle_id": "com.cloudveil.CloudVeilMessenger",
+  "api_id": "{- get from my.telgram.org/apps -}",
+  "api_hash": "{- get from my.telgram.org/apps -}",
+  "team_id": "L95C8867HX",
+  "app_center_id": "0",
+  "appstore_id": "27095",
+  "app_specific_url_scheme": "tg",
+  "premium_iap_product_id": "org.telegram.telegramPremium.monthly",
+  "enable_siri": false,
+  "enable_icloud": true,
+  "is_internal_build": "true",
+  "is_appstore_build": "true",
+  "cloudveil_shiplogs": false,
+  "telegram_use_xcode_managed_codesigning": "true"
+}
 ```
 
 * Create a json file named `make.json` in the repository root.
 
-  Example contents:
+Example contents:
 
-  ```json
-  {
-  	"ipa-archive-path": "build-archives/CVM_{{.BuildNumber}}_{{.Version}}_{{.BuildFor}}_{{.BuildMode}}.ipa",
-  	"dsyms-archive-path": "build-archives/CVM_{{.BuildNumber}}_{{.Version}}_{{.BuildFor}}_{{.BuildMode}}.dSYMs",
-  	"dev-provisioning-path": "provisioning/cvm/dev",
-  	"dist-provisioning-path": "provisioning/cvm/dist",
-  	"adhoc-provisioning-path": "provisioning/cvm/adhoc"
-  }
-  ```
+```json
+{
+  "ipa-archive-path": "build-archives/CVM_{{.BuildNumber}}_{{.Version}}_{{.BuildFor}}_{{.BuildMode}}.ipa",
+  "dsyms-archive-path": "build-archives/CVM_{{.BuildNumber}}_{{.Version}}_{{.BuildFor}}_{{.BuildMode}}.dSYMs",
+  "dev-provisioning-path": "provisioning/cvm/dev",
+  "dist-provisioning-path": "provisioning/cvm/dist",
+  "adhoc-provisioning-path": "provisioning/cvm/adhoc"
+}
+```
 
-  Telegram has some fake codesigning files that we can use. (see build-system/fake-codingsigning)
+Telegram has some fake codesigning files that we can use. (see build-system/fake-codingsigning)
 
 * Install Xcode 16 and its command line tools. Download at least one iPhone Simulator Runtime. ie: iOS 18.
 
