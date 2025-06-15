@@ -42,7 +42,11 @@
   }
   ```
 
-* Install Xcode 16 and its command line tools.
+* Install Xcode 16 and its command line tools. Download at least one iPhone Simulator Runtime. ie: iOS 18.
+
+* Install homebrew
+
+* Install rvm and install ruby >= 3.0.1 `rvm install 3.0.1`
 
 * Install cocoapods.
 
@@ -50,13 +54,17 @@
   
 * Update bazel version in `.bazelversion` if needed. More details https://github.com/bazelbuild/bazelisk
 
-* Install go
+* Install go `brew install go`
 
 * Update bazel version in `build-system/NewMake/main.go` if needed
+
+* Select XCode `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` to prevent any `xcodebuild` fail error.
 
 * Run `go build -C build-system/NewMake && mv build-system/NewMake/NewMake make` from the repository root.
 
 * Use `./make build -for sim -mode debug` to make a build.
+
+* [Optional] If you want to build from XCode, run `./make project`, after that open XCode project in the Telegram folder.
 
 # How to build appstore distribution builds.
 
