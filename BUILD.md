@@ -4,7 +4,7 @@
 
 * Run `git submodule update --init --recursive`.
 
-* Create a directory at the path `provisioning/dev` inside the repository.
+* Create a directory at the path `provisioning/cvm/dev` inside the repository.
 
 * Create a json file named `configuration.json` in that directory with the CloudVeil Messenger build configuration.
 
@@ -42,17 +42,19 @@
   }
   ```
 
+  Telegram has some fake codesigning files that we can use. (see build-system/fake-codingsigning)
+
 * Install Xcode 16 and its command line tools. Download at least one iPhone Simulator Runtime. ie: iOS 18.
 
-* Install homebrew
+* Install homebrew `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
 
-* Install rvm and install ruby >= 3.0.1 `rvm install 3.0.1`
+* Install rvm and stable ruby version 3.x.x `\curl -sSL https://get.rvm.io | bash -s stable --ruby` that required for `cocoapods`. MacOS shipped with ruby 2.6.x but we need 3.x.x
 
 * Install cocoapods.
 
 * Install bazel using balzelish https://bazel.build/install/bazelisk
   
-* Update bazel version in `.bazelversion` if needed. More details https://github.com/bazelbuild/bazelisk
+* Update bazel version in `.bazelversion` if needed. More details https://github.com/bazelbuild/bazelisk (Current version is 7.3.1)
 
 * Install go `brew install go`
 
@@ -64,29 +66,29 @@
 
 * Use `./make build -for sim -mode debug` to make a build.
 
-* [Optional] If you want to build from XCode, run `./make project`, after that open XCode project in the Telegram folder.
+* [Optional] If you want to build/debug from XCode, run `./make project`, after that open XCode project in the Telegram folder.
 
 # How to build appstore distribution builds.
 
 * Follow the instructions for debug simulator builds.
 
-* Create a directory at `provisioning/dist`.
+* Create a directory at `provisioning/cvm/dist`.
 
-* Copy `provisioning/dist/configuration.json` to `provisioning/dist`.
+* Copy `provisioning/cvm/dev/configuration.json` to `provisioning/cvm/dist`.
 
 * Create an Apple Distribution certificate for the CloudVeil team, and import it in your keychain.
   If you don't know how to do this, use Google.
 
 * Create provisioning profiles for the following App IDs, and put them at the following paths.
-   - `provisioning/dist/BroadcastUpload.mobileprovision`: `cvm BroadcastUpload (com.cloudveil.CloudVeilMessenger.BroadcastUpload)`
-   - `provisioning/dist/Intents.mobileprovision`: `XC com cloudveil CloudVeilMessenger SiriIntents (com.cloudveil.CloudVeilMessenger.SiriIntents)`
-   - `provisioning/dist/NotificationContent.mobileprovision`: `XC com cloudveil CloudVeilMessenger NotificationContent (com.cloudveil.CloudVeilMessenger.NotificationContent)`
-   - `provisioning/dist/NotificationService.mobileprovision`: `XC com cloudveil CloudVeilMessenger NotificationService (com.cloudveil.CloudVeilMessenger.NotificationService)`
-   - `provisioning/dist/Share.mobileprovision`: `XC com cloudveil CloudVeilMessenger Share (com.cloudveil.CloudVeilMessenger.Share)`
-   - `provisioning/dist/Telegram.mobileprovision`: `XC com cloudveil CloudVeilMessenger (com.cloudveil.CloudVeilMessenger)`
-   - `provisioning/dist/WatchApp.mobileprovision`: `XC com cloudveil CloudVeilMessenger watchkitapp (com.cloudveil.CloudVeilMessenger.watchkitapp)`
-   - `provisioning/dist/WatchExtension.mobileprovision`: `XC com cloudveil CloudVeilMessenger watchkitapp watchkitextension (com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension)`
-   - `provisioning/dist/Widget.mobileprovision`: `XC com cloudveil CloudVeilMessenger Widget (com.cloudveil.CloudVeilMessenger.Widget)`
+   - `provisioning/cvm/dist/BroadcastUpload.mobileprovision`: `cvm BroadcastUpload (com.cloudveil.CloudVeilMessenger.BroadcastUpload)`
+   - `provisioning/cvm/dist/Intents.mobileprovision`: `XC com cloudveil CloudVeilMessenger SiriIntents (com.cloudveil.CloudVeilMessenger.SiriIntents)`
+   - `provisioning/cvm/dist/NotificationContent.mobileprovision`: `XC com cloudveil CloudVeilMessenger NotificationContent (com.cloudveil.CloudVeilMessenger.NotificationContent)`
+   - `provisioning/cvm/dist/NotificationService.mobileprovision`: `XC com cloudveil CloudVeilMessenger NotificationService (com.cloudveil.CloudVeilMessenger.NotificationService)`
+   - `provisioning/cvm/dist/Share.mobileprovision`: `XC com cloudveil CloudVeilMessenger Share (com.cloudveil.CloudVeilMessenger.Share)`
+   - `provisioning/cvm/dist/Telegram.mobileprovision`: `XC com cloudveil CloudVeilMessenger (com.cloudveil.CloudVeilMessenger)`
+   - `provisioning/cvm/dist/WatchApp.mobileprovision`: `XC com cloudveil CloudVeilMessenger watchkitapp (com.cloudveil.CloudVeilMessenger.watchkitapp)`
+   - `provisioning/cvm/dist/WatchExtension.mobileprovision`: `XC com cloudveil CloudVeilMessenger watchkitapp watchkitextension (com.cloudveil.CloudVeilMessenger.watchkitapp.watchkitextension)`
+   - `provisioning/cvm/dist/Widget.mobileprovision`: `XC com cloudveil CloudVeilMessenger Widget (com.cloudveil.CloudVeilMessenger.Widget)`
 
 * Use `./make build -for dist -mode release` to make a build.
 
