@@ -215,7 +215,10 @@ public func standaloneSendEnqueueMessages(
         }
         if allDone {
             var sendSignals: [Signal<Never, StandaloneSendMessagesError>] = []
-            
+            // Cloudveil start - `sendUploadedMultiMessageContent` has been removed in the recent version
+            // We need use `sendUploadedMessageContent` util we updated to the latest version
+            // refs: https://github.com/TelegramMessenger/Telegram-iOS/commit/6af4b0c184d3656e89a32858cc25fcff9b3b5253
+            /*
             var existingGroupingKeys = Set<Int64>()
             for (content, media, attributes, groupingKey) in allResults {
                 if let currentGroupingKey = groupingKey {
@@ -265,7 +268,34 @@ public func standaloneSendEnqueueMessages(
                 }
                 
             }
-            
+            */
+            for (content, media, attributes, _) in allResults {
+                    var text: String = ""
+                    switch content.content {
+                    case let .text(textValue):
+                        text = textValue
+                    case let .media(_, textValue):
+                        text = textValue
+                    default:
+                        break
+                    }
+                    
+                    sendSignals.append(sendUploadedMessageContent(
+                        auxiliaryMethods: auxiliaryMethods,
+                        postbox: postbox,
+                        network: network,
+                        stateManager: stateManager,
+                        accountPeerId: stateManager.accountPeerId,
+                        peerId: peerId,
+                        content: content,
+                        text: text,
+                        attributes: attributes,
+                        media: media,
+                        threadId: threadId
+                    ))
+            }
+            // Cloudveil end
+
             return combineLatest(sendSignals)
             |> ignoreValues
             |> map { _ -> StandaloneSendMessageStatus in
