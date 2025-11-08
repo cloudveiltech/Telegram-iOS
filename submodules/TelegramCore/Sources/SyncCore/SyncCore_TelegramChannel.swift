@@ -205,6 +205,9 @@ public final class TelegramChannel: Peer, Equatable {
     
     public let associatedPeerId: PeerId? = nil
     public let notificationSettingsPeerId: PeerId? = nil
+    // Cloudveil start - migratedFromChatId for super group
+    public var migratedFromChatId: Int64 = 0
+    // Cloudveil end
     
     public var timeoutAttribute: UInt32? {
         if let emojiStatus = self.emojiStatus {

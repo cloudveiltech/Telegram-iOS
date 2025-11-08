@@ -293,7 +293,39 @@ public extension TelegramEngine.EngineData.Item {
                 return EnginePeer.NotificationSettings(data.notificationSettings)
             }
         }
+        // CloudVeil start
+        public struct MigratedFromChatId: TelegramEngineDataItem, TelegramEngineMapKeyDataItem, PostboxViewDataItem {
+            public typealias Result = Optional<PeerId>
 
+            fileprivate var id: EnginePeer.Id
+            public var mapKey: EnginePeer.Id {
+                return self.id
+            }
+
+            public init(id: EnginePeer.Id) {
+                self.id = id
+            }
+
+            var key: PostboxViewKey {
+                return .cachedPeerData(peerId: self.id)
+            }
+
+            func extract(view: PostboxView) -> Result {
+                guard let view = view as? CachedPeerDataView else {
+                    preconditionFailure()
+                }
+                guard let cachedPeerData = view.cachedPeerData else {
+                    return nil
+                }
+                switch cachedPeerData {
+                case let channel as CachedChannelData:
+                    return channel.migrationReference?.maxMessageId.peerId
+                default:
+                    return nil
+                }
+            }
+        }
+        // CloudVeil end
         public struct ParticipantCount: TelegramEngineDataItem, TelegramEngineMapKeyDataItem, PostboxViewDataItem {
             public typealias Result = Optional<Int>
 

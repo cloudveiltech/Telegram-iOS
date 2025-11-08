@@ -1074,10 +1074,10 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
         let peerView = account.viewTracker.peerView(peerId)
         
         var disposable: Disposable? = nil
-        disposable = peerView.start(next: { peerView in
+        disposable = peerView.start(next: { peerResult in
             if disposable == nil { return }
             
-            let peerView = peerViewMainPeer(peerView)
+            let peerView = peerViewMainPeer(peerResult)
             
             var isDialogAllowed: Bool? = true
             var isGroup = false
@@ -1100,7 +1100,13 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             } else if let peer = peerView as? TelegramChannel, case .group = peer.info {
                 isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(groupID: objectID)
                 isGroup = true
+                row.isMegagroup = true
                 userName = (peer.username ?? "")
+                if let cachedChannelData = peerResult.cachedData as? CachedChannelData,
+                   let migratedFromId = cachedChannelData.migrationReference?.maxMessageId.peerId.id._internalGetInt64Value() {
+                    row.migratedFromTelegramId = NSInteger(-migratedFromId)
+                }
+                    
             } else if peerId.namespace == Namespaces.Peer.CloudGroup {
                 isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(groupID: objectID)
                 isGroup = true
