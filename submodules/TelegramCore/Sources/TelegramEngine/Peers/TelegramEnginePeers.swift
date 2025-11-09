@@ -1440,15 +1440,30 @@ public extension TelegramEngine {
         }
         
         public func recommendedAppPeerIds() -> Signal<[EnginePeer.Id]?, NoError> {
+            // CloudVeil start - do not load grossing app to displaying
+            return .single([])
+            /*
             return _internal_recommendedAppPeerIds(account: self.account)
+            */
+            // CloudVeil end
         }
         
         public func requestGlobalRecommendedChannelsIfNeeded() -> Signal<Never, NoError> {
+            // CloudVeil start - do not load recommended channel
+            return .complete()
+            /*
             return _internal_requestRecommendedChannels(account: self.account, peerId: nil, forceUpdate: false)
+            */
+            // CloudVeil end
         }
         
         public func requestRecommendedAppsIfNeeded() -> Signal<Never, NoError> {
+            // CloudVeil start - do not load recommended channel
+            return .complete()
+            /*
             return _internal_requestRecommendedApps(account: self.account, forceUpdate: false)
+            */
+            // CloudVeil end
         }
         
         public func isPremiumRequiredToContact(_ peerIds: [EnginePeer.Id]) -> Signal<[EnginePeer.Id], NoError> {
