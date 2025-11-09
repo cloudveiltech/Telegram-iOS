@@ -3230,7 +3230,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     for entry in entries {
                         if case let .localPeer(peer, _, _, _, _, _, _, _, _, _, _) = entry {
                             peers.append(peer)
-                        } else if case .globalPeer = entry {
+                        } else if case .globalPeer = entry {    
                         } else {
                             filteredEntries.append(entry)
                         }

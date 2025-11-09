@@ -53,6 +53,12 @@ private func appsEntryId() -> ItemCacheEntryId {
 }
 
 func _internal_requestRecommendedChannels(account: Account, peerId: EnginePeer.Id?, forceUpdate: Bool) -> Signal<Never, NoError> {
+    // CloudVeil start - do not request RecommendedChannels
+    let shouldDisableRecommendedChannels = true
+    if shouldDisableRecommendedChannels {
+        return .complete()
+    }
+    // CloudVeil end
     return account.postbox.transaction { transaction -> (Peer?, Bool) in
         if let peerId {
             guard let channel = transaction.getPeer(peerId) as? TelegramChannel, case .broadcast = channel.info else {
@@ -141,6 +147,12 @@ func _internal_requestRecommendedChannels(account: Account, peerId: EnginePeer.I
 }
 
 func _internal_requestRecommendedApps(account: Account, forceUpdate: Bool) -> Signal<Never, NoError> {
+    // CloudVeil start - do not request RecommendedApps
+    let shouldDisableRecommendedApps = true
+    if shouldDisableRecommendedApps {
+        return .complete()
+    }
+    // CloudVeil end
     return account.postbox.transaction { transaction -> (Peer?, Bool) in
         if let entry = transaction.retrieveItemCacheEntry(id: appsEntryId())?.get(CachedRecommendedChannels.self), !entry.peerIds.isEmpty && !forceUpdate {
             var shouldUpdate = false

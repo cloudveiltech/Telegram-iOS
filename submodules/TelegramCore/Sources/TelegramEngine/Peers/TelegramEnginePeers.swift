@@ -1424,11 +1424,21 @@ public extension TelegramEngine {
         }
         
         public func recommendedChannels(peerId: EnginePeer.Id?) -> Signal<RecommendedChannels?, NoError> {
+            // CloudVeil start - do not load recommendedChannels
+            return .single(nil)
+            /*
             return _internal_recommendedChannels(account: self.account, peerId: peerId)
+            */
+            // CloudVeil end
         }
         
         public func recommendedChannelPeerIds(peerId: EnginePeer.Id?) -> Signal<[EnginePeer.Id]?, NoError> {
+            // CloudVeil start - do not load recommendedChannels
+            return .single([])
+            /*
             return _internal_recommendedChannelPeerIds(account: self.account, peerId: peerId)
+            */
+            // CloudVeil end
         }
         
         public func toggleRecommendedChannelsHidden(peerId: EnginePeer.Id, hidden: Bool) -> Signal<Never, NoError> {
@@ -1450,20 +1460,11 @@ public extension TelegramEngine {
         
         public func requestGlobalRecommendedChannelsIfNeeded() -> Signal<Never, NoError> {
             // CloudVeil start - do not load recommended channel
-            return .complete()
-            /*
             return _internal_requestRecommendedChannels(account: self.account, peerId: nil, forceUpdate: false)
-            */
-            // CloudVeil end
         }
         
         public func requestRecommendedAppsIfNeeded() -> Signal<Never, NoError> {
-            // CloudVeil start - do not load recommended channel
-            return .complete()
-            /*
             return _internal_requestRecommendedApps(account: self.account, forceUpdate: false)
-            */
-            // CloudVeil end
         }
         
         public func isPremiumRequiredToContact(_ peerIds: [EnginePeer.Id]) -> Signal<[EnginePeer.Id], NoError> {
