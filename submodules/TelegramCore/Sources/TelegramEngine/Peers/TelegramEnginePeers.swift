@@ -1459,7 +1459,6 @@ public extension TelegramEngine {
         }
         
         public func requestGlobalRecommendedChannelsIfNeeded() -> Signal<Never, NoError> {
-            // CloudVeil start - do not load recommended channel
             return _internal_requestRecommendedChannels(account: self.account, peerId: nil, forceUpdate: false)
         }
         
