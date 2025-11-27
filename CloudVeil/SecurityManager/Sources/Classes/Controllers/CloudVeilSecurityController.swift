@@ -419,7 +419,37 @@ open class CloudVeilSecurityController: NSObject {
 		print("Save settings called")
         self.accessQueue.sync {
             if let settings = settings {
-                // overwrite cache
+                // if last response's org is this response's org,
+                // keep old allowed peers around even when this response doesn't have them
+                // discard old blocked peers
+                if settings.organization?.id == settingsCache?.organization?.id {
+                    settings.access = settings.access ?? AccessObject()
+
+                    settings.access?.groups = settings.access?.groups ?? [:]
+                    settings.access?.groups?.merge(
+                        settingsCache?.access?.groups?.filter { $0.value } ?? [:],
+                        uniquingKeysWith: { x, _ in x })
+
+                    settings.access?.channels = settings.access?.channels ?? [:]
+                    settings.access?.channels?.merge(
+                        settingsCache?.access?.channels?.filter { $0.value } ?? [:],
+                        uniquingKeysWith: { x, _ in x })
+
+                    settings.access?.bots = settings.access?.bots ?? [:]
+                    settings.access?.bots?.merge(
+                        settingsCache?.access?.bots?.filter { $0.value } ?? [:],
+                        uniquingKeysWith: { x, _ in x })
+
+                    settings.access?.stickers = settings.access?.stickers ?? [:]
+                    settings.access?.stickers?.merge(
+                        settingsCache?.access?.stickers?.filter { $0.value } ?? [:],
+                        uniquingKeysWith: { x, _ in x })
+
+                    settings.access?.users = settings.access?.users ?? [:]
+                    settings.access?.users?.merge(
+                        settingsCache?.access?.users?.filter { $0.value } ?? [:],
+                        uniquingKeysWith: { x, _ in x })
+                }
                 DataSource<TGSettingsResponse>.set(settings)
                 settingsCache = settings
             }
