@@ -3357,7 +3357,6 @@ public final class ChatListNode: ListView {
                             isGroup = true
                             userName = (peer.username ?? "")
                             row.isMegagroup = true
-                            row.isPublic = peer.username != nil
                         } else if peer.peerId.namespace == Namespaces.Peer.CloudGroup {
                             isGroup = true
                         }
@@ -3367,7 +3366,6 @@ public final class ChatListNode: ListView {
                         } else if case let .channel(peer) = peer.chatMainPeer, case .broadcast = peer.info {
                             row.objectID = NSInteger(groupId)
                             userName = (peer.username ?? "")
-                            row.isPublic = peer.username != nil
                             channels.append(row)
                             isChannel = true
                         } else if case let .user(user) = peer.chatMainPeer, let _ = user.botInfo {

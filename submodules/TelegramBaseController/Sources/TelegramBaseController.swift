@@ -1091,8 +1091,9 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             var userNames = peerView?.usernames.map({ $0.username }) ?? []
             var userName = ""
             // this logic is extract from InviteLinkEditorController::L693
-            // and PeerInfoScreen::L2033
-            let isPublic = !userNames.isEmpty
+            // and PeerInfoScreen::L2303
+            // addressName is the active username of the peer if it has many usernames, default is username
+            let isPublic = !(peerView?.addressName?.isEmpty ?? true)
             row.isPublic = isPublic
             
             if peerId.namespace == Namespaces.Peer.SecretChat && !CloudVeilSecurityController.shared.isSecretChatAvailable {
