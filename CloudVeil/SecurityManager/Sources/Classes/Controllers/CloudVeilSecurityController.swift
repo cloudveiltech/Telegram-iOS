@@ -67,18 +67,34 @@ open class CloudVeilSecurityController: NSObject {
 		set { UserDefaults.standard.set(newValue, forKey: kWasFirstLoaded) }
 	}
     
-    private let accessQueue = DispatchQueue(label: "TGSettingsResponseAccess", attributes: .concurrent)
+    // Serial queue to protect access to settingsCache
+    private let accessQueue = DispatchQueue(label: "TGSettingsResponseAccess")
 	private var settingsCache: TGSettingsResponse?
     
 	private var settings: TGSettingsResponse? {        
         var resp: TGSettingsResponse?
-        if settingsCache != nil {
-            resp = settingsCache
-        } else {
-            settingsCache = DataSource<TGSettingsResponse>.value(mapper: mapper)
-            resp = settingsCache
+        var userId = 0
+        var isCacheValid = true
+        
+        // Should access TGUserController with lock
+        TGUserController.withLock { tg in
+            userId = tg.getUserID()
+            isCacheValid = !TGUserController.didChangedUserID
+            
+            if settingsCache != nil && isCacheValid {
+                resp = settingsCache
+            } else {
+                // Reading from disk inside the lock ensures the User ID cannot change
+                // while we are loading the file.
+                settingsCache = DataSource<TGSettingsResponse>.value(forKey: "\(userId)", mapper: mapper)
+                resp = settingsCache
+                
+                // Update the flag directly on the instance (no nested lock)
+                tg.setCacheHasBeenUpdated()
+            }
         }
-		return resp
+        
+        return resp
 	}
     
     public var needOrganizationChange: Bool {
