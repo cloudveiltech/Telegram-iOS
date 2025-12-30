@@ -11,6 +11,7 @@ import Foundation
 @objc open class TGUserController: NSObject {
     private static let lock = NSLock()
     private static let shared = TGUserController()
+    private(set) static var didChangedUserID = true
     
     // MARK: - Singleton
 
@@ -24,7 +25,12 @@ import Foundation
     
     // MARK: - Actions
     
+    // This set func should call from a Self.withLock completion block
     @objc open func set(userID id: NSInteger) {
+        // Check if id has changed
+        if TGUserModel1.id != id {
+            TGUserController.didChangedUserID = true
+        }
         TGUserModel1.set(userID: id)
     }
     
@@ -38,6 +44,11 @@ import Foundation
     
     @objc open func set(userNames names: [String]) {
         TGUserModel1.set(userNames: names)
+    }
+    
+    //acknowledge that cache has been updated in CloudVeilSecurityController
+    @objc open func setCacheHasBeenUpdated() {
+        TGUserController.didChangedUserID = false
     }
     
     @objc open func getUserID() -> NSInteger {
