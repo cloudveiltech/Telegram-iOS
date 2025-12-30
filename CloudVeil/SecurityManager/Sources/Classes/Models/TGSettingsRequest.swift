@@ -14,6 +14,8 @@ public class TGSettingsRequest: Mappable, Equatable {
     // MARK: - Properties
     
     public private(set) var id: Int64?
+    // We don't send orgId to server, but we need it to save correct cache later
+    public private(set) var orgId: NSInteger?
     public var phoneNumber: String?
     public var userName: String?
     public var userNames: [String] = []
@@ -55,6 +57,10 @@ public class TGSettingsRequest: Mappable, Equatable {
         self.channels = channels
         self.bots = bots
         self.stickers = stickers
+        TGUserController.withLock({
+            // Read current org ID to save correct cache later
+            orgId = $0.getOrgID()
+        })
     }
 
     private static func getClientId(_ userId: Int64) -> String {

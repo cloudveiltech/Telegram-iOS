@@ -296,7 +296,7 @@ open class CloudVeilSecurityController: NSObject {
             return
         }
         let task = self.sendSettingsRequest(body) { response in
-            self.saveSettings(response, forUserId: body.id ?? 0)
+            self.saveSettings(response, forUserId: body.id ?? 0, orgId: body.orgId ?? 0)
             self.netQueue.async {
                 if let nextReq = self.nextRequest, nextReq != body {
                     self.sendSettingsRequest(nextReq)
@@ -434,18 +434,13 @@ open class CloudVeilSecurityController: NSObject {
         self.replayRequestWith(bot: bot)
     }
     
-    private func saveSettings(_ settings: TGSettingsResponse?, forUserId: Int64 = 0) {
+    private func saveSettings(_ settings: TGSettingsResponse?, forUserId: Int64 = 0, orgId: NSInteger = 0) {
         print("Save settings called")
         self.accessQueue.sync {
             if let settings = settings {
                 // Update org ID if present in settings
                 let userId = forUserId
-                var targetOrgId = 0
-                
-                // Read current user org ID
-                TGUserController.withLock { tg in
-                    targetOrgId = tg.getOrgID()
-                }
+                var targetOrgId = orgId
                 
                 if let orgId = settings.organization?.id, targetOrgId != orgId {
                     // ORG ID has changed
@@ -455,12 +450,15 @@ open class CloudVeilSecurityController: NSObject {
                     targetOrgId = orgId
                 }
                 let cacheKey = "\(userId)_\(targetOrgId)"
-                // Current disk cache
+                // Current disk cache for this specific user+org combo
                 let cache = DataSource<TGSettingsResponse>.value(forKey: cacheKey, mapper: mapper)
                 
                 // if last response's org is this response's org,
                 // keep old allowed peers around even when this response doesn't have them
                 // discard old blocked peers
+                
+                // Merge with disk cache (not in-memory cache) to preserve allowed peers
+                // for the same org across network requests
                 if settings.organization?.id == cache?.organization?.id {
                     settings.access = settings.access ?? AccessObject()
                     
