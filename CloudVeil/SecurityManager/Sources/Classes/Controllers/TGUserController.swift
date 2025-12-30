@@ -12,6 +12,7 @@ import Foundation
     private static let lock = NSLock()
     private static let shared = TGUserController()
     private(set) static var didChangedUserID = true
+    private(set) static var didChangedOrgID = true
     
     // MARK: - Singleton
 
@@ -23,6 +24,10 @@ import Foundation
         return Self.withLock({ $0.getUserID() })
     }
     
+    public static var orgID: Int? {
+        return Self.withLock({ $0.getOrgID() })
+    }
+    
     // MARK: - Actions
     
     // This set func should call from a Self.withLock completion block
@@ -32,6 +37,15 @@ import Foundation
             TGUserController.didChangedUserID = true
         }
         TGUserModel1.set(userID: id)
+    }
+    
+    // This set func should call from a Self.withLock completion block
+    @objc open func set(orgID id: NSInteger) {
+        // Check if id has changed
+        if TGUserModel1.orgId != id {
+            TGUserController.didChangedOrgID = true
+        }
+        TGUserModel1.set(orgID: id)
     }
     
     @objc open func set(userPhoneNumber phone: NSString) {
@@ -49,10 +63,15 @@ import Foundation
     //acknowledge that cache has been updated in CloudVeilSecurityController
     @objc open func setCacheHasBeenUpdated() {
         TGUserController.didChangedUserID = false
+        TGUserController.didChangedOrgID = false
     }
     
     @objc open func getUserID() -> NSInteger {
         return TGUserModel1.id
+    }
+    
+    @objc open func getOrgID() -> NSInteger {
+        return TGUserModel1.orgId
     }
     
     @objc open func getUserPhoneNumber() -> NSString {
