@@ -71,6 +71,7 @@ open class CloudVeilSecurityController: NSObject {
     private let accessQueue = DispatchQueue(label: "TGSettingsResponseAccess")
     private var settingsCache: TGSettingsResponse?
     
+    // Make sure access this computed property only inside accessQueue.sync
     private var settings: TGSettingsResponse? {
         var resp: TGSettingsResponse?
         var userId = 0
@@ -82,21 +83,23 @@ open class CloudVeilSecurityController: NSObject {
             userId = tg.getUserID()
             orgId = tg.getOrgID()
             isCacheValid = !TGUserController.didChangedUserID && !TGUserController.didChangedOrgID
+            let cacheKey = "\(userId)_\(orgId)"
             
             if settingsCache != nil && isCacheValid {
                 resp = settingsCache
             } else {
                 // Reading from disk inside the lock ensures the User ID and Org ID cannot change
                 // while we are loading the file.
-                let cacheKey = "\(userId)_\(orgId)"
+                
                 settingsCache = DataSource<TGSettingsResponse>.value(forKey: cacheKey, mapper: mapper)
                 resp = settingsCache
-                
-                // Update the flag directly on the instance (no nested lock)
-                tg.setCacheHasBeenUpdated()
+                if settingsCache != nil {
+                    // Update the flag directly on the instance (no nested lock)
+                    tg.setCacheHasBeenUpdated()
+                }
             }
         }
-        
+        print("[SETTINGS] Settings accessed for user \(userId) org \(orgId), isCacheValid=\(isCacheValid ? "true" : "false")")
         return resp
     }
     
@@ -435,7 +438,7 @@ open class CloudVeilSecurityController: NSObject {
     }
     
     private func saveSettings(_ settings: TGSettingsResponse?, forUserId: Int64 = 0, orgId: NSInteger = 0) {
-        print("Save settings called")
+        print("[SETTINGS] Save settings called")
         self.accessQueue.sync {
             if let settings = settings {
                 // Update org ID if present in settings
@@ -494,6 +497,10 @@ open class CloudVeilSecurityController: NSObject {
                 TGUserController.withLock { tg in
                     if tg.getUserID() == Int(userId) && tg.getOrgID() == targetOrgId {
                         settingsCache = settings
+                        print("[SETTINGS] Settings cache updated in memory for user \(Int(userId)) org \(targetOrgId)")
+                    } else {
+                        print("[SETTINGS] Settings cache NOT updated in memory due to user/org mismatch")
+                        print("[SETTINGS] details: current user \(tg.getUserID()) org \(tg.getOrgID()), settings user \(Int(userId)) org \(targetOrgId)")
                     }
                 }
             }
