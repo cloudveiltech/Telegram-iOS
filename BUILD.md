@@ -95,3 +95,4 @@ Telegram has some fake codesigning files that we can use. (see build-system/fake
 # Build number
 - Create a file `buildNumber.txt` at root folder
 - Put the build number on this before start a new build
+- If build_number is not correct after build, please check `build.sh` - `BUILD_NUMBER`
