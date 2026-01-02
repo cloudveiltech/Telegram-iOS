@@ -70,7 +70,15 @@ open class CloudVeilSecurityController: NSObject {
     // Serial queue to protect access to settingsCache
     private let accessQueue = DispatchQueue(label: "TGSettingsResponseAccess")
     private var settingsCache: TGSettingsResponse?
-    
+
+    // Thread-safe accessor - use this instead of accessing settings directly
+    // WARNING: Do not call this from code already running inside accessQueue.sync or you'll deadlock
+    private func withSettings<T>(_ block: (TGSettingsResponse?) -> T) -> T {
+        return self.accessQueue.sync {
+            return block(settings)
+        }
+    }
+
     // Make sure access this computed property only inside accessQueue.sync
     private var settings: TGSettingsResponse? {
         var resp: TGSettingsResponse?
@@ -104,96 +112,53 @@ open class CloudVeilSecurityController: NSObject {
     }
     
     public var needOrganizationChange: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.organization?.needChange ?? false
-        }
-        return res
+        return withSettings { $0?.organization?.needChange ?? false }
     }
+
     public var disableStories: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableStories ?? false
-        }
-        return res
+        return withSettings { $0?.disableStories ?? false }
     }
     
     public var disableStickers: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableSticker ?? false
-        }
-        return res
+        return withSettings { $0?.disableSticker ?? false }
     }
+
     public var disableBio: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableBio ?? false
-        }
-        return res
+        return withSettings { $0?.disableBio ?? false }
     }
+
     public var disableBioChange: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableBioChange ?? false
-        }
-        return res
+        return withSettings { $0?.disableBioChange ?? false }
     }
+
     public var disableProfilePhoto: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableProfilePhoto ?? false
-        }
-        return res
+        return withSettings { $0?.disableProfilePhoto ?? false }
     }
+
     public var disableProfilePhotoChange: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableProfilePhotoChange ?? false
-        }
-        return res
+        return withSettings { $0?.disableProfilePhotoChange ?? false }
     }
-    
+
     public var isSecretChatAvailable: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.secretChat ?? false
-        }
-        return res
+        return withSettings { $0?.secretChat ?? false }
     }
-    
+
     public var disableProfileVideo: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableProfileVideo ?? false
-        }
-        return res
+        return withSettings { $0?.disableProfileVideo ?? false }
     }
+
     public var disableProfileVideoChange: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableProfileVideoChange ?? false
-        }
-        return res
+        return withSettings { $0?.disableProfileVideoChange ?? false }
     }
-    
+
     public var isInChatVideoRecordingEnabled: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.inputToggleVoiceVideo ?? false
-        }
-        return res
+        return withSettings { $0?.inputToggleVoiceVideo ?? false }
     }
     
     public var disableEmojiStatus: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableEmojiStatus ?? false
-        }
-        return res
+        return withSettings { $0?.disableEmojiStatus ?? false }
     }
-    
-    
+
     public var profilePhotoLimit: Int {
         var v = 1
         self.accessQueue.sync {
