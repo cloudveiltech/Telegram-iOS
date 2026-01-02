@@ -104,10 +104,11 @@ open class CloudVeilSecurityController: NSObject {
                 if settingsCache != nil {
                     // Update the flag directly on the instance (no nested lock)
                     tg.setCacheHasBeenUpdated()
+                    print("[SETTINGS] Settings loaded from disk cache for user \(userId) org \(orgId)")
                 }
             }
         }
-        print("[SETTINGS] Settings accessed for user \(userId) org \(orgId), isCacheValid=\(isCacheValid ? "true" : "false")")
+        CVLog.log(self.TAG, "[SETTINGS] Settings accessed for user \(userId) org \(orgId), isCacheValid=\(isCacheValid ? "true" : "false")")
         return resp
     }
     
