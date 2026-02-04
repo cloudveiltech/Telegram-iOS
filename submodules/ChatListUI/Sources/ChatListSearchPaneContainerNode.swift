@@ -102,7 +102,8 @@ func defaultAvailableSearchPanes(isForum: Bool, hasDownloads: Bool, hasPublicPos
         result.append(.publicPosts)
     }
     result.append(.channels)
-    result.append(.apps)
+    // CloudVeil: Hide Apps tab
+    // result.append(.apps)
     result.append(contentsOf: [.media, .downloads, .links, .files, .music, .voice])
         
     if !hasDownloads {

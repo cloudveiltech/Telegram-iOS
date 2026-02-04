@@ -75,3 +75,5 @@ make
 /provisioning
 /submodules/TelegramCore/.build
 /submodules/TelegramApi/.build
+build-system/appstore-configuration.json
+buildNumber.txt
