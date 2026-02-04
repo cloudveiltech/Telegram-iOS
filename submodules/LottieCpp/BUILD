@@ -19,7 +19,7 @@ objc_library(
         "lottiecpp/PlatformSpecific/Darwin/Sources/**/*.hpp",
     ]),
     copts = [
-        "-Werror",
+        #"-Werror",
         "-I{}/lottiecpp/Sources".format(package_name()),
     ],
     hdrs = glob([

@@ -144,6 +144,7 @@ func usage(w io.Writer) {
 }
 
 const BAZEL_VERSION_ENV = "USE_BAZEL_VERSION=7.3.1"
+const BAZEL_OUTPUT_BASE = "bazel-output-base"
 
 // runCmd runs an arbitrary command, passing through its stdout and stderr to ours
 func runCmd(cmd string, args ...string) error {
@@ -467,7 +468,7 @@ func main() {
 			}
 			return cmd.ProcessState.ExitCode()
 		case "clean":
-			bazel := exec.Command("bazel", "clean", "--expunge")
+			bazel := exec.Command("bazel", "--output_base", BAZEL_OUTPUT_BASE, "clean", "--expunge")
 			bazel.Stdout = os.Stdout
 			bazel.Stderr = os.Stderr
 			bazel.Env = append(os.Environ(), BAZEL_VERSION_ENV)
@@ -497,7 +498,8 @@ func main() {
 
 			args := bazelArgs(cfg, cfgdir, "query", os.Args[2:]...)
 
-			bazel := exec.Command("bazel", args...)
+			bazelArgsWithOutputBase := append([]string{"--output_base", BAZEL_OUTPUT_BASE}, args...)
+			bazel := exec.Command("bazel", bazelArgsWithOutputBase...)
 			bazel.Stdout = os.Stdout
 			bazel.Stderr = os.Stderr
 			bazel.Env = append(os.Environ(), BAZEL_VERSION_ENV)
@@ -570,7 +572,8 @@ func main() {
 				fmt.Sprintf("--override_repository=build_configuration=%s", cfgdir),
 				fmt.Sprintf("--jobs=%d", runtime.NumCPU()), "--noenable_bzlmod",
 			}, runArgs...)
-			bazel := exec.Command("bazel", runArgs...)
+			runArgsWithOutputBase := append([]string{"--output_base", BAZEL_OUTPUT_BASE}, runArgs...)
+			bazel := exec.Command("bazel", runArgsWithOutputBase...)
 			bazel.Stdout = os.Stdout
 			bazel.Stderr = os.Stderr
 			bazel.Env = append(os.Environ(), BAZEL_VERSION_ENV)
@@ -605,7 +608,8 @@ func main() {
 			}
 
 			bazelOut := io.MultiWriter(os.Stdout, buildLog)
-			bazel := exec.Command("bazel", args...)
+			argsWithOutputBase := append([]string{"--output_base", BAZEL_OUTPUT_BASE}, args...)
+			bazel := exec.Command("bazel", argsWithOutputBase...)
 			bazel.Stdout = bazelOut
 			bazel.Stderr = bazelOut
 			bazel.Env = append(os.Environ(), BAZEL_VERSION_ENV)

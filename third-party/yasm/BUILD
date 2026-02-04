@@ -4,7 +4,6 @@ genrule(
     name = "yasm",
     srcs = [
         "yasm-1.3.0.tar.gz",
-        "@cmake_tar_gz//file",
     ],
     cmd_bash =
 """
@@ -14,16 +13,111 @@ set -x
     rm -rf "$$BUILD_DIR"
     mkdir -p "$$BUILD_DIR"
 
-    CMAKE_DIR="$$(pwd)/$$BUILD_DIR/cmake"
-    rm -rf "$$CMAKE_DIR"
-    mkdir -p "$$CMAKE_DIR"
-    tar -xf "$(location @cmake_tar_gz//file)" -C "$$CMAKE_DIR"
-    
+    # Use system cmake
+    CMAKE_BIN_PATH="/opt/homebrew/bin/cmake"
+
     tar -xzf "$(location yasm-1.3.0.tar.gz)" --directory "$$BUILD_DIR"
     pushd "$$BUILD_DIR/yasm-1.3.0"
+
+    # Fix CMake compatibility issues
+    # Replace YasmMacros.cmake
+    cat > cmake/modules/YasmMacros.cmake << 'EOF'
+# Portions based on kdelibs KDE4Macros.cmake:
+#
+# Copyright (c) 2006, 2007, Alexander Neundorf, <neundorf@kde.org>
+# Copyright (c) 2006, 2007, Laurent Montel, <montel@kde.org>
+# Copyright (c) 2007 Matthias Kretz <kretz@kde.org>
+#
+# Redistribution and use is allowed according to the terms of the BSD license.
+#
+# Changes for Yasm Copyright (c) 2007 Peter Johnson
+
+# add a unit test, which is executed when running make test
+# it will be built with RPATH pointing to the build dir
+# The targets are always created, but only built for the "all"
+# target if the option YASM_BUILD_TESTS is enabled. Otherwise the rules for
+# the target are created but not built by default. You can build them by
+# manually building the target.
+# The name of the target can be specified using TESTNAME <testname>, if it is
+# not given the macro will default to the <name>
+macro (YASM_ADD_UNIT_TEST _test_NAME)
+    set(_srcList $${ARGN})
+    set(_targetName $${_test_NAME})
+    if( $${ARGV1} STREQUAL "TESTNAME" )
+        set(_targetName $${ARGV2})
+        LIST(REMOVE_AT _srcList 0 1)
+    endif( $${ARGV1} STREQUAL "TESTNAME" )
+    yasm_add_test_executable( $${_test_NAME} $${_srcList} )
+    add_test( $${_targetName} $${EXECUTABLE_OUTPUT_PATH}/$${_test_NAME} )
+endmacro (YASM_ADD_UNIT_TEST)
+
+# add an test executable
+# it will be built with RPATH pointing to the build dir
+# The targets are always created, but only built for the "all"
+# target if the option YASM_BUILD_TESTS is enabled. Otherwise the rules for
+# the target are created but not built by default. You can build them by
+# manually building the target.
+macro (YASM_ADD_TEST_EXECUTABLE _target_NAME)
+
+   set(_add_executable_param)
+
+   if (NOT YASM_BUILD_TESTS)
+      set(_add_executable_param EXCLUDE_FROM_ALL)
+   endif (NOT YASM_BUILD_TESTS)
+
+   set( EXECUTABLE_OUTPUT_PATH $${CMAKE_CURRENT_BINARY_DIR} )
+
+   set(_SRCS $${ARGN})
+   add_executable($${_target_NAME} $${_add_executable_param} $${_SRCS})
+
+   set_target_properties($${_target_NAME} PROPERTIES
+                         SKIP_BUILD_RPATH FALSE
+                         BUILD_WITH_INSTALL_RPATH FALSE)
+
+endmacro (YASM_ADD_TEST_EXECUTABLE)
+
+macro (YASM_ADD_MODULE _module_NAME)
+    list(APPEND YASM_MODULES_SRC $${ARGN})
+    list(APPEND YASM_MODULES $${_module_NAME})
+endmacro (YASM_ADD_MODULE)
+
+macro (YASM_GENPERF _in_NAME _out_NAME)
+    add_custom_command(
+        OUTPUT $${_out_NAME}
+        COMMAND $$<TARGET_FILE:genperf> $${_in_NAME} $${_out_NAME}
+        DEPENDS genperf
+        MAIN_DEPENDENCY $${_in_NAME}
+        )
+endmacro (YASM_GENPERF)
+
+macro (YASM_RE2C _in_NAME _out_NAME)
+    add_custom_command(
+        OUTPUT $${_out_NAME}
+        COMMAND $$<TARGET_FILE:re2c> $${ARGN} -o $${_out_NAME} $${_in_NAME}
+        DEPENDS re2c
+        MAIN_DEPENDENCY $${_in_NAME}
+        )
+endmacro (YASM_RE2C)
+
+macro (YASM_GENMACRO _in_NAME _out_NAME _var_NAME)
+    add_custom_command(
+        OUTPUT $${_out_NAME}
+        COMMAND $$<TARGET_FILE:genmacro> $${_out_NAME} $${_var_NAME} $${_in_NAME}
+        DEPENDS genmacro
+        MAIN_DEPENDENCY $${_in_NAME}
+        )
+endmacro (YASM_GENMACRO)
+EOF
+
+    # Fix the genversion LOCATION property usage in modules/preprocs/nasm/CMakeLists.txt
+    sed -i.bak 's|get_target_property(_tmp_GENVERSION_EXE genversion LOCATION)||g' modules/preprocs/nasm/CMakeLists.txt
+    sed -i.bak 's|$${CMAKE_CURRENT_BINARY_DIR}/version.mac|$${CMAKE_CURRENT_BINARY_DIR}/version.mac|g' modules/preprocs/nasm/CMakeLists.txt
+    sed -i.bak 's|$${_tmp_GENVERSION_EXE}|$$<TARGET_FILE:genversion>|g' modules/preprocs/nasm/CMakeLists.txt
+    sed -i.bak 's|DEPENDS $${_tmp_GENVERSION_EXE}|DEPENDS genversion|g' modules/preprocs/nasm/CMakeLists.txt
+
     mkdir build
     cd build
-    PATH="$$PATH:$$CMAKE_DIR/cmake-3.23.1-macos-universal/CMake.app/Contents/bin" cmake .. -DYASM_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DPYTHON_EXECUTABLE="$$(which python3)"
+    export HOME=/tmp && "$$CMAKE_BIN_PATH" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 .. -DYASM_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DPYTHON_EXECUTABLE="$$(which python3)"
     make -j $$core_count
     popd
 

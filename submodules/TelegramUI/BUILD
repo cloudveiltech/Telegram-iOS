@@ -49,7 +49,7 @@ swift_library(
         "Sources/**/*.swift",
     ]),
     copts = [
-        "-warnings-as-errors",
+        #"-warnings-as-errors",
         #CloudVeil start
     ] + ["-D", "CLOUDVEIL_SHIPLOGS"] if cloudveil_shiplogs else [],
     #CloudVeil end

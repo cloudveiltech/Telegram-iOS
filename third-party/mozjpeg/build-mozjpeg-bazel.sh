@@ -1,6 +1,7 @@
 #! /bin/sh
 
 set -e
+export HOME=/tmp
 
 ARCH="$1"
 
@@ -22,7 +23,7 @@ if [ "$ARCH" = "armv7" ]; then
   echo "set(CMAKE_SYSTEM_PROCESSOR arm)" >> toolchain.cmake
   echo "set(CMAKE_C_COMPILER $(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang)" >> toolchain.cmake
 
-  cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DCMAKE_OSX_SYSROOT=${IOS_SYSROOT[0]} -DPNG_SUPPORTED=FALSE -DENABLE_SHARED=FALSE -DWITH_JPEG8=1 -DBUILD=10000 ../mozjpeg
+  cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DCMAKE_OSX_SYSROOT=${IOS_SYSROOT[0]} -DPNG_SUPPORTED=FALSE -DENABLE_SHARED=FALSE -DWITH_JPEG8=1 -DBUILD=10000 -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ../mozjpeg
   make
 elif [ "$ARCH" = "arm64" ]; then
   IOS_PLATFORMDIR="$(xcode-select -p)/Platforms/iPhoneOS.platform"
@@ -38,7 +39,7 @@ elif [ "$ARCH" = "arm64" ]; then
   echo "set(CMAKE_SYSTEM_PROCESSOR aarch64)" >> toolchain.cmake
   echo "set(CMAKE_C_COMPILER $(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang)" >> toolchain.cmake
 
-  cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DCMAKE_OSX_SYSROOT=${IOS_SYSROOT[0]} -DPNG_SUPPORTED=FALSE -DENABLE_SHARED=FALSE -DWITH_JPEG8=1 -DBUILD=10000 ../mozjpeg
+  cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DCMAKE_OSX_SYSROOT=${IOS_SYSROOT[0]} -DPNG_SUPPORTED=FALSE -DENABLE_SHARED=FALSE -DWITH_JPEG8=1 -DBUILD=10000 -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ../mozjpeg
   make
 elif [ "$ARCH" = "sim_arm64" ]; then
   IOS_PLATFORMDIR="$(xcode-select -p)/Platforms/iPhoneSimulator.platform"
@@ -54,7 +55,7 @@ elif [ "$ARCH" = "sim_arm64" ]; then
   echo "set(CMAKE_SYSTEM_PROCESSOR aarch64)" >> toolchain.cmake
   echo "set(CMAKE_C_COMPILER $(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang)" >> toolchain.cmake
 
-  cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DCMAKE_OSX_SYSROOT=${IOS_SYSROOT[0]} -DPNG_SUPPORTED=FALSE -DENABLE_SHARED=FALSE -DWITH_JPEG8=1 -DBUILD=10000 ../mozjpeg
+  cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DCMAKE_OSX_SYSROOT=${IOS_SYSROOT[0]} -DPNG_SUPPORTED=FALSE -DENABLE_SHARED=FALSE -DWITH_JPEG8=1 -DBUILD=10000 -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ../mozjpeg
   make
 elif [ "$ARCH" = "x86_64" ]; then
   IOS_PLATFORMDIR="$(xcode-select -p)/Platforms/iPhoneSimulator.platform"
@@ -70,7 +71,7 @@ elif [ "$ARCH" = "x86_64" ]; then
   echo "set(CMAKE_SYSTEM_PROCESSOR AMD64)" >> toolchain.cmake
   echo "set(CMAKE_C_COMPILER $(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang)" >> toolchain.cmake
 
-  cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DCMAKE_OSX_SYSROOT=${IOS_SYSROOT[0]} -DPNG_SUPPORTED=FALSE -DENABLE_SHARED=FALSE -DWITH_JPEG8=1 -DBUILD=10000 ../mozjpeg
+  cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DCMAKE_OSX_SYSROOT=${IOS_SYSROOT[0]} -DPNG_SUPPORTED=FALSE -DENABLE_SHARED=FALSE -DWITH_JPEG8=1 -DBUILD=10000 -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ../mozjpeg
   make
 else
   echo "Unsupported architecture $ARCH"

@@ -70,3 +70,8 @@ submodules/FFMpegBinding/SharedHeaders/*
 submodules/OpenSSLEncryptionProvider/SharedHeaders/*
 
 build.log
+/bazel-output-base
+make
+/provisioning
+/submodules/TelegramCore/.build
+/submodules/TelegramApi/.build

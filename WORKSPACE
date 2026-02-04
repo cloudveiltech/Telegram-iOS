@@ -1,5 +1,12 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
+workspace_env = {
+    "LANG": "en_US.UTF-8",
+    "PATH": "/Users/isaac/.rvm/gems/ruby-3.2.4/bin:/Users/isaac/.rvm/rubies/ruby-3.2.4/bin:/usr/local/bin:/usr/bin:/bin",
+    "GEM_HOME": "/Users/isaac/.rvm/gems/ruby-3.2.4",
+    "GEM_PATH": "/Users/isaac/.rvm/gems/ruby-3.2.4:/Users/isaac/.rvm/rubies/ruby-3.2.4/lib/ruby/gems/3.2.0",
+}
+
 http_archive(
     name = "bazel_features",
     sha256 = "bdc12fcbe6076180d835c9dd5b3685d509966191760a0eb10b276025fcb76158",
@@ -25,6 +32,12 @@ local_repository(
 local_repository(
     name = "build_bazel_apple_support",
     path = "build-system/bazel-rules/apple_support",
+)
+
+new_local_repository(
+    name = "ObjectMapper",
+    path = "third-party/ObjectMapper",
+    build_file = "//third-party/ObjectMapper:BUILD.bazel",
 )
 
 http_file(
@@ -116,8 +129,4 @@ new_pod_repository(
     is_xcframework = True,
 )
 
-new_pod_repository(
-    name = "ObjectMapper",
-    url = "https://github.com/tristanhimmelman/ObjectMapper/archive/3.3.0.zip",
-)
 # CloudVeil end

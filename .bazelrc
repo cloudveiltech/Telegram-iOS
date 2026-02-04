@@ -1,4 +1,5 @@
 build --action_env=ZERO_AR_DATE=1
+build --action_env=LANG=en_US.UTF-8
 
 build --apple_platform_type=ios
 build --enable_platform_specific_config

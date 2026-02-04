@@ -1,0 +1,7 @@
+  {
+  	"ipa-archive-path": "build-archives/CVM_{{.BuildNumber}}_{{.Version}}_{{.BuildFor}}_{{.BuildMode}}.ipa",
+  	"dsyms-archive-path": "build-archives/CVM_{{.BuildNumber}}_{{.Version}}_{{.BuildFor}}_{{.BuildMode}}.dSYMs",
+  	"dev-provisioning-path": "provisioning/cvm/dev",
+  	"dist-provisioning-path": "provisioning/cvm/dist",
+  	"adhoc-provisioning-path": "provisioning/cvm/adhoc"
+  }

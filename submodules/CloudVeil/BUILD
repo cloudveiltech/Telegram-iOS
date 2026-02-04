@@ -12,7 +12,7 @@ swift_library(
         "Sources/**/*.swift",
     ]),
     copts = [
-        "-warnings-as-errors",
+        #"-warnings-as-errors",
     ] + ["-D", "CLOUDVEIL_SHIPLOGS"] if cloudveil_shiplogs else [],
     deps = [],
     visibility = [

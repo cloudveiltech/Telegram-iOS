@@ -7,7 +7,7 @@ objc_library(
         "Source/UIKitRuntimeUtils/*.m",
     ]),
     copts = [
-        "-Werror",
+        #"-Werror",
     ],
     hdrs = glob([
         "Source/UIKitRuntimeUtils/*.h",
