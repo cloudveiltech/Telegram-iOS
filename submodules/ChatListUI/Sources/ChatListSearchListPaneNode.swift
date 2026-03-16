@@ -2423,7 +2423,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 }
                             }
                             if let _ = searchContext.loadMoreIndex {
-                                return context.engine.messages.searchMessages(location: searchLocations[i], query: finalQuery, state: searchContext.result.state, limit: 80)
+                                return context.engine.messages.searchMessages(location: searchLocations[i], query: finalQuery, state: searchContext.result.state, limit: 150)
                                 |> map { result, updatedState -> ChatListSearchMessagesResult in
                                     // CloudVeil: Filter messages from peers that don't pass security check
                                     let filteredMessages = result.messages.filter { message in
@@ -2924,7 +2924,28 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 continue
                             }
                             existingPostIds.insert(message.id)
-                        
+
+                            // CloudVeil: Filter messages from peers that don't pass security check
+                            let peerId = message.id.peerId
+                            let peerIdInt = NSInteger(peerId.id._internalGetInt64Value())
+
+                            // Check if peer is available based on its type
+                            var isPeerAvailable: Bool? = true
+
+                            if peerId.namespace == Namespaces.Peer.CloudGroup {
+                                isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(groupID: -peerIdInt)
+                            } else if peerId.namespace == Namespaces.Peer.CloudChannel {
+                                isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
+                            } else if let user = message.peers[peerId] as? TelegramUser, user.botInfo != nil {
+                                isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+                            }
+
+                            // Only include messages from peers that are explicitly allowed
+                            // Both false and nil should be blocked, only true allowed
+                            if isPeerAvailable != true {
+                                continue
+                            }
+
                             let headerId = listMessageDateHeaderId(timestamp: message.timestamp)
                             if firstHeaderId == nil {
                                 firstHeaderId = headerId
@@ -2948,6 +2969,28 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             } else if message.id.namespace == Namespaces.Message.Cloud && searchState.deletedGlobalMessageIds.contains(message.id.id) {
                                 continue
                             }
+
+                            // CloudVeil: Filter messages from peers that don't pass security check
+                            let peerId = message.id.peerId
+                            let peerIdInt = NSInteger(peerId.id._internalGetInt64Value())
+
+                            // Check if peer is available based on its type
+                            var isPeerAvailable: Bool? = true
+
+                            if peerId.namespace == Namespaces.Peer.CloudGroup {
+                                isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(groupID: -peerIdInt)
+                            } else if peerId.namespace == Namespaces.Peer.CloudChannel {
+                                isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
+                            } else if let user = message.peers[peerId] as? TelegramUser, user.botInfo != nil {
+                                isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+                            }
+
+                            // Only include messages from peers that are explicitly allowed
+                            // Both false and nil should be blocked, only true allowed
+                            if isPeerAvailable != true {
+                                continue
+                            }
+
                             let headerId = listMessageDateHeaderId(timestamp: message.timestamp)
                             if firstHeaderId == nil {
                                 firstHeaderId = headerId
