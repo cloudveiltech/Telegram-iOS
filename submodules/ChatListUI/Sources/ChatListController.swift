@@ -1490,7 +1490,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
 
                 // CloudVeil: Check if peer is allowed before showing preview
                 var previewShown = false
-                TelegramBaseController.checkPeerIsAllowed(peerId: peer.peerId, controller: strongSelf, context: strongSelf.context, presentationData: strongSelf.presentationData) { [weak strongSelf] result in
+                TelegramBaseController.checkPeerIsAllowed(peerId: peer.peerId, controller: strongSelf, context: strongSelf.context, presentationData: strongSelf.presentationData, showPolicyAlerts: false) { [weak strongSelf] result in
                     guard let strongSelf = strongSelf else {
                         gesture?.cancel()
                         return
@@ -1501,8 +1501,50 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                     }
 
                     if !result {
-                        // Peer is blocked or waiting for server check, don't show preview
-                        gesture?.cancel()
+                        // CloudVeil: Keep management actions (delete/leave/etc.) available,
+                        // but avoid chat preview for blocked peers.
+                        switch item.index {
+                        case .chatList:
+                            let fallbackSource: ContextContentSource?
+                            if let location = location {
+                                fallbackSource = .location(ChatListContextLocationContentSource(controller: strongSelf, location: location))
+                            } else {
+                                fallbackSource = .reference(HeaderContextReferenceContentSource(controller: strongSelf, sourceView: node.view))
+                            }
+                            
+                            if let fallbackSource {
+                                let contextController = ContextController(
+                                    presentationData: strongSelf.presentationData,
+                                    source: fallbackSource,
+                                    items: chatContextMenuItems(context: strongSelf.context, peerId: peer.peerId, promoInfo: promoInfo, source: .chatList(filter: strongSelf.chatListDisplayNode.mainContainerNode.currentItemNode.chatListFilter), chatListController: strongSelf, joined: joined) |> map { ContextController.Items(content: .list($0)) },
+                                    gesture: gesture
+                                )
+                                strongSelf.presentInGlobalOverlay(contextController)
+                            } else {
+                                gesture?.cancel()
+                            }
+                        case let .forum(pinnedIndex, _, topicId, _, _):
+                            let isPinned: Bool
+                            switch pinnedIndex {
+                            case .index:
+                                isPinned = true
+                            case .none:
+                                isPinned = false
+                            }
+                            
+                            guard let location = location else {
+                                gesture?.cancel()
+                                return
+                            }
+                            
+                            let contextController = ContextController(
+                                presentationData: strongSelf.presentationData,
+                                source: .location(ChatListContextLocationContentSource(controller: strongSelf, location: location)),
+                                items: chatForumTopicMenuItems(context: strongSelf.context, peerId: peer.peerId, threadId: topicId, isPinned: isPinned, isClosed: threadInfo?.isClosed, chatListController: strongSelf, joined: joined, canSelect: true) |> map { ContextController.Items(content: .list($0)) },
+                                gesture: gesture
+                            )
+                            strongSelf.presentInGlobalOverlay(contextController)
+                        }
                         return
                     }
 
@@ -1609,27 +1651,48 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                 return
             }
             
-            if case let .channel(channel) = peer, channel.flags.contains(.isForum) {
-                let chatListController = ChatListControllerImpl(context: strongSelf.context, location: .forum(peerId: channel.id), controlsHistoryPreload: false, hideNetworkActivityStatus: true, previewing: true, enableDebugActions: false)
-                chatListController.navigationPresentation = .master
-                let contextController = ContextController(presentationData: strongSelf.presentationData, source: .controller(ContextControllerContentSourceImpl(controller: chatListController, sourceNode: node, navigationController: strongSelf.navigationController as? NavigationController)), items: chatContextMenuItems(context: strongSelf.context, peerId: peer.id, promoInfo: nil, source: .search(source), chatListController: strongSelf, joined: false) |> map { ContextController.Items(content: .list($0)) }, gesture: gesture)
-                strongSelf.presentInGlobalOverlay(contextController)
-            } else {
-                let contextContentSource: ContextContentSource
-                if peer.id.namespace == Namespaces.Peer.SecretChat, let node = node.subnodes?.first as? ContextExtractedContentContainingNode {
-                    contextContentSource = .extracted(ChatListHeaderBarContextExtractedContentSource(controller: strongSelf, sourceNode: node, keepInPlace: false))
-                } else {
-                    var subject: ChatControllerSubject?
-                    if case let .search(messageId) = source, let id = messageId {
-                        subject = .message(id: .id(id), highlight: nil, timecode: nil, setupReply: false)
-                    }
-                    let chatController = strongSelf.context.sharedContext.makeChatController(context: strongSelf.context, chatLocation: .peer(id: peer.id), subject: subject, botStart: nil, mode: .standard(.previewing), params: nil)
-                    chatController.canReadHistory.set(false)
-                    contextContentSource = .controller(ContextControllerContentSourceImpl(controller: chatController, sourceNode: node, navigationController: strongSelf.navigationController as? NavigationController))
+            // CloudVeil: Check if peer is allowed before showing context menu from search
+            var contextShown = false
+            TelegramBaseController.checkPeerIsAllowed(peerId: peer.id, controller: strongSelf, context: strongSelf.context, presentationData: strongSelf.presentationData, showPolicyAlerts: true) { [weak strongSelf] result in
+                guard let strongSelf = strongSelf else {
+                    gesture?.cancel()
+                    return
                 }
                 
-                let contextController = ContextController(presentationData: strongSelf.presentationData, source: contextContentSource, items: chatContextMenuItems(context: strongSelf.context, peerId: peer.id, promoInfo: nil, source: .search(source), chatListController: strongSelf, joined: false) |> map { ContextController.Items(content: .list($0)) }, gesture: gesture)
-                strongSelf.presentInGlobalOverlay(contextController)
+                if contextShown {
+                    return
+                }
+                
+                if !result {
+                    // Peer is blocked or waiting for server check, don't show context menu
+                    gesture?.cancel()
+                    return
+                }
+                
+                contextShown = true
+                
+                if case let .channel(channel) = peer, channel.flags.contains(.isForum) {
+                    let chatListController = ChatListControllerImpl(context: strongSelf.context, location: .forum(peerId: channel.id), controlsHistoryPreload: false, hideNetworkActivityStatus: true, previewing: true, enableDebugActions: false)
+                    chatListController.navigationPresentation = .master
+                    let contextController = ContextController(presentationData: strongSelf.presentationData, source: .controller(ContextControllerContentSourceImpl(controller: chatListController, sourceNode: node, navigationController: strongSelf.navigationController as? NavigationController)), items: chatContextMenuItems(context: strongSelf.context, peerId: peer.id, promoInfo: nil, source: .search(source), chatListController: strongSelf, joined: false) |> map { ContextController.Items(content: .list($0)) }, gesture: gesture)
+                    strongSelf.presentInGlobalOverlay(contextController)
+                } else {
+                    let contextContentSource: ContextContentSource
+                    if peer.id.namespace == Namespaces.Peer.SecretChat, let node = node.subnodes?.first as? ContextExtractedContentContainingNode {
+                        contextContentSource = .extracted(ChatListHeaderBarContextExtractedContentSource(controller: strongSelf, sourceNode: node, keepInPlace: false))
+                    } else {
+                        var subject: ChatControllerSubject?
+                        if case let .search(messageId) = source, let id = messageId {
+                            subject = .message(id: .id(id), highlight: nil, timecode: nil, setupReply: false)
+                        }
+                        let chatController = strongSelf.context.sharedContext.makeChatController(context: strongSelf.context, chatLocation: .peer(id: peer.id), subject: subject, botStart: nil, mode: .standard(.previewing), params: nil)
+                        chatController.canReadHistory.set(false)
+                        contextContentSource = .controller(ContextControllerContentSourceImpl(controller: chatController, sourceNode: node, navigationController: strongSelf.navigationController as? NavigationController))
+                    }
+                    
+                    let contextController = ContextController(presentationData: strongSelf.presentationData, source: contextContentSource, items: chatContextMenuItems(context: strongSelf.context, peerId: peer.id, promoInfo: nil, source: .search(source), chatListController: strongSelf, joined: false) |> map { ContextController.Items(content: .list($0)) }, gesture: gesture)
+                    strongSelf.presentInGlobalOverlay(contextController)
+                }
             }
         }
         

@@ -75,7 +75,10 @@ import GiftViewScreen
 import StarsIntroScreen
 import ContentReportScreen
 import AffiliateProgramSetupScreen
+//CloudVeil start
 import CloudVeilSecurityManager
+import TelegramBaseController
+//CloudVeil end
 
 private final class AccountUserInterfaceInUseContext {
     let subscribers = Bag<(Bool) -> Void>()
@@ -2839,7 +2842,15 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     }
     
     public func openWebApp(context: AccountContext, parentController: ViewController, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?, botPeer: EnginePeer, chatPeer: EnginePeer?, threadId: Int64?, buttonText: String, url: String, simple: Bool, source: ChatOpenWebViewSource, skipTermsOfService: Bool, payload: String?) {
-        openWebAppImpl(context: context, parentController: parentController, updatedPresentationData: updatedPresentationData, botPeer: botPeer, chatPeer: chatPeer, threadId: threadId, buttonText: buttonText, url: url, simple: simple, source: source, skipTermsOfService: skipTermsOfService, payload: payload)
+        // CloudVeil: Centralized check before opening any web app / mini app
+        let checkPeerId = chatPeer?.id ?? botPeer.id
+        TelegramBaseController.checkPeerIsAllowed(peerId: checkPeerId, controller: parentController, context: context, presentationData: context.sharedContext.currentPresentationData.with { $0 }) { result in
+            guard result else {
+                return
+            }
+            openWebAppImpl(context: context, parentController: parentController, updatedPresentationData: updatedPresentationData, botPeer: botPeer, chatPeer: chatPeer, threadId: threadId, buttonText: buttonText, url: url, simple: simple, source: source, skipTermsOfService: skipTermsOfService, payload: payload)
+        }
+        //CloudVeil end
     }
     
     public func makeAffiliateProgramSetupScreenInitialData(context: AccountContext, peerId: EnginePeer.Id, mode: AffiliateProgramSetupScreenMode) -> Signal<AffiliateProgramSetupScreenInitialData, NoError> {

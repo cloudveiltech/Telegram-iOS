@@ -1756,6 +1756,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
                         } else if let user = message.peers[peerId] as? TelegramUser, user.botInfo != nil {
                             isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+                        } else if message.peers[peerId] is TelegramUser {
+                            isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(userID: peerIdInt)
                         }
 
                         // Skip messages from peers that are explicitly blocked
@@ -1809,6 +1811,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
                         } else if let user = message.peers[peerId] as? TelegramUser, user.botInfo != nil {
                             isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+                        } else if message.peers[peerId] is TelegramUser {
+                            isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(userID: peerIdInt)
                         }
 
                         // Skip messages from peers that are explicitly blocked
@@ -2267,6 +2271,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
                         } else if let user = message.peers[peerId] as? TelegramUser, user.botInfo != nil {
                             isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+                        } else if message.peers[peerId] is TelegramUser {
+                            isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(userID: peerIdInt)
                         }
 
                         // Only include messages from peers that are explicitly allowed
@@ -2301,6 +2307,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                             isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
                                         } else if let user = message.peers[peerId] as? TelegramUser, user.botInfo != nil {
                                             isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+                                        } else if message.peers[peerId] is TelegramUser {
+                                            isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(userID: peerIdInt)
                                         }
 
                                         // Only include messages from peers that don't pass security check
@@ -2374,12 +2382,16 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     addAppLogEvent(postbox: context.account.postbox, type: "search_global_query")
                 }
                 
+                /* CloudVeil start
                 let searchSignals: [Signal<(SearchMessagesResult, SearchMessagesState), NoError>] = searchLocations.map { searchLocation in
                     return context.engine.messages.searchMessages(location: searchLocation, query: finalQuery, state: nil, limit: 50)
                 }
                 
                 let searchSignal = combineLatest(searchSignals)
                 |> map { results -> [ChatListSearchMessagesResult] in
+                */
+                func mapRawSearchResults(_ results: [(SearchMessagesResult, SearchMessagesState)]) -> [ChatListSearchMessagesResult] {
+                // CloudVeil end
                     var mappedResults: [ChatListSearchMessagesResult] = []
                     for resultData in results {
                         let (result, updatedState) = resultData
@@ -2398,6 +2410,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
                             } else if let user = message.peers[peerId] as? TelegramUser, user.botInfo != nil {
                                 isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+                            } else if message.peers[peerId] is TelegramUser {
+                                isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(userID: peerIdInt)
                             }
 
                             // Only include messages from peers that are explicitly allowed
@@ -2409,6 +2423,41 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     }
                     return mappedResults
                 }
+
+                // CloudVeil start: ramp up results if all are filtered out initially
+                let searchSignal: Signal<[ChatListSearchMessagesResult], NoError>
+                if finalQuery.isEmpty {
+                    // Empty-query global search: CloudVeil filtering can remove every message from a small first page,
+                    // and load-more never runs when filtered messages are empty (no last index). Re-fetch with a
+                    // larger limit until we surface allowed peers or exhaust the cap.
+                    func searchWithRampUp(limit: Int32) -> Signal<[ChatListSearchMessagesResult], NoError> {
+                        let searchSignals: [Signal<(SearchMessagesResult, SearchMessagesState), NoError>] = searchLocations.map { searchLocation in
+                            return context.engine.messages.searchMessages(location: searchLocation, query: finalQuery, state: nil, limit: limit)
+                        }
+                        return combineLatest(searchSignals)
+                        |> mapToSignal { results -> Signal<[ChatListSearchMessagesResult], NoError> in
+                            let mapped = mapRawSearchResults(results)
+                            let filteredTotal = mapped.reduce(0) { $0 + $1.messages.count }
+                            if filteredTotal != 0 {
+                                return .single(mapped)
+                            }
+                            let rawTotal = results.reduce(0) { $0 + $1.0.messages.count }
+                            if rawTotal == 0 || limit >= 500 {
+                                return .single(mapped)
+                            }
+                            let nextLimit = min(limit + 100, 500)
+                            return searchWithRampUp(limit: nextLimit)
+                        }
+                    }
+                    searchSignal = searchWithRampUp(limit: 50)
+                } else {
+                    let searchSignals: [Signal<(SearchMessagesResult, SearchMessagesState), NoError>] = searchLocations.map { searchLocation in
+                        return context.engine.messages.searchMessages(location: searchLocation, query: finalQuery, state: nil, limit: 50)
+                    }
+                    searchSignal = combineLatest(searchSignals)
+                    |> map { mapRawSearchResults($0) }
+                }
+                // CloudVeil end
                 
                 let loadMore = searchContexts.get()
                 |> mapToSignal { searchContexts -> Signal<([FoundRemoteMessages], Bool), NoError> in
@@ -2423,7 +2472,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 }
                             }
                             if let _ = searchContext.loadMoreIndex {
-                                return context.engine.messages.searchMessages(location: searchLocations[i], query: finalQuery, state: searchContext.result.state, limit: 150)
+                                return context.engine.messages.searchMessages(location: searchLocations[i], query: finalQuery, state: searchContext.result.state, limit: 500)
                                 |> map { result, updatedState -> ChatListSearchMessagesResult in
                                     // CloudVeil: Filter messages from peers that don't pass security check
                                     let filteredMessages = result.messages.filter { message in
@@ -2439,6 +2488,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                             isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
                                         } else if let user = message.peers[peerId] as? TelegramUser, user.botInfo != nil {
                                             isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+                                        } else if message.peers[peerId] is TelegramUser {
+                                            isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(userID: peerIdInt)
                                         }
 
                                         // Only include messages from peers that are explicitly allowed
@@ -2938,6 +2989,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
                             } else if let user = message.peers[peerId] as? TelegramUser, user.botInfo != nil {
                                 isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+                            } else if message.peers[peerId] is TelegramUser {
+                                isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(userID: peerIdInt)
                             }
 
                             // Only include messages from peers that are explicitly allowed
@@ -2983,6 +3036,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
                             } else if let user = message.peers[peerId] as? TelegramUser, user.botInfo != nil {
                                 isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+                            } else if message.peers[peerId] is TelegramUser {
+                                isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(userID: peerIdInt)
                             }
 
                             // Only include messages from peers that are explicitly allowed
@@ -3145,7 +3200,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         }, toggleArchivedFolderHiddenByDefault: {
         }, toggleThreadsSelection: { _, _ in
         }, hidePsa: { _ in
-        }, activateChatPreview: { item, _, node, gesture, location in
+        }, activateChatPreview: { item, threadId, node, gesture, location in
             guard let peerContextAction = interaction.peerContextAction else {
                 gesture?.cancel()
                 return
@@ -3153,7 +3208,19 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             switch item.content {
             case let .peer(peerData):
                 if let peer = peerData.peer.peer, let message = peerData.messages.first {
-                    peerContextAction(peer, .search(message.id), node, gesture, location)
+                    // CloudVeil: Check if peer is allowed before showing context menu
+                    if let parentController = self.parentController {
+                        TelegramBaseController.checkPeerIsAllowed(peerId: peer.id, controller: parentController, context: self.context, presentationData: self.presentationData) { result in
+                            if result {
+                                // Peer is allowed, show context menu
+                                peerContextAction(peer, .search(message.id), node, gesture, location)
+                            } else {
+                                // Peer is blocked, cancel gesture
+                                gesture?.cancel()
+                            }
+                        }
+                    }
+                    //CloudVeil end
                 }
             case .groupReference:
                 gesture?.cancel()
