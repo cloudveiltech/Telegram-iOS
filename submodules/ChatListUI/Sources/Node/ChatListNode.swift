@@ -2253,11 +2253,20 @@ public final class ChatListNode: ListView {
             contacts = .single([])
         }
 
-        //CloudVeil start
-        self.cloudVeilSubscribeToChatListChanges()
-        //CloudVeil end
-        
         let accountPeerId = context.account.peerId
+        //CloudVeil start
+        var hasBeenChangedUserId = false
+        TGUserController.withLock({ tg in
+            let tgId = tg.getUserID()
+            
+            let currentPeerId = accountPeerId.id._internalGetInt64Value()
+            if tgId != currentPeerId {
+                print("user changed from \(tgId) to \(currentPeerId), unsubscribing from chat list changes")
+                hasBeenChangedUserId = true
+            }
+        })
+        self.cloudVeilSubscribeToChatListChanges(forceResubscribe: hasBeenChangedUserId)
+        //CloudVeil end
         
         let chatListFilters: Signal<[ChatListFilter]?, NoError>
         if case .chatList = mode {
@@ -3294,9 +3303,14 @@ public final class ChatListNode: ListView {
     static let timeoutCallInSec = 0.1
     var lastCallTime = Date().timeIntervalSince1970 - 10*ChatListNode.timeoutCallInSec
     static var subscriptionDisposable: Disposable? = nil
-    func cloudVeilSubscribeToChatListChanges() {
+    func cloudVeilSubscribeToChatListChanges(forceResubscribe: Bool = false) {
         if ChatListNode.subscriptionDisposable != nil {
-            return
+            if !forceResubscribe {
+                return
+            } else {
+                ChatListNode.subscriptionDisposable?.dispose()
+                ChatListNode.subscriptionDisposable = nil
+            }
         }
         self.blockNotifications()
         ChatListNode.subscriptionDisposable = (context.engine.messages.chatList(group: .root, count: Int(Int16.max)) |> distinctUntilChanged{ l, r in

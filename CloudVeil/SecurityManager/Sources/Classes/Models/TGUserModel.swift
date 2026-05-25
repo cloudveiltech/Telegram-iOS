@@ -13,6 +13,7 @@ class TGUserModel1: NSObject {
     // MARK: - Constants
     
     static let kTGUserModelId = "TGUserModelId"
+    static let kTGUserModelOrgId = "TGUserModelOrgId"
     static let kTGUserModelPhoneNumber = "TGUserModelPhoneNumber"
     static let kTGUserModelUserName = "TGUserModelUserName"
     static let kTGUserModelUserNames = "TGUserModelUserNames"
@@ -24,6 +25,12 @@ class TGUserModel1: NSObject {
         
         set { UserDefaults.standard.set(newValue, forKey: kTGUserModelId) }
         get { return UserDefaults.standard.object(forKey: kTGUserModelId) as? NSInteger ?? 0}
+    }
+    
+    public static private(set) var orgId: NSInteger {
+        
+        set { UserDefaults.standard.set(newValue, forKey: kTGUserModelOrgId) }
+        get { return UserDefaults.standard.object(forKey: kTGUserModelOrgId) as? NSInteger ?? 0}
     }
     
     public static private(set) var phoneNumber: NSString {
@@ -49,6 +56,10 @@ class TGUserModel1: NSObject {
     
     public static func set(userID: NSInteger) {
         id = userID
+    }
+    
+    public static func set(orgID: NSInteger) {
+        orgId = orgID
     }
     
     public static func set(userPhoneNumber phone: NSString) {

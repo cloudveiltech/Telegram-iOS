@@ -21,21 +21,21 @@ public class UserBlacklist {
     fileprivate init() {
         cache = UserDefaults.standard.array(forKey: key)?.compactMap { $0 as? Int64 } ?? []
     }
-
+    
     fileprivate func clear() {
         cache = []
         UserDefaults.standard.set(cache, forKey: key)
     }
-
+    
     fileprivate func contains(_ id: Int64) -> Bool {
         return cache.contains(id)
     }
-
+    
     fileprivate func remove(_ id: Int64) {
         cache.removeAll(where: { $0 == id })
         UserDefaults.standard.set(cache, forKey: key)
     }
-
+    
     fileprivate func blacklist(_ id: Int64) {
         cache.append(id)
         UserDefaults.standard.set(cache, forKey: key)
@@ -46,133 +46,121 @@ open class CloudVeilSecurityController: NSObject {
     private let SUPPORT_BOT_ID = 689684671
     private let TAG = "CloudVeilSecurityController"
     
-	public struct SecurityStaticSettings {
-		public static let disableGlobalSearch = true
-		public static let disableYoutubeVideoEmbedding = true
-		public static let disableInAppBrowser = true
-		public static let disableAutoPlayGifs = true
-		public static let disablePayments = true
-		public static let disableBots = false
-		public static let disableInlineBots = true
+    public struct SecurityStaticSettings {
+        public static let disableGlobalSearch = true
+        public static let disableYoutubeVideoEmbedding = true
+        public static let disableInAppBrowser = true
+        public static let disableAutoPlayGifs = true
+        public static let disablePayments = true
+        public static let disableBots = false
+        public static let disableInlineBots = true
         public static let disableGifs = true
-	}
-	
-	public static let shared = CloudVeilSecurityController()
-	
-	private let mapper = Mapper<TGSettingsResponse>()
-	
-	private let kWasFirstLoaded = "wasFirstLoaded" 
-	private var wasFirstLoaded: Bool {
-		get { return UserDefaults.standard.bool(forKey: kWasFirstLoaded) }
-		set { UserDefaults.standard.set(newValue, forKey: kWasFirstLoaded) }
-	}
+    }
     
-    private let accessQueue = DispatchQueue(label: "TGSettingsResponseAccess", attributes: .concurrent)
-	private var settingsCache: TGSettingsResponse?
+    public static let shared = CloudVeilSecurityController()
     
-	private var settings: TGSettingsResponse? {        
-        var resp: TGSettingsResponse?
-        if settingsCache != nil {
-            resp = settingsCache
-        } else {
-            settingsCache = DataSource<TGSettingsResponse>.value(mapper: mapper)
-            resp = settingsCache
+    private let mapper = Mapper<TGSettingsResponse>()
+    
+    private let kWasFirstLoaded = "wasFirstLoaded"
+    private var wasFirstLoaded: Bool {
+        get { return UserDefaults.standard.bool(forKey: kWasFirstLoaded) }
+        set { UserDefaults.standard.set(newValue, forKey: kWasFirstLoaded) }
+    }
+    
+    // Serial queue to protect access to settingsCache
+    private let accessQueue = DispatchQueue(label: "TGSettingsResponseAccess")
+    private var settingsCache: TGSettingsResponse?
+
+    // Thread-safe accessor - use this instead of accessing settings directly
+    // WARNING: Do not call this from code already running inside accessQueue.sync or you'll deadlock
+    private func withSettings<T>(_ block: (TGSettingsResponse?) -> T) -> T {
+        return self.accessQueue.sync {
+            return block(settings)
         }
-		return resp
-	}
+    }
+
+    // Make sure access this computed property only inside accessQueue.sync
+    private var settings: TGSettingsResponse? {
+        var resp: TGSettingsResponse?
+        var userId = 0
+        var orgId = 0
+        var isCacheValid = true
+        
+        // Should access TGUserController with lock
+        TGUserController.withLock { tg in
+            userId = tg.getUserID()
+            orgId = tg.getOrgID()
+            isCacheValid = !TGUserController.didChangedUserID && !TGUserController.didChangedOrgID
+            let cacheKey = "\(userId)_\(orgId)"
+            
+            if settingsCache != nil && isCacheValid {
+                resp = settingsCache
+            } else {
+                // Reading from disk inside the lock ensures the User ID and Org ID cannot change
+                // while we are loading the file.
+                
+                settingsCache = DataSource<TGSettingsResponse>.value(forKey: cacheKey, mapper: mapper)
+                resp = settingsCache
+                if settingsCache != nil {
+                    // Update the flag directly on the instance (no nested lock)
+                    tg.setCacheHasBeenUpdated()
+                    print("[SETTINGS] Settings loaded from disk cache for user \(userId) org \(orgId)")
+                }
+            }
+        }
+        CVLog.log(self.TAG, "[SETTINGS] Settings accessed for user \(userId) org \(orgId), isCacheValid=\(isCacheValid ? "true" : "false")")
+        return resp
+    }
     
     public var needOrganizationChange: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.organization?.needChange ?? false
-        }
-        return res
+        return withSettings { $0?.organization?.needChange ?? false }
     }
+
     public var disableStories: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableStories ?? false
-        }
-        return res
+        return withSettings { $0?.disableStories ?? false }
     }
     
-	public var disableStickers: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableSticker ?? false
-        }
-        return res
-	}
-	public var disableBio: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableBio ?? false
-        }
-        return res
-	}
-	public var disableBioChange: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableBioChange ?? false
-        }
-        return res
-	}
-	public var disableProfilePhoto: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableProfilePhoto ?? false
-        }
-        return res
-	}
-	public var disableProfilePhotoChange: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableProfilePhotoChange ?? false
-        }
-        return res
-	}
+    public var disableStickers: Bool {
+        return withSettings { $0?.disableSticker ?? false }
+    }
+
+    public var disableBio: Bool {
+        return withSettings { $0?.disableBio ?? false }
+    }
+
+    public var disableBioChange: Bool {
+        return withSettings { $0?.disableBioChange ?? false }
+    }
+
+    public var disableProfilePhoto: Bool {
+        return withSettings { $0?.disableProfilePhoto ?? false }
+    }
+
+    public var disableProfilePhotoChange: Bool {
+        return withSettings { $0?.disableProfilePhotoChange ?? false }
+    }
+
+    public var isSecretChatAvailable: Bool {
+        return withSettings { $0?.secretChat ?? false }
+    }
+
+    public var disableProfileVideo: Bool {
+        return withSettings { $0?.disableProfileVideo ?? false }
+    }
+
+    public var disableProfileVideoChange: Bool {
+        return withSettings { $0?.disableProfileVideoChange ?? false }
+    }
+
+    public var isInChatVideoRecordingEnabled: Bool {
+        return withSettings { $0?.inputToggleVoiceVideo ?? false }
+    }
     
-	public var isSecretChatAvailable: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.secretChat ?? false
-        }
-        return res
-	}
-		
-	public var disableProfileVideo: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableProfileVideo ?? false
-        }
-        return res
-	}
-	public var disableProfileVideoChange: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableProfileVideoChange ?? false
-        }
-        return res
-	}
-	
-	public var isInChatVideoRecordingEnabled: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.inputToggleVoiceVideo ?? false
-        }
-        return res
-	}
-		
     public var disableEmojiStatus: Bool {
-        var res = false
-        self.accessQueue.sync {
-            res = settings?.disableEmojiStatus ?? false
-        }
-        return res
+        return withSettings { $0?.disableEmojiStatus ?? false }
     }
-    
-    
-	public var profilePhotoLimit: Int {
+
+    public var profilePhotoLimit: Int {
         var v = 1
         self.accessQueue.sync {
             v = Int(settings?.profilePhotoLimit ?? "-1")!
@@ -182,9 +170,9 @@ open class CloudVeilSecurityController: NSObject {
                 v = 1
             }
         }
-		return v
-	}
-
+        return v
+    }
+    
     public var organizationId: Int? {
         var res: Int?
         self.accessQueue.sync {
@@ -192,41 +180,41 @@ open class CloudVeilSecurityController: NSObject {
         }
         return res
     }
-	
-	public var secretChatMinimumLength: NSInteger {
+    
+    public var secretChatMinimumLength: NSInteger {
         var res = -1
         self.accessQueue.sync {
             if let lenghtStr = settings?.secretChatMinimumLength {
-               res = Int(lenghtStr) ?? -1
+                res = Int(lenghtStr) ?? -1
             }
         }
-		
-		return res
-	}
-
-
+        
+        return res
+    }
+    
+    
     // MARK - Networking
     private let netQueue = DispatchQueue(label: "CloudVeilNetwork")
-	private var nextRequest: TGSettingsRequest? = nil
-	private var lastRequestTime: TimeInterval = 0.0
-	private let UPDATE_INTERVAL = 10*60.0 //10min
-
+    private var nextRequest: TGSettingsRequest? = nil
+    private var lastRequestTime: TimeInterval = 0.0
+    private let UPDATE_INTERVAL = 10*60.0 //10min
+    
     // Blacklist of Telegram users who we shouldn't sent settings requests for.
     private let userBlacklist = UserBlacklist()
-
+    
     public func clearUserBlacklist() {
         self.netQueue.async {
             self.userBlacklist.clear()
         }
     }
-
+    
     // temporary: for use by web ui account delete only
     public func blacklistUser(_ userId: Int64) {
         self.netQueue.sync {
             self.userBlacklist.blacklist(userId)
         }
     }
-
+    
     // temporary: for use by web ui account delete only
     public func withDeleteAccountUrl(_ userId: Int64, completion: @escaping (URL) -> Void) {
         let req = TGSettingsRequest(userId: userId)
@@ -237,9 +225,9 @@ open class CloudVeilSecurityController: NSObject {
         }
         task?.resume()
     }
-
+    
     private var getSettingsTask: URLSessionTask? = nil
-
+    
     public func deleteAccount(_ tgUserID: Int64, onSucceed: @escaping () -> Void, onFail: @escaping () -> Void) {
         self.netQueue.async {
             self.userBlacklist.blacklist(tgUserID)
@@ -270,14 +258,14 @@ open class CloudVeilSecurityController: NSObject {
             task?.resume()
         }
     }
-
+    
     // Must only be called from code running on netQueue
-	private func sendSettingsRequest(_ body: TGSettingsRequest) {
+    private func sendSettingsRequest(_ body: TGSettingsRequest) {
         if let state = self.getSettingsTask?.state, state != .completed && state != .canceling {
             return
         }
         let task = self.sendSettingsRequest(body) { response in
-            self.saveSettings(response)
+            self.saveSettings(response, forUserId: body.id ?? 0, orgId: body.orgId ?? 0)
             self.netQueue.async {
                 if let nextReq = self.nextRequest, nextReq != body {
                     self.sendSettingsRequest(nextReq)
@@ -289,8 +277,8 @@ open class CloudVeilSecurityController: NSObject {
             task.resume()
             self.getSettingsTask = task
         }
-	}
-
+    }
+    
     private func sendSettingsRequest(_ body: TGSettingsRequest, ignoreBlacklist: Bool = false, _ callback: @escaping (TGSettingsResponse?) -> Void) -> URLSessionTask? {
         if let id = body.id, self.userBlacklist.contains(Int64(id)) && !ignoreBlacklist {
             return nil
@@ -356,7 +344,7 @@ open class CloudVeilSecurityController: NSObject {
             }
         }
     }
-
+    
     open func getSettings(groups: inout [TGRow], bots: inout [TGRow], channels: inout [TGRow], stickers: inout [TGRow]) {
         let request = TGSettingsRequest(
             sessionId: self.nextRequest?.clientSessionId,
@@ -375,13 +363,13 @@ open class CloudVeilSecurityController: NSObject {
             self.sendSettingsRequest(request)
         }
     }
-
+    
     public func replayRequestWith(group: TGRow? = nil, channel: TGRow? = nil, bot: TGRow? = nil) {
         self.netQueue.async {
             let nextReq = self.nextRequest ?? TGSettingsRequest(
                 sessionId: self.nextRequest?.clientSessionId,
                 groups: [], bots: [], channels: [], stickers: [])
-
+            
             var send = false
             if let g = group, !nextReq.groups.contains(g) {
                 nextReq.groups.append(g)
@@ -395,66 +383,95 @@ open class CloudVeilSecurityController: NSObject {
                 nextReq.bots.append(b)
                 send = true
             }
-
+            
             if send {
                 self.nextRequest = nextReq
                 self.sendSettingsRequest(nextReq)
             }
         }
     }
-
+    
     open func replayRequestWithGroup(group: TGRow) {
         self.replayRequestWith(group: group)
     }
-
+    
     open func replayRequestWithChannel(channel: TGRow) {
         self.replayRequestWith(channel: channel)
     }
-
+    
     open func replayRequestWithBot(bot: TGRow) {
         self.replayRequestWith(bot: bot)
     }
     
-	private func saveSettings(_ settings: TGSettingsResponse?) {
-		print("Save settings called")
+    private func saveSettings(_ settings: TGSettingsResponse?, forUserId: Int64 = 0, orgId: NSInteger = 0) {
+        print("[SETTINGS] Save settings called")
         self.accessQueue.sync {
             if let settings = settings {
+                // Update org ID if present in settings
+                let userId = forUserId
+                var targetOrgId = orgId
+                
+                if let orgId = settings.organization?.id, targetOrgId != orgId {
+                    // ORG ID has changed
+                    TGUserController.withLock { tg in
+                        tg.set(orgID: orgId)
+                    }
+                    targetOrgId = orgId
+                }
+                let cacheKey = "\(userId)_\(targetOrgId)"
+                // Current disk cache for this specific user+org combo
+                let cache = DataSource<TGSettingsResponse>.value(forKey: cacheKey, mapper: mapper)
+                
                 // if last response's org is this response's org,
                 // keep old allowed peers around even when this response doesn't have them
                 // discard old blocked peers
-                if settings.organization?.id == settingsCache?.organization?.id {
+                
+                // Merge with disk cache (not in-memory cache) to preserve allowed peers
+                // for the same org across network requests
+                if settings.organization?.id == cache?.organization?.id {
                     settings.access = settings.access ?? AccessObject()
-
+                    
                     settings.access?.groups = settings.access?.groups ?? [:]
                     settings.access?.groups?.merge(
-                        settingsCache?.access?.groups?.filter { $0.value } ?? [:],
+                        cache?.access?.groups?.filter { $0.value } ?? [:],
                         uniquingKeysWith: { x, _ in x })
-
+                    
                     settings.access?.channels = settings.access?.channels ?? [:]
                     settings.access?.channels?.merge(
-                        settingsCache?.access?.channels?.filter { $0.value } ?? [:],
+                        cache?.access?.channels?.filter { $0.value } ?? [:],
                         uniquingKeysWith: { x, _ in x })
-
+                    
                     settings.access?.bots = settings.access?.bots ?? [:]
                     settings.access?.bots?.merge(
-                        settingsCache?.access?.bots?.filter { $0.value } ?? [:],
+                        cache?.access?.bots?.filter { $0.value } ?? [:],
                         uniquingKeysWith: { x, _ in x })
-
+                    
                     settings.access?.stickers = settings.access?.stickers ?? [:]
                     settings.access?.stickers?.merge(
-                        settingsCache?.access?.stickers?.filter { $0.value } ?? [:],
+                        cache?.access?.stickers?.filter { $0.value } ?? [:],
                         uniquingKeysWith: { x, _ in x })
-
+                    
                     settings.access?.users = settings.access?.users ?? [:]
                     settings.access?.users?.merge(
-                        settingsCache?.access?.users?.filter { $0.value } ?? [:],
+                        cache?.access?.users?.filter { $0.value } ?? [:],
                         uniquingKeysWith: { x, _ in x })
                 }
-                DataSource<TGSettingsResponse>.set(settings)
-                settingsCache = settings
+                
+                // Save with cache key
+                DataSource<TGSettingsResponse>.set(settings, forKey: cacheKey)
+                // Force update of in-memory cache if user Id and org ID match
+                TGUserController.withLock { tg in
+                    if tg.getUserID() == Int(userId) && tg.getOrgID() == targetOrgId {
+                        settingsCache = settings
+                        print("[SETTINGS] Settings cache updated in memory for user \(Int(userId)) org \(targetOrgId)")
+                    } else {
+                        print("[SETTINGS] Settings cache NOT updated in memory due to user/org mismatch")
+                        print("[SETTINGS] details: current user \(tg.getUserID()) org \(tg.getOrgID()), settings user \(Int(userId)) org \(targetOrgId)")
+                    }
+                }
             }
         }
-	}
+    }
     
     open func isUrlWhitelisted(_ url: String) -> Bool {
         let parsedUrl = URL(string: url)
@@ -465,27 +482,27 @@ open class CloudVeilSecurityController: NSObject {
         }
         return false
     }
-	
+    
     open func isAvailable(groupID: NSInteger) -> Bool? {
         var res: Bool?
         self.accessQueue.sync {
             res = settings?.access?.groups?["\(groupID)"]
         }
-		return res
-	}
-	
-	open func isAvailable(channelID: NSInteger) -> Bool? {
+        return res
+    }
+    
+    open func isAvailable(channelID: NSInteger) -> Bool? {
         var res: Bool?
         self.accessQueue.sync {
             res = settings?.access?.channels?["\(channelID)"]
         }
-		return res
-	}
+        return res
+    }
     
-	open func isAvailable(botID: NSInteger) -> Bool? {
-		if SecurityStaticSettings.disableBots {
-			return false
-		}
+    open func isAvailable(botID: NSInteger) -> Bool? {
+        if SecurityStaticSettings.disableBots {
+            return false
+        }
         if botID == self.SUPPORT_BOT_ID {
             return true
         }
@@ -493,8 +510,8 @@ open class CloudVeilSecurityController: NSObject {
         self.accessQueue.sync {
             res = settings?.access?.bots?["\(botID)"]
         }
-		return res
-	}
+        return res
+    }
     
     open func isAvailable(stickerId: NSInteger) -> Bool? {
         if disableStickers {
@@ -507,16 +524,16 @@ open class CloudVeilSecurityController: NSObject {
         }
         return res
     }
-	
-	open func isBotAvailable(botID: NSInteger) -> Bool {
+    
+    open func isBotAvailable(botID: NSInteger) -> Bool {
         return isAvailable(botID: botID) ?? false
-	}
+    }
     
     open func isStickerAvailable(stickerId: NSInteger) -> Bool {
         return isAvailable(stickerId: stickerId) ?? false
     }
-	
-	open func isConversationAvailable(conversationId: NSInteger) -> Bool? {
+    
+    open func isConversationAvailable(conversationId: NSInteger) -> Bool? {
         var res: Bool?
         if let avail = isAvailable(botID: conversationId) {
             res = (res ?? false) || avail
@@ -527,41 +544,41 @@ open class CloudVeilSecurityController: NSObject {
         if let avail = isAvailable(groupID: -conversationId) {
             res = (res ?? false) || avail
         }
-		
-		return res
-	}
-	
-	open func isConversationCheckedOnServer(conversationId: NSInteger, channelId: NSInteger) -> Bool {
-		var res = false
+        
+        return res
+    }
+    
+    open func isConversationCheckedOnServer(conversationId: NSInteger, channelId: NSInteger) -> Bool {
+        var res = false
         self.accessQueue.sync {
             guard let settings = settings else {
                 res = true
                 return
             }
-
+            
             guard let access = settings.access else {
                 return
             }
-
+            
             let haveGroup = access.groups?["\(channelId)"] != nil
             let haveChannel = access.channels?["\(channelId)"] != nil
             let haveBot = access.bots?["\(conversationId)"] != nil
-
+            
             res = haveGroup || haveChannel || haveBot
         }
-		return res
-	}
-	
-	open func showFirstRunPopup(_ viewController: UIViewController) {
-		if !wasFirstLoaded {
-			wasFirstLoaded = true
-			
-			let alert = UIAlertController(title: "CloudVeil!", message: "CloudVeil Messenger uses a server based system to control access to Bots, Channels, and Groups and other policy rules. This is used to block unacceptable content. Your Telegram id and list of channels, bots, and groups will be sent to our system to allow this to work. We do not have access to your messages themselves.", preferredStyle: .alert)
-			alert.addAction(.init(title: "OK", style: .default, handler: nil))
-			
-			viewController.present(alert, animated: false)
-		}
-	}
+        return res
+    }
+    
+    open func showFirstRunPopup(_ viewController: UIViewController) {
+        if !wasFirstLoaded {
+            wasFirstLoaded = true
+            
+            let alert = UIAlertController(title: "CloudVeil!", message: "CloudVeil Messenger uses a server based system to control access to Bots, Channels, and Groups and other policy rules. This is used to block unacceptable content. Your Telegram id and list of channels, bots, and groups will be sent to our system to allow this to work. We do not have access to your messages themselves.", preferredStyle: .alert)
+            alert.addAction(.init(title: "OK", style: .default, handler: nil))
+            
+            viewController.present(alert, animated: false)
+        }
+    }
     
     open func showContentDisableWarningPopup(_ viewController: UIViewController) {
         let alert = UIAlertController(title: "CloudVeil!", message: "Blocked", preferredStyle: .alert)
