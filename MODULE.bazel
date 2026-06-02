@@ -1,4 +1,5 @@
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 bazel_dep(name = "bazel_features", version = "1.33.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.1")
@@ -68,3 +69,25 @@ local_path_override(
     module_name = "sourcekit_bazel_bsp",
     path = "build-system/bazel-rules/sourcekit-bazel-bsp",
 )
+
+# CloudVeil start
+http_archive(
+    name = "rules_pods",
+    urls = ["https://github.com/pinterest/PodToBUILD/releases/download/6.3.2-370b622/PodToBUILD.zip"],
+    sha256 = "ffdfe8c7a4c73cca5d7b7a67daa6ccdd046355637dbdb9b1366d021b4ad339b5",
+)
+
+new_pod_repository = use_repo_rule("@rules_pods//BazelExtensions:workspace.bzl", "new_pod_repository")
+
+new_pod_repository(
+    name = "Sentry",
+    url = "https://github.com/getsentry/sentry-cocoa/releases/download/8.41.0/Sentry.xcframework.zip",
+    podspec_url = "Sentry.podspec.json",
+    is_xcframework = True,
+)
+
+new_pod_repository(
+    name = "ObjectMapper",
+    url = "https://github.com/tristanhimmelman/ObjectMapper/archive/3.3.0.zip",
+)
+# CloudVeil end
