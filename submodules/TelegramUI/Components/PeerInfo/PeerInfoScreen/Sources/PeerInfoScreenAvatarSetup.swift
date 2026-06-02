@@ -18,6 +18,7 @@ import PeerAvatarGalleryUI
 import PresentationDataUtils
 import LegacyComponents
 import LegacyMediaPickerUI
+import CloudVeilSecurityManager
 
 private func sharedSetupProfilePhotoUpload(context: AccountContext, image: UIImage, mode: PeerInfoAvatarEditingMode) -> LocalFileMediaResource? {
     guard let data = image.jpegData(compressionQuality: 0.6) else {
@@ -429,6 +430,11 @@ public extension PeerInfoScreenImpl {
 
 extension PeerInfoScreenImpl {
     func openAvatarForEditing(mode: PeerInfoAvatarEditingMode = .generic, fromGallery: Bool = false, completion: @escaping (UIImage?) -> Void = { _ in }, completedWithUploadingImage: @escaping (UIImage, Signal<PeerInfoAvatarUploadStatus, NoError>) -> UIView? = { _, _ in nil }) {
+        // CloudVeil start
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+            return
+        }
+        // CloudVeil end
         guard !self.presentAccountFrozenInfoIfNeeded() else {
             return
         }
@@ -791,6 +797,12 @@ extension PeerInfoScreenImpl {
     }
     
     public func updateProfilePhoto(_ image: UIImage, mode: PeerInfoAvatarEditingMode, uploadStatus: Promise<PeerInfoAvatarUploadStatus>?) {
+        // CloudVeil start
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+            return
+        }
+        // CloudVeil end
+
         guard let resource = setupProfilePhotoUpload(image: image, mode: mode, indefiniteProgress: false) else {
             uploadStatus?.set(.single(.done))
             return
@@ -895,6 +907,12 @@ extension PeerInfoScreenImpl {
     }
         
     public func updateProfileVideo(_ image: UIImage, video: MediaEditorScreenImpl.MediaResult.VideoResult?, values: MediaEditorValues?, markup: UploadPeerPhotoMarkup?, mode: PeerInfoAvatarEditingMode, uploadStatus: Promise<PeerInfoAvatarUploadStatus>?) {
+        // CloudVeil start
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+            return
+        }
+        // CloudVeil end
+        
         var uploadVideo = true
         if let _ = markup {
             if let data = self.context.currentAppConfiguration.with({ $0 }).data, let uploadVideoValue = data["upload_markup_video"] as? Bool, uploadVideoValue {

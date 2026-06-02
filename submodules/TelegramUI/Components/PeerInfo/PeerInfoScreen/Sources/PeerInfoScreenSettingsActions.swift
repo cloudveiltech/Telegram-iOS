@@ -16,6 +16,7 @@ import TelegramPresentationData
 import PresentationDataUtils
 import PasswordSetupUI
 import InstantPageCache
+import CloudVeilSecurityManager
 
 extension PeerInfoScreenNode {
     func openSettings(section: PeerInfoSettingsSection) {
@@ -147,9 +148,13 @@ extension PeerInfoScreenNode {
         case .language:
             push(LocalizationListController(context: self.context))
         case .premium:
+            // CloudVeil start "Disable buying premium" 
             let controller = self.context.sharedContext.makePremiumIntroController(context: self.context, source: .settings, forceDark: false, dismissed: nil)
             self.controller?.push(controller)
+            // CloudVeil end
+            break
         case .premiumGift:
+            // CloudVeil start "Disable buying premiumGift" 
             guard let controller = self.controller, !controller.presentAccountFrozenInfoIfNeeded() else {
                 return
             }
@@ -162,6 +167,8 @@ extension PeerInfoScreenNode {
                 let giftsController = self.context.sharedContext.makePremiumGiftController(context: self.context, source: .settings(birthdays), completion: nil)
                 self.controller?.push(giftsController)
             })
+            // CloudVeil end
+            break
         case .stickers:
             if let settings = self.data?.globalSettings {
                 push(installedStickerPacksController(context: self.context, mode: .general, archivedPacks: settings.archivedStickerPacks, updatedPacks: { [weak self] packs in
@@ -174,7 +181,9 @@ extension PeerInfoScreenNode {
             push(watchSettingsController(context: self.context))
         case .support:
             let supportPeer = Promise<PeerId?>()
-            supportPeer.set(context.engine.peers.supportPeerId())
+            // CloudVeil start open bot
+            supportPeer.set(context.engine.peers.resolvePeerByName(name: "@cloudveilbot", referrer: nil))
+            // CloudVeil end
             
             self.controller?.present(textAlertController(context: self.context, updatedPresentationData: self.controller?.updatedPresentationData, title: nil, text: self.presentationData.strings.Settings_FAQ_Intro, actions: [
                 TextAlertAction(type: .genericAction, title: presentationData.strings.Settings_FAQ_Button, action: { [weak self] in
@@ -296,6 +305,28 @@ extension PeerInfoScreenNode {
                 push(self.context.sharedContext.makeStarsTransactionsScreen(context: self.context, starsContext: tonContext))
             }
         }
+        // CloudVeil start 
+        case .policy:
+            if let orgId = CloudVeilSecurityController.shared.organizationId {
+                let navCtrl = self.controller?.navigationController as? NavigationController
+                context.sharedContext.openExternalUrl(
+                    context: context, urlContext: .generic,
+                    url: "https://messenger.cloudveil.org/organization/policy/\(orgId)",
+                    forceExternal: false, presentationData: presentationData,
+                    navigationController: navCtrl, dismissInput: {}
+                )
+            }
+        case .aboutUs:
+            if let orgId = CloudVeilSecurityController.shared.organizationId {
+                let navCtrl = self.controller?.navigationController as? NavigationController
+                self.context.sharedContext.openExternalUrl(
+                    context: self.context, urlContext: .generic,
+                    url: "https://messenger.cloudveil.org/organization/about/\(orgId)",
+                    forceExternal: false, presentationData: self.presentationData,
+                    navigationController: navCtrl, dismissInput: {}
+                )
+            }
+        // CloudVeil end   
     }
 
     func setupFaqIfNeeded() {
@@ -342,6 +373,8 @@ extension PeerInfoScreenNode {
     }
     
     private func openTips() {
+        // CloudVeil start disable
+        /*
         let controller = OverlayStatusController(theme: self.presentationData.theme, type: .loading(cancelled: nil))
         self.controller?.present(controller, in: .window(.root))
         
@@ -360,5 +393,14 @@ extension PeerInfoScreenNode {
                 context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer)))
             }
         }))
+        */
+        let navCtrl = self.controller?.navigationController as? NavigationController
+        self.context.sharedContext.openExternalUrl(
+            context: self.context, urlContext: .generic,
+            url: "https://messenger.cloudveil.org",
+            forceExternal: false, presentationData: self.presentationData,
+            navigationController: navCtrl, dismissInput: {}
+        )
+        // CloudVeil end
     }
 }

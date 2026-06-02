@@ -13,6 +13,7 @@ import NotificationExceptionsScreen
 import TranslateUI
 import TelegramNotices
 import AlertComponent
+import CloudVeilSecurityManager
 
 extension PeerInfoScreenNode {
     func performButtonAction(key: PeerInfoHeaderButtonKey, buttonNode: PeerInfoHeaderButtonNode?, gesture: ContextGesture?) {
@@ -554,13 +555,17 @@ extension PeerInfoScreenNode {
                         if let cachedUserData = strongSelf.data?.cachedData as? CachedUserData, let _ = cachedUserData.sendPaidMessageStars {
                             
                         } else {
-                            items.append(.action(ContextMenuActionItem(text: presentationData.strings.UserInfo_StartSecretChat, icon: { theme in
-                                generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Lock"), color: theme.contextMenu.primaryColor)
-                            }, action: { _, f in
-                                f(.dismissWithoutContent)
-                                
-                                self?.openStartSecretChat()
-                            })))
+                            // CloudVeil start
+                            if CloudVeilSecurityController.shared.isSecretChatAvailable {
+                                items.append(.action(ContextMenuActionItem(text: presentationData.strings.UserInfo_StartSecretChat, icon: { theme in
+                                    generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Lock"), color: theme.contextMenu.primaryColor)
+                                }, action: { _, f in
+                                    f(.dismissWithoutContent)
+                                    
+                                    self?.openStartSecretChat()
+                                })))
+                            }
+                            // CloudVeil end
                         }
                     }
                     

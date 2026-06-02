@@ -19,6 +19,7 @@ import TelegramVoip
 import MetalEngine
 import DeviceAccess
 import LibYuvBinding
+import CloudVeilSecurityManager
 
 final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeProtocol {
     private struct PanGestureState {
@@ -626,7 +627,11 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
             self.peerAvatarDisposable?.dispose()
             
             let size = CGSize(width: 128.0, height: 128.0)
-            if let representation = peer.largeProfileImage, let signal = peerAvatarImage(account: self.call.context.account, peerReference: PeerReference(peer), authorOfMessage: nil, representation: representation, displayDimensions: size, synchronousLoad: self.callScreenState?.avatarImage == nil) {
+            //CloudVeil start
+            let enableProfilePhoto = !CloudVeilSecurityController.shared.disableProfilePhoto
+            if enableProfilePhoto,
+            //CloudVeil end
+                let representation = peer.largeProfileImage, let signal = peerAvatarImage(account: self.call.context.account, peerReference: PeerReference(peer), authorOfMessage: nil, representation: representation, displayDimensions: size, synchronousLoad: self.callScreenState?.avatarImage == nil) {
                 self.peerAvatarDisposable = (signal
                 |> deliverOnMainQueue).startStrict(next: { [weak self] imageVersions in
                     guard let self else {

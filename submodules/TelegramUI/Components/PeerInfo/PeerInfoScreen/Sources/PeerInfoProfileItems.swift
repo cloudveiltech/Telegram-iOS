@@ -17,6 +17,7 @@ import WebUI
 import AvatarNode
 import PeerNameColorItem
 import BoostLevelIconComponent
+import CloudVeilSecurityManager
 
 private let enabledPublicBioEntities: EnabledEntityTypes = [.allUrl, .mention, .hashtag]
 private let enabledPrivateBioEntities: EnabledEntityTypes = [.internalUrl, .mention, .hashtag]
@@ -188,7 +189,9 @@ func infoItems(
             )
         }
         
-        if let cachedData = data.cachedData as? CachedUserData {
+        // CloudVeil start
+        if !CloudVeilSecurityController.shared.disableBio, let cachedData = data.cachedData as? CachedUserData {
+            // CloudVeil end
             if let birthday = cachedData.birthday {
                 var hasBirthdayToday = false
                 let today = Calendar.current.dateComponents(Set([.day, .month]), from: Date())
@@ -639,7 +642,9 @@ func infoItems(
                     )
                 )
             }
-            if let cachedData = data.cachedData as? CachedChannelData {
+            // CloudVeil start
+            if !CloudVeilSecurityController.shared.disableBio, let cachedData = data.cachedData as? CachedChannelData {
+                // CloudVeil end
                 let aboutText: String?
                 if channel.isFake {
                     if case .broadcast = channel.info {
@@ -796,7 +801,9 @@ func infoItems(
             }
         }
     } else if case let .legacyGroup(group) = data.peer {
-        if let cachedData = data.cachedData as? CachedGroupData {
+        // CloudVeil start
+        if !CloudVeilSecurityController.shared.disableBio, let cachedData = data.cachedData as? CachedGroupData {
+            // CloudVeil end
             let aboutText: String?
             if group.isFake {
                 aboutText = presentationData.strings.GroupInfo_FakeGroupWarning

@@ -13,6 +13,7 @@ import MapResourceToAvatarSizes
 import LegacyUI
 import LegacyMediaPickerUI
 import AVFoundation
+import CloudVeilSecurityManager
 
 extension VideoChatScreenComponent.View {
     func openParticipantContextMenu(id: EnginePeer.Id, sourceView: ContextExtractedContentContainingView, gesture: ContextGesture?) {
@@ -469,8 +470,11 @@ extension VideoChatScreenComponent.View {
             if !peer.profileImageRepresentations.isEmpty {
                 hasPhotos = true
             }
-                            
-            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: true, hasDeleteButton: hasPhotos && !fromGallery, hasViewButton: false, personalPhoto: peerId.namespace == Namespaces.Peer.CloudUser, isVideo: false, saveEditedPhotos: false, saveCapturedMedia: false, signup: false, forum: false, title: nil, isSuggesting: false)!
+            
+            // CloudVeil start
+            let hasSearchButton = !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch
+            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: hasSearchButton, hasDeleteButton: hasPhotos && !fromGallery, hasViewButton: false, personalPhoto: peerId.namespace == Namespaces.Peer.CloudUser, isVideo: false, saveEditedPhotos: false, saveCapturedMedia: false, signup: false, forum: false, title: nil, isSuggesting: false)!
+            // CloudVeil end
             mixin.forceDark = true
             mixin.stickersContext = LegacyPaintStickersContext(context: currentCall.accountContext)
             let _ = self.currentAvatarMixin.swap(mixin)

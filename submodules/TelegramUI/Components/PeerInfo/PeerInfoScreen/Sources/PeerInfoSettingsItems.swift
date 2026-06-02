@@ -46,7 +46,9 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     }
     
     var setStatusTitle: String = ""
-    let displaySetStatus: Bool
+    // CloudVeil start - change to var to be able to disable emoji status related items
+    var displaySetStatus: Bool
+    // CloudVeil end
     var hasEmojiStatus = false
     if case let .user(peer) = data.peer, peer.isPremium {
         if peer.emojiStatus != nil {
@@ -59,7 +61,12 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     } else {
         displaySetStatus = false
     }
-    
+    // CloudVeil start
+    if CloudVeilSecurityController.shared.disableEmojiStatus {
+        hasEmojiStatus = false
+        displaySetStatus = false
+    }
+    // CloudVeil end    
     if displaySetStatus {
         items[.edit]!.append(PeerInfoScreenActionItem(id: 0, text: setStatusTitle, icon: UIImage(bundleImageName: hasEmojiStatus ? "Settings/EditEmojiStatus" : "Settings/SetEmojiStatus"), action: {
             interaction.openSettings(.emojiStatus)
@@ -250,6 +257,8 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
         interaction.openSettings(.language)
     }))
     
+    // CloudVeil start "Disable buying premium"
+    /*
     let premiumConfiguration = PremiumConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
     let isPremiumDisabled = premiumConfiguration.isPremiumDisabled
     if !isPremiumDisabled || context.isPremium {
@@ -274,6 +283,8 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
             }))
         }
     }
+    */
+    // CloudVeil end "Disable buying premium"
     if let tonState = data.tonState {
         if abs(tonState.balance.value) > 0 {
             let balanceText: NSAttributedString
@@ -291,6 +302,8 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
             }))
         }
     }
+    // CloudVeil start "Disable buying premium"
+    /*
     if !isPremiumDisabled || context.isPremium {
         items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 104, label: .text(""), additionalBadgeLabel: nil, text: presentationData.strings.Settings_Business, icon: PresentationResourcesSettings.business, action: {
             interaction.openSettings(.businessSetup)
@@ -303,6 +316,8 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
             }))
         }
     }
+    */
+    // CloudVeil end "Disable buying premium"
     
     if let settings = data.globalSettings {
         if settings.hasPassport {
@@ -326,6 +341,15 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     items[.support]!.append(PeerInfoScreenDisclosureItem(id: 2, text: presentationData.strings.Settings_Tips, icon: PresentationResourcesSettings.tips, action: {
         interaction.openSettings(.tips)
     }))
+
+    // [ ] CloudVeil start
+    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 3, text: presentationData.strings.Settings_Policy, icon: PresentationResourcesSettings.proxy, action: {
+        interaction.openSettings(.policy)
+    }))
+    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 4, text: presentationData.strings.Settings_AboutUs, icon: PresentationResourcesSettings.editProfile, action: {
+        interaction.openSettings(.aboutUs)
+    }))
+    // CloudVeil end
     
     var result: [(AnyHashable, [PeerInfoScreenItem])] = []
     for section in SettingsSection.allCases {
