@@ -641,7 +641,9 @@ extension ChatControllerImpl {
                                 accessibilityLabel: strings.Conversation_ContextMenuOpenProfile
                             )
                             
-                            strongSelf.state.storyStats = peerView.storyStats
+                            // CloudVeil start "Disable stories"
+                            strongSelf.state.storyStats = CloudVeilSecurityController.shared.disableStories ? nil : peerView.storyStats
+                            // CloudVeil end
                         }
                     }
                     
@@ -930,6 +932,10 @@ extension ChatControllerImpl {
                     var copyProtectionEnabled: Bool = false
                     var myCopyProtectionEnabled: Bool = false
                     var hasBirthdayToday = false
+                    var hasBirthdayToday = false
+                    //CloudVeil start
+                    var hasAllowedBots = false
+                    //CloudVeil end                    
                     var peerVerification: PeerVerification?
                     if let peer = peerView.peers[peerView.peerId] {
                         if !displayedPeerVerification {
@@ -958,6 +964,13 @@ extension ChatControllerImpl {
                             if case let .known(value) = cachedGroupData.autoremoveTimeout {
                                 autoremoveTimeout = value?.effectiveValue
                             }
+                            //CloudVeil start
+                            for cachedBotInfo in cachedGroupData.botInfos {
+                                if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(cachedBotInfo.peerId.id._internalGetInt64Value())) {
+                                    hasAllowedBots = true
+                                }
+                            }
+                            //CloudVeil end
                         } else if let cachedChannelData = peerView.cachedData as? CachedChannelData {
                             if let channel = peer as? TelegramChannel, channel.isMonoForum {
                                 if let linkedMonoforumId = channel.linkedMonoforumId, let mainChannel = peerView.peers[linkedMonoforumId] as? TelegramChannel, mainChannel.hasPermission(.manageDirect) {
@@ -982,6 +995,13 @@ extension ChatControllerImpl {
                             if case let .known(value) = cachedChannelData.autoremoveTimeout {
                                 autoremoveTimeout = value?.effectiveValue
                             }
+                            //CloudVeil start
+                            for cachedBotInfo in cachedChannelData.botInfos {
+                                if CloudVeilSecurityController.shared.isBotAvailable(botID: NSInteger(cachedBotInfo.peerId.id._internalGetInt64Value())) {
+                                    hasAllowedBots = true
+                                }
+                            }
+                            //CloudVeil end
                         } else if let cachedUserData = peerView.cachedData as? CachedUserData {
                             botMenuButton = cachedUserData.botInfo?.menuButton ?? .commands
                             if case let .known(value) = cachedUserData.autoremoveTimeout {
@@ -1004,7 +1024,10 @@ extension ChatControllerImpl {
                     } else if let cachedData = peerView.cachedData as? CachedChannelData {
                         strongSelf.state.viewForumAsMessages = cachedData.viewForumAsMessages.knownValue ?? false
                     }
-                    
+
+                    //CloudVeil start
+                    hasBots = hasBots && hasAllowedBots
+                    //CloudVeil end
                     let isArchived: Bool = peerView.groupId == Namespaces.PeerGroup.archive
                     
                     var explicitelyCanPinMessages: Bool = false
