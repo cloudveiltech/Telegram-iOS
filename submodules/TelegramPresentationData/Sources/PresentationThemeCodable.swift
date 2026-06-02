@@ -1576,14 +1576,14 @@ extension PresentationThemeChatInputPanel: Codable {
         case panelBgNoWallpaper
         case panelSeparator
         case panelControlAccent
-        case panelControl
+        case panelControl = "panelControl_v2"
         case panelControlDisabled
         case panelControlDestructive
         case inputBg
         case inputStroke
-        case inputPlaceholder
-        case inputText
-        case inputControl
+        case inputPlaceholder = "inputPlaceholder_v2"
+        case inputText = "inputText_v2"
+        case inputControl = "inputControl_v2"
         case actionControlBg
         case actionControlFg
         case primaryText
@@ -2032,7 +2032,7 @@ extension PresentationThemeName: Codable {
     }
 }
 
-extension PresentationBuiltinThemeReference: Codable {
+extension PresentationBuiltinThemeReference: @retroactive Codable {
     public init(from decoder: Decoder) throws {
         let values = try decoder.singleValueContainer()
         if let value = try? values.decode(String.self) {

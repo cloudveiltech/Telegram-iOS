@@ -9,8 +9,8 @@ public extension TelegramEngine {
             self.account = account
         }
 
-        public func requestUpdatePeerIsBlocked(peerId: PeerId, isBlocked: Bool) -> Signal<Void, NoError> {
-            return _internal_requestUpdatePeerIsBlocked(account: self.account, peerId: peerId, isBlocked: isBlocked)
+        public func requestUpdatePeerIsBlocked(peerId: PeerId, isBlocked: Bool, sourceMessageId: MessageId? = nil) -> Signal<Void, NoError> {
+            return _internal_requestUpdatePeerIsBlocked(account: self.account, peerId: peerId, isBlocked: isBlocked, sourceMessageId: sourceMessageId)
         }
 
         public func requestUpdatePeerIsBlockedFromStories(peerId: PeerId, isBlocked: Bool) -> Signal<Void, NoError> {
@@ -37,8 +37,8 @@ public extension TelegramEngine {
             return _internal_updateAccountAutoArchiveChats(account: self.account, value: value)
         }
         
-        public func updateNonContactChatsRequirePremium(value: Bool) -> Signal<Never, NoError> {
-            return _internal_updateNonContactChatsRequirePremium(account: self.account, value: value)
+        public func updateNonContactChatsPrivacy(value: GlobalPrivacySettings.NonContactChatsPrivacy) -> Signal<Never, NoError> {
+            return _internal_updateNonContactChatsPrivacy(account: self.account, value: value)
         }
         
         public func updateAccountKeepArchivedFolders(value: Bool) -> Signal<Never, NoError> {

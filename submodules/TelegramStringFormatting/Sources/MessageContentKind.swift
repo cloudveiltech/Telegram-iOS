@@ -9,6 +9,7 @@ import TextFormat
 public enum MessageContentKindKey {
     case text
     case image
+    case livePhoto
     case video
     case videoMessage
     case audioMessage
@@ -24,6 +25,7 @@ public enum MessageContentKindKey {
     case expiredVoiceMessage
     case expiredVideoMessage
     case poll
+    case todo
     case restricted
     case dice
     case invoice
@@ -35,6 +37,7 @@ public enum MessageContentKindKey {
 public enum MessageContentKind: Equatable {
     case text(NSAttributedString)
     case image
+    case livePhoto
     case video
     case videoMessage
     case audioMessage
@@ -50,6 +53,7 @@ public enum MessageContentKind: Equatable {
     case expiredVoiceMessage
     case expiredVideoMessage
     case poll(String)
+    case todo(String)
     case restricted(String)
     case dice(String)
     case invoice(String)
@@ -66,6 +70,12 @@ public enum MessageContentKind: Equatable {
             }
         case .image:
             if case .image = other {
+                return true
+            } else {
+                return false
+            }
+        case .livePhoto:
+            if case .livePhoto = other {
                 return true
             } else {
                 return false
@@ -160,6 +170,12 @@ public enum MessageContentKind: Equatable {
             } else {
                 return false
             }
+        case .todo:
+            if case .todo = other {
+                return true
+            } else {
+                return false
+            }
         case .restricted:
             if case .restricted = other {
                 return true
@@ -199,6 +215,8 @@ public enum MessageContentKind: Equatable {
             return .text
         case .image:
             return .image
+        case .livePhoto:
+            return .livePhoto
         case .video:
             return .video
         case .videoMessage:
@@ -229,6 +247,8 @@ public enum MessageContentKind: Equatable {
             return .expiredVideoMessage
         case .poll:
             return .poll
+        case .todo:
+            return .todo
         case .restricted:
             return .restricted
         case .dice:
@@ -306,8 +326,12 @@ public func mediaContentKind(_ media: EngineMedia, message: EngineMessage? = nil
         case .videoMessage:
             return .expiredVideoMessage
         }
-    case .image:
-        return .image
+    case let .image(image):
+        if let _ = image.video {
+            return .livePhoto
+        } else {
+            return .image
+        }
     case let .file(file):
         var fileName: String = ""
         
@@ -369,6 +393,8 @@ public func mediaContentKind(_ media: EngineMedia, message: EngineMessage? = nil
         }
     case let .poll(poll):
         return .poll(poll.text)
+    case let .todo(todo):
+        return .todo(todo.text)
     case let .dice(dice):
         return .dice(dice.emoji)
     case let .invoice(invoice):
@@ -417,6 +443,8 @@ public func stringForMediaKind(_ kind: MessageContentKind, strings: Presentation
         return (foldLineBreaks(text), false)
     case .image:
         return (NSAttributedString(string: strings.Message_Photo), true)
+    case .livePhoto:
+        return (NSAttributedString(string: strings.Message_LivePhoto), true)
     case .video:
         return (NSAttributedString(string: strings.Message_Video), true)
     case .videoMessage:
@@ -454,7 +482,9 @@ public func stringForMediaKind(_ kind: MessageContentKind, strings: Presentation
     case .expiredVideoMessage:
         return (NSAttributedString(string: strings.Message_VideoMessageExpired), true)
     case let .poll(text):
-        return (NSAttributedString(string: "📊 \(text)"), false)
+        return (NSAttributedString(string: text), false)
+    case let .todo(text):
+        return (NSAttributedString(string: "☑️ \(text)"), false)
     case let .restricted(text):
         return (NSAttributedString(string: text), false)
     case let .dice(emoji):
@@ -470,7 +500,7 @@ public func stringForMediaKind(_ kind: MessageContentKind, strings: Presentation
 
 public func descriptionStringForMessage(contentSettings: ContentSettings, message: EngineMessage, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, dateTimeFormat: PresentationDateTimeFormat, accountPeerId: EnginePeer.Id) -> (NSAttributedString, Bool, Bool) {
     let contentKind = messageContentKind(contentSettings: contentSettings, message: message, strings: strings, nameDisplayOrder: nameDisplayOrder, dateTimeFormat: dateTimeFormat, accountPeerId: accountPeerId)
-    if !message.text.isEmpty && ![.expiredImage, .expiredVideo].contains(contentKind.key) {
+    if !message.text.isEmpty && ![.expiredImage, .expiredVideo, .poll].contains(contentKind.key) {
         return (foldLineBreaks(messageTextWithAttributes(message: message)), false, true)
     }
     let result = stringForMediaKind(contentKind, strings: strings)

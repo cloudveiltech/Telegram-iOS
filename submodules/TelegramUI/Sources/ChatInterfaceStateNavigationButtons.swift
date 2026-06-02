@@ -1,7 +1,6 @@
 import Foundation
 import UIKit
 import AsyncDisplayKit
-import Postbox
 import TelegramCore
 import TelegramPresentationData
 import AccountContext
@@ -47,10 +46,14 @@ func leftNavigationButtonForChatInterfaceState(_ presentationInterfaceState: Cha
             }
             
             if canClear {
-                return ChatNavigationButton(action: .clearHistory, buttonItem: UIBarButtonItem(title: title, style: .plain, target: target, action: selector))
+                let buttonItem = UIBarButtonItem(title: strings.Conversation_ClearAll, style: .plain, target: target, action: selector)
+                buttonItem.accessibilityLabel = title
+                return ChatNavigationButton(action: .clearHistory, buttonItem: buttonItem)
             } else {
                 title = strings.Conversation_ClearCache
-                return ChatNavigationButton(action: .clearCache, buttonItem: UIBarButtonItem(title: title, style: .plain, target: target, action: selector))
+                let buttonItem = UIBarButtonItem(title: strings.Conversation_ClearCache, style: .plain, target: target, action: selector)
+                buttonItem.accessibilityLabel = title
+                return ChatNavigationButton(action: .clearCache, buttonItem: buttonItem)
             }
         }
     }
@@ -74,6 +77,16 @@ func leftNavigationButtonForChatInterfaceState(_ presentationInterfaceState: Cha
 }
 
 func rightNavigationButtonForChatInterfaceState(context: AccountContext, presentationInterfaceState: ChatPresentationInterfaceState, strings: PresentationStrings, currentButton: ChatNavigationButton?, target: Any?, selector: Selector?, chatInfoNavigationButton: ChatNavigationButton?, moreInfoNavigationButton: ChatNavigationButton?) -> ChatNavigationButton? {
+    if case .standard(.previewing) = presentationInterfaceState.mode {
+        return nil
+    }
+    var hasMessages = false
+    if let chatHistoryState = presentationInterfaceState.chatHistoryState {
+        if case .loaded(false, _) = chatHistoryState {
+            hasMessages = true
+        }
+    }
+    
     if let _ = presentationInterfaceState.interfaceState.selectionState {
         if case .messageOptions = presentationInterfaceState.subject {
             return nil
@@ -81,7 +94,7 @@ func rightNavigationButtonForChatInterfaceState(context: AccountContext, present
         if let currentButton = currentButton, currentButton.action == .cancelMessageSelection {
             return currentButton
         } else {
-            let buttonItem = UIBarButtonItem(title: strings.Common_Cancel, style: .plain, target: target, action: selector)
+            let buttonItem = UIBarButtonItem(title: "___done", style: .plain, target: target, action: selector)
             buttonItem.accessibilityLabel = strings.Common_Cancel
             return ChatNavigationButton(action: .cancelMessageSelection, buttonItem: buttonItem)
         }
@@ -99,7 +112,39 @@ func rightNavigationButtonForChatInterfaceState(context: AccountContext, present
         }
     }
     
-    if let channel = presentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.flags.contains(.isForum), let moreInfoNavigationButton = moreInfoNavigationButton {
+    if let channel = presentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.isMonoForum, case .peer = presentationInterfaceState.chatLocation {
+        let displaySearch = hasMessages
+        
+        if displaySearch {
+            if case .search(false) = currentButton?.action {
+                return currentButton
+            } else {
+                let buttonItem = UIBarButtonItem(image: PresentationResourcesRootController.navigationCompactSearchIcon(presentationInterfaceState.theme), style: .plain, target: target, action: selector)
+                buttonItem.accessibilityLabel = strings.Conversation_Search
+                return ChatNavigationButton(action: .search(hasTags: false), buttonItem: buttonItem)
+            }
+        } else {
+            return nil
+        }
+    }
+    
+    if let user = presentationInterfaceState.renderedPeer?.peer as? TelegramUser, user.isForum, case .peer = presentationInterfaceState.chatLocation {
+        let displaySearch = hasMessages
+        
+        if displaySearch {
+            if case .search(false) = currentButton?.action {
+                return currentButton
+            } else {
+                let buttonItem = UIBarButtonItem(image: PresentationResourcesRootController.navigationCompactSearchIcon(presentationInterfaceState.theme), style: .plain, target: target, action: selector)
+                buttonItem.accessibilityLabel = strings.Conversation_Search
+                return ChatNavigationButton(action: .search(hasTags: false), buttonItem: buttonItem)
+            }
+        } else {
+            return nil
+        }
+    }
+    
+    if let channel = presentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.isForumOrMonoForum, let moreInfoNavigationButton = moreInfoNavigationButton {
         if case .replyThread = presentationInterfaceState.chatLocation {
         } else {
             if case .pinnedMessages = presentationInterfaceState.subject {
@@ -109,10 +154,10 @@ func rightNavigationButtonForChatInterfaceState(context: AccountContext, present
         }
     }
     
-    var hasMessages = false
-    if let chatHistoryState = presentationInterfaceState.chatHistoryState {
-        if case .loaded(false, _) = chatHistoryState {
-            hasMessages = true
+    if let user = presentationInterfaceState.renderedPeer?.peer as? TelegramUser, let botInfo = user.botInfo, botInfo.flags.contains(.hasForum), let moreInfoNavigationButton = moreInfoNavigationButton {
+        if case .pinnedMessages = presentationInterfaceState.subject {
+        } else {
+            return moreInfoNavigationButton
         }
     }
     
@@ -153,7 +198,7 @@ func rightNavigationButtonForChatInterfaceState(context: AccountContext, present
     }
     
     if case .replyThread = presentationInterfaceState.chatLocation {
-        if let channel = presentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.flags.contains(.isForum) {
+        if let channel = presentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.isForumOrMonoForum {
         } else if hasMessages {
             if case .search = currentButton?.action {
                 return currentButton

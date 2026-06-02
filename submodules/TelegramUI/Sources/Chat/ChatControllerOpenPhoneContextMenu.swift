@@ -1,7 +1,6 @@
 import Foundation
 import UIKit
 import SwiftSignalKit
-import Postbox
 import TelegramCore
 import AsyncDisplayKit
 import Display
@@ -35,15 +34,10 @@ extension ChatControllerImpl: MFMessageComposeViewControllerDelegate {
             }
         }
         
-        let recognizer: TapLongTapOrDoubleTapGestureRecognizer? = nil// anyRecognizer as? TapLongTapOrDoubleTapGestureRecognizer
-        let gesture: ContextGesture? = nil // anyRecognizer as? ContextGesture
+        let recognizer: TapLongTapOrDoubleTapGestureRecognizer? = params.gesture
+        let gesture: ContextGesture? = nil
         
-        let source: ContextContentSource
-//                if let location = location {
-//                    source = .location(ChatMessageContextLocationContentSource(controller: self, location: messageNode.view.convert(messageNode.bounds, to: nil).origin.offsetBy(dx: location.x, dy: location.y)))
-//                } else {
-            source = .extracted(ChatMessageLinkContextExtractedContentSource(chatNode: self.chatDisplayNode, contentNode: contentNode))
-//                }
+        let source: ContextContentSource = .extracted(ChatMessageLinkContextExtractedContentSource(chatNode: self.chatDisplayNode, contentNode: contentNode))
         
         params.progress?.set(.single(true))
         
@@ -54,11 +48,18 @@ extension ChatControllerImpl: MFMessageComposeViewControllerDelegate {
             }
             params.progress?.set(.single(false))
             
+            var firstName = ""
+            var lastName = ""
             let phoneNumber: String
             if let peer, case let .user(user) = peer, let phone = user.phone {
                 phoneNumber = "+\(phone)"
             } else {
                 phoneNumber = number
+            }
+            
+            if case let .user(user) = peer {
+                firstName = user.firstName ?? ""
+                lastName = user.lastName ?? ""
             }
             
             var items: [ContextMenuItem] = []
@@ -67,12 +68,12 @@ extension ChatControllerImpl: MFMessageComposeViewControllerDelegate {
                     guard let self, let c else {
                         return
                     }
-                    let basicData = DeviceContactBasicData(firstName: "", lastName: "", phoneNumbers: [
+                    let basicData = DeviceContactBasicData(firstName: firstName, lastName: lastName, phoneNumbers: [
                         DeviceContactPhoneNumberData(label: "", value: phoneNumber)
                     ])
                     let contactData = DeviceContactExtendedData(basicData: basicData, middleName: "", prefix: "", suffix: "", organization: "", jobTitle: "", department: "", emailAddresses: [], urls: [], addresses: [], birthdayDate: nil, socialProfiles: [], instantMessagingProfiles: [], note: "")
                     
-                    pushContactContextOptionsController(context: self.context, contextController: c, presentationData: self.presentationData, peer: nil, contactData: contactData, parentController: self, push: { [weak self] c in
+                    pushContactContextOptionsController(context: self.context, contextController: c, presentationData: self.presentationData, peer: peer, contactData: contactData, parentController: self, push: { [weak self] c in
                         self?.push(c)
                     })
                 }))
@@ -183,7 +184,7 @@ extension ChatControllerImpl: MFMessageComposeViewControllerDelegate {
             
             self.canReadHistory.set(false)
             
-            let controller = ContextController(presentationData: self.presentationData, source: source, items: .single(ContextController.Items(content: .list(items))), recognizer: recognizer, gesture: gesture, disableScreenshots: false)
+            let controller = makeContextController(presentationData: self.presentationData, source: source, items: .single(ContextController.Items(content: .list(items))), recognizer: recognizer, gesture: gesture, disableScreenshots: false)
             controller.dismissed = { [weak self] in
                 self?.canReadHistory.set(true)
             }

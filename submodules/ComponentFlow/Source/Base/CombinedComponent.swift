@@ -175,11 +175,13 @@ public final class _UpdatedChildComponent {
     public let size: CGSize
 
     var _removed: Bool = false
+    var _anchorPoint: CGPoint?
     var _position: CGPoint?
     var _scale: CGFloat?
     var _opacity: CGFloat?
     var _cornerRadius: CGFloat?
     var _clipsToBounds: Bool?
+    var _allowsGroupOpacity: Bool?
     var _shadow: Shadow?
     
     fileprivate var transitionAppear: ComponentTransition.Appear?
@@ -236,6 +238,11 @@ public final class _UpdatedChildComponent {
         self._removed = removed
         return self
     }
+    
+    @discardableResult public func anchorPoint(_ anchorPoint: CGPoint) -> _UpdatedChildComponent {
+        self._anchorPoint = anchorPoint
+        return self
+    }
 
     @discardableResult public func position(_ position: CGPoint) -> _UpdatedChildComponent {
         self._position = position
@@ -259,6 +266,11 @@ public final class _UpdatedChildComponent {
 
     @discardableResult public func clipsToBounds(_ clipsToBounds: Bool) -> _UpdatedChildComponent {
         self._clipsToBounds = clipsToBounds
+        return self
+    }
+    
+    @discardableResult public func allowsGroupOpacity(_ allowsGroupOpacity: Bool) -> _UpdatedChildComponent {
+        self._allowsGroupOpacity = allowsGroupOpacity
         return self
     }
     
@@ -320,6 +332,10 @@ public extension _EnvironmentChildComponent where EnvironmentType == Empty {
 public extension _EnvironmentChildComponent {
     func update<ComponentType: Component>(_ component: ComponentType, @EnvironmentBuilder environment: () -> Environment<EnvironmentType>, availableSize: CGSize, transition: ComponentTransition) -> _UpdatedChildComponent where ComponentType.EnvironmentType == EnvironmentType {
         return self.update(component: AnyComponent(component), environment: environment, availableSize: availableSize, transition: transition)
+    }
+    
+    func update(_ component: AnyComponent<EnvironmentType>, @EnvironmentBuilder environment: () -> Environment<EnvironmentType>, availableSize: CGSize, transition: ComponentTransition) -> _UpdatedChildComponent {
+        return self.update(component: component, environment: environment, availableSize: availableSize, transition: transition)
     }
 
     func update<ComponentType: Component>(_ component: ComponentType, @EnvironmentBuilder environment: () -> Environment<EnvironmentType>, availableSize: CGSize, transition: ComponentTransition) -> _UpdatedChildComponent where ComponentType.EnvironmentType == EnvironmentType, EnvironmentType == Empty {
@@ -394,7 +410,7 @@ public final class CombinedComponentContext<ComponentType: Component> {
     public let component: ComponentType
     public let availableSize: CGSize
     public let transition: ComponentTransition
-    private let addImpl: (_ updatedComponent: _UpdatedChildComponent) -> Void
+    private let addImpl: (_ updatedComponent: _UpdatedChildComponent, _ container: UIView?) -> Void
 
     public var environment: Environment<ComponentType.EnvironmentType> {
         return self.context.environment
@@ -409,7 +425,7 @@ public final class CombinedComponentContext<ComponentType: Component> {
         component: ComponentType,
         availableSize: CGSize,
         transition: ComponentTransition,
-        add: @escaping (_ updatedComponent: _UpdatedChildComponent) -> Void
+        add: @escaping (_ updatedComponent: _UpdatedChildComponent, _ container: UIView?) -> Void
     ) {
         self.context = context
         self.view = view
@@ -420,7 +436,11 @@ public final class CombinedComponentContext<ComponentType: Component> {
     }
 
     public func add(_ updatedComponent: _UpdatedChildComponent) {
-        self.addImpl(updatedComponent)
+        self.addImpl(updatedComponent, nil)
+    }
+    
+    public func addWithExternalContainer(_ updatedComponent: _UpdatedChildComponent, container: UIView) {
+        self.addImpl(updatedComponent, container)
     }
 }
 
@@ -655,7 +675,7 @@ public extension CombinedComponent {
                 component: self,
                 availableSize: availableSize,
                 transition: transition,
-                add: { updatedChild in
+                add: { updatedChild, optionalContainer in
                     if !addedChildIds.insert(updatedChild.id).inserted {
                         preconditionFailure("Child component can only be added once")
                     }
@@ -676,7 +696,11 @@ public extension CombinedComponent {
                             context.childViewIndices.remove(at: previousView.index)
                             context.childViewIndices.insert(updatedChild.id, at: index)
                             previousView.index = index
-                            view.insertSubview(previousView.view, at: index)
+                            if let optionalContainer {
+                                optionalContainer.addSubview(previousView.view)
+                            } else {
+                                view.insertSubview(previousView.view, at: index)
+                            }
                         }
 
                         previousView.updateGestures(updatedChild.gestures)
@@ -699,19 +723,37 @@ public extension CombinedComponent {
                         childView.transition = updatedChild.transitionDisappear
                         childView.transitionWithGuide = updatedChild.transitionDisappearWithGuide
 
-                        view.insertSubview(updatedChild.view, at: index)
+                        if let optionalContainer {
+                            optionalContainer.addSubview(updatedChild.view)
+                        } else {
+                            view.insertSubview(updatedChild.view, at: index)
+                        }
 
+                        updatedChild.view.layer.anchorPoint = updatedChild._anchorPoint ?? CGPoint(x: 0.5, y: 0.5)
+                        
                         if let scale = updatedChild._scale {
                             updatedChild.view.bounds = CGRect(origin: CGPoint(), size: updatedChild.size)
                             updatedChild.view.center = updatedChild._position ?? CGPoint()
                             updatedChild.view.transform = CGAffineTransform(scaleX: scale, y: scale)
                         } else {
-                            updatedChild.view.frame = updatedChild.size.centered(around: updatedChild._position ?? CGPoint())
+                            if updatedChild.view is UIScrollView {
+                                updatedChild.view.frame = updatedChild.size.centered(around: updatedChild._position ?? CGPoint())
+                            } else {
+                                updatedChild.view.bounds = CGRect(origin: CGPoint(), size: updatedChild.size)
+                                if updatedChild.view.layer.anchorPoint != CGPoint(x: 0.5, y: 0.5) {
+                                    updatedChild.view.layer.position = updatedChild._position ?? CGPoint()
+                                } else {
+                                    updatedChild.view.center = updatedChild._position ?? CGPoint()
+                                }
+                            }
                         }
                         
                         updatedChild.view.alpha = updatedChild._opacity ?? 1.0
                         updatedChild.view.clipsToBounds = updatedChild._clipsToBounds ?? false
                         updatedChild.view.layer.cornerRadius = updatedChild._cornerRadius ?? 0.0
+                        if let allowsGroupOpacity = updatedChild._allowsGroupOpacity {
+                            updatedChild.view.layer.allowsGroupOpacity = allowsGroupOpacity
+                        }
                         if let shadow = updatedChild._shadow {
                             updatedChild.view.layer.shadowColor = shadow.color.withAlphaComponent(1.0).cgColor
                             updatedChild.view.layer.shadowRadius = shadow.radius

@@ -65,6 +65,10 @@ public struct MessageReference: PostboxCoding, Hashable, Equatable {
         }
     }
     
+    init(content: MessageReferenceContent) {
+        self.content = content
+    }
+    
     public init(_ message: Message) {
         if message.id.namespace != Namespaces.Message.Local, let peer = message.peers[message.id.peerId], let inputPeer = PeerReference(peer) {
             let author: PeerReference?
@@ -144,6 +148,10 @@ public enum MessageReferenceContent: PostboxCoding, Hashable, Equatable {
 
 public struct WebpageReference: PostboxCoding, Hashable, Equatable {
     public let content: WebpageReferenceContent
+    
+    init(content: WebpageReferenceContent) {
+        self.content = content
+    }
     
     public init(_ webPage: TelegramMediaWebpage) {
         if case let .Loaded(content) = webPage.content {
@@ -269,6 +277,7 @@ public enum AnyMediaReference: Equatable {
     case customEmoji(media: Media)
     case story(peer: PeerReference, id: Int32, media: Media)
     case starsTransaction(transaction: StarsTransactionReference, media: Media)
+    case savedMusic(peer: PeerReference, media: Media)
     
     public static func ==(lhs: AnyMediaReference, rhs: AnyMediaReference) -> Bool {
         switch lhs {
@@ -344,6 +353,12 @@ public enum AnyMediaReference: Equatable {
                 } else {
                     return false
                 }
+            case let .savedMusic(lhsPeer, lhsMedia):
+                if case let .savedMusic(rhsPeer, rhsMedia) = rhs, lhsPeer == rhsPeer, lhsMedia.isEqual(to: rhsMedia) {
+                    return true
+                } else {
+                    return false
+                }
         }
     }
     
@@ -373,6 +388,8 @@ public enum AnyMediaReference: Equatable {
                 return nil
             case .starsTransaction:
                 return nil
+            case let .savedMusic(peer, _):
+                return .savedMusic(peer: peer)
         }
     }
     
@@ -426,6 +443,10 @@ public enum AnyMediaReference: Equatable {
                 if let media = media as? T {
                     return .starsTransaction(transaction: transaction, media: media)
                 }
+            case let .savedMusic(peer, media):
+                if let media = media as? T {
+                    return .savedMusic(peer: peer, media: media)
+                }
         }
         return nil
     }
@@ -456,6 +477,8 @@ public enum AnyMediaReference: Equatable {
                 return media
             case let .starsTransaction(_, media):
                 return media
+            case let .savedMusic(_, media):
+                return media
         }
     }
     
@@ -485,6 +508,8 @@ public enum AnyMediaReference: Equatable {
                 return .story(peer: peer, id: id, media: media)
             case let .starsTransaction(transaction, _):
                 return .starsTransaction(transaction: transaction, media: media)
+            case let .savedMusic(peer, _):
+                return .savedMusic(peer: peer, media: media)
         }
     }
     
@@ -501,6 +526,7 @@ public enum PartialMediaReference: Equatable {
         case savedGif
         case savedSticker
         case recentSticker
+        case savedMusic
     }
     
     case message(message: MessageReference)
@@ -509,6 +535,7 @@ public enum PartialMediaReference: Equatable {
     case savedGif
     case savedSticker
     case recentSticker
+    case savedMusic(peer: PeerReference)
     
     public init?(decoder: PostboxDecoder) {
         guard let caseIdValue = decoder.decodeOptionalInt32ForKey("_r"), let caseId = CodingCase(rawValue: caseIdValue) else {
@@ -530,6 +557,9 @@ public enum PartialMediaReference: Equatable {
                 self = .savedSticker
             case .recentSticker:
                 self = .recentSticker
+            case .savedMusic:
+                let peer = decoder.decodeObjectForKey("pg", decoder: { PeerReference(decoder: $0) }) as! PeerReference
+                self = .savedMusic(peer: peer)
         }
     }
     
@@ -550,6 +580,9 @@ public enum PartialMediaReference: Equatable {
                 encoder.encodeInt32(CodingCase.savedSticker.rawValue, forKey: "_r")
             case .recentSticker:
                 encoder.encodeInt32(CodingCase.recentSticker.rawValue, forKey: "_r")
+            case let .savedMusic(peer):
+                encoder.encodeInt32(CodingCase.savedMusic.rawValue, forKey: "_r")
+                encoder.encodeObject(peer, forKey: "pg")
         }
     }
     
@@ -567,6 +600,8 @@ public enum PartialMediaReference: Equatable {
                 return .savedSticker(media: media)
             case .recentSticker:
                 return .recentSticker(media: media)
+            case let .savedMusic(peer):
+                return .savedMusic(peer: peer, media: media)
         }
     }
 }
@@ -585,6 +620,7 @@ public enum MediaReference<T: Media> {
         case customEmoji
         case story
         case starsTransaction
+        case savedMusic
     }
     
     case standalone(media: T)
@@ -599,6 +635,7 @@ public enum MediaReference<T: Media> {
     case customEmoji(media: T)
     case story(peer: PeerReference, id: Int32, media: T)
     case starsTransaction(transaction: StarsTransactionReference, media: T)
+    case savedMusic(peer: PeerReference, media: T)
     
     public init?(decoder: PostboxDecoder) {
         guard let caseIdValue = decoder.decodeOptionalInt32ForKey("_r"), let caseId = CodingCase(rawValue: caseIdValue) else {
@@ -673,6 +710,12 @@ public enum MediaReference<T: Media> {
                     return nil
                 }
                 self = .starsTransaction(transaction: transaction, media: media)
+            case .savedMusic:
+                let peer = decoder.decodeObjectForKey("pr", decoder: { PeerReference(decoder: $0) }) as! PeerReference
+                guard let media = decoder.decodeObjectForKey("m") as? T else {
+                    return nil
+                }
+                self = .savedMusic(peer: peer, media: media)
         }
     }
     
@@ -722,9 +765,12 @@ public enum MediaReference<T: Media> {
             encoder.encodeInt32(CodingCase.starsTransaction.rawValue, forKey: "_r")
             encoder.encodeObject(transaction, forKey: "tr")
             encoder.encodeObject(media, forKey: "m")
+        case let .savedMusic(peer, media):
+            encoder.encodeInt32(CodingCase.savedMusic.rawValue, forKey: "_r")
+            encoder.encodeObject(peer, forKey: "pr")
+            encoder.encodeObject(media, forKey: "m")
         }
     }
-    
 
     public var abstract: AnyMediaReference {
         switch self {
@@ -752,6 +798,8 @@ public enum MediaReference<T: Media> {
                 return .story(peer: peer, id: id, media: media)
             case let .starsTransaction(transaction, media):
                 return .starsTransaction(transaction: transaction, media: media)
+            case let .savedMusic(peer, media):
+                return .savedMusic(peer: peer, media: media)
         }
     }
     
@@ -785,6 +833,8 @@ public enum MediaReference<T: Media> {
                 return media
             case let .starsTransaction(_, media):
                 return media
+            case let .savedMusic(_, media):
+                return media
         }
     }
     
@@ -814,6 +864,8 @@ public enum MediaReference<T: Media> {
             return .story(peer: peer, id: id, media: media)
         case let .starsTransaction(transaction, _):
             return .starsTransaction(transaction: transaction, media: media)
+        case let .savedMusic(peer, _):
+            return .savedMusic(peer: peer, media: media)
         }
     }
     

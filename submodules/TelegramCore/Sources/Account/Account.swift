@@ -73,13 +73,13 @@ public class UnauthorizedAccount {
     public let testingEnvironment: Bool
     public let postbox: Postbox
     public let network: Network
-    private let stateManager: UnauthorizedAccountStateManager
+    let stateManager: UnauthorizedAccountStateManager
     
     private let updateLoginTokenPipe = ValuePipe<Void>()
     public var updateLoginTokenEvents: Signal<Void, NoError> {
         return self.updateLoginTokenPipe.signal()
     }
-
+    
     private let serviceNotificationPipe = ValuePipe<String>()
     public var serviceNotificationEvents: Signal<String, NoError> {
         return self.serviceNotificationPipe.signal()
@@ -91,7 +91,7 @@ public class UnauthorizedAccount {
     
     public let shouldBeServiceTaskMaster = Promise<AccountServiceTaskMasterMode>()
     
-    init(networkArguments: NetworkInitializationArguments, id: AccountRecordId, rootPath: String, basePath: String, testingEnvironment: Bool, postbox: Postbox, network: Network, shouldKeepAutoConnection: Bool = true) {
+    init(accountManager: AccountManager<TelegramAccountManagerTypes>, networkArguments: NetworkInitializationArguments, id: AccountRecordId, rootPath: String, basePath: String, testingEnvironment: Bool, postbox: Postbox, network: Network, shouldKeepAutoConnection: Bool = true) {
         self.networkArguments = networkArguments
         self.id = id
         self.rootPath = rootPath
@@ -101,11 +101,88 @@ public class UnauthorizedAccount {
         self.network = network
         let updateLoginTokenPipe = self.updateLoginTokenPipe
         let serviceNotificationPipe = self.serviceNotificationPipe
-        self.stateManager = UnauthorizedAccountStateManager(network: network, updateLoginToken: {
-            updateLoginTokenPipe.putNext(Void())
-        }, displayServiceNotification: { text in
-            serviceNotificationPipe.putNext(text)
-        })
+        let masterDatacenterId = Int32(network.mtProto.datacenterId)
+        
+        var updateSentCodeImpl: ((Api.auth.SentCode) -> Void)?
+        self.stateManager = UnauthorizedAccountStateManager(
+            network: network,
+            updateLoginToken: {
+                updateLoginTokenPipe.putNext(Void())
+            },
+            updateSentCode: { sentCode in
+                updateSentCodeImpl?(sentCode)
+            },
+            displayServiceNotification: { text in
+                serviceNotificationPipe.putNext(text)
+            }
+        )
+        
+        updateSentCodeImpl = { [weak self] sentCode in
+            switch sentCode {
+            case .sentCodePaymentRequired:
+                break
+            case let .sentCode(sentCodeData):
+                let (type, phoneCodeHash, nextType, codeTimeout) = (sentCodeData.type, sentCodeData.phoneCodeHash, sentCodeData.nextType, sentCodeData.timeout)
+                let _ = postbox.transaction({ transaction in
+                    var parsedNextType: AuthorizationCodeNextType?
+                    if let nextType = nextType {
+                        parsedNextType = AuthorizationCodeNextType(apiType: nextType)
+                    }
+                    if let state = transaction.getState() as? UnauthorizedAccountState, case let .payment(phoneNumber, _, _, _, _, _, syncContacts) = state.contents {
+                        transaction.setState(UnauthorizedAccountState(isTestingEnvironment: testingEnvironment, masterDatacenterId: masterDatacenterId, contents: .confirmationCodeEntry(number: phoneNumber, type: SentAuthorizationCodeType(apiType: type), hash: phoneCodeHash, timeout: codeTimeout, nextType: parsedNextType, syncContacts: syncContacts, previousCodeEntry: nil, usePrevious: false)))
+                    }
+                }).start()
+            case let .sentCodeSuccess(sentCodeSuccessData):
+                let authorization = sentCodeSuccessData.authorization
+                switch authorization {
+                case let .authorization(authorizationData):
+                    let (futureAuthToken, apiUser) = (authorizationData.futureAuthToken, authorizationData.user)
+                    let _ = postbox.transaction({ [weak self] transaction in
+                        var syncContacts = true
+                        if let state = transaction.getState() as? UnauthorizedAccountState, case let .payment(_, _, _, _, _, _, syncContactsValue) = state.contents {
+                            syncContacts = syncContactsValue
+                        }
+
+                        if let futureAuthToken = futureAuthToken {
+                            storeFutureLoginToken(accountManager: accountManager, token: futureAuthToken.makeData())
+                        }
+
+                        let user = TelegramUser(user: apiUser)
+                        var isSupportUser = false
+                        if let phone = user.phone, phone.hasPrefix("42"), phone.count <= 5 {
+                            isSupportUser = true
+                        }
+                        let state = AuthorizedAccountState(isTestingEnvironment: testingEnvironment, masterDatacenterId: masterDatacenterId, peerId: user.id, state: nil, invalidatedChannels: [])
+                        initializedAppSettingsAfterLogin(transaction: transaction, appVersion: networkArguments.appVersion, syncContacts: syncContacts)
+                        transaction.setState(state)
+                        return accountManager.transaction { [weak self] transaction -> SendAuthorizationCodeResult in
+                            if let self {
+                                switchToAuthorizedAccount(transaction: transaction, account: self, isSupportUser: isSupportUser)
+                            }
+                            return .loggedIn
+                        }
+                    }).start()
+                case let .authorizationSignUpRequired(authorizationSignUpRequiredData):
+                    let termsOfService = authorizationSignUpRequiredData.termsOfService
+                    let _ = postbox.transaction({ [weak self] transaction in
+                        if let self {
+                            if let state = transaction.getState() as? UnauthorizedAccountState, case let .payment(number, codeHash, _, _, _, _, syncContacts) = state.contents {
+                                let _ = beginSignUp(
+                                    account: self,
+                                    data: AuthorizationSignUpData(
+                                        number: number,
+                                        codeHash: codeHash,
+                                        code: .phoneCode(""),
+                                        termsOfService: termsOfService.flatMap(UnauthorizedAccountTermsOfService.init(apiTermsOfService:)),
+                                        syncContacts: syncContacts
+                                    )
+                                ).start()
+                            }
+                        }
+                    }).start()
+                }
+            }
+        }
         
         network.shouldKeepConnection.set(self.shouldBeServiceTaskMaster.get()
         |> map { mode -> Bool in
@@ -152,7 +229,7 @@ public class UnauthorizedAccount {
             |> mapToSignal { localizationSettings, proxySettings, networkSettings, appConfiguration -> Signal<UnauthorizedAccount, NoError> in
                 return initializedNetwork(accountId: self.id, arguments: self.networkArguments, supplementary: false, datacenterId: Int(masterDatacenterId), keychain: keychain, basePath: self.basePath, testingEnvironment: self.testingEnvironment, languageCode: localizationSettings?.primaryComponent.languageCode, proxySettings: proxySettings, networkSettings: networkSettings, phoneNumber: nil, useRequestTimeoutTimers: false, appConfiguration: appConfiguration)
                 |> map { network in
-                    let updated = UnauthorizedAccount(networkArguments: self.networkArguments, id: self.id, rootPath: self.rootPath, basePath: self.basePath, testingEnvironment: self.testingEnvironment, postbox: self.postbox, network: network)
+                    let updated = UnauthorizedAccount(accountManager: accountManager, networkArguments: self.networkArguments, id: self.id, rootPath: self.rootPath, basePath: self.basePath, testingEnvironment: self.testingEnvironment, postbox: self.postbox, network: network)
                     updated.shouldBeServiceTaskMaster.set(self.shouldBeServiceTaskMaster.get())
                     return updated
                 }
@@ -250,7 +327,7 @@ public func accountWithId(accountManager: AccountManager<TelegramAccountManagerT
                                 case let unauthorizedState as UnauthorizedAccountState:
                                     return initializedNetwork(accountId: id, arguments: networkArguments, supplementary: supplementary, datacenterId: Int(unauthorizedState.masterDatacenterId), keychain: keychain, basePath: path, testingEnvironment: unauthorizedState.isTestingEnvironment, languageCode: localizationSettings?.primaryComponent.languageCode, proxySettings: proxySettings, networkSettings: networkSettings, phoneNumber: nil, useRequestTimeoutTimers: useRequestTimeoutTimers, appConfiguration: appConfig)
                                         |> map { network -> AccountResult in
-                                            return .unauthorized(UnauthorizedAccount(networkArguments: networkArguments, id: id, rootPath: rootPath, basePath: path, testingEnvironment: unauthorizedState.isTestingEnvironment, postbox: postbox, network: network, shouldKeepAutoConnection: shouldKeepAutoConnection))
+                                            return .unauthorized(UnauthorizedAccount(accountManager: accountManager, networkArguments: networkArguments, id: id, rootPath: rootPath, basePath: path, testingEnvironment: unauthorizedState.isTestingEnvironment, postbox: postbox, network: network, shouldKeepAutoConnection: shouldKeepAutoConnection))
                                         }
                                 case let authorizedState as AuthorizedAccountState:
                                     return postbox.transaction { transaction -> String? in
@@ -267,9 +344,15 @@ public func accountWithId(accountManager: AccountManager<TelegramAccountManagerT
                             }
                         }
                         
-                        return initializedNetwork(accountId: id, arguments: networkArguments, supplementary: supplementary, datacenterId: 2, keychain: keychain, basePath: path, testingEnvironment: beginWithTestingEnvironment, languageCode: localizationSettings?.primaryComponent.languageCode, proxySettings: proxySettings, networkSettings: networkSettings, phoneNumber: nil, useRequestTimeoutTimers: useRequestTimeoutTimers, appConfiguration: appConfig)
+                        #if DEBUG
+                        let initialDatacenterId: Int = 1
+                        #else
+                        let initialDatacenterId: Int = 2
+                        #endif
+                        
+                        return initializedNetwork(accountId: id, arguments: networkArguments, supplementary: supplementary, datacenterId: initialDatacenterId, keychain: keychain, basePath: path, testingEnvironment: beginWithTestingEnvironment, languageCode: localizationSettings?.primaryComponent.languageCode, proxySettings: proxySettings, networkSettings: networkSettings, phoneNumber: nil, useRequestTimeoutTimers: useRequestTimeoutTimers, appConfiguration: appConfig)
                         |> map { network -> AccountResult in
-                            return .unauthorized(UnauthorizedAccount(networkArguments: networkArguments, id: id, rootPath: rootPath, basePath: path, testingEnvironment: beginWithTestingEnvironment, postbox: postbox, network: network, shouldKeepAutoConnection: shouldKeepAutoConnection))
+                            return .unauthorized(UnauthorizedAccount(accountManager: accountManager, networkArguments: networkArguments, id: id, rootPath: rootPath, basePath: path, testingEnvironment: beginWithTestingEnvironment, postbox: postbox, network: network, shouldKeepAutoConnection: shouldKeepAutoConnection))
                         }
                     }
                 }
@@ -285,7 +368,8 @@ public enum TwoStepPasswordDerivation {
         switch apiAlgo {
             case .passwordKdfAlgoUnknown:
                 self = .unknown
-            case let .passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow(salt1, salt2, g, p):
+            case let .passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow(passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPowData):
+                let (salt1, salt2, g, p) = (passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPowData.salt1, passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPowData.salt2, passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPowData.g, passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPowData.p)
                 self = .sha256_sha256_PBKDF2_HMAC_sha512_sha256_srp(salt1: salt1.makeData(), salt2: salt2.makeData(), iterations: 100000, g: g, p: p.makeData())
         }
     }
@@ -296,7 +380,7 @@ public enum TwoStepPasswordDerivation {
                 return .passwordKdfAlgoUnknown
             case let .sha256_sha256_PBKDF2_HMAC_sha512_sha256_srp(salt1, salt2, iterations, g, p):
                 precondition(iterations == 100000)
-                return .passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow(salt1: Buffer(data: salt1), salt2: Buffer(data: salt2), g: g, p: Buffer(data: p))
+                return .passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow(.init(salt1: Buffer(data: salt1), salt2: Buffer(data: salt2), g: g, p: Buffer(data: p)))
         }
     }
 }
@@ -310,9 +394,11 @@ public enum TwoStepSecurePasswordDerivation {
         switch apiAlgo {
             case .securePasswordKdfAlgoUnknown:
                 self = .unknown
-            case let .securePasswordKdfAlgoPBKDF2HMACSHA512iter100000(salt):
+            case let .securePasswordKdfAlgoPBKDF2HMACSHA512iter100000(securePasswordKdfAlgoPBKDF2HMACSHA512iter100000Data):
+                let (salt) = (securePasswordKdfAlgoPBKDF2HMACSHA512iter100000Data.salt)
                 self = .PBKDF2_HMAC_sha512(salt: salt.makeData(), iterations: 100000)
-            case let .securePasswordKdfAlgoSHA512(salt):
+            case let .securePasswordKdfAlgoSHA512(securePasswordKdfAlgoSHA512Data):
+                let (salt) = (securePasswordKdfAlgoSHA512Data.salt)
                 self = .sha512(salt: salt.makeData())
         }
     }
@@ -323,9 +409,9 @@ public enum TwoStepSecurePasswordDerivation {
                 return .securePasswordKdfAlgoUnknown
             case let .PBKDF2_HMAC_sha512(salt, iterations):
                 precondition(iterations == 100000)
-                return .securePasswordKdfAlgoPBKDF2HMACSHA512iter100000(salt: Buffer(data: salt))
+                return .securePasswordKdfAlgoPBKDF2HMACSHA512iter100000(.init(salt: Buffer(data: salt)))
             case let .sha512(salt):
-                return .securePasswordKdfAlgoSHA512(salt: Buffer(data: salt))
+                return .securePasswordKdfAlgoSHA512(.init(salt: Buffer(data: salt)))
         }
     }
 }
@@ -353,7 +439,8 @@ func _internal_twoStepAuthData(_ network: Network) -> Signal<TwoStepAuthData, MT
     return network.request(Api.functions.account.getPassword())
     |> map { config -> TwoStepAuthData in
         switch config {
-            case let .password(flags, currentAlgo, srpB, srpId, hint, emailUnconfirmedPattern, newAlgo, newSecureAlgo, secureRandom, pendingResetDate, loginEmailPattern):
+            case let .password(passwordData):
+                let (flags, currentAlgo, srpB, srpId, hint, emailUnconfirmedPattern, newAlgo, newSecureAlgo, secureRandom, pendingResetDate, loginEmailPattern) = (passwordData.flags, passwordData.currentAlgo, passwordData.srpB, passwordData.srpId, passwordData.hint, passwordData.emailUnconfirmedPattern, passwordData.newAlgo, passwordData.newSecureAlgo, passwordData.secureRandom, passwordData.pendingResetDate, passwordData.loginEmailPattern)
                 let hasRecovery = (flags & (1 << 0)) != 0
                 let hasSecureValues = (flags & (1 << 1)) != 0
                 
@@ -380,6 +467,137 @@ func _internal_twoStepAuthData(_ network: Network) -> Signal<TwoStepAuthData, MT
     }
 }
 
+public final class TelegramPasskey: Equatable {
+    public let id: String
+    public let name: String
+    public let date: Int32
+    public let emojiId: Int64?
+    public let lastUsageDate: Int32?
+
+    public init(id: String, name: String, date: Int32, emojiId: Int64?, lastUsageDate: Int32?) {
+        self.id = id
+        self.name = name
+        self.date = date
+        self.emojiId = emojiId
+        self.lastUsageDate = lastUsageDate
+    }
+    
+    public static func ==(lhs: TelegramPasskey, rhs: TelegramPasskey) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.name != rhs.name {
+            return false
+        }
+        if lhs.date != rhs.date {
+            return false
+        }
+        if lhs.emojiId != rhs.emojiId {
+            return false
+        }
+        if lhs.lastUsageDate != rhs.lastUsageDate {
+            return false
+        }
+        return true
+    }
+}
+
+extension TelegramPasskey {
+    convenience init(apiPasskey: Api.Passkey) {
+        switch apiPasskey {
+        case let .passkey(passkeyData):
+            let (id, name, date, softwareEmojiId, lastUsageDate) = (passkeyData.id, passkeyData.name, passkeyData.date, passkeyData.softwareEmojiId, passkeyData.lastUsageDate)
+            self.init(id: id, name: name, date: date, emojiId: softwareEmojiId, lastUsageDate: lastUsageDate)
+        }
+    }
+}
+
+func _internal_passkeysData(network: Network) -> Signal<[TelegramPasskey], NoError> {
+    return network.request(Api.functions.account.getPasskeys())
+    |> map(Optional.init)
+    |> `catch` { _ -> Signal<Api.account.Passkeys?, NoError> in
+        return .single(nil)
+    }
+    |> map { passkeys -> [TelegramPasskey] in
+        guard let passkeys else {
+            return []
+        }
+        switch passkeys {
+        case let .passkeys(passkeysData):
+            let passkeys = passkeysData.passkeys
+            return passkeys.map { passkey in
+                return TelegramPasskey(apiPasskey: passkey)
+            }
+        }
+    }
+}
+
+func _internal_requestPasskeyRegistration(network: Network) -> Signal<String?, NoError> {
+    return network.request(Api.functions.account.initPasskeyRegistration())
+    |> map(Optional.init)
+    |> `catch` { _ -> Signal<Api.account.PasskeyRegistrationOptions?, NoError> in
+        return .single(nil)
+    }
+    |> map { options -> String? in
+        guard let options else {
+            return nil
+        }
+        switch options {
+        case let .passkeyRegistrationOptions(passkeyRegistrationOptionsData):
+            let options = passkeyRegistrationOptionsData.options
+            switch options {
+            case let .dataJSON(dataJSONData):
+                let data = dataJSONData.data
+                return data
+            }
+        }
+    }
+}
+
+func _internal_requestCreatePasskey(network: Network, id: String, clientData: String, attestationObject: Data) -> Signal<TelegramPasskey?, NoError> {
+    return network.request(Api.functions.account.registerPasskey(credential: .inputPasskeyCredentialPublicKey(.init(id: id, rawId: id, response: .inputPasskeyResponseRegister(.init(clientData: .dataJSON(.init(data: clientData)), attestationData: Buffer(data: attestationObject)))))))
+    |> map(Optional.init)
+    |> `catch` { _ -> Signal<Api.Passkey?, NoError> in
+        return .single(nil)
+    }
+    |> map { result -> TelegramPasskey? in
+        guard let result else {
+            return nil
+        }
+        return TelegramPasskey(apiPasskey: result)
+    }
+}
+
+func _internal_deletePasskey(network: Network, id: String) -> Signal<Never, NoError> {
+    return network.request(Api.functions.account.deletePasskey(id: id))
+    |> `catch` { _ -> Signal<Api.Bool, NoError> in
+        return .single(.boolFalse)
+    }
+    |> ignoreValues
+}
+
+func _internal_requestPasskeyLoginData(network: Network, apiId: Int32, apiHash: String) -> Signal<String?, NoError> {
+    return network.request(Api.functions.auth.initPasskeyLogin(apiId: apiId, apiHash: apiHash))
+    |> map(Optional.init)
+    |> `catch` { _ -> Signal<Api.auth.PasskeyLoginOptions?, NoError> in
+        return .single(nil)
+    }
+    |> map { result -> String? in
+        guard let result else {
+            return nil
+        }
+        switch result {
+        case let .passkeyLoginOptions(passkeyLoginOptionsData):
+            let options = passkeyLoginOptionsData.options
+            switch options {
+            case let .dataJSON(dataJSONData):
+                let data = dataJSONData.data
+                return data
+            }
+        }
+    }
+}
+
 public func hexString(_ data: Data) -> String {
     let hexString = NSMutableString()
     data.withUnsafeBytes { rawBytes -> Void in
@@ -402,12 +620,11 @@ public func dataWithHexString(_ string: String) -> Data {
         let subIndex = hex.index(hex.startIndex, offsetBy: 2)
         let c = String(hex[..<subIndex])
         hex = String(hex[subIndex...])
-        var ch: UInt32 = 0
-        if !Scanner(string: c).scanHexInt32(&ch) {
+        
+        guard let byte = UInt8(c, radix: 16) else {
             return Data()
         }
-        var char = UInt8(ch)
-        data.append(&char, count: 1)
+        data.append(byte)
     }
     return data
 }
@@ -661,7 +878,7 @@ func verifyPassword(_ account: UnauthorizedAccount, password: String) -> Signal<
         let kdfResult = passwordKDF(encryptionProvider: account.network.encryptionProvider, password: password, derivation: currentPasswordDerivation, srpSessionData: srpSessionData)
         
         if let kdfResult = kdfResult {
-            return account.network.request(Api.functions.auth.checkPassword(password: .inputCheckPasswordSRP(srpId: kdfResult.id, A: Buffer(data: kdfResult.A), M1: Buffer(data: kdfResult.M1))), automaticFloodWait: false)
+            return account.network.request(Api.functions.auth.checkPassword(password: .inputCheckPasswordSRP(.init(srpId: kdfResult.id, A: Buffer(data: kdfResult.A), M1: Buffer(data: kdfResult.M1)))), automaticFloodWait: false)
         } else {
             return .fail(MTRpcError(errorCode: 400, errorDescription: "KDF_ERROR"))
         }
@@ -700,15 +917,47 @@ public final class AccountAuxiliaryMethods {
     }
 }
 
-public struct AccountRunningImportantTasks: OptionSet {
-    public var rawValue: Int32
-    
-    public init(rawValue: Int32) {
-        self.rawValue = rawValue
+public struct AccountRunningImportantTasks: Equatable {
+    public struct TaskTypes: OptionSet {
+        public var rawValue: Int32
+        
+        public init(rawValue: Int32) {
+            self.rawValue = rawValue
+        }
+        
+        public static let other = TaskTypes(rawValue: 1 << 0)
     }
     
-    public static let other = AccountRunningImportantTasks(rawValue: 1 << 0)
-    public static let pendingMessages = AccountRunningImportantTasks(rawValue: 1 << 1)
+    public var taskTypes: TaskTypes
+    public var pendingMessageCount: Int
+    public var pendingStoryCount: Int
+    
+    public init(taskTypes: TaskTypes, pendingMessageCount: Int, pendingStoryCount: Int) {
+        self.taskTypes = taskTypes
+        self.pendingMessageCount = pendingMessageCount
+        self.pendingStoryCount = pendingStoryCount
+    }
+    
+    public func combine(with other: AccountRunningImportantTasks) -> AccountRunningImportantTasks {
+        return AccountRunningImportantTasks(
+            taskTypes: self.taskTypes.union(other.taskTypes),
+            pendingMessageCount: self.pendingMessageCount + other.pendingMessageCount,
+            pendingStoryCount: self.pendingStoryCount + other.pendingStoryCount
+        )
+    }
+    
+    public var isEmpty: Bool {
+        if !self.taskTypes.isEmpty {
+            return false
+        }
+        if self.pendingMessageCount != 0 {
+            return false
+        }
+        if self.pendingStoryCount != 0 {
+            return false
+        }
+        return true
+    }
 }
 
 public struct MasterNotificationKey: Codable {
@@ -972,7 +1221,7 @@ public class Account {
         return self._loggedOut.get()
     }
     
-    private let _importantTasksRunning = ValuePromise<AccountRunningImportantTasks>([], ignoreRepeated: true)
+    private let _importantTasksRunning = ValuePromise<AccountRunningImportantTasks>(AccountRunningImportantTasks(taskTypes: [], pendingMessageCount: 0, pendingStoryCount: 0), ignoreRepeated: true)
     public var importantTasksRunning: Signal<AccountRunningImportantTasks, NoError> {
         return self._importantTasksRunning.get()
     }
@@ -1176,51 +1425,55 @@ public class Account {
         
         let extractedExpr1: [Signal<AccountRunningImportantTasks, NoError>] = [
             managedSynchronizeChatInputStateOperations(postbox: self.postbox, network: self.network) |> map { inputStates in
-                if inputStates {
-                    //print("inputStates: true")
-                }
-                return inputStates ? AccountRunningImportantTasks.other : []
+                return AccountRunningImportantTasks(
+                    taskTypes: inputStates ? .other : [],
+                    pendingMessageCount: 0,
+                    pendingStoryCount: 0
+                )
             },
-            self.pendingMessageManager.hasPendingMessages |> map { hasPendingMessages in
-                if !hasPendingMessages.isEmpty {
-                    //print("hasPendingMessages: true")
-                }
-                return !hasPendingMessages.isEmpty ? AccountRunningImportantTasks.pendingMessages : []
+            self.pendingMessageManager.pendingMessageCount |> map { pendingMessageCount in
+                return AccountRunningImportantTasks(
+                    taskTypes: [],
+                    pendingMessageCount: pendingMessageCount.values.reduce(into: 0, { $0 += $1 }),
+                    pendingStoryCount: 0
+                )
             },
             (self.pendingStoryManager?.hasPending ?? .single(false)) |> map { hasPending in
-                if hasPending {
-                    //print("hasPending: true")
-                }
-                return hasPending ? AccountRunningImportantTasks.pendingMessages : []
+                return AccountRunningImportantTasks(
+                    taskTypes: [],
+                    pendingMessageCount: 0,
+                    pendingStoryCount: hasPending ? 1 : 0
+                )
             },
             self.pendingUpdateMessageManager.updatingMessageMedia |> map { updatingMessageMedia in
-                if !updatingMessageMedia.isEmpty {
-                    //print("updatingMessageMedia: true")
-                }
-                return !updatingMessageMedia.isEmpty ? AccountRunningImportantTasks.pendingMessages : []
+                return AccountRunningImportantTasks(
+                    taskTypes: [],
+                    pendingMessageCount: updatingMessageMedia.count,
+                    pendingStoryCount: 0
+                )
             },
             self.pendingPeerMediaUploadManager.uploadingPeerMedia |> map { uploadingPeerMedia in
-                if !uploadingPeerMedia.isEmpty {
-                    //print("uploadingPeerMedia: true")
-                }
-                return !uploadingPeerMedia.isEmpty ? AccountRunningImportantTasks.pendingMessages : []
+                return AccountRunningImportantTasks(
+                    taskTypes: [],
+                    pendingMessageCount: uploadingPeerMedia.count,
+                    pendingStoryCount: 0
+                )
             },
             self.accountPresenceManager.isPerformingUpdate() |> map { presenceUpdate in
-                if presenceUpdate {
-                    //print("accountPresenceManager isPerformingUpdate: true")
-                    //return []
-                }
-                return presenceUpdate ? AccountRunningImportantTasks.other : []
-            },
-            //self.notificationAutolockReportManager.isPerformingUpdate() |> map { $0 ? AccountRunningImportantTasks.other : [] }
+                return AccountRunningImportantTasks(
+                    taskTypes: presenceUpdate ? .other : [],
+                    pendingMessageCount: 0,
+                    pendingStoryCount: 0
+                )
+            }
         ]
         let extractedExpr: [Signal<AccountRunningImportantTasks, NoError>] = extractedExpr1
         let importantBackgroundOperations: [Signal<AccountRunningImportantTasks, NoError>] = extractedExpr
         let importantBackgroundOperationsRunning = combineLatest(queue: Queue(), importantBackgroundOperations)
         |> map { values -> AccountRunningImportantTasks in
-            var result: AccountRunningImportantTasks = []
+            var result: AccountRunningImportantTasks = AccountRunningImportantTasks(taskTypes: [], pendingMessageCount: 0, pendingStoryCount: 0)
             for value in values {
-                result.formUnion(value)
+                result = result.combine(with: value)
             }
             return result
         }
@@ -1320,7 +1573,7 @@ public class Account {
                     return .complete()
                 } else {
                     return network.request(Api.functions.help.saveAppLog(events: events.map { event -> Api.InputAppEvent in
-                        return .inputAppEvent(time: event.0, type: "", peer: 0, data: .jsonString(value: event.1))
+                        return .inputAppEvent(.init(time: event.0, type: "", peer: 0, data: .jsonString(.init(value: event.1))))
                     }))
                     |> ignoreValues
                     |> `catch` { _ -> Signal<Never, NoError> in

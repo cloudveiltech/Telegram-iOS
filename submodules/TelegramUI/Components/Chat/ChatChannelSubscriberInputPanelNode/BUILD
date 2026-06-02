@@ -23,6 +23,13 @@ swift_library(
         "//submodules/TelegramUI/Components/Chat/ChatInputPanelNode",
         "//submodules/AccountContext",
         "//submodules/TelegramUI/Components/PeerManagement/OldChannelsController",
+        "//submodules/TooltipUI",
+        "//submodules/TelegramUI/Components/GlassBackgroundComponent",
+        "//submodules/ComponentFlow",
+        "//submodules/Components/ComponentDisplayAdapters",
+        "//submodules/TelegramUI/Components/GlassControls",
+        "//submodules/Components/BundleIconComponent",
+        "//submodules/Components/MultilineTextComponent",
     ],
     visibility = [
         "//visibility:public",

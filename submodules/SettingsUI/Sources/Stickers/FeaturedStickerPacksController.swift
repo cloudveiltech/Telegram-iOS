@@ -34,7 +34,7 @@ private enum FeaturedStickerPacksEntryId: Hashable {
 }
 
 private enum FeaturedStickerPacksEntry: ItemListNodeEntry {
-    case pack(Int32, PresentationTheme, PresentationStrings, StickerPackCollectionInfo, Bool, StickerPackItem?, String, Bool, Bool)
+    case pack(Int32, PresentationTheme, PresentationStrings, StickerPackCollectionInfo.Accessor, Bool, StickerPackItem?, String, Bool, Bool)
     
     var section: ItemListSectionId {
         switch self {
@@ -103,10 +103,10 @@ private enum FeaturedStickerPacksEntry: ItemListNodeEntry {
         switch self {
             case let .pack(_, _, _, info, unread, topItem, count, playAnimatedStickers, installed):
                 return ItemListStickerPackItem(presentationData: presentationData, context: arguments.context, packInfo: info, itemCount: count, topItem: topItem, unread: unread, control: .installation(installed: installed), editing: ItemListStickerPackItemEditing(editable: false, editing: false, revealed: false, reorderable: false, selectable: false), enabled: true, playAnimatedStickers: playAnimatedStickers, sectionId: self.section, action: {
-                    arguments.openStickerPack(info)
+                    arguments.openStickerPack(info._parse())
                 }, setPackIdWithRevealedOptions: { _, _ in
                 }, addPack: {
-                    arguments.addPack(info)
+                    arguments.addPack(info._parse())
                 }, removePack: {
                 }, toggleSelected: {
                 })
@@ -172,13 +172,13 @@ public func featuredStickerPacksController(context: AccountContext) -> ViewContr
         presentStickerPackController?(info)
     }, addPack: { info in
         let _ = (context.engine.stickers.loadedStickerPack(reference: .id(id: info.id.id, accessHash: info.accessHash), forceActualized: false)
-        |> mapToSignal { result -> Signal<Void, NoError> in
+        |> mapToSignal { result -> Signal<AddStickerPackResult, NoError> in
             switch result {
                 case let .result(info, items, installed):
                     if installed {
                         return .complete()
                     } else {
-                        return context.engine.stickers.addStickerPackInteractively(info: info, items: items)
+                        return context.engine.stickers.addStickerPackInteractively(info: info._parse(), items: items)
                     }
                 case .fetching:
                     break
@@ -186,8 +186,17 @@ public func featuredStickerPacksController(context: AccountContext) -> ViewContr
                     break
             }
             return .complete()
-        } |> deliverOnMainQueue).start()
+        } |> deliverOnMainQueue).startStandalone()
     })
+    
+    actionsDisposable.add((context.account.stateManager.installedStickerPacksArchivedEvents
+    |> deliverOnMainQueue).startStandalone(next: { count in
+       if count == 0 {
+           return
+       }
+        let presentationData = context.sharedContext.currentPresentationData.with({ $0 })
+        presentControllerImpl?(textAlertController(context: context, updatedPresentationData: nil, title: nil, text: presentationData.strings.ArchivedPacksAlert_Title, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
+    }))
     
     let stickerPacks = Promise<CombinedView>()
     stickerPacks.set(context.account.postbox.combinedView(keys: [.itemCollectionInfos(namespaces: [Namespaces.ItemCollection.CloudStickerPacks])]))

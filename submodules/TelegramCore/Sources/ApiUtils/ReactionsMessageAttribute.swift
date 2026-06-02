@@ -5,13 +5,15 @@ import TelegramApi
 extension ReactionsMessageAttribute {
     func withUpdatedResults(_ reactions: Api.MessageReactions) -> ReactionsMessageAttribute {
         switch reactions {
-        case let .messageReactions(flags, results, recentReactions, topReactors):
+        case let .messageReactions(messageReactionsData):
+            let (flags, results, recentReactions, topReactors) = (messageReactionsData.flags, messageReactionsData.results, messageReactionsData.recentReactions, messageReactionsData.topReactors)
             let min = (flags & (1 << 0)) != 0
             let canViewList = (flags & (1 << 2)) != 0
             let isTags = (flags & (1 << 3)) != 0
             var reactions = results.compactMap { result -> MessageReaction? in
                 switch result {
-                case let .reactionCount(_, chosenOrder, reaction, count):
+                case let .reactionCount(reactionCountData):
+                    let (_, chosenOrder, reaction, count) = (reactionCountData.flags, reactionCountData.chosenOrder, reactionCountData.reaction, reactionCountData.count)
                     if let reaction = MessageReaction.Reaction(apiReaction: reaction) {
                         return MessageReaction(value: reaction, count: count, chosenOrder: chosenOrder.flatMap(Int.init))
                     } else {
@@ -23,7 +25,8 @@ extension ReactionsMessageAttribute {
             if let recentReactions = recentReactions {
                 parsedRecentReactions = recentReactions.compactMap { recentReaction -> ReactionsMessageAttribute.RecentPeer? in
                     switch recentReaction {
-                    case let .messagePeerReaction(flags, peerId, date, reaction):
+                    case let .messagePeerReaction(messagePeerReactionData):
+                        let (flags, peerId, date, reaction) = (messagePeerReactionData.flags, messagePeerReactionData.peerId, messagePeerReactionData.date, messagePeerReactionData.reaction)
                         let isLarge = (flags & (1 << 0)) != 0
                         let isUnseen = (flags & (1 << 1)) != 0
                         let isMy = (flags & (1 << 2)) != 0
@@ -37,7 +40,7 @@ extension ReactionsMessageAttribute {
             } else {
                 parsedRecentReactions = []
             }
-            
+
             if min {
                 var currentSelectedReactions: [MessageReaction.Reaction: Int] = [:]
                 for reaction in self.reactions {
@@ -59,7 +62,8 @@ extension ReactionsMessageAttribute {
             if let topReactors {
                 for item in topReactors {
                     switch item {
-                    case let .messageReactor(flags, peerId, count):
+                    case let .messageReactor(messageReactorData):
+                        let (flags, peerId, count) = (messageReactorData.flags, messageReactorData.peerId, messageReactorData.count)
                         topPeers.append(ReactionsMessageAttribute.TopPeer(
                             peerId: peerId?.peerId,
                             count: count,
@@ -70,7 +74,7 @@ extension ReactionsMessageAttribute {
                     }
                 }
             }
-            
+
             return ReactionsMessageAttribute(canViewList: canViewList, isTags: isTags, reactions: reactions, recentPeers: parsedRecentReactions, topPeers: topPeers)
         }
     }
@@ -215,12 +219,40 @@ public func mergedMessageReactions(attributes: [MessageAttribute], isTags: Bool)
             if let index = topPeers.firstIndex(where: { $0.isMy }) {
                 topPeers[index].count += pendingStars.count
             } else {
-                topPeers.append(ReactionsMessageAttribute.TopPeer(peerId: pendingStars.accountPeerId, count: pendingStars.count, isTop: false, isMy: true, isAnonymous: pendingStars.isAnonymous))
+                let isAnonymous: Bool
+                let topPeerId: PeerId?
+                switch pendingStars.privacy {
+                case .anonymous:
+                    isAnonymous = true
+                    topPeerId = pendingStars.accountPeerId
+                case .default:
+                    isAnonymous = false
+                    topPeerId = pendingStars.accountPeerId
+                case let .peer(peerId):
+                    isAnonymous = false
+                    topPeerId = peerId
+                }
+                
+                topPeers.append(ReactionsMessageAttribute.TopPeer(peerId: topPeerId, count: pendingStars.count, isTop: false, isMy: true, isAnonymous: isAnonymous))
             }
             reactions.insert(MessageReaction(value: .stars, count: updatedCount, chosenOrder: -1), at: 0)
             return ReactionsMessageAttribute(canViewList: current?.canViewList ?? false, isTags: current?.isTags ?? isTags, reactions: reactions, recentPeers: result.recentPeers, topPeers: topPeers)
         } else {
-            return ReactionsMessageAttribute(canViewList: current?.canViewList ?? false, isTags: current?.isTags ?? isTags, reactions: [MessageReaction(value: .stars, count: pendingStars.count, chosenOrder: -1)], recentPeers: [], topPeers: [ReactionsMessageAttribute.TopPeer(peerId: pendingStars.accountPeerId, count: pendingStars.count, isTop: false, isMy: true, isAnonymous: pendingStars.isAnonymous)])
+            let isAnonymous: Bool
+            let topPeerId: PeerId?
+            switch pendingStars.privacy {
+            case .anonymous:
+                isAnonymous = true
+                topPeerId = pendingStars.accountPeerId
+            case .default:
+                isAnonymous = false
+                topPeerId = pendingStars.accountPeerId
+            case let .peer(peerId):
+                isAnonymous = false
+                topPeerId = peerId
+            }
+            
+            return ReactionsMessageAttribute(canViewList: current?.canViewList ?? false, isTags: current?.isTags ?? isTags, reactions: [MessageReaction(value: .stars, count: pendingStars.count, chosenOrder: -1)], recentPeers: [], topPeers: [ReactionsMessageAttribute.TopPeer(peerId: topPeerId, count: pendingStars.count, isTop: false, isMy: true, isAnonymous: isAnonymous)])
         }
     } else {
         return result
@@ -230,14 +262,16 @@ public func mergedMessageReactions(attributes: [MessageAttribute], isTags: Bool)
 extension ReactionsMessageAttribute {
     convenience init(apiReactions: Api.MessageReactions) {
         switch apiReactions {
-        case let .messageReactions(flags, results, recentReactions, topReactors):
+        case let .messageReactions(messageReactionsData):
+            let (flags, results, recentReactions, topReactors) = (messageReactionsData.flags, messageReactionsData.results, messageReactionsData.recentReactions, messageReactionsData.topReactors)
             let canViewList = (flags & (1 << 2)) != 0
             let isTags = (flags & (1 << 3)) != 0
             let parsedRecentReactions: [ReactionsMessageAttribute.RecentPeer]
             if let recentReactions = recentReactions {
                 parsedRecentReactions = recentReactions.compactMap { recentReaction -> ReactionsMessageAttribute.RecentPeer? in
                     switch recentReaction {
-                    case let .messagePeerReaction(flags, peerId, date, reaction):
+                    case let .messagePeerReaction(messagePeerReactionData):
+                        let (flags, peerId, date, reaction) = (messagePeerReactionData.flags, messagePeerReactionData.peerId, messagePeerReactionData.date, messagePeerReactionData.reaction)
                         let isLarge = (flags & (1 << 0)) != 0
                         let isUnseen = (flags & (1 << 1)) != 0
                         let isMy = (flags & (1 << 2)) != 0
@@ -251,12 +285,13 @@ extension ReactionsMessageAttribute {
             } else {
                 parsedRecentReactions = []
             }
-            
+
             var topPeers: [ReactionsMessageAttribute.TopPeer] = []
             if let topReactors {
                 for item in topReactors {
                     switch item {
-                    case let .messageReactor(flags, peerId, count):
+                    case let .messageReactor(messageReactorData):
+                        let (flags, peerId, count) = (messageReactorData.flags, messageReactorData.peerId, messageReactorData.count)
                         topPeers.append(ReactionsMessageAttribute.TopPeer(
                             peerId: peerId?.peerId,
                             count: count,
@@ -267,13 +302,14 @@ extension ReactionsMessageAttribute {
                     }
                 }
             }
-            
+
             self.init(
                 canViewList: canViewList,
                 isTags: isTags,
                 reactions: results.compactMap { result -> MessageReaction? in
                     switch result {
-                    case let .reactionCount(_, chosenOrder, reaction, count):
+                    case let .reactionCount(reactionCountData):
+                        let (_, chosenOrder, reaction, count) = (reactionCountData.flags, reactionCountData.chosenOrder, reactionCountData.reaction, reactionCountData.count)
                         if let reaction = MessageReaction.Reaction(apiReaction: reaction) {
                             return MessageReaction(value: reaction, count: count, chosenOrder: chosenOrder.flatMap(Int.init))
                         } else {

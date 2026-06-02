@@ -9,31 +9,40 @@ public protocol ContactSelectionController: ViewController {
     var result: Signal<([ContactListPeer], ContactListAction, Bool, Int32?, NSAttributedString?, ChatSendMessageActionSheetController.SendParameters?)?, NoError> { get }
     var displayProgress: Bool { get set }
     var dismissed: (() -> Void)? { get set }
-    var presentScheduleTimePicker: (@escaping (Int32) -> Void) -> Void { get set }
+    var presentScheduleTimePicker: (@escaping (Int32, Int32?, Bool) -> Void) -> Void { get set }
     
     func dismissSearch()
 }
 
 public enum ContactSelectionControllerMode {
     case generic
-    case starsGifting(birthdays: [EnginePeer.Id: TelegramBirthday]?, hasActions: Bool)
+    case starsGifting(birthdays: [EnginePeer.Id: TelegramBirthday]?, hasActions: Bool, showSelf: Bool, selfSubtitle: String?)
 }
 
 public struct ContactListAdditionalOption: Equatable {
+    public enum Style: Equatable {
+        case accent
+        case generic
+    }
+    
     public let title: String
+    public let subtitle: String?
     public let icon: ContactListActionItemIcon
+    public let style: Style
     public let action: () -> Void
     public let clearHighlightAutomatically: Bool
     
-    public init(title: String, icon: ContactListActionItemIcon, action: @escaping () -> Void, clearHighlightAutomatically: Bool = false) {
+    public init(title: String, subtitle: String? = nil, icon: ContactListActionItemIcon, style: Style = .accent, action: @escaping () -> Void, clearHighlightAutomatically: Bool = false) {
         self.title = title
+        self.subtitle = subtitle
         self.icon = icon
+        self.style = style
         self.action = action
         self.clearHighlightAutomatically = clearHighlightAutomatically
     }
     
     public static func ==(lhs: ContactListAdditionalOption, rhs: ContactListAdditionalOption) -> Bool {
-        return lhs.title == rhs.title && lhs.icon == rhs.icon
+        return lhs.title == rhs.title && lhs.subtitle == rhs.subtitle && lhs.icon == rhs.icon && lhs.style == rhs.style
     }
 }
 
@@ -50,9 +59,9 @@ public enum ContactListAction: Equatable {
 }
 
 public enum ContactListPeer: Equatable {
-    case peer(peer: Peer, isGlobal: Bool, participantCount: Int32?)
+    case peer(peer: EnginePeer, isGlobal: Bool, participantCount: Int32?)
     case deviceContact(DeviceContactStableId, DeviceContactBasicData)
-    
+
     public var id: ContactListPeerId {
         switch self {
         case let .peer(peer, _, _):
@@ -61,8 +70,8 @@ public enum ContactListPeer: Equatable {
             return .deviceContact(id)
         }
     }
-    
-    public var indexName: PeerIndexNameRepresentation {
+
+    public var indexName: EnginePeer.IndexName {
         switch self {
         case let .peer(peer, _, _):
             return peer.indexName
@@ -70,11 +79,11 @@ public enum ContactListPeer: Equatable {
             return .personName(first: contact.firstName, last: contact.lastName, addressNames: [], phoneNumber: "")
         }
     }
-    
+
     public static func ==(lhs: ContactListPeer, rhs: ContactListPeer) -> Bool {
         switch lhs {
         case let .peer(lhsPeer, lhsIsGlobal, lhsParticipantCount):
-            if case let .peer(rhsPeer, rhsIsGlobal, rhsParticipantCount) = rhs, lhsPeer.isEqual(rhsPeer), lhsIsGlobal == rhsIsGlobal, lhsParticipantCount == rhsParticipantCount {
+            if case let .peer(rhsPeer, rhsIsGlobal, rhsParticipantCount) = rhs, lhsPeer == rhsPeer, lhsIsGlobal == rhsIsGlobal, lhsParticipantCount == rhsParticipantCount {
                 return true
             } else {
                 return false
@@ -90,7 +99,19 @@ public enum ContactListPeer: Equatable {
 }
 
 public final class ContactSelectionControllerParams {
+    public enum MultipleSelectionMode {
+        case disabled
+        case possible
+        case always
+    }
+    
+    public enum Style {
+        case glass
+        case legacy
+    }
+    
     public let context: AccountContext
+    public let style: Style
     public let updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?
     public let mode: ContactSelectionControllerMode
     public let autoDismiss: Bool
@@ -98,14 +119,34 @@ public final class ContactSelectionControllerParams {
     public let options: Signal<[ContactListAdditionalOption], NoError>
     public let displayDeviceContacts: Bool
     public let displayCallIcons: Bool
-    public let multipleSelection: Bool
+    public let multipleSelection: MultipleSelectionMode
     public let requirePhoneNumbers: Bool
+    public let allowChannelsInSearch: Bool
     public let confirmation: (ContactListPeer) -> Signal<Bool, NoError>
+    public let isPeerEnabled: (ContactListPeer) -> Bool
     public let openProfile: ((EnginePeer) -> Void)?
     public let sendMessage: ((EnginePeer) -> Void)?
     
-    public init(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, mode: ContactSelectionControllerMode = .generic, autoDismiss: Bool = true, title: @escaping (PresentationStrings) -> String, options: Signal<[ContactListAdditionalOption], NoError> = .single([]), displayDeviceContacts: Bool = false, displayCallIcons: Bool = false, multipleSelection: Bool = false, requirePhoneNumbers: Bool = false, confirmation: @escaping (ContactListPeer) -> Signal<Bool, NoError> = { _ in .single(true) }, openProfile: ((EnginePeer) -> Void)? = nil, sendMessage: ((EnginePeer) -> Void)? = nil) {
+    public init(
+        context: AccountContext,
+        style: Style = .legacy,
+        updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil,
+        mode: ContactSelectionControllerMode = .generic,
+        autoDismiss: Bool = true,
+        title: @escaping (PresentationStrings) -> String,
+        options: Signal<[ContactListAdditionalOption], NoError> = .single([]),
+        displayDeviceContacts: Bool = false,
+        displayCallIcons: Bool = false,
+        multipleSelection: MultipleSelectionMode = .disabled,
+        requirePhoneNumbers: Bool = false,
+        allowChannelsInSearch: Bool = false,
+        confirmation: @escaping (ContactListPeer) -> Signal<Bool, NoError> = { _ in .single(true) },
+        isPeerEnabled: @escaping (ContactListPeer) -> Bool = { _ in true },
+        openProfile: ((EnginePeer) -> Void)? = nil,
+        sendMessage: ((EnginePeer) -> Void)? = nil
+    ) {
         self.context = context
+        self.style = style
         self.updatedPresentationData = updatedPresentationData
         self.mode = mode
         self.autoDismiss = autoDismiss
@@ -115,7 +156,9 @@ public final class ContactSelectionControllerParams {
         self.displayCallIcons = displayCallIcons
         self.multipleSelection = multipleSelection
         self.requirePhoneNumbers = requirePhoneNumbers
+        self.allowChannelsInSearch = allowChannelsInSearch
         self.confirmation = confirmation
+        self.isPeerEnabled = isPeerEnabled
         self.openProfile = openProfile
         self.sendMessage = sendMessage
     }

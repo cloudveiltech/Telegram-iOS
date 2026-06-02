@@ -183,9 +183,11 @@ extension MessageReaction.Reaction {
         switch apiReaction {
         case .reactionEmpty:
             return nil
-        case let .reactionEmoji(emoticon):
+        case let .reactionEmoji(reactionEmojiData):
+            let emoticon = reactionEmojiData.emoticon
             self = .builtin(emoticon)
-        case let .reactionCustomEmoji(documentId):
+        case let .reactionCustomEmoji(reactionCustomEmojiData):
+            let documentId = reactionCustomEmojiData.documentId
             self = .custom(documentId)
         case .reactionPaid:
             self = .stars
@@ -195,9 +197,9 @@ extension MessageReaction.Reaction {
     var apiReaction: Api.Reaction {
         switch self {
         case let .builtin(value):
-            return .reactionEmoji(emoticon: value)
+            return .reactionEmoji(.init(emoticon: value))
         case let .custom(fileId):
-            return .reactionCustomEmoji(documentId: fileId)
+            return .reactionCustomEmoji(.init(documentId: fileId))
         case .stars:
             return .reactionPaid
         }
@@ -565,7 +567,7 @@ public final class PendingReactionsMessageAttribute: MessageAttribute {
 public final class PendingStarsReactionsMessageAttribute: MessageAttribute {
     public let accountPeerId: PeerId?
     public let count: Int32
-    public let isAnonymous: Bool
+    public let privacy: TelegramPaidReactionPrivacy
     
     public var associatedPeerIds: [PeerId] {
         var peerIds: [PeerId] = []
@@ -575,16 +577,21 @@ public final class PendingStarsReactionsMessageAttribute: MessageAttribute {
         return peerIds
     }
     
-    public init(accountPeerId: PeerId?, count: Int32, isAnonymous: Bool) {
+    public init(accountPeerId: PeerId?, count: Int32, privacy: TelegramPaidReactionPrivacy) {
         self.accountPeerId = accountPeerId
         self.count = count
-        self.isAnonymous = isAnonymous
+        self.privacy = privacy
     }
     
     required public init(decoder: PostboxDecoder) {
         self.accountPeerId = decoder.decodeOptionalInt64ForKey("ap").flatMap(PeerId.init)
         self.count = decoder.decodeInt32ForKey("cnt", orElse: 1)
-        self.isAnonymous = decoder.decodeBoolForKey("anon", orElse: false)
+        
+        if let privacy = decoder.decode(TelegramPaidReactionPrivacy.self, forKey: "priv") {
+            self.privacy = privacy
+        } else {
+            self.privacy = decoder.decodeBoolForKey("anon", orElse: false) ? .anonymous : .default
+        }
     }
     
     public func encode(_ encoder: PostboxEncoder) {
@@ -594,6 +601,6 @@ public final class PendingStarsReactionsMessageAttribute: MessageAttribute {
             encoder.encodeNil(forKey: "ap")
         }
         encoder.encodeInt32(self.count, forKey: "cnt")
-        encoder.encodeBool(self.isAnonymous, forKey: "anon")
+        encoder.encode(self.privacy, forKey: "priv")
     }
 }

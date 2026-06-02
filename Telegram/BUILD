@@ -8,17 +8,17 @@ load("@build_bazel_rules_apple//apple:ios.bzl",
     "ios_application",
     "ios_extension",
     "ios_framework",
-    "ios_unit_test",
     "ios_ui_test",
+    "ios_ui_test_suite",
+)
+
+load(
+    "@build_bazel_rules_apple//apple/testing/default_runner:ios_test_runner.bzl",
+    "ios_test_runner",
 )
 
 load("@build_bazel_rules_apple//apple:resources.bzl",
     "swift_intent_library",
-)
-
-load("@build_bazel_rules_apple//apple:watchos.bzl",
-    "watchos_application",
-    "watchos_extension",
 )
 
 load("@build_bazel_rules_swift//swift:swift.bzl",
@@ -27,8 +27,8 @@ load("@build_bazel_rules_swift//swift:swift.bzl",
 
 load(
     "@rules_xcodeproj//xcodeproj:defs.bzl",
-    "top_level_target",
     "top_level_targets",
+    "top_level_target",
     "xcodeproj",
     "xcode_provisioning_profile",
 )
@@ -48,11 +48,14 @@ load(
     "telegram_team_id",
     "telegram_enable_icloud",
     "telegram_enable_siri",
-    "telegram_enable_watch",
 )
 
 load("@build_bazel_rules_apple//apple:resources.bzl",
     "swift_intent_library",
+)
+
+load("//build-system/bazel-utils:spm.bzl",
+    "generate_spm",
 )
 
 config_setting(
@@ -140,8 +143,7 @@ genrule(
     ],
 )
 
-minimum_os_version = "12.0"
-minimum_watchos_version="9.0"
+minimum_os_version = "13.0"
 
 notificationServiceExtensionVersion = "v1"
 
@@ -256,13 +258,6 @@ filegroup(
 )
 
 filegroup(
-    name = "WatchAppStringResources",
-    srcs = glob([
-        "Telegram-iOS/*.lproj/Localizable.strings",
-    ], exclude = ["Telegram-iOS/*.lproj/**/.*"]),
-)
-
-filegroup(
     name = "AppIntentVocabularyResources",
     srcs = glob([
         "Telegram-iOS/*.lproj/AppIntentVocabulary.plist",
@@ -298,23 +293,9 @@ filegroup(
 )
 
 filegroup(
-    name = "BlackAppIcon",
-    srcs = glob([
-        "Telegram-iOS/BlackIcon.xcassets/**/*",
-    ], exclude = ["Telegram-iOS/BlackIcon.xcassets/**/.*"]),
-)
-
-filegroup(
     name = "DefaultIcon",
     srcs = glob([
         "Telegram-iOS/AppIcons.xcassets/BlueIcon.appiconset/*.png",
-    ]),
-)
-
-filegroup(
-    name = "AdditionalIcons",
-    srcs = glob([
-        "Telegram-iOS/*.png",
     ]),
 )
 
@@ -333,6 +314,8 @@ alternate_icon_folders = [
     "PremiumTurbo",
 ]
 
+composer_icon_folders = ["Telegram"]
+
 [
     filegroup(
         name = "{}".format(name),
@@ -340,6 +323,15 @@ alternate_icon_folders = [
             "Telegram-iOS/{}.alticon/*.png".format(name),
         ]),
     ) for name in alternate_icon_folders
+]
+
+[
+    filegroup(
+        name = "{}_icon".format(name),
+        srcs = glob([
+            "Telegram-iOS/{}.icon/**/*".format(name),
+        ]),
+    ) for name in composer_icon_folders
 ]
 
 filegroup(
@@ -351,6 +343,7 @@ filegroup(
 
 objc_library(
     name = "Main",
+    module_name = "Main",
     srcs = [
         "Telegram-iOS/main.m"
     ],
@@ -358,6 +351,7 @@ objc_library(
 
 swift_library(
     name = "Lib",
+    module_name = "Lib",
     srcs = glob([
         "Telegram-iOS/Application.swift",
     ]),
@@ -394,7 +388,8 @@ plist_fragment(
     """
     <key>CFBundleVersion</key>
     <string>{buildNumber}</string>
-    """
+    """,
+    defaults = {"buildNumber": "1"},
 )
 
 plist_fragment(
@@ -496,7 +491,7 @@ icloud_fragment = "" if not telegram_enable_icloud else """
     <string>iCloud.{telegram_bundle_id}</string>
 </array>
 <key>com.apple.developer.ubiquity-kvstore-identifier</key>
-<string>{telegram_team_id}.*</string>
+<string>{telegram_team_id}.{telegram_bundle_id}</string>
 <key>com.apple.developer.icloud-container-environment</key>
 <string>{telegram_icloud_environment}</string>
 """.format(
@@ -511,6 +506,8 @@ associated_domains_fragment = "" if telegram_bundle_id not in official_bundle_id
     <string>applinks:telegram.me</string>
     <string>applinks:t.me</string>
     <string>applinks:*.t.me</string>
+    <string>webcredentials:t.me</string>
+    <string>webcredentials:telegram.org</string>
 </array>
 """
 
@@ -542,6 +539,12 @@ official_communication_notifications_fragment = """
 """
 communication_notifications_fragment = official_communication_notifications_fragment if telegram_bundle_id in official_bundle_ids else ""
 
+official_notification_filtering_fragment = """
+<key>com.apple.developer.usernotifications.filtering</key>
+<true/>
+"""
+notification_filtering_fragment = official_notification_filtering_fragment if telegram_bundle_id == "ph.telegra.Telegraph" else ""
+
 store_signin_fragment = """
 <key>com.apple.developer.applesignin</key>
 <array>
@@ -549,6 +552,12 @@ store_signin_fragment = """
 </array>
 """
 signin_fragment = store_signin_fragment if telegram_bundle_id in store_bundle_ids else ""
+
+official_background_gpu_fragment = """
+<key>com.apple.developer.background-tasks.continued-processing.gpu</key>
+<true/>
+"""
+background_gpu_fragment = official_background_gpu_fragment if telegram_bundle_id == "ph.telegra.Telegraph" else ""
 
 plist_fragment(
     name = "TelegramEntitlements",
@@ -563,74 +572,29 @@ plist_fragment(
         unrestricted_voip_fragment,
         carplay_fragment,
         communication_notifications_fragment,
+        notification_filtering_fragment,
         signin_fragment,
+        background_gpu_fragment,
     ])
 )
 
-filegroup(
-    name = "TelegramWatchExtensionResources",
-    srcs = glob([
-        "Watch/Extension/Resources/**/*",
-    ], exclude = ["Watch/Extension/Resources/**/.*"]),
-)
-
-filegroup(
-    name = "TelegramWatchAppResources",
-    srcs = glob([
-        "Watch/Extension/Resources/**/*.png",
-    ], exclude = ["Watch/Extension/Resources/**/.*"]),
-)
-
-filegroup(
-    name = "TelegramWatchAppAssets",
-    srcs = glob([
-        "Watch/App/Assets.xcassets/**/*",
-    ], exclude = ["Watch/App/Assets.xcassets/**/.*"]),
-)
-
-filegroup(
-    name = "TelegramWatchAppInterface",
-    srcs = glob([
-        "Watch/App/Base.lproj/Interface.storyboard",
-    ]),
-)
-
-objc_library(
-    name = "TelegramWatchLib",
-    srcs = glob([
-        "Watch/Extension/**/*.m",
-        "Watch/SSignalKit/**/*.m",
-        "Watch/Bridge/**/*.m",
-        "Watch/WatchCommonWatch/**/*.m",
-        "Watch/Extension/**/*.h",
-        "Watch/SSignalKit/**/*.h",
-        "Watch/Bridge/**/*.h",
-        "Watch/WatchCommonWatch/**/*.h",
-    ]),
-    copts = [
-        "-DTARGET_OS_WATCH=1",
-        "-ITelegram/Watch",
-        "-ITelegram/Watch/Extension",
-        "-ITelegram/Watch/Bridge",
-    ],
-    sdk_frameworks = [
-        "WatchKit",
-        "WatchConnectivity",
-        "ClockKit",
-        "UserNotifications",
-        "CoreLocation",
-        "CoreGraphics",
-    ],
-)
-
-plist_fragment(
+genrule(
     name = "VersionInfoPlist",
-    extension = "plist",
-    template =
-    """
+    srcs = ["//:versions.json"],
+    outs = ["VersionInfoPlist.plist"],
+    cmd = """
+        version=$$(python3 -c "import json; print(json.load(open('$(location //:versions.json)'))['app'])")
+        cat > $@ <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
     <key>CFBundleShortVersionString</key>
-    <string>{telegramVersion}</string>
-    """
+    <string>$$version</string>
+</dict>
+</plist>
+PLIST
+    """,
 )
 
 plist_fragment(
@@ -653,162 +617,6 @@ plist_fragment(
     <key>CFBundleDisplayName</key>
     <string>CloudVeil Messenger</string>
     """
-)
-
-plist_fragment(
-    name = "WatchExtensionNSExtensionInfoPlist",
-    extension = "plist",
-    template =
-    """
-    <key>NSExtension</key>
-    <dict>
-        <key>NSExtensionAttributes</key>
-        <dict>
-            <key>WKAppBundleIdentifier</key>
-            <string>{telegram_bundle_id}.watchkitapp</string>
-        </dict>
-        <key>NSExtensionPointIdentifier</key>
-        <string>com.apple.watchkit</string>
-    </dict>
-    """.format(
-        telegram_bundle_id = telegram_bundle_id,
-    )
-)
-
-plist_fragment(
-    name = "WatchAppCompanionInfoPlist",
-    extension = "plist",
-    template =
-    """
-    <key>WKCompanionAppBundleIdentifier</key>
-    <string>{telegram_bundle_id}</string>
-    """.format(
-        telegram_bundle_id = telegram_bundle_id,
-    )
-)
-
-plist_fragment(
-    name = "WatchExtensionInfoPlist",
-    extension = "plist",
-    template =
-    """
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>{telegram_bundle_id}.watchkitapp.watchkitextension</string>
-    <key>CFBundleName</key>
-    <string>CloudVeil Messenger</string>
-    <key>CFBundlePackageType</key>
-    <string>XPC!</string>
-    <key>WKExtensionDelegateClassName</key>
-    <string>TGExtensionDelegate</string>
-    """.format(
-        telegram_bundle_id = telegram_bundle_id,
-    )
-)
-
-plist_fragment(
-    name = "WatchAppInfoPlist",
-    extension = "plist",
-    template =
-    """
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleIdentifier</key>
-    <string>{telegram_bundle_id}.watchkitapp</string>
-    <key>CFBundleName</key>
-    <string>CloudVeil Messenger</string>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationPortraitUpsideDown</string>
-    </array>
-    <key>WKWatchKitApp</key>
-    <true/>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    """.format(
-        telegram_bundle_id = telegram_bundle_id,
-    )
-)
-
-watchos_extension(
-    name = "TelegramWatchExtension",
-    bundle_id = "{telegram_bundle_id}.watchkitapp.watchkitextension".format(
-        telegram_bundle_id = telegram_bundle_id,
-    ),
-    bundle_name = "TelegramWatchExtension",
-    infoplists = [
-        ":WatchExtensionInfoPlist",
-        ":VersionInfoPlist",
-        ":BuildNumberInfoPlist",
-        ":AppNameInfoPlist",
-        ":WatchExtensionNSExtensionInfoPlist",
-    ],
-    minimum_os_version = minimum_watchos_version,
-    provisioning_profile = select({
-        ":disableProvisioningProfilesSetting": None,
-        "//conditions:default": "@build_configuration//provisioning:WatchExtension.mobileprovision",
-    }),
-    resources = [
-        ":TelegramWatchExtensionResources",
-    ],
-    strings = [
-        ":WatchAppStringResources",
-    ],
-    deps = [
-        ":TelegramWatchLib",
-    ],
-)
-
-
-genrule(
-    name = "StripWatchosStubBinary",
-    cmd_bash =
-"""
-    echo 'lipo -remove armv7k -remove arm64 -remove arm64e $$1/TelegramWatch.app/_WatchKitStub/WK -output $$1/TelegramWatch.app/_WatchKitStub/WK' > $(location StripWatchosStubBinary.sh)
-    echo '' >> $(location StripWatchosStubBinary.sh)
-""",
-    outs = [
-        "StripWatchosStubBinary.sh",
-    ],
-    executable = True,
-    visibility = [
-        "//visibility:public",
-    ]
-)
-
-watchos_application(
-    name = "TelegramWatchApp",
-    bundle_id = "{telegram_bundle_id}.watchkitapp".format(
-        telegram_bundle_id = telegram_bundle_id,
-    ),
-    bundle_name = "TelegramWatch",
-    extension = ":TelegramWatchExtension",
-    infoplists = [
-        ":WatchAppInfoPlist",
-        ":VersionInfoPlist",
-        ":BuildNumberInfoPlist",
-        ":AppNameInfoPlist",
-        ":WatchAppCompanionInfoPlist",
-    ],
-    minimum_os_version = minimum_watchos_version,
-    provisioning_profile = select({
-        ":disableProvisioningProfilesSetting": None,
-        "//conditions:default": "@build_configuration//provisioning:WatchApp.mobileprovision",
-    }),
-    #ipa_post_processor = ":StripWatchosStubBinary", # CloudVeil changed?
-    resources = [
-        ":TelegramWatchAppResources",
-        ":TelegramWatchAppAssets",
-    ],
-    storyboards = [
-        ":TelegramWatchAppInterface",
-    ],
-    strings = [
-    ],
 )
 
 plist_fragment(
@@ -953,29 +761,6 @@ plist_fragment(
     """.format(
         telegram_bundle_id = telegram_bundle_id,
     )
-)
-
-ios_framework(
-    name = "TelegramApiFramework",
-    bundle_id = "{telegram_bundle_id}.TelegramApi".format(
-        telegram_bundle_id = telegram_bundle_id,
-    ),
-    families = [
-        "iphone",
-        "ipad",
-    ],
-    infoplists = [
-        ":TelegramApiInfoPlist",
-        ":BuildNumberInfoPlist",
-        ":VersionInfoPlist",
-        ":RequiredDeviceCapabilitiesPlist",
-    ],
-    minimum_os_version = minimum_os_version,
-    extension_safe = True,
-    ipa_post_processor = strip_framework,
-    deps = [
-        "//submodules/TelegramApi:TelegramApi",
-    ],
 )
 
 plist_fragment(
@@ -1815,6 +1600,7 @@ plist_fragment(
         <string>ucbrowser</string>
         <string>dolphin</string>
         <string>instagram-stories</string>
+        <string>yangomaps</string>
     </array>
     <key>LSRequiresIPhoneOS</key>
     <true/>
@@ -1826,21 +1612,17 @@ plist_fragment(
     <key>NSCameraUsageDescription</key>
     <string>We need this so that you can take and share photos and videos.</string>
     <key>NSContactsUsageDescription</key>
-    <string>Telegram stores your contacts heavily encrypted in the cloud to let you connect with your friends across all your devices.</string>
+    <string>CloudVeil Messenger stores your contacts heavily encrypted in the cloud to let you connect with your friends across all your devices.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>You can use Face ID to unlock the app.</string>
     <key>NSLocationAlwaysUsageDescription</key>
-    <string>When you send your location to your friends, Telegram needs access to show them a map. You also need this to send locations from an Apple Watch.</string>
+    <string>When you send your location to your friends, CloudVeil Messenger needs access to show them a map. You also need this to send locations from an Apple Watch.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>When you send your location to your friends, Telegram needs access to show them a map.</string>
-    <!-- CloudVeil start -->
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>When you send your location to your friends, Telegram needs access to show them a map. You also need this to send locations from an Apple Watch.</string>
-    <!-- CloudVeil end -->
+    <string>When you send your location to your friends, CloudVeil Messenger needs access to show them a map.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>We need this so that you can record and share voice messages and videos with sound.</string>
     <key>NSMotionUsageDescription</key>
-    <string>When you send your location to your friends, Telegram needs access to show them a map.</string>
+    <string>When you send your location to your friends, CloudVeil Messenger needs access to show them a map.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>We need this so that you can share photos and videos from your photo library.</string>
     <key>NSPhotoLibraryUsageDescription</key>
@@ -1856,7 +1638,6 @@ plist_fragment(
     </array>
     <key>UIAppFonts</key>
     <array>
-        <string>SFCompactRounded-Semibold.otf</string>
         <string>AremacFS-Regular.otf</string>
         <string>AremacFS-Semibold.otf</string>
     </array>
@@ -1896,7 +1677,7 @@ plist_fragment(
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
     <key>UIViewControllerBasedStatusBarAppearance</key>
-    <false/>
+    <true/>
     <key>UIViewEdgeAntialiasing</key>
     <false/>
     <key>UIViewGroupOpacity</key>
@@ -1934,24 +1715,6 @@ plist_fragment(
     )
 )
 
-# CloudVeil start?
-genrule(
-    name = "StripWatchosStubBinary1",
-    cmd_bash =
-"""
-    echo 'lipo -remove arm64e -remove arm64 -remove armv7k $$1/WatchKitSupport2/WK -output $$1/WatchKitSupport2/WK' >> $(location StripWatchosStubBinary1.sh)
-    echo '' >> $(location StripWatchosStubBinary1.sh)
-""",
-    outs = [
-        "StripWatchosStubBinary1.sh",
-    ],
-    executable = True,
-    visibility = [
-        "//visibility:public",
-    ]
-)
-# CloudVeil end?
-
 local_provisioning_profile(
     name = "Telegram_local_profile",
     profile_name = "iOS Team Provisioning Profile: {}".format(telegram_bundle_id),
@@ -1983,14 +1746,13 @@ ios_application(
         ":RequiredDeviceCapabilitiesPlist",
         ":UrlTypesInfoPlist",
     ],
+    app_icons = [ ":{}_icon".format(name) for name in composer_icon_folders ],
     alternate_icons = [
         ":{}".format(name) for name in alternate_icon_folders
     ],
-    #ipa_post_processor = ":StripWatchosStubBinary1", # CloudVeil changed?
     resources = [
         ":LaunchScreen",
-        ":DefaultAppIcon",
-        #":AdditionalIcons",
+        #":DefaultAppIcon",
     ],
     frameworks = [
         ":MtProtoKitFramework",
@@ -2013,10 +1775,6 @@ ios_application(
             ":BroadcastUploadExtension",
         ],
     }),
-    watch_application = select({
-        ":disableExtensionsSetting": None,
-        "//conditions:default": None#":TelegramWatchApp",
-    }) if telegram_enable_watch else None,
     deps = [
         ":Main",
         ":Lib",
@@ -2026,16 +1784,13 @@ ios_application(
 
 xcodeproj(
     name = "Telegram_xcodeproj",
-    build_mode = "bazel",
     bazel_path = telegram_bazel_path,
     project_name = "Telegram",
     tags = ["manual"],
-    top_level_targets = top_level_targets(
-        labels = [
-            ":Telegram",
-        ],
-        target_environments = ["device", "simulator"],
-    ),
+    top_level_targets = [
+        top_level_target(":Telegram", target_environments = ["device", "simulator"]),
+        ":iOSAppUITestSuite",
+    ],
     xcode_configurations = {
         "Debug": {
             "//command_line_option:compilation_mode": "dbg",
@@ -2047,7 +1802,83 @@ xcodeproj(
     default_xcode_configuration = "Debug"
 )
 
-# Temporary targets used to simplify webrtc build tests
+filegroup(
+    name = "TestSources",
+    srcs = glob(["Tests/Sources/**/*.swift"]),
+)
+
+ios_test_runner(
+    name = "iPhone-17__26.2",
+    device_type = "iPhone 17",
+    os_version = "26.2",
+)
+
+
+swift_library(
+    name = "iOSAppUITestSuite.library",
+    testonly = True,
+    srcs = [":TestSources"],
+    module_name = "iOSAppUITestSuite",
+    tags = ["manual"],
+)
+
+ios_ui_test_suite(
+    name = "iOSAppUITestSuite",
+    bundle_id = "org.telegram.Telegram-iOS-uitests",
+    minimum_os_version = minimum_os_version,
+    runners = [
+        ":iPhone-17__26.2",
+    ],
+    tags = ["manual"],
+    test_host = "//Telegram",
+    visibility = ["@rules_xcodeproj//xcodeproj:generated"],
+    deps = [":iOSAppUITestSuite.library"],
+)
+
+# Temporary targets used to simplify build tests
+
+ios_application(
+    name = "spm_build_app",
+    bundle_id = "{telegram_bundle_id}".format(
+        telegram_bundle_id = telegram_bundle_id,
+    ),
+    families = ["iphone", "ipad"],
+    minimum_os_version = minimum_os_version,
+    provisioning_profile = select({
+        ":disableProvisioningProfilesSetting": None,
+        "//conditions:default": "@build_configuration//provisioning:Telegram.mobileprovision",
+    }),
+    entitlements = ":TelegramEntitlements.entitlements",
+    infoplists = [
+        ":TelegramInfoPlist",
+        ":BuildNumberInfoPlist",
+        ":VersionInfoPlist",
+        ":RequiredDeviceCapabilitiesPlist",
+        ":UrlTypesInfoPlist",
+    ],
+    deps = [
+        #"//submodules/Display",
+        #"//submodules/TelegramCore",
+        #"//submodules/FFMpegBinding",
+        #"//third-party/webrtc",
+        #"//third-party/webrtc:webrtc_objc",
+        #"//submodules/AsyncDisplayKit",
+        #"//submodules/ObjCRuntimeUtils",
+        #"//submodules/OpusBinding",
+        #"//third-party/boringssl:ssl",
+        #"//third-party/boringssl:crypto",
+        #"//submodules/TelegramVoip",
+        #"//third-party/recaptcha:RecaptchaEnterprise",
+        "//submodules/TelegramUI",
+    ],
+)
+
+generate_spm(
+    name = "spm_build_root",
+    deps = [
+        ":spm_build_app",
+    ]
+)
 
 ios_application(
     name = "webrtc_build_test",
@@ -2069,7 +1900,8 @@ ios_application(
         ":UrlTypesInfoPlist",
     ],
     deps = [
-        "//third-party/webrtc:webrtc_lib",
+        "//third-party/webrtc",
+        "//third-party/webrtc:webrtc_objc",
     ],
 )
 
@@ -2095,54 +1927,4 @@ ios_application(
     deps = [
         "//third-party/libvpx:vpx",
     ],
-)
-
-swift_library(
-    name = "TelegramCoreBuildTestLib",
-    module_name = "TelegramCoreBuildTestLib",
-    srcs = glob([
-        "Tests/TelegramCoreBuildTest/**/*.swift",
-    ]),
-    copts = [
-        "-warnings-as-errors",
-    ],
-    data = [
-        ":WidgetAssets",
-    ],
-    deps = [
-        "//submodules/BuildConfig:BuildConfig",
-        "//submodules/WidgetItems:WidgetItems_iOS14",
-        "//submodules/WidgetItemsUtils:WidgetItemsUtils",
-        "//submodules/AppLockState:AppLockState",
-        "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
-        "//submodules/Postbox:Postbox",
-        "//submodules/TelegramCore:TelegramCore",
-        "//submodules/OpenSSLEncryptionProvider:OpenSSLEncryptionProvider",
-        "//Telegram:GeneratedSources",
-    ],
-)
-
-ios_application(
-    name = "TelegramCoreBuildTest",
-    bundle_id = "{telegram_bundle_id}".format(
-        telegram_bundle_id = telegram_bundle_id,
-    ),
-    families = ["iphone", "ipad"],
-    minimum_os_version = minimum_os_version,
-    provisioning_profile = select({
-        ":disableProvisioningProfilesSetting": None,
-        "//conditions:default": "@build_configuration//provisioning:Telegram.mobileprovision",
-    }),
-    entitlements = ":TelegramEntitlements.entitlements",
-    infoplists = [
-        ":TelegramInfoPlist",
-        ":BuildNumberInfoPlist",
-        ":VersionInfoPlist",
-        ":RequiredDeviceCapabilitiesPlist",
-        ":UrlTypesInfoPlist",
-    ],
-    frameworks = [
-        ":TelegramCoreFramework",
-    ],
-    deps = [":TelegramCoreBuildTestLib"],
 )

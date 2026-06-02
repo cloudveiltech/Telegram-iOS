@@ -226,7 +226,7 @@ class WebSearchControllerNode: ASDisplayNode {
         self.gridNode = GridNode()
         self.gridNode.backgroundColor = theme.list.plainBackgroundColor
         
-        self.recentQueriesNode = ListView()
+        self.recentQueriesNode = ListViewImpl()
         self.recentQueriesNode.backgroundColor = theme.list.plainBackgroundColor
         self.recentQueriesNode.accessibilityPageScrolledString = { row, count in
             return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
@@ -289,7 +289,7 @@ class WebSearchControllerNode: ASDisplayNode {
                         entries.append(WebSearchRecentQueryEntry(index: i, query: queries[i]))
                     }
                     
-                    let header = ChatListSearchItemHeader(type: .recentPeers, theme: interfaceState.presentationData.theme, strings: interfaceState.presentationData.strings, actionTitle: interfaceState.presentationData.strings.WebSearch_RecentSectionClear, action: {
+                    let header = ChatListSearchItemHeader(type: .recentPeers, theme: interfaceState.presentationData.theme, strings: interfaceState.presentationData.strings, actionTitle: interfaceState.presentationData.strings.WebSearch_RecentSectionClear, action: { _ in
                         let _ = clearRecentWebSearchQueries(engine: strongSelf.context.engine).start()
                     })
                     
@@ -792,7 +792,7 @@ class WebSearchControllerNode: ASDisplayNode {
             }
         } else {
             if let mode = self.controller?.mode, case let .editor(completion) = mode {
-                if let item = legacyWebSearchItem(account: self.context.account, result: currentResult) {
+                if let item = legacyWebSearchItem(engine: self.context.engine, result: currentResult) {
                     let _ = (item.originalImage
                     |> deliverOnMainQueue).start(next: { image in
                         if !image.degraded() {

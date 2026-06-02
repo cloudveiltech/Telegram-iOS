@@ -9,9 +9,9 @@ import TelegramPresentationData
 import MergeLists
 import OverlayStatusController
 import AccountContext
-import StickerPackPreviewUI
 import PresentationDataUtils
 import UndoUI
+import StickerResources
 
 public final class TrendingPaneInteraction {
     public let installPack: (ItemCollectionInfo) -> Void
@@ -30,7 +30,7 @@ public final class TrendingPaneInteraction {
 
 public final class TrendingPanePackEntry: Identifiable, Comparable {
     public let index: Int
-    public let info: StickerPackCollectionInfo
+    public let info: StickerPackCollectionInfo.Accessor
     public let theme: PresentationTheme
     public let strings: PresentationStrings
     public let topItems: [StickerPackItem]
@@ -38,7 +38,7 @@ public final class TrendingPanePackEntry: Identifiable, Comparable {
     public let unread: Bool
     public let topSeparator: Bool
     
-    public init(index: Int, info: StickerPackCollectionInfo, theme: PresentationTheme, strings: PresentationStrings, topItems: [StickerPackItem], installed: Bool, unread: Bool, topSeparator: Bool) {
+    public init(index: Int, info: StickerPackCollectionInfo.Accessor, theme: PresentationTheme, strings: PresentationStrings, topItems: [StickerPackItem], installed: Bool, unread: Bool, topSeparator: Bool) {
         self.index = index
         self.info = info
         self.theme = theme
@@ -88,9 +88,9 @@ public final class TrendingPanePackEntry: Identifiable, Comparable {
     public func item(context: AccountContext, interaction: TrendingPaneInteraction, grid: Bool) -> GridItem {
         let info = self.info
         return StickerPaneSearchGlobalItem(context: context, theme: self.theme, strings: self.strings, listAppearance: false, info: self.info, topItems: self.topItems, topSeparator: self.topSeparator, regularInsets: false, installed: self.installed, unread: self.unread, open: {
-            interaction.openPack(info)
+            interaction.openPack(info._parse())
         }, install: {
-            interaction.installPack(info)
+            interaction.installPack(info._parse())
         }, getItemIsPreviewed: { item in
             return interaction.getItemIsPreviewed(item)
         }, itemContext: interaction.itemContext)
@@ -192,12 +192,12 @@ private func trendingPaneEntries(trendingEntries: [FeaturedStickerPackItem], ins
 
 public final class ChatMediaInputTrendingPane: ChatMediaInputPane {
     public final class Interaction {
-        let sendSticker: (FileMediaReference, Bool, Bool, String?, Bool, UIView, CGRect, CALayer?, [ItemCollectionId]) -> Bool
+        let sendSticker: (FileMediaReference, Bool, Bool, String?, Bool, UIView?, CGRect?, CALayer?, [ItemCollectionId]) -> Bool
         let presentController: (ViewController, Any?) -> Void
         let getNavigationController: () -> NavigationController?
         
         public init(
-            sendSticker: @escaping (FileMediaReference, Bool, Bool, String?, Bool, UIView, CGRect, CALayer?, [ItemCollectionId]) -> Bool,
+            sendSticker: @escaping (FileMediaReference, Bool, Bool, String?, Bool, UIView?, CGRect?, CALayer?, [ItemCollectionId]) -> Bool,
             presentController: @escaping (ViewController, Any?) -> Void,
             getNavigationController: @escaping () -> NavigationController?
         ) {
@@ -272,16 +272,17 @@ public final class ChatMediaInputTrendingPane: ChatMediaInputPane {
                         if installed {
                             return .complete()
                         } else {
+                            let parsedInfo = info._parse()
                             return preloadedStickerPackThumbnail(account: context.account, info: info, items: items)
                             |> filter { $0 }
                             |> ignoreValues
                             |> then(
-                                context.engine.stickers.addStickerPackInteractively(info: info, items: items)
+                                context.engine.stickers.addStickerPackInteractively(info: parsedInfo, items: items)
                                 |> ignoreValues
                             )
                             |> mapToSignal { _ -> Signal<(StickerPackCollectionInfo, [StickerPackItem]), NoError> in
                             }
-                            |> then(.single((info, items)))
+                            |> then(.single((parsedInfo, items)))
                         }
                     case .fetching:
                         break
@@ -355,13 +356,26 @@ public final class ChatMediaInputTrendingPane: ChatMediaInputPane {
                     let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }.withUpdated(theme: forceTheme)
                     updatedPresentationData = (presentationData, .single(presentationData))
                 }
-                let controller = StickerPackScreen(context: strongSelf.context, updatedPresentationData: updatedPresentationData, mainStickerPack: packReference, stickerPacks: [packReference], actionTitle: strongSelf.stickerActionTitle, parentNavigationController: strongSelf.interaction.getNavigationController(), sendSticker: { fileReference, sourceNode, sourceRect in
-                    if let strongSelf = self {
-                        return strongSelf.interaction.sendSticker(fileReference, false, false, nil, false, sourceNode, sourceRect, nil, [])
-                    } else {
-                        return false
-                    }
-                })
+                
+                let controller = strongSelf.context.sharedContext.makeStickerPackScreen(
+                    context: strongSelf.context,
+                    updatedPresentationData: updatedPresentationData,
+                    mainStickerPack: packReference,
+                    stickerPacks: [packReference],
+                    loadedStickerPacks: [],
+                    actionTitle: strongSelf.stickerActionTitle,
+                    isEditing: false,
+                    expandIfNeeded: false,
+                    parentNavigationController: strongSelf.interaction.getNavigationController(),
+                    sendSticker: { fileReference, sourceNode, sourceRect in
+                        if let strongSelf = self {
+                            return strongSelf.interaction.sendSticker(fileReference, false, false, nil, false, sourceNode, sourceRect, nil, [])
+                        } else {
+                            return false
+                        }
+                    },
+                    actionPerformed: nil
+                )
                 strongSelf.interaction.presentController(controller, nil)
             }
         }, getItemIsPreviewed: self.getItemIsPreviewed,

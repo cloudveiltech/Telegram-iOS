@@ -1,20 +1,23 @@
-#import "TGMediaPickerGalleryModel.h"
+#import <LegacyComponents/LegacyComponents.h>
+#import <LegacyComponents/TGMediaPickerGalleryModel.h>
 
-#import "TGMediaPickerGallerySelectedItemsModel.h"
+#import <LegacyComponents/TGMediaPickerGallerySelectedItemsModel.h>
 
 #import "LegacyComponentsInternal.h"
 
 #import <LegacyComponents/TGModernGalleryController.h>
 #import <LegacyComponents/TGModernGalleryItem.h>
-#import "TGModernGallerySelectableItem.h"
-#import "TGModernGalleryEditableItem.h"
-#import "TGModernGalleryEditableItemView.h"
-#import "TGMediaPickerGalleryItem.h"
+#import <LegacyComponents/TGModernGallerySelectableItem.h>
+#import <LegacyComponents/TGModernGalleryEditableItem.h>
+#import <LegacyComponents/TGModernGalleryEditableItemView.h>
+#import <LegacyComponents/TGMediaPickerGalleryItem.h>
 #import <LegacyComponents/TGModernGalleryZoomableItemView.h>
-#import "TGMediaPickerGalleryVideoItem.h"
-#import "TGMediaPickerGalleryVideoItemView.h"
+#import <LegacyComponents/TGMediaPickerGalleryPhotoItem.h>
+#import <LegacyComponents/TGMediaPickerGalleryVideoItem.h>
+#import "TGMediaPickerGalleryPhotoItemView.h"
+#import <LegacyComponents/TGMediaPickerGalleryVideoItemView.h>
 
-#import "TGModernMediaListItem.h"
+#import <LegacyComponents/TGModernMediaListItem.h>
 #import "TGModernMediaListSelectableItem.h"
 
 #import <LegacyComponents/PGPhotoEditorValues.h>
@@ -40,6 +43,7 @@
     NSString *_recipientName;
     bool _hasCamera;
     bool _isScheduledMessages;
+    bool _hasCoverButton;
 }
 
 @property (nonatomic, weak) TGPhotoEditorController *editorController;
@@ -48,7 +52,7 @@
 
 @implementation TGMediaPickerGalleryModel
 
-- (instancetype)initWithContext:(id<LegacyComponentsContext>)context items:(NSArray *)items focusItem:(id<TGModernGalleryItem>)focusItem selectionContext:(TGMediaSelectionContext *)selectionContext editingContext:(TGMediaEditingContext *)editingContext hasCaptions:(bool)hasCaptions allowCaptionEntities:(bool)allowCaptionEntities hasTimer:(bool)hasTimer onlyCrop:(bool)onlyCrop inhibitDocumentCaptions:(bool)inhibitDocumentCaptions hasSelectionPanel:(bool)hasSelectionPanel hasCamera:(bool)hasCamera recipientName:(NSString *)recipientName isScheduledMessages:(bool)isScheduledMessages
+- (instancetype)initWithContext:(id<LegacyComponentsContext>)context items:(NSArray *)items focusItem:(id<TGModernGalleryItem>)focusItem selectionContext:(TGMediaSelectionContext *)selectionContext editingContext:(TGMediaEditingContext *)editingContext hasCaptions:(bool)hasCaptions allowCaptionEntities:(bool)allowCaptionEntities hasTimer:(bool)hasTimer onlyCrop:(bool)onlyCrop inhibitDocumentCaptions:(bool)inhibitDocumentCaptions hasSelectionPanel:(bool)hasSelectionPanel hasCamera:(bool)hasCamera recipientName:(NSString *)recipientName isScheduledMessages:(bool)isScheduledMessages hasCoverButton:(bool)hasCoverButton
 {
     self = [super init];
     if (self != nil)
@@ -70,6 +74,7 @@
         _recipientName = recipientName;
         _hasCamera = hasCamera;
         _isScheduledMessages = isScheduledMessages;
+        _hasCoverButton = hasCoverButton;
         
         __weak TGMediaPickerGalleryModel *weakSelf = self;
         if (selectionContext != nil)
@@ -179,7 +184,7 @@
     if (_interfaceView == nil)
     {
         __weak TGMediaPickerGalleryModel *weakSelf = self;
-        _interfaceView = [[TGMediaPickerGalleryInterfaceView alloc] initWithContext:_context focusItem:_initialFocusItem selectionContext:_selectionContext editingContext:_editingContext stickersContext:_stickersContext hasSelectionPanel:_hasSelectionPanel hasCameraButton:_hasCamera recipientName:_recipientName isScheduledMessages:_isScheduledMessages];
+        _interfaceView = [[TGMediaPickerGalleryInterfaceView alloc] initWithContext:_context focusItem:_initialFocusItem selectionContext:_selectionContext editingContext:_editingContext stickersContext:_stickersContext hasSelectionPanel:_hasSelectionPanel hasCameraButton:_hasCamera recipientName:_recipientName isScheduledMessages:_isScheduledMessages hasCoverButton:_hasCoverButton];
         _interfaceView.hasCaptions = _hasCaptions;
         _interfaceView.allowCaptionEntities = _allowCaptionEntities;
         _interfaceView.hasTimer = _hasTimer;
@@ -193,8 +198,15 @@
                  return;
              
              __strong TGModernGalleryController *controller = strongSelf.controller;
-             if ([controller.currentItem conformsToProtocol:@protocol(TGModernGalleryEditableItem)])
-                 [strongSelf presentPhotoEditorForItem:(id<TGModernGalleryEditableItem>)controller.currentItem tab:tab];
+             if ([controller.currentItem conformsToProtocol:@protocol(TGModernGalleryEditableItem)]) {
+                 bool isPhoto = [controller.currentItem isKindOfClass:[TGMediaPickerGalleryPhotoItem class]] || ([controller.currentItem isKindOfClass:[TGMediaPickerGalleryFetchResultItem class]] && [((TGMediaPickerGalleryFetchResultItem *)controller.currentItem).backingItem isKindOfClass:[TGMediaPickerGalleryPhotoItem class]]);
+                 if (tab == TGPhotoEditorQualityTab && isPhoto) {
+                     [strongSelf->_editingContext setHighQualityPhoto:!strongSelf->_editingContext.isHighQualityPhoto];
+                     [strongSelf->_interfaceView showPhotoQualityTooltip:strongSelf->_editingContext.isHighQualityPhoto];
+                 } else {
+                     [strongSelf presentPhotoEditorForItem:(id<TGModernGalleryEditableItem>)controller.currentItem tab:tab];
+                 }
+             }
         }];
         _interfaceView.photoStripItemSelected = ^(NSInteger index)
         {
@@ -336,6 +348,14 @@
             }
         }
     }
+}
+
+- (void)beginEditingCaption {
+    [_interfaceView beginEditingCaption];
+}
+
+- (void)setupGifEditing {
+    [_interfaceView setupGifEditing];
 }
 
 - (void)presentPhotoEditorForItem:(id<TGModernGalleryEditableItem>)item tab:(TGPhotoEditorTab)tab
@@ -554,9 +574,11 @@
         
         [strongSelf updateHiddenItem];
         
-        UIView *referenceView = [strongSelf referenceViewForItem:item frame:NULL];
-        if ([referenceView isKindOfClass:[TGMediaPickerGalleryVideoItemView class]])
-            [(TGMediaPickerGalleryVideoItemView *)referenceView returnFromEditing];
+        TGModernGalleryItemView *galleryItemView = [strongSelf.controller itemViewForItem:item];
+        if ([galleryItemView isKindOfClass:[TGMediaPickerGalleryVideoItemView class]])
+            [(TGMediaPickerGalleryVideoItemView *)galleryItemView returnFromEditing];
+        else if ([galleryItemView isKindOfClass:[TGMediaPickerGalleryPhotoItemView class]])
+            [(TGMediaPickerGalleryPhotoItemView *)galleryItemView returnFromEditing];
         
         if (iosMajorVersion() >= 7)
             [strongSelf.controller setNeedsStatusBarAppearanceUpdate];

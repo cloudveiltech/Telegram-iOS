@@ -1,6 +1,6 @@
 #import <LegacyComponents/TGModernGalleryZoomableItemView.h>
-#import "TGModernGalleryEditableItemView.h"
-#import "TGModernGalleryImageItemImageView.h"
+#import <LegacyComponents/TGModernGalleryEditableItemView.h>
+#import <LegacyComponents/TGModernGalleryImageItemImageView.h>
 
 @interface TGMediaPickerGalleryPhotoItemView : TGModernGalleryZoomableItemView <TGModernGalleryEditableItemView>
 
@@ -8,6 +8,8 @@
 
 @property (nonatomic, strong) TGModernGalleryImageItemImageView *imageView;
 
+- (void)setLivePhotoMode:(TGMediaLivePhotoMode)mode;
+- (void)returnFromEditing;
 - (void)toggleSendAsGif;
 
 @end

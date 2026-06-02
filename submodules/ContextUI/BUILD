@@ -30,8 +30,10 @@ swift_library(
         "//submodules/TelegramUI/Components/TabSelectorComponent",
         "//submodules/TelegramUI/Components/LottieComponent",
         "//submodules/TelegramUI/Components/PlainButtonComponent",
+        "//submodules/Components/MultilineTextComponent",
         "//submodules/UIKitRuntimeUtils",
         "//submodules/TelegramUI/Components/EmojiStatusComponent",
+        "//submodules/TelegramUI/Components/GlassBackgroundComponent",
     ],
     visibility = [
         "//visibility:public",

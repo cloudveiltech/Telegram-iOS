@@ -2794,7 +2794,7 @@ ASDISPLAYNODE_INLINE BOOL subtreeIsRasterized(ASDisplayNode *node) {
   ASDisplayNodeAssertMainThread();
   ASDisplayNodeAssert(!_flags.isEnteringHierarchy, @"You should never call -didEnterHierarchy directly. Appearance is automatically managed by ASDisplayNode");
   ASDisplayNodeAssert(!_flags.isExitingHierarchy, @"ASDisplayNode inconsistency. __enterHierarchy and __exitHierarchy are mutually exclusive");
-  ASDisplayNodeAssert(_flags.isInHierarchy, @"ASDisplayNode inconsistency. __enterHierarchy and __exitHierarchy are mutually exclusive");
+  //ASDisplayNodeAssert(_flags.isInHierarchy, @"ASDisplayNode inconsistency. __enterHierarchy and __exitHierarchy are mutually exclusive");
   ASAssertUnlocked(__instanceLock__);
 }
 
@@ -3450,7 +3450,7 @@ ASDISPLAYNODE_INLINE BOOL subtreeIsRasterized(ASDisplayNode *node) {
 - (ASDisplayNodePerformanceMeasurements)performanceMeasurements
 {
   MutexLocker l(__instanceLock__);
-  ASDisplayNodePerformanceMeasurements measurements = { .layoutSpecNumberOfPasses = -1, .layoutSpecTotalTime = NAN, .layoutComputationNumberOfPasses = -1, .layoutComputationTotalTime = NAN };
+  ASDisplayNodePerformanceMeasurements measurements = { .layoutSpecTotalTime = NAN, .layoutSpecNumberOfPasses = -1, .layoutComputationTotalTime = NAN, .layoutComputationNumberOfPasses = -1 };
   if (_measurementOptions & ASDisplayNodePerformanceMeasurementOptionLayoutSpec) {
     measurements.layoutSpecNumberOfPasses = _layoutSpecNumberOfPasses;
     measurements.layoutSpecTotalTime = _layoutSpecTotalTime;

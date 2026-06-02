@@ -26,6 +26,7 @@ public final class ReplyAccessoryPanelNode: AccessoryPanelNode {
     public let chatPeerId: EnginePeer.Id
     public let messageId: MessageId
     public let quote: EngineMessageReplyQuote?
+    public let innerSubject: EngineMessageReplyInnerSubject?
     
     private var previousMediaReference: AnyMediaReference?
     
@@ -46,10 +47,11 @@ public final class ReplyAccessoryPanelNode: AccessoryPanelNode {
     
     private var validLayout: (size: CGSize, inset: CGFloat, interfaceState: ChatPresentationInterfaceState)?
     
-    public init(context: AccountContext, chatPeerId: EnginePeer.Id, messageId: MessageId, quote: EngineMessageReplyQuote?, theme: PresentationTheme, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, dateTimeFormat: PresentationDateTimeFormat, animationCache: AnimationCache?, animationRenderer: MultiAnimationRenderer?) {
+    public init(context: AccountContext, chatPeerId: EnginePeer.Id, messageId: MessageId, quote: EngineMessageReplyQuote?, innerSubject: EngineMessageReplyInnerSubject?, theme: PresentationTheme, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, dateTimeFormat: PresentationDateTimeFormat, animationCache: AnimationCache?, animationRenderer: MultiAnimationRenderer?) {
         self.chatPeerId = chatPeerId
         self.messageId = messageId
         self.quote = quote
+        self.innerSubject = innerSubject
         
         self.context = context
         self.theme = theme
@@ -116,7 +118,7 @@ public final class ReplyAccessoryPanelNode: AccessoryPanelNode {
             if let strongSelf = self {
                 if messageView.message == nil {
                     Queue.mainQueue().justDispatch {
-                        strongSelf.interfaceInteraction?.setupReplyMessage(nil, { _, _ in })
+                        strongSelf.interfaceInteraction?.setupReplyMessage(nil, nil, { _, _ in })
                     }
                     return
                 }
@@ -267,7 +269,13 @@ public final class ReplyAccessoryPanelNode: AccessoryPanelNode {
                         }
                     }
                 } else {
-                    if let _ = strongSelf.quote {
+                    if case .todoItem = strongSelf.innerSubject {
+                        let string = strongSelf.strings.Chat_ReplyPanel_ReplyToTodoItem
+                        titleText = [.text(NSAttributedString(string: string, font: Font.medium(15.0), textColor: strongSelf.theme.chat.inputPanel.panelControlAccentColor))]
+                    } else if case .pollOption = strongSelf.innerSubject {
+                        let string = strongSelf.strings.Chat_ReplyPanel_ReplyToPollOption
+                        titleText = [.text(NSAttributedString(string: string, font: Font.medium(15.0), textColor: strongSelf.theme.chat.inputPanel.panelControlAccentColor))]
+                    } else if let _ = strongSelf.quote {
                         let string = strongSelf.strings.Chat_ReplyPanel_ReplyToQuoteBy(authorName).string
                         titleText = [.text(NSAttributedString(string: string, font: Font.medium(15.0), textColor: strongSelf.theme.chat.inputPanel.panelControlAccentColor))]
                     } else {
@@ -298,6 +306,14 @@ public final class ReplyAccessoryPanelNode: AccessoryPanelNode {
                     let quoteText = stringWithAppliedEntities(trimToLineCount(quote.text, lineCount: 1), entities: quote.entities, baseColor: textColor, linkColor: textColor, baseFont: textFont, linkFont: textFont, boldFont: textFont, italicFont: textFont, boldItalicFont: textFont, fixedFont: textFont, blockQuoteFont: textFont, underlineLinks: false, message: message)
                     
                     strongSelf.textNode.attributedText = quoteText
+                } else if case let .todoItem(todoItemId) = strongSelf.innerSubject, let todo = message?.media.first(where: { $0 is TelegramMediaTodo }) as? TelegramMediaTodo, let todoItem = todo.items.first(where: { $0.id == todoItemId }) {
+                    let textColor = strongSelf.theme.chat.inputPanel.primaryTextColor
+                    let itemText = stringWithAppliedEntities(trimToLineCount(todoItem.text, lineCount: 1), entities: todoItem.entities, baseColor: textColor, linkColor: textColor, baseFont: textFont, linkFont: textFont, boldFont: textFont, italicFont: textFont, boldItalicFont: textFont, fixedFont: textFont, blockQuoteFont: textFont, underlineLinks: false, message: message)
+                    strongSelf.textNode.attributedText = itemText
+                } else if case let .pollOption(pollOptionId) = strongSelf.innerSubject, let poll = message?.media.first(where: { $0 is TelegramMediaPoll }) as? TelegramMediaPoll, let pollOption = poll.options.first(where: { $0.opaqueIdentifier == pollOptionId }) {
+                    let textColor = strongSelf.theme.chat.inputPanel.primaryTextColor
+                    let itemText = stringWithAppliedEntities(trimToLineCount(pollOption.text, lineCount: 1), entities: pollOption.entities, baseColor: textColor, linkColor: textColor, baseFont: textFont, linkFont: textFont, boldFont: textFont, italicFont: textFont, boldItalicFont: textFont, fixedFont: textFont, blockQuoteFont: textFont, underlineLinks: false, message: message)
+                    strongSelf.textNode.attributedText = itemText
                 }
                 
                 strongSelf.titleNode.components = titleText
@@ -483,7 +499,7 @@ public final class ReplyAccessoryPanelNode: AccessoryPanelNode {
                 return
             }
             self.previousTapTimestamp = CFAbsoluteTimeGetCurrent()
-            self.interfaceInteraction?.presentReplyOptions(self)
+            self.interfaceInteraction?.presentReplyOptions(self.view)
             Queue.mainQueue().after(1.5) {
                 self.updateThemeAndStrings(theme: self.theme, strings: self.strings, force: true)
             }

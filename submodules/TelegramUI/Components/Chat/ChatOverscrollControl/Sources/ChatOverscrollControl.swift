@@ -3,7 +3,6 @@ import ComponentFlow
 import Display
 import AsyncDisplayKit
 import TelegramCore
-import Postbox
 import AccountContext
 import AvatarNode
 import TextFormat
@@ -11,6 +10,7 @@ import Markdown
 import WallpaperBackgroundNode
 import EmojiStatusComponent
 import TelegramPresentationData
+import TextNodeWithEntities
 
 final class BlurredRoundedRectangle: Component {
     let color: UIColor
@@ -525,7 +525,7 @@ final class AvatarComponent: Component {
                 
                 let avatarIconContent: EmojiStatusComponent.Content
                 if threadData.id == 1 {
-                    avatarIconContent = .image(image: PresentationResourcesChatList.generalTopicIcon(theme))
+                    avatarIconContent = .image(image: PresentationResourcesChatList.generalTopicIcon(theme), tintColor: nil)
                 } else if let fileId = threadData.data.info.icon, fileId != 0 {
                     avatarIconContent = .animation(content: .customEmoji(fileId: fileId), size: CGSize(width: 48.0, height: 48.0), placeholderColor: theme.list.mediaPlaceholderColor, themeColor: theme.list.itemAccentColor, loopMode: .count(0))
                 } else {
@@ -980,10 +980,13 @@ final class OverscrollContentsComponent: Component {
             let titleSize = self.titleNode.updateLayout(CGSize(width: availableSize.width - 32.0, height: 100.0))
             let titleBackgroundSize = CGSize(width: titleSize.width + 18.0, height: titleSize.height + 8.0)
             let titleBackgroundFrame = CGRect(origin: CGPoint(x: floor((availableSize.width - titleBackgroundSize.width) / 2.0), y: fullHeight - titleBackgroundSize.height - 8.0), size: titleBackgroundSize)
-            self.titleBackgroundNode.frame = titleBackgroundFrame
+            self.titleBackgroundNode.position = titleBackgroundFrame.center
+            self.titleBackgroundNode.bounds = CGRect(origin: CGPoint(), size: titleBackgroundFrame.size)
             self.titleBackgroundNode.update(rect: titleBackgroundFrame.offsetBy(dx: component.absoluteRect.minX, dy: component.absoluteRect.minY), within: component.absoluteSize, color: component.backgroundColor, wallpaperNode: component.wallpaperNode, transition: .immediate)
             self.titleBackgroundNode.cornerRadius = min(titleBackgroundFrame.width, titleBackgroundFrame.height) / 2.0
-            self.titleNode.frame = titleSize.centered(in: titleBackgroundFrame)
+            let titleFrame = titleSize.centered(in: titleBackgroundFrame)
+            self.titleNode.position = titleFrame.center
+            self.titleNode.bounds = CGRect(origin: CGPoint(), size: titleFrame.size)
 
             let backgroundClippingFrame = CGRect(origin: CGPoint(x: floor(-backgroundWidth / 2.0), y: -fullHeight), size: CGSize(width: backgroundWidth, height: isFullyExpanded ? backgroundWidth : fullHeight))
             self.backgroundClippingNode.cornerRadius = isFolderMask ? 10.0 : backgroundWidth / 2.0
@@ -1002,7 +1005,7 @@ final class OverscrollContentsComponent: Component {
             let transformTransition: ContainedViewLayoutTransition
             if self.isFullyExpanded != isFullyExpanded {
                 self.isFullyExpanded = isFullyExpanded
-                transformTransition = .animated(duration: 0.12, curve: .easeInOut)
+                transformTransition = .animated(duration: 0.18, curve: .easeInOut)
 
                 if isFullyExpanded {
                     func animateBounce(layer: CALayer) {
@@ -1066,8 +1069,11 @@ final class OverscrollContentsComponent: Component {
 
             transformTransition.updateSublayerTransformOffset(layer: self.avatarOffsetContainer.layer, offset: CGPoint(x: 0.0, y: isFullyExpanded ? -(fullHeight - backgroundWidth) : 0.0))
             transformTransition.updateSublayerTransformOffset(layer: self.arrowOffsetContainer.layer, offset: CGPoint(x: 0.0, y: isFullyExpanded ? -(fullHeight - backgroundWidth) : 0.0))
+            
+            transformTransition.updateSublayerTransformOffset(layer: self.titleOffsetContainer.layer, offset: CGPoint(x: 0.0, y: isFullyExpanded ? 0.0 : 20.0))
 
-            transformTransition.updateSublayerTransformOffset(layer: self.titleOffsetContainer.layer, offset: CGPoint(x: 0.0, y: isFullyExpanded ? 0.0 : (titleBackgroundSize.height + 50.0)))
+            transformTransition.updateTransformScale(layer: self.titleBackgroundNode.layer, scale: isFullyExpanded ? 1.0 : 0.001)
+            transformTransition.updateTransformScale(layer: self.titleNode.layer, scale: isFullyExpanded ? 1.0 : 0.001)
 
             transformTransition.updateSublayerTransformScale(node: self.avatarExtraScalingContainer, scale: isFullyExpanded ? 1.0 : ((backgroundWidth - avatarInset * 2.0) / backgroundWidth))
 
@@ -1206,31 +1212,5 @@ public final class ChatOverscrollControl: CombinedComponent {
 
             return size
         }
-    }
-}
-
-public final class ChatInputPanelOverscrollNode: ASDisplayNode {
-    public let text: (String, [(Int, NSRange)])
-    public let priority: Int
-    private let titleNode: ImmediateTextNode
-
-    public init(text: (String, [(Int, NSRange)]), color: UIColor, priority: Int) {
-        self.text = text
-        self.priority = priority
-        self.titleNode = ImmediateTextNode()
-
-        super.init()
-
-        let body = MarkdownAttributeSet(font: Font.regular(14.0), textColor: color)
-        let bold = MarkdownAttributeSet(font: Font.bold(14.0), textColor: color)
-
-        self.titleNode.attributedText = addAttributesToStringWithRanges(text, body: body, argumentAttributes: [0: bold])
-
-        self.addSubnode(self.titleNode)
-    }
-
-    public func update(size: CGSize) {
-        let titleSize = self.titleNode.updateLayout(size)
-        self.titleNode.frame = titleSize.centered(in: CGRect(origin: CGPoint(), size: size))
     }
 }

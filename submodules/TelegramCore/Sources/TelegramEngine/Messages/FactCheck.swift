@@ -16,10 +16,10 @@ func _internal_editMessageFactCheck(account: Account, messageId: EngineMessage.I
         return account.network.request(Api.functions.messages.editFactCheck(
             peer: inputPeer,
             msgId: messageId.id,
-            text: .textWithEntities(
+            text: .textWithEntities(.init(
                 text: text,
                 entities: apiEntitiesFromMessageTextEntities(entities, associatedPeers: SimpleDictionary())
-            )
+            ))
         ))
         |> map(Optional.init)
         |> `catch` { _ -> Signal<Api.Updates?, NoError> in
@@ -96,11 +96,13 @@ func _internal_getMessagesFactCheckByPeerId(account: Account, peerId: EnginePeer
                 for result in results {
                     let messageId = messageIds[index]
                     switch result {
-                    case let .factCheck(_, country, text, hash):
+                    case let .factCheck(factCheckData):
+                        let (_, country, text, hash) = (factCheckData.flags, factCheckData.country, factCheckData.text, factCheckData.hash)
                         let content: FactCheckMessageAttribute.Content
                         if let text, let country {
                             switch text {
-                            case let .textWithEntities(text, entities):
+                            case let .textWithEntities(textWithEntitiesData):
+                                let (text, entities) = (textWithEntitiesData.text, textWithEntitiesData.entities)
                                 content = .Loaded(text: text, entities: messageTextEntitiesFromApiEntities(entities), country: country)
                             }
                         } else {
@@ -111,7 +113,7 @@ func _internal_getMessagesFactCheckByPeerId(account: Account, peerId: EnginePeer
                             let storeForwardInfo = currentMessage.forwardInfo.flatMap(StoreMessageForwardInfo.init)
                             var attributes = currentMessage.attributes.filter { !($0 is FactCheckMessageAttribute) }
                             attributes.append(attribute)
-                            return .update(StoreMessage(id: currentMessage.id, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: attributes, media: currentMessage.media))
+                            return .update(StoreMessage(id: currentMessage.id, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: attributes, media: currentMessage.media))
                         })
                     }
                     index += 1

@@ -1,8 +1,12 @@
 import Foundation
 import UIKit
+import AsyncDisplayKit
 import Display
 import TelegramPresentationData
 import ListSectionHeaderNode
+import EdgeEffect
+import ComponentFlow
+import ComponentDisplayAdapters
 
 public enum ChatListSearchItemHeaderType {
     case localPeers
@@ -203,17 +207,19 @@ private enum ChatListSearchItemHeaderId: Hashable {
 
 public final class ChatListSearchItemHeader: ListViewItemHeader {
     public let id: ListViewItemNode.HeaderId
+    public let stackingId: ListViewItemNode.HeaderId? = nil
     public let type: ChatListSearchItemHeaderType
     public let stickDirection: ListViewItemHeaderStickDirection = .top
     public let stickOverInsets: Bool = true
     public let theme: PresentationTheme
     public let strings: PresentationStrings
     public let actionTitle: String?
-    public let action: (() -> Void)?
+    public let action: ((ASDisplayNode) -> Void)?
     
     public let height: CGFloat = 28.0
+    public let isSticky: Bool = false
     
-    public init(type: ChatListSearchItemHeaderType, theme: PresentationTheme, strings: PresentationStrings, actionTitle: String? = nil, action: (() -> Void)? = nil) {
+    public init(type: ChatListSearchItemHeaderType, theme: PresentationTheme, strings: PresentationStrings, actionTitle: String? = nil, action: ((ASDisplayNode) -> Void)? = nil) {
         self.type = type
         self.id = ListViewItemNode.HeaderId(space: 0, id: Int64(self.type.id.hashValue))
         self.theme = theme
@@ -244,13 +250,14 @@ public final class ChatListSearchItemHeaderNode: ListViewItemHeaderNode {
     private var theme: PresentationTheme
     private var strings: PresentationStrings
     private var actionTitle: String?
-    private var action: (() -> Void)?
+    private var action: ((ASDisplayNode) -> Void)?
     
     private var validLayout: (size: CGSize, leftInset: CGFloat, rightInset: CGFloat)?
     
+    private var edgeEffectView: EdgeEffectView?
     private let sectionHeaderNode: ListSectionHeaderNode
     
-    public init(type: ChatListSearchItemHeaderType, theme: PresentationTheme, strings: PresentationStrings, actionTitle: String?, action: (() -> Void)?) {
+    public init(type: ChatListSearchItemHeaderType, theme: PresentationTheme, strings: PresentationStrings, actionTitle: String?, action: ((ASDisplayNode) -> Void)?) {
         self.type = type
         self.theme = theme
         self.strings = strings
@@ -260,6 +267,8 @@ public final class ChatListSearchItemHeaderNode: ListViewItemHeaderNode {
         self.sectionHeaderNode = ListSectionHeaderNode(theme: theme)
         
         super.init()
+        
+        //self.contributesToEdgeEffect = true
         
         self.sectionHeaderNode.title = type.title(strings: strings).uppercased()
         self.sectionHeaderNode.action = actionTitle
@@ -273,7 +282,7 @@ public final class ChatListSearchItemHeaderNode: ListViewItemHeaderNode {
         self.sectionHeaderNode.updateTheme(theme: theme)
     }
     
-    public func update(type: ChatListSearchItemHeaderType, actionTitle: String?, action: (() -> Void)?) {
+    public func update(type: ChatListSearchItemHeaderType, actionTitle: String?, action: ((ASDisplayNode) -> Void)?) {
         self.actionTitle = actionTitle
         self.action = action
         
@@ -286,7 +295,7 @@ public final class ChatListSearchItemHeaderNode: ListViewItemHeaderNode {
         }
     }
     
-    override public func updateLayout(size: CGSize, leftInset: CGFloat, rightInset: CGFloat) {
+    override public func updateLayout(size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) {
         self.validLayout = (size, leftInset, rightInset)
         self.sectionHeaderNode.frame = CGRect(origin: CGPoint(), size: size)
         self.sectionHeaderNode.updateLayout(size: size, leftInset: leftInset, rightInset: rightInset)

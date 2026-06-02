@@ -4,6 +4,7 @@ import SwiftSignalKit
 import UniversalMediaPlayer
 import Postbox
 import TelegramCore
+import UIKit
 import AsyncDisplayKit
 import AccountContext
 import TelegramAudio
@@ -447,6 +448,7 @@ private final class SharedHLSVideoJSContext: NSObject {
                     }
                     guard let instance = self.contextReferences[instanceId]?.contentNode else {
                         self.contextReferences.removeValue(forKey: instanceId)
+                        self.cleanupContextsIfEmpty()
                         return
                     }
                     guard let eventData = message["data"] as? [String: Any] else {
@@ -484,6 +486,10 @@ private final class SharedHLSVideoJSContext: NSObject {
             self.jsContext = nil
         }
         self.isJsContextReady = false
+        
+        self.videoElements.removeAll()
+        self.mediaSources.removeAll()
+        self.sourceBuffers.removeAll()
     }
     
     private func bridgeInvoke(
@@ -848,21 +854,32 @@ private final class SharedHLSVideoJSContext: NSObject {
                 
                 self.jsContext?.evaluateJavaScript("window.hlsPlayer_destroyInstance(\(contextInstanceId));")
                 
-                if self.contextReferences.isEmpty {
-                    if self.emptyTimer == nil {
-                        self.emptyTimer = Foundation.Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false, block: { [weak self] timer in
-                            guard let self else {
-                                return
-                            }
-                            if self.emptyTimer === timer {
-                                self.emptyTimer = nil
-                            }
-                            if self.contextReferences.isEmpty {
-                                self.disposeJsContext()
-                            }
-                        })
+                self.cleanupContextsIfEmpty()
+            }
+        }
+    }
+    
+    private func cleanupContextsIfEmpty() {
+        if self.contextReferences.isEmpty {
+            if self.emptyTimer == nil {
+                let disposeTimeout: Double
+                #if DEBUG
+                disposeTimeout = 0.5
+                #else
+                disposeTimeout = 10.0
+                #endif
+                
+                self.emptyTimer = Foundation.Timer.scheduledTimer(withTimeInterval: disposeTimeout, repeats: false, block: { [weak self] timer in
+                    guard let self else {
+                        return
                     }
-                }
+                    if self.emptyTimer === timer {
+                        self.emptyTimer = nil
+                    }
+                    if self.contextReferences.isEmpty {
+                        self.disposeJsContext()
+                    }
+                })
             }
         }
     }
@@ -894,6 +911,7 @@ private final class SharedHLSVideoJSContext: NSObject {
         for (instanceId, urlPrefix) in pendingInitializeInstanceIds {
             guard let _ = self.contextReferences[instanceId]?.contentNode else {
                 self.contextReferences.removeValue(forKey: instanceId)
+                self.cleanupContextsIfEmpty()
                 continue
             }
             userScriptJs.append("window.hlsPlayer_makeInstance(\(instanceId));\n")
@@ -1022,14 +1040,14 @@ final class HLSVideoJSNativeContentNode: ASDisplayNode, UniversalVideoContentNod
     private var didBecomeActiveObserver: NSObjectProtocol?
     private var willResignActiveObserver: NSObjectProtocol?
     
-    private let chunkPlayerPartsState = Promise<ChunkMediaPlayerPartsState>(ChunkMediaPlayerPartsState(duration: nil, parts: []))
+    private let chunkPlayerPartsState = Promise<ChunkMediaPlayerPartsState>(ChunkMediaPlayerPartsState(duration: nil, content: .parts([])))
     private var sourceBufferStateDisposable: Disposable?
     
     private var playerStatusDisposable: Disposable?
     
     private var contextDisposable: Disposable?
     
-    init(accountId: AccountRecordId, postbox: Postbox, audioSessionManager: ManagedAudioSession, userLocation: MediaResourceUserLocation, fileReference: FileMediaReference, streamVideo: Bool, loopVideo: Bool, enableSound: Bool, baseRate: Double, fetchAutomatically: Bool, onlyFullSizeThumbnail: Bool, useLargeThumbnail: Bool, autoFetchFullSizeThumbnail: Bool, codecConfiguration: HLSCodecConfiguration) {
+    init(context: AccountContext, postbox: Postbox, audioSessionManager: ManagedAudioSession, userLocation: MediaResourceUserLocation, fileReference: FileMediaReference, streamVideo: Bool, loopVideo: Bool, enableSound: Bool, baseRate: Double, fetchAutomatically: Bool, onlyFullSizeThumbnail: Bool, useLargeThumbnail: Bool, autoFetchFullSizeThumbnail: Bool, codecConfiguration: HLSCodecConfiguration) {
         self.instanceId = HLSVideoJSNativeContentNode.nextInstanceId
         HLSVideoJSNativeContentNode.nextInstanceId += 1
         
@@ -1059,7 +1077,7 @@ final class HLSVideoJSNativeContentNode: ASDisplayNode, UniversalVideoContentNod
         
         var playerSource: HLSJSServerSource?
         if let qualitySet = HLSQualitySet(baseFile: fileReference, codecConfiguration: codecConfiguration) {
-            let playerSourceValue = HLSJSServerSource(accountId: accountId.int64, fileId: fileReference.media.fileId.id, postbox: postbox, userLocation: userLocation, playlistFiles: qualitySet.playlistFiles, qualityFiles: qualitySet.qualityFiles)
+            let playerSourceValue = HLSJSServerSource(accountId: context.account.id.int64, fileId: fileReference.media.fileId.id, postbox: postbox, userLocation: userLocation, playlistFiles: qualitySet.playlistFiles, qualityFiles: qualitySet.qualityFiles)
             playerSource = playerSourceValue
         }
         self.playerSource = playerSource
@@ -1075,8 +1093,9 @@ final class HLSVideoJSNativeContentNode: ASDisplayNode, UniversalVideoContentNod
         
         var onSeeked: (() -> Void)?
         self.player = ChunkMediaPlayerV2(
+            params: ChunkMediaPlayerV2.MediaDataReaderParams(context: context),
             audioSessionManager: audioSessionManager,
-            partsState: self.chunkPlayerPartsState.get(),
+            source: .externalParts(self.chunkPlayerPartsState.get()),
             video: true,
             enableSound: self.enableSound,
             baseRate: baseRate,
@@ -1085,24 +1104,13 @@ final class HLSVideoJSNativeContentNode: ASDisplayNode, UniversalVideoContentNod
             },
             playerNode: self.playerNode
         )
-        /*self.player = ChunkMediaPlayerImpl(
-            postbox: postbox,
-            audioSessionManager: audioSessionManager,
-            partsState: self.chunkPlayerPartsState.get(),
-            video: true,
-            enableSound: self.enableSound,
-            baseRate: baseRate,
-            onSeeked: {
-                onSeeked?()
-            },
-            playerNode: self.playerNode
-        )*/
         
         super.init()
         
         self.contextDisposable = SharedHLSVideoJSContext.shared.register(context: self)
         
         self.playerNode.frame = CGRect(origin: CGPoint(), size: self.intrinsicDimensions)
+        
         var didProcessFramesToDisplay = false
         self.playerNode.isHidden = true
         self.playerNode.hasSentFramesToDisplay = { [weak self] in
@@ -1113,9 +1121,9 @@ final class HLSVideoJSNativeContentNode: ASDisplayNode, UniversalVideoContentNod
             self.playerNode.isHidden = false
         }
 
-        //let thumbnailVideoReference = HLSVideoContent.minimizedHLSQuality(file: fileReference)?.file ?? fileReference
+        let thumbnailVideoReference = HLSVideoContent.minimizedHLSQuality(file: fileReference, codecConfiguration: self.codecConfiguration)?.file ?? fileReference
         
-        self.imageNode.setSignal(internalMediaGridMessageVideo(postbox: postbox, userLocation: userLocation, videoReference: fileReference, previewSourceFileReference: nil, imageReference: nil, onlyFullSize: onlyFullSizeThumbnail, useLargeThumbnail: useLargeThumbnail, autoFetchFullSizeThumbnail: autoFetchFullSizeThumbnail || fileReference.media.isInstantVideo) |> map { [weak self] getSize, getData in
+        self.imageNode.setSignal(internalMediaGridMessageVideo(postbox: postbox, userLocation: userLocation, videoReference: thumbnailVideoReference, previewSourceFileReference: fileReference, imageReference: nil, onlyFullSize: onlyFullSizeThumbnail, useLargeThumbnail: useLargeThumbnail, autoFetchFullSizeThumbnail: autoFetchFullSizeThumbnail || fileReference.media.isInstantVideo) |> map { [weak self] getSize, getData in
             Queue.mainQueue().async {
                 if let strongSelf = self, strongSelf.dimensions == nil {
                     if let dimensions = getSize() {
@@ -1344,7 +1352,7 @@ final class HLSVideoJSNativeContentNode: ASDisplayNode, UniversalVideoContentNod
             return
         }
         
-        self.chunkPlayerPartsState.set(.single(ChunkMediaPlayerPartsState(duration: mediaSource.duration, parts: sourceBuffer.items)))
+        self.chunkPlayerPartsState.set(.single(ChunkMediaPlayerPartsState(duration: mediaSource.duration, content: .parts(sourceBuffer.items))))
     }
     
     fileprivate func onMediaSourceBuffersUpdated() {
@@ -1358,7 +1366,7 @@ final class HLSVideoJSNativeContentNode: ASDisplayNode, UniversalVideoContentNod
             return
         }
 
-        self.chunkPlayerPartsState.set(.single(ChunkMediaPlayerPartsState(duration: mediaSource.duration, parts: sourceBuffer.items)))
+        self.chunkPlayerPartsState.set(.single(ChunkMediaPlayerPartsState(duration: mediaSource.duration, content: .parts(sourceBuffer.items))))
         if self.sourceBufferStateDisposable == nil {
             self.sourceBufferStateDisposable = (sourceBuffer.updated.signal()
             |> deliverOnMainQueue).startStrict(next: { [weak self, weak sourceBuffer] _ in
@@ -1368,7 +1376,7 @@ final class HLSVideoJSNativeContentNode: ASDisplayNode, UniversalVideoContentNod
                 guard let mediaSource = SharedHLSVideoJSContext.shared.mediaSources[sourceBuffer.mediaSourceId] else {
                     return
                 }
-                self.chunkPlayerPartsState.set(.single(ChunkMediaPlayerPartsState(duration: mediaSource.duration, parts: sourceBuffer.items)))
+                self.chunkPlayerPartsState.set(.single(ChunkMediaPlayerPartsState(duration: mediaSource.duration, content: .parts(sourceBuffer.items))))
                 
                 self.updateBuffered()
             })
@@ -1843,8 +1851,9 @@ private final class SourceBuffer {
                         let item = ChunkMediaPlayerPart(
                             startTime: fragmentInfo.startTime.seconds,
                             endTime: fragmentInfo.startTime.seconds + fragmentInfo.duration.seconds,
-                            file: tempFile,
-                            codecName: videoCodecName
+                            content: ChunkMediaPlayerPart.TempFile(file: tempFile),
+                            codecName: videoCodecName,
+                            offsetTime: 0.0
                         )
                         self.items.append(item)
                         self.updateRanges()

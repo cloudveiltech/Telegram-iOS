@@ -17,7 +17,6 @@ import ContextUI
 import TelegramStringFormatting
 import ItemListPeerActionItem
 import ItemListPeerItem
-import ShareController
 import UndoUI
 import QrCodeUI
 import PromptUI
@@ -62,7 +61,7 @@ private enum InviteLinksListEntry: ItemListNodeEntry {
         case peer(EnginePeer.Id)
     }
     
-    case header(String)
+    case header(NSAttributedString)
    
     case mainLinkHeader(String)
     case mainLink(link: ExportedChatFolderLink?, isGenerating: Bool)
@@ -169,7 +168,7 @@ private enum InviteLinksListEntry: ItemListNodeEntry {
         case let .mainLinkHeader(text):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
         case let .mainLink(link, isGenerating):
-            return ItemListFolderInviteLinkItem(context: arguments.context, presentationData: presentationData, invite: link, count: 0, peers: [], displayButton: true, enableButton: !isGenerating, buttonTitle: presentationData.strings.FolderLinkScreen_LinkActionCopy, secondaryButtonTitle: link != nil ? presentationData.strings.FolderLinkScreen_LinkActionShare : nil, displayImporters: false, buttonColor: nil, sectionId: self.section, style: .blocks, copyAction: {
+            return ItemListFolderInviteLinkItem(context: arguments.context, presentationData: presentationData, systemStyle: .glass, invite: link, count: 0, peers: [], displayButton: true, enableButton: !isGenerating, buttonTitle: presentationData.strings.FolderLinkScreen_LinkActionCopy, secondaryButtonTitle: link != nil ? presentationData.strings.FolderLinkScreen_LinkActionShare : nil, displayImporters: false, buttonColor: nil, sectionId: self.section, style: .blocks, copyAction: {
                 if let link {
                     arguments.copyLink(link.link)
                 }
@@ -197,6 +196,7 @@ private enum InviteLinksListEntry: ItemListNodeEntry {
         case let .peer(_, peer, isSelected, disabledReasonText):
             return ItemListPeerItem(
                 presentationData: presentationData,
+                systemStyle: .glass,
                 dateTimeFormat: PresentationDateTimeFormat(),
                 nameDisplayOrder: presentationData.nameDisplayOrder,
                 context: arguments.context,
@@ -225,13 +225,13 @@ private enum InviteLinksListEntry: ItemListNodeEntry {
 private func folderInviteLinkListControllerEntries(
     presentationData: PresentationData,
     state: FolderInviteLinkListControllerState,
-    title: String,
+    title: ChatFolderTitle,
     allPeers: [EnginePeer]
 ) -> [InviteLinksListEntry] {
     var entries: [InviteLinksListEntry] = []
     
     var infoString: String?
-    let chatCountString: String
+    let chatCountString: NSAttributedString
     let peersHeaderString: String
     
     let canShareChats = !allPeers.allSatisfy({ !canShareLinkToPeer(peer: $0) })
@@ -241,16 +241,36 @@ private func folderInviteLinkListControllerEntries(
     
     if !canShareChats {
         infoString = presentationData.strings.FolderLinkScreen_TitleDescriptionUnavailable
-        chatCountString = presentationData.strings.FolderLinkScreen_ChatCountHeaderUnavailable
+        chatCountString = NSAttributedString(string: presentationData.strings.FolderLinkScreen_ChatCountHeaderUnavailable)
         peersHeaderString = presentationData.strings.FolderLinkScreen_ChatsSectionHeaderUnavailable
     } else if state.selectedPeerIds.isEmpty {
-        chatCountString = presentationData.strings.FolderLinkScreen_TitleDescriptionDeselected(title).string
+        let chatCountStringValue = NSMutableAttributedString(string: presentationData.strings.FolderLinkScreen_TitleDescriptionDeselectedV2)
+        let folderRange = (chatCountStringValue.string as NSString).range(of: "{folder}")
+        if folderRange.location != NSNotFound {
+            chatCountStringValue.replaceCharacters(in: folderRange, with: "")
+            chatCountStringValue.insert(title.rawAttributedString, at: folderRange.location)
+        }
+        
+        chatCountString = chatCountStringValue
         peersHeaderString = presentationData.strings.FolderLinkScreen_ChatsSectionHeader
         if allPeers.count > 1 {
             selectAllString = allSelected ? presentationData.strings.FolderLinkScreen_ChatsSectionHeaderActionDeselectAll : presentationData.strings.FolderLinkScreen_ChatsSectionHeaderActionSelectAll
         }
     } else {
-        chatCountString = presentationData.strings.FolderLinkScreen_TitleDescriptionSelected(title, presentationData.strings.FolderLinkScreen_TitleDescriptionSelectedCount(Int32(state.selectedPeerIds.count))).string
+        let chatCountStringValue = NSMutableAttributedString(string: presentationData.strings.FolderLinkScreen_TitleDescriptionSelectedV2)
+        let folderRange = (chatCountStringValue.string as NSString).range(of: "{folder}")
+        if folderRange.location != NSNotFound {
+            chatCountStringValue.replaceCharacters(in: folderRange, with: "")
+            chatCountStringValue.insert(title.rawAttributedString, at: folderRange.location)
+        }
+        let chatsRange = (chatCountStringValue.string as NSString).range(of: "{chats}")
+        if chatsRange.location != NSNotFound {
+            chatCountStringValue.replaceCharacters(in: chatsRange, with: "")
+            let countValue = presentationData.strings.FolderLinkScreen_TitleDescriptionSelectedCount(Int32(state.selectedPeerIds.count))
+            chatCountStringValue.insert(NSAttributedString(string: countValue), at: chatsRange.location)
+        }
+        
+        chatCountString = chatCountStringValue
         peersHeaderString = presentationData.strings.FolderLinkScreen_ChatsSectionHeaderSelected(Int32(state.selectedPeerIds.count))
         if allPeers.count > 1 {
             selectAllString = allSelected ? presentationData.strings.FolderLinkScreen_ChatsSectionHeaderActionDeselectAll : presentationData.strings.FolderLinkScreen_ChatsSectionHeaderActionSelectAll
@@ -304,7 +324,7 @@ private struct FolderInviteLinkListControllerState: Equatable {
     var isSaving: Bool = false
 }
 
-public func folderInviteLinkListController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, filterId: Int32, title filterTitle: String, allPeerIds: [EnginePeer.Id], currentInvitation: ExportedChatFolderLink?, linkUpdated: @escaping (ExportedChatFolderLink?) -> Void, presentController parentPresentController: ((ViewController) -> Void)?) -> ViewController {
+public func folderInviteLinkListController(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, filterId: Int32, title filterTitle: ChatFolderTitle, allPeerIds: [EnginePeer.Id], currentInvitation: ExportedChatFolderLink?, linkUpdated: @escaping (ExportedChatFolderLink?) -> Void, presentController parentPresentController: ((ViewController) -> Void)?) -> ViewController {
     var pushControllerImpl: ((ViewController) -> Void)?
     let _ = pushControllerImpl
     var presentControllerImpl: ((ViewController, ViewControllerPresentationArguments?) -> Void)?
@@ -354,8 +374,10 @@ public func folderInviteLinkListController(context: AccountContext, updatedPrese
     }
     
     let arguments = FolderInviteLinkListControllerArguments(context: context, shareMainLink: { inviteLink in
-        let shareController = ShareController(context: context, subject: .url(inviteLink), updatedPresentationData: updatedPresentationData)
-        shareController.completed = { peerIds in
+        let shareController = context.sharedContext.makeShareController(context: context, params: ShareControllerParams(subject: .url(inviteLink), updatedPresentationData: updatedPresentationData, actionCompleted: {
+            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+            presentControllerImpl?(UndoOverlayController(presentationData: presentationData, content: .linkCopied(title: nil, text: presentationData.strings.InviteLink_InviteLinkCopiedText), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), nil)
+        }, completed: { peerIds in
             let _ = (context.engine.data.get(
                 EngineDataList(
                     peerIds.map(TelegramEngine.EngineData.Item.Peer.Peer.init)
@@ -364,7 +386,7 @@ public func folderInviteLinkListController(context: AccountContext, updatedPrese
             |> deliverOnMainQueue).start(next: { peerList in
                 let peers = peerList.compactMap { $0 }
                 let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-                
+
                 let text: String
                 var savedMessages = false
                 if peerIds.count == 1, let peerId = peerIds.first, peerId == context.account.peerId {
@@ -385,7 +407,7 @@ public func folderInviteLinkListController(context: AccountContext, updatedPrese
                         text = ""
                     }
                 }
-                
+
                 presentControllerImpl?(UndoOverlayController(presentationData: presentationData, content: .forward(savedMessages: savedMessages, text: text), elevatedLayout: false, animateInAsReplacement: true, action: { action in
                     if savedMessages, action == .info {
                         let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId))
@@ -402,11 +424,7 @@ public func folderInviteLinkListController(context: AccountContext, updatedPrese
                     return false
                 }), nil)
             })
-        }
-        shareController.actionCompleted = {
-            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-            presentControllerImpl?(UndoOverlayController(presentationData: presentationData, content: .linkCopied(title: nil, text: presentationData.strings.InviteLink_InviteLinkCopiedText), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), nil)
-        }
+        }))
         presentControllerImpl?(shareController, nil)
     }, openMainLink: { _ in
     }, copyLink: { link in
@@ -430,7 +448,7 @@ public func folderInviteLinkListController(context: AccountContext, updatedPrese
             
             let state = stateValue.with({ $0 })
             
-            let promptController = promptController(sharedContext: context.sharedContext, updatedPresentationData: updatedPresentationData, text: presentationData.strings.FolderLinkScreen_NameLink_Title, titleFont: .bold, value: state.title ?? "", characterLimit: 32, apply: { value in
+            let promptController = promptController(context: context, updatedPresentationData: updatedPresentationData, text: presentationData.strings.FolderLinkScreen_NameLink_Title, titleFont: .bold, value: state.title ?? "", characterLimit: 32, apply: { value in
                 if let value {
                     updateState { state in
                         var state = state
@@ -480,7 +498,7 @@ public func folderInviteLinkListController(context: AccountContext, updatedPrese
             })
         })))
 
-        let contextController = ContextController(presentationData: presentationData, source: .reference(InviteLinkContextReferenceContentSource(controller: controller, sourceNode: node)), items: .single(ContextController.Items(content: .list(items))), gesture: gesture)
+        let contextController = makeContextController(presentationData: presentationData, source: .reference(InviteLinkContextReferenceContentSource(controller: controller, sourceNode: node)), items: .single(ContextController.Items(content: .list(items))), gesture: gesture)
         presentInGlobalOverlayImpl?(contextController)
     }, peerAction: { peer, isEnabled in
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
@@ -742,15 +760,21 @@ public func folderInviteLinkListController(context: AccountContext, updatedPrese
             
             if hasChanges {
                 let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-                presentControllerImpl?(standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData), title: presentationData.strings.FolderLinkScreen_SaveAlertTitle, text: presentationData.strings.FolderLinkScreen_SaveAlertText, actions: [
-                    TextAlertAction(type: .genericAction, title: presentationData.strings.FolderLinkScreen_SaveAlertActionDiscard, action: {
-                        f()
-                        dismissImpl?()
-                    }),
-                    TextAlertAction(type: .defaultAction, title: state.selectedPeerIds.isEmpty ? presentationData.strings.FolderLinkScreen_SaveAlertActionApply : presentationData.strings.FolderLinkScreen_SaveAlertActionContinue, action: {
-                        applyChangesImpl?()
-                    })
-                ]), nil)
+                let alertController = textAlertController(
+                    context: context,
+                    title: presentationData.strings.FolderLinkScreen_SaveAlertTitle,
+                    text: presentationData.strings.FolderLinkScreen_SaveAlertText,
+                    actions: [
+                        TextAlertAction(type: .genericAction, title: presentationData.strings.FolderLinkScreen_SaveAlertActionDiscard, action: {
+                            f()
+                            dismissImpl?()
+                        }),
+                        TextAlertAction(type: .defaultAction, title: state.selectedPeerIds.isEmpty ? presentationData.strings.FolderLinkScreen_SaveAlertActionApply : presentationData.strings.FolderLinkScreen_SaveAlertActionContinue, action: {
+                            applyChangesImpl?()
+                        })
+                    ]
+                )
+                presentControllerImpl?(alertController, nil)
                 return false
             } else {
                 f()

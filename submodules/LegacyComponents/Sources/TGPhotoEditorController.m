@@ -1,4 +1,5 @@
-#import "TGPhotoEditorController.h"
+#import <LegacyComponents/LegacyComponents.h>
+#import <LegacyComponents/TGPhotoEditorController.h>
 
 #import "LegacyComponentsInternal.h"
 
@@ -7,13 +8,13 @@
 #import <Photos/Photos.h>
 
 #import <LegacyComponents/TGPhotoEditorAnimation.h>
-#import "TGPhotoEditorInterfaceAssets.h"
+#import <LegacyComponents/TGPhotoEditorInterfaceAssets.h>
 #import <LegacyComponents/TGPhotoEditorUtils.h>
 #import <LegacyComponents/TGPaintUtils.h>
 
 #import <LegacyComponents/UIImage+TG.h>
 
-#import "TGProgressWindow.h"
+#import <LegacyComponents/TGProgressWindow.h>
 
 #import "PGPhotoEditor.h"
 #import "PGPhotoEditorView.h"
@@ -25,7 +26,7 @@
 #import <LegacyComponents/TGPaintingData.h>
 #import <LegacyComponents/TGMediaVideoConverter.h>
 
-#import "TGPhotoToolbarView.h"
+#import <LegacyComponents/TGPhotoToolbarView.h>
 #import "TGPhotoEditorPreviewView.h"
 
 #import <LegacyComponents/TGMenuView.h>
@@ -39,16 +40,16 @@
 #import "TGPhotoQualityController.h"
 #import "TGPhotoAvatarPreviewController.h"
 
-#import "TGPhotoAvatarCropView.h"
+#import <LegacyComponents/TGPhotoAvatarCropView.h>
 
-#import "TGMessageImageViewOverlayView.h"
+#import <LegacyComponents/TGMessageImageViewOverlayView.h>
 #import "TGMediaPickerGalleryVideoScrubber.h"
 #import "TGMediaPickerGalleryVideoScrubberThumbnailView.h"
 
-#import "TGMenuSheetController.h"
+#import <LegacyComponents/TGMenuSheetController.h>
 
 #import <LegacyComponents/AVURLAsset+TGMediaItem.h>
-#import "TGCameraCapturedVideo.h"
+#import <LegacyComponents/TGCameraCapturedVideo.h>
 
 @interface TGPhotoEditorController () <TGViewControllerNavigationBarAppearance, TGMediaPickerGalleryVideoScrubberDataSource, TGMediaPickerGalleryVideoScrubberDelegate, UIDocumentInteractionControllerDelegate>
 {
@@ -293,7 +294,7 @@
      
     TGPhotoEditorBackButton backButton = TGPhotoEditorBackButtonCancel;
     TGPhotoEditorDoneButton doneButton = TGPhotoEditorDoneButtonCheck;
-    _portraitToolbarView = [[TGPhotoToolbarView alloc] initWithContext:_context backButton:backButton doneButton:doneButton solidBackground:true];
+    _portraitToolbarView = [[TGPhotoToolbarView alloc] initWithContext:_context backButton:backButton doneButton:doneButton solidBackground:true stickersContext:nil];
     [_portraitToolbarView setToolbarTabs:_availableTabs animated:false];
     [_portraitToolbarView setActiveTab:_currentTab];
     _portraitToolbarView.cancelPressed = toolbarCancelPressed;
@@ -302,7 +303,7 @@
     _portraitToolbarView.tabPressed = toolbarTabPressed;
     [_wrapperView addSubview:_portraitToolbarView];
     
-    _landscapeToolbarView = [[TGPhotoToolbarView alloc] initWithContext:_context backButton:backButton doneButton:doneButton solidBackground:true];
+    _landscapeToolbarView = [[TGPhotoToolbarView alloc] initWithContext:_context backButton:backButton doneButton:doneButton solidBackground:true stickersContext:nil];
     [_landscapeToolbarView setToolbarTabs:_availableTabs animated:false];
     [_landscapeToolbarView setActiveTab:_currentTab];
     _landscapeToolbarView.cancelPressed = toolbarCancelPressed;
@@ -360,7 +361,7 @@
     [_dotImageView addGestureRecognizer:dotTapRecognizer];
     
     if ([self presentedForAvatarCreation] && _item.isVideo) {
-        _scrubberView = [[TGMediaPickerGalleryVideoScrubber alloc] initWithFrame:CGRectMake(0.0f, 0.0, _portraitToolbarView.frame.size.width, 68.0f)];
+        _scrubberView = [[TGMediaPickerGalleryVideoScrubber alloc] initWithFrame:CGRectMake(0.0f, 0.0, _portraitToolbarView.frame.size.width, 68.0f) cover: false];
         _scrubberView.minimumLength = 3.0;
         _scrubberView.layer.allowsGroupOpacity = true;
         _scrubberView.hasDotPicker = true;
@@ -368,9 +369,7 @@
         _scrubberView.delegate = self;
         _scrubberView.clipsToBounds = false;
     }
-    
-    [self detectFaces];
-    
+        
     [self presentTab:_currentTab];
 }
 
@@ -1507,9 +1506,9 @@
                 doneButtonType = TGPhotoEditorDoneButtonDone;
                 
                 if (sideButtonsHiddenInCrop) {
-                    [_portraitToolbarView setCancelDoneButtonsHidden:true animated:true];
-                    [_portraitToolbarView setCenterButtonsHidden:false animated:true];
-                    [_landscapeToolbarView setAllButtonsHidden:false animated:true];
+                    [_portraitToolbarView setCancelDoneButtonsHidden:true animated:false];
+                    [_portraitToolbarView setCenterButtonsHidden:false animated:false];
+                    [_landscapeToolbarView setAllButtonsHidden:false animated:false];
                 } else {
                     [_portraitToolbarView setAllButtonsHidden:false animated:false];
                     [_landscapeToolbarView setAllButtonsHidden:false animated:false];

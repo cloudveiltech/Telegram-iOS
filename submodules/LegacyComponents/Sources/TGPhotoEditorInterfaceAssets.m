@@ -1,10 +1,10 @@
-#import "TGPhotoEditorInterfaceAssets.h"
+#import <LegacyComponents/TGPhotoEditorInterfaceAssets.h>
 
 #import "LegacyComponentsInternal.h"
-#import "TGImageUtils.h"
-#import "TGFont.h"
+#import <LegacyComponents/TGImageUtils.h>
+#import <LegacyComponents/TGFont.h>
 
-#import "TGMediaAssetsController.h"
+#import <LegacyComponents/TGMediaAssetsController.h>
 
 @implementation TGPhotoEditorInterfaceAssets
 
@@ -123,11 +123,11 @@
     static UIImage *muteBackground;
     dispatch_once(&onceToken, ^
     {
-        CGRect rect = CGRectMake(0, 0, 39.0f, 39.0f);
+        CGRect rect = CGRectMake(0, 0, 40.0f, 40.0f);
         UIGraphicsBeginImageContextWithOptions(rect.size, false, 0);
         CGContextRef context = UIGraphicsGetCurrentContext();
-        CGContextSetFillColorWithColor(context, UIColorRGBA(0x000000, 0.3f).CGColor);
-        CGContextFillEllipseInRect(context, CGRectInset(rect, 3, 3));
+        CGContextSetFillColorWithColor(context, UIColorRGBA(0x000000, 0.5f).CGColor);
+        CGContextFillEllipseInRect(context, rect);
         
         muteBackground = UIGraphicsGetImageFromCurrentImageContext();
         UIGraphicsEndImageContext();
@@ -173,7 +173,7 @@
     {
         UIGraphicsBeginImageContextWithOptions(CGSizeMake(38.0f, 38.0f), false, 0.0f);
         CGContextRef context = UIGraphicsGetCurrentContext();
-        CGContextSetFillColorWithColor(context, UIColorRGBA(0x000000, 0.7f).CGColor);
+        CGContextSetFillColorWithColor(context, UIColorRGBA(0x000000, 0.5f).CGColor);
         
         CGContextFillEllipseInRect(context, CGRectMake(3.5f, 1.0f, 31.0f, 31.0f));
         
@@ -198,7 +198,7 @@
     {
         UIGraphicsBeginImageContextWithOptions(CGSizeMake(38.0f, 38.0f), false, 0.0f);
         CGContextRef context = UIGraphicsGetCurrentContext();
-        CGContextSetFillColorWithColor(context, UIColorRGBA(0x000000, 0.7f).CGColor);
+        CGContextSetFillColorWithColor(context, UIColorRGBA(0x000000, 0.5f).CGColor);
         
         CGContextFillEllipseInRect(context, CGRectMake(3.5f, 1.0f, 31.0f, 31.0f));
         
@@ -213,6 +213,48 @@
         UIGraphicsEndImageContext();
     });
     return backgroundImage;
+}
+
++ (UIImage *)qualityIconForHighQuality:(bool)highQuality filled:(bool)filled
+{
+    CGFloat lineWidth = 2.0f - TGScreenPixel;
+    
+    CGSize size = CGSizeMake(26.0f, 22.0f);
+    CGRect rect = CGRectInset(CGRectMake(0.0f, 0.0f, size.width, size.height), lineWidth / 2.0, lineWidth / 2.0);
+    UIGraphicsBeginImageContextWithOptions(size, false, 0.0f);
+    
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    
+    UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:rect cornerRadius:5.0f];
+    
+    NSString *label = highQuality ? @"HD" : @"SD";
+  
+    CGContextAddPath(context, path.CGPath);
+    if (filled) {
+        CGContextSetFillColorWithColor(context, [UIColor whiteColor].CGColor);
+        CGContextFillPath(context);
+    } else {
+        CGContextSetStrokeColorWithColor(context, [UIColor whiteColor].CGColor);
+        CGContextSetLineWidth(context, lineWidth);
+        CGContextStrokePath(context);
+    }
+    
+    if (filled) {
+        CGContextSetBlendMode(context, kCGBlendModeClear);
+    }
+    
+    UIFont *font = [TGFont roundedFontOfSize:11];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    CGSize textSize = [label sizeWithFont:font];
+    [[UIColor whiteColor] setFill];
+    [label drawInRect:CGRectMake((size.width - textSize.width) / 2.0f + TGScreenPixel, 4.0f, textSize.width, textSize.height) withFont:font];
+#pragma clang diagnostic pop
+    
+    UIImage *result = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    return result;
 }
 
 + (UIImage *)qualityIconForPreset:(TGMediaVideoConversionPreset)preset
@@ -358,7 +400,7 @@
     {
         UIGraphicsBeginImageContextWithOptions(CGSizeMake(30.0f, 30.0f), false, 0.0f);
         CGContextRef context = UIGraphicsGetCurrentContext();
-        CGContextSetFillColorWithColor(context, UIColorRGBA(0x000000, 0.7f).CGColor);
+        CGContextSetFillColorWithColor(context, UIColorRGBA(0x000000, 0.5f).CGColor);
         
         UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(0.5f, 0.5f, 29.0f, 29.0f) cornerRadius:8.5f];
         CGContextAddPath(context, path.CGPath);

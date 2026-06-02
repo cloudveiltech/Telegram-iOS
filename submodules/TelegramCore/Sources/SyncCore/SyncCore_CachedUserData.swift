@@ -2,6 +2,8 @@ import Foundation
 import Postbox
 import TelegramApi
 import SwiftSignalKit
+import FlatBuffers
+import FlatSerialization
 
 public enum CachedPeerAutoremoveTimeout: Equatable, PostboxCoding {
     public struct Value: Equatable, PostboxCoding {
@@ -174,10 +176,10 @@ public struct CachedPremiumGiftOption: Equatable, PostboxCoding {
     public let months: Int32
     public let currency: String
     public let amount: Int64
-    public let botUrl: String
+    public let botUrl: String?
     public let storeProductId: String?
     
-    public init(months: Int32, currency: String, amount: Int64, botUrl: String, storeProductId: String?) {
+    public init(months: Int32, currency: String, amount: Int64, botUrl: String?, storeProductId: String?) {
         self.months = months
         self.currency = currency
         self.amount = amount
@@ -189,7 +191,7 @@ public struct CachedPremiumGiftOption: Equatable, PostboxCoding {
         self.months = decoder.decodeInt32ForKey("months", orElse: 0)
         self.currency = decoder.decodeStringForKey("currency", orElse: "")
         self.amount = decoder.decodeInt64ForKey("amount", orElse: 0)
-        self.botUrl = decoder.decodeStringForKey("botUrl", orElse: "")
+        self.botUrl = decoder.decodeOptionalStringForKey("botUrl")
         self.storeProductId = decoder.decodeOptionalStringForKey("storeProductId")
     }
     
@@ -197,7 +199,11 @@ public struct CachedPremiumGiftOption: Equatable, PostboxCoding {
         encoder.encodeInt32(self.months, forKey: "months")
         encoder.encodeString(self.currency, forKey: "currency")
         encoder.encodeInt64(self.amount, forKey: "amount")
-        encoder.encodeString(self.botUrl, forKey: "botUrl")
+        if let botUrl = self.botUrl {
+            encoder.encodeString(botUrl, forKey: "botUrl")
+        } else {
+            encoder.encodeNil(forKey: "botUrl")
+        }
         if let storeProductId = self.storeProductId {
             encoder.encodeString(storeProductId, forKey: "storeProductId")
         } else {
@@ -257,27 +263,347 @@ public enum PeerNameColor: Hashable {
             return value
         }
     }
+    
+    public init(flatBuffersObject: TelegramCore_PeerNameColor) throws {
+        self.init(rawValue: flatBuffersObject.value)
+    }
+    
+    public func encodeToFlatBuffers(builder: inout FlatBufferBuilder) -> Offset {
+        let start = TelegramCore_PeerNameColor.startPeerNameColor(&builder)
+        TelegramCore_PeerNameColor.add(value: self.rawValue, &builder)
+        return TelegramCore_PeerNameColor.endPeerNameColor(&builder, start: start)
+    }
+}
+
+public struct PeerCollectibleColor: Equatable, Codable {
+    enum CodingKeys: String, CodingKey {
+        case collectibleId
+        case giftEmojiFileId
+        case backgroundEmojiId
+        case accentColor
+        case colors
+        case darkAccentColor
+        case darkColors
+    }
+    
+    public let collectibleId: Int64
+    public let giftEmojiFileId: Int64
+    public let backgroundEmojiId: Int64
+    public let accentColor: UInt32
+    public let colors: [UInt32]
+    public let darkAccentColor: UInt32?
+    public let darkColors: [UInt32]?
+    
+    public init(
+        collectibleId: Int64,
+        giftEmojiFileId: Int64,
+        backgroundEmojiId: Int64,
+        accentColor: UInt32,
+        colors: [UInt32],
+        darkAccentColor: UInt32?,
+        darkColors: [UInt32]?
+    ) {
+        self.collectibleId = collectibleId
+        self.giftEmojiFileId = giftEmojiFileId
+        self.backgroundEmojiId = backgroundEmojiId
+        self.accentColor = accentColor
+        self.colors = colors
+        self.darkAccentColor = darkAccentColor
+        self.darkColors = darkColors
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.collectibleId = try container.decode(Int64.self, forKey: .collectibleId)
+        self.giftEmojiFileId = try container.decode(Int64.self, forKey: .giftEmojiFileId)
+        self.backgroundEmojiId = try container.decode(Int64.self, forKey: .backgroundEmojiId)
+        self.accentColor = UInt32(bitPattern: try container.decode(Int32.self, forKey: .accentColor))
+        self.colors = try container.decode([Int32].self, forKey: .colors).map { UInt32(bitPattern: $0) }
+        self.darkAccentColor = try container.decodeIfPresent(Int32.self, forKey: .darkAccentColor).flatMap { UInt32(bitPattern: $0) }
+        self.darkColors = try container.decodeIfPresent([Int32].self, forKey: .darkColors).flatMap { $0.map { UInt32(bitPattern: $0) }  }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.collectibleId, forKey: .collectibleId)
+        try container.encode(self.giftEmojiFileId, forKey: .giftEmojiFileId)
+        try container.encode(self.backgroundEmojiId, forKey: .backgroundEmojiId)
+        try container.encode(Int32(bitPattern: self.accentColor), forKey: .accentColor)
+        try container.encode(self.colors.map { Int32(bitPattern: $0) }, forKey: .colors)
+        try container.encodeIfPresent(self.darkAccentColor.flatMap { Int32(bitPattern: $0)}, forKey: .darkAccentColor)
+        try container.encodeIfPresent(self.darkColors.flatMap { $0.map { Int32(bitPattern: $0) } }, forKey: .darkColors)
+    }
+    
+    public init(flatBuffersObject: TelegramCore_PeerCollectibleColor) throws {
+        self.collectibleId = flatBuffersObject.collectibleId
+        self.giftEmojiFileId = flatBuffersObject.giftEmojiFileId
+        self.backgroundEmojiId = flatBuffersObject.backgroundEmojiId
+        self.accentColor = flatBuffersObject.accentColor
+                
+        let colorsCount = Int(flatBuffersObject.colorsCount)
+        if colorsCount > 0 {
+            var colors: [UInt32] = []
+            colors.reserveCapacity(colorsCount)
+            for i in 0..<colorsCount {
+                colors.append(flatBuffersObject.colors(at: Int32(i)))
+            }
+            self.colors = colors
+        } else {
+            self.colors = []
+        }
+        
+        self.darkAccentColor = flatBuffersObject.darkAccentColor == UInt32.min ? nil : flatBuffersObject.darkAccentColor
+        
+        let darkColorsCount = Int(flatBuffersObject.darkColorsCount)
+        if darkColorsCount > 0 {
+            var darkColors: [UInt32] = []
+            darkColors.reserveCapacity(darkColorsCount)
+            for i in 0..<darkColorsCount {
+                darkColors.append(flatBuffersObject.darkColors(at: Int32(i)))
+            }
+            self.darkColors = darkColors
+        } else {
+            self.darkColors = nil
+        }
+    }
+    
+    public func encodeToFlatBuffers(builder: inout FlatBufferBuilder) -> Offset {
+        let colorsOffset = builder.createVector(self.colors)
+        let darkColorsOffset: Offset? = self.darkColors.map { builder.createVector($0) }
+               
+        let start = TelegramCore_PeerCollectibleColor.startPeerCollectibleColor(&builder)
+        TelegramCore_PeerCollectibleColor.add(collectibleId: self.collectibleId, &builder)
+        TelegramCore_PeerCollectibleColor.add(giftEmojiFileId: self.giftEmojiFileId, &builder)
+        TelegramCore_PeerCollectibleColor.add(backgroundEmojiId: self.backgroundEmojiId, &builder)
+        TelegramCore_PeerCollectibleColor.add(accentColor: self.accentColor, &builder)
+        TelegramCore_PeerCollectibleColor.addVectorOf(colors: colorsOffset, &builder)
+        TelegramCore_PeerCollectibleColor.add(darkAccentColor: self.darkAccentColor ?? UInt32.min, &builder)
+        if let darkColorsOffset {
+            TelegramCore_PeerCollectibleColor.addVectorOf(darkColors: darkColorsOffset, &builder)
+        }
+        
+        return TelegramCore_PeerCollectibleColor.endPeerCollectibleColor(&builder, start: start)
+    }
+}
+
+public enum PeerColor: Equatable {
+    case preset(PeerNameColor)
+    case collectible(PeerCollectibleColor)
 }
 
 public struct PeerEmojiStatus: Equatable, Codable {
-    public var fileId: Int64
+    private enum CodingKeys: String, CodingKey {
+        case fileId
+        case content
+        case expirationDate
+    }
+    
+    public enum Content: Equatable, Codable {
+        private enum CodingKeys: String, CodingKey {
+            case discriminator
+            case fileId
+            case id
+            case title
+            case slug
+            case patternFileId
+            case innerColor
+            case outerColor
+            case patternColor
+            case textColor
+        }
+        
+        case emoji(fileId: Int64)
+        case starGift(id: Int64, fileId: Int64, title: String, slug: String, patternFileId: Int64, innerColor: Int32, outerColor: Int32, patternColor: Int32, textColor: Int32)
+        
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            
+            switch try container.decode(Int32.self, forKey: .discriminator) {
+            case 0:
+                self = .emoji(fileId: try container.decode(Int64.self, forKey: .fileId))
+            case 1:
+                self = .starGift(id: try container.decode(Int64.self, forKey: .id), fileId: try container.decode(Int64.self, forKey: .fileId), title: try container.decode(String.self, forKey: .title), slug: try container.decode(String.self, forKey: .slug), patternFileId: try container.decode(Int64.self, forKey: .patternFileId), innerColor: try container.decode(Int32.self, forKey: .innerColor), outerColor: try container.decode(Int32.self, forKey: .outerColor), patternColor: try container.decode(Int32.self, forKey: .patternColor), textColor: try container.decode(Int32.self, forKey: .textColor))
+            default:
+                throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "content"))
+            }
+        }
+        
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            
+            switch self {
+            case let .emoji(fileId):
+                try container.encode(0 as Int32, forKey: .discriminator)
+                try container.encode(fileId, forKey: .fileId)
+            case let .starGift(id, fileId, title, slug, patternFileId, innerColor, outerColor, patternColor, textColor):
+                try container.encode(1 as Int32, forKey: .discriminator)
+                try container.encode(id, forKey: .id)
+                try container.encode(fileId, forKey: .fileId)
+                try container.encode(title, forKey: .title)
+                try container.encode(slug, forKey: .slug)
+                try container.encode(patternFileId, forKey: .patternFileId)
+                try container.encode(innerColor, forKey: .innerColor)
+                try container.encode(outerColor, forKey: .outerColor)
+                try container.encode(patternColor, forKey: .patternColor)
+                try container.encode(textColor, forKey: .textColor)
+            }
+        }
+
+        public init(flatBuffersObject: TelegramCore_PeerEmojiStatusContent) throws {
+            switch flatBuffersObject.valueType {
+            case .peeremojistatuscontentemoji:
+                guard let emoji = flatBuffersObject.value(type: TelegramCore_PeerEmojiStatusContentEmoji.self) else {
+                    throw FlatBuffersError.missingRequiredField()
+                }
+                self = .emoji(fileId: emoji.fileId)
+                
+            case .peeremojistatuscontentstargift:
+                guard let starGift = flatBuffersObject.value(type: TelegramCore_PeerEmojiStatusContentStarGift.self) else {
+                    throw FlatBuffersError.missingRequiredField()
+                }
+                self = .starGift(
+                    id: starGift.id,
+                    fileId: starGift.fileId,
+                    title: starGift.title,
+                    slug: starGift.slug,
+                    patternFileId: starGift.patternFileId,
+                    innerColor: starGift.innerColor,
+                    outerColor: starGift.outerColor,
+                    patternColor: starGift.patternColor,
+                    textColor: starGift.textColor
+                )
+                
+            case .none_:
+                throw FlatBuffersError.missingRequiredField()
+            }
+        }
+
+        public func encodeToFlatBuffers(builder: inout FlatBufferBuilder) -> Offset {
+            let valueType: TelegramCore_PeerEmojiStatusContent_Value
+            let valueOffset: Offset
+            
+            switch self {
+            case let .emoji(fileId):
+                valueType = .peeremojistatuscontentemoji
+                let start = TelegramCore_PeerEmojiStatusContentEmoji.startPeerEmojiStatusContentEmoji(&builder)
+                TelegramCore_PeerEmojiStatusContentEmoji.add(fileId: fileId, &builder)
+                valueOffset = TelegramCore_PeerEmojiStatusContentEmoji.endPeerEmojiStatusContentEmoji(&builder, start: start)
+            case let .starGift(id, fileId, title, slug, patternFileId, innerColor, outerColor, patternColor, textColor):
+                valueType = .peeremojistatuscontentstargift
+                let titleOffset = builder.create(string: title)
+                let slugOffset = builder.create(string: slug)
+                let start = TelegramCore_PeerEmojiStatusContentStarGift.startPeerEmojiStatusContentStarGift(&builder)
+                TelegramCore_PeerEmojiStatusContentStarGift.add(id: id, &builder)
+                TelegramCore_PeerEmojiStatusContentStarGift.add(fileId: fileId, &builder)
+                TelegramCore_PeerEmojiStatusContentStarGift.add(title: titleOffset, &builder)
+                TelegramCore_PeerEmojiStatusContentStarGift.add(slug: slugOffset, &builder)
+                TelegramCore_PeerEmojiStatusContentStarGift.add(patternFileId: patternFileId, &builder)
+                TelegramCore_PeerEmojiStatusContentStarGift.add(innerColor: innerColor, &builder)
+                TelegramCore_PeerEmojiStatusContentStarGift.add(outerColor: outerColor, &builder)
+                TelegramCore_PeerEmojiStatusContentStarGift.add(patternColor: patternColor, &builder)
+                TelegramCore_PeerEmojiStatusContentStarGift.add(textColor: textColor, &builder)
+                valueOffset = TelegramCore_PeerEmojiStatusContentStarGift.endPeerEmojiStatusContentStarGift(&builder, start: start)
+            }
+            
+            let start = TelegramCore_PeerEmojiStatusContent.startPeerEmojiStatusContent(&builder)
+            TelegramCore_PeerEmojiStatusContent.add(valueType: valueType, &builder)
+            TelegramCore_PeerEmojiStatusContent.add(value: valueOffset, &builder)
+            return TelegramCore_PeerEmojiStatusContent.endPeerEmojiStatusContent(&builder, start: start)
+        }
+    }
+    public var content: Content
     public var expirationDate: Int32?
     
-    public init(fileId: Int64, expirationDate: Int32?) {
-        self.fileId = fileId
+    public init(content: Content, expirationDate: Int32?) {
+        self.content = content
         self.expirationDate = expirationDate
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        if let content = try container.decodeIfPresent(Content.self, forKey: .content) {
+            self.content = content
+        } else if let fileId = try container.decodeIfPresent(Int64.self, forKey: .fileId) {
+            self.content = .emoji(fileId: fileId)
+        } else {
+            self.content = .emoji(fileId: 0)
+        }
+        self.expirationDate = try container.decodeIfPresent(Int32.self, forKey: .expirationDate)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.content, forKey: .content)
+        try container.encodeIfPresent(self.expirationDate, forKey: .expirationDate)
+    }
+    
+    public init(flatBuffersObject: TelegramCore_PeerEmojiStatus) throws {
+        self.content = try Content(flatBuffersObject: flatBuffersObject.content)
+        self.expirationDate = flatBuffersObject.expirationDate == Int32.min ? nil : flatBuffersObject.expirationDate
+    }
+    
+    public func encodeToFlatBuffers(builder: inout FlatBufferBuilder) -> Offset {
+        let contentOffset = self.content.encodeToFlatBuffers(builder: &builder)
+        
+        let start = TelegramCore_PeerEmojiStatus.startPeerEmojiStatus(&builder)
+        TelegramCore_PeerEmojiStatus.add(content: contentOffset, &builder)
+        TelegramCore_PeerEmojiStatus.add(expirationDate: self.expirationDate ?? Int32.min, &builder)
+        return TelegramCore_PeerEmojiStatus.endPeerEmojiStatus(&builder, start: start)
     }
 }
 
 extension PeerEmojiStatus {
     init?(apiStatus: Api.EmojiStatus) {
         switch apiStatus {
-        case let .emojiStatus(documentId):
-            self.init(fileId: documentId, expirationDate: nil)
-        case let .emojiStatusUntil(documentId, until):
-            self.init(fileId: documentId, expirationDate: until)
-        case .emojiStatusEmpty:
+        case let .emojiStatus(emojiStatusData):
+            let (documentId, until) = (emojiStatusData.documentId, emojiStatusData.until)
+            self.init(content: .emoji(fileId: documentId), expirationDate: until)
+        case let .emojiStatusCollectible(emojiStatusCollectibleData):
+            let (collectibleId, documentId, title, slug, patternDocumentId, centerColor, edgeColor, patternColor, textColor, until) = (emojiStatusCollectibleData.collectibleId, emojiStatusCollectibleData.documentId, emojiStatusCollectibleData.title, emojiStatusCollectibleData.slug, emojiStatusCollectibleData.patternDocumentId, emojiStatusCollectibleData.centerColor, emojiStatusCollectibleData.edgeColor, emojiStatusCollectibleData.patternColor, emojiStatusCollectibleData.textColor, emojiStatusCollectibleData.until)
+            self.init(content: .starGift(id: collectibleId, fileId: documentId, title: title, slug: slug, patternFileId: patternDocumentId, innerColor: centerColor, outerColor: edgeColor, patternColor: patternColor, textColor: textColor), expirationDate: until)
+        case .emojiStatusEmpty, .inputEmojiStatusCollectible:
             return nil
+        }
+    }
+}
+extension PeerEmojiStatus {
+    var emojiFileId: Int64? {
+        switch self.content {
+        case let .emoji(fileId):
+            return fileId
+        default:
+            return nil
+        }
+    }
+    
+    var associatedFileIds: [Int64] {
+        switch self.content {
+        case let .emoji(fileId):
+            return [fileId]
+        case let .starGift(_, fileId, _, _, patternFileId, _, _, _, _):
+            return [fileId, patternFileId]
+        }
+    }
+    
+    public var fileId: Int64 {
+        switch self.content {
+        case let .emoji(fileId):
+            return fileId
+        case let .starGift(_, fileId, _, _, _, _, _, _, _):
+            return fileId
+        }
+    }
+    
+    public var color: Int32? {
+        switch self.content {
+        case .emoji:
+            return nil
+        case let .starGift(_, _, _, _, _, innerColor, _, _, _):
+            return innerColor
         }
     }
 }
@@ -300,6 +626,10 @@ public struct CachedUserFlags: OptionSet {
     public static let adsEnabled = CachedUserFlags(rawValue: 1 << 4)
     public static let canViewRevenue = CachedUserFlags(rawValue: 1 << 5)
     public static let botCanManageEmojiStatus = CachedUserFlags(rawValue: 1 << 6)
+    public static let displayGiftButton = CachedUserFlags(rawValue: 1 << 7)
+    public static let myCopyProtectionEnabled = CachedUserFlags(rawValue: 1 << 8)
+    public static let copyProtectionEnabled = CachedUserFlags(rawValue: 1 << 9)
+    public static let unofficialSecurityRisk = CachedUserFlags(rawValue: 1 << 10)
 }
 
 public final class EditableBotInfo: PostboxCoding, Equatable {
@@ -501,33 +831,36 @@ public final class TelegramBusinessLocation: Equatable, Codable {
 extension TelegramBusinessHours.WorkingTimeInterval {
     init(apiInterval: Api.BusinessWeeklyOpen) {
         switch apiInterval {
-        case let .businessWeeklyOpen(startMinute, endMinute):
+        case let .businessWeeklyOpen(businessWeeklyOpenData):
+            let (startMinute, endMinute) = (businessWeeklyOpenData.startMinute, businessWeeklyOpenData.endMinute)
             self.init(startMinute: Int(startMinute), endMinute: Int(endMinute))
         }
     }
     
     var apiInterval: Api.BusinessWeeklyOpen {
-        return .businessWeeklyOpen(startMinute: Int32(clamping: self.startMinute), endMinute: Int32(clamping: self.endMinute))
+        return .businessWeeklyOpen(Api.BusinessWeeklyOpen.Cons_businessWeeklyOpen(startMinute: Int32(clamping: self.startMinute), endMinute: Int32(clamping: self.endMinute)))
     }
 }
 
 extension TelegramBusinessHours {
     convenience init(apiWorkingHours: Api.BusinessWorkHours) {
         switch apiWorkingHours {
-        case let .businessWorkHours(_, timezoneId, weeklyOpen):
+        case let .businessWorkHours(businessWorkHoursData):
+            let (_, timezoneId, weeklyOpen) = (businessWorkHoursData.flags, businessWorkHoursData.timezoneId, businessWorkHoursData.weeklyOpen)
             self.init(timezoneId: timezoneId, weeklyTimeIntervals: weeklyOpen.map(TelegramBusinessHours.WorkingTimeInterval.init(apiInterval:)))
         }
     }
     
     var apiBusinessHours: Api.BusinessWorkHours {
-        return .businessWorkHours(flags: 0, timezoneId: self.timezoneId, weeklyOpen: self.weeklyTimeIntervals.map(\.apiInterval))
+        return .businessWorkHours(Api.BusinessWorkHours.Cons_businessWorkHours(flags: 0, timezoneId: self.timezoneId, weeklyOpen: self.weeklyTimeIntervals.map(\.apiInterval)))
     }
 }
 
 extension TelegramBusinessLocation.Coordinates {
     init?(apiGeoPoint: Api.GeoPoint) {
         switch apiGeoPoint {
-        case let .geoPoint(_, long, lat, _, _):
+        case let .geoPoint(geoPointData):
+            let (_, long, lat, _, _) = (geoPointData.flags, geoPointData.long, geoPointData.lat, geoPointData.accessHash, geoPointData.accuracyRadius)
             self.init(latitude: lat, longitude: long)
         case .geoPointEmpty:
             return nil
@@ -535,14 +868,15 @@ extension TelegramBusinessLocation.Coordinates {
     }
     
     var apiInputGeoPoint: Api.InputGeoPoint {
-        return .inputGeoPoint(flags: 0, lat: self.latitude, long: self.longitude, accuracyRadius: nil)
+        return .inputGeoPoint(.init(flags: 0, lat: self.latitude, long: self.longitude, accuracyRadius: nil))
     }
 }
 
 extension TelegramBusinessLocation {
     convenience init(apiLocation: Api.BusinessLocation) {
         switch apiLocation {
-        case let .businessLocation(_, geoPoint, address):
+        case let .businessLocation(businessLocationData):
+            let (_, geoPoint, address) = (businessLocationData.flags, businessLocationData.geoPoint, businessLocationData.address)
             self.init(address: address, coordinates: geoPoint.flatMap { Coordinates(apiGeoPoint: $0) })
         }
     }
@@ -607,7 +941,8 @@ public final class TelegramBusinessChatLinks: Codable, Equatable {
 extension TelegramBusinessChatLinks.Link {
     convenience init(apiLink: Api.BusinessChatLink) {
         switch apiLink {
-        case let .businessChatLink(_, link, message, entities, title, views):
+        case let .businessChatLink(businessChatLinkData):
+            let (_, link, message, entities, title, views) = (businessChatLinkData.flags, businessChatLinkData.link, businessChatLinkData.message, businessChatLinkData.entities, businessChatLinkData.title, businessChatLinkData.views)
             self.init(url: link, message: message, entities: messageTextEntitiesFromApiEntities(entities ?? []), title: title, viewCount: views)
         }
     }
@@ -616,7 +951,8 @@ extension TelegramBusinessChatLinks.Link {
 extension TelegramBusinessChatLinks {
     static func fromApiLinks(apiLinks: Api.account.BusinessChatLinks) -> (result: TelegramBusinessChatLinks, users: [Api.User], chats: [Api.Chat]) {
         switch apiLinks {
-        case let .businessChatLinks(links, chats, users):
+        case let .businessChatLinks(businessChatLinksData):
+            let (links, chats, users) = (businessChatLinksData.links, businessChatLinksData.chats, businessChatLinksData.users)
             return (
                 TelegramBusinessChatLinks(links: links.map(Link.init(apiLink:))),
                 users,
@@ -664,8 +1000,129 @@ public final class TelegramStarRefProgram: Codable, Equatable {
 extension TelegramStarRefProgram {
     convenience init(apiStarRefProgram: Api.StarRefProgram) {
         switch apiStarRefProgram {
-        case let .starRefProgram(_, botId, commissionPermille, durationMonths, endDate, dailyRevenuePerUser):
+        case let .starRefProgram(starRefProgramData):
+            let (botId, commissionPermille, durationMonths, endDate, dailyRevenuePerUser) = (starRefProgramData.botId, starRefProgramData.commissionPermille, starRefProgramData.durationMonths, starRefProgramData.endDate, starRefProgramData.dailyRevenuePerUser)
             self.init(botId: PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(botId)), commissionPermille: commissionPermille, durationMonths: durationMonths, endDate: endDate, dailyRevenuePerUser: dailyRevenuePerUser.flatMap(StarsAmount.init(apiAmount:)))
+        }
+    }
+}
+
+public final class TelegramStarRating: Codable, Equatable {
+    public let level: Int32
+    public let currentLevelStars: Int64
+    public let stars: Int64
+    public let nextLevelStars: Int64?
+    
+    public init(level: Int32, currentLevelStars: Int64, stars: Int64, nextLevelStars: Int64?) {
+        self.level = level
+        self.currentLevelStars = currentLevelStars
+        self.stars = stars
+        self.nextLevelStars = nextLevelStars
+    }
+    
+    public static func ==(lhs: TelegramStarRating, rhs: TelegramStarRating) -> Bool {
+        if lhs.level != rhs.level {
+            return false
+        }
+        if lhs.currentLevelStars != rhs.currentLevelStars {
+            return false
+        }
+        if lhs.stars != rhs.stars {
+            return false
+        }
+        if lhs.nextLevelStars != rhs.nextLevelStars {
+            return false
+        }
+        return true
+    }
+}
+
+public final class TelegramStarPendingRating: Codable, Equatable {
+    public let rating: TelegramStarRating
+    public let timestamp: Int32
+    
+    public init(rating: TelegramStarRating, timestamp: Int32) {
+        self.rating = rating
+        self.timestamp = timestamp
+    }
+    
+    public static func ==(lhs: TelegramStarPendingRating, rhs: TelegramStarPendingRating) -> Bool {
+        if lhs.rating != rhs.rating {
+            return false
+        }
+        if lhs.timestamp != rhs.timestamp {
+            return false
+        }
+        return true
+    }
+}
+
+public enum TelegramProfileTab: Int32, Codable, Hashable {
+    case files
+    case gifs
+    case gifts
+    case links
+    case media
+    case music
+    case posts
+    case voice
+}
+
+extension TelegramProfileTab {
+    init(apiTab: Api.ProfileTab) {
+        switch apiTab {
+        case .profileTabFiles:
+            self = .files
+        case .profileTabGifs:
+            self = .gifs
+        case .profileTabGifts:
+            self = .gifts
+        case .profileTabLinks:
+            self = .links
+        case .profileTabMedia:
+            self = .media
+        case .profileTabMusic:
+            self = .music
+        case .profileTabPosts:
+            self = .posts
+        case .profileTabVoice:
+            self = .voice
+        }
+    }
+    
+    var apiTab: Api.ProfileTab {
+        switch self {
+        case .files:
+            return .profileTabFiles
+        case .gifs:
+            return .profileTabGifs
+        case .gifts:
+            return .profileTabGifts
+        case .links:
+            return .profileTabLinks
+        case .media:
+            return .profileTabMedia
+        case .music:
+            return .profileTabMusic
+        case .posts:
+            return .profileTabPosts
+        case .voice:
+            return .profileTabVoice
+        }
+    }
+}
+
+extension TelegramStarRating {
+    convenience init(apiRating: Api.StarsRating) {
+        switch apiRating {
+        case let .starsRating(starsRatingData):
+            let (level, currentLevelStars, stars, nextLevelStars) = (starsRatingData.level, starsRatingData.currentLevelStars, starsRatingData.stars, starsRatingData.nextLevelStars)
+            self.init(
+                level: level,
+                currentLevelStars: currentLevelStars,
+                stars: stars,
+                nextLevelStars: nextLevelStars
+            )
         }
     }
 }
@@ -760,6 +1217,48 @@ public final class CachedUserData: CachedPeerData {
         }
     }
     
+    public final class Note: Codable, Equatable {
+        private enum CodingKeys: String, CodingKey {
+            case text
+            case entities
+        }
+        
+        public let text: String
+        public let entities: [MessageTextEntity]
+        
+        public init(text: String, entities: [MessageTextEntity]) {
+            self.text = text
+            self.entities = entities
+        }
+        
+        public init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            
+            self.text = try container.decode(String.self, forKey: .text)
+            self.entities = try container.decode([MessageTextEntity].self, forKey: .entities)
+        }
+        
+        public func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            
+            try container.encode(self.text, forKey: .text)
+            try container.encode(self.entities, forKey: .entities)
+        }
+        
+        public static func ==(lhs: Note, rhs: Note) -> Bool {
+            if lhs === rhs {
+                return true
+            }
+            if lhs.text != rhs.text {
+                return false
+            }
+            if lhs.entities != rhs.entities {
+                return false
+            }
+            return true
+        }
+    }
+    
     public let about: String?
     public let botInfo: BotInfo?
     public let editableBotInfo: EditableBotInfo?
@@ -773,11 +1272,10 @@ public final class CachedUserData: CachedPeerData {
     public let canPinMessages: Bool
     public let hasScheduledMessages: Bool
     public let autoremoveTimeout: CachedPeerAutoremoveTimeout
-    public let themeEmoticon: String?
+    public let chatTheme: ChatTheme?
     public let photo: CachedPeerProfilePhoto
     public let personalPhoto: CachedPeerProfilePhoto
     public let fallbackPhoto: CachedPeerProfilePhoto
-    public let premiumGiftOptions: [CachedPremiumGiftOption]
     public let voiceMessagesAvailable: Bool
     public let wallpaper: TelegramWallpaper?
     public let flags: CachedUserFlags
@@ -792,7 +1290,19 @@ public final class CachedUserData: CachedPeerData {
     public let botPreview: BotPreview?
     public let starGiftsCount: Int32?
     public let starRefProgram: TelegramStarRefProgram?
-    
+    public let verification: PeerVerification?
+    public let sendPaidMessageStars: StarsAmount?
+    public let disallowedGifts: TelegramDisallowedGifts?
+    public let botGroupAdminRights: TelegramChatAdminRights?
+    public let botChannelAdminRights: TelegramChatAdminRights?
+    public let starRating: TelegramStarRating?
+    public let pendingStarRating: TelegramStarPendingRating?
+    public let mainProfileTab: TelegramProfileTab?
+    public let savedMusic: TelegramMediaFile?
+    public let note: Note?
+    public let myCopyProtectionEnableDate: Int32?
+    public let botManagerId: PeerId?
+
     public let peerIds: Set<PeerId>
     public let messageIds: Set<MessageId>
     public let associatedHistoryMessageId: MessageId? = nil
@@ -811,11 +1321,10 @@ public final class CachedUserData: CachedPeerData {
         self.canPinMessages = false
         self.hasScheduledMessages = false
         self.autoremoveTimeout = .unknown
-        self.themeEmoticon = nil
+        self.chatTheme = nil
         self.photo = .unknown
         self.personalPhoto = .unknown
         self.fallbackPhoto = .unknown
-        self.premiumGiftOptions = []
         self.voiceMessagesAvailable = true
         self.wallpaper = nil
         self.flags = CachedUserFlags()
@@ -832,9 +1341,21 @@ public final class CachedUserData: CachedPeerData {
         self.botPreview = nil
         self.starGiftsCount = nil
         self.starRefProgram = nil
+        self.verification = nil
+        self.sendPaidMessageStars = nil
+        self.disallowedGifts = nil
+        self.botGroupAdminRights = nil
+        self.botChannelAdminRights = nil
+        self.starRating = nil
+        self.pendingStarRating = nil
+        self.mainProfileTab = nil
+        self.savedMusic = nil
+        self.note = nil
+        self.myCopyProtectionEnableDate = nil
+        self.botManagerId = nil
     }
-    
-    public init(about: String?, botInfo: BotInfo?, editableBotInfo: EditableBotInfo?, peerStatusSettings: PeerStatusSettings?, pinnedMessageId: MessageId?, isBlocked: Bool, commonGroupCount: Int32, voiceCallsAvailable: Bool, videoCallsAvailable: Bool, callsPrivate: Bool, canPinMessages: Bool, hasScheduledMessages: Bool, autoremoveTimeout: CachedPeerAutoremoveTimeout, themeEmoticon: String?, photo: CachedPeerProfilePhoto, personalPhoto: CachedPeerProfilePhoto, fallbackPhoto: CachedPeerProfilePhoto, premiumGiftOptions: [CachedPremiumGiftOption], voiceMessagesAvailable: Bool, wallpaper: TelegramWallpaper?, flags: CachedUserFlags, businessHours: TelegramBusinessHours?, businessLocation: TelegramBusinessLocation?, greetingMessage: TelegramBusinessGreetingMessage?, awayMessage: TelegramBusinessAwayMessage?, connectedBot: TelegramAccountConnectedBot?, businessIntro: CachedTelegramBusinessIntro, birthday: TelegramBirthday?, personalChannel: CachedTelegramPersonalChannel, botPreview: BotPreview?, starGiftsCount: Int32?, starRefProgram: TelegramStarRefProgram?) {
+
+    public init(about: String?, botInfo: BotInfo?, editableBotInfo: EditableBotInfo?, peerStatusSettings: PeerStatusSettings?, pinnedMessageId: MessageId?, isBlocked: Bool, commonGroupCount: Int32, voiceCallsAvailable: Bool, videoCallsAvailable: Bool, callsPrivate: Bool, canPinMessages: Bool, hasScheduledMessages: Bool, autoremoveTimeout: CachedPeerAutoremoveTimeout, chatTheme: ChatTheme?, photo: CachedPeerProfilePhoto, personalPhoto: CachedPeerProfilePhoto, fallbackPhoto: CachedPeerProfilePhoto, voiceMessagesAvailable: Bool, wallpaper: TelegramWallpaper?, flags: CachedUserFlags, businessHours: TelegramBusinessHours?, businessLocation: TelegramBusinessLocation?, greetingMessage: TelegramBusinessGreetingMessage?, awayMessage: TelegramBusinessAwayMessage?, connectedBot: TelegramAccountConnectedBot?, businessIntro: CachedTelegramBusinessIntro, birthday: TelegramBirthday?, personalChannel: CachedTelegramPersonalChannel, botPreview: BotPreview?, starGiftsCount: Int32?, starRefProgram: TelegramStarRefProgram?, verification: PeerVerification?, sendPaidMessageStars: StarsAmount?, disallowedGifts: TelegramDisallowedGifts?, botGroupAdminRights: TelegramChatAdminRights?, botChannelAdminRights: TelegramChatAdminRights?, starRating: TelegramStarRating?, pendingStarRating: TelegramStarPendingRating?, mainProfileTab: TelegramProfileTab?, savedMusic: TelegramMediaFile?, note: Note?, myCopyProtectionEnableDate: Int32?, botManagerId: PeerId?) {
         self.about = about
         self.botInfo = botInfo
         self.editableBotInfo = editableBotInfo
@@ -848,11 +1369,10 @@ public final class CachedUserData: CachedPeerData {
         self.canPinMessages = canPinMessages
         self.hasScheduledMessages = hasScheduledMessages
         self.autoremoveTimeout = autoremoveTimeout
-        self.themeEmoticon = themeEmoticon
+        self.chatTheme = chatTheme
         self.photo = photo
         self.personalPhoto = personalPhoto
         self.fallbackPhoto = fallbackPhoto
-        self.premiumGiftOptions = premiumGiftOptions
         self.voiceMessagesAvailable = voiceMessagesAvailable
         self.wallpaper = wallpaper
         self.flags = flags
@@ -867,9 +1387,25 @@ public final class CachedUserData: CachedPeerData {
         self.botPreview = botPreview
         self.starGiftsCount = starGiftsCount
         self.starRefProgram = starRefProgram
-        
-        self.peerIds = Set<PeerId>()
-        
+        self.verification = verification
+        self.sendPaidMessageStars = sendPaidMessageStars
+        self.disallowedGifts = disallowedGifts
+        self.botGroupAdminRights = botGroupAdminRights
+        self.botChannelAdminRights = botChannelAdminRights
+        self.starRating = starRating
+        self.pendingStarRating = pendingStarRating
+        self.mainProfileTab = mainProfileTab
+        self.savedMusic = savedMusic
+        self.note = note
+        self.myCopyProtectionEnableDate = myCopyProtectionEnableDate
+        self.botManagerId = botManagerId
+
+        var peerIds = Set<PeerId>()
+        if let botManagerId = self.botManagerId {
+            peerIds.insert(botManagerId)
+        }
+        self.peerIds = peerIds
+
         var messageIds = Set<MessageId>()
         if let pinnedMessageId = self.pinnedMessageId {
             messageIds.insert(pinnedMessageId)
@@ -901,13 +1437,19 @@ public final class CachedUserData: CachedPeerData {
         self.canPinMessages = decoder.decodeInt32ForKey("cpm", orElse: 0) != 0
         self.hasScheduledMessages = decoder.decodeBoolForKey("hsm", orElse: false)
         self.autoremoveTimeout = decoder.decodeObjectForKey("artv", decoder: CachedPeerAutoremoveTimeout.init(decoder:)) as? CachedPeerAutoremoveTimeout ?? .unknown
-        self.themeEmoticon = decoder.decodeOptionalStringForKey("te")
+        
+        if let chatThemeData = decoder.decodeDataForKey("ct"), let chatTheme = try? AdaptedPostboxDecoder().decode(ChatTheme.self, from: chatThemeData) {
+            self.chatTheme = chatTheme
+        } else if let chatTheme = decoder.decodeOptionalStringForKey("te") {
+            self.chatTheme = .emoticon(chatTheme)
+        } else {
+            self.chatTheme = nil
+        }
         
         self.photo = decoder.decodeObjectForKey("phv", decoder: CachedPeerProfilePhoto.init(decoder:)) as? CachedPeerProfilePhoto ?? .unknown
         self.personalPhoto = decoder.decodeObjectForKey("pphv", decoder: CachedPeerProfilePhoto.init(decoder:)) as? CachedPeerProfilePhoto ?? .unknown
         self.fallbackPhoto = decoder.decodeObjectForKey("fphv", decoder: CachedPeerProfilePhoto.init(decoder:)) as? CachedPeerProfilePhoto ?? .unknown
         
-        self.premiumGiftOptions = decoder.decodeObjectArrayWithDecoderForKey("pgo") as [CachedPremiumGiftOption]
         self.voiceMessagesAvailable = decoder.decodeInt32ForKey("vma", orElse: 0) != 0
         self.wallpaper = decoder.decode(TelegramWallpaperNativeCodable.self, forKey: "wp")?.value
         self.flags = CachedUserFlags(rawValue: decoder.decodeInt32ForKey("fl", orElse: 0))
@@ -936,6 +1478,31 @@ public final class CachedUserData: CachedPeerData {
         self.starGiftsCount = decoder.decodeOptionalInt32ForKey("starGiftsCount")
         
         self.starRefProgram = decoder.decodeCodable(TelegramStarRefProgram.self, forKey: "starRefProgram")
+
+        self.verification = decoder.decodeCodable(PeerVerification.self, forKey: "verification")
+        
+        self.sendPaidMessageStars = decoder.decodeCodable(StarsAmount.self, forKey: "sendPaidMessageStars")
+        
+        self.disallowedGifts = decoder.decodeOptionalInt32ForKey("disallowedGifts").flatMap { TelegramDisallowedGifts(rawValue: $0) }
+        
+        self.botGroupAdminRights = decoder.decodeCodable(TelegramChatAdminRights.self, forKey: "botGroupAdminRights")
+        self.botChannelAdminRights = decoder.decodeCodable(TelegramChatAdminRights.self, forKey: "botChannelAdminRights")
+        
+        self.starRating = decoder.decodeCodable(TelegramStarRating.self, forKey: "starRating")
+        self.pendingStarRating = decoder.decodeCodable(TelegramStarPendingRating.self, forKey: "pendingStarRating")
+        
+        self.mainProfileTab = decoder.decodeCodable(TelegramProfileTab.self, forKey: "mainProfileTab")
+                
+        if let savedMusic = decoder.decodeObjectForKey("savedMusic", decoder: { TelegramMediaFile(decoder: $0) }) as? TelegramMediaFile {
+            self.savedMusic = savedMusic
+        } else {
+            self.savedMusic = nil
+        }
+        
+        self.note = decoder.decodeCodable(Note.self, forKey: "note")
+        
+        self.myCopyProtectionEnableDate = decoder.decodeOptionalInt32ForKey("myCopyProtectionEnableDate")
+        self.botManagerId = decoder.decodeOptionalInt64ForKey("botManagerId").flatMap { PeerId($0) }
     }
     
     public func encode(_ encoder: PostboxEncoder) {
@@ -976,17 +1543,17 @@ public final class CachedUserData: CachedPeerData {
         encoder.encodeInt32(self.canPinMessages ? 1 : 0, forKey: "cpm")
         encoder.encodeBool(self.hasScheduledMessages, forKey: "hsm")
         encoder.encodeObject(self.autoremoveTimeout, forKey: "artv")
-        if let themeEmoticon = self.themeEmoticon, !themeEmoticon.isEmpty {
-            encoder.encodeString(themeEmoticon, forKey: "te")
+        
+        if let chatTheme = self.chatTheme, let chatThemeData = try? AdaptedPostboxEncoder().encode(chatTheme) {
+            encoder.encodeData(chatThemeData, forKey: "ct")
         } else {
-            encoder.encodeNil(forKey: "te")
+            encoder.encodeNil(forKey: "ct")
         }
         
         encoder.encodeObject(self.photo, forKey: "phv")
         encoder.encodeObject(self.personalPhoto, forKey: "pphv")
         encoder.encodeObject(self.fallbackPhoto, forKey: "fphv")
 
-        encoder.encodeObjectArray(self.premiumGiftOptions, forKey: "pgo")
         encoder.encodeInt32(self.voiceMessagesAvailable ? 1 : 0, forKey: "vma")
         
         if let wallpaper = self.wallpaper {
@@ -1053,6 +1620,78 @@ public final class CachedUserData: CachedPeerData {
         } else {
             encoder.encodeNil(forKey: "starRefProgram")
         }
+        
+        if let verification = self.verification {
+            encoder.encodeCodable(verification, forKey: "verification")
+        } else {
+            encoder.encodeNil(forKey: "verification")
+        }
+        
+        if let sendPaidMessageStars = self.sendPaidMessageStars {
+            encoder.encodeCodable(sendPaidMessageStars, forKey: "sendPaidMessageStars")
+        } else {
+            encoder.encodeNil(forKey: "sendPaidMessageStars")
+        }
+        
+        if let disallowedGifts = self.disallowedGifts {
+            encoder.encodeInt32(disallowedGifts.rawValue, forKey: "disallowedGifts")
+        } else {
+            encoder.encodeNil(forKey: "disallowedGifts")
+        }
+        
+        if let botGroupAdminRights = self.botGroupAdminRights {
+            encoder.encodeCodable(botGroupAdminRights, forKey: "botGroupAdminRights")
+        } else {
+            encoder.encodeNil(forKey: "botGroupAdminRights")
+        }
+        
+        if let botChannelAdminRights = self.botChannelAdminRights {
+            encoder.encodeCodable(botChannelAdminRights, forKey: "botChannelAdminRights")
+        } else {
+            encoder.encodeNil(forKey: "botChannelAdminRights")
+        }
+        
+        if let starRating = self.starRating {
+            encoder.encodeCodable(starRating, forKey: "starRating")
+        } else {
+            encoder.encodeNil(forKey: "starRating")
+        }
+        
+        if let pendingStarRating = self.pendingStarRating {
+            encoder.encodeCodable(pendingStarRating, forKey: "pendingStarRating")
+        } else {
+            encoder.encodeNil(forKey: "pendingStarRating")
+        }
+        
+        if let mainProfileTab = self.mainProfileTab {
+            encoder.encodeCodable(mainProfileTab, forKey: "mainProfileTab")
+        } else {
+            encoder.encodeNil(forKey: "mainProfileTab")
+        }
+        
+        if let savedMusic = self.savedMusic {
+            encoder.encodeObject(savedMusic, forKey: "savedMusic")
+        } else {
+            encoder.encodeNil(forKey: "savedMusic")
+        }
+        
+        if let note = self.note {
+            encoder.encodeCodable(note, forKey: "note")
+        } else {
+            encoder.encodeNil(forKey: "note")
+        }
+        
+        if let myCopyProtectionEnableDate = self.myCopyProtectionEnableDate {
+            encoder.encodeInt32(myCopyProtectionEnableDate, forKey: "myCopyProtectionEnableDate")
+        } else {
+            encoder.encodeNil(forKey: "myCopyProtectionEnableDate")
+        }
+
+        if let botManagerId = self.botManagerId {
+            encoder.encodeInt64(botManagerId.toInt64(), forKey: "botManagerId")
+        } else {
+            encoder.encodeNil(forKey: "botManagerId")
+        }
     }
     
     public func isEqual(to: CachedPeerData) -> Bool {
@@ -1099,136 +1738,216 @@ public final class CachedUserData: CachedPeerData {
         if other.starRefProgram != self.starRefProgram {
             return false
         }
-        
-        return other.about == self.about && other.botInfo == self.botInfo && other.editableBotInfo == self.editableBotInfo && self.peerStatusSettings == other.peerStatusSettings && self.isBlocked == other.isBlocked && self.commonGroupCount == other.commonGroupCount && self.voiceCallsAvailable == other.voiceCallsAvailable && self.videoCallsAvailable == other.videoCallsAvailable && self.callsPrivate == other.callsPrivate && self.hasScheduledMessages == other.hasScheduledMessages && self.autoremoveTimeout == other.autoremoveTimeout && self.themeEmoticon == other.themeEmoticon && self.photo == other.photo && self.personalPhoto == other.personalPhoto && self.fallbackPhoto == other.fallbackPhoto && self.premiumGiftOptions == other.premiumGiftOptions && self.voiceMessagesAvailable == other.voiceMessagesAvailable && self.flags == other.flags && self.wallpaper == other.wallpaper
+        if other.verification != self.verification {
+            return false
+        }
+        if other.sendPaidMessageStars != self.sendPaidMessageStars {
+            return false
+        }
+        if other.disallowedGifts != self.disallowedGifts {
+            return false
+        }
+        if other.botGroupAdminRights != self.botGroupAdminRights {
+            return false
+        }
+        if other.botChannelAdminRights != self.botChannelAdminRights {
+            return false
+        }
+        if other.starRating != self.starRating {
+            return false
+        }
+        if other.pendingStarRating != self.pendingStarRating {
+            return false
+        }
+        if other.mainProfileTab != self.mainProfileTab {
+            return false
+        }
+        if other.savedMusic != self.savedMusic {
+            return false
+        }
+        if other.note != self.note {
+            return false
+        }
+        if other.myCopyProtectionEnableDate != self.myCopyProtectionEnableDate {
+            return false
+        }
+        if other.botManagerId != self.botManagerId {
+            return false
+        }
+
+        return other.about == self.about && other.botInfo == self.botInfo && other.editableBotInfo == self.editableBotInfo && self.peerStatusSettings == other.peerStatusSettings && self.isBlocked == other.isBlocked && self.commonGroupCount == other.commonGroupCount && self.voiceCallsAvailable == other.voiceCallsAvailable && self.videoCallsAvailable == other.videoCallsAvailable && self.callsPrivate == other.callsPrivate && self.hasScheduledMessages == other.hasScheduledMessages && self.autoremoveTimeout == other.autoremoveTimeout && self.chatTheme == other.chatTheme && self.photo == other.photo && self.personalPhoto == other.personalPhoto && self.fallbackPhoto == other.fallbackPhoto && self.voiceMessagesAvailable == other.voiceMessagesAvailable && self.flags == other.flags && self.wallpaper == other.wallpaper
     }
     
     public func withUpdatedAbout(_ about: String?) -> CachedUserData {
-        return CachedUserData(about: about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedBotInfo(_ botInfo: BotInfo?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedEditableBotInfo(_ editableBotInfo: EditableBotInfo?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedPeerStatusSettings(_ peerStatusSettings: PeerStatusSettings) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedPinnedMessageId(_ pinnedMessageId: MessageId?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedIsBlocked(_ isBlocked: Bool) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedCommonGroupCount(_ commonGroupCount: Int32) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedVoiceCallsAvailable(_ voiceCallsAvailable: Bool) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedVideoCallsAvailable(_ videoCallsAvailable: Bool) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedCallsPrivate(_ callsPrivate: Bool) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedCanPinMessages(_ canPinMessages: Bool) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedHasScheduledMessages(_ hasScheduledMessages: Bool) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedAutoremoveTimeout(_ autoremoveTimeout: CachedPeerAutoremoveTimeout) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
-    public func withUpdatedThemeEmoticon(_ themeEmoticon: String?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+    public func withUpdatedChatTheme(_ chatTheme: ChatTheme?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedPhoto(_ photo: CachedPeerProfilePhoto) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedPersonalPhoto(_ personalPhoto: CachedPeerProfilePhoto) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedFallbackPhoto(_ fallbackPhoto: CachedPeerProfilePhoto) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
-    }
-    
-    public func withUpdatedPremiumGiftOptions(_ premiumGiftOptions: [CachedPremiumGiftOption]) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedVoiceMessagesAvailable(_ voiceMessagesAvailable: Bool) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedWallpaper(_ wallpaper: TelegramWallpaper?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedFlags(_ flags: CachedUserFlags) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedBusinessHours(_ businessHours: TelegramBusinessHours?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedBusinessLocation(_ businessLocation: TelegramBusinessLocation?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedGreetingMessage(_ greetingMessage: TelegramBusinessGreetingMessage?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedAwayMessage(_ awayMessage: TelegramBusinessAwayMessage?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedConnectedBot(_ connectedBot: TelegramAccountConnectedBot?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedBusinessIntro(_ businessIntro: TelegramBusinessIntro?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: .known(businessIntro), birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: .known(businessIntro), birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedBirthday(_ birthday: TelegramBirthday?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedPersonalChannel(_ personalChannel: TelegramPersonalChannel?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: .known(personalChannel), botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: .known(personalChannel), botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedBotPreview(_ botPreview: BotPreview?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedStarGiftsCount(_ starGiftsCount: Int32?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: starGiftsCount, starRefProgram: self.starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
     }
     
     public func withUpdatedStarRefProgram(_ starRefProgram: TelegramStarRefProgram?) -> CachedUserData {
-        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, themeEmoticon: self.themeEmoticon, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, premiumGiftOptions: self.premiumGiftOptions, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: starRefProgram)
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedVerification(_ verification: PeerVerification?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedSendPaidMessageStars(_ sendPaidMessageStars: StarsAmount?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedDisallowedGifts(_ disallowedGifts: TelegramDisallowedGifts) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedBotGroupAdminRights(_ botGroupAdminRights: TelegramChatAdminRights?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: disallowedGifts, botGroupAdminRights: botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedBotChannelAdminRights(_ botChannelAdminRights: TelegramChatAdminRights?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedStarRating(_ starRating: TelegramStarRating?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedPendingStarRating(_ pendingStarRating: TelegramStarPendingRating?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedMainProfileTab(_ mainProfileTab: TelegramProfileTab?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedSavedMusic(_ savedMusic: TelegramMediaFile?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedNote(_ note: Note?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+    
+    public func withUpdatedMyCopyProtectionEnableDate(_ myCopyProtectionEnableDate: Int32?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: myCopyProtectionEnableDate, botManagerId: self.botManagerId)
+    }
+
+    public func withUpdatedBotManagerId(_ botManagerId: PeerId?) -> CachedUserData {
+        return CachedUserData(about: self.about, botInfo: self.botInfo, editableBotInfo: self.editableBotInfo, peerStatusSettings: self.peerStatusSettings, pinnedMessageId: self.pinnedMessageId, isBlocked: self.isBlocked, commonGroupCount: self.commonGroupCount, voiceCallsAvailable: self.voiceCallsAvailable, videoCallsAvailable: self.videoCallsAvailable, callsPrivate: self.callsPrivate, canPinMessages: self.canPinMessages, hasScheduledMessages: self.hasScheduledMessages, autoremoveTimeout: self.autoremoveTimeout, chatTheme: self.chatTheme, photo: self.photo, personalPhoto: self.personalPhoto, fallbackPhoto: self.fallbackPhoto, voiceMessagesAvailable: self.voiceMessagesAvailable, wallpaper: self.wallpaper, flags: self.flags, businessHours: self.businessHours, businessLocation: self.businessLocation, greetingMessage: self.greetingMessage, awayMessage: self.awayMessage, connectedBot: self.connectedBot, businessIntro: self.businessIntro, birthday: self.birthday, personalChannel: self.personalChannel, botPreview: self.botPreview, starGiftsCount: self.starGiftsCount, starRefProgram: self.starRefProgram, verification: self.verification, sendPaidMessageStars: self.sendPaidMessageStars, disallowedGifts: self.disallowedGifts, botGroupAdminRights: self.botGroupAdminRights, botChannelAdminRights: self.botChannelAdminRights, starRating: self.starRating, pendingStarRating: self.pendingStarRating, mainProfileTab: self.mainProfileTab, savedMusic: self.savedMusic, note: self.note, myCopyProtectionEnableDate: self.myCopyProtectionEnableDate, botManagerId: botManagerId)
     }
 }
 
@@ -1255,7 +1974,7 @@ func _internal_createBusinessChatLink(account: Account, message: String, entitie
         flags |= 1 << 1
     }
     
-    return account.network.request(Api.functions.account.createBusinessChatLink(link: .inputBusinessChatLink(flags: flags, message: message, entities: apiEntities, title: title)))
+    return account.network.request(Api.functions.account.createBusinessChatLink(link: .inputBusinessChatLink(.init(flags: flags, message: message, entities: apiEntities, title: title))))
     |> mapError { error -> AddBusinessChatLinkError in
         if error.errorDescription == "CHATLINKS_TOO_MUCH" {
             return .tooManyLinks
@@ -1295,7 +2014,7 @@ func _internal_editBusinessChatLink(account: Account, url: String, message: Stri
         flags |= 1 << 1
     }
     
-    return account.network.request(Api.functions.account.editBusinessChatLink(slug: url, link: .inputBusinessChatLink(flags: flags, message: message, entities: apiEntities, title: title)))
+    return account.network.request(Api.functions.account.editBusinessChatLink(slug: url, link: .inputBusinessChatLink(.init(flags: flags, message: message, entities: apiEntities, title: title))))
     |> mapError { _ -> AddBusinessChatLinkError in
         return .generic
     }

@@ -11,6 +11,8 @@ public final class BotCheckoutController: ViewController {
     public final class InputData {
         public enum FetchError {
             case generic
+            case disallowedStarGifts
+            case starGiftsUserLimit
         }
 
         public let form: BotPaymentForm
@@ -30,9 +32,10 @@ public final class BotCheckoutController: ViewController {
         public static func fetch(context: AccountContext, source: BotPaymentInvoiceSource) -> Signal<InputData, FetchError> {
             let theme = context.sharedContext.currentPresentationData.with { $0 }.theme
             let themeParams: [String: Any]?
-            if case .starGift = source {
+            switch source {
+            case .starGift, .starGiftUpgrade:
                 themeParams = nil
-            } else {
+            default:
                 themeParams = [
                     "bg_color": Int32(bitPattern: theme.list.plainBackgroundColor.rgb),
                     "secondary_bg_color": Int32(bitPattern: theme.list.blocksBackgroundColor.rgb),
@@ -52,8 +55,15 @@ public final class BotCheckoutController: ViewController {
             }
 
             return context.engine.payments.fetchBotPaymentForm(source: source, themeParams: themeParams)
-            |> mapError { _ -> FetchError in
-                return .generic
+            |> mapError { error -> FetchError in
+                switch error {
+                case .disallowedStarGift:
+                    return .disallowedStarGifts
+                case .starGiftUserLimit:
+                    return .starGiftsUserLimit
+                default:
+                    return .generic
+                }
             }
             |> mapToSignal { paymentForm -> Signal<InputData, FetchError> in
                 let botPeer: Signal<EnginePeer?, FetchError>

@@ -72,3 +72,79 @@ public extension WallpaperPreviewMedia {
         }
     }
 }
+
+public final class UniqueGiftPreviewMedia: Media {
+    public var id: MediaId? {
+        return nil
+    }
+    public let peerIds: [PeerId] = []
+    
+    public let content: StarGift.UniqueGift?
+    
+    public init(content: StarGift.UniqueGift) {
+        self.content = content
+    }
+    
+    public init(decoder: PostboxDecoder) {
+        self.content = nil
+    }
+    
+    public func encode(_ encoder: PostboxEncoder) {
+    }
+    
+    public func isEqual(to other: Media) -> Bool {
+        guard let other = other as? UniqueGiftPreviewMedia else {
+            return false
+        }
+        
+        if self.content != other.content {
+            return false
+        }
+        
+        return true
+    }
+    
+    public func isSemanticallyEqual(to other: Media) -> Bool {
+        return self.isEqual(to: other)
+    }
+}
+
+
+public final class GiftAuctionPreviewMedia: Media {
+    public var id: MediaId? {
+        return nil
+    }
+    public let peerIds: [PeerId] = []
+    
+    public let content: StarGift.Gift?
+    public let endTime: Int32
+    
+    public init(content: StarGift.Gift, endTime: Int32) {
+        self.content = content
+        self.endTime = endTime
+    }
+    
+    public init(decoder: PostboxDecoder) {
+        self.content = nil
+        self.endTime = 0
+    }
+    
+    public func encode(_ encoder: PostboxEncoder) {
+    }
+    
+    public func isEqual(to other: Media) -> Bool {
+        guard let other = other as? GiftAuctionPreviewMedia else {
+            return false
+        }
+        
+        if self.content != other.content {
+            return false
+        }
+        
+        return true
+    }
+    
+    public func isSemanticallyEqual(to other: Media) -> Bool {
+        return self.isEqual(to: other)
+    }
+}

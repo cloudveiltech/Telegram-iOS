@@ -14,7 +14,7 @@ import AvatarNode
 import ContextUI
 
 final class VideoChatParticipantThumbnailComponent: Component {
-    let call: PresentationGroupCall
+    let call: VideoChatCall
     let theme: PresentationTheme
     let participant: GroupCallParticipantsContext.Participant
     let isPresentation: Bool
@@ -26,7 +26,7 @@ final class VideoChatParticipantThumbnailComponent: Component {
     let contextAction: ((EnginePeer, ContextExtractedContentContainingView, ContextGesture) -> Void)?
     
     init(
-        call: PresentationGroupCall,
+        call: VideoChatCall,
         theme: PresentationTheme,
         participant: GroupCallParticipantsContext.Participant,
         isPresentation: Bool,
@@ -50,7 +50,7 @@ final class VideoChatParticipantThumbnailComponent: Component {
     }
     
     static func ==(lhs: VideoChatParticipantThumbnailComponent, rhs: VideoChatParticipantThumbnailComponent) -> Bool {
-        if lhs.call !== rhs.call {
+        if lhs.call != rhs.call {
             return false
         }
         if lhs.theme !== rhs.theme {
@@ -143,7 +143,9 @@ final class VideoChatParticipantThumbnailComponent: Component {
                     gesture.cancel()
                     return
                 }
-                component.contextAction?(EnginePeer(component.participant.peer), self.extractedContainerView, gesture)
+                if let participantPeer = component.participant.peer {
+                    component.contextAction?(participantPeer, self.extractedContainerView, gesture)
+                }
             }
         }
         
@@ -213,10 +215,10 @@ final class VideoChatParticipantThumbnailComponent: Component {
             let avatarFrame = CGRect(origin: CGPoint(x: floorToScreenPixels((availableSize.width - avatarSize.width) * 0.5), y: 7.0), size: avatarSize)
             transition.setFrame(view: avatarNode.view, frame: avatarFrame)
             avatarNode.updateSize(size: avatarSize)
-            if component.participant.peer.smallProfileImage != nil {
-                avatarNode.setPeerV2(context: component.call.accountContext, theme: component.theme, peer: EnginePeer(component.participant.peer), displayDimensions: avatarSize)
+            if component.participant.peer?.smallProfileImage != nil {
+                avatarNode.setPeerV2(context: component.call.accountContext, theme: component.theme, peer: component.participant.peer, displayDimensions: avatarSize)
             } else {
-                avatarNode.setPeer(context: component.call.accountContext, theme: component.theme, peer: EnginePeer(component.participant.peer), displayDimensions: avatarSize)
+                avatarNode.setPeer(context: component.call.accountContext, theme: component.theme, peer: component.participant.peer, displayDimensions: avatarSize)
             }
             
             let muteStatusSize = self.muteStatus.update(
@@ -241,7 +243,7 @@ final class VideoChatParticipantThumbnailComponent: Component {
             let titleSize = self.title.update(
                 transition: .immediate,
                 component: AnyComponent(MultilineTextComponent(
-                    text: .plain(NSAttributedString(string: EnginePeer(component.participant.peer).compactDisplayTitle, font: Font.semibold(13.0), textColor: .white))
+                    text: .plain(NSAttributedString(string: component.participant.peer?.compactDisplayTitle ?? "User \(component.participant.id)", font: Font.semibold(13.0), textColor: .white))
                 )),
                 environment: {},
                 containerSize: CGSize(width: availableSize.width - 6.0 * 2.0 - 12.0, height: 100.0)
@@ -273,14 +275,14 @@ final class VideoChatParticipantThumbnailComponent: Component {
                 if let current = self.videoLayer {
                     videoLayer = current
                 } else {
-                    videoLayer = PrivateCallVideoLayer()
+                    videoLayer = PrivateCallVideoLayer(enableSharpening: false)
                     self.videoLayer = videoLayer
                     self.extractedContainerView.contentView.layer.insertSublayer(videoLayer.blurredLayer, above: videoBackgroundLayer)
                     self.extractedContainerView.contentView.layer.insertSublayer(videoLayer, above: videoLayer.blurredLayer)
                     
                     videoLayer.blurredLayer.opacity = 0.25
                     
-                    if let input = (component.call as! PresentationGroupCallImpl).video(endpointId: videoDescription.endpointId) {
+                    if let input = component.call.video(endpointId: videoDescription.endpointId) {
                         let videoSource = AdaptedCallVideoSource(videoStreamSignal: input)
                         self.videoSource = videoSource
                         
@@ -436,10 +438,10 @@ final class VideoChatParticipantThumbnailComponent: Component {
 final class VideoChatExpandedParticipantThumbnailsComponent: Component {
     final class Participant: Equatable {
         struct Key: Hashable {
-            var id: EnginePeer.Id
+            var id: GroupCallParticipantsContext.Participant.Id
             var isPresentation: Bool
 
-            init(id: EnginePeer.Id, isPresentation: Bool) {
+            init(id: GroupCallParticipantsContext.Participant.Id, isPresentation: Bool) {
                 self.id = id
                 self.isPresentation = isPresentation
             }
@@ -449,7 +451,7 @@ final class VideoChatExpandedParticipantThumbnailsComponent: Component {
         let isPresentation: Bool
         
         var key: Key {
-            return Key(id: self.participant.peer.id, isPresentation: self.isPresentation)
+            return Key(id: self.participant.id, isPresentation: self.isPresentation)
         }
 
         init(
@@ -474,7 +476,7 @@ final class VideoChatExpandedParticipantThumbnailsComponent: Component {
         }
     }
 
-    let call: PresentationGroupCall
+    let call: VideoChatCall
     let theme: PresentationTheme
     let displayVideo: Bool
     let participants: [Participant]
@@ -485,7 +487,7 @@ final class VideoChatExpandedParticipantThumbnailsComponent: Component {
     let contextAction: ((EnginePeer, ContextExtractedContentContainingView, ContextGesture) -> Void)?
 
     init(
-        call: PresentationGroupCall,
+        call: VideoChatCall,
         theme: PresentationTheme,
         displayVideo: Bool,
         participants: [Participant],
@@ -507,7 +509,7 @@ final class VideoChatExpandedParticipantThumbnailsComponent: Component {
     }
 
     static func ==(lhs: VideoChatExpandedParticipantThumbnailsComponent, rhs: VideoChatExpandedParticipantThumbnailsComponent) -> Bool {
-        if lhs.call !== rhs.call {
+        if lhs.call != rhs.call {
             return false
         }
         if lhs.theme !== rhs.theme {
@@ -608,9 +610,7 @@ final class VideoChatExpandedParticipantThumbnailsComponent: Component {
             self.scrollView.canCancelContentTouches = true
             self.scrollView.clipsToBounds = false
             self.scrollView.contentInsetAdjustmentBehavior = .never
-            if #available(iOS 13.0, *) {
-                self.scrollView.automaticallyAdjustsScrollIndicatorInsets = false
-            }
+            self.scrollView.automaticallyAdjustsScrollIndicatorInsets = false
             self.scrollView.showsVerticalScrollIndicator = false
             self.scrollView.showsHorizontalScrollIndicator = false
             self.scrollView.alwaysBounceHorizontal = false
@@ -618,6 +618,7 @@ final class VideoChatExpandedParticipantThumbnailsComponent: Component {
             self.scrollView.scrollsToTop = false
             self.scrollView.delegate = self
             self.scrollView.clipsToBounds = true
+            self.scrollView.disablesInteractiveTransitionGestureRecognizer = true
             
             self.addSubview(self.scrollView)
         }
@@ -657,6 +658,12 @@ final class VideoChatExpandedParticipantThumbnailsComponent: Component {
                     let itemFrame = itemLayout.frame(at: i)
                     
                     let participantKey = participant.key
+                    
+                    var isSpeaking = false
+                    if let participantPeer = participant.participant.peer {
+                        isSpeaking = component.speakingParticipants.contains(participantPeer.id)
+                    }
+                    
                     let _ = itemView.view.update(
                         transition: itemTransition,
                         component: AnyComponent(VideoChatParticipantThumbnailComponent(
@@ -665,7 +672,7 @@ final class VideoChatExpandedParticipantThumbnailsComponent: Component {
                             participant: participant.participant,
                             isPresentation: participant.isPresentation,
                             isSelected: component.selectedParticipant == participant.key,
-                            isSpeaking: component.speakingParticipants.contains(participant.participant.peer.id),
+                            isSpeaking: isSpeaking,
                             displayVideo: component.displayVideo,
                             interfaceOrientation: component.interfaceOrientation,
                             action: { [weak self] in
@@ -690,7 +697,7 @@ final class VideoChatExpandedParticipantThumbnailsComponent: Component {
                                 transition.animateScale(view: itemComponentView, from: 0.001, to: 1.0)
                             }
                         }
-                        transition.setFrame(view: itemComponentView, frame: itemFrame)
+                        itemTransition.setFrame(view: itemComponentView, frame: itemFrame)
                     }
                 }
             }
@@ -735,12 +742,16 @@ final class VideoChatExpandedParticipantThumbnailsComponent: Component {
             let size = CGSize(width: availableSize.width, height: itemLayout.contentSize.height)
             
             self.ignoreScrolling = true
+            let previousOffsetX = self.scrollView.bounds.minX
             if self.scrollView.bounds.size != size {
                 transition.setFrame(view: self.scrollView, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: size))
             }
             let contentSize = CGSize(width: itemLayout.contentSize.width, height: size.height)
             if self.scrollView.contentSize != contentSize {
                 self.scrollView.contentSize = contentSize
+            }
+            if self.scrollView.isDragging {
+                self.scrollView.bounds.origin.x = previousOffsetX
             }
             self.ignoreScrolling = false
             

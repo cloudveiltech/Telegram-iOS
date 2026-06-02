@@ -4,7 +4,6 @@ import AsyncDisplayKit
 import Display
 import TelegramCore
 import SwiftSignalKit
-import Postbox
 import TelegramPresentationData
 import TelegramUIPreferences
 import ItemListUI
@@ -116,7 +115,6 @@ final class HashtagChatInputPanelItemNode: ListViewItemNode {
     private let titleNode: TextNode
     private let textNode: TextNode
     private let badgeNode: TextNode
-    private let topSeparatorNode: ASDisplayNode
     private let separatorNode: ASDisplayNode
     private let highlightedBackgroundNode: ASDisplayNode
   
@@ -141,9 +139,6 @@ final class HashtagChatInputPanelItemNode: ListViewItemNode {
         self.textNode = TextNode()
         self.badgeNode = TextNode()
         
-        self.topSeparatorNode = ASDisplayNode()
-        self.topSeparatorNode.isLayerBacked = true
-        
         self.separatorNode = ASDisplayNode()
         self.separatorNode.isLayerBacked = true
         
@@ -153,9 +148,8 @@ final class HashtagChatInputPanelItemNode: ListViewItemNode {
         self.activateAreaNode = AccessibilityAreaNode()
         self.activateAreaNode.accessibilityTraits = [.button]
         
-        super.init(layerBacked: false, dynamicBounce: false)
+        super.init(layerBacked: false)
                 
-        self.addSubnode(self.topSeparatorNode)
         self.addSubnode(self.separatorNode)
         self.addSubnode(self.titleNode)
         self.addSubnode(self.textNode)
@@ -226,8 +220,6 @@ final class HashtagChatInputPanelItemNode: ListViewItemNode {
                     strongSelf.badgeBackgroundLayer.backgroundColor = item.presentationData.theme.list.itemAccentColor.cgColor
                     
                     strongSelf.separatorNode.backgroundColor = item.presentationData.theme.list.itemPlainSeparatorColor
-                    strongSelf.topSeparatorNode.backgroundColor = item.presentationData.theme.list.itemPlainSeparatorColor
-                    strongSelf.backgroundColor = item.presentationData.theme.list.plainBackgroundColor
                     strongSelf.highlightedBackgroundNode.backgroundColor = item.presentationData.theme.list.itemHighlightedBackgroundColor
                     
                     let _ = titleApply()
@@ -250,7 +242,6 @@ final class HashtagChatInputPanelItemNode: ListViewItemNode {
                         strongSelf.badgeBackgroundLayer.frame = badgeBackgroundFrame
                     }
                     
-                    strongSelf.topSeparatorNode.isHidden = mergedTop
                     strongSelf.separatorNode.isHidden = !mergedBottom
                     
                     let iconSize = CGSize(width: 30.0, height: 30.0)
@@ -273,7 +264,6 @@ final class HashtagChatInputPanelItemNode: ListViewItemNode {
                         strongSelf.iconBackgroundLayer.isHidden = false
                     }
                     
-                    strongSelf.topSeparatorNode.frame = CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: params.width, height: UIScreenPixel))
                     strongSelf.separatorNode.frame = CGRect(origin: CGPoint(x: leftInset + textLeftInset, y: nodeLayout.contentSize.height - UIScreenPixel), size: CGSize(width: params.width - leftInset - textLeftInset, height: UIScreenPixel))
                     
                     strongSelf.highlightedBackgroundNode.frame = CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: params.width, height: nodeLayout.size.height + UIScreenPixel))
@@ -305,7 +295,7 @@ final class HashtagChatInputPanelItemNode: ListViewItemNode {
         if highlighted {
             self.highlightedBackgroundNode.alpha = 1.0
             if self.highlightedBackgroundNode.supernode == nil {
-                self.insertSubnode(self.highlightedBackgroundNode, aboveSubnode: self.separatorNode)
+                //self.insertSubnode(self.highlightedBackgroundNode, aboveSubnode: self.separatorNode)
             }
         } else {
             if self.highlightedBackgroundNode.supernode != nil {

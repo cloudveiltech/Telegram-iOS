@@ -2,26 +2,28 @@ import Foundation
 import Postbox
 import SwiftSignalKit
 
+public struct AddStickerPackResult {
+}
 
-func _internal_addStickerPackInteractively(postbox: Postbox, info: StickerPackCollectionInfo, items: [StickerPackItem], positionInList: Int? = nil) -> Signal<Void, NoError> {
-    return postbox.transaction { transaction -> Void in
+func _internal_addStickerPackInteractively(postbox: Postbox, info: StickerPackCollectionInfo, items: [StickerPackItem], positionInList: Int? = nil, noDelay: Bool) -> Signal<AddStickerPackResult, NoError> {
+    return postbox.transaction { transaction -> AddStickerPackResult in
         let namespace: SynchronizeInstalledStickerPacksOperationNamespace?
         switch info.id.namespace {
-            case Namespaces.ItemCollection.CloudStickerPacks:
-                namespace = .stickers
-            case Namespaces.ItemCollection.CloudMaskPacks:
-                namespace = .masks
-            case Namespaces.ItemCollection.CloudEmojiPacks:
-                namespace = .emoji
-            default:
-                namespace = nil
+        case Namespaces.ItemCollection.CloudStickerPacks:
+            namespace = .stickers
+        case Namespaces.ItemCollection.CloudMaskPacks:
+            namespace = .masks
+        case Namespaces.ItemCollection.CloudEmojiPacks:
+            namespace = .emoji
+        default:
+            namespace = nil
         }
-        if let namespace = namespace {
+        if let namespace {
             var mappedInfo = info
             if items.isEmpty {
                 mappedInfo = StickerPackCollectionInfo(id: info.id, flags: info.flags, accessHash: info.accessHash, title: info.title, shortName: info.shortName, thumbnail: info.thumbnail, thumbnailFileId: info.thumbnailFileId, immediateThumbnailData: info.immediateThumbnailData, hash: Int32(bitPattern: arc4random()), count: info.count)
             }
-            addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: namespace, content: .add([mappedInfo.id]), noDelay: items.isEmpty)
+            addSynchronizeInstalledStickerPacksOperation(transaction: transaction, namespace: namespace, content: .add([mappedInfo.id]), noDelay: noDelay)
             var updatedInfos = transaction.getItemCollectionsInfos(namespace: mappedInfo.id.namespace).map { $0.1 as! StickerPackCollectionInfo }
             if let index = updatedInfos.firstIndex(where: { $0.id == mappedInfo.id }) {
                 let currentInfo = updatedInfos[index]
@@ -36,11 +38,16 @@ func _internal_addStickerPackInteractively(postbox: Postbox, info: StickerPackCo
                 
                 var indexedItems: [ItemCollectionItem] = []
                 for item in items {
-                    indexedItems.append(StickerPackItem(index: ItemCollectionItemIndex(index: Int32(indexedItems.count), id: item.index.id), file: item.file, indexKeys: item.indexKeys))
+                    let item = StickerPackItem(index: ItemCollectionItemIndex(index: Int32(indexedItems.count), id: item.index.id), file: item.file._parse(), indexKeys: item.indexKeys)
+                    indexedItems.append(item)
                 }
                 transaction.replaceItemCollectionItems(collectionId: mappedInfo.id, items: indexedItems)
             }
             transaction.replaceItemCollectionInfos(namespace: mappedInfo.id.namespace, itemCollectionInfos: updatedInfos.map { ($0.id, $0) })
+            
+            return AddStickerPackResult()
+        } else {
+            return AddStickerPackResult()
         }
     }
 }

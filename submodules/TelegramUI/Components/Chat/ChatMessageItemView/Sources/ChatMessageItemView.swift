@@ -112,7 +112,7 @@ public final class ChatMessageAccessibilityData {
             if let chatPeer = message.peers[item.message.id.peerId] {
                 let authorName = message.author.flatMap(EnginePeer.init)?.displayTitle(strings: item.presentationData.strings, displayOrder: item.presentationData.nameDisplayOrder)
                 
-                let (_, _, messageText, _, _) = chatListItemStrings(strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, contentSettings: item.context.currentContentSettings.with { $0 }, messages: [EngineMessage(message)], chatPeer: EngineRenderedPeer(peer: EnginePeer(chatPeer)), accountPeerId: item.context.account.peerId)
+                let (_, _, messageText, _, _, _) = chatListItemStrings(strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, contentSettings: item.context.currentContentSettings.with { $0 }, messages: [EngineMessage(message)], chatPeer: EngineRenderedPeer(peer: EnginePeer(chatPeer)), accountPeerId: item.context.account.peerId)
                 
                 var text = messageText
                 
@@ -388,7 +388,8 @@ public final class ChatMessageAccessibilityData {
                                     inner: for optionVoters in voters {
                                         if optionVoters.opaqueIdentifier == poll.options[i].opaqueIdentifier {
                                             optionVoterCount[i] = optionVoters.count
-                                            maxOptionVoterCount = max(maxOptionVoterCount, optionVoters.count)
+                                            //TODO:correct
+                                            maxOptionVoterCount = max(maxOptionVoterCount, optionVoters.count ?? 0)
                                             break inner
                                         }
                                     }
@@ -590,6 +591,7 @@ public final class ChatMessageAccessibilityData {
                 }
                 else if let media = media as? TelegramMediaAction {
                     if case .phoneCall = media.action {
+                    } else if case .conferenceCall = media.action {
                     } else {
                         canReply = false
                     }
@@ -621,10 +623,12 @@ public final class ChatMessageAccessibilityData {
 public enum InternalBubbleTapAction {
     public struct Action {
         public var action: () -> Void
+        public var actionWithLongTapRecognizer: ((TapLongTapOrDoubleTapGestureRecognizer) -> Void)?
         public var contextMenuOnLongPress: Bool
         
-        public init(_ action: @escaping () -> Void, contextMenuOnLongPress: Bool = false) {
+        public init(_ action: @escaping () -> Void, actionWithLongTapRecognizer: ((TapLongTapOrDoubleTapGestureRecognizer) -> Void)? = nil, contextMenuOnLongPress: Bool = false) {
             self.action = action
+            self.actionWithLongTapRecognizer = actionWithLongTapRecognizer
             self.contextMenuOnLongPress = contextMenuOnLongPress
         }
     }
@@ -663,7 +667,7 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
     public var effectAnimationNodes: [ChatMessageTransitionNode.DecorationItemNode] = []
     
     public required init(rotated: Bool) {
-        super.init(layerBacked: false, dynamicBounce: true, rotated: rotated)
+        super.init(layerBacked: false, rotated: rotated)
         if rotated {
             self.transform = CATransform3DMakeRotation(CGFloat.pi, 0.0, 0.0, 1.0)
         }
@@ -715,7 +719,7 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
         }
     }
     
-    open func asyncLayout() -> (_ item: ChatMessageItem, _ params: ListViewItemLayoutParams, _ mergedTop: ChatMessageMerge, _ mergedBottom: ChatMessageMerge, _ dateHeaderAtBottom: Bool) -> (ListViewItemNodeLayout, (ListViewItemUpdateAnimation, ListViewItemApply, Bool) -> Void) {
+    open func asyncLayout() -> (_ item: ChatMessageItem, _ params: ListViewItemLayoutParams, _ mergedTop: ChatMessageMerge, _ mergedBottom: ChatMessageMerge, _ dateHeaderAtBottom: ChatMessageHeaderSpec) -> (ListViewItemNodeLayout, (ListViewItemUpdateAnimation, ListViewItemApply, Bool) -> Void) {
         return { _, _, _, _, _ in
             return (ListViewItemNodeLayout(contentSize: CGSize(width: 32.0, height: 32.0), insets: UIEdgeInsets()), { _, _, _ in
                 
@@ -804,7 +808,7 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
         }
     }
     
-    open func performMessageButtonAction(button: ReplyMarkupButton) {
+    public func performMessageButtonAction(button: ReplyMarkupButton, progress: Promise<Bool>?) {
         if let item = self.item {
             switch button.action {
                 case .text:
@@ -814,15 +818,15 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
                     if url.hasPrefix("tg://") {
                         concealed = false
                     }
-                item.controllerInteraction.openUrl(ChatControllerInteraction.OpenUrl(url: url, concealed: concealed, progress: Promise()))
+                item.controllerInteraction.openUrl(ChatControllerInteraction.OpenUrl(url: url, concealed: concealed, progress: progress))
                 case .requestMap:
                     item.controllerInteraction.shareCurrentLocation()
                 case .requestPhone:
                     item.controllerInteraction.shareAccountContact()
                 case .openWebApp:
-                    item.controllerInteraction.requestMessageActionCallback(item.message.id, nil, true, false)
+                    item.controllerInteraction.requestMessageActionCallback(item.message, nil, true, false, progress)
                 case let .callback(requiresPassword, data):
-                    item.controllerInteraction.requestMessageActionCallback(item.message.id, data, false, requiresPassword)
+                    item.controllerInteraction.requestMessageActionCallback(item.message, data, false, requiresPassword, progress)
                 case let .switchInline(samePeer, query, peerTypes):
                     var botPeer: Peer?
                     
@@ -900,6 +904,9 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
     }
 
     private var attachedAvatarNodeOffset: CGFloat = 0.0
+    private var attachedAvatarNodeIsHidden: Bool = false
+    
+    private var attachedDateHeader: (hasDate: Bool, hasPeer: Bool) = (false, false)
 
     override open func attachedHeaderNodesUpdated() {
         if !self.attachedAvatarNodeOffset.isZero {
@@ -911,6 +918,18 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
                 }
             }
         }
+        
+        for headerNode in self.attachedHeaderNodes {
+            if let headerNode = headerNode as? ChatMessageAvatarHeaderNode {
+                headerNode.updateAvatarIsHidden(isHidden: self.attachedAvatarNodeIsHidden, transition: .immediate)
+            }
+        }
+        
+        for headerNode in self.attachedHeaderNodes {
+            if let headerNode = headerNode as? ChatMessageDateHeaderNode {
+                headerNode.updateItem(hasDate: self.attachedDateHeader.hasDate, hasPeer: self.attachedDateHeader.hasPeer)
+            }
+        }
     }
 
     open func updateAttachedAvatarNodeOffset(offset: CGFloat, transition: ContainedViewLayoutTransition) {
@@ -918,6 +937,24 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
         for headerNode in self.attachedHeaderNodes {
             if let headerNode = headerNode as? ChatMessageAvatarHeaderNode {
                 transition.updateSublayerTransformOffset(layer: headerNode.layer, offset: CGPoint(x: offset, y: 0.0))
+            }
+        }
+    }
+    
+    open func updateAttachedAvatarNodeIsHidden(isHidden: Bool, transition: ContainedViewLayoutTransition) {
+        self.attachedAvatarNodeIsHidden = isHidden
+        for headerNode in self.attachedHeaderNodes {
+            if let headerNode = headerNode as? ChatMessageAvatarHeaderNode {
+                headerNode.updateAvatarIsHidden(isHidden: self.attachedAvatarNodeIsHidden, transition: transition)
+            }
+        }
+    }
+    
+    open func updateAttachedDateHeader(hasDate: Bool, hasPeer: Bool) {
+        self.attachedDateHeader = (hasDate, hasPeer)
+        for headerNode in self.attachedHeaderNodes {
+            if let headerNode = headerNode as? ChatMessageDateHeaderNode {
+                headerNode.updateItem(hasDate: hasDate, hasPeer: hasPeer)
             }
         }
     }
@@ -938,13 +975,13 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
         }
         self.playedEffectAnimation = true
         
-        if let effectAnimation = effect.effectAnimation {
+        if let effectAnimation = effect.effectAnimation?._parse() {
             self.playEffectAnimation(resource: effectAnimation.resource)
             if self.fetchEffectDisposable == nil {
                 self.fetchEffectDisposable = freeMediaFileResourceInteractiveFetched(account: item.context.account, userLocation: .other, fileReference: .standalone(media: effectAnimation), resource: effectAnimation.resource).startStrict()
             }
         } else {
-            let effectSticker = effect.effectSticker
+            let effectSticker = effect.effectSticker._parse()
             if let effectFile = effectSticker.videoThumbnails.first {
                 self.playEffectAnimation(resource: effectFile.resource)
                 if self.fetchEffectDisposable == nil {
@@ -984,7 +1021,7 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
         let incomingMessage = item.message.effectivelyIncoming(item.context.account.peerId)
 
         do {
-            let pathPrefix = item.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(resource.id)
+            let pathPrefix = item.context.engine.resources.shortLivedResourceCachePathPrefix(id: EngineMediaResource.Id(resource.id))
             
             let additionalAnimationNode: AnimatedStickerNode
             var effectiveScale: CGFloat = 1.0

@@ -92,7 +92,7 @@ class ChatListEmptyInfoItemNode: ListViewItemNode {
         self.animationNode = DefaultAnimatedStickerNodeImpl()
         self.textNode = TextNode()
         
-        super.init(layerBacked: false, dynamicBounce: false)
+        super.init(layerBacked: false)
         
         self.addSubnode(self.animationNode)
         self.addSubnode(self.textNode)
@@ -207,7 +207,7 @@ class ChatListSectionHeaderNode: ListViewItemNode {
     private var headerNode: ListSectionHeaderNode?
     
     required init() {
-        super.init(layerBacked: false, dynamicBounce: false)
+        super.init(layerBacked: false)
         
         self.zPosition = 1.0
     }
@@ -254,7 +254,7 @@ class ChatListSectionHeaderNode: ListViewItemNode {
                 if item.hide != nil {
                     headerNode.action = item.strings.ChatList_EmptyListContactsHeaderHide
                     headerNode.actionType = .generic
-                    headerNode.activateAction = {
+                    headerNode.activateAction = { _ in
                         guard let self else {
                             return
                         }

@@ -6,12 +6,36 @@
 
 #import "libavcodec/avcodec.h"
 #import "libavformat/avformat.h"
+#import "libavutil/display.h"
 
 int FFMpegCodecIdH264 = AV_CODEC_ID_H264;
 int FFMpegCodecIdHEVC = AV_CODEC_ID_HEVC;
 int FFMpegCodecIdMPEG4 = AV_CODEC_ID_MPEG4;
 int FFMpegCodecIdVP9 = AV_CODEC_ID_VP9;
+int FFMpegCodecIdVP8 = AV_CODEC_ID_VP8;
 int FFMpegCodecIdAV1 = AV_CODEC_ID_AV1;
+
+static int get_stream_rotation(const AVStream *stream) {
+    AVDictionaryEntry *e = av_dict_get (stream->metadata, "rotate", NULL, 0);
+    if (e && e->value) {
+        if (!strcmp (e->value, "90") || !strcmp (e->value, "-270")) {
+            return 90;
+        } else if (!strcmp (e->value, "270") || !strcmp (e->value, "-90")) {
+            return 270;
+        } else if (!strcmp (e->value, "180") || !strcmp (e->value, "-180")) {
+            return 180;
+        } else if (!strcmp (e->value, "0")) {
+            return 0;
+        }
+    }
+    
+    const AVPacketSideData *displaymatrix = av_packet_side_data_get(stream->codecpar->coded_side_data, stream->codecpar->nb_coded_side_data, AV_PKT_DATA_DISPLAYMATRIX);
+    if (displaymatrix) {
+        return ((int)-av_display_rotation_get((int32_t *)displaymatrix->data) + 360) % 360;
+    }
+    
+    return 0;
+}
 
 @interface FFMpegAVFormatContext () {
     AVFormatContext *_impl;
@@ -70,7 +94,13 @@ int FFMpegCodecIdAV1 = AV_CODEC_ID_AV1;
     av_seek_frame(_impl, streamIndex, pts, options);
 }
 
+- (void)seekFrameForStreamIndex:(int32_t)streamIndex byteOffset:(int64_t)byteOffset {
+    int options = AVSEEK_FLAG_BYTE;
+    av_seek_frame(_impl, streamIndex, byteOffset, options);
+}
+
 - (bool)readFrameIntoPacket:(FFMpegPacket *)packet {
+    [packet reuse];
     int result = av_read_frame(_impl, (AVPacket *)[packet impl]);
     return result >= 0;
 }
@@ -117,6 +147,28 @@ int FFMpegCodecIdAV1 = AV_CODEC_ID_AV1;
     return _impl->streams[streamIndex]->duration;
 }
 
+- (int)numberOfIndexEntriesAtStreamIndex:(int32_t)streamIndex {
+    return avformat_index_get_entries_count(_impl->streams[streamIndex]);
+}
+
+- (bool)fillIndexEntryAtStreamIndex:(int32_t)streamIndex entryIndex:(int32_t)entryIndex outEntry:(FFMpegAVIndexEntry * _Nonnull)outEntry {
+    const AVIndexEntry *entry = avformat_index_get_entry(_impl->streams[streamIndex], entryIndex);
+    if (!entry) {
+        outEntry->pos = -1;
+        outEntry->timestamp = 0;
+        outEntry->isKeyframe = false;
+        outEntry->size = 0;
+        return false;
+    }
+    
+    outEntry->pos = entry->pos;
+    outEntry->timestamp = entry->timestamp;
+    outEntry->isKeyframe = (entry->flags & AVINDEX_KEYFRAME) != 0;
+    outEntry->size = entry->size;
+    
+    return true;
+}
+
 - (bool)codecParamsAtStreamIndex:(int32_t)streamIndex toContext:(FFMpegAVCodecContext *)context {
     int result = avcodec_parameters_to_context((AVCodecContext *)[context impl], _impl->streams[streamIndex]->codecpar);
     return result >= 0;
@@ -148,14 +200,10 @@ int FFMpegCodecIdAV1 = AV_CODEC_ID_AV1;
 }
 
 - (FFMpegStreamMetrics)metricsForStreamAtIndex:(int32_t)streamIndex {
+    int angleDegrees = get_stream_rotation(_impl->streams[streamIndex]);
+    
     double rotationAngle = 0.0;
-    AVDictionaryEntry *entry = av_dict_get(_impl->streams[streamIndex]->metadata, "rotate", nil, 0);
-    if (entry && entry->value) {
-        if (strcmp(entry->value, "0") != 0) {
-            double angle = [[[NSString alloc] initWithCString:entry->value encoding:NSUTF8StringEncoding] doubleValue];
-            rotationAngle = angle * M_PI / 180.0;
-        }
-    }
+    rotationAngle = ((double)angleDegrees) * M_PI / 180.0;
     
     return (FFMpegStreamMetrics){ .width = _impl->streams[streamIndex]->codecpar->width, .height = _impl->streams[streamIndex]->codecpar->height, .rotationAngle = rotationAngle, .extradata = _impl->streams[streamIndex]->codecpar->extradata, .extradataSize = _impl->streams[streamIndex]->codecpar->extradata_size };
 }

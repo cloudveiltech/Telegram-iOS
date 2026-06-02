@@ -10,14 +10,14 @@ public enum AllowedReactions {
     case all
 }
 
-public func peerMessageAllowedReactions(context: AccountContext, message: Message) -> Signal<(allowedReactions: AllowedReactions?, areStarsEnabled: Bool), NoError> {
+public func peerMessageAllowedReactions(context: AccountContext, message: Message, ignoreDefault: Bool = false) -> Signal<(allowedReactions: AllowedReactions?, areStarsEnabled: Bool), NoError> {
     if message.id.peerId == context.account.peerId {
         return .single((.all, false))
     }
     
-    if message.containsSecretMedia {
-        return .single((AllowedReactions.set(Set()), false))
-    }
+//    if message.containsSecretMedia {
+//        return .single((AllowedReactions.set(Set()), false))
+//    }
     
     return combineLatest(
         context.engine.data.get(
@@ -41,6 +41,10 @@ public func peerMessageAllowedReactions(context: AccountContext, message: Messag
             areStarsEnabled = value
         }
         
+        if let peer, !canSendReactionsToPeer(peer, ignoreDefault: ignoreDefault) {
+            return (nil, areStarsEnabled)
+        }
+
         if let effectiveReactions = message.effectiveReactions(isTags: message.areReactionsTags(accountPeerId: context.account.peerId)), effectiveReactions.count >= maxReactionCount {
             return (.set(Set(effectiveReactions.map(\.value))), areStarsEnabled)
         }
@@ -156,12 +160,13 @@ public func tagMessageReactions(context: AccountContext, subPeerId: EnginePeer.I
                 }
                 existingIds.insert(.custom(file.fileId.id))
                 
+                let itemFile = TelegramMediaFile.Accessor(file)
                 result.append(ReactionItem(
                     reaction: ReactionItem.Reaction(rawValue: .custom(file.fileId.id)),
-                    appearAnimation: file,
-                    stillAnimation: file,
-                    listAnimation: file,
-                    largeListAnimation: file,
+                    appearAnimation: itemFile,
+                    stillAnimation: itemFile,
+                    listAnimation: itemFile,
+                    largeListAnimation: itemFile,
                     applicationAnimation: nil,
                     largeApplicationAnimation: nil,
                     isCustom: true
@@ -255,7 +260,7 @@ public func tagMessageReactions(context: AccountContext, subPeerId: EnginePeer.I
     }
 }
 
-public func topMessageReactions(context: AccountContext, message: Message, subPeerId: EnginePeer.Id?) -> Signal<[ReactionItem], NoError> {
+public func topMessageReactions(context: AccountContext, message: Message, subPeerId: EnginePeer.Id?, ignoreDefault: Bool = false) -> Signal<[ReactionItem], NoError> {
     if message.id.peerId == context.account.peerId {
         var loadTags = false
         if let effectiveReactionsAttribute = message.effectiveReactionsAttribute(isTags: message.areReactionsTags(accountPeerId: context.account.peerId)) {
@@ -285,7 +290,7 @@ public func topMessageReactions(context: AccountContext, message: Message, subPe
         }
     }
     
-    let allowedReactionsWithFiles: Signal<(reactions: AllowedReactions, files: [Int64: TelegramMediaFile], areStarsEnabled: Bool)?, NoError> = peerMessageAllowedReactions(context: context, message: message)
+    let allowedReactionsWithFiles: Signal<(reactions: AllowedReactions, files: [Int64: TelegramMediaFile], areStarsEnabled: Bool)?, NoError> = peerMessageAllowedReactions(context: context, message: message, ignoreDefault: ignoreDefault)
     |> mapToSignal { allowedReactions, areStarsEnabled -> Signal<(reactions: AllowedReactions, files: [Int64: TelegramMediaFile], areStarsEnabled: Bool)?, NoError> in
         guard let allowedReactions = allowedReactions else {
             return .single(nil)
@@ -441,6 +446,7 @@ public func topMessageReactions(context: AccountContext, message: Message, subPe
                     break
                 case let .custom(fileId):
                     if let file = allowedReactionsAndFiles.files[fileId] {
+                        let file = TelegramMediaFile.Accessor(file)
                         result.append(ReactionItem(
                             reaction: ReactionItem.Reaction(rawValue: .custom(file.fileId.id)),
                             appearAnimation: file,
@@ -499,7 +505,7 @@ public func effectMessageReactions(context: AccountContext) -> Signal<[ReactionI
             }
             existingIds.insert(messageEffect.id)
             
-            let mainFile: TelegramMediaFile = messageEffect.effectSticker
+            let mainFile = messageEffect.effectSticker
             
             result.append(ReactionItem(
                 reaction: ReactionItem.Reaction(rawValue: .custom(messageEffect.id)),

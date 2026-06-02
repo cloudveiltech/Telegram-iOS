@@ -1,4 +1,5 @@
-#import "TGCameraController.h"
+#import <LegacyComponents/LegacyComponents.h>
+#import <LegacyComponents/TGCameraController.h>
 
 #import "LegacyComponentsInternal.h"
 
@@ -29,7 +30,7 @@
 #import <LegacyComponents/TGMediaPickerGalleryVideoItemView.h>
 #import <LegacyComponents/TGModernGalleryVideoView.h>
 
-#import "TGMediaVideoConverter.h"
+#import <LegacyComponents/TGMediaVideoConverter.h>
 #import <LegacyComponents/TGMediaAssetImageSignals.h>
 #import <LegacyComponents/PGPhotoEditorValues.h>
 #import <LegacyComponents/TGVideoEditAdjustments.h>
@@ -46,9 +47,9 @@
 #import <LegacyComponents/TGMenuSheetController.h>
 #import <LegacyComponents/TGMediaPickerSendActionSheetController.h>
 
-#import "TGMediaPickerGallerySelectedItemsModel.h"
-#import "TGCameraCapturedPhoto.h"
-#import "TGCameraCapturedVideo.h"
+#import <LegacyComponents/TGMediaPickerGallerySelectedItemsModel.h>
+#import <LegacyComponents/TGCameraCapturedPhoto.h>
+#import <LegacyComponents/TGCameraCapturedVideo.h>
 
 #import "PGPhotoEditor.h"
 #import "PGRectangleDetector.h"
@@ -184,6 +185,8 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
         if (iosMajorVersion() >= 10) {
             _feedbackGenerator = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
         }
+        
+        _camera.zoomLevels = context.cameraZoomLevels;
     }
     return self;
 }
@@ -307,12 +310,12 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
     
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)
     {
-        _interfaceView = [[TGCameraMainPhoneView alloc] initWithFrame:screenBounds avatar:_intent == TGCameraControllerAvatarIntent videoModeByDefault:_intent == TGCameraControllerGenericVideoOnlyIntent hasUltrawideCamera:_camera.hasUltrawideCamera hasTelephotoCamera:_camera.hasTelephotoCamera camera:_camera];
+        _interfaceView = [[TGCameraMainPhoneView alloc] initWithFrame:screenBounds avatar:_intent == TGCameraControllerAvatarIntent videoModeByDefault:_intent == TGCameraControllerGenericVideoOnlyIntent camera:_camera];
         [_interfaceView setInterfaceOrientation:interfaceOrientation animated:false];
     }
     else
     {
-        _interfaceView = [[TGCameraMainTabletView alloc] initWithFrame:screenBounds avatar:_intent == TGCameraControllerAvatarIntent videoModeByDefault:_intent == TGCameraControllerGenericVideoOnlyIntent hasUltrawideCamera:_camera.hasUltrawideCamera hasTelephotoCamera:_camera.hasTelephotoCamera camera:_camera];
+        _interfaceView = [[TGCameraMainTabletView alloc] initWithFrame:screenBounds avatar:_intent == TGCameraControllerAvatarIntent videoModeByDefault:_intent == TGCameraControllerGenericVideoOnlyIntent camera:_camera];
         [_interfaceView setInterfaceOrientation:interfaceOrientation animated:false];
         
         CGSize referenceSize = [self referenceViewSizeForOrientation:interfaceOrientation];
@@ -1446,6 +1449,7 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
     if (editingContext == nil)
     {
         editingContext = [[TGMediaEditingContext alloc] init];
+        editingContext.sendPaidMessageStars = self.sendPaidMessageStars;
         if (self.forcedCaption != nil)
             [editingContext setForcedCaption:self.forcedCaption];
         _editingContext = editingContext;
@@ -1536,7 +1540,7 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
         }];
         
         bool hasCamera = !self.inhibitMultipleCapture && (((_intent == TGCameraControllerGenericIntent || _intent == TGCameraControllerGenericPhotoOnlyIntent || _intent == TGCameraControllerGenericVideoOnlyIntent) && !_shortcut) || (_intent == TGCameraControllerPassportMultipleIntent));
-        TGMediaPickerGalleryModel *model = [[TGMediaPickerGalleryModel alloc] initWithContext:windowContext items:galleryItems focusItem:focusItem selectionContext:_items.count > 1 ? selectionContext : nil editingContext:editingContext hasCaptions:self.allowCaptions allowCaptionEntities:self.allowCaptionEntities hasTimer:self.hasTimer onlyCrop:_intent == TGCameraControllerPassportIntent || _intent == TGCameraControllerPassportIdIntent || _intent == TGCameraControllerPassportMultipleIntent inhibitDocumentCaptions:self.inhibitDocumentCaptions hasSelectionPanel:true hasCamera:hasCamera recipientName:self.recipientName isScheduledMessages:false];
+        TGMediaPickerGalleryModel *model = [[TGMediaPickerGalleryModel alloc] initWithContext:windowContext items:galleryItems focusItem:focusItem selectionContext:_items.count > 1 ? selectionContext : nil editingContext:editingContext hasCaptions:self.allowCaptions allowCaptionEntities:self.allowCaptionEntities hasTimer:self.hasTimer onlyCrop:_intent == TGCameraControllerPassportIntent || _intent == TGCameraControllerPassportIdIntent || _intent == TGCameraControllerPassportMultipleIntent inhibitDocumentCaptions:self.inhibitDocumentCaptions hasSelectionPanel:true hasCamera:hasCamera recipientName:self.recipientName isScheduledMessages:false hasCoverButton:false];
         model.inhibitMute = self.inhibitMute;
         model.controller = galleryController;
         model.stickersContext = self.stickersContext;
@@ -1652,7 +1656,7 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
                 if (strongSelf == nil)
                     return;
                 
-                strongSelf.presentScheduleController(true, ^(int32_t time) {
+                strongSelf.presentScheduleController(true, ^(int32_t time, bool silentPosting) {
                     __strong TGCameraController *strongSelf = weakSelf;
                     __strong TGMediaPickerGalleryModel *strongModel = weakModel;
                     
@@ -1674,7 +1678,7 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
                         [[NSUserDefaults standardUserDefaults] setObject:@(!strongSelf->_selectionContext.grouping) forKey:@"TG_mediaGroupingDisabled_v0"];
                     
                     if (strongSelf.finishedWithResults != nil)
-                        strongSelf.finishedWithResults(strongController, strongSelf->_selectionContext, strongSelf->_editingContext, item.asset, false, time);
+                        strongSelf.finishedWithResults(strongController, strongSelf->_selectionContext, strongSelf->_editingContext, item.asset, silentPosting, time);
                     
                     [strongSelf _dismissTransitionForResultController:strongController];
                 });
@@ -1718,9 +1722,7 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
             };
             
             id<LegacyComponentsOverlayWindowManager> windowManager = nil;
-            id<LegacyComponentsContext> windowContext = nil;
             windowManager = [strongSelf->_context makeOverlayWindowManager];
-            windowContext = [windowManager context];
             
             TGOverlayControllerWindow *controllerWindow = [[TGOverlayControllerWindow alloc] initWithManager:windowManager parentController:strongSelf contentController:(TGOverlayController *)controller];
             controllerWindow.hidden = false;
@@ -1882,7 +1884,7 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
             return nil;
         };
         
-        void (^dismissGalleryImpl)() = nil;
+        __unused void (^dismissGalleryImpl)() = nil;
 
         galleryController.completedTransitionOut = ^
         {
@@ -2749,6 +2751,8 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
                     return CGRectMake(0, 82, screenSize.width, screenSize.height - 82 - 83);
                 else if (widescreenWidth == 926.0f)
                     return CGRectMake(0, 82, screenSize.width, screenSize.height - 82 - 83);
+                else if (widescreenWidth == 912.0f)
+                    return CGRectMake(0, 82, screenSize.width, screenSize.height - 82 - 83);
                 else if (widescreenWidth == 896.0f)
                     return CGRectMake(0, 77, screenSize.width, screenSize.height - 77 - 83);
                 else if (widescreenWidth == 874.0f)
@@ -2782,10 +2786,12 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
                     return CGRectMake(0, 136, screenSize.width, screenSize.height - 136 - 223);
                 else if (widescreenWidth == 926.0f)
                     return CGRectMake(0, 121, screenSize.width, screenSize.height - 121 - 234);
+                else if (widescreenWidth == 912.0f)
+                    return CGRectMake(0, 136, screenSize.width, screenSize.height - 136 - 216);
                 else if (widescreenWidth == 896.0f)
                     return CGRectMake(0, 121, screenSize.width, screenSize.height - 121 - 223);
                 else if (widescreenWidth == 874.0f)
-                    return CGRectMake(0, 121, screenSize.width, screenSize.height - 135 - 202);
+                    return CGRectMake(0, 136, screenSize.width, screenSize.height - 136 - 202);
                 else if (widescreenWidth == 852.0f)
                     return CGRectMake(0, 136, screenSize.width, screenSize.height - 136 - 192);
                 else if (widescreenWidth == 844.0f)
@@ -2848,6 +2854,8 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
             break;
         }
     }
+    
+    bool isHighQualityPhoto = editingContext.isHighQualityPhoto;
     
     if (storeAssets && !isScan) {
         NSMutableArray *fullSizeSignals = [[NSMutableArray alloc] init];
@@ -2921,7 +2929,7 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
     }
     
     static dispatch_once_t onceToken;
-    static UIImage *blankImage;
+    __unused static UIImage *blankImage;
     dispatch_once(&onceToken, ^
     {
         UIGraphicsBeginImageContextWithOptions(CGSizeMake(1, 1), true, 0.0f);
@@ -2965,7 +2973,9 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
             id<TGMediaEditAdjustments> adjustments = [editingContext adjustmentsForItem:asset];
             NSNumber *timer = [editingContext timerForItem:asset];
 
-            SSignal *inlineSignal = [[asset screenImageSignal:0.0] map:^id(UIImage *originalImage)
+
+            SSignal *originalSignal = isHighQualityPhoto ? [asset originalImageSignal:0.0]  : [asset screenImageSignal:0.0];
+            SSignal *inlineSignal = [originalSignal map:^id(UIImage *originalImage)
             {
                 NSMutableDictionary *dict = [[NSMutableDictionary alloc] init];
                 dict[@"type"] = @"editedPhoto";
@@ -2975,6 +2985,9 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
                     dict[@"timer"] = timer;
                 else if (groupedId != nil && !hasAnyTimers)
                     dict[@"groupedId"] = groupedId;
+                
+                if (isHighQualityPhoto)
+                    dict[@"hd"] = @true;
                 
                 if (isScan) {
                     if (caption != nil)
@@ -3054,6 +3067,9 @@ static CGPoint TGCameraControllerClampPointToScreenSize(__unused id self, __unus
                     dict[@"timer"] = timer;
                 else if (groupedId != nil && !hasAnyTimers)
                     dict[@"groupedId"] = groupedId;
+                
+                if (isHighQualityPhoto)
+                    dict[@"hd"] = @true;
                 
                 if (isScan) {
                     if (caption != nil)

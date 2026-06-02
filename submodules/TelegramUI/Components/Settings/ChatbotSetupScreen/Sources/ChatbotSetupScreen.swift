@@ -15,6 +15,7 @@ import ViewControllerComponent
 import MultilineTextComponent
 import BalancedTextComponent
 import BackButtonComponent
+import EdgeEffect
 import ListSectionComponent
 import ListActionItemComponent
 import ListTextFieldItemComponent
@@ -23,6 +24,8 @@ import LottieComponent
 import Markdown
 import PeerListItemComponent
 import AvatarNode
+import AlertComponent
+import UndoUI
 
 private let checkIcon: UIImage = {
     return generateImage(CGSize(width: 12.0, height: 10.0), rotatedContext: { size, context in
@@ -110,11 +113,40 @@ final class ChatbotSetupScreenComponent: Component {
         }
     }
     
+    final class Permission {
+        var id: String
+        var key: TelegramBusinessBotRights?
+        var title: String
+        var value: Bool?
+        var enabled: Bool
+        var subpermissions: [Permission]?
+        var expanded: Bool?
+        
+        init(
+            id: String,
+            key: TelegramBusinessBotRights? = nil,
+            title: String,
+            value: Bool? = nil,
+            enabled: Bool = true,
+            subpermissions: [Permission]? = nil,
+            expanded: Bool? = nil
+        ) {
+            self.id = id
+            self.key = key
+            self.title = title
+            self.value = value
+            self.enabled = enabled
+            self.subpermissions = subpermissions
+            self.expanded = expanded
+        }
+    }
+    
     final class View: UIView, UIScrollViewDelegate {
         private let topOverscrollLayer = SimpleLayer()
         private let scrollView: ScrollView
         
         private let navigationTitle = ComponentView<Empty>()
+        private let titleTransformContainer: UIView
         private let icon = ComponentView<Empty>()
         private let subtitle = ComponentView<Empty>()
         private let nameSection = ComponentView<Empty>()
@@ -143,7 +175,10 @@ final class ChatbotSetupScreenComponent: Component {
             excludePeers: []
         )
         
-        private var replyToMessages: Bool = true
+        private var permissions: [Permission] = []
+        private var botRights: TelegramBusinessBotRights = []
+        
+        private var temporaryEnabledPermissions = Set<String>()
         
         override init(frame: CGRect) {
             self.scrollView = ScrollView()
@@ -158,6 +193,9 @@ final class ChatbotSetupScreenComponent: Component {
             }
             self.scrollView.alwaysBounceVertical = true
             
+            self.titleTransformContainer = UIView()
+            self.titleTransformContainer.isUserInteractionEnabled = false
+            
             super.init(frame: frame)
             
             self.scrollView.delegate = self
@@ -171,6 +209,7 @@ final class ChatbotSetupScreenComponent: Component {
         }
         
         deinit {
+            self.titleTransformContainer.removeFromSuperview()
         }
 
         func scrollToTop() {
@@ -178,8 +217,19 @@ final class ChatbotSetupScreenComponent: Component {
         }
         
         func attemptNavigation(complete: @escaping () -> Void) -> Bool {
-            guard let component = self.component else {
+            guard let component = self.component, let environemnt = self.environment else {
                 return true
+            }
+            
+            if let botResolutionState = self.botResolutionState, case let .found(_, isInstalled) = botResolutionState.state, !isInstalled {
+                let alertController = textAlertController(context: component.context, title: environemnt.strings.ChatbotSetup_SetupNotCompleted_Title, text: environemnt.strings.ChatbotSetup_SetupNotCompleted_Text, actions: [
+                    TextAlertAction(type: .defaultAction, title: environemnt.strings.Common_Cancel, action: {}),
+                    TextAlertAction(type: .genericAction, title: environemnt.strings.ChatbotSetup_SetupNotCompleted_Leave, action: {
+                        complete()
+                    })
+                ])
+                environemnt.controller()?.present(alertController, in: .window(.root))
+                return false
             }
             
             var mappedCategories: TelegramBusinessRecipients.Categories = []
@@ -206,7 +256,7 @@ final class ChatbotSetupScreenComponent: Component {
                 let _ = component.context.engine.accountData.setAccountConnectedBot(bot: TelegramAccountConnectedBot(
                     id: peer.id,
                     recipients: recipients,
-                    canReply: self.replyToMessages
+                    rights: self.botRights
                 )).startStandalone()
             } else {
                 let _ = component.context.engine.accountData.setAccountConnectedBot(bot: nil).startStandalone()
@@ -219,33 +269,29 @@ final class ChatbotSetupScreenComponent: Component {
             self.updateScrolling(transition: .immediate)
         }
         
-        var scrolledUp = true
         private func updateScrolling(transition: ComponentTransition) {
-            let navigationRevealOffsetY: CGFloat = 0.0
-            
-            let navigationAlphaDistance: CGFloat = 16.0
-            let navigationAlpha: CGFloat = max(0.0, min(1.0, (self.scrollView.contentOffset.y - navigationRevealOffsetY) / navigationAlphaDistance))
-            if let controller = self.environment?.controller(), let navigationBar = controller.navigationBar {
-                transition.setAlpha(layer: navigationBar.backgroundNode.layer, alpha: navigationAlpha)
-                transition.setAlpha(layer: navigationBar.stripeNode.layer, alpha: navigationAlpha)
+            guard let environment = self.environment else {
+                return
             }
             
-            var scrolledUp = false
-            if navigationAlpha < 0.5 {
-                scrolledUp = true
-            } else if navigationAlpha > 0.5 {
-                scrolledUp = false
-            }
+            let titleCenterY: CGFloat = environment.statusBarHeight + (environment.navigationHeight - environment.statusBarHeight) * 0.5
+            let titleTransformDistance: CGFloat = 20.0
+            let titleY: CGFloat = max(titleCenterY, self.titleTransformContainer.center.y - self.scrollView.contentOffset.y)
             
-            if self.scrolledUp != scrolledUp {
-                self.scrolledUp = scrolledUp
-                if !self.isUpdating {
-                    self.state?.updated()
-                }
-            }
+            transition.setSublayerTransform(view: self.titleTransformContainer, transform: CATransform3DMakeTranslation(0.0, titleY - self.titleTransformContainer.center.y, 0.0))
             
+            let titleYDistance: CGFloat = titleY - titleCenterY
+            let titleTransformFraction: CGFloat = 1.0 - max(0.0, min(1.0, titleYDistance / titleTransformDistance))
+            let titleMinScale: CGFloat = 17.0 / 24.0
+            let titleScale: CGFloat = 1.0 * (1.0 - titleTransformFraction) + titleMinScale * titleTransformFraction
             if let navigationTitleView = self.navigationTitle.view {
-                transition.setAlpha(view: navigationTitleView, alpha: 1.0)
+                transition.setScale(view: navigationTitleView, scale: titleScale)
+            }
+            
+            if let controller = environment.controller(), let navigationBar = controller.navigationBar, let edgeEffectView = navigationBar.edgeEffectView {
+                let edgeEffectAlphaDistance = max(1.0, self.titleTransformContainer.center.y - titleCenterY)
+                let edgeEffectAlpha = max(0.0, min(1.0, self.scrollView.contentOffset.y / edgeEffectAlphaDistance))
+                transition.setAlpha(view: edgeEffectView, alpha: edgeEffectAlpha)
             }
         }
         
@@ -476,19 +522,67 @@ final class ChatbotSetupScreenComponent: Component {
             }
         }
         
+        private func presentStarGiftsWarningIfNeeded(_ key: TelegramBusinessBotRights, completion: @escaping (Bool) -> Void) -> Bool {
+            guard let component = self.component, let environment = self.environment, let botResolutionState = self.botResolutionState, case let .found(peer, _) = botResolutionState.state, let controller = environment.controller() else {
+                return false
+            }
+            
+            if !key.contains(.transferAndUpgradeGifts) && !key.contains(.transferStars) && !key.contains(.editUsername) {
+                completion(true)
+                return false
+            } else {
+                let botUsername = "@\(peer.addressName ?? "")"
+                let text: String
+                if key.contains(.editUsername) {
+                    text = environment.strings.ChatbotSetup_Gift_Warning_UsernameText(botUsername).string
+                } else if key == .transferAndUpgradeGifts {
+                    text = environment.strings.ChatbotSetup_Gift_Warning_GiftsText(botUsername).string
+                } else if key == .transferStars {
+                    text = environment.strings.ChatbotSetup_Gift_Warning_StarsText(botUsername).string
+                } else {
+                    text = environment.strings.ChatbotSetup_Gift_Warning_CombinedText(botUsername).string
+                }
+                
+                let alertController = AlertScreen(
+                    context: component.context,
+                    title: environment.strings.ChatbotSetup_Gift_Warning_Title,
+                    text: text,
+                    actions: [
+                        .init(title: environment.strings.Common_Cancel, action: {
+                            completion(false)
+                        }),
+                        .init(title: environment.strings.ChatbotSetup_Gift_Warning_Proceed, type: .default, action: {
+                            completion(true)
+                        }),
+                    ]
+                )
+                alertController.dismissed = { byOutsideTap in
+                    if byOutsideTap {
+                        completion(false)
+                    }
+                }
+                controller.present(alertController, in: .window(.root))
+                return true
+            }
+        }
+        
         func update(component: ChatbotSetupScreenComponent, availableSize: CGSize, state: EmptyComponentState, environment: Environment<EnvironmentType>, transition: ComponentTransition) -> CGSize {
             self.isUpdating = true
             defer {
                 self.isUpdating = false
             }
             
+            let environment = environment[EnvironmentType.self].value
+            let themeUpdated = self.environment?.theme !== environment.theme
+            self.environment = environment
+            
             if self.component == nil {
                 if let bot = component.initialData.bot, let botPeer = component.initialData.botPeer, let addressName = botPeer.addressName {
                     self.botResolutionState = BotResolutionState(query: addressName, state: .found(peer: botPeer, isInstalled: true))
                     self.resetQueryText = addressName.lowercased()
                     
-                    self.replyToMessages = bot.canReply
-                    
+                    self.botRights = bot.rights
+                                        
                     let initialRecipients = bot.recipients
                     
                     var mappedCategories = Set<AdditionalPeerList.Category>()
@@ -527,12 +621,32 @@ final class ChatbotSetupScreenComponent: Component {
                     
                     self.hasAccessToAllChatsByDefault = initialRecipients.exclude
                 }
+                
+                self.permissions = [
+                    Permission(id: "message", title: environment.strings.ChatbotSetup_Rights_ManageMessages, subpermissions: [
+                        Permission(id: "read", title: environment.strings.ChatbotSetup_Rights_ReadMessages, value: true, enabled: false),
+                        Permission(id: "reply", key: .reply, title: environment.strings.ChatbotSetup_Rights_ReplyToMessages),
+                        Permission(id: "mark", key: .readMessages, title: environment.strings.ChatbotSetup_Rights_MarkAsRead),
+                        Permission(id: "deleteSent", key: .deleteSentMessages, title: environment.strings.ChatbotSetup_Rights_DeleteSentMessages),
+                        Permission(id: "deleteReceived", key: .deleteReceivedMessages, title: environment.strings.ChatbotSetup_Rights_DeleteReceivedMessages)
+                    ], expanded: false),
+                    Permission(id: "profile", title: environment.strings.ChatbotSetup_Rights_ManageProfile, subpermissions: [
+                        Permission(id: "name", key: .editName, title: environment.strings.ChatbotSetup_Rights_EditName),
+                        Permission(id: "bio", key: .editBio, title: environment.strings.ChatbotSetup_Rights_EditBio),
+                        Permission(id: "avatar", key: .editProfilePhoto, title: environment.strings.ChatbotSetup_Rights_EditProfilePhoto),
+                        Permission(id: "username", key: .editUsername,  title: environment.strings.ChatbotSetup_Rights_EditUsername)
+                    ], expanded: false),
+                    Permission(id: "gifts", title: environment.strings.ChatbotSetup_Rights_ManageGiftsAndStars, subpermissions: [
+                        Permission(id: "view", key: .viewGifts, title: environment.strings.ChatbotSetup_Rights_ViewGifts),
+                        Permission(id: "sell", key: .sellGifts, title: environment.strings.ChatbotSetup_Rights_SellGifts),
+                        Permission(id: "settings", key: .changeGiftSettings, title: environment.strings.ChatbotSetup_Rights_ChangeGiftSettings),
+                        Permission(id: "transfer", key: .transferAndUpgradeGifts, title: environment.strings.ChatbotSetup_Rights_TransferAndUpgradeGifts),
+                        Permission(id: "transferStars", key: .transferStars, title: environment.strings.ChatbotSetup_Rights_TransferStars)
+                    ], expanded: false),
+                    Permission(id: "stories", key: .manageStories, title: environment.strings.ChatbotSetup_Rights_ManageStories)
+                ]
             }
-            
-            let environment = environment[EnvironmentType.self].value
-            let themeUpdated = self.environment?.theme !== environment.theme
-            self.environment = environment
-            
+                        
             self.component = component
             self.state = state
             
@@ -545,20 +659,41 @@ final class ChatbotSetupScreenComponent: Component {
             let navigationTitleSize = self.navigationTitle.update(
                 transition: transition,
                 component: AnyComponent(MultilineTextComponent(
-                    text: .plain(NSAttributedString(string: environment.strings.ChatbotSetup_TitleItem, font: Font.semibold(17.0), textColor: environment.theme.rootController.navigationBar.primaryTextColor)),
+                    text: .plain(NSAttributedString(string: environment.strings.ChatbotSetup_TitleItem, font: Font.bold(24.0), textColor: environment.theme.rootController.navigationBar.primaryTextColor)),
                     horizontalAlignment: .center
                 )),
                 environment: {},
                 containerSize: CGSize(width: availableSize.width, height: 100.0)
             )
-            let navigationTitleFrame = CGRect(origin: CGPoint(x: floor((availableSize.width - navigationTitleSize.width) / 2.0), y: environment.statusBarHeight + floor((environment.navigationHeight - environment.statusBarHeight - navigationTitleSize.height) / 2.0)), size: navigationTitleSize)
-            if let navigationTitleView = self.navigationTitle.view {
-                if navigationTitleView.superview == nil {
-                    if let controller = self.environment?.controller(), let navigationBar = controller.navigationBar {
-                        navigationBar.view.addSubview(navigationTitleView)
+            let navigationTitleFrame = CGRect(origin: CGPoint(x: floor((availableSize.width - navigationTitleSize.width) / 2.0), y: environment.navigationHeight + 76.0), size: navigationTitleSize)
+            let overlaySuperview: UIView?
+            if let controller = environment.controller(), let navigationBar = controller.navigationBar, let navigationBarSuperview = navigationBar.view.superview {
+                overlaySuperview = navigationBarSuperview
+            } else {
+                overlaySuperview = self
+            }
+            if let overlaySuperview {
+                if self.titleTransformContainer.superview !== overlaySuperview {
+                    self.titleTransformContainer.removeFromSuperview()
+                    if let controller = environment.controller(), let navigationBar = controller.navigationBar, overlaySuperview === navigationBar.view.superview {
+                        overlaySuperview.insertSubview(self.titleTransformContainer, aboveSubview: navigationBar.view)
+                    } else {
+                        overlaySuperview.addSubview(self.titleTransformContainer)
                     }
                 }
-                transition.setFrame(view: navigationTitleView, frame: navigationTitleFrame)
+            }
+            if let navigationTitleView = self.navigationTitle.view {
+                if navigationTitleView.superview !== self.titleTransformContainer {
+                    navigationTitleView.removeFromSuperview()
+                    self.titleTransformContainer.addSubview(navigationTitleView)
+                }
+                transition.setPosition(view: self.titleTransformContainer, position: navigationTitleFrame.center)
+                transition.setBounds(view: self.titleTransformContainer, bounds: CGRect(origin: CGPoint(), size: navigationTitleFrame.size))
+                transition.setBounds(view: navigationTitleView, bounds: CGRect(origin: CGPoint(), size: navigationTitleFrame.size))
+                transition.setPosition(view: navigationTitleView, position: CGPoint(
+                    x: navigationTitleFrame.size.width * 0.5,
+                    y: navigationTitleFrame.size.height * 0.5
+                ))
             }
             
             let bottomContentInset: CGFloat = 24.0
@@ -575,13 +710,13 @@ final class ChatbotSetupScreenComponent: Component {
             let iconSize = self.icon.update(
                 transition: .immediate,
                 component: AnyComponent(LottieComponent(
-                    content: LottieComponent.AppBundleContent(name: "BotEmoji"),
+                    content: LottieComponent.AppBundleContent(name: "ChatAutomation"),
                     loop: false
                 )),
                 environment: {},
-                containerSize: CGSize(width: 100.0, height: 100.0)
+                containerSize: CGSize(width: 140.0, height: 140.0)
             )
-            let iconFrame = CGRect(origin: CGPoint(x: floor((availableSize.width - iconSize.width) * 0.5), y: contentHeight + 8.0), size: iconSize)
+            let iconFrame = CGRect(origin: CGPoint(x: floor((availableSize.width - iconSize.width) * 0.5), y: contentHeight - 50.0), size: iconSize)
             if let iconView = self.icon.view as? LottieComponent.View {
                 if iconView.superview == nil {
                     self.scrollView.addSubview(iconView)
@@ -591,11 +726,11 @@ final class ChatbotSetupScreenComponent: Component {
                 iconView.bounds = CGRect(origin: CGPoint(), size: iconFrame.size)
             }
             
-            contentHeight += 129.0
+            contentHeight += 115.0
             
             let subtitleString = NSMutableAttributedString(attributedString: parseMarkdownIntoAttributedString(environment.strings.ChatbotSetup_Text, attributes: MarkdownAttributes(
-                body: MarkdownAttributeSet(font: Font.regular(15.0), textColor: environment.theme.list.freeTextColor),
-                bold: MarkdownAttributeSet(font: Font.semibold(15.0), textColor: environment.theme.list.freeTextColor),
+                body: MarkdownAttributeSet(font: Font.regular(15.0), textColor: environment.theme.list.itemPrimaryTextColor),
+                bold: MarkdownAttributeSet(font: Font.semibold(15.0), textColor: environment.theme.list.itemPrimaryTextColor),
                 link: MarkdownAttributeSet(font: Font.regular(15.0), textColor: environment.theme.list.itemAccentColor),
                 linkAttribute: { attributes in
                     return ("URL", "")
@@ -632,7 +767,7 @@ final class ChatbotSetupScreenComponent: Component {
                     }
                 )),
                 environment: {},
-                containerSize: CGSize(width: availableSize.width - sideInset * 2.0, height: 1000.0)
+                containerSize: CGSize(width: availableSize.width - sideInset * 2.0 - 64.0, height: 1000.0)
             )
             let subtitleFrame = CGRect(origin: CGPoint(x: floor((availableSize.width - subtitleSize.width) * 0.5), y: contentHeight), size: subtitleSize)
             if let subtitleView = self.subtitle.view {
@@ -649,6 +784,7 @@ final class ChatbotSetupScreenComponent: Component {
             self.resetQueryText = nil
             var nameSectionItems: [AnyComponentWithIdentity<Empty>] = []
             nameSectionItems.append(AnyComponentWithIdentity(id: 0, component: AnyComponent(ListTextFieldItemComponent(
+                style: .glass,
                 theme: environment.theme,
                 initialText: "",
                 resetText: resetQueryText.flatMap { ListTextFieldItemComponent.ResetText(value: $0) },
@@ -679,7 +815,7 @@ final class ChatbotSetupScreenComponent: Component {
                     strings: environment.strings,
                     content: mappedContent,
                     installAction: { [weak self] in
-                        guard let self else {
+                        guard let self, let component = self.component, let environment = self.environment, let controller = self.environment?.controller() else {
                             return
                         }
                         self.endEditing(true)
@@ -688,13 +824,22 @@ final class ChatbotSetupScreenComponent: Component {
                             if case let .user(user) = peer, let botInfo = user.botInfo, botInfo.flags.contains(.isBusiness) {
                                 botResolutionState.state = .found(peer: peer, isInstalled: true)
                                 self.botResolutionState = botResolutionState
+                                self.botRights = [.reply, .readMessages, .deleteSentMessages, .deleteReceivedMessages]
                                 self.state?.updated(transition: .spring(duration: 0.3))
                             } else {
-                                self.environment?.controller()?.present(standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData), title: nil, text: presentationData.strings.ChatbotSetup_ErrorBotNotBusinessCapable, actions: [
+                                self.environment?.controller()?.present(textAlertController(context: component.context, title: nil, text: presentationData.strings.ChatbotSetup_ErrorBotNotBusinessCapable, actions: [
                                     TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {
                                     })
                                 ]), in: .window(.root))
                             }
+                            controller.present(UndoOverlayController(
+                                presentationData: presentationData,
+                                content: .invitedToVoiceChat(context: component.context, peer: peer, title: nil, text: environment.strings.ChatbotSetup_BotInstalled(peer.compactDisplayTitle).string, action: nil, duration: 2.0),
+                                elevatedLayout: false,
+                                position: .bottom,
+                                animateInAsReplacement: false,
+                                action: { _ in return true }
+                            ), in: .current)
                         }
                     },
                     removeAction: { [weak self] in
@@ -721,6 +866,7 @@ final class ChatbotSetupScreenComponent: Component {
                 transition: transition,
                 component: AnyComponent(ListSectionComponent(
                     theme: environment.theme,
+                    style: .glass,
                     header: nil,
                     footer: AnyComponent(MultilineTextComponent(
                         text: .plain(NSAttributedString(
@@ -749,6 +895,7 @@ final class ChatbotSetupScreenComponent: Component {
                 transition: transition,
                 component: AnyComponent(ListSectionComponent(
                     theme: environment.theme,
+                    style: .glass,
                     header: AnyComponent(MultilineTextComponent(
                         text: .plain(NSAttributedString(
                             string: environment.strings.ChatbotSetup_RecipientsSectionHeader,
@@ -761,6 +908,7 @@ final class ChatbotSetupScreenComponent: Component {
                     items: [
                         AnyComponentWithIdentity(id: 0, component: AnyComponent(ListActionItemComponent(
                             theme: environment.theme,
+                            style: .glass,
                             title: AnyComponent(VStack([
                                 AnyComponentWithIdentity(id: AnyHashable(0), component: AnyComponent(MultilineTextComponent(
                                     text: .plain(NSAttributedString(
@@ -791,6 +939,7 @@ final class ChatbotSetupScreenComponent: Component {
                         ))),
                         AnyComponentWithIdentity(id: 1, component: AnyComponent(ListActionItemComponent(
                             theme: environment.theme,
+                            style: .glass,
                             title: AnyComponent(VStack([
                                 AnyComponentWithIdentity(id: AnyHashable(0), component: AnyComponent(MultilineTextComponent(
                                     text: .plain(NSAttributedString(
@@ -853,6 +1002,7 @@ final class ChatbotSetupScreenComponent: Component {
             var excludedSectionItems: [AnyComponentWithIdentity<Empty>] = []
             excludedSectionItems.append(AnyComponentWithIdentity(id: 0, component: AnyComponent(ListActionItemComponent(
                 theme: environment.theme,
+                style: .glass,
                 title: AnyComponent(VStack([
                     AnyComponentWithIdentity(id: AnyHashable(0), component: AnyComponent(MultilineTextComponent(
                         text: .plain(NSAttributedString(
@@ -885,6 +1035,7 @@ final class ChatbotSetupScreenComponent: Component {
                 transition: transition,
                 component: AnyComponent(ListSectionComponent(
                     theme: environment.theme,
+                    style: .glass,
                     header: nil,
                     footer: AnyComponent(MultilineTextComponent(
                         text: .markdown(
@@ -919,6 +1070,7 @@ final class ChatbotSetupScreenComponent: Component {
             var excludedUsersSectionItems: [AnyComponentWithIdentity<Empty>] = []
             excludedUsersSectionItems.append(AnyComponentWithIdentity(id: 0, component: AnyComponent(ListActionItemComponent(
                 theme: environment.theme,
+                style: .glass,
                 title: AnyComponent(VStack([
                     AnyComponentWithIdentity(id: AnyHashable(0), component: AnyComponent(MultilineTextComponent(
                         text: .plain(NSAttributedString(
@@ -950,6 +1102,7 @@ final class ChatbotSetupScreenComponent: Component {
                 transition: transition,
                 component: AnyComponent(ListSectionComponent(
                     theme: environment.theme,
+                    style: .glass,
                     header: nil,
                     footer: AnyComponent(MultilineTextComponent(
                         text: .markdown(
@@ -984,61 +1137,235 @@ final class ChatbotSetupScreenComponent: Component {
                 contentHeight += excludedUsersContentHeight
             }
             
-            let permissionsSectionSize = self.permissionsSection.update(
-                transition: transition,
-                component: AnyComponent(ListSectionComponent(
-                    theme: environment.theme,
-                    header: AnyComponent(MultilineTextComponent(
-                        text: .plain(NSAttributedString(
-                            string: environment.strings.ChatbotSetup_PermissionsSectionHeader,
-                            font: Font.regular(presentationData.listsFontSize.itemListBaseHeaderFontSize),
-                            textColor: environment.theme.list.freeTextColor
-                        )),
-                        maximumNumberOfLines: 0
-                    )),
-                    footer: AnyComponent(MultilineTextComponent(
-                        text: .plain(NSAttributedString(
-                            string: environment.strings.ChatbotSetup_PermissionsSectionFooter,
-                            font: Font.regular(presentationData.listsFontSize.itemListBaseHeaderFontSize),
-                            textColor: environment.theme.list.freeTextColor
-                        )),
-                        maximumNumberOfLines: 0
-                    )),
-                    items: [
-                        AnyComponentWithIdentity(id: 0, component: AnyComponent(ListActionItemComponent(
+            if case .found(_, true) = self.botResolutionState?.state {
+                var permissionsItems: [AnyComponentWithIdentity<Empty>] = []
+                for permission in self.permissions {
+                    var value: Bool
+                    if let key = permission.key {
+                        value = self.botRights.contains(key)
+                    } else {
+                        value = permission.value == true
+                    }
+                    
+                    var titleItems: [AnyComponentWithIdentity<Empty>] = []
+                    titleItems.append(
+                        AnyComponentWithIdentity(id: AnyHashable(0), component: AnyComponent(MultilineTextComponent(
+                            text: .plain(NSAttributedString(
+                                string: permission.title,
+                                font: Font.regular(presentationData.listsFontSize.baseDisplaySize),
+                                textColor: environment.theme.list.itemPrimaryTextColor
+                            )),
+                            maximumNumberOfLines: 1
+                        )))
+                    )
+                    
+                    if let subpermissions = permission.subpermissions {
+                        value = true
+                        var selectedCount = 0
+                        for subpermission in subpermissions {
+                            if let key = subpermission.key {
+                                if self.botRights.contains(key) {
+                                    selectedCount += 1
+                                } else {
+                                    value = false
+                                }
+                            } else if subpermission.value == true {
+                                selectedCount += 1
+                            }
+                        }
+                        if self.temporaryEnabledPermissions.contains(permission.id) {
+                            value = true
+                        }
+                        
+                        titleItems.append(
+                            AnyComponentWithIdentity(id: AnyHashable(1), component: AnyComponent(MultilineTextComponent(
+                                text: .plain(NSAttributedString(
+                                    string: "\(selectedCount)/\(subpermissions.count)",
+                                    font: Font.with(size: presentationData.listsFontSize.baseDisplaySize / 17.0 * 13.0, design: .round, weight: .semibold),
+                                    textColor: environment.theme.list.itemPrimaryTextColor
+                                )),
+                                maximumNumberOfLines: 1
+                            )))
+                        )
+                        titleItems.append(
+                            AnyComponentWithIdentity(id: AnyHashable(2), component: AnyComponent(BundleIconComponent(
+                                name: "Item List/ExpandingItemVerticalRegularArrow",
+                                tintColor: environment.theme.list.itemPrimaryTextColor,
+                                flipVertically: permission.expanded == true
+                            )))
+                        )
+                    }
+                    permissionsItems.append(
+                        AnyComponentWithIdentity(id: permission.id, component: AnyComponent(ListActionItemComponent(
                             theme: environment.theme,
-                            title: AnyComponent(VStack([
-                                AnyComponentWithIdentity(id: AnyHashable(0), component: AnyComponent(MultilineTextComponent(
-                                    text: .plain(NSAttributedString(
-                                        string: environment.strings.ChatbotSetup_Permission_ReplyToMessages,
-                                        font: Font.regular(presentationData.listsFontSize.baseDisplaySize),
-                                        textColor: environment.theme.list.itemPrimaryTextColor
-                                    )),
-                                    maximumNumberOfLines: 1
-                                ))),
-                            ], alignment: .left, spacing: 2.0)),
-                            accessory: .toggle(ListActionItemComponent.Toggle(style: .icons, isOn: self.replyToMessages, action: { [weak self] _ in
+                            style: .glass,
+                            title: AnyComponent(HStack(titleItems, spacing: 6.0)),
+                            accessory: .toggle(ListActionItemComponent.Toggle(style: .icons, isOn: value, action: { [weak self] value in
                                 guard let self else {
                                     return
                                 }
-                                self.replyToMessages = !self.replyToMessages
+                                if let subpermissions = permission.subpermissions {
+                                    if value {
+                                        var combinedKey: TelegramBusinessBotRights = []
+                                        for subpermission in subpermissions {
+                                            if subpermission.enabled, let key = subpermission.key {
+                                                combinedKey.insert(key)
+                                            }
+                                        }
+                                        self.temporaryEnabledPermissions.insert(permission.id)
+                                       
+                                        let presentedWarning = self.presentStarGiftsWarningIfNeeded(combinedKey, completion: { [weak self] value in
+                                            guard let self else {
+                                                return
+                                            }
+                                            if value {
+                                                self.botRights.insert(combinedKey)
+                                            }
+                                            self.temporaryEnabledPermissions.remove(permission.id)
+                                            self.state?.updated(transition: .spring(duration: 0.4))
+                                        })
+                                        
+                                        if !presentedWarning {
+                                            self.state?.updated(transition: .spring(duration: 0.4))
+                                        }
+                                    } else {
+                                        for subpermission in subpermissions {
+                                            if subpermission.enabled, let key = subpermission.key {
+                                                if value {
+                                                } else {
+                                                    self.botRights.remove(key)
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if let key = permission.key {
+                                    if value {
+                                        self.botRights.insert(key)
+                                    } else {
+                                        self.botRights.remove(key)
+                                    }
+                                }
                                 self.state?.updated(transition: .spring(duration: 0.4))
                             })),
-                            action: nil
-                        ))),
-                    ]
-                )),
-                environment: {},
-                containerSize: CGSize(width: availableSize.width - sideInset * 2.0, height: 10000.0)
-            )
-            let permissionsSectionFrame = CGRect(origin: CGPoint(x: sideInset, y: contentHeight), size: permissionsSectionSize)
-            if let permissionsSectionView = self.permissionsSection.view {
-                if permissionsSectionView.superview == nil {
-                    self.scrollView.addSubview(permissionsSectionView)
+                            action: permission.subpermissions != nil ? { [weak self] _ in
+                                guard let self else {
+                                    return
+                                }
+                                var scrollToBottom = false
+                                if let expanded = permission.expanded {
+                                    permission.expanded = !expanded
+                                    if !expanded {
+                                        scrollToBottom = true
+                                    }
+                                }
+                                self.state?.updated(transition: .spring(duration: 0.4))
+                                if scrollToBottom {
+                                    self.scrollView.setContentOffset(CGPoint(x: 0.0, y: self.scrollView.contentSize.height - self.scrollView.bounds.height), animated: true)
+                                }
+                            } : nil
+                        )))
+                    )
+                    
+                    if let subpermissions = permission.subpermissions, permission.expanded == true {
+                        for subpermission in subpermissions {
+                            var value = false
+                            if let key = subpermission.key {
+                                value = self.botRights.contains(key)
+                            } else if subpermission.value == true {
+                                value = true
+                            }
+                            
+                            permissionsItems.append(
+                                AnyComponentWithIdentity(id: subpermission.id, component: AnyComponent(ListActionItemComponent(
+                                    theme: environment.theme,
+                                    style: .glass,
+                                    title: AnyComponent(VStack([
+                                        AnyComponentWithIdentity(id: AnyHashable(0), component: AnyComponent(MultilineTextComponent(
+                                            text: .plain(NSAttributedString(
+                                                string: subpermission.title,
+                                                font: Font.regular(presentationData.listsFontSize.baseDisplaySize),
+                                                textColor: environment.theme.list.itemPrimaryTextColor
+                                            )),
+                                            maximumNumberOfLines: 1
+                                        ))),
+                                    ], alignment: .left, spacing: 2.0)),
+                                    leftIcon: .check(ListActionItemComponent.LeftIcon.Check(isSelected: value, isEnabled: subpermission.enabled, toggle: nil)),
+                                    accessory: nil,
+                                    action: subpermission.enabled ? { [weak self] _ in
+                                        guard let self else {
+                                            return
+                                        }
+                                        if let key = subpermission.key {
+                                            if !value {
+                                                let _ = self.presentStarGiftsWarningIfNeeded(key, completion: { [weak self] value in
+                                                    guard let self else {
+                                                        return
+                                                    }
+                                                    if value {
+                                                        self.botRights.insert(key)
+                                                    }
+                                                    self.state?.updated(transition: .spring(duration: 0.4))
+                                                })
+                                            } else {
+                                                self.botRights.remove(key)
+                                            }
+                                        }
+                                        self.state?.updated(transition: .spring(duration: 0.4))
+                                    } : nil
+                                )))
+                            )
+                        }
+                        //permissionsItems.append(AnyComponentWithIdentity(id: "\(permission.id)_sub", component: AnyComponent(VStack(stackItems, spacing: 0.0))))
+                    }
                 }
-                transition.setFrame(view: permissionsSectionView, frame: permissionsSectionFrame)
+                
+                var permissionsTransition = transition
+                if self.permissionsSection.view?.superview == nil {
+                    permissionsTransition = .immediate
+                }
+                
+                let permissionsSectionSize = self.permissionsSection.update(
+                    transition: permissionsTransition,
+                    component: AnyComponent(ListSectionComponent(
+                        theme: environment.theme,
+                        style: .glass,
+                        header: AnyComponent(MultilineTextComponent(
+                            text: .plain(NSAttributedString(
+                                string: environment.strings.ChatbotSetup_PermissionsSectionHeader,
+                                font: Font.regular(presentationData.listsFontSize.itemListBaseHeaderFontSize),
+                                textColor: environment.theme.list.freeTextColor
+                            )),
+                            maximumNumberOfLines: 0
+                        )),
+                        footer: AnyComponent(MultilineTextComponent(
+                            text: .plain(NSAttributedString(
+                                string: environment.strings.ChatbotSetup_PermissionsSectionFooter,
+                                font: Font.regular(presentationData.listsFontSize.itemListBaseHeaderFontSize),
+                                textColor: environment.theme.list.freeTextColor
+                            )),
+                            maximumNumberOfLines: 0
+                        )),
+                        items: permissionsItems
+                    )),
+                    environment: {},
+                    containerSize: CGSize(width: availableSize.width - sideInset * 2.0, height: 10000.0)
+                )
+                let permissionsSectionFrame = CGRect(origin: CGPoint(x: sideInset, y: contentHeight), size: permissionsSectionSize)
+                if let permissionsSectionView = self.permissionsSection.view {
+                    if permissionsSectionView.superview == nil {
+                        self.scrollView.addSubview(permissionsSectionView)
+                        
+                        permissionsSectionView.alpha = 1.0
+                        transition.animateAlpha(view: permissionsSectionView, from: 0.0, to: 1.0)
+                    }
+                    permissionsTransition.setFrame(view: permissionsSectionView, frame: permissionsSectionFrame)
+                }
+                contentHeight += permissionsSectionSize.height
+            } else if let permissionsSectionView = self.permissionsSection.view {
+                transition.setAlpha(view: permissionsSectionView, alpha: 0.0, completion: { _ in
+                    permissionsSectionView.removeFromSuperview()
+                })
             }
-            contentHeight += permissionsSectionSize.height
             
             contentHeight += bottomContentInset
             contentHeight += environment.safeInsets.bottom
@@ -1053,8 +1380,8 @@ final class ChatbotSetupScreenComponent: Component {
                 self.scrollView.contentSize = contentSize
             }
             let scrollInsets = UIEdgeInsets(top: environment.navigationHeight, left: 0.0, bottom: 0.0, right: 0.0)
-            if self.scrollView.scrollIndicatorInsets != scrollInsets {
-                self.scrollView.scrollIndicatorInsets = scrollInsets
+            if self.scrollView.verticalScrollIndicatorInsets != scrollInsets {
+                self.scrollView.verticalScrollIndicatorInsets = scrollInsets
             }
                         
             if !previousBounds.isEmpty, !transition.animation.isImmediate {

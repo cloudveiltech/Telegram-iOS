@@ -29,6 +29,8 @@
             case FFMpegAVFramePixelFormatYUVA:
                 _impl->format = AV_PIX_FMT_YUVA420P;
                 break;
+            case FFMpegAVFramePixelFormatUnsupported:
+                return nil;
         }
         _impl->width = width;
         _impl->height = height;
@@ -64,6 +66,17 @@
     return _impl->pts;
 }
 
+- (FFMpegAVFrameNativePixelFormat)nativePixelFormat {
+    switch (_impl->format) {
+        case AV_PIX_FMT_VIDEOTOOLBOX: {
+            return FFMpegAVFrameNativePixelFormatVideoToolbox;
+        }
+        default: {
+            return FFMpegAVFrameNativePixelFormatUnknown;
+        }
+    }
+}
+
 - (int64_t)duration {
 #if LIBAVFORMAT_VERSION_MAJOR >= 59
     return _impl->duration;
@@ -90,8 +103,11 @@
     switch (_impl->format) {
         case AV_PIX_FMT_YUVA420P:
             return FFMpegAVFramePixelFormatYUVA;
-        default:
+        case AV_PIX_FMT_YUV420P:
+        case AV_PIX_FMT_YUVJ420P:
             return FFMpegAVFramePixelFormatYUV;
+        default:
+            return FFMpegAVFramePixelFormatUnsupported;
     }
 }
 

@@ -15,9 +15,16 @@ import PeerInfoChatListPaneNode
 import PeerInfoChatPaneNode
 import TextFormat
 import EmojiTextAttachmentView
-//CloudVeil start
+import ComponentFlow
+import ComponentDisplayAdapters
+import TabSelectorComponent
+import MultilineTextComponent
+import BottomButtonPanelComponent
+import UndoUI
+import HorizontalTabsComponent
+import GlassBackgroundComponent
+import EdgeEffect
 import CloudVeilSecurityManager
-//CloudVeil end
 
 final class PeerInfoPaneWrapper {
     let key: PeerInfoPaneKey
@@ -41,14 +48,181 @@ final class PeerInfoPaneWrapper {
     }
 }
 
+private final class GiftsTabItemComponent: Component {
+    let context: AccountContext
+    let icons: [ProfileGiftsContext.State.StarGift]
+    let title: String
+    let theme: PresentationTheme
+    
+    init(
+        context: AccountContext,
+        icons: [ProfileGiftsContext.State.StarGift],
+        title: String,
+        theme: PresentationTheme
+    ) {
+        self.context = context
+        self.icons = icons
+        self.title = title
+        self.theme = theme
+    }
+    
+    static func ==(lhs: GiftsTabItemComponent, rhs: GiftsTabItemComponent) -> Bool {
+        if lhs.icons != rhs.icons {
+            return false
+        }
+        if lhs.title != rhs.title {
+            return false
+        }
+        if lhs.theme !== rhs.theme {
+            return false
+        }
+        return true
+    }
+    
+    final class View: UIView {
+        private let title = ComponentView<Empty>()
+        private let icon = ComponentView<Empty>()
+        private var iconLayers: [AnyHashable: InlineStickerItemLayer] = [:]
+                
+        private var component: GiftsTabItemComponent?
+                
+        func update(component: GiftsTabItemComponent, availableSize: CGSize, state: State, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
+            self.component = component
+            
+            let textSpacing: CGFloat = 2.0
+            let iconSpacing: CGFloat = 1.0
+            
+            let normalColor = component.theme.chat.inputPanel.panelControlColor
+            let effectiveColor = normalColor
+            
+            let titleSize = self.title.update(
+                transition: .immediate,
+                component: AnyComponent(MultilineTextComponent(
+                    text: .plain(NSAttributedString(string: component.title, font: Font.medium(15.0), textColor: effectiveColor))
+                )),
+                environment: {},
+                containerSize: CGSize(width: availableSize.width, height: 100.0)
+            )
+            
+            var iconOffset: CGFloat = titleSize.width + textSpacing
+            var iconsWidth: CGFloat = 0.0
+            if !component.icons.isEmpty {
+                iconsWidth += iconSpacing
+                var validIds = Set<AnyHashable>()
+                var index = 0
+                for icon in component.icons {
+                    let id: AnyHashable
+                    if let reference = icon.reference {
+                        id = reference
+                    } else {
+                        id = index
+                    }
+                    validIds.insert(id)
+                    
+                    let iconSize = CGSize(width: 18.0, height: 18.0)
+                    let animationLayer: InlineStickerItemLayer
+                    if let current = self.iconLayers[id] {
+                        animationLayer = current
+                    } else {
+                        var file: TelegramMediaFile?
+                        switch icon.gift {
+                        case let .generic(gift):
+                            file = gift.file
+                        case let .unique(gift):
+                            for attribute in gift.attributes {
+                                if case let .model(_, fileValue, _, _) = attribute {
+                                    file = fileValue
+                                }
+                            }
+                        }
+                        guard let file else {
+                            continue
+                        }
+                        
+                        let emoji = ChatTextInputTextCustomEmojiAttribute(
+                            interactivelySelectedFromPackId: nil,
+                            fileId: file.fileId.id,
+                            file: file
+                        )
+                        animationLayer = InlineStickerItemLayer(
+                            context: .account(component.context),
+                            userLocation: .other,
+                            attemptSynchronousLoad: false,
+                            emoji: emoji,
+                            file: file,
+                            cache: component.context.animationCache,
+                            renderer: component.context.animationRenderer,
+                            unique: true,
+                            placeholderColor: component.theme.list.mediaPlaceholderColor,
+                            pointSize: iconSize,
+                            loopCount: 1
+                        )
+                        animationLayer.isVisibleForAnimations = true
+                        self.iconLayers[id] = animationLayer
+                        self.layer.addSublayer(animationLayer)
+                        
+                        animationLayer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2)
+                        animationLayer.animateScale(from: 0.01, to: 1.0, duration: 0.2)
+                    }
+                    transition.setFrame(layer: animationLayer, frame: CGRect(origin: CGPoint(x: iconOffset, y: 0.0), size: iconSize))
+                    iconOffset += iconSize.width + iconSpacing
+                    iconsWidth += iconSize.width + iconSpacing
+                    
+                    index += 1
+                }
+                
+                var removeIds: [AnyHashable] = []
+                for (id, layer) in self.iconLayers {
+                    if !validIds.contains(id) {
+                        removeIds.append(id)
+                        layer.animateScale(from: 1.0, to: 0.01, duration: 0.25, removeOnCompletion: false)
+                        layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.25, removeOnCompletion: false, completion: { _ in
+                            layer.removeFromSuperlayer()
+                        })
+                    }
+                }
+                for id in removeIds {
+                    self.iconLayers.removeValue(forKey: id)
+                }
+            } else {
+                for (_, layer) in self.iconLayers {
+                    layer.removeFromSuperlayer()
+                }
+                self.iconLayers.removeAll()
+            }
+            
+            let titleFrame = CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: titleSize)
+            if let titleView = self.title.view {
+                if titleView.superview == nil {
+                    titleView.isUserInteractionEnabled = false
+                    self.addSubview(titleView)
+                }
+                titleView.frame = titleFrame
+            }
+                        
+            return CGSize(width: titleSize.width + iconsWidth, height: titleSize.height)
+        }
+    }
+    
+    func makeView() -> View {
+        return View(frame: CGRect())
+    }
+    
+    func update(view: View, availableSize: CGSize, state: State, environment: Environment<EnvironmentType>, transition: ComponentTransition) -> CGSize {
+        return view.update(component: self, availableSize: availableSize, state: state, environment: environment, transition: transition)
+    }
+}
+
 final class PeerInfoPaneTabsContainerPaneNode: ASDisplayNode {
     private let pressed: () -> Void
     
     private let titleNode: ImmediateTextNode
     private let buttonNode: HighlightTrackingButtonNode
-    private var iconLayers: [InlineStickerItemLayer] = []
+    private var iconLayers: [AnyHashable: InlineStickerItemLayer] = [:]
     
     private var isSelected: Bool = false
+    private var icons: [ProfileGiftsContext.State.StarGift] = []
+    private var titleWidth: CGFloat?
     
     init(pressed: @escaping () -> Void) {
         self.pressed = pressed
@@ -70,27 +244,53 @@ final class PeerInfoPaneTabsContainerPaneNode: ASDisplayNode {
         self.pressed()
     }
     
-    func updateText(context: AccountContext, title: String, icons: [TelegramMediaFile] = [], isSelected: Bool, presentationData: PresentationData) {
+    func updateText(context: AccountContext, title: String, icons: [ProfileGiftsContext.State.StarGift] = [], isSelected: Bool, presentationData: PresentationData) {
         self.isSelected = isSelected
         self.titleNode.attributedText = NSAttributedString(string: title, font: Font.medium(14.0), textColor: isSelected ? presentationData.theme.list.itemAccentColor : presentationData.theme.list.itemSecondaryTextColor)
+        self.icons = icons
         
         if !icons.isEmpty {
-            if self.iconLayers.isEmpty {
-                for icon in icons {
-                    let iconSize = CGSize(width: 18.0, height: 18.0)
+            var validIds = Set<AnyHashable>()
+            var index = 0
+            for icon in icons {
+                let id: AnyHashable
+                if let reference = icon.reference {
+                    id = reference
+                } else {
+                    id = index
+                }
+                validIds.insert(id)
+                
+                let iconSize = CGSize(width: 18.0, height: 18.0)
+                if let _ = self.iconLayers[id] {
+                    
+                } else {
+                    var file: TelegramMediaFile?
+                    switch icon.gift {
+                    case let .generic(gift):
+                        file = gift.file
+                    case let .unique(gift):
+                        for attribute in gift.attributes {
+                            if case let .model(_, fileValue, _, _) = attribute {
+                                file = fileValue
+                            }
+                        }
+                    }
+                    guard let file else {
+                        continue
+                    }
                     
                     let emoji = ChatTextInputTextCustomEmojiAttribute(
                         interactivelySelectedFromPackId: nil,
-                        fileId: icon.fileId.id,
-                        file: icon
+                        fileId: file.fileId.id,
+                        file: file
                     )
-                    
                     let animationLayer = InlineStickerItemLayer(
                         context: .account(context),
                         userLocation: .other,
                         attemptSynchronousLoad: false,
                         emoji: emoji,
-                        file: icon,
+                        file: file,
                         cache: context.animationCache,
                         renderer: context.animationRenderer,
                         unique: true,
@@ -99,12 +299,30 @@ final class PeerInfoPaneTabsContainerPaneNode: ASDisplayNode {
                         loopCount: 1
                     )
                     animationLayer.isVisibleForAnimations = true
-                    self.iconLayers.append(animationLayer)
+                    self.iconLayers[id] = animationLayer
                     self.layer.addSublayer(animationLayer)
+                    
+                    animationLayer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2)
+                    animationLayer.animateScale(from: 0.01, to: 1.0, duration: 0.2)
+                }
+                index += 1
+            }
+            
+            var removeIds: [AnyHashable] = []
+            for (id, layer) in self.iconLayers {
+                if !validIds.contains(id) {
+                    removeIds.append(id)
+                    layer.animateScale(from: 1.0, to: 0.01, duration: 0.25, removeOnCompletion: false)
+                    layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.25, removeOnCompletion: false, completion: { _ in
+                        layer.removeFromSuperlayer()
+                    })
                 }
             }
+            for id in removeIds {
+                self.iconLayers.removeValue(forKey: id)
+            }
         } else {
-            for layer in self.iconLayers {
+            for (_, layer) in self.iconLayers {
                 layer.removeFromSuperlayer()
             }
             self.iconLayers.removeAll()
@@ -118,22 +336,52 @@ final class PeerInfoPaneTabsContainerPaneNode: ASDisplayNode {
     }
     
     func updateLayout(height: CGFloat) -> CGFloat {
-        var totalWidth: CGFloat = 0.0
         let titleSize = self.titleNode.updateLayout(CGSize(width: 200.0, height: .greatestFiniteMagnitude))
-        self.titleNode.frame = CGRect(origin: CGPoint(x: 0.0, y: floor((height - titleSize.height) / 2.0)), size: titleSize)
-        totalWidth = titleSize.width
+        let iconSize = CGSize(width: 18.0, height: 18.0)
+        let spacing: CGFloat = 1.0
         
+        self.titleNode.frame = CGRect(origin: CGPoint(x: 0.0, y: floor((height - titleSize.height) / 2.0)), size: titleSize)
+        self.titleWidth = titleSize.width
+        
+        var totalWidth = titleSize.width
         if !self.iconLayers.isEmpty {
             totalWidth += 2.0
-            let iconSize = CGSize(width: 18.0, height: 18.0)
-            let spacing: CGFloat = 1.0
-            for iconlayer in self.iconLayers {
-                iconlayer.frame = CGRect(origin: CGPoint(x: totalWidth, y: 15.0), size: iconSize)
-                totalWidth += iconSize.width + spacing
-            }
+            totalWidth += (iconSize.width + spacing) * CGFloat(self.iconLayers.count)
             totalWidth -= spacing
         }
+
+        self.layoutIcons(transition: .animated(duration: 0.3, curve: .spring))
+
         return totalWidth
+    }
+    
+    func layoutIcons(transition: ContainedViewLayoutTransition) {
+        guard let titleWidth = self.titleWidth else {
+            return
+        }
+        let iconSize = CGSize(width: 18.0, height: 18.0)
+        let spacing: CGFloat = 1.0
+
+        var origin = CGPoint(x: titleWidth + 2.0, y: 15.0)
+        
+        var index = 0
+        for icon in self.icons {
+            let id: AnyHashable
+            if let reference = icon.reference {
+                id = reference
+            } else {
+                id = index
+            }
+            if let layer = self.iconLayers[id] {
+                var iconTransition = transition
+                if layer.frame.width.isZero {
+                    iconTransition = .immediate
+                }
+                iconTransition.updateFrame(layer: layer, frame: CGRect(origin: origin, size: iconSize))
+            }
+            origin.x += iconSize.width + spacing
+            index += 1
+        }
     }
     
     func updateArea(size: CGSize, sideInset: CGFloat) {
@@ -144,297 +392,11 @@ final class PeerInfoPaneTabsContainerPaneNode: ASDisplayNode {
 struct PeerInfoPaneSpecifier: Equatable {
     var key: PeerInfoPaneKey
     var title: String
-    var icons: [TelegramMediaFile]
+    var icons: [ProfileGiftsContext.State.StarGift]
 }
 
 private func interpolateFrame(from fromValue: CGRect, to toValue: CGRect, t: CGFloat) -> CGRect {
     return CGRect(x: floorToScreenPixels(toValue.origin.x * t + fromValue.origin.x * (1.0 - t)), y: floorToScreenPixels(toValue.origin.y * t + fromValue.origin.y * (1.0 - t)), width: floorToScreenPixels(toValue.size.width * t + fromValue.size.width * (1.0 - t)), height: floorToScreenPixels(toValue.size.height * t + fromValue.size.height * (1.0 - t)))
-}
-
-final class PeerInfoPaneTabsContainerNode: ASDisplayNode {
-    private let context: AccountContext
-    private let scrollNode: ASScrollNode
-    private var paneNodes: [PeerInfoPaneKey: PeerInfoPaneTabsContainerPaneNode] = [:]
-    private let selectedLineNode: ASImageNode
-    
-    private var currentParams: ([PeerInfoPaneSpecifier], PeerInfoPaneKey?, Bool, PresentationData)?
-    
-    var requestSelectPane: ((PeerInfoPaneKey) -> Void)?
-    
-    init(context: AccountContext) {
-        self.context = context
-        self.scrollNode = ASScrollNode()
-        
-        self.selectedLineNode = ASImageNode()
-        self.selectedLineNode.displaysAsynchronously = false
-        self.selectedLineNode.displayWithoutProcessing = true
-        
-        super.init()
-        
-        self.scrollNode.view.disablesInteractiveTransitionGestureRecognizerNow = { [weak self] in
-            guard let strongSelf = self else {
-                return false
-            }
-            return strongSelf.scrollNode.view.contentOffset.x > .ulpOfOne
-        }
-        self.scrollNode.view.showsHorizontalScrollIndicator = false
-        self.scrollNode.view.scrollsToTop = false
-        if #available(iOS 11.0, *) {
-            self.scrollNode.view.contentInsetAdjustmentBehavior = .never
-        }
-        
-        self.addSubnode(self.scrollNode)
-        self.scrollNode.addSubnode(self.selectedLineNode)
-    }
-    
-    func update(size: CGSize, presentationData: PresentationData, paneList: [PeerInfoPaneSpecifier], selectedPane: PeerInfoPaneKey?, disableSwitching: Bool, transitionFraction: CGFloat, transition: ContainedViewLayoutTransition) {
-        transition.updateFrame(node: self.scrollNode, frame: CGRect(origin: CGPoint(), size: size))
-        
-        let focusOnSelectedPane = self.currentParams?.1 != selectedPane
-        
-        if self.currentParams?.3.theme !== presentationData.theme {
-            self.selectedLineNode.image = generateImage(CGSize(width: 7.0, height: 4.0), rotatedContext: { size, context in
-                context.clear(CGRect(origin: CGPoint(), size: size))
-                context.setFillColor(presentationData.theme.list.itemAccentColor.cgColor)
-                context.fillEllipse(in: CGRect(origin: CGPoint(), size: CGSize(width: size.width, height: size.width)))
-            })?.stretchableImage(withLeftCapWidth: 4, topCapHeight: 1)
-        }
-        
-        if self.currentParams?.0 != paneList || self.currentParams?.1 != selectedPane || self.currentParams?.3 !== presentationData {
-            for specifier in paneList {
-                let paneNode: PeerInfoPaneTabsContainerPaneNode
-                if let current = self.paneNodes[specifier.key] {
-                    paneNode = current
-                } else {
-                    paneNode = PeerInfoPaneTabsContainerPaneNode(pressed: { [weak self] in
-                        self?.paneSelected(specifier.key)
-                    })
-                    self.paneNodes[specifier.key] = paneNode
-                }
-                paneNode.updateText(context: self.context, title: specifier.title, icons: specifier.icons, isSelected: selectedPane == specifier.key, presentationData: presentationData)
-            }
-            var removeKeys: [PeerInfoPaneKey] = []
-            for (key, _) in self.paneNodes {
-                if !paneList.contains(where: { $0.key == key }) {
-                    removeKeys.append(key)
-                }
-            }
-            for key in removeKeys {
-                if let paneNode = self.paneNodes.removeValue(forKey: key) {
-                    paneNode.removeFromSupernode()
-                }
-            }
-        }
-        self.currentParams = (paneList, selectedPane, disableSwitching, presentationData)
-        
-        var tabSizes: [(PeerInfoPaneKey, CGSize, PeerInfoPaneTabsContainerPaneNode, Bool)] = []
-        var totalRawTabSize: CGFloat = 0.0
-        var selectionFrames: [CGRect] = []
-        
-        for specifier in paneList {
-            guard let paneNode = self.paneNodes[specifier.key] else {
-                continue
-            }
-            let wasAdded = paneNode.supernode == nil
-            if wasAdded {
-                self.scrollNode.addSubnode(paneNode)
-            }
-            let paneNodeWidth = paneNode.updateLayout(height: size.height)
-            let paneNodeSize = CGSize(width: paneNodeWidth, height: size.height)
-            tabSizes.append((specifier.key, paneNodeSize, paneNode, wasAdded))
-            totalRawTabSize += paneNodeSize.width
-        }
-        
-        let minSpacing: CGFloat = 26.0
-        if tabSizes.count <= 1 {
-            for i in 0 ..< tabSizes.count {
-                let (paneKey, paneNodeSize, paneNode, wasAdded) = tabSizes[i]
-                let leftOffset: CGFloat = 16.0
-                
-                let paneFrame = CGRect(origin: CGPoint(x: leftOffset, y: floor((size.height - paneNodeSize.height) / 2.0)), size: paneNodeSize)
-                
-                let paneAlpha: CGFloat
-                if disableSwitching {
-                    paneAlpha = paneKey == selectedPane ? 1.0 : 0.5
-                } else {
-                    paneAlpha = 1.0
-                }
-                
-                if wasAdded {
-                    paneNode.frame = paneFrame
-                    paneNode.alpha = 0.0
-                } else {
-                    transition.updateFrameAdditiveToCenter(node: paneNode, frame: paneFrame)
-                }
-                transition.updateAlpha(node: paneNode, alpha: paneAlpha)
-                
-                let areaSideInset: CGFloat = 16.0
-                paneNode.updateArea(size: paneFrame.size, sideInset: areaSideInset)
-                paneNode.hitTestSlop = UIEdgeInsets(top: 0.0, left: -areaSideInset, bottom: 0.0, right: -areaSideInset)
-                
-                selectionFrames.append(paneFrame)
-            }
-            self.scrollNode.view.contentSize = CGSize(width: size.width, height: size.height)
-        } else if totalRawTabSize + CGFloat(tabSizes.count + 1) * minSpacing <= size.width {
-            let availableSpace = size.width
-            let availableSpacing = availableSpace - totalRawTabSize
-            let perTabSpacing = floor(availableSpacing / CGFloat(tabSizes.count + 1))
-            
-            let normalizedPerTabWidth = floor(availableSpace / CGFloat(tabSizes.count))
-            var maxSpacing: CGFloat = 0.0
-            var minSpacing: CGFloat = .greatestFiniteMagnitude
-            for i in 0 ..< tabSizes.count - 1 {
-                let distanceToNextBoundary = (normalizedPerTabWidth - tabSizes[i].1.width) / 2.0
-                let nextDistanceToBoundary = (normalizedPerTabWidth - tabSizes[i + 1].1.width) / 2.0
-                let distance = nextDistanceToBoundary + distanceToNextBoundary
-                maxSpacing = max(distance, maxSpacing)
-                minSpacing = min(distance, minSpacing)
-            }
-            
-            if minSpacing >= 100.0 || (maxSpacing / minSpacing) < 0.2 {
-                for i in 0 ..< tabSizes.count {
-                    let (paneKey, paneNodeSize, paneNode, wasAdded) = tabSizes[i]
-                    
-                    let paneFrame = CGRect(origin: CGPoint(x: CGFloat(i) * normalizedPerTabWidth + floor((normalizedPerTabWidth - paneNodeSize.width) / 2.0), y: floor((size.height - paneNodeSize.height) / 2.0)), size: paneNodeSize)
-                    
-                    let paneAlpha: CGFloat
-                    if disableSwitching {
-                        paneAlpha = paneKey == selectedPane ? 1.0 : 0.5
-                    } else {
-                        paneAlpha = 1.0
-                    }
-                    
-                    if wasAdded {
-                        paneNode.frame = paneFrame
-                        paneNode.alpha = 0.0
-                    } else {
-                        transition.updateFrameAdditiveToCenter(node: paneNode, frame: paneFrame)
-                    }
-                    
-                    transition.updateAlpha(node: paneNode, alpha: paneAlpha)
-                    
-                    let areaSideInset = floor((normalizedPerTabWidth - paneNodeSize.width) / 2.0)
-                    paneNode.updateArea(size: paneFrame.size, sideInset: areaSideInset)
-                    paneNode.hitTestSlop = UIEdgeInsets(top: 0.0, left: -areaSideInset, bottom: 0.0, right: -areaSideInset)
-                    
-                    selectionFrames.append(paneFrame)
-                }
-            } else {
-                var leftOffset = perTabSpacing
-                for i in 0 ..< tabSizes.count {
-                    let (paneKey, paneNodeSize, paneNode, wasAdded) = tabSizes[i]
-                    
-                    let paneFrame = CGRect(origin: CGPoint(x: leftOffset, y: floor((size.height - paneNodeSize.height) / 2.0)), size: paneNodeSize)
-                    
-                    let paneAlpha: CGFloat
-                    if disableSwitching {
-                        paneAlpha = paneKey == selectedPane ? 1.0 : 0.5
-                    } else {
-                        paneAlpha = 1.0
-                    }
-                    
-                    if wasAdded {
-                        paneNode.frame = paneFrame
-                        paneNode.alpha = 0.0
-                    } else {
-                        transition.updateFrameAdditiveToCenter(node: paneNode, frame: paneFrame)
-                    }
-                    
-                    transition.updateAlpha(node: paneNode, alpha: paneAlpha)
-                    
-                    let areaSideInset = floor(perTabSpacing / 2.0)
-                    paneNode.updateArea(size: paneFrame.size, sideInset: areaSideInset)
-                    paneNode.hitTestSlop = UIEdgeInsets(top: 0.0, left: -areaSideInset, bottom: 0.0, right: -areaSideInset)
-                    
-                    leftOffset += paneNodeSize.width + perTabSpacing
-                    
-                    selectionFrames.append(paneFrame)
-                }
-            }
-            self.scrollNode.view.contentSize = CGSize(width: size.width, height: size.height)
-        } else {
-            let sideInset: CGFloat = 16.0
-            var leftOffset: CGFloat = sideInset
-            for i in 0 ..< tabSizes.count {
-                let (paneKey, paneNodeSize, paneNode, wasAdded) = tabSizes[i]
-                let paneFrame = CGRect(origin: CGPoint(x: leftOffset, y: floor((size.height - paneNodeSize.height) / 2.0)), size: paneNodeSize)
-                
-                let paneAlpha: CGFloat
-                if disableSwitching {
-                    paneAlpha = paneKey == selectedPane ? 1.0 : 0.5
-                } else {
-                    paneAlpha = 1.0
-                }
-                
-                if wasAdded {
-                    paneNode.frame = paneFrame
-                    paneNode.alpha = 0.0
-                } else {
-                    transition.updateFrameAdditiveToCenter(node: paneNode, frame: paneFrame)
-                }
-                
-                transition.updateAlpha(node: paneNode, alpha: paneAlpha)
-                
-                paneNode.updateArea(size: paneFrame.size, sideInset: minSpacing)
-                paneNode.hitTestSlop = UIEdgeInsets(top: 0.0, left: -minSpacing, bottom: 0.0, right: -minSpacing)
-                
-                selectionFrames.append(paneFrame)
-                
-                leftOffset += paneNodeSize.width + minSpacing
-            }
-            self.scrollNode.view.contentSize = CGSize(width: leftOffset - minSpacing + sideInset, height: size.height)
-        }
-        
-        var selectedFrame: CGRect?
-        if let selectedPane = selectedPane, let currentIndex = paneList.firstIndex(where: { $0.key == selectedPane }) {
-            if currentIndex != 0 && transitionFraction > 0.0 {
-                let currentFrame = selectionFrames[currentIndex]
-                let previousFrame = selectionFrames[currentIndex - 1]
-                selectedFrame = interpolateFrame(from: currentFrame, to: previousFrame, t: abs(transitionFraction))
-            } else if currentIndex != paneList.count - 1 && transitionFraction < 0.0 {
-                let currentFrame = selectionFrames[currentIndex]
-                let previousFrame = selectionFrames[currentIndex + 1]
-                selectedFrame = interpolateFrame(from: currentFrame, to: previousFrame, t: abs(transitionFraction))
-            } else {
-                selectedFrame = selectionFrames[currentIndex]
-            }
-        }
-        
-        if let selectedFrame = selectedFrame {
-            let wasAdded = self.selectedLineNode.isHidden
-            self.selectedLineNode.isHidden = false
-            let lineFrame = CGRect(origin: CGPoint(x: selectedFrame.minX, y: size.height - 4.0), size: CGSize(width: selectedFrame.width, height: 4.0))
-            if wasAdded {
-                self.selectedLineNode.frame = lineFrame
-                self.selectedLineNode.alpha = 0.0
-                transition.updateAlpha(node: self.selectedLineNode, alpha: 1.0)
-            } else {
-                transition.updateFrame(node: self.selectedLineNode, frame: lineFrame)
-            }
-            if focusOnSelectedPane {
-                if selectedPane == paneList.first?.key {
-                    transition.updateBounds(node: self.scrollNode, bounds: CGRect(origin: CGPoint(), size: self.scrollNode.bounds.size))
-                } else if selectedPane == paneList.last?.key {
-                    transition.updateBounds(node: self.scrollNode, bounds: CGRect(origin: CGPoint(x: max(0.0, self.scrollNode.view.contentSize.width - self.scrollNode.bounds.width), y: 0.0), size: self.scrollNode.bounds.size))
-                } else {
-                    let contentOffsetX = max(0.0, min(self.scrollNode.view.contentSize.width - self.scrollNode.bounds.width, floor(selectedFrame.midX - self.scrollNode.bounds.width / 2.0)))
-                    transition.updateBounds(node: self.scrollNode, bounds: CGRect(origin: CGPoint(x: contentOffsetX, y: 0.0), size: self.scrollNode.bounds.size))
-                }
-            }
-        } else {
-            self.selectedLineNode.isHidden = true
-        }
-    }
-    
-    private func paneSelected(_ key: PeerInfoPaneKey) {
-        guard let currentParams = self.currentParams else {
-            return
-        }
-        if currentParams.2 {
-            return
-        }
-        self.requestSelectPane?(key)
-    }
 }
 
 private final class PeerInfoPendingPane {
@@ -447,32 +409,75 @@ private final class PeerInfoPendingPane {
         updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?,
         chatControllerInteraction: ChatControllerInteraction,
         data: PeerInfoScreenData,
-        openPeerContextAction: @escaping (Bool, Peer, ASDisplayNode, ContextGesture?) -> Void,
+        openPeerContextAction: @escaping (Bool, EnginePeer, ASDisplayNode, ContextGesture?) -> Void,
         openAddMemberAction: @escaping () -> Void,
         requestPerformPeerMemberAction: @escaping (PeerInfoMember, PeerMembersListAction) -> Void,
         peerId: PeerId,
         chatLocation: ChatLocation,
         chatLocationContextHolder: Atomic<ChatLocationContextHolder?>,
+        sharedMediaFromForumTopic: (EnginePeer.Id, Int64)?,
+        initialStoryFolderId: Int64?,
+        initialGiftCollectionId: Int64?,
+        switchToMediaTarget: PeerInfoSwitchToMediaTarget?,
         key: PeerInfoPaneKey,
         hasBecomeReady: @escaping (PeerInfoPaneKey) -> Void,
         parentController: ViewController?,
         openMediaCalendar: @escaping () -> Void,
         openAddStory: @escaping () -> Void,
         paneDidScroll: @escaping () -> Void,
+        expandIfNeeded: @escaping () -> Void,
         ensureRectVisible: @escaping (UIView, CGRect) -> Void,
-        externalDataUpdated: @escaping (ContainedViewLayoutTransition) -> Void
+        externalDataUpdated: @escaping (ContainedViewLayoutTransition) -> Void,
+        openShareLink: @escaping (String) -> Void
     ) {
-        var captureProtected = data.peer?.isCopyProtectionEnabled ?? false
+        var chatLocationPeerId = peerId
+        var chatLocation = chatLocation
+        var chatLocationContextHolder = chatLocationContextHolder
+        if let sharedMediaFromForumTopic {
+            chatLocationPeerId = sharedMediaFromForumTopic.0
+            chatLocation = .replyThread(message: ChatReplyThreadMessage(
+                peerId: sharedMediaFromForumTopic.0,
+                threadId: sharedMediaFromForumTopic.1,
+                channelMessageId: nil,
+                isChannelPost: false,
+                isForumPost: true,
+                isMonoforumPost: true,
+                maxMessage: nil,
+                maxReadIncomingMessageId: nil,
+                maxReadOutgoingMessageId: nil,
+                unreadCount: 0,
+                initialFilledHoles: IndexSet(),
+                initialAnchor: .automatic,
+                isNotAvailable: false
+            ))
+            chatLocationContextHolder = Atomic(value: nil)
+        }
+        
+        var captureProtected = peerInfoIsCopyProtected(data: data)
         let paneNode: PeerInfoPaneNode
         switch key {
         case .gifts:
-            paneNode = PeerInfoGiftsPaneNode(context: context, peerId: peerId, chatControllerInteraction: chatControllerInteraction, openPeerContextAction: openPeerContextAction, profileGifts: data.profileGiftsContext!)
+            var canManage = false
+            var canGift = true
+            if let peer = data.peer {
+                if let cachedUserData = data.cachedData as? CachedUserData, cachedUserData.disallowedGifts == .All {
+                    canGift = false
+                }
+                if case let .channel(channel) = peer, case .broadcast = channel.info {
+                    if channel.hasPermission(.sendSomething) {
+                        canManage = true
+                    }
+                }
+            }
+            let giftPaneNode = PeerInfoGiftsPaneNode(context: context, peerId: peerId, chatControllerInteraction: chatControllerInteraction, profileGiftsCollections: data.profileGiftsCollectionsContext!, profileGifts: data.profileGiftsContext!, canManage: canManage, canGift: canGift, initialGiftCollectionId: initialGiftCollectionId)
+            giftPaneNode.openShareLink = openShareLink
+            paneNode = giftPaneNode
         case .stories, .storyArchive, .botPreview:
             var canManage = false
             if let peer = data.peer {
                 if peer.id == context.account.peerId {
                     canManage = true
-                } else if let channel = peer as? TelegramChannel {
+                } else if case let .channel(channel) = peer {
                     if channel.hasPermission(.editStories) {
                         canManage = true
                     }
@@ -489,7 +494,7 @@ private final class PeerInfoPendingPane {
                 scope = .botPreview(id: peerId)
                 
                 if let peer = data.peer {
-                    if let user = peer as? TelegramUser, let botInfo = user.botInfo, botInfo.flags.contains(.canEdit) {
+                    if case let .user(user) = peer, let botInfo = user.botInfo, botInfo.flags.contains(.canEdit) {
                         canManage = true
                     }
                 }
@@ -499,13 +504,16 @@ private final class PeerInfoPendingPane {
                 listContext = data.storyListContext
             }
             
-            let visualPaneNode = PeerInfoStoryPaneNode(context: context, scope: scope, captureProtected: captureProtected, isProfileEmbedded: true, canManageStories: canManage, navigationController: chatControllerInteraction.navigationController, listContext: listContext)
+            let visualPaneNode = PeerInfoStoryPaneNode(context: context, scope: scope, captureProtected: captureProtected, isProfileEmbedded: true, canManageStories: canManage, navigationController: chatControllerInteraction.navigationController, listContext: listContext, initialStoryFolderId: initialStoryFolderId)
             paneNode = visualPaneNode
             visualPaneNode.openCurrentDate = {
                 openMediaCalendar()
             }
             visualPaneNode.paneDidScroll = {
                 paneDidScroll()
+            }
+            visualPaneNode.expandIfNeeded = {
+                expandIfNeeded()
             }
             visualPaneNode.ensureRectVisible = { sourceView, rect in
                 ensureRectVisible(sourceView, rect)
@@ -514,7 +522,7 @@ private final class PeerInfoPendingPane {
                 openAddStory()
             }
         case .media:
-            let visualPaneNode = PeerInfoVisualMediaPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, contentType: .photoOrVideo, captureProtected: captureProtected)
+            let visualPaneNode = PeerInfoVisualMediaPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: chatLocationPeerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, contentType: .photoOrVideo, captureProtected: captureProtected, initialFocusMessageIndex: switchToMediaTarget?.kind == .photoVideo ? switchToMediaTarget?.messageIndex : nil)
             paneNode = visualPaneNode
             visualPaneNode.openCurrentDate = {
                 openMediaCalendar()
@@ -523,18 +531,18 @@ private final class PeerInfoPendingPane {
                 paneDidScroll()
             }
         case .files:
-            let visualPaneNode = PeerInfoVisualMediaPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, contentType: .files, captureProtected: captureProtected)
+            let visualPaneNode = PeerInfoVisualMediaPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: chatLocationPeerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, contentType: .files, captureProtected: captureProtected, initialFocusMessageIndex: switchToMediaTarget?.kind == .photoVideo ? switchToMediaTarget?.messageIndex : nil)
             paneNode = visualPaneNode
         case .links:
-            paneNode = PeerInfoListPaneNode(context: context, updatedPresentationData: updatedPresentationData, chatControllerInteraction: chatControllerInteraction, peerId: peerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, tagMask: .webPage)
+            paneNode = PeerInfoListPaneNode(context: context, updatedPresentationData: updatedPresentationData, chatControllerInteraction: chatControllerInteraction, peerId: chatLocationPeerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, tagMask: .webPage)
         case .voice:
-            let visualPaneNode = PeerInfoVisualMediaPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, contentType: .voiceAndVideoMessages, captureProtected: captureProtected)
+            let visualPaneNode = PeerInfoVisualMediaPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: chatLocationPeerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, contentType: .voiceAndVideoMessages, captureProtected: captureProtected, initialFocusMessageIndex: nil)
             paneNode = visualPaneNode
         case .music:
-            let visualPaneNode = PeerInfoVisualMediaPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, contentType: .music, captureProtected: captureProtected)
+            let visualPaneNode = PeerInfoVisualMediaPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: chatLocationPeerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, contentType: .music, captureProtected: captureProtected, initialFocusMessageIndex: nil)
             paneNode = visualPaneNode
         case .gifs:
-            let visualPaneNode = PeerInfoGifPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: peerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, contentType: .gifs)
+            let visualPaneNode = PeerInfoGifPaneNode(context: context, chatControllerInteraction: chatControllerInteraction, peerId: chatLocationPeerId, chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, contentType: .gifs)
             paneNode = visualPaneNode
         case .groupsInCommon:
             paneNode = PeerInfoGroupsInCommonPaneNode(context: context, peerId: peerId, chatControllerInteraction: chatControllerInteraction, openPeerContextAction: openPeerContextAction, groupsInCommonContext: data.groupsInCommon!)
@@ -548,12 +556,14 @@ private final class PeerInfoPendingPane {
             } else {
                 preconditionFailure()
             }
-        case .recommended:
-            paneNode = PeerInfoRecommendedChannelsPaneNode(context: context, peerId: peerId, chatControllerInteraction: chatControllerInteraction, openPeerContextAction: openPeerContextAction)
+        case .similarChannels, .similarBots:
+            paneNode = PeerInfoRecommendedPeersPaneNode(context: context, peerId: peerId, chatControllerInteraction: chatControllerInteraction, openPeerContextAction: openPeerContextAction)
         case .savedMessagesChats:
             paneNode = PeerInfoChatListPaneNode(context: context, navigationController: chatControllerInteraction.navigationController)
         case .savedMessages:
-            paneNode = PeerInfoChatPaneNode(context: context, peerId: peerId, navigationController: chatControllerInteraction.navigationController)
+            paneNode = PeerInfoChatPaneNode(context: context, chatLocation: .replyThread(message: ChatReplyThreadMessage(peerId: context.account.peerId, threadId: peerId.toInt64(), channelMessageId: nil, isChannelPost: false, isForumPost: false, isMonoforumPost: false, maxMessage: nil, maxReadIncomingMessageId: nil, maxReadOutgoingMessageId: nil, unreadCount: 0, initialFilledHoles: IndexSet(), initialAnchor: .automatic, isNotAvailable: false)), tag: nil, navigationController: chatControllerInteraction.navigationController)
+        case .polls:
+            paneNode = PeerInfoChatPaneNode(context: context, chatLocation: .peer(id: peerId), tag: .polls, navigationController: chatControllerInteraction.navigationController)
         }
         paneNode.externalDataUpdated = externalDataUpdated
         paneNode.parentController = parentController
@@ -577,19 +587,23 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
     private let chatLocation: ChatLocation
     private let chatLocationContextHolder: Atomic<ChatLocationContextHolder?>
     private let isMediaOnly: Bool
+    private let sharedMediaFromForumTopic: (EnginePeer.Id, Int64)?
     
     weak var parentController: ViewController?
     
-    private let coveringBackgroundNode: NavigationBackgroundNode
-    private let additionalBackgroundNode: ASDisplayNode
-    private let separatorNode: ASDisplayNode
-    private let tabsContainerNode: PeerInfoPaneTabsContainerNode
-    private let tabsSeparatorNode: ASDisplayNode
+    let headerContainer: UIView
+    
+    private let tabsBackgroundContainer: GlassBackgroundContainerView
+    private let tabsBackgroundView: GlassBackgroundView
+    private let tabsContainer = ComponentView<Empty>()
+    private var didJustReorderTabs = false
+    
+    private var actionPanel: ComponentView<Empty>?
     
     let isReady = Promise<Bool>()
     var didSetIsReady = false
     
-    private var currentParams: (size: CGSize, sideInset: CGFloat, bottomInset: CGFloat, deviceMetrics: DeviceMetrics, visibleHeight: CGFloat, expansionFraction: CGFloat, presentationData: PresentationData, data: PeerInfoScreenData?, areTabsHidden: Bool, disableTabSwitching: Bool, navigationHeight: CGFloat)?
+    private var currentParams: (size: CGSize, sideInset: CGFloat, bottomInset: CGFloat, topInset: CGFloat, deviceMetrics: DeviceMetrics, visibleHeight: CGFloat, expansionFraction: CGFloat, presentationData: PresentationData, data: PeerInfoScreenData?, areTabsHidden: Bool, disableTabSwitching: Bool, navigationHeight: CGFloat)?
     
     private(set) var currentPaneKey: PeerInfoPaneKey?
     var pendingSwitchToPaneKey: PeerInfoPaneKey?
@@ -614,13 +628,17 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
     private var currentPanes: [PeerInfoPaneKey: PeerInfoPaneWrapper] = [:]
     private var pendingPanes: [PeerInfoPaneKey: PeerInfoPendingPane] = [:]
     private var shouldFadeIn = false
+    private var initialStoryFolderId: Int64?
+    private var initialGiftCollectionId: Int64?
+    private var switchToMediaTarget: PeerInfoSwitchToMediaTarget?
     
+    private var isDraggingTabs: Bool = false
     private var transitionFraction: CGFloat = 0.0
     
     var selectionPanelNode: PeerInfoSelectionPanelNode?
     
     var chatControllerInteraction: ChatControllerInteraction?
-    var openPeerContextAction: ((Bool, Peer, ASDisplayNode, ContextGesture?) -> Void)?
+    var openPeerContextAction: ((Bool, EnginePeer, ASDisplayNode, ContextGesture?) -> Void)?
     var openAddMemberAction: (() -> Void)?
     var requestPerformPeerMemberAction: ((PeerInfoMember, PeerMembersListAction) -> Void)?
     
@@ -630,6 +648,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
 
     var openMediaCalendar: (() -> Void)?
     var openAddStory: (() -> Void)?
+    var openShareLink: ((String) -> Void)?
     var paneDidScroll: (() -> Void)?
     
     var ensurePaneRectVisible: ((UIView, CGRect) -> Void)?
@@ -639,68 +658,28 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
     
     private let initialPaneKey: PeerInfoPaneKey?
     
-    init(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?, peerId: PeerId, chatLocation: ChatLocation, chatLocationContextHolder: Atomic<ChatLocationContextHolder?>, isMediaOnly: Bool, initialPaneKey: PeerInfoPaneKey?) {
+    init(context: AccountContext, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?, peerId: PeerId, chatLocation: ChatLocation, sharedMediaFromForumTopic: (EnginePeer.Id, Int64)?, chatLocationContextHolder: Atomic<ChatLocationContextHolder?>, isMediaOnly: Bool, initialPaneKey: PeerInfoPaneKey?, initialStoryFolderId: Int64?, initialGiftCollectionId: Int64?, switchToMediaTarget: PeerInfoSwitchToMediaTarget?) {
         self.context = context
         self.updatedPresentationData = updatedPresentationData
         self.peerId = peerId
         self.chatLocation = chatLocation
         self.chatLocationContextHolder = chatLocationContextHolder
+        self.sharedMediaFromForumTopic = sharedMediaFromForumTopic
         self.isMediaOnly = isMediaOnly
         self.initialPaneKey = initialPaneKey
+        self.initialStoryFolderId = initialStoryFolderId
+        self.initialGiftCollectionId = initialGiftCollectionId
+        self.switchToMediaTarget = switchToMediaTarget
         
-        self.additionalBackgroundNode = ASDisplayNode()
+        self.tabsBackgroundContainer = GlassBackgroundContainerView()
+        self.tabsBackgroundView = GlassBackgroundView()
         
-        self.separatorNode = ASDisplayNode()
-        self.separatorNode.isLayerBacked = true
-        
-        self.coveringBackgroundNode = NavigationBackgroundNode(color: .clear)
-        self.coveringBackgroundNode.isUserInteractionEnabled = false
-        
-        self.tabsContainerNode = PeerInfoPaneTabsContainerNode(context: context)
-        
-        self.tabsSeparatorNode = ASDisplayNode()
-        self.tabsSeparatorNode.isLayerBacked = true
+        self.headerContainer = SparseContainerView()
         
         super.init()
         
-//        self.addSubnode(self.separatorNode)
-        self.addSubnode(self.additionalBackgroundNode)
-        self.addSubnode(self.coveringBackgroundNode)
-        self.addSubnode(self.tabsContainerNode)
-        self.addSubnode(self.tabsSeparatorNode)
-        
-        self.tabsContainerNode.requestSelectPane = { [weak self] key in
-            guard let strongSelf = self else {
-                return
-            }
-            if strongSelf.currentPaneKey == key {
-                if let requestExpandTabs = strongSelf.requestExpandTabs, requestExpandTabs() {
-                } else {
-                    let _ = strongSelf.currentPane?.node.scrollToTop()
-                }
-                return
-            }
-            if strongSelf.currentPanes[key] != nil {
-                strongSelf.currentPaneKey = key
-                
-                if let (size, sideInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = strongSelf.currentParams {
-                    strongSelf.update(size: size, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: .animated(duration: 0.4, curve: .spring))
-                    
-                    strongSelf.currentPaneUpdated?(true)
-
-                    strongSelf.currentPaneStatusPromise.set(strongSelf.currentPane?.node.status ?? .single(nil))
-                    strongSelf.nextPaneStatusPromise.set(.single(nil))
-                    strongSelf.paneTransitionPromise.set(nil)
-                }
-            } else if strongSelf.pendingSwitchToPaneKey != key {
-                strongSelf.pendingSwitchToPaneKey = key
-                strongSelf.expandOnSwitch = true
-                
-                if let (size, sideInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = strongSelf.currentParams {
-                    strongSelf.update(size: size, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: .animated(duration: 0.4, curve: .spring))
-                }
-            }
-        }
+        self.tabsBackgroundContainer.contentView.addSubview(self.tabsBackgroundView)
+        self.headerContainer.addSubview(self.tabsBackgroundContainer)
     }
     
     override func didLoad() {
@@ -719,7 +698,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
             guard let currentPaneKey = strongSelf.currentPaneKey, let availablePanes = currentParams.data?.availablePanes, let index = availablePanes.firstIndex(of: currentPaneKey) else {
                 return []
             }
-            if strongSelf.tabsContainerNode.bounds.contains(strongSelf.view.convert(point, to: strongSelf.tabsContainerNode.view)) {
+            if let tabsContainerView = strongSelf.tabsContainer.view, tabsContainerView.bounds.contains(strongSelf.view.convert(point, to: tabsContainerView)) {
                 return []
             }
             if case .savedMessagesChats = currentPaneKey {
@@ -765,6 +744,8 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
     @objc private func panGesture(_ recognizer: UIPanGestureRecognizer) {
         switch recognizer.state {
         case .began:
+            self.isDraggingTabs = true
+            
             func cancelContextGestures(view: UIView) {
                 if let gestureRecognizers = view.gestureRecognizers {
                     for gesture in gestureRecognizers {
@@ -780,7 +761,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
             
             cancelContextGestures(view: self.view)
         case .changed:
-            if let (size, sideInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = self.currentParams, let availablePanes = data?.availablePanes, availablePanes.count > 1, let currentPaneKey = self.currentPaneKey, let currentIndex = availablePanes.firstIndex(of: currentPaneKey) {
+            if let (size, sideInset, topInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = self.currentParams, let availablePanes = data?.availablePanes, availablePanes.count > 1, let currentPaneKey = self.currentPaneKey, let currentIndex = availablePanes.firstIndex(of: currentPaneKey) {
                 let translation = recognizer.translation(in: self.view)
                 var transitionFraction = translation.x / size.width
                 if currentIndex <= 0 {
@@ -795,11 +776,13 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
 //                print(transitionFraction)
                 self.paneTransitionPromise.set(transitionFraction)
                 
-                self.update(size: size, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: .immediate)
+                self.update(size: size, sideInset: sideInset, topInset: topInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: .immediate)
                 self.currentPaneUpdated?(false)
             }
         case .cancelled, .ended:
-            if let (size, sideInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = self.currentParams, let availablePanes = data?.availablePanes, availablePanes.count > 1, let currentPaneKey = self.currentPaneKey, let currentIndex = availablePanes.firstIndex(of: currentPaneKey) {
+            self.isDraggingTabs = false
+            
+            if let (size, sideInset, topInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = self.currentParams, let availablePanes = data?.availablePanes, availablePanes.count > 1, let currentPaneKey = self.currentPaneKey, let currentIndex = availablePanes.firstIndex(of: currentPaneKey) {
                 let translation = recognizer.translation(in: self.view)
                 let velocity = recognizer.velocity(in: self.view)
                 var directionIsToRight: Bool?
@@ -823,7 +806,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
                     }
                 }
                 self.transitionFraction = 0.0
-                self.update(size: size, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: .animated(duration: 0.35, curve: .spring))
+                self.update(size: size, sideInset: sideInset, topInset: topInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: .animated(duration: 0.35, curve: .spring))
                 self.currentPaneUpdated?(false)
 
                 self.currentPaneStatusPromise.set(self.currentPane?.node.status ?? .single(nil))
@@ -879,16 +862,60 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
         for (_, pane) in self.currentPanes {
             if let paneNode = pane.node as? PeerInfoStoryPaneNode {
                 paneNode.updateIsReordering(isReordering: isReordering, animated: animated)
+            } else if let paneNode = pane.node as? PeerInfoGiftsPaneNode {
+                paneNode.updateIsReordering(isReordering: isReordering, animated: animated)
             }
         }
         for (_, pane) in self.pendingPanes {
             if let paneNode = pane.pane.node as? PeerInfoStoryPaneNode {
                 paneNode.updateIsReordering(isReordering: isReordering, animated: false)
+            } else if let paneNode = pane.pane.node as? PeerInfoGiftsPaneNode {
+                paneNode.updateIsReordering(isReordering: isReordering, animated: animated)
             }
         }
     }
     
-    func update(size: CGSize, sideInset: CGFloat, bottomInset: CGFloat, deviceMetrics: DeviceMetrics, visibleHeight: CGFloat, expansionFraction: CGFloat, presentationData: PresentationData, data: PeerInfoScreenData?, areTabsHidden: Bool, disableTabSwitching: Bool, navigationHeight: CGFloat, transition: ContainedViewLayoutTransition) {
+    func openTabContextMenu(key: PeerInfoPaneKey, sourceView: UIView, gesture: ContextGesture?) {
+        guard let params = self.currentParams, let sourceView = sourceView as? ContextExtractedContentContainingView else {
+            return
+        }
+        
+        var items: [ContextMenuItem] = []
+        items.append(.action(ContextMenuActionItem(text: params.presentationData.strings.PeerInfo_Tabs_SetMainTab, icon: { theme in
+            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/ReorderItems"), color: theme.actionSheet.primaryTextColor)
+        }, action: { [weak self] _, f in
+            guard let self else {
+                return
+            }
+            f(.default)
+            
+            guard let tab = key.tab else {
+                return
+            }
+            Queue.mainQueue().after(0.15) {
+                self.didJustReorderTabs = true
+                let _ = (self.context.engine.peers.setMainProfileTab(peerId: self.peerId, tab: tab)
+                |> deliverOnMainQueue).start(completed: { [weak self] in
+                    guard let self else {
+                        return
+                    }
+                    let controller = UndoOverlayController(presentationData: params.presentationData, content: .actionSucceeded(title: nil, text: params.presentationData.strings.PeerInfo_Tabs_SetMainTab_Succeed, cancel: nil, destructive: false), action: { _ in return true })
+                    self.parentController?.present(controller, in: .current)
+                })
+            }
+        })))
+        
+        let contextController = makeContextController(
+            presentationData: params.presentationData,
+            source: .reference(TabsReferenceContentSource(sourceView: sourceView)),
+            items: .single(ContextController.Items(content: .list(items))),
+            recognizer: nil,
+            gesture: gesture
+        )
+        self.parentController?.presentInGlobalOverlay(contextController)
+    }
+    
+    func update(size: CGSize, sideInset: CGFloat, topInset: CGFloat, bottomInset: CGFloat, deviceMetrics: DeviceMetrics, visibleHeight: CGFloat, expansionFraction: CGFloat, presentationData: PresentationData, data: PeerInfoScreenData?, areTabsHidden: Bool, disableTabSwitching: Bool, navigationHeight: CGFloat, transition: ContainedViewLayoutTransition) {
         let previousAvailablePanes = self.currentAvailablePanes
         var availablePanes = data?.availablePanes ?? []
         self.currentAvailablePanes = data?.availablePanes
@@ -940,24 +967,27 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
             currentIndex = nil
         }
         
-        self.currentParams = (size, sideInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight)
+        self.currentParams = (size, sideInset, topInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight)
         
-        transition.updateAlpha(node: self.coveringBackgroundNode, alpha: expansionFraction)
+        let backgroundColor: UIColor
+        if self.currentPaneKey == .gifts {
+            backgroundColor = presentationData.theme.list.blocksBackgroundColor
+        } else {
+            if self.currentPaneKey == .stories || self.currentPaneKey == .storyArchive {
+                backgroundColor = presentationData.theme.list.blocksBackgroundColor.mixedWith(presentationData.theme.list.plainBackgroundColor, alpha: expansionFraction)
+            } else {
+                backgroundColor = presentationData.theme.list.blocksBackgroundColor
+            }
+        }
         
-//        transition.updateAlpha(node: self.additionalBackgroundNode, alpha: 1.0 - expansionFraction)
-        
-        self.backgroundColor = presentationData.theme.list.plainBackgroundColor
-        self.coveringBackgroundNode.updateColor(color: presentationData.theme.rootController.navigationBar.opaqueBackgroundColor, transition: .immediate)
-        self.separatorNode.backgroundColor = presentationData.theme.list.itemBlocksSeparatorColor
-        self.additionalBackgroundNode.backgroundColor = presentationData.theme.list.itemBlocksBackgroundColor
-        self.tabsSeparatorNode.backgroundColor = presentationData.theme.list.itemBlocksSeparatorColor
+        self.backgroundColor = backgroundColor
 
         let isScrollingLockedAtTop = expansionFraction < 1.0 - CGFloat.ulpOfOne
 
-        let tabsHeight: CGFloat = 48.0
-        let effectiveTabsHeight: CGFloat = areTabsHidden ? 0.0 : tabsHeight
+        let tabsHeight: CGFloat = 40.0
+        let effectiveTabsHeight: CGFloat = areTabsHidden ? 0.0 : (10.0 + tabsHeight + 10.0 + 6.0)
         
-        let paneFrame = CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: size.width, height: size.height))
+        let paneFrame = CGRect(origin: CGPoint(x: 0.0, y: -topInset), size: CGSize(width: size.width, height: topInset + size.height))
         
         var visiblePaneIndices: [Int] = []
         var requiredPendingKeys: [PeerInfoPaneKey] = []
@@ -977,7 +1007,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
                 }
             }
         }
-        if let pendingSwitchToPaneKey = self.pendingSwitchToPaneKey {
+        if let pendingSwitchToPaneKey = self.pendingSwitchToPaneKey, availablePanes.contains(pendingSwitchToPaneKey) {
             if self.currentPanes[pendingSwitchToPaneKey] == nil && self.pendingPanes[pendingSwitchToPaneKey] == nil {
                 if !requiredPendingKeys.contains(pendingSwitchToPaneKey) {
                     requiredPendingKeys.append(pendingSwitchToPaneKey)
@@ -988,6 +1018,33 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
         for key in requiredPendingKeys {
             if self.pendingPanes[key] == nil, let data {
                 var leftScope = false
+                var initialStoryFolderId: Int64?
+                var initialGiftCollectionId: Int64?
+                var switchToMediaTarget: PeerInfoSwitchToMediaTarget?
+                if case .stories = key {
+                    if let initialStoryFolderIdValue = self.initialStoryFolderId {
+                        self.initialStoryFolderId = nil
+                        initialStoryFolderId = initialStoryFolderIdValue
+                    }
+                }
+                if case .gifts = key {
+                    if let initialGiftCollectionIdValue = self.initialGiftCollectionId {
+                        self.initialGiftCollectionId = nil
+                        initialGiftCollectionId = initialGiftCollectionIdValue
+                    }
+                }
+                if case .media = key {
+                    if let switchToMediaTargetValue = self.switchToMediaTarget, case .photoVideo = switchToMediaTargetValue.kind {
+                        self.switchToMediaTarget = nil
+                        switchToMediaTarget = switchToMediaTargetValue
+                    }
+                }
+                if case .files = key {
+                    if let switchToMediaTargetValue = self.switchToMediaTarget, case .file = switchToMediaTargetValue.kind {
+                        self.switchToMediaTarget = nil
+                        switchToMediaTarget = switchToMediaTargetValue
+                    }
+                }
                 let pane = PeerInfoPendingPane(
                     context: self.context,
                     updatedPresentationData: self.updatedPresentationData,
@@ -1005,18 +1062,22 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
                     peerId: self.peerId,
                     chatLocation: self.chatLocation,
                     chatLocationContextHolder: self.chatLocationContextHolder,
+                    sharedMediaFromForumTopic: self.sharedMediaFromForumTopic,
+                    initialStoryFolderId: initialStoryFolderId,
+                    initialGiftCollectionId: initialGiftCollectionId,
+                    switchToMediaTarget: switchToMediaTarget,
                     key: key,
                     hasBecomeReady: { [weak self] key in
                         let apply: () -> Void = {
                             guard let strongSelf = self else {
                                 return
                             }
-                            if let (size, sideInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = strongSelf.currentParams {
+                            if let (size, sideInset, topInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = strongSelf.currentParams {
                                 var transition: ContainedViewLayoutTransition = .immediate
                                 if strongSelf.pendingSwitchToPaneKey == key && strongSelf.currentPaneKey != nil {
                                     transition = .animated(duration: 0.4, curve: .spring)
                                 }
-                                strongSelf.update(size: size, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: transition)
+                                strongSelf.update(size: size, sideInset: sideInset, topInset: topInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: transition)
                             }
                         }
                         if leftScope {
@@ -1033,6 +1094,9 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
                     paneDidScroll: { [weak self] in
                         self?.paneDidScroll?()
                     },
+                    expandIfNeeded: { [weak self] in
+                        let _ = self?.requestExpandTabs?()
+                    },
                     ensureRectVisible: { [weak self] sourceView, rect in
                         guard let self else {
                             return
@@ -1044,18 +1108,24 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
                             return
                         }
                         self.requestUpdate?(transition)
+                    },
+                    openShareLink: { [weak self] url in
+                        guard let self else {
+                            return
+                        }
+                        self.openShareLink?(url)
                     }
                 )
                 self.pendingPanes[key] = pane
                 pane.pane.node.frame = paneFrame
-                pane.pane.update(size: paneFrame.size, topInset: effectiveTabsHeight, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, isScrollingLockedAtTop: isScrollingLockedAtTop, expandProgress: expansionFraction, navigationHeight: navigationHeight, presentationData: presentationData, synchronous: true, transition: .immediate)
+                pane.pane.update(size: paneFrame.size, topInset: topInset + effectiveTabsHeight, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, isScrollingLockedAtTop: isScrollingLockedAtTop, expandProgress: expansionFraction, navigationHeight: navigationHeight, presentationData: presentationData, synchronous: true, transition: .immediate)
                 let paneNode = pane.pane.node
                 pane.pane.node.tabBarOffsetUpdated = { [weak self, weak paneNode] transition in
                     guard let strongSelf = self, let paneNode = paneNode, let currentPane = strongSelf.currentPane, paneNode === currentPane.node else {
                         return
                     }
-                    if let (size, sideInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = strongSelf.currentParams {
-                        strongSelf.update(size: size, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: transition)
+                    if let (size, sideInset, topInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = strongSelf.currentParams {
+                        strongSelf.update(size: size, sideInset: sideInset, topInset: topInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: transition)
                     }
                 }
                 leftScope = true
@@ -1064,7 +1134,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
         
         for (key, pane) in self.pendingPanes {
             pane.pane.node.frame = paneFrame
-            pane.pane.update(size: paneFrame.size, topInset: effectiveTabsHeight, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, isScrollingLockedAtTop: isScrollingLockedAtTop, expandProgress: expansionFraction, navigationHeight: navigationHeight, presentationData: presentationData, synchronous: self.currentPaneKey == nil, transition: .immediate)
+            pane.pane.update(size: paneFrame.size, topInset: effectiveTabsHeight + topInset, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, isScrollingLockedAtTop: isScrollingLockedAtTop, expandProgress: expansionFraction, navigationHeight: navigationHeight, presentationData: presentationData, synchronous: self.currentPaneKey == nil, transition: .immediate)
             
             if pane.isReady {
                 self.pendingPanes.removeValue(forKey: key)
@@ -1093,7 +1163,12 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
             
             paneDefaultTransition = .immediate
         }
-                
+        
+        if self.didJustReorderTabs && previousAvailablePanes != availablePanes {
+            self.didJustReorderTabs = false
+            paneDefaultTransition = .immediate
+        }
+        
         if let _ = data {
             if let previousAvailablePanes = previousAvailablePanes, previousAvailablePanes.isEmpty, !availablePanes.isEmpty {
                 self.shouldFadeIn = true
@@ -1112,7 +1187,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
             if let index = availablePanes.firstIndex(of: key), let updatedCurrentIndex = updatedCurrentIndex {
                 var paneWasAdded = false
                 if pane.node.supernode == nil {
-                    self.insertSubnode(pane.node, belowSubnode: self.coveringBackgroundNode)
+                    self.insertSubnode(pane.node, at: 0)
                     paneWasAdded = true
                 }
                 let indexOffset = CGFloat(index - updatedCurrentIndex)
@@ -1125,7 +1200,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
                         return
                     }
                     pane.isAnimatingOut = false
-                    if let (_, _, _, _, _, _, _, data, _, _, _) = strongSelf.currentParams {
+                    if let (_, _, _, _, _, _, _, _, data, _, _, _) = strongSelf.currentParams {
                         if let availablePanes = data?.availablePanes, let currentPaneKey = strongSelf.currentPaneKey, let currentIndex = availablePanes.firstIndex(of: currentPaneKey), let paneIndex = availablePanes.firstIndex(of: key), abs(paneIndex - currentIndex) <= 1 {
                         } else {
                             if let pane = strongSelf.currentPanes.removeValue(forKey: key) {
@@ -1151,21 +1226,23 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
                 } else {
                     let isAnimatingOut = pane.isAnimatingOut
                     pane.isAnimatingOut = true
-                    paneTransition.updateFrame(node: pane.node, frame: adjustedFrame, completion: isAnimatingOut ? nil :  { _ in
+                    paneTransition.updateFrame(node: pane.node, frame: adjustedFrame, completion: isAnimatingOut ? nil : { _ in
                         paneCompletion()
                     })
                 }
-                pane.update(size: paneFrame.size, topInset: effectiveTabsHeight, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, isScrollingLockedAtTop: isScrollingLockedAtTop, expandProgress: expansionFraction, navigationHeight: navigationHeight, presentationData: presentationData, synchronous: paneWasAdded, transition: paneTransition)
+                pane.update(size: paneFrame.size, topInset: effectiveTabsHeight + topInset, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, isScrollingLockedAtTop: isScrollingLockedAtTop, expandProgress: expansionFraction, navigationHeight: navigationHeight, presentationData: presentationData, synchronous: paneWasAdded, transition: paneTransition)
             }
         }
 
         var tabsOffset: CGFloat = 0.0
-        if let currentPane = self.currentPane {
-            tabsOffset = currentPane.node.tabBarOffset
-        }
-        tabsOffset = max(0.0, min(tabsHeight, tabsOffset))
-        if isScrollingLockedAtTop || self.isMediaOnly {
-            tabsOffset = 0.0
+        if !"".isEmpty {
+            if let currentPane = self.currentPane {
+                tabsOffset = currentPane.node.tabBarOffset
+            }
+            tabsOffset = max(0.0, min(tabsHeight, tabsOffset))
+            if isScrollingLockedAtTop || self.isMediaOnly {
+                tabsOffset = 0.0
+            }
         }
         
         var tabsAlpha: CGFloat
@@ -1176,64 +1253,164 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
             tabsAlpha = 1.0 - tabsOffset / tabsHeight
         }
         tabsAlpha *= tabsAlpha
-        transition.updateFrame(node: self.tabsContainerNode, frame: CGRect(origin: CGPoint(x: 0.0, y: -tabsOffset), size: CGSize(width: size.width, height: tabsHeight)))
-        transition.updateAlpha(node: self.tabsContainerNode, alpha: tabsAlpha)
-
-        transition.updateFrame(node: self.separatorNode, frame: CGRect(origin: CGPoint(x: 0.0, y: -UIScreenPixel - tabsOffset), size: CGSize(width: size.width, height: UIScreenPixel)))
-        transition.updateFrame(node: self.coveringBackgroundNode, frame: CGRect(origin: CGPoint(x: 0.0, y: -UIScreenPixel - tabsOffset), size: CGSize(width: size.width, height: tabsHeight + UIScreenPixel)))
-        transition.updateFrame(node: self.additionalBackgroundNode, frame: CGRect(origin: CGPoint(x: 0.0, y: -UIScreenPixel - tabsOffset), size: CGSize(width: size.width, height: tabsHeight + UIScreenPixel)))
-        self.coveringBackgroundNode.update(size: self.coveringBackgroundNode.bounds.size, transition: transition)
-
-        transition.updateFrame(node: self.tabsSeparatorNode, frame: CGRect(origin: CGPoint(x: 0.0, y: tabsHeight - tabsOffset), size: CGSize(width: size.width, height: UIScreenPixel)))
-
-        self.tabsContainerNode.update(size: CGSize(width: size.width, height: tabsHeight), presentationData: presentationData, paneList: availablePanes.map { key in
-            let title: String
-            var icons: [TelegramMediaFile] = []
-            switch key {
-            case .stories:
-                title = presentationData.strings.PeerInfo_PaneStories
-            case .storyArchive:
-                title = presentationData.strings.PeerInfo_PaneArchivedStories
-            case .botPreview:
-                title = presentationData.strings.PeerInfo_PaneBotPreviews
-            case .media:
-                title = presentationData.strings.PeerInfo_PaneMedia
-            case .files:
-                title = presentationData.strings.PeerInfo_PaneFiles
-            case .links:
-                title = presentationData.strings.PeerInfo_PaneLinks
-            case .voice:
-                title = presentationData.strings.PeerInfo_PaneVoiceAndVideo
-            case .gifs:
-                title = presentationData.strings.PeerInfo_PaneGifs
-            case .music:
-                title = presentationData.strings.PeerInfo_PaneAudio
-            case .groupsInCommon:
-                title = presentationData.strings.PeerInfo_PaneGroups
-            case .members:
-                title = presentationData.strings.PeerInfo_PaneMembers
-            case .recommended:
-                title = presentationData.strings.PeerInfo_PaneRecommended
-            case .savedMessagesChats:
-                title = presentationData.strings.DialogList_TabTitle
-            case .savedMessages:
-                title = presentationData.strings.PeerInfo_SavedMessagesTabTitle
-            case .gifts:
-                title = presentationData.strings.PeerInfo_PaneGifts
-                icons = data?.profileGiftsContext?.currentState?.gifts.prefix(3).map { $0.gift.file } ?? []
-            }
-            return PeerInfoPaneSpecifier(key: key, title: title, icons: icons)
-        }, selectedPane: self.currentPaneKey, disableSwitching: disableTabSwitching, transitionFraction: self.transitionFraction, transition: transition)
         
+        var canManageTabs = false
+        if let peer = data?.peer {
+            if peer.id == self.context.account.peerId {
+                canManageTabs = true
+            } else if case let .channel(channel) = data?.peer, case .broadcast = channel.info {
+                if channel.hasPermission(.changeInfo) {
+                    canManageTabs = true
+                }
+            }
+        }
+        
+        let tabsSideInset: CGFloat = sideInset + 16.0
+        
+        let tabsContainerSize = CGSize(width: size.width - tabsSideInset * 2.0, height: tabsHeight)
+        let tabsContainerEffectiveSize = self.tabsContainer.update(
+            transition: ComponentTransition(transition),
+            component: AnyComponent(HorizontalTabsComponent(
+                context: self.context,
+                theme: presentationData.theme,
+                tabs: availablePanes.map { paneKey -> HorizontalTabsComponent.Tab in
+                    var canReorder = false
+                    let content: HorizontalTabsComponent.Tab.Content
+                    switch paneKey {
+                    case .stories:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneStories, entities: [], enableAnimations: false))
+                        canReorder = true
+                    case .storyArchive:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneArchivedStories, entities: [], enableAnimations: false))
+                    case .botPreview:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneBotPreviews, entities: [], enableAnimations: false))
+                    case .media:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneMedia, entities: [], enableAnimations: false))
+                        canReorder = self.peerId.namespace == Namespaces.Peer.CloudChannel
+                    case .files:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneFiles, entities: [], enableAnimations: false))
+                        canReorder = self.peerId.namespace == Namespaces.Peer.CloudChannel
+                    case .links:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneLinks, entities: [], enableAnimations: false))
+                        canReorder = self.peerId.namespace == Namespaces.Peer.CloudChannel
+                    case .voice:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneVoiceAndVideo, entities: [], enableAnimations: false))
+                        canReorder = self.peerId.namespace == Namespaces.Peer.CloudChannel
+                    case .gifs:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneGifs, entities: [], enableAnimations: false))
+                        canReorder = self.peerId.namespace == Namespaces.Peer.CloudChannel
+                    case .music:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneAudio, entities: [], enableAnimations: false))
+                        canReorder = self.peerId.namespace == Namespaces.Peer.CloudChannel
+                    case .groupsInCommon:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneGroups, entities: [], enableAnimations: false))
+                    case .members:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneMembers, entities: [], enableAnimations: false))
+                    case .similarChannels:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneRecommended, entities: [], enableAnimations: false))
+                    case .similarBots:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PaneRecommendedBots, entities: [], enableAnimations: false))
+                    case .savedMessagesChats:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.DialogList_TabTitle, entities: [], enableAnimations: false))
+                    case .savedMessages:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_SavedMessagesTabTitle, entities: [], enableAnimations: false))
+                    case .gifts:
+                        var icons: [ProfileGiftsContext.State.StarGift] = []
+                        if let gifts = data?.profileGiftsContext?.currentState?.gifts.prefix(3) {
+                            icons = Array(gifts)
+                        }
+                        content = .custom(AnyComponent(
+                            GiftsTabItemComponent(context: self.context, icons: icons, title: presentationData.strings.PeerInfo_PaneGifts, theme: presentationData.theme)
+                        ))
+                        canReorder = true
+                    case .polls:
+                        content = .title(HorizontalTabsComponent.Tab.Title(text: presentationData.strings.PeerInfo_PanePolls, entities: [], enableAnimations: false))
+                    }
+                    
+                    return HorizontalTabsComponent.Tab(
+                        id: AnyHashable(paneKey),
+                        content: content,
+                        badge: nil,
+                        action: { [weak self] in
+                            guard let self else {
+                                return
+                            }
+                            if self.currentPaneKey == paneKey {
+                                if let requestExpandTabs = self.requestExpandTabs, requestExpandTabs() {
+                                } else {
+                                    let _ = self.currentPane?.node.scrollToTop()
+                                }
+                                return
+                            }
+                            if self.currentPanes[paneKey] != nil {
+                                self.currentPaneKey = paneKey
+                                
+                                if let (size, sideInset, topInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = self.currentParams {
+                                    self.update(size: size, sideInset: sideInset, topInset: topInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: .animated(duration: 0.4, curve: .spring))
+                                    
+                                    self.currentPaneUpdated?(true)
+                                    
+                                    self.currentPaneStatusPromise.set(self.currentPane?.node.status ?? .single(nil))
+                                    self.nextPaneStatusPromise.set(.single(nil))
+                                    self.paneTransitionPromise.set(nil)
+                                }
+                            } else if self.pendingSwitchToPaneKey != paneKey {
+                                self.pendingSwitchToPaneKey = paneKey
+                                self.expandOnSwitch = true
+                                
+                                if let (size, sideInset, topInset, bottomInset, deviceMetrics, visibleHeight, expansionFraction, presentationData, data, areTabsHidden, disableTabSwitching, navigationHeight) = self.currentParams {
+                                    self.update(size: size, sideInset: sideInset, topInset: topInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, expansionFraction: expansionFraction, presentationData: presentationData, data: data, areTabsHidden: areTabsHidden, disableTabSwitching: disableTabSwitching, navigationHeight: navigationHeight, transition: .animated(duration: 0.4, curve: .spring))
+                                }
+                            }
+                        },
+                        contextAction: paneKey != availablePanes.first && canManageTabs && canReorder ? { [weak self] sourceView, gesture in
+                            guard let self else {
+                                return
+                            }
+                            self.openTabContextMenu(key: paneKey, sourceView: sourceView, gesture: gesture)
+                        } : nil,
+                        deleteAction: nil
+                    )
+                },
+                selectedTab: self.currentPaneKey.flatMap { HorizontalTabsComponent.Tab.Id($0) },
+                isEditing: false,
+                layout: .fit,
+                liftWhileSwitching: deviceMetrics.type != .tablet
+            )),
+            environment: {},
+            containerSize: tabsContainerSize
+        )
+        
+        let tabContainerFrameOriginX = floorToScreenPixels((size.width - tabsContainerEffectiveSize.width) / 2.0)
+        let tabContainerFrame = CGRect(origin: CGPoint(x: tabContainerFrameOriginX, y: 10.0), size: tabsContainerEffectiveSize)
+        
+        transition.updateFrame(view: self.tabsBackgroundContainer, frame: tabContainerFrame)
+        self.tabsBackgroundContainer.update(size: tabContainerFrame.size, isDark: presentationData.theme.overallDarkAppearance, transition: ComponentTransition(transition))
+        
+        transition.updateFrame(view: self.tabsBackgroundView, frame: CGRect(origin: CGPoint(), size: tabContainerFrame.size))
+        self.tabsBackgroundView.update(size: tabContainerFrame.size, cornerRadius: tabContainerFrame.height * 0.5, isDark: presentationData.theme.overallDarkAppearance, tintColor: .init(kind: .panel), transition: ComponentTransition(transition))
+        
+        ComponentTransition(transition).setAlpha(view: self.tabsBackgroundContainer, alpha: tabsAlpha)
+        
+        if let tabsContainerView = self.tabsContainer.view as? HorizontalTabsComponent.View {
+            if tabsContainerView.superview == nil {
+                self.tabsBackgroundView.contentView.addSubview(tabsContainerView)
+                tabsContainerView.setOverlayContainerView(overlayContainerView: self.headerContainer)
+            }
+            transition.updateFrame(view: tabsContainerView, frame: CGRect(origin: CGPoint(), size: tabContainerFrame.size))
+            
+            tabsContainerView.updateTabSwitchFraction(fraction: self.transitionFraction, isDragging: self.isDraggingTabs, transition: ComponentTransition(transition))
+        }
+                
         for (_, pane) in self.pendingPanes {
             let paneTransition: ContainedViewLayoutTransition = .immediate
             paneTransition.updateFrame(node: pane.pane.node, frame: paneFrame)
-            pane.pane.update(size: paneFrame.size, topInset: effectiveTabsHeight, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, isScrollingLockedAtTop: isScrollingLockedAtTop, expandProgress: expansionFraction, navigationHeight: navigationHeight, presentationData: presentationData, synchronous: true, transition: paneTransition)
+            pane.pane.update(size: paneFrame.size, topInset: effectiveTabsHeight + topInset, sideInset: sideInset, bottomInset: bottomInset, deviceMetrics: deviceMetrics, visibleHeight: visibleHeight, isScrollingLockedAtTop: isScrollingLockedAtTop, expandProgress: expansionFraction, navigationHeight: navigationHeight, presentationData: presentationData, synchronous: true, transition: paneTransition)
         }
         
         var removeKeys: [PeerInfoPaneKey] = []
         for (key, paneNode) in self.pendingPanes {
-            if !availablePanes.contains(key) {
+            if !availablePanes.contains(key) && self.pendingSwitchToPaneKey != key {
                 removeKeys.append(key)
                 paneNode.pane.node.removeFromSupernode()
             }
@@ -1244,7 +1421,7 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
         removeKeys.removeAll()
         
         for (key, paneNode) in self.currentPanes {
-            if !availablePanes.contains(key) {
+            if !availablePanes.contains(key) && self.pendingSwitchToPaneKey != key {
                 removeKeys.append(key)
                 paneNode.node.removeFromSupernode()
             }
@@ -1262,12 +1439,54 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
                 self.isReady.set(.single(true))
             }
         }
-        if let previousCurrentPaneKey = previousCurrentPaneKey, self.currentPaneKey != previousCurrentPaneKey {
-            self.currentPaneUpdated?(self.expandOnSwitch)
-            self.expandOnSwitch = false
+        if let previousCurrentPaneKey, self.currentPaneKey != previousCurrentPaneKey {
+            if self.currentPaneKey == nil && previousCurrentPaneKey == .gifts {
+            } else {
+                self.currentPaneUpdated?(self.expandOnSwitch)
+                self.expandOnSwitch = false
+            }
         }
         if updateCurrentPaneStatus {
             self.currentPaneStatusPromise.set(self.currentPane?.node.status ?? .single(nil))
         }
+    }
+}
+
+private final class TabsExtractedContentSource: ContextExtractedContentSource {
+    let keepInPlace: Bool = false
+    let ignoreContentTouches: Bool = false
+    let blurBackground: Bool = true
+    
+    private let sourceNode: ContextExtractedContentContainingNode
+    
+    init(sourceNode: ContextExtractedContentContainingNode) {
+        self.sourceNode = sourceNode
+    }
+    
+    func takeView() -> ContextControllerTakeViewInfo? {
+        return ContextControllerTakeViewInfo(containingItem: .node(self.sourceNode), contentAreaInScreenSpace: UIScreen.main.bounds)
+    }
+    
+    func putBack() -> ContextControllerPutBackViewInfo? {
+        return ContextControllerPutBackViewInfo(contentAreaInScreenSpace: UIScreen.main.bounds)
+    }
+}
+
+private final class TabsReferenceContentSource: ContextReferenceContentSource {
+    let keepInPlace: Bool = true
+    let actionsHorizontalAlignment: ContextActionsHorizontalAlignment = .center
+    
+    private let sourceView: ContextExtractedContentContainingView
+    
+    init(sourceView: ContextExtractedContentContainingView) {
+        self.sourceView = sourceView
+    }
+    
+    func transitionInfo() -> ContextControllerReferenceViewInfo? {
+        return ContextControllerReferenceViewInfo(
+            referenceView: self.sourceView.contentView,
+            contentAreaInScreenSpace: UIScreen.main.bounds,
+            actionsPosition: .bottom
+        )
     }
 }

@@ -5,20 +5,158 @@ import FFMpegBinding
 import VideoToolbox
 
 #if os(macOS)
-private let isHardwareAv1Supported: Bool = {
+public let internal_isHardwareAv1Supported: Bool = {
     let value = VTIsHardwareDecodeSupported(kCMVideoCodecType_AV1)
     return value
 }()
 #endif
 
+public enum MediaDataReaderReadSampleBufferResult {
+    case frame(CMSampleBuffer)
+    case waitingForMoreData
+    case endOfStream
+    case error
+}
+
 public protocol MediaDataReader: AnyObject {
     var hasVideo: Bool { get }
     var hasAudio: Bool { get }
         
-    func readSampleBuffer() -> CMSampleBuffer?
+    func readSampleBuffer() -> MediaDataReaderReadSampleBufferResult
 }
 
-public final class FFMpegMediaDataReader: MediaDataReader {
+public final class FFMpegMediaDataReaderV2: MediaDataReader {
+    public enum Content {
+        case tempFile(ChunkMediaPlayerPart.TempFile)
+        case directStream(ChunkMediaPlayerPartsState.DirectReader.Stream)
+    }
+    
+    private let content: Content
+    private let isVideo: Bool
+    private let videoSource: FFMpegFileReader?
+    private let audioSource: FFMpegFileReader?
+    
+    public var hasVideo: Bool {
+        return self.videoSource != nil
+    }
+    
+    public var hasAudio: Bool {
+        return self.audioSource != nil
+    }
+    
+    public init(content: Content, isVideo: Bool, codecName: String?) {
+        self.content = content
+        self.isVideo = isVideo
+        
+        let source: FFMpegFileReader.SourceDescription
+        var seek: FFMpegFileReader.Seek?
+        var maxReadablePts: (streamIndex: Int, pts: Int64, isEnded: Bool)?
+        switch content {
+        case let .tempFile(tempFile):
+            source = .file(tempFile.file.path)
+        case let .directStream(directStream):
+            let mappedRanges: [Range<Int64>]
+            #if DEBUG && false
+            var mappedRangesValue: [Range<Int64>] = []
+            var testOffset: Int64 = 0
+            while testOffset < directStream.size {
+                let testBlock: Int64 = min(3 * 1024 + 1, directStream.size - testOffset)
+                mappedRangesValue.append(testOffset ..< (testOffset + testBlock))
+                testOffset += testBlock
+            }
+            mappedRanges = mappedRangesValue
+            #else
+            mappedRanges = [0 ..< directStream.size]
+            #endif
+            source = .resource(mediaBox: directStream.mediaBox, resource: directStream.resource, resourceSize: directStream.size, mappedRanges: mappedRanges)
+            seek = .stream(streamIndex: directStream.seek.streamIndex, pts: directStream.seek.pts)
+            maxReadablePts = directStream.maxReadablePts
+        }
+        
+        if self.isVideo {
+            var passthroughDecoder = true
+            var useHardwareAcceleration = false
+            
+            if (codecName == "h264" || codecName == "hevc") {
+                passthroughDecoder = false
+                #if targetEnvironment(simulator)
+                useHardwareAcceleration = false
+                #else
+                useHardwareAcceleration = true
+                #endif
+            }
+            if (codecName == "av1" || codecName == "av01") {
+                passthroughDecoder = false
+                useHardwareAcceleration = internal_isHardwareAv1Supported
+            }
+            if codecName == "vp9" || codecName == "vp8" {
+                passthroughDecoder = false
+            }
+            
+            /*#if DEBUG
+            if codecName == "h264" {
+                passthroughDecoder = false
+                useHardwareAcceleration = true
+            }
+            #endif*/
+            
+            if let videoSource = FFMpegFileReader(source: source, passthroughDecoder: passthroughDecoder, useHardwareAcceleration: useHardwareAcceleration, selectedStream: .mediaType(.video), seek: seek, maxReadablePts: maxReadablePts) {
+                self.videoSource = videoSource
+            } else {
+                self.videoSource = nil
+            }
+            self.audioSource = nil
+        } else {
+            if let audioSource = FFMpegFileReader(source: source, passthroughDecoder: false, useHardwareAcceleration: false, selectedStream: .mediaType(.audio), seek: seek, maxReadablePts: maxReadablePts) {
+                self.audioSource = audioSource
+            } else {
+                self.audioSource = nil
+            }
+            self.videoSource = nil
+        }
+    }
+    
+    public func update(content: Content) {
+        guard case let .directStream(directStream) = content else {
+            return
+        }
+        if let audioSource = self.audioSource {
+            audioSource.updateMaxReadablePts(pts: directStream.maxReadablePts)
+        } else if let videoSource = self.videoSource {
+            videoSource.updateMaxReadablePts(pts: directStream.maxReadablePts)
+        }
+    }
+    
+    public func readSampleBuffer() -> MediaDataReaderReadSampleBufferResult {
+        if let videoSource {
+            switch videoSource.readFrame() {
+            case let .frame(frame):
+                return .frame(frame.sampleBuffer)
+            case .waitingForMoreData:
+                return .waitingForMoreData
+            case .endOfStream:
+                return .endOfStream
+            case .error:
+                return .error
+            }
+        } else if let audioSource {
+            switch audioSource.readFrame() {
+            case let .frame(frame):
+                return .frame(frame.sampleBuffer)
+            case .waitingForMoreData:
+                return .waitingForMoreData
+            case .endOfStream:
+                return .endOfStream
+            case .error:
+                return .error
+            }
+        } else {
+            return .endOfStream
+        }
+    }
+}
+
+public final class FFMpegMediaDataReaderV1: MediaDataReader {
     private let isVideo: Bool
     private let videoSource: SoftwareVideoReader?
     private let audioSource: SoftwareAudioSource?
@@ -57,19 +195,23 @@ public final class FFMpegMediaDataReader: MediaDataReader {
         }
     }
     
-    public func readSampleBuffer() -> CMSampleBuffer? {
+    public func readSampleBuffer() -> MediaDataReaderReadSampleBufferResult {
         if let videoSource {
             let frame = videoSource.readFrame()
             if let frame {
-                return frame.sampleBuffer
+                return .frame(frame.sampleBuffer)
             } else {
-                return nil
+                return .endOfStream
             }
         } else if let audioSource {
-            return audioSource.readSampleBuffer()
+            if let sampleBuffer = audioSource.readSampleBuffer() {
+                return .frame(sampleBuffer)
+            } else {
+                return .endOfStream
+            }
+        } else {
+            return .endOfStream
         }
-        
-        return nil
     }
 }
 
@@ -112,14 +254,18 @@ public final class AVAssetVideoDataReader: MediaDataReader {
         }
     }
     
-    public func readSampleBuffer() -> CMSampleBuffer? {
+    public func readSampleBuffer() -> MediaDataReaderReadSampleBufferResult {
         guard let mediaInfo = self.mediaInfo, let assetReader = self.assetReader, let assetOutput = self.assetOutput else {
-            return nil
+            return .endOfStream
         }
         var retryCount = 0
         while true {
             if let sampleBuffer = assetOutput.copyNextSampleBuffer() {
-                return createSampleBuffer(fromSampleBuffer: sampleBuffer, withTimeOffset: mediaInfo.startTime, duration: nil)
+                if let convertedSampleBuffer = createSampleBuffer(fromSampleBuffer: sampleBuffer, withTimeOffset: mediaInfo.startTime, duration: nil) {
+                    return .frame(convertedSampleBuffer)
+                } else {
+                    return .endOfStream
+                }
             } else if assetReader.status == .reading && retryCount < 100 {
                 Thread.sleep(forTimeInterval: 1.0 / 60.0)
                 retryCount += 1
@@ -128,7 +274,7 @@ public final class AVAssetVideoDataReader: MediaDataReader {
             }
         }
         
-        return nil
+        return .endOfStream
     }
 }
 

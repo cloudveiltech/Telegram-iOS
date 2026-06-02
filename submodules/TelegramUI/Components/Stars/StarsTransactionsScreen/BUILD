@@ -49,6 +49,9 @@ swift_library(
         "//submodules/TelegramUI/Components/Stars/StarsAvatarComponent",
         "//submodules/TelegramUI/Components/LottieComponent",
         "//submodules/TelegramUI/Components/LottieComponentResourceContent",
+        "//submodules/TelegramUI/Components/Gifts/GiftAnimationComponent",
+        "//submodules/TelegramUI/Components/Premium/PremiumCoinComponent",
+        "//submodules/TelegramUI/Components/Premium/PremiumDiamondComponent",
     ],
     visibility = [
         "//visibility:public",

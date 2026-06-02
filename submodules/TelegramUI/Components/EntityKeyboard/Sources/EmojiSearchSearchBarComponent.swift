@@ -5,7 +5,6 @@ import ComponentFlow
 import PagerComponent
 import TelegramPresentationData
 import TelegramCore
-import Postbox
 import AnimationCache
 import MultiAnimationRenderer
 import AccountContext
@@ -514,7 +513,7 @@ final class EmojiSearchSearchBarComponent: Component {
                         containerSize: itemLayout.itemSize
                     )
                     
-                    itemView.tintView.tintColor = .white
+                    itemView.tintView.tintColor = .black
                     
                     if let view = itemView.view.view as? LottieComponent.View {
                         if view.superview == nil {
@@ -592,7 +591,7 @@ final class EmojiSearchSearchBarComponent: Component {
                 let selectedItemCenter = itemLayout.frame(at: index).center
                 let selectionSize = CGSize(width: 28.0, height: 28.0)
                 self.selectedItemBackground.backgroundColor = selectedColor.cgColor
-                self.selectedItemTintBackground.backgroundColor = UIColor(white: 1.0, alpha: 0.15).cgColor
+                self.selectedItemTintBackground.backgroundColor = UIColor(white: 0.0, alpha: 0.15).cgColor
                 self.selectedItemBackground.cornerRadius = selectionSize.height * 0.5
                 self.selectedItemTintBackground.cornerRadius = selectionSize.height * 0.5
                 
@@ -678,7 +677,7 @@ final class EmojiSearchSearchBarComponent: Component {
                 component: AnyComponent(Text(
                     text: component.strings.Common_Search,
                     font: Font.regular(17.0),
-                    color: .white
+                    color: .black
                 )),
                 environment: {},
                 containerSize: CGSize(width: availableSize.width - 32.0, height: 100.0)

@@ -259,31 +259,31 @@ enum BotCheckoutEntry: ItemListNodeEntry {
                     }
                 })
             case let .paymentMethod(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
                     arguments.openPaymentMethod()
                 })
             case let .shippingInfo(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
                     arguments.openInfo(.address(.street1))
                 })
             case let .shippingMethod(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
                     arguments.openShippingMethod()
                 })
             case let .nameInfo(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
                     arguments.openInfo(.name)
                 })
             case let .emailInfo(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
                     arguments.openInfo(.email)
                 })
             case let .phoneInfo(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
                     arguments.openInfo(.phone)
                 })
             case let .actionPlaceholder(_, shimmeringIndex):
-                return ItemListDisclosureItem(presentationData: presentationData, title: " ", label: " ", sectionId: self.section, style: .blocks, disclosureStyle: .none, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: " ", label: " ", sectionId: self.section, style: .blocks, disclosureStyle: .none, action: {
                 }, shimmeringIndex: shimmeringIndex)
         }
     }
@@ -611,7 +611,7 @@ private final class ActionButtonPanelNode: ASDisplayNode {
     private(set) var isAccepted: Bool = false
     var isAcceptedUpdated: (() -> Void)?
     var openRecurrentTerms: (() -> Void)?
-    private var recurrentConfirmationNode: RecurrentConfirmationNode?
+    var recurrentConfirmationNode: RecurrentConfirmationNode?
     
     func update(presentationData: PresentationData, layout: ContainerViewLayout, invoice: BotPaymentInvoice?, botName: String?) -> (CGFloat, CGFloat) {
         let bottomPanelVerticalInset: CGFloat = 16.0
@@ -1211,7 +1211,8 @@ final class BotCheckoutControllerNode: ItemListControllerNode, PKPaymentAuthoriz
             payString = self.presentationData.strings.CheckoutInfo_Pay
         }
         
-        self.actionButton.isEnabled = isButtonEnabled
+        self.actionButton.isEnabled = true
+        self.actionButton.isImplicitlyDisabled = !isButtonEnabled
         
         if let currentPaymentMethod = self.currentPaymentMethod {
             switch currentPaymentMethod {
@@ -1244,7 +1245,7 @@ final class BotCheckoutControllerNode: ItemListControllerNode, PKPaymentAuthoriz
     override func containerLayoutUpdated(_ layout: ContainerViewLayout, navigationBarHeight: CGFloat, transition: ContainedViewLayoutTransition, additionalInsets: UIEdgeInsets) {
         var updatedInsets = layout.intrinsicInsets
 
-        let bottomPanelHorizontalInset: CGFloat = 16.0
+        let bottomPanelHorizontalInset: CGFloat = 30.0
         
         var botName: String?
         if let botPeer = self.botPeerValue {
@@ -1268,7 +1269,11 @@ final class BotCheckoutControllerNode: ItemListControllerNode, PKPaymentAuthoriz
     }
     
     @objc func actionButtonPressed() {
-        self.pay()
+        if let recurrentConfirmationNode = self.actionButtonPanelNode.recurrentConfirmationNode, !self.actionButtonPanelNode.isAccepted {
+            recurrentConfirmationNode.layer.addShakeAnimation()
+        } else {
+            self.pay()
+        }
     }
     
     private func pay(savedCredentialsToken: TemporaryTwoStepPasswordToken? = nil, liabilityNoticeAccepted: Bool = false, receivedCredentials: BotPaymentCredentials? = nil) {
@@ -1527,7 +1532,7 @@ final class BotCheckoutControllerNode: ItemListControllerNode, PKPaymentAuthoriz
                     }
                     
                     switch result {
-                        case let .done(receiptMessageId, _):
+                        case let .done(receiptMessageId, _, _):
                             proceedWithCompletion(true, receiptMessageId)
                         case let .externalVerificationRequired(url):
                             strongSelf.updateActionButton()

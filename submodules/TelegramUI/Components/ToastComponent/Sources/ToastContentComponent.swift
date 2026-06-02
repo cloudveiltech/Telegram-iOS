@@ -3,6 +3,7 @@ import UIKit
 import Display
 import ComponentFlow
 import ComponentDisplayAdapters
+import GlassBackgroundComponent
 
 public final class ToastContentComponent: Component {
     public let icon: AnyComponent<Empty>
@@ -39,7 +40,10 @@ public final class ToastContentComponent: Component {
     }
 
     public final class View: UIView {
-        private let backgroundView: BlurredBackgroundView
+        private var component: ToastContentComponent?
+        
+        private let backgroundContainerView: GlassBackgroundContainerView
+        private let backgroundView: GlassBackgroundView
         private let icon = ComponentView<Empty>()
         private let content = ComponentView<Empty>()
         
@@ -52,19 +56,24 @@ public final class ToastContentComponent: Component {
         }
         
         override public init(frame: CGRect) {
-            self.backgroundView = BlurredBackgroundView(color: .clear, enableBlur: true)
+            self.backgroundContainerView = GlassBackgroundContainerView()
+            self.backgroundView = GlassBackgroundView()
             
             super.init(frame: frame)
             
-            self.addSubview(self.backgroundView)
+            self.backgroundContainerView.contentView.addSubview(self.backgroundView)
+            self.addSubview(self.backgroundContainerView)
         }
         
         required init?(coder: NSCoder) {
             fatalError("init(coder:) has not been implemented")
         }
         
+        
         func update(component: ToastContentComponent, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
             var contentHeight: CGFloat = 0.0
+            
+            self.component = component
             
             let leftInset: CGFloat = component.insets.left
             let rightInset: CGFloat = component.insets.right
@@ -101,9 +110,13 @@ public final class ToastContentComponent: Component {
             }
             
             let size = CGSize(width: availableSize.width, height: contentHeight)
-            self.backgroundView.updateColor(color: UIColor(white: 0.0, alpha: 0.7), transition: .immediate)
-            self.backgroundView.update(size: size, cornerRadius: 14.0, transition: transition.containedViewLayoutTransition)
-            transition.setFrame(view: self.backgroundView, frame: CGRect(origin: CGPoint(), size: size))
+            
+            let backgroundContainerInset: CGFloat = 64.0
+            self.backgroundContainerView.update(size: CGRect(origin: CGPoint(), size: size).insetBy(dx: -backgroundContainerInset, dy: -backgroundContainerInset).size, isDark: true, transition: transition)
+            transition.setFrame(view: self.backgroundContainerView, frame: CGRect(origin: CGPoint(), size: size).insetBy(dx: -backgroundContainerInset, dy: -backgroundContainerInset))
+            
+            self.backgroundView.update(size: size, cornerRadius: min(25.0, size.height * 0.5), isDark: true, tintColor: .init(kind: .panel), transition: transition)
+            transition.setFrame(view: self.backgroundView, frame: CGRect(origin: CGPoint(x: backgroundContainerInset, y: backgroundContainerInset), size: size))
             
             return size
         }

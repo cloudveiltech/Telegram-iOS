@@ -34,13 +34,13 @@ private func blurredAvatarImage(_ dataImage: UIImage) -> UIImage? {
 }
 
 private let activityBorderImage: UIImage = {
-    return generateStretchableFilledCircleImage(diameter: 20.0, color: nil, strokeColor: .white, strokeWidth: 2.0)!.withRenderingMode(.alwaysTemplate)
+    return generateStretchableFilledCircleImage(diameter: 32.0, color: nil, strokeColor: .white, strokeWidth: 2.0)!.withRenderingMode(.alwaysTemplate)
 }()
 
 final class VideoChatParticipantVideoComponent: Component {
     let theme: PresentationTheme
     let strings: PresentationStrings
-    let call: PresentationGroupCall
+    let call: VideoChatCall
     let participant: GroupCallParticipantsContext.Participant
     let isMyPeer: Bool
     let isPresentation: Bool
@@ -51,6 +51,7 @@ final class VideoChatParticipantVideoComponent: Component {
     let contentInsets: UIEdgeInsets
     let controlInsets: UIEdgeInsets
     let interfaceOrientation: UIInterfaceOrientation
+    let enableVideoSharpening: Bool
     let action: (() -> Void)?
     let contextAction: ((EnginePeer, ContextExtractedContentContainingView, ContextGesture) -> Void)?
     let activatePinch: ((PinchSourceContainerNode) -> Void)?
@@ -59,7 +60,7 @@ final class VideoChatParticipantVideoComponent: Component {
     init(
         theme: PresentationTheme,
         strings: PresentationStrings,
-        call: PresentationGroupCall,
+        call: VideoChatCall,
         participant: GroupCallParticipantsContext.Participant,
         isMyPeer: Bool,
         isPresentation: Bool,
@@ -70,6 +71,7 @@ final class VideoChatParticipantVideoComponent: Component {
         contentInsets: UIEdgeInsets,
         controlInsets: UIEdgeInsets,
         interfaceOrientation: UIInterfaceOrientation,
+        enableVideoSharpening: Bool,
         action: (() -> Void)?,
         contextAction: ((EnginePeer, ContextExtractedContentContainingView, ContextGesture) -> Void)?,
         activatePinch: ((PinchSourceContainerNode) -> Void)?,
@@ -88,6 +90,7 @@ final class VideoChatParticipantVideoComponent: Component {
         self.contentInsets = contentInsets
         self.controlInsets = controlInsets
         self.interfaceOrientation = interfaceOrientation
+        self.enableVideoSharpening = enableVideoSharpening
         self.action = action
         self.contextAction = contextAction
         self.activatePinch = activatePinch
@@ -95,6 +98,9 @@ final class VideoChatParticipantVideoComponent: Component {
     }
     
     static func ==(lhs: VideoChatParticipantVideoComponent, rhs: VideoChatParticipantVideoComponent) -> Bool {
+        if lhs.call != rhs.call {
+            return false
+        }
         if lhs.participant != rhs.participant {
             return false
         }
@@ -123,6 +129,9 @@ final class VideoChatParticipantVideoComponent: Component {
             return false
         }
         if lhs.interfaceOrientation != rhs.interfaceOrientation {
+            return false
+        }
+        if lhs.enableVideoSharpening != rhs.enableVideoSharpening {
             return false
         }
         if (lhs.action == nil) != (rhs.action == nil) {
@@ -191,6 +200,7 @@ final class VideoChatParticipantVideoComponent: Component {
         private let pinchContainerNode: PinchSourceContainerNode
         private let extractedContainerView: ContextExtractedContentContainingView
         private var videoSource: AdaptedCallVideoSource?
+        private var videoPlaceholder: VideoSource.Output?
         private var videoDisposable: Disposable?
         private var videoBackgroundLayer: SimpleLayer?
         private var videoLayer: PrivateCallVideoLayer?
@@ -202,6 +212,10 @@ final class VideoChatParticipantVideoComponent: Component {
         
         private var referenceLocation: ReferenceLocation?
         private var loadingEffectView: VideoChatVideoLoadingEffectView?
+        
+        public var isPinchToZoomActive: Bool {
+            return self.pinchContainerNode.isActive
+        }
         
         override init(frame: CGRect) {
             self.backgroundGradientView = UIImageView()
@@ -217,7 +231,7 @@ final class VideoChatParticipantVideoComponent: Component {
             self.pinchContainerNode.contentNode.view.addSubview(self.backgroundGradientView)
             
             //TODO:release optimize
-            self.pinchContainerNode.contentNode.view.layer.cornerRadius = 10.0
+            self.pinchContainerNode.contentNode.view.layer.cornerRadius = 16.0
             self.pinchContainerNode.contentNode.view.clipsToBounds = true
             
             self.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(self.tapGesture(_:))))
@@ -241,7 +255,9 @@ final class VideoChatParticipantVideoComponent: Component {
                     gesture.cancel()
                     return
                 }
-                component.contextAction?(EnginePeer(component.participant.peer), self.extractedContainerView, gesture)
+                if let participantPeer = component.participant.peer {
+                    component.contextAction?(participantPeer, self.extractedContainerView, gesture)
+                }
             }
         }
         
@@ -261,6 +277,11 @@ final class VideoChatParticipantVideoComponent: Component {
                 }
                 action()
             }
+        }
+        
+        func updatePlaceholder(placeholder: VideoSource.Output) {
+            self.videoPlaceholder = placeholder
+            self.componentState?.updated(transition: .immediate, isLocal: true)
         }
         
         func update(component: VideoChatParticipantVideoComponent, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
@@ -307,12 +328,12 @@ final class VideoChatParticipantVideoComponent: Component {
             let controlsAlpha: CGFloat = component.isUIHidden ? 0.0 : 1.0
             
             if previousComponent == nil {
-                let colors = calculateAvatarColors(context: component.call.accountContext, explicitColorIndex: nil, peerId: component.participant.peer.id, nameColor: component.participant.peer.nameColor, icon: .none, theme: component.theme)
+                let colors = calculateAvatarColors(context: component.call.accountContext, explicitColorIndex: nil, peerId: component.participant.peer?.id, nameColor: component.participant.peer?.nameColor, icon: .none, theme: component.theme)
                 
                 self.backgroundGradientView.image = generateGradientImage(size: CGSize(width: 8.0, height: 32.0), colors: colors.reversed(), locations: [0.0, 1.0], direction: .vertical)
             }
             
-            if let smallProfileImage = component.participant.peer.smallProfileImage {
+            if let smallProfileImage = component.participant.peer?.smallProfileImage {
                 let blurredAvatarView: UIImageView
                 if let current = self.blurredAvatarView {
                     blurredAvatarView = current
@@ -329,8 +350,8 @@ final class VideoChatParticipantVideoComponent: Component {
                 
                 if self.blurredAvatarDisposable == nil {
                     //TODO:release synchronous
-                    if let imageCache = component.call.accountContext.imageCache as? DirectMediaImageCache, let peerReference = PeerReference(component.participant.peer) {
-                        if let result = imageCache.getAvatarImage(peer: peerReference, resource: MediaResourceReference.avatar(peer: peerReference, resource: smallProfileImage.resource), immediateThumbnail: component.participant.peer.profileImageRepresentations.first?.immediateThumbnailData, size: 64, synchronous: false) {
+                    if let participantPeer = component.participant.peer, let imageCache = component.call.accountContext.imageCache as? DirectMediaImageCache, let peerReference = PeerReference(participantPeer) {
+                        if let result = imageCache.getAvatarImage(peer: peerReference, resource: MediaResourceReference.avatar(peer: peerReference, resource: smallProfileImage.resource), immediateThumbnail: participantPeer.profileImageRepresentations.first?.immediateThumbnailData, size: 64, synchronous: false) {
                             if let image = result.image {
                                 blurredAvatarView.image = blurredAvatarImage(image)
                             }
@@ -393,7 +414,7 @@ final class VideoChatParticipantVideoComponent: Component {
             let titleSize = self.title.update(
                 transition: .immediate,
                 component: AnyComponent(MultilineTextComponent(
-                    text: .plain(NSAttributedString(string: component.participant.peer.debugDisplayTitle, font: Font.semibold(16.0), textColor: .white)),
+                    text: .plain(NSAttributedString(string: component.participant.peer?.debugDisplayTitle ?? "User \(component.participant.id)", font: Font.semibold(16.0), textColor: .white)),
                     insets: titleInnerInsets,
                     textShadowColor: UIColor(white: 0.0, alpha: 0.7),
                     textShadowBlur: 8.0
@@ -419,7 +440,21 @@ final class VideoChatParticipantVideoComponent: Component {
                 alphaTransition.setAlpha(view: titleView, alpha: controlsAlpha)
             }
             
-            let videoDescription: GroupCallParticipantsContext.Participant.VideoDescription? = component.maxVideoQuality == 0 ? nil : (component.isPresentation ? component.participant.presentationDescription : component.participant.videoDescription)
+            var previousVideoDescription: GroupCallParticipantsContext.Participant.VideoDescription?
+            if let previousComponent {
+                if previousComponent.isMyPeer && previousComponent.isPresentation {
+                    previousVideoDescription = nil
+                } else {
+                    previousVideoDescription = previousComponent.maxVideoQuality == 0 ? nil : (previousComponent.isPresentation ? previousComponent.participant.presentationDescription : previousComponent.participant.videoDescription)
+                }
+            }
+            
+            let videoDescription: GroupCallParticipantsContext.Participant.VideoDescription?
+            if component.isMyPeer && component.isPresentation {
+                videoDescription = nil
+            } else {
+                videoDescription = component.maxVideoQuality == 0 ? nil : (component.isPresentation ? component.participant.presentationDescription : component.participant.videoDescription)
+            }
             
             var isEffectivelyPaused = false
             if let videoDescription, videoDescription.isPaused {
@@ -451,11 +486,56 @@ final class VideoChatParticipantVideoComponent: Component {
                     videoBackgroundLayer.isHidden = true
                 }
                 
+                let videoUpdated: () -> Void = { [weak self] in
+                    guard let self, let videoSource = self.videoSource, let videoLayer = self.videoLayer else {
+                        return
+                    }
+                    
+                    var videoOutput = videoSource.currentOutput
+                    var isPlaceholder = false
+                    if videoOutput == nil {
+                        isPlaceholder = true
+                        videoOutput = self.videoPlaceholder
+                    } else {
+                        self.videoPlaceholder = nil
+                    }
+                    
+                    videoLayer.video = videoOutput
+                    
+                    if let videoOutput {
+                        let videoSpec = VideoSpec(resolution: videoOutput.resolution, rotationAngle: videoOutput.rotationAngle, followsDeviceOrientation: videoOutput.followsDeviceOrientation)
+                        if self.videoSpec != videoSpec || self.awaitingFirstVideoFrameForUnpause {
+                            self.awaitingFirstVideoFrameForUnpause = false
+                            
+                            self.videoSpec = videoSpec
+                            if !self.isUpdating {
+                                var transition: ComponentTransition = .immediate
+                                if !isPlaceholder {
+                                    transition = transition.withUserData(AnimationHint(kind: .videoAvailabilityChanged))
+                                }
+                                self.componentState?.updated(transition: transition, isLocal: true)
+                            }
+                        }
+                    } else {
+                        if self.videoSpec != nil {
+                            self.videoSpec = nil
+                            if !self.isUpdating {
+                                self.componentState?.updated(transition: .immediate, isLocal: true)
+                            }
+                        }
+                    }
+                }
+                
                 let videoLayer: PrivateCallVideoLayer
+                var resetVideoSource = false
                 if let current = self.videoLayer {
                     videoLayer = current
+                    
+                    if let previousVideoDescription, previousVideoDescription.endpointId != videoDescription.endpointId {
+                        resetVideoSource = true
+                    }
                 } else {
-                    videoLayer = PrivateCallVideoLayer()
+                    videoLayer = PrivateCallVideoLayer(enableSharpening: component.enableVideoSharpening)
                     self.videoLayer = videoLayer
                     videoLayer.opacity = 0.0
                     self.pinchContainerNode.contentNode.view.layer.insertSublayer(videoLayer.blurredLayer, above: videoBackgroundLayer)
@@ -463,39 +543,23 @@ final class VideoChatParticipantVideoComponent: Component {
                     
                     videoLayer.blurredLayer.opacity = 0.0
                     
-                    if let input = (component.call as! PresentationGroupCallImpl).video(endpointId: videoDescription.endpointId) {
+                    resetVideoSource = true
+                }
+                
+                if resetVideoSource {
+                    if let input = component.call.video(endpointId: videoDescription.endpointId) {
                         let videoSource = AdaptedCallVideoSource(videoStreamSignal: input)
                         self.videoSource = videoSource
                         
                         self.videoDisposable?.dispose()
-                        self.videoDisposable = videoSource.addOnUpdated { [weak self] in
-                            guard let self, let videoSource = self.videoSource, let videoLayer = self.videoLayer else {
-                                return
-                            }
-                            
-                            let videoOutput = videoSource.currentOutput
-                            videoLayer.video = videoOutput
-                            
-                            if let videoOutput {
-                                let videoSpec = VideoSpec(resolution: videoOutput.resolution, rotationAngle: videoOutput.rotationAngle, followsDeviceOrientation: videoOutput.followsDeviceOrientation)
-                                if self.videoSpec != videoSpec || self.awaitingFirstVideoFrameForUnpause {
-                                    self.awaitingFirstVideoFrameForUnpause = false
-                                    
-                                    self.videoSpec = videoSpec
-                                    if !self.isUpdating {
-                                        self.componentState?.updated(transition: ComponentTransition.immediate.withUserData(AnimationHint(kind: .videoAvailabilityChanged)), isLocal: true)
-                                    }
-                                }
-                            } else {
-                                if self.videoSpec != nil {
-                                    self.videoSpec = nil
-                                    if !self.isUpdating {
-                                        self.componentState?.updated(transition: .immediate, isLocal: true)
-                                    }
-                                }
-                            }
+                        self.videoDisposable = videoSource.addOnUpdated {
+                            videoUpdated()
                         }
                     }
+                }
+                
+                if let _ = self.videoPlaceholder, videoLayer.video == nil {
+                    videoUpdated()
                 }
                 
                 transition.setFrame(layer: videoBackgroundLayer, frame: CGRect(origin: CGPoint(), size: availableSize))
@@ -620,7 +684,7 @@ final class VideoChatParticipantVideoComponent: Component {
             
             if videoDescription != nil && self.videoSpec == nil && !isEffectivelyPaused {
                 if self.loadingEffectView == nil {
-                    let loadingEffectView = VideoChatVideoLoadingEffectView(effectAlpha: 0.1, borderAlpha: 0.2, cornerRadius: 10.0, duration: 1.0)
+                    let loadingEffectView = VideoChatVideoLoadingEffectView(effectAlpha: 0.1, borderAlpha: 0.2, cornerRadius: 16.0, duration: 1.0)
                     self.loadingEffectView = loadingEffectView
                     loadingEffectView.alpha = 0.0
                     loadingEffectView.isUserInteractionEnabled = false

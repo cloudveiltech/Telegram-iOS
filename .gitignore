@@ -68,5 +68,18 @@ build-input/*
 submodules/OpusBinding/SharedHeaders/*
 submodules/FFMpegBinding/SharedHeaders/*
 submodules/OpenSSLEncryptionProvider/SharedHeaders/*
+submodules/TelegramCore/FlatSerialization/Sources/*
+buildServer.json
+.build/**
+Telegram.LSP.json
+**/.build/**
+spm-files
+xcode-files
+.bsp/**
+.sourcekit-lsp/**
+/.claude/
+**/.claude/settings.local.json
+**/.vscode/launch.json
+/buildbox/*
 
 build.log

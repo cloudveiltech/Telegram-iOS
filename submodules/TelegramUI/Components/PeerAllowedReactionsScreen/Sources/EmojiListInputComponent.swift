@@ -8,6 +8,7 @@ import SwitchComponent
 import EntityKeyboard
 import AccountContext
 import HierarchyTrackingLayer
+import TelegramCore
 
 private final class CaretIndicatorView: UIImageView {
     private let hierarchyTrackingLayer: HierarchyTrackingLayer
@@ -173,7 +174,7 @@ final class EmojiListInputComponent: Component {
             let minSideInset: CGFloat = 12.0
             
             self.backgroundColor = component.theme.list.itemBlocksBackgroundColor
-            self.layer.cornerRadius = 12.0
+            self.layer.cornerRadius = 26.0
             
             let maxItemsWidth = availableSize.width - minSideInset * 2.0
             let itemsPerRow = Int(floor((maxItemsWidth + minItemSize * itemSpacingFactor) / (minItemSize + minItemSize * itemSpacingFactor)))

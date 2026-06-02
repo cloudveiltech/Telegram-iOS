@@ -17,7 +17,6 @@ import ContextUI
 import TelegramStringFormatting
 import ItemListPeerActionItem
 import ItemListPeerItem
-import ShareController
 import UndoUI
 
 private final class InviteRequestsControllerArguments {
@@ -100,7 +99,7 @@ private enum InviteRequestsEntry: ItemListNodeEntry {
         let arguments = arguments as! InviteRequestsControllerArguments
         switch self {
             case let .header(theme, text):
-                return InviteLinkHeaderItem(context: arguments.context, theme: theme, text: text, animationName: "Requests", sectionId: self.section, linkAction: { _ in
+                return InviteLinkHeaderItem(context: arguments.context, theme: theme, text: NSAttributedString(string: text), animationName: "Requests", sectionId: self.section, linkAction: { _ in
                     arguments.openLinks()
                 })
             case let .requestsHeader(_, text):
@@ -268,7 +267,7 @@ public func inviteRequestsController(context: AccountContext, updatedPresentatio
     //            dismissPromise.set(true)
     //        }
             
-            let contextController = ContextController(presentationData: presentationData, source: .extracted(source), items: .single(ContextController.Items(content: .list(items))), gesture: gesture)
+            let contextController = makeContextController(presentationData: presentationData, source: .extracted(source), items: .single(ContextController.Items(content: .list(items))), gesture: gesture)
             presentInGlobalOverlayImpl?(contextController)
         })
     })
@@ -377,7 +376,7 @@ public func inviteRequestsController(context: AccountContext, updatedPresentatio
         }
     }
     navigateToProfileImpl = { [weak controller] peer in
-        if let navigationController = controller?.navigationController as? NavigationController, let controller = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer._asPeer(), mode: .generic, avatarInitiallyExpanded: peer.largeProfileImage != nil, fromChat: false, requestsContext: nil) {
+        if let navigationController = controller?.navigationController as? NavigationController, let controller = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: peer.largeProfileImage != nil, fromChat: false, requestsContext: nil) {
             navigationController.pushViewController(controller)
         }
     }

@@ -213,14 +213,14 @@ public final class ChatMessageCommentFooterContentNode: ChatMessageBubbleContent
                 } else {
                     textLeftInset = 15.0 + imageSize * min(1.0, CGFloat(replyPeers.count)) + (imageSpacing) * max(0.0, min(2.0, CGFloat(replyPeers.count - 1)))
                 }
-                let textRightInset: CGFloat = 36.0
+                let textRightInset: CGFloat = 24.0
                 
                 let textConstrainedSize = CGSize(width: min(maxTextWidth, constrainedSize.width - horizontalInset - textLeftInset - textRightInset), height: constrainedSize.height)
                 
                 let textInsets = UIEdgeInsets()//(top: 2.0, left: 2.0, bottom: 5.0, right: 2.0)
                 
-                let (countLayout, countApply) = makeCountLayout(textConstrainedSize, rawSegments)
-                let (alternativeCountLayout, alternativeCountApply) = makeAlternativeCountLayout(textConstrainedSize, rawAlternativeSegments)
+                let (countLayout, countApply) = makeCountLayout(textConstrainedSize, .zero, rawSegments)
+                let (alternativeCountLayout, alternativeCountApply) = makeAlternativeCountLayout(textConstrainedSize, .zero, rawAlternativeSegments)
                 
                 var textFrame = CGRect(origin: CGPoint(x: -textInsets.left + textLeftInset - 2.0, y: -textInsets.top + 5.0 + topOffset), size: countLayout.size)
                 var textFrameWithoutInsets = CGRect(origin: CGPoint(x: textFrame.origin.x + textInsets.left, y: textFrame.origin.y + textInsets.top), size: CGSize(width: textFrame.width - textInsets.left - textInsets.right, height: textFrame.height - textInsets.top - textInsets.bottom))

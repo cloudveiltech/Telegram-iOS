@@ -10,12 +10,20 @@ public struct AppUpdateInfo: Equatable {
     public let version: String
     public let text: String
     public let entities: [MessageTextEntity]
+    
+    public init(blocking: Bool, version: String, text: String, entities: [MessageTextEntity]) {
+        self.blocking = blocking
+        self.version = version
+        self.text = text
+        self.entities = entities
+    }
 }
 
 extension AppUpdateInfo {
     init?(apiAppUpdate: Api.help.AppUpdate) {
         switch apiAppUpdate {
-            case let .appUpdate(flags, _, version, text, entities, _, _, _):
+            case let .appUpdate(appUpdateData):
+                let (flags, version, text, entities) = (appUpdateData.flags, appUpdateData.version, appUpdateData.text, appUpdateData.entities)
                 self.blocking = (flags & (1 << 0)) != 0
                 self.version = version
                 self.text = text

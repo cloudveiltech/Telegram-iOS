@@ -55,9 +55,9 @@ final class PeerNameColorChatPreviewItem: ListViewItem, ItemListItem, ListItemCo
         let peerId: EnginePeer.Id
         let author: String
         let photo: [TelegramMediaImageRepresentation]
-        let nameColor: PeerNameColor
+        let nameColor: PeerColor
         let backgroundEmojiId: Int64?
-        let reply: (String, String, PeerNameColor)?
+        let reply: (String, String, PeerColor)?
         let linkPreview: (String, String, String)?
         let text: String
     }
@@ -186,7 +186,7 @@ final class PeerNameColorChatPreviewItemNode: ListViewItemNode {
         self.containerNode = ASDisplayNode()
         self.containerNode.subnodeTransform = CATransform3DMakeRotation(CGFloat.pi, 0.0, 0.0, 1.0)
         
-        super.init(layerBacked: false, dynamicBounce: false)
+        super.init(layerBacked: false)
         
         self.clipsToBounds = true
         self.isUserInteractionEnabled = false
@@ -225,23 +225,23 @@ final class PeerNameColorChatPreviewItemNode: ListViewItemNode {
                 var peers = SimpleDictionary<PeerId, Peer>()
                 var messages = SimpleDictionary<MessageId, Message>()
                 
-                peers[authorPeerId] = TelegramUser(id: authorPeerId, accessHash: nil, firstName: messageItem.author, lastName: "", username: nil, phone: nil, photo: messageItem.photo, botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: messageItem.nameColor, backgroundEmojiId: messageItem.backgroundEmojiId, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil)
+                peers[authorPeerId] = TelegramUser(id: authorPeerId, accessHash: nil, firstName: messageItem.author, lastName: "", username: nil, phone: nil, photo: messageItem.photo, botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: messageItem.nameColor, backgroundEmojiId: messageItem.backgroundEmojiId, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil)
                 
                 
                 let replyMessageId = MessageId(peerId: peerId, namespace: 0, id: 3)
                 if let (replyAuthor, text, replyColor) = messageItem.reply {
-                    peers[replyAuthorPeerId] = TelegramUser(id: authorPeerId, accessHash: nil, firstName: replyAuthor, lastName: "", username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: replyColor, backgroundEmojiId: messageItem.backgroundEmojiId, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil)
+                    peers[replyAuthorPeerId] = TelegramUser(id: authorPeerId, accessHash: nil, firstName: replyAuthor, lastName: "", username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: replyColor, backgroundEmojiId: messageItem.backgroundEmojiId, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil)
                     
                     messages[replyMessageId] = Message(stableId: 3, stableVersion: 0, id: replyMessageId, globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, threadId: nil, timestamp: 66000, flags: [.Incoming], tags: [], globalTags: [], localTags: [], customTags: [], forwardInfo: nil, author: peers[replyAuthorPeerId], text: text, attributes: [], media: [], peers: peers, associatedMessages: SimpleDictionary(), associatedMessageIds: [], associatedMedia: [:], associatedThreadInfo: nil, associatedStories: [:])
                 }
                 
                 var media: [Media] = []
                 if let (site, title, text) = messageItem.linkPreview, params.width > 320.0 {
-                    media.append(TelegramMediaWebpage(webpageId: MediaId(namespace: 0, id: 0), content: .Loaded(TelegramMediaWebpageLoadedContent(url: "", displayUrl: "", hash: 0, type: nil, websiteName: site, title: title, text: text, embedUrl: nil, embedType: nil, embedSize: nil, duration: nil, author: nil, isMediaLargeByDefault: nil, image: nil, file: nil, story: nil, attributes: [], instantPage: nil))))
+                    media.append(TelegramMediaWebpage(webpageId: MediaId(namespace: 0, id: 0), content: .Loaded(TelegramMediaWebpageLoadedContent(url: "", displayUrl: "", hash: 0, type: nil, websiteName: site, title: title, text: text, embedUrl: nil, embedType: nil, embedSize: nil, duration: nil, author: nil, isMediaLargeByDefault: nil, imageIsVideoCover: false, image: nil, file: nil, story: nil, attributes: [], instantPage: nil))))
                 }
                 
-                let message = Message(stableId: 1, stableVersion: 0, id: MessageId(peerId: peerId, namespace: 0, id: 1), globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, threadId: nil, timestamp: 66000, flags: messageItem.outgoing ? [] : [.Incoming], tags: [], globalTags: [], localTags: [], customTags: [], forwardInfo: nil, author: peers[authorPeerId], text: messageItem.text, attributes: messageItem.reply != nil ? [ReplyMessageAttribute(messageId: replyMessageId, threadMessageId: nil, quote: nil, isQuote: false)] : [], media: media, peers: peers, associatedMessages: messages, associatedMessageIds: [], associatedMedia: [:], associatedThreadInfo: nil, associatedStories: [:])
-                items.append(item.context.sharedContext.makeChatMessagePreviewItem(context: item.context, messages: [message], theme: item.componentTheme, strings: item.strings, wallpaper: item.wallpaper, fontSize: item.fontSize, chatBubbleCorners: item.chatBubbleCorners, dateTimeFormat: item.dateTimeFormat, nameOrder: item.nameDisplayOrder, forcedResourceStatus: nil, tapMessage: nil, clickThroughMessage: nil, backgroundNode: currentBackgroundNode, availableReactions: nil, accountPeer: nil, isCentered: false, isPreview: true, isStandalone: false))
+                let message = Message(stableId: 1, stableVersion: 0, id: MessageId(peerId: peerId, namespace: 0, id: 1), globallyUniqueId: nil, groupingKey: nil, groupInfo: nil, threadId: nil, timestamp: 66000, flags: messageItem.outgoing ? [] : [.Incoming], tags: [], globalTags: [], localTags: [], customTags: [], forwardInfo: nil, author: peers[authorPeerId], text: messageItem.text, attributes: messageItem.reply != nil ? [ReplyMessageAttribute(messageId: replyMessageId, threadMessageId: nil, quote: nil, isQuote: false, innerSubject: nil)] : [], media: media, peers: peers, associatedMessages: messages, associatedMessageIds: [], associatedMedia: [:], associatedThreadInfo: nil, associatedStories: [:])
+                items.append(item.context.sharedContext.makeChatMessagePreviewItem(context: item.context, messages: [message], theme: item.componentTheme, strings: item.strings, wallpaper: item.wallpaper, fontSize: item.fontSize, chatBubbleCorners: item.chatBubbleCorners, dateTimeFormat: item.dateTimeFormat, nameOrder: item.nameDisplayOrder, forcedResourceStatus: nil, tapMessage: nil, clickThroughMessage: nil, backgroundNode: currentBackgroundNode, availableReactions: nil, accountPeer: nil, isCentered: false, isPreview: true, isStandalone: false, rank: nil, rankRole: nil))
             }
             
             var nodes: [ListViewItemNode] = []
@@ -308,7 +308,7 @@ final class PeerNameColorChatPreviewItemNode: ListViewItemNode {
                         if let snapshot = strongSelf.view.snapshotView(afterScreenUpdates: false) {
                             snapshot.frame = CGRect(origin: CGPoint(x: 0.0, y: -insets.top), size: snapshot.frame.size)
                             strongSelf.view.addSubview(snapshot)
-                            snapshot.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, delay: 0.25, removeOnCompletion: false, completion: { _ in
+                            snapshot.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, delay: 0.0, removeOnCompletion: false, completion: { _ in
                                 snapshot.removeFromSuperview()
                             })
                         }
@@ -337,8 +337,8 @@ final class PeerNameColorChatPreviewItemNode: ListViewItemNode {
                                     header.updateNode(headerNode, previous: nil, next: nil)
                                     headerNode.item = header
                                 }
-                                headerNode.updateLayoutInternal(size: headerFrame.size, leftInset: leftInset, rightInset: rightInset)
-                                headerNode.updateStickDistanceFactor(stickLocationDistanceFactor, transition: .immediate)
+                                headerNode.updateLayoutInternal(size: headerFrame.size, leftInset: leftInset, rightInset: rightInset, transition: .immediate)
+                                headerNode.updateStickDistanceFactor(stickLocationDistanceFactor, distance: 0.0, transition: .immediate)
                             } else {
                                 headerNode = header.node(synchronousLoad: true)
                                 if headerNode.item !== header {
@@ -346,11 +346,11 @@ final class PeerNameColorChatPreviewItemNode: ListViewItemNode {
                                     headerNode.item = header
                                 }
                                 headerNode.frame = headerFrame
-                                headerNode.updateLayoutInternal(size: headerFrame.size, leftInset: leftInset, rightInset: rightInset)
+                                headerNode.updateLayoutInternal(size: headerFrame.size, leftInset: leftInset, rightInset: rightInset, transition: .immediate)
                                 strongSelf.itemHeaderNodes[id] = headerNode
 
                                 strongSelf.containerNode.addSubnode(headerNode)
-                                headerNode.updateStickDistanceFactor(stickLocationDistanceFactor, transition: .immediate)
+                                headerNode.updateStickDistanceFactor(stickLocationDistanceFactor, distance: 0.0, transition: .immediate)
                             }
                         }
                     }

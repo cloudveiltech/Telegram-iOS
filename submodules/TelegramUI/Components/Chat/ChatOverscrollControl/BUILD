@@ -14,7 +14,6 @@ swift_library(
         "//submodules/ComponentFlow",
         "//submodules/Display",
         "//submodules/TelegramCore",
-        "//submodules/Postbox",
         "//submodules/AccountContext",
         "//submodules/AvatarNode",
         "//submodules/TextFormat",
@@ -22,6 +21,7 @@ swift_library(
         "//submodules/WallpaperBackgroundNode",
         "//submodules/TelegramPresentationData",
         "//submodules/TelegramUI/Components/EmojiStatusComponent",
+        "//submodules/TelegramUI/Components/TextNodeWithEntities",
     ],
     visibility = [
         "//visibility:public",

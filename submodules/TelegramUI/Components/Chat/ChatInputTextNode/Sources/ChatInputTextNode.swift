@@ -11,7 +11,7 @@ import TextNodeWithEntities
 
 public protocol ChatInputTextNodeDelegate: AnyObject {
     func chatInputTextNodeDidUpdateText()
-    func chatInputTextNodeShouldReturn() -> Bool
+    func chatInputTextNodeShouldReturn(modifierFlags: UIKeyModifierFlags) -> Bool
     func chatInputTextNodeDidChangeSelection(dueToEditing: Bool)
     func chatInputTextNodeDidBeginEditing()
     func chatInputTextNodeDidFinishEditing()
@@ -287,6 +287,9 @@ open class ChatInputTextNode: ASDisplayNode {
         self.setViewBlock({
             return ChatInputTextView(disableTiling: disableTiling)
         })
+    }
+    
+    deinit {
     }
     
     public func resetInitialPrimaryLanguage() {
@@ -1050,7 +1053,8 @@ public final class ChatInputTextView: ChatInputTextViewImpl, UITextViewDelegate,
     }
     
     public var toggleQuoteCollapse: ((NSRange) -> Void)?
-    
+    public var onUpdateLayout: (() -> Void)?
+        
     private let displayInternal: ChatInputTextInternal
     private let measureInternal: ChatInputTextInternal
     
@@ -1110,6 +1114,10 @@ public final class ChatInputTextView: ChatInputTextViewImpl, UITextViewDelegate,
         super.init(frame: CGRect(), textContainer: self.displayInternal.textContainer, disableTiling: disableTiling)
         
         self.delegate = self
+        
+        if #available(iOS 18.0, *) {
+            self.supportsAdaptiveImageGlyph = false
+        }
         
         self.displayInternal.updateDisplayElements = { [weak self] in
             self?.updateTextElements()
@@ -1175,11 +1183,11 @@ public final class ChatInputTextView: ChatInputTextViewImpl, UITextViewDelegate,
             }
             return self.customDelegate?.chatInputTextNodeShouldPaste() ?? true
         }
-        self.shouldReturn = { [weak self] in
+        self.shouldReturn = { [weak self] modifierFlags in
             guard let self else {
                 return true
             }
-            return self.customDelegate?.chatInputTextNodeShouldReturn() ?? true
+            return self.customDelegate?.chatInputTextNodeShouldReturn(modifierFlags: modifierFlags) ?? true
         }
         self.backspaceWhileEmpty = { [weak self] in
             guard let self else {
@@ -1217,7 +1225,7 @@ public final class ChatInputTextView: ChatInputTextViewImpl, UITextViewDelegate,
 
     @objc public func textViewDidChange(_ textView: UITextView) {
         self.selectionChangedForEditedText = true
-        
+                
         self.updateTextContainerInset()
         
         self.customDelegate?.chatInputTextNodeDidUpdateText()
@@ -1381,6 +1389,8 @@ public final class ChatInputTextView: ChatInputTextViewImpl, UITextViewDelegate,
         for id in removedBlockQuotes {
             self.blockQuotes.removeValue(forKey: id)
         }
+        
+        self.onUpdateLayout?()
     }
     
     override public func caretRect(for position: UITextPosition) -> CGRect {

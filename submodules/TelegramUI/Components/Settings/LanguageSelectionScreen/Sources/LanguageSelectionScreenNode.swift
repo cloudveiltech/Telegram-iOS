@@ -115,7 +115,7 @@ private final class LocalizationListSearchContainerNode: SearchDisplayController
         self.dimNode = ASDisplayNode()
         self.dimNode.backgroundColor = UIColor.black.withAlphaComponent(0.5)
         
-        self.listNode = ListView()
+        self.listNode = ListViewImpl()
         self.listNode.accessibilityPageScrolledString = { row, count in
             return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
         }
@@ -329,7 +329,7 @@ final class LanguageSelectionScreenNode: ViewControllerTracingNode {
         self.push = push
         self.selectLocalization = selectLocalization
 
-        self.listNode = ListView()
+        self.listNode = ListViewImpl()
         self.listNode.keepTopItemOverscrollBackground = ListViewKeepTopItemOverscrollBackground(color: presentationData.theme.list.blocksBackgroundColor, direction: true)
         self.listNode.accessibilityPageScrolledString = { row, count in
             return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
@@ -347,7 +347,7 @@ final class LanguageSelectionScreenNode: ViewControllerTracingNode {
         let openSearch: () -> Void = {
             requestActivateSearch()
         }
-        
+                
         let previousState = Atomic<LocalizationListState?>(value: nil)
         let previousEntriesHolder = Atomic<([LanguageListEntry], PresentationTheme, PresentationStrings)?>(value: nil)
         self.listDisposable = combineLatest(
@@ -360,7 +360,7 @@ final class LanguageSelectionScreenNode: ViewControllerTracingNode {
             guard let strongSelf = self else {
                 return
             }
-                        
+            
             var entries: [LanguageListEntry] = []
             var existingIds = Set<String>()
             
@@ -540,7 +540,8 @@ final class LanguageSelectionScreenNode: ViewControllerTracingNode {
             inline: true,
             cancel: { [weak self] in
                 self?.requestDeactivateSearch()
-            }
+            },
+            fieldStyle: placeholderNode.fieldStyle
         )
         
         self.searchDisplayController?.containerLayoutUpdated(containerLayout, navigationBarHeight: navigationBarHeight, transition: .immediate)

@@ -115,6 +115,7 @@ private var declaredEncodables: Void = {
     declareEncodable(ViewCountMessageAttribute.self, f: { ViewCountMessageAttribute(decoder: $0) })
     declareEncodable(ForwardCountMessageAttribute.self, f: { ForwardCountMessageAttribute(decoder: $0) })
     declareEncodable(BoostCountMessageAttribute.self, f: { BoostCountMessageAttribute(decoder: $0) })
+    declareEncodable(ParticipantRankMessageAttribute.self, f: { ParticipantRankMessageAttribute(decoder: $0) })
     declareEncodable(NotificationInfoMessageAttribute.self, f: { NotificationInfoMessageAttribute(decoder: $0) })
     declareEncodable(TelegramMediaAction.self, f: { TelegramMediaAction(decoder: $0) })
     declareEncodable(TelegramPeerNotificationSettings.self, f: { TelegramPeerNotificationSettings(decoder: $0) })
@@ -190,6 +191,7 @@ private var declaredEncodables: Void = {
     declareEncodable(OutgoingScheduleInfoMessageAttribute.self, f: { OutgoingScheduleInfoMessageAttribute(decoder: $0) })
     declareEncodable(UpdateMessageReactionsAction.self, f: { UpdateMessageReactionsAction(decoder: $0) })
     declareEncodable(SendStarsReactionsAction.self, f: { SendStarsReactionsAction(decoder: $0) })
+    declareEncodable(PostponeSendPaidMessageAction.self, f: { PostponeSendPaidMessageAction(decoder: $0) })
     declareEncodable(RestrictedContentMessageAttribute.self, f: { RestrictedContentMessageAttribute(decoder: $0) })
     declareEncodable(SendScheduledMessageImmediatelyAction.self, f: { SendScheduledMessageImmediatelyAction(decoder: $0) })
     declareEncodable(EmbeddedMediaStickersMessageAttribute.self, f: { EmbeddedMediaStickersMessageAttribute(decoder: $0) })
@@ -205,6 +207,7 @@ private var declaredEncodables: Void = {
     declareEncodable(WallpaperDataResource.self, f: { WallpaperDataResource(decoder: $0) })
     declareEncodable(ForwardOptionsMessageAttribute.self, f: { ForwardOptionsMessageAttribute(decoder: $0) })
     declareEncodable(SendAsMessageAttribute.self, f: { SendAsMessageAttribute(decoder: $0) })
+    declareEncodable(ForwardVideoTimestampAttribute.self, f: { ForwardVideoTimestampAttribute(decoder: $0) })
     declareEncodable(AudioTranscriptionMessageAttribute.self, f: { AudioTranscriptionMessageAttribute(decoder: $0) })
     declareEncodable(NonPremiumMessageAttribute.self, f: { NonPremiumMessageAttribute(decoder: $0) })
     declareEncodable(TelegramExtendedMedia.self, f: { TelegramExtendedMedia(decoder: $0) })
@@ -229,6 +232,17 @@ private var declaredEncodables: Void = {
     declareEncodable(EffectMessageAttribute.self, f: { EffectMessageAttribute(decoder: $0) })
     declareEncodable(FactCheckMessageAttribute.self, f: { FactCheckMessageAttribute(decoder: $0) })
     declareEncodable(TelegramMediaPaidContent.self, f: { TelegramMediaPaidContent(decoder: $0) })
+    declareEncodable(ReportDeliveryMessageAttribute.self, f: { ReportDeliveryMessageAttribute(decoder: $0) })
+    declareEncodable(PaidStarsMessageAttribute.self, f: { PaidStarsMessageAttribute(decoder: $0) })
+    declareEncodable(TelegramMediaTodo.self, f: { TelegramMediaTodo(decoder: $0) })
+    declareEncodable(TelegramMediaTodo.Item.self, f: { TelegramMediaTodo.Item(decoder: $0) })
+    declareEncodable(TelegramMediaTodo.Completion.self, f: { TelegramMediaTodo.Completion(decoder: $0) })
+    declareEncodable(SuggestedPostMessageAttribute.self, f: { SuggestedPostMessageAttribute(decoder: $0) })
+    declareEncodable(PublishedSuggestedPostMessageAttribute.self, f: { PublishedSuggestedPostMessageAttribute(decoder: $0) })
+    declareEncodable(TelegramMediaLiveStream.self, f: { TelegramMediaLiveStream(decoder: $0) })
+    declareEncodable(ScheduledRepeatAttribute.self, f: { ScheduledRepeatAttribute(decoder: $0) })
+    declareEncodable(SummarizationMessageAttribute.self, f: { SummarizationMessageAttribute(decoder: $0) })
+    declareEncodable(GuestChatMessageAttribute.self, f: { GuestChatMessageAttribute(decoder: $0) })
     return
 }()
 
@@ -490,7 +504,8 @@ private func cleanupAccount(networkArguments: NetworkInitializationArguments, ac
                 }
                 |> mapToSignal { result -> Signal<Void, NoError> in
                     switch result {
-                    case let .loggedOut(_, futureAuthToken):
+                    case let .loggedOut(loggedOutData):
+                        let futureAuthToken = loggedOutData.futureAuthToken
                         if let futureAuthToken = futureAuthToken {
                             storeFutureLoginToken(accountManager: accountManager, token: futureAuthToken.makeData())
                         }

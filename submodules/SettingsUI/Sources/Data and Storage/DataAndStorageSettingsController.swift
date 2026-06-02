@@ -14,6 +14,7 @@ import OpenInExternalAppUI
 import ItemListPeerActionItem
 import StorageUsageScreen
 import PresentationDataUtils
+import FaceScanScreen
 import CloudVeilSecurityManager
 
 public enum AutomaticSaveIncomingPeerType {
@@ -90,6 +91,7 @@ public enum DataAndStorageEntryTag: ItemListItemTag, Equatable {
     case raiseToListen
     case autoSave(AutomaticSaveIncomingPeerType)
     case sensitiveContent
+    case useLessVoiceData
     
     public func isEqual(to other: ItemListItemTag) -> Bool {
         if let other = other as? DataAndStorageEntryTag, self == other {
@@ -362,21 +364,21 @@ private enum DataAndStorageEntry: ItemListNodeEntry {
         let arguments = arguments as! DataAndStorageControllerArguments
         switch self {
             case let .storageUsage(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, icon: UIImage(bundleImageName: "Settings/Menu/Storage")?.precomposed(), title: text, label: value, sectionId: self.section, style: .blocks, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: PresentationResourcesSettings.storageUsage, title: text, label: value, sectionId: self.section, style: .blocks, action: {
                     arguments.openStorageUsage()
                 })
             case let .networkUsage(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, icon: UIImage(bundleImageName: "Settings/Menu/Network")?.precomposed(), title: text, label: value, sectionId: self.section, style: .blocks, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: PresentationResourcesSettings.dataUsage, title: text, label: value, sectionId: self.section, style: .blocks, action: {
                     arguments.openNetworkUsage()
                 })
             case let .automaticDownloadHeader(_, text):
                 return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
             case let .automaticDownloadCellular(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, icon: UIImage(bundleImageName: "Settings/Menu/Cellular")?.precomposed(), title: text, label: value, labelStyle: .detailText, sectionId: self.section, style: .blocks, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: PresentationResourcesSettings.cellular, title: text, label: value, labelStyle: .detailText, sectionId: self.section, style: .blocks, action: {
                     arguments.openAutomaticDownloadConnectionType(.cellular)
                 })
             case let .automaticDownloadWifi(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, icon: UIImage(bundleImageName: "Settings/Menu/WiFi")?.precomposed(), title: text, label: value, labelStyle: .detailText, sectionId: self.section, style: .blocks, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: PresentationResourcesSettings.wifi, title: text, label: value, labelStyle: .detailText, sectionId: self.section, style: .blocks, action: {
                     arguments.openAutomaticDownloadConnectionType(.wifi)
                 })
             case let .automaticDownloadReset(theme, text, enabled):
@@ -384,66 +386,66 @@ private enum DataAndStorageEntry: ItemListNodeEntry {
                 if !enabled {
                     icon = generateTintedImage(image: icon, color: theme.list.itemDisabledTextColor)
                 }
-                return ItemListPeerActionItem(presentationData: presentationData, icon: icon, title: text, sectionId: self.section, height: .generic, color: enabled ? .accent : .disabled, editing: false, action: {
+                return ItemListPeerActionItem(presentationData: presentationData, systemStyle: .glass, icon: icon, title: text, sectionId: self.section, height: .generic, color: enabled ? .accent : .disabled, editing: false, action: {
                     if enabled {
                         arguments.resetAutomaticDownload()
                     }
-                })
+                }, tag: DataAndStorageEntryTag.automaticDownloadReset)
             case let .autoSaveHeader(text):
                 return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
             case let .autoSaveItem(_, type, title, label, value):
-                let iconName: String
+                let icon: UIImage?
                 switch type {
                 case .privateChats:
-                    iconName = "Settings/Menu/EditProfile"
+                    icon = PresentationResourcesSettings.privateChats
                 case .groups:
-                    iconName = "Settings/Menu/GroupChats"
+                    icon = PresentationResourcesSettings.groups
                 case .channels:
-                    iconName = "Settings/Menu/Channels"
+                    icon = PresentationResourcesSettings.channels
                 }
-                return ItemListDisclosureItem(presentationData: presentationData, icon: UIImage(bundleImageName: iconName)?.precomposed(), title: title, label: value, labelStyle: .text, additionalDetailLabel: label.isEmpty ? nil : label, sectionId: self.section, style: .blocks, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: icon, title: title, label: value, labelStyle: .text, additionalDetailLabel: label.isEmpty ? nil : label, sectionId: self.section, style: .blocks, action: {
                     arguments.openSaveIncoming(type)
                 })
             case let .autoSaveInfo(text):
                 return ItemListTextItem(presentationData: presentationData, text: .markdown(text), sectionId: self.section)
             case let .useLessVoiceData(_, text, value):
-                return ItemListSwitchItem(presentationData: presentationData, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
                     arguments.toggleVoiceUseLessData(value)
-                }, tag: nil)
+                }, tag: DataAndStorageEntryTag.useLessVoiceData)
             case let .useLessVoiceDataInfo(_, text):
                 return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
             case let .otherHeader(_, text):
                 return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
             case let .openLinksIn(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, title: text, label: value, sectionId: self.section, style: .blocks, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, sectionId: self.section, style: .blocks, action: {
                     arguments.openBrowserSelection()
                 })
             case let .shareSheet(_, text):
-                return ItemListDisclosureItem(presentationData: presentationData, title: text, label: "", sectionId: self.section, style: .blocks, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: "", sectionId: self.section, style: .blocks, action: {
                     arguments.openIntents()
                 })
             case let .saveEditedPhotos(_, text, value):
-                return ItemListSwitchItem(presentationData: presentationData, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
                     arguments.toggleSaveEditedPhotos(value)
                 }, tag: DataAndStorageEntryTag.saveEditedPhotos)
             case let .pauseMusicOnRecording(_, text, value):
-                return ItemListSwitchItem(presentationData: presentationData, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
                     arguments.togglePauseMusicOnRecording(value)
                 }, tag: DataAndStorageEntryTag.pauseMusicOnRecording)
             case let .raiseToListen(_, text, value):
-                return ItemListSwitchItem(presentationData: presentationData, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
                     arguments.toggleRaiseToListen(value)
                 }, tag: DataAndStorageEntryTag.raiseToListen)
             case let .raiseToListenInfo(_, text):
                 return ItemListTextItem(presentationData: presentationData, text: .markdown(text), sectionId: self.section)
             case let .sensitiveContent(text, value):
-                return ItemListSwitchItem(presentationData: presentationData, title: text, value: value, enableInteractiveChanges: false, sectionId: self.section, style: .blocks, updated: { value in
+                return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, enableInteractiveChanges: false, sectionId: self.section, style: .blocks, updated: { value in
                     arguments.toggleSensitiveContent(value)
                 }, tag: DataAndStorageEntryTag.sensitiveContent)
             case let .sensitiveContentInfo(text):
                 return ItemListTextItem(presentationData: presentationData, text: .markdown(text), sectionId: self.section)
             case let .downloadInBackground(_, text, value):
-                return ItemListSwitchItem(presentationData: presentationData, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
                     arguments.toggleDownloadInBackground(value)
                 }, tag: DataAndStorageEntryTag.downloadInBackground)
             case let .downloadInBackgroundInfo(_, text):
@@ -451,7 +453,7 @@ private enum DataAndStorageEntry: ItemListNodeEntry {
             case let .connectionHeader(_, text):
                 return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
             case let .connectionProxy(_, text, value):
-                return ItemListDisclosureItem(presentationData: presentationData, title: text, label: value, sectionId: self.section, style: .blocks, action: {
+                return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, sectionId: self.section, style: .blocks, action: {
                     arguments.openProxy()
                 })
         }
@@ -618,7 +620,7 @@ private func autosaveLabelAndValue(presentationData: PresentationData, settings:
     return (label, value)
 }
 
-private func dataAndStorageControllerEntries(state: DataAndStorageControllerState, data: DataAndStorageData, presentationData: PresentationData, defaultWebBrowser: String, contentSettingsConfiguration: ContentSettingsConfiguration?, networkUsage: Int64, storageUsage: Int64, mediaAutoSaveSettings: MediaAutoSaveSettings, autosaveExceptionPeers: [EnginePeer.Id: EnginePeer?], mediaSettings: MediaDisplaySettings) -> [DataAndStorageEntry] {
+private func dataAndStorageControllerEntries(context: AccountContext, state: DataAndStorageControllerState, data: DataAndStorageData, presentationData: PresentationData, defaultWebBrowser: String, contentSettingsConfiguration: ContentSettingsConfiguration?, networkUsage: Int64, storageUsage: Int64, mediaAutoSaveSettings: MediaAutoSaveSettings, autosaveExceptionPeers: [EnginePeer.Id: EnginePeer?], mediaSettings: MediaDisplaySettings, showSensitiveContentSetting: Bool) -> [DataAndStorageEntry] {
     var entries: [DataAndStorageEntry] = []
     
     entries.append(.storageUsage(presentationData.theme, presentationData.strings.ChatSettings_Cache, dataSizeString(storageUsage, formatting: DataSizeStringFormatting(presentationData: presentationData))))
@@ -657,7 +659,7 @@ private func dataAndStorageControllerEntries(state: DataAndStorageControllerStat
     entries.append(.raiseToListen(presentationData.theme, presentationData.strings.Settings_RaiseToListen, data.mediaInputSettings.enableRaiseToSpeak))
     entries.append(.raiseToListenInfo(presentationData.theme, presentationData.strings.Settings_RaiseToListenInfo))
 
-    if !"".isEmpty, let contentSettingsConfiguration = contentSettingsConfiguration, contentSettingsConfiguration.canAdjustSensitiveContent {
+    if let contentSettingsConfiguration = contentSettingsConfiguration, contentSettingsConfiguration.canAdjustSensitiveContent && (showSensitiveContentSetting || requireAgeVerification(context: context)) {
         entries.append(.sensitiveContent(presentationData.strings.Settings_SensitiveContent, contentSettingsConfiguration.sensitiveContentEnabled))
         entries.append(.sensitiveContentInfo(presentationData.strings.Settings_SensitiveContentInfo))
     }
@@ -685,6 +687,7 @@ public func dataAndStorageController(context: AccountContext, focusOnItemTag: Da
     
     var pushControllerImpl: ((ViewController) -> Void)?
     var presentControllerImpl: ((ViewController, ViewControllerPresentationArguments?) -> Void)?
+    var presentAgeVerificationImpl: ((@escaping () -> Void) -> Void)?
     
     let actionsDisposable = DisposableSet()
     
@@ -914,14 +917,18 @@ public func dataAndStorageController(context: AccountContext, focusOnItemTag: Da
             updateSensitiveContentDisposable.set(updateRemoteContentSettingsConfiguration(postbox: context.account.postbox, network: context.account.network, sensitiveContentEnabled: value).start())
         }
         if value {
-            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-            let alertController = textAlertController(context: context, title: presentationData.strings.SensitiveContent_Enable_Title, text: presentationData.strings.SensitiveContent_Enable_Text, actions: [
-                TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {}),
-                TextAlertAction(type: .defaultAction, title: presentationData.strings.SensitiveContent_Enable_Confirm, action: {
-                    update()
-                })
-            ])
-            presentControllerImpl?(alertController, nil)
+            if requireAgeVerification(context: context) {
+                presentAgeVerificationImpl?(update)
+            } else {
+                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                let alertController = textAlertController(context: context, title: presentationData.strings.SensitiveContent_Enable_Title, text: presentationData.strings.SensitiveContent_Enable_Text, actions: [
+                    TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {}),
+                    TextAlertAction(type: .defaultAction, title: presentationData.strings.SensitiveContent_Enable_Confirm, action: {
+                        update()
+                    })
+                ])
+                presentControllerImpl?(alertController, nil)
+            }
         } else {
             update()
         }
@@ -945,6 +952,7 @@ public func dataAndStorageController(context: AccountContext, focusOnItemTag: Da
     }
 
     let sensitiveContent = Atomic<Bool?>(value: nil)
+    let canAdjustSensitiveContent = Atomic<Bool?>(value: nil)
     
     let signal = combineLatest(queue: .mainQueue(),
         context.sharedContext.presentationData,
@@ -975,9 +983,14 @@ public func dataAndStorageController(context: AccountContext, focusOnItemTag: Da
         if previousSensitiveContent != contentSettingsConfiguration?.sensitiveContentEnabled {
             animateChanges = true
         }
+
+        if canAdjustSensitiveContent.with({ $0 }) == nil {
+            let _ = canAdjustSensitiveContent.swap(contentSettingsConfiguration?.sensitiveContentEnabled)
+        }
+        let showSensitiveContentSetting = canAdjustSensitiveContent.with { $0 } ?? false
         
         let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text(presentationData.strings.ChatSettings_Title), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back), animateChanges: false)
-        let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: dataAndStorageControllerEntries(state: state, data: dataAndStorageData, presentationData: presentationData, defaultWebBrowser: defaultWebBrowser, contentSettingsConfiguration: contentSettingsConfiguration, networkUsage: usageSignal.network, storageUsage: usageSignal.storage, mediaAutoSaveSettings: mediaAutoSaveSettings, autosaveExceptionPeers: autosaveExceptionPeers, mediaSettings: mediaSettings), style: .blocks, ensureVisibleItemTag: focusOnItemTag, emptyStateItem: nil, animateChanges: animateChanges)
+        let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: dataAndStorageControllerEntries(context: context, state: state, data: dataAndStorageData, presentationData: presentationData, defaultWebBrowser: defaultWebBrowser, contentSettingsConfiguration: contentSettingsConfiguration, networkUsage: usageSignal.network, storageUsage: usageSignal.storage, mediaAutoSaveSettings: mediaAutoSaveSettings, autosaveExceptionPeers: autosaveExceptionPeers, mediaSettings: mediaSettings, showSensitiveContentSetting: showSensitiveContentSetting), style: .blocks, ensureVisibleItemTag: focusOnItemTag, emptyStateItem: nil, animateChanges: animateChanges)
         
         return (controllerState, (listState, arguments))
     } |> afterDisposed {
@@ -993,6 +1006,28 @@ public func dataAndStorageController(context: AccountContext, focusOnItemTag: Da
     presentControllerImpl = { [weak controller] c, a in
         controller?.present(c, in: .window(.root), with: a)
     }
-
+    presentAgeVerificationImpl = { [weak controller] update in
+        guard let controller else {
+            return
+        }
+        presentAgeVerification(context: context, parentController: controller, completion: {
+            update()
+        })
+    }
+    
+    if let focusOnItemTag {
+        var didFocusOnItem = false
+        controller.afterTransactionCompleted = { [weak controller] in
+            if !didFocusOnItem, let controller {
+                controller.forEachItemNode { itemNode in
+                    if let itemNode = itemNode as? ItemListItemNode, let tag = itemNode.tag, tag.isEqual(to: focusOnItemTag) {
+                        didFocusOnItem = true
+                        itemNode.displayHighlight()
+                    }
+                }
+            }
+        }
+    }
+    
     return controller
 }

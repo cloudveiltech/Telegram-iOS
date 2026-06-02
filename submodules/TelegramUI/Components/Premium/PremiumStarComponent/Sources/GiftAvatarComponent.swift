@@ -28,7 +28,8 @@ public final class GiftAvatarComponent: Component {
     let avatarSize: CGFloat
     let color: UIColor?
     let offset: CGFloat?
-    var hasLargeParticles: Bool
+    let hasLargeParticles: Bool
+    let action: (() -> Void)?
         
     public init(
         context: AccountContext,
@@ -41,7 +42,8 @@ public final class GiftAvatarComponent: Component {
         avatarSize: CGFloat = 100.0,
         color: UIColor? = nil,
         offset: CGFloat? = nil,
-        hasLargeParticles: Bool = false
+        hasLargeParticles: Bool = false,
+        action: (() -> Void)? = nil
     ) {
         self.context = context
         self.theme = theme
@@ -54,6 +56,7 @@ public final class GiftAvatarComponent: Component {
         self.color = color
         self.offset = offset
         self.hasLargeParticles = hasLargeParticles
+        self.action = action
     }
     
     public static func ==(lhs: GiftAvatarComponent, rhs: GiftAvatarComponent) -> Bool {
@@ -137,7 +140,11 @@ public final class GiftAvatarComponent: Component {
         
         private var delayTapsTill: Double?
         @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
-            self.playAppearanceAnimation(velocity: nil, mirror: false, explode: true)
+            if let action = self.component?.action {
+                action()
+            } else {
+                self.playAppearanceAnimation(velocity: nil, mirror: false, explode: true)
+            }
         }
         
         private var didSetup = false
@@ -151,22 +158,7 @@ public final class GiftAvatarComponent: Component {
             self.sceneView.scene = scene
             self.sceneView.delegate = self
             
-            if let color = self.component?.color {
-//                let names: [String] = [
-//                    "particles_left",
-//                    "particles_right",
-//                    "particles_left_bottom",
-//                    "particles_right_bottom",
-//                    "particles_center"
-//                ]
-//                
-//                for name in names {
-//                    if let node = scene.rootNode.childNode(withName: name, recursively: false), let particleSystem = node.particleSystems?.first {
-//                        particleSystem.particleColor = color
-//                        particleSystem.particleColorVariation = SCNVector4Make(0, 0, 0, 0)
-//                    }
-//                }
-                
+            if let color = self.component?.color {                
                 let names: [String] = [
                     "particles_left",
                     "particles_right",
@@ -402,7 +394,7 @@ public final class GiftAvatarComponent: Component {
                     self.mergedAvatarsNode = mergedAvatarsNode
                 }
                 
-                mergedAvatarsNode.update(context: component.context, peers: Array(component.peers.map { $0._asPeer() }.prefix(3)), synchronousLoad: false, imageSize: avatarSize.width, imageSpacing: 30.0, borderWidth: 2.0, avatarFontSize: 26.0)
+                mergedAvatarsNode.update(context: component.context, peers: Array(component.peers.prefix(3)), synchronousLoad: false, imageSize: avatarSize.width, imageSpacing: 30.0, borderWidth: 2.0, avatarFontSize: 26.0)
                 let avatarsSize = CGSize(width: avatarSize.width + 30.0 * CGFloat(min(3, component.peers.count) - 1), height: avatarSize.height)
                 mergedAvatarsNode.updateLayout(size: avatarsSize)
                 mergedAvatarsNode.frame = CGRect(origin: CGPoint(x: floorToScreenPixels((availableSize.width - avatarsSize.width) / 2.0), y: 113.0 - avatarSize.height / 2.0), size: avatarsSize)

@@ -29,6 +29,9 @@ func _internal_channelMembers(postbox: Postbox, network: Network, accountPeerId:
                     return .single(nil)
                 }
             }
+            if peer.flags.contains(.isMonoforum) {
+                return .single(nil)
+            }
             
             let apiFilter: Api.ChannelParticipantsFilter
             switch category {
@@ -37,7 +40,7 @@ func _internal_channelMembers(postbox: Postbox, network: Network, accountPeerId:
                         case .all:
                             apiFilter = .channelParticipantsRecent
                         case let .search(query):
-                            apiFilter = .channelParticipantsSearch(q: query)
+                            apiFilter = .channelParticipantsSearch(Api.ChannelParticipantsFilter.Cons_channelParticipantsSearch(q: query))
                     }
                 case let .mentions(threadId, filter):
                     switch filter {
@@ -46,7 +49,7 @@ func _internal_channelMembers(postbox: Postbox, network: Network, accountPeerId:
                             if threadId != nil {
                                 flags |= 1 << 1
                             }
-                            apiFilter = .channelParticipantsMentions(flags: flags, q: nil, topMsgId: threadId?.id)
+                            apiFilter = .channelParticipantsMentions(Api.ChannelParticipantsFilter.Cons_channelParticipantsMentions(flags: flags, q: nil, topMsgId: threadId?.id))
                         case let .search(query):
                             var flags: Int32 = 0
                             if threadId != nil {
@@ -55,64 +58,68 @@ func _internal_channelMembers(postbox: Postbox, network: Network, accountPeerId:
                             if !query.isEmpty {
                                 flags |= 1 << 0
                             }
-                            apiFilter = .channelParticipantsMentions(flags: flags, q: query.isEmpty ? nil : query, topMsgId: threadId?.id)
+                            apiFilter = .channelParticipantsMentions(Api.ChannelParticipantsFilter.Cons_channelParticipantsMentions(flags: flags, q: query.isEmpty ? nil : query, topMsgId: threadId?.id))
                     }
                 case .admins:
                     apiFilter = .channelParticipantsAdmins
                 case let .contacts(filter):
                     switch filter {
                         case .all:
-                            apiFilter = .channelParticipantsContacts(q: "")
+                            apiFilter = .channelParticipantsContacts(Api.ChannelParticipantsFilter.Cons_channelParticipantsContacts(q: ""))
                         case let .search(query):
-                            apiFilter = .channelParticipantsContacts(q: query)
+                            apiFilter = .channelParticipantsContacts(Api.ChannelParticipantsFilter.Cons_channelParticipantsContacts(q: query))
                     }
                 case .bots:
                     apiFilter = .channelParticipantsBots
                 case let .restricted(filter):
                     switch filter {
                         case .all:
-                            apiFilter = .channelParticipantsBanned(q: "")
+                            apiFilter = .channelParticipantsBanned(Api.ChannelParticipantsFilter.Cons_channelParticipantsBanned(q: ""))
                         case let .search(query):
-                            apiFilter = .channelParticipantsBanned(q: query)
+                            apiFilter = .channelParticipantsBanned(Api.ChannelParticipantsFilter.Cons_channelParticipantsBanned(q: query))
                     }
                 case let .banned(filter):
                     switch filter {
                         case .all:
-                            apiFilter = .channelParticipantsKicked(q: "")
+                            apiFilter = .channelParticipantsKicked(Api.ChannelParticipantsFilter.Cons_channelParticipantsKicked(q: ""))
                         case let .search(query):
-                            apiFilter = .channelParticipantsKicked(q: query)
+                            apiFilter = .channelParticipantsKicked(Api.ChannelParticipantsFilter.Cons_channelParticipantsKicked(q: query))
                     }
             }
             return network.request(Api.functions.channels.getParticipants(channel: inputChannel, filter: apiFilter, offset: offset, limit: limit, hash: hash))
-                |> retryRequest
-                |> mapToSignal { result -> Signal<[RenderedChannelParticipant]?, NoError> in
-                    return postbox.transaction { transaction -> [RenderedChannelParticipant]? in
-                        var items: [RenderedChannelParticipant] = []
-                        switch result {
-                            case let .channelParticipants(_, participants, chats, users):
-                                let parsedPeers = AccumulatedPeers(transaction: transaction, chats: chats, users: users)
-                                updatePeers(transaction: transaction, accountPeerId: accountPeerId, peers: parsedPeers)
-                                var peers: [PeerId: Peer] = [:]
-                                for id in parsedPeers.allIds {
-                                    if let peer = transaction.getPeer(id) {
-                                        peers[peer.id] = peer
-                                    }
+            |> retryRequestIfNotFrozen
+            |> mapToSignal { result -> Signal<[RenderedChannelParticipant]?, NoError> in
+                guard let result else {
+                    return .single(nil)
+                }
+                return postbox.transaction { transaction -> [RenderedChannelParticipant]? in
+                    var items: [RenderedChannelParticipant] = []
+                    switch result {
+                        case let .channelParticipants(channelParticipantsData):
+                            let (participants, chats, users) = (channelParticipantsData.participants, channelParticipantsData.chats, channelParticipantsData.users)
+                            let parsedPeers = AccumulatedPeers(transaction: transaction, chats: chats, users: users)
+                            updatePeers(transaction: transaction, accountPeerId: accountPeerId, peers: parsedPeers)
+                            var peers: [EnginePeer.Id: EnginePeer] = [:]
+                            for id in parsedPeers.allIds {
+                                if let peer = transaction.getPeer(id) {
+                                    peers[peer.id] = EnginePeer(peer)
                                 }
-                                
-                                for participant in CachedChannelParticipants(apiParticipants: participants).participants {
-                                    if let peer = parsedPeers.get(participant.peerId) {
-                                        var renderedPresences: [PeerId: PeerPresence] = [:]
-                                        if let presence = transaction.getPeerPresence(peerId: participant.peerId) {
-                                            renderedPresences[participant.peerId] = presence
-                                        }
-                                        items.append(RenderedChannelParticipant(participant: participant, peer: peer, peers: peers, presences: renderedPresences))
+                            }
+                            
+                            for participant in CachedChannelParticipants(apiParticipants: participants).participants {
+                                if let peer = parsedPeers.get(participant.peerId) {
+                                    var renderedPresences: [PeerId: PeerPresence] = [:]
+                                    if let presence = transaction.getPeerPresence(peerId: participant.peerId) {
+                                        renderedPresences[participant.peerId] = presence
                                     }
+                                    items.append(RenderedChannelParticipant(participant: participant, peer: EnginePeer(peer), peers: peers, presences: renderedPresences))
                                 }
-                            case .channelParticipantsNotModified:
-                                return nil
-                        }
-                        return items
+                            }
+                        case .channelParticipantsNotModified:
+                            return nil
                     }
+                    return items
+                }
             }
         } else {
             return .single([])

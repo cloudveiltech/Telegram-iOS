@@ -1,9 +1,9 @@
-#import "TGModernGalleryView.h"
+#import <LegacyComponents/TGModernGalleryView.h>
 
 #import "LegacyComponentsInternal.h"
 #import "TGColor.h"
-#import "TGImageUtils.h"
-#import "TGHacks.h"
+#import <LegacyComponents/TGImageUtils.h>
+#import <LegacyComponents/TGHacks.h>
 
 #import <LegacyComponents/TGModernGalleryDefaultInterfaceView.h>
 #import <LegacyComponents/TGModernGalleryScrollView.h>
@@ -84,6 +84,12 @@ static const CGFloat swipeDistanceThreshold = 128.0f;
             if (strongSelf != nil)
                 [strongSelf setScrollViewVerticalOffset:offset];
         };
+        _interfaceView.gesturesEnabled = ^(bool enabled)
+        {
+            __strong TGModernGalleryView *strongSelf = weakSelf;
+            if (strongSelf != nil)
+                [strongSelf setGesturesEnabled:enabled];
+        };
         [self addSubview:_interfaceView];
         
         bool hasSwipeGesture = true;
@@ -109,6 +115,10 @@ static const CGFloat swipeDistanceThreshold = 128.0f;
 - (bool)shouldAutorotate
 {
     return (_dismissProgress < FLT_EPSILON && (_interfaceView == nil || ![_interfaceView respondsToSelector:@selector(shouldAutorotate)] || [_interfaceView shouldAutorotate]));
+}
+
+- (void)setGesturesEnabled:(bool)gesturesEnabled {
+    _scrollViewContainer.gestureRecognizers.firstObject.enabled = gesturesEnabled;
 }
 
 - (CGRect)_boundsFrame

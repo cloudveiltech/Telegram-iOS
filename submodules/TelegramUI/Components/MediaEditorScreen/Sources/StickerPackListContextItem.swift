@@ -9,6 +9,7 @@ import AccountContext
 import TelegramPresentationData
 import StickerResources
 import ContextUI
+import ContextControllerImpl
 
 final class StickerPackListContextItem: ContextMenuCustomItem {
     let context: AccountContext
@@ -53,14 +54,15 @@ private final class StickerPackListContextItemNode: ASDisplayNode, ContextMenuCu
                 continue
             }
             let thumbSize = CGSize(width: 24.0, height: 24.0)
-            let thumbnailResource = pack.thumbnail?.resource ?? topItem?.file.resource
+            let topItemFile = topItem?.file._parse()
+            let thumbnailResource = pack.thumbnail?.resource ?? topItemFile?.resource
             let thumbnailIconSource: ContextMenuActionItemIconSource?
             if let thumbnailResource {
                 var resourceId: Int64 = 0
                 if let resource = thumbnailResource as? CloudDocumentMediaResource {
                     resourceId = resource.fileId
                 }
-                let thumbnailFile = topItem?.file ?? TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.CloudFile, id: resourceId), partialReference: nil, resource: thumbnailResource, previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "image/webp", size: thumbnailResource.size ?? 0, attributes: [], alternativeRepresentations: [])
+                let thumbnailFile = topItemFile ?? TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.CloudFile, id: resourceId), partialReference: nil, resource: thumbnailResource, previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "image/webp", size: thumbnailResource.size ?? 0, attributes: [], alternativeRepresentations: [])
 
                 let _ = freeMediaFileInteractiveFetched(account: item.context.account, userLocation: .other, fileReference: .stickerPack(stickerPack: .id(id: pack.id.id, accessHash: pack.accessHash), media: thumbnailFile)).start()
                 thumbnailIconSource = ContextMenuActionItemIconSource(
@@ -79,7 +81,7 @@ private final class StickerPackListContextItemNode: ASDisplayNode, ContextMenuCu
                     f(.dismissWithoutContent)
                 }
             })
-            let actionNode = ContextControllerActionsListActionItemNode(getController: getController, requestDismiss: actionSelected, requestUpdateAction: { _, _ in }, item: action)
+            let actionNode = ContextControllerActionsListActionItemNode(context: nil, getController: getController, requestDismiss: actionSelected, requestUpdateAction: { _, _ in }, item: action)
             actionNodes.append(actionNode)
             if actionNodes.count != item.packs.count {
                 let separatorNode = ASDisplayNode()
@@ -94,9 +96,9 @@ private final class StickerPackListContextItemNode: ASDisplayNode, ContextMenuCu
         super.init()
         
         self.addSubnode(self.scrollNode)
-        for separatorNode in self.separatorNodes {
-            self.scrollNode.addSubnode(separatorNode)
-        }
+//        for separatorNode in self.separatorNodes {
+//            self.scrollNode.addSubnode(separatorNode)
+//        }
         for actionNode in self.actionNodes {
             self.scrollNode.addSubnode(actionNode)
         }
@@ -169,7 +171,7 @@ private final class StickerPackListContextItemNode: ASDisplayNode, ContextMenuCu
     }
     
     func canBeHighlighted() -> Bool {
-        return self.isActionEnabled
+        return false
     }
     
     func updateIsHighlighted(isHighlighted: Bool) {

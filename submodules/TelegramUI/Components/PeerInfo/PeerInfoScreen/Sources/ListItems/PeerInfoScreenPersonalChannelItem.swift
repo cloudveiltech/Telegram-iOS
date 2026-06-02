@@ -176,16 +176,19 @@ public final class LoadingOverlayNode: ASDisplayNode {
                         
             let chatListPresentationData = ChatListPresentationData(theme: presentationData.theme, fontSize: presentationData.chatFontSize, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, nameSortOrder: presentationData.nameSortOrder, nameDisplayOrder: presentationData.nameDisplayOrder, disableAnimations: true)
             
-            let peer1: EnginePeer = .user(TelegramUser(id: EnginePeer.Id(namespace: Namespaces.Peer.CloudUser, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "FirstName", lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil))
+            let peer1: EnginePeer = .user(TelegramUser(id: EnginePeer.Id(namespace: Namespaces.Peer.CloudUser, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "FirstName", lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil))
             let timestamp1: Int32 = 100000
             let peers: [EnginePeer.Id: EnginePeer] = [:]
             let interaction = ChatListNodeInteraction(context: context, animationCache: context.animationCache, animationRenderer: context.animationRenderer, activateSearch: {}, peerSelected: { _, _, _, _, _ in }, disabledPeerSelected: { _, _, _ in }, togglePeerSelected: { _, _ in }, togglePeersSelection: { _, _ in }, additionalCategorySelected: { _ in
             }, messageSelected: { _, _, _, _ in}, groupSelected: { _ in }, addContact: { _ in }, setPeerIdWithRevealedOptions: { _, _ in }, setItemPinned: { _, _ in }, setPeerMuted: { _, _ in }, setPeerThreadMuted: { _, _, _ in }, deletePeer: { _, _ in }, deletePeerThread: { _, _ in }, setPeerThreadStopped: { _, _, _ in }, setPeerThreadPinned: { _, _, _ in }, setPeerThreadHidden: { _, _, _ in }, updatePeerGrouping: { _, _ in }, togglePeerMarkedUnread: { _, _ in}, toggleArchivedFolderHiddenByDefault: {}, toggleThreadsSelection: { _, _ in }, hidePsa: { _ in }, activateChatPreview: { _, _, _, gesture, _ in
                 gesture?.cancel()
             }, present: { _ in }, openForumThread: { _, _ in }, openStorageManagement: {}, openPasswordSetup: {}, openPremiumIntro: {}, openPremiumGift: { _, _ in }, openPremiumManagement: {}, openActiveSessions: {}, openBirthdaySetup: {}, performActiveSessionAction: { _, _ in }, openChatFolderUpdates: {}, hideChatFolderUpdates: {}, openStories: { _, _ in }, openStarsTopup: { _ in
-            }, dismissNotice: { _ in
             }, editPeer: { _ in
             }, openWebApp: { _ in
+            }, openPhotoSetup: {
+            }, openAdInfo: { _, _ in
+            }, openAccountFreezeInfo: {
+            }, openUrl: { _ in
             })
             
             let items = (0 ..< 1).map { _ -> ChatListItem in
@@ -226,6 +229,7 @@ public final class LoadingOverlayNode: ASDisplayNode {
                     presence: nil,
                     hasUnseenMentions: false,
                     hasUnseenReactions: false,
+                    hasUnseenPollVotes: false,
                     draftState: nil,
                     mediaDraftContentType: nil,
                     inputActivities: nil,
@@ -240,7 +244,7 @@ public final class LoadingOverlayNode: ASDisplayNode {
                     requiresPremiumForMessaging: false,
                     displayAsTopicList: false,
                     tags: []
-                )), editing: false, hasActiveRevealControls: false, selected: false, header: nil, enableContextActions: false, hiddenOffset: false, interaction: interaction)
+                )), editing: false, hasActiveRevealControls: false, selected: false, header: nil, enabledContextActions: nil, hiddenOffset: false, interaction: interaction)
             }
             
             var itemNodes: [ChatListItemNode] = []
@@ -368,7 +372,7 @@ private final class PeerInfoScreenPersonalChannelItemNode: PeerInfoScreenItemNod
             }
             
             if isExtracted {
-                strongSelf.extractedBackgroundImageNode.image = generateStretchableFilledCircleImage(diameter: 28.0, color: theme.list.plainBackgroundColor)
+                strongSelf.extractedBackgroundImageNode.image = generateStretchableFilledCircleImage(diameter: 52.0, color: theme.list.plainBackgroundColor)
             }
             
             if let extractedRect = strongSelf.extractedRect, let nonExtractedRect = strongSelf.nonExtractedRect {
@@ -533,15 +537,21 @@ private final class PeerInfoScreenPersonalChannelItemNode: PeerInfoScreenItemNod
                     return
                 }
                 
-                StoryContainerScreen.openPeerStories(context: item.context, peerId: item.data.peer.id, parentController: controller, avatarNode: itemNode.avatarNode)
+                StoryContainerScreen.openPeerStories(context: item.context, peerId: item.data.peer.peerId, parentController: controller, avatarNode: itemNode.avatarNode)
             },
             openStarsTopup: { _ in
-            },
-            dismissNotice: { _ in
             },
             editPeer: { _ in
             },
             openWebApp: { _ in
+            },
+            openPhotoSetup: {
+            },
+            openAdInfo: { _, _ in
+            },
+            openAccountFreezeInfo: {
+            },
+            openUrl: { _ in
             }
         )
         
@@ -553,7 +563,7 @@ private final class PeerInfoScreenPersonalChannelItemNode: PeerInfoScreenItemNod
             index = EngineChatList.Item.Index.chatList(ChatListIndex(pinningIndex: nil, messageIndex: item.data.topMessages[0].index))
             messages = item.data.topMessages
         } else {
-            index = EngineChatList.Item.Index.chatList(ChatListIndex(pinningIndex: nil, messageIndex: MessageIndex(id: MessageId(peerId: item.data.peer.id, namespace: Namespaces.Message.Cloud, id: 1), timestamp: 0)))
+            index = EngineChatList.Item.Index.chatList(ChatListIndex(pinningIndex: nil, messageIndex: MessageIndex(id: MessageId(peerId: item.data.peer.peerId, namespace: Namespaces.Message.Cloud, id: 1), timestamp: 0)))
             messages = []
         }
         
@@ -565,13 +575,14 @@ private final class PeerInfoScreenPersonalChannelItemNode: PeerInfoScreenItemNod
             index: index,
             content: .peer(ChatListItemContent.PeerData(
                 messages: messages,
-                peer: EngineRenderedPeer(peer: item.data.peer),
+                peer: item.data.peer,
                 threadInfo: nil,
                 combinedReadState: nil,
                 isRemovedFromTotalUnreadCount: false,
                 presence: nil,
                 hasUnseenMentions: false,
                 hasUnseenReactions: false,
+                hasUnseenPollVotes: false,
                 draftState: nil,
                 mediaDraftContentType: nil,
                 inputActivities: nil,
@@ -604,12 +615,12 @@ private final class PeerInfoScreenPersonalChannelItemNode: PeerInfoScreenItemNod
             hasActiveRevealControls: false,
             selected: false,
             header: nil,
-            enableContextActions: false,
+            enabledContextActions: nil,
             hiddenOffset: false,
             interaction: chatListNodeInteraction
         )
         var itemNode: ListViewItemNode?
-        let params = ListViewItemLayoutParams(width: width - safeInsets.left - safeInsets.right, leftInset: 0.0, rightInset: 0.0, availableHeight: 1000.0)
+        let params = ListViewItemLayoutParams(width: width - safeInsets.left - safeInsets.right - 4.0, leftInset: 0.0, rightInset: 0.0, availableHeight: 1000.0)
         if let current = self.itemNode {
             itemNode = current
             chatListItem.updateNode(
@@ -645,7 +656,7 @@ private final class PeerInfoScreenPersonalChannelItemNode: PeerInfoScreenItemNod
             itemNode = outItemNode
         }
         
-        let height = itemNode?.contentSize.height ?? 50.0
+        var height = itemNode?.contentSize.height ?? 50.0
         
         if self.itemNode !== itemNode {
             self.itemNode?.removeFromSupernode()
@@ -656,7 +667,7 @@ private final class PeerInfoScreenPersonalChannelItemNode: PeerInfoScreenItemNod
                 self.contextSourceNode.contentNode.addSubnode(itemNode)
             }
         }
-        let itemFrame = CGRect(origin: CGPoint(x: safeInsets.left, y: 0.0), size: CGSize(width: width - safeInsets.left - safeInsets.right, height: height))
+        let itemFrame = CGRect(origin: CGPoint(x: safeInsets.left, y: 4.0), size: CGSize(width: width - safeInsets.left - safeInsets.right - 4.0, height: height))
         if let itemNode = self.itemNode {
             itemNode.frame = itemFrame
         }
@@ -685,6 +696,8 @@ private final class PeerInfoScreenPersonalChannelItemNode: PeerInfoScreenItemNod
             }
         }
         
+        height += 8.0
+        
         let highlightNodeOffset: CGFloat = topItem == nil ? 0.0 : UIScreenPixel
         self.selectionNode.update(size: CGSize(width: width, height: height + highlightNodeOffset), theme: presentationData.theme, transition: transition)
         transition.updateFrame(node: self.selectionNode, frame: CGRect(origin: CGPoint(x: 0.0, y: -highlightNodeOffset), size: CGSize(width: width, height: height + highlightNodeOffset)))
@@ -696,7 +709,7 @@ private final class PeerInfoScreenPersonalChannelItemNode: PeerInfoScreenItemNod
         let hasTopCorners = hasCorners && topItem == nil
         let hasBottomCorners = hasCorners && bottomItem == nil
         
-        self.maskNode.image = hasCorners ? PresentationResourcesItemList.cornersImage(presentationData.theme, top: hasTopCorners, bottom: hasBottomCorners) : nil
+        self.maskNode.image = hasCorners ? PresentationResourcesItemList.cornersImage(presentationData.theme, top: hasTopCorners, bottom: hasBottomCorners, glass: true) : nil
         self.maskNode.frame = CGRect(origin: CGPoint(x: safeInsets.left, y: 0.0), size: CGSize(width: width - safeInsets.left - safeInsets.right, height: height))
         self.bottomSeparatorNode.isHidden = hasBottomCorners
         

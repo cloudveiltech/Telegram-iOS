@@ -23,6 +23,8 @@ public enum SendMessageActionSheetControllerParams {
         public let canMakePaidContent: Bool
         public let currentPrice: Int64?
         public let hasTimers: Bool
+        public let sendPaidMessageStars: StarsAmount?
+        public let isMonoforum: Bool
         
         public init(
             isScheduledMessages: Bool,
@@ -34,7 +36,9 @@ public enum SendMessageActionSheetControllerParams {
             forwardMessageIds: [EngineMessage.Id],
             canMakePaidContent: Bool,
             currentPrice: Int64?,
-            hasTimers: Bool
+            hasTimers: Bool,
+            sendPaidMessageStars: StarsAmount?,
+            isMonoforum: Bool
         ) {
             self.isScheduledMessages = isScheduledMessages
             self.mediaPreview = mediaPreview
@@ -46,6 +50,8 @@ public enum SendMessageActionSheetControllerParams {
             self.canMakePaidContent = canMakePaidContent
             self.currentPrice = currentPrice
             self.hasTimers = hasTimers
+            self.sendPaidMessageStars = sendPaidMessageStars
+            self.isMonoforum = isMonoforum
         }
     }
     
@@ -72,9 +78,9 @@ public func makeChatSendMessageActionSheetController(
     peerId: EnginePeer.Id?,
     params: SendMessageActionSheetControllerParams,
     hasEntityKeyboard: Bool,
-    gesture: ContextGesture,
-    sourceSendButton: ASDisplayNode,
-    textInputView: UITextView,
+    gesture: ContextGesture?,
+    sourceSendButton: UIView,
+    textInputView: UITextView?,
     emojiViewProvider: ((ChatTextInputTextCustomEmojiAttribute) -> UIView)?,
     wallpaperBackgroundNode: WallpaperBackgroundNode? = nil,
     completion: @escaping () -> Void,

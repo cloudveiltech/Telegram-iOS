@@ -1,3 +1,4 @@
+import UIKit
 import AsyncDisplayKit
 import Display
 import TelegramCore
@@ -79,7 +80,7 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
         self.selectedMessages = chatControllerInteraction.selectionState.flatMap { $0.selectedIds }
         self.selectedMessagesPromise.set(.single(self.selectedMessages))
         
-        self.listNode = context.sharedContext.makeChatHistoryListNode(context: context, updatedPresentationData: updatedPresentationData ?? (context.sharedContext.currentPresentationData.with({ $0 }), context.sharedContext.presentationData), chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, tag: .tag(tagMask), source: .default, subject: nil, controllerInteraction: chatControllerInteraction, selectedMessages: self.selectedMessagesPromise.get(), mode: .list(search: false, reversed: false, reverseGroups: false, displayHeaders: .allButLast, hintLinks: tagMask == .webPage, isGlobalSearch: false))
+        self.listNode = context.sharedContext.makeChatHistoryListNode(context: context, updatedPresentationData: updatedPresentationData ?? (context.sharedContext.currentPresentationData.with({ $0 }), context.sharedContext.presentationData), chatLocation: chatLocation, chatLocationContextHolder: chatLocationContextHolder, tag: .tag(tagMask), source: .default, subject: nil, controllerInteraction: chatControllerInteraction, selectedMessages: self.selectedMessagesPromise.get(), mode: .list(reversed: false, reverseGroups: false, displayHeaders: .allButLast, hintLinks: tagMask == .webPage, isGlobalSearch: false, isMusicPlaylist: false))
         self.listNode.clipsToBounds = true
         self.listNode.defaultToSynchronousTransactionWhileScrolling = true
         self.listNode.scroller.bounces = false
@@ -173,6 +174,8 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
                 return PeerInfoStatusData(text: presentationData.strings.SharedMedia_VoiceMessageCount(Int32(count)), isActivity: false, key: .voice)
             case MessageTags.webPage:
                 return PeerInfoStatusData(text: presentationData.strings.SharedMedia_LinkCount(Int32(count)), isActivity: false, key: .links)
+            case MessageTags.polls:
+                return PeerInfoStatusData(text: presentationData.strings.SharedMedia_PollCount(Int32(count)), isActivity: false, key: .links)
             default:
                 return nil
             }
@@ -368,7 +371,7 @@ final class PeerInfoListPaneNode: ASDisplayNode, PeerInfoPaneNode {
                     }
                     if let id = state.id as? PeerMessagesMediaPlaylistItemId, let playlistLocation = strongSelf.playlistLocation as? PeerMessagesPlaylistLocation, case let .messages(chatLocation, _, _) = playlistLocation {
                         if type == .music {
-                            let signal = strongSelf.context.sharedContext.messageFromPreloadedChatHistoryViewForLocation(id: id.messageId, location: ChatHistoryLocationInput(content: .InitialSearch(subject: MessageHistoryInitialSearchSubject(location: .id(id.messageId), quote: nil), count: 60, highlight: true, setupReply: false), id: 0), context: strongSelf.context, chatLocation: .peer(id: id.messageId.peerId), subject: nil, chatLocationContextHolder: Atomic<ChatLocationContextHolder?>(value: nil), tag: .tag(MessageTags.music))
+                            let signal = strongSelf.context.sharedContext.messageFromPreloadedChatHistoryViewForLocation(id: id.messageId, location: ChatHistoryLocationInput(content: .InitialSearch(subject: MessageHistoryInitialSearchSubject(location: .id(id.messageId)), count: 60, highlight: true, setupReply: false), id: 0), context: strongSelf.context, chatLocation: .peer(id: id.messageId.peerId), subject: nil, chatLocationContextHolder: Atomic<ChatLocationContextHolder?>(value: nil), tag: .tag(MessageTags.music))
                             
                             var cancelImpl: (() -> Void)?
                             let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }

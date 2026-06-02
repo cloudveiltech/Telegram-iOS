@@ -63,10 +63,10 @@ final class ItemListControllerTabsContentNode: NavigationBarContentNode {
         guard let (size, leftInset, rightInset) = self.validLayout else {
             return
         }
-        self.updateLayout(size: size, leftInset: leftInset, rightInset: rightInset, transition: transition)
+        let _ = self.updateLayout(size: size, leftInset: leftInset, rightInset: rightInset, transition: transition)
     }
         
-    override func updateLayout(size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) {
+    override func updateLayout(size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGSize {
         let isFirstTime = self.validLayout == nil
         self.validLayout = (size, leftInset, rightInset)
     
@@ -84,6 +84,7 @@ final class ItemListControllerTabsContentNode: NavigationBarContentNode {
                     foreground: self.theme.list.itemSecondaryTextColor,
                     selection: self.theme.list.itemAccentColor
                 ),
+                theme: self.theme,
                 customLayout: TabSelectorComponent.CustomLayout(
                     font: Font.medium(14.0),
                     spacing: 48.0,
@@ -104,7 +105,7 @@ final class ItemListControllerTabsContentNode: NavigationBarContentNode {
             environment: {},
             containerSize: CGSize(width: size.width, height: 44.0)
         )
-        let tabSelectorFrame = CGRect(origin: CGPoint(x: floor((size.width - tabSelectorSize.width) / 2.0), y: floor((size.height - tabSelectorSize.height) / 2.0) + 4.0), size: tabSelectorSize)
+        let tabSelectorFrame = CGRect(origin: CGPoint(x: floor((size.width - tabSelectorSize.width) / 2.0), y: floor((size.height - tabSelectorSize.height) / 2.0) + 3.0), size: tabSelectorSize)
         if let tabSelectorView = self.tabSelector.view {
             if tabSelectorView.superview == nil {
                 self.view.addSubview(tabSelectorView)
@@ -115,6 +116,8 @@ final class ItemListControllerTabsContentNode: NavigationBarContentNode {
         if isFirstTime {
             self.requestContainerLayout(.immediate)
         }
+        
+        return size
     }
     
     override var height: CGFloat {

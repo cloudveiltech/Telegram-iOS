@@ -290,7 +290,7 @@ final class StickersResultPanelComponent: Component {
             }, present: { [weak self] content, sourceView, sourceRect in
                 if let self, let component = self.component {
                     let presentationData = component.context.sharedContext.currentPresentationData.with { $0 }.withUpdated(theme: component.theme)
-                    let controller = PeekController(presentationData: presentationData, content: content, sourceView: {
+                    let controller = makePeekController(presentationData: presentationData, content: content, sourceView: {
                         return (sourceView, sourceRect)
                     })
                     component.presentInGlobalOverlay(controller)
@@ -463,8 +463,8 @@ final class StickersResultPanelComponent: Component {
             if self.scrollView.contentInset != scrollContentInsets {
                 self.scrollView.contentInset = scrollContentInsets
             }
-            if self.scrollView.scrollIndicatorInsets != scrollIndicatorInsets {
-                self.scrollView.scrollIndicatorInsets = scrollIndicatorInsets
+            if self.scrollView.verticalScrollIndicatorInsets != scrollIndicatorInsets {
+                self.scrollView.verticalScrollIndicatorInsets = scrollIndicatorInsets
             }
             if self.scrollView.contentSize != scrollContentSize {
                 self.scrollView.contentSize = scrollContentSize

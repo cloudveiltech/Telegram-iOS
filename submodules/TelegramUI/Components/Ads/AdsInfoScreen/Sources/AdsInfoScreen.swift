@@ -179,6 +179,25 @@ private final class ScrollContent: CombinedComponent {
             contentSize.height += spacing
             
             let premiumConfiguration = PremiumConfiguration.with(appConfiguration: component.context.currentAppConfiguration.with { $0 })
+            
+            let respectText: String
+            let adsText: String
+            let infoRawText: String
+            switch component.mode {
+            case .channel:
+                respectText = strings.AdsInfo_Respect_Text
+                adsText = strings.AdsInfo_Ads_Text("\(premiumConfiguration.minChannelRestrictAdsLevel)").string
+                infoRawText = strings.AdsInfo_Launch_Text
+            case .bot:
+                respectText = strings.AdsInfo_Bot_Respect_Text
+                adsText =  strings.AdsInfo_Bot_Ads_Text
+                infoRawText = strings.AdsInfo_Bot_Launch_Text
+            case .search:
+                respectText = strings.AdsInfo_Search_Respect_Text
+                adsText = strings.AdsInfo_Search_Ads_Text
+                infoRawText = strings.AdsInfo_Search_Launch_Text
+            }
+            
             var items: [AnyComponentWithIdentity<Empty>] = []
             items.append(
                 AnyComponentWithIdentity(
@@ -186,7 +205,7 @@ private final class ScrollContent: CombinedComponent {
                     component: AnyComponent(ParagraphComponent(
                         title: strings.AdsInfo_Respect_Title,
                         titleColor: textColor,
-                        text: component.mode == .bot ? strings.AdsInfo_Bot_Respect_Text : strings.AdsInfo_Respect_Text,
+                        text: respectText,
                         textColor: secondaryTextColor,
                         accentColor: linkColor,
                         iconName: "Ads/Privacy",
@@ -194,27 +213,31 @@ private final class ScrollContent: CombinedComponent {
                     ))
                 )
             )
-            items.append(
-                AnyComponentWithIdentity(
-                    id: "split",
-                    component: AnyComponent(ParagraphComponent(
-                        title: component.mode == .bot ? strings.AdsInfo_Bot_Split_Title : strings.AdsInfo_Split_Title,
-                        titleColor: textColor,
-                        text: component.mode == .bot ? strings.AdsInfo_Bot_Split_Text : strings.AdsInfo_Split_Text,
-                        textColor: secondaryTextColor,
-                        accentColor: linkColor,
-                        iconName: "Ads/Split",
-                        iconColor: linkColor
-                    ))
+            if case .search = component.mode {
+                
+            } else {
+                items.append(
+                    AnyComponentWithIdentity(
+                        id: "split",
+                        component: AnyComponent(ParagraphComponent(
+                            title: component.mode == .bot ? strings.AdsInfo_Bot_Split_Title : strings.AdsInfo_Split_Title,
+                            titleColor: textColor,
+                            text: component.mode == .bot ? strings.AdsInfo_Bot_Split_Text : strings.AdsInfo_Split_Text,
+                            textColor: secondaryTextColor,
+                            accentColor: linkColor,
+                            iconName: "Ads/Split",
+                            iconColor: linkColor
+                        ))
+                    )
                 )
-            )
+            }
             items.append(
                 AnyComponentWithIdentity(
                     id: "ads",
                     component: AnyComponent(ParagraphComponent(
                         title: strings.AdsInfo_Ads_Title,
                         titleColor: textColor,
-                        text: component.mode == .bot ? strings.AdsInfo_Bot_Ads_Text : strings.AdsInfo_Ads_Text("\(premiumConfiguration.minChannelRestrictAdsLevel)").string,
+                        text: adsText,
                         textColor: secondaryTextColor,
                         accentColor: linkColor,
                         iconName: "Premium/BoostPerk/NoAds",
@@ -253,7 +276,7 @@ private final class ScrollContent: CombinedComponent {
                 state.cachedChevronImage = (generateTintedImage(image: UIImage(bundleImageName: "Settings/TextArrowRight"), color: linkColor)!, theme)
             }
             
-            var infoString = component.mode == .bot ? strings.AdsInfo_Bot_Launch_Text : strings.AdsInfo_Launch_Text
+            var infoString = infoRawText
             if let spaceRegex {
                 let nsRange = NSRange(infoString.startIndex..., in: infoString)
                 let matches = spaceRegex.matches(in: infoString, options: [], range: nsRange)
@@ -277,6 +300,8 @@ private final class ScrollContent: CombinedComponent {
                     horizontalAlignment: .center,
                     maximumNumberOfLines: 0,
                     lineSpacing: 0.2,
+                    highlightColor: linkColor.withAlphaComponent(0.1),
+                    highlightInset: UIEdgeInsets(top: 0.0, left: 0.0, bottom: 0.0, right: -8.0),
                     highlightAction: { attributes in
                         if let _ = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)] {
                             return NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)
@@ -298,7 +323,7 @@ private final class ScrollContent: CombinedComponent {
             
             let infoBackground = infoBackground.update(
                 component: RoundedRectangle(
-                    color: theme.list.blocksBackgroundColor,
+                    color: theme.overallDarkAppearance ? theme.list.itemModalBlocksBackgroundColor : theme.list.blocksBackgroundColor,
                     cornerRadius: 10.0
                 ),
                 availableSize: CGSize(width: context.availableSize.width - sideInset * 2.0, height: totalInfoHeight),
@@ -398,11 +423,13 @@ private final class ContainerComponent: CombinedComponent {
             let environment = context.environment[EnvironmentType.self]
             let state = context.state
             
+            let theme = environment.theme
+            
             let openContextMenu = context.component.openContextMenu
             let dismiss = context.component.dismiss
-            
+                        
             let background = background.update(
-                component: Rectangle(color: environment.theme.list.plainBackgroundColor),
+                component: Rectangle(color: theme.overallDarkAppearance ? theme.list.modalBlocksBackgroundColor : theme.list.plainBackgroundColor),
                 environment: {},
                 availableSize: context.availableSize,
                 transition: context.transition
@@ -575,6 +602,7 @@ private final class ParagraphComponent: CombinedComponent {
                     horizontalAlignment: .natural,
                     maximumNumberOfLines: 0,
                     lineSpacing: 0.2,
+                    highlightColor: accentColor.withAlphaComponent(0.1),
                     highlightAction: { attributes in
                         if let _ = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)] {
                             return NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)
@@ -621,6 +649,7 @@ public class AdsInfoScreen: ViewController {
     public enum Mode: Equatable {
         case channel
         case bot
+        case search
     }
     
     final class Node: ViewControllerTracingNode, ASGestureRecognizerDelegate {
@@ -667,9 +696,9 @@ public class AdsInfoScreen: ViewController {
             self.footerView = ComponentHostView()
             
             super.init()
-                        
+                                    
             self.containerView.clipsToBounds = true
-            self.containerView.backgroundColor = self.presentationData.theme.overallDarkAppearance ? self.presentationData.theme.list.blocksBackgroundColor : self.presentationData.theme.list.plainBackgroundColor
+            self.containerView.backgroundColor = self.presentationData.theme.overallDarkAppearance ? self.presentationData.theme.list.modalBlocksBackgroundColor : self.presentationData.theme.list.plainBackgroundColor
             
             self.addSubnode(self.dim)
             
@@ -925,6 +954,7 @@ public class AdsInfoScreen: ViewController {
                         context: controller.context,
                         theme: self.presentationData.theme,
                         title: self.presentationData.strings.AdsInfo_Understood,
+                        showBackground: controller.mode != .search,
                         action: { [weak self] in
                             guard let self else {
                                 return
@@ -968,7 +998,7 @@ public class AdsInfoScreen: ViewController {
         }
         
         private var defaultTopInset: CGFloat {
-            guard let layout = self.currentLayout else {
+            guard let layout = self.currentLayout, let controller = self.controller else {
                 return 210.0
             }
             if case .compact = layout.metrics.widthClass {
@@ -982,9 +1012,13 @@ public class AdsInfoScreen: ViewController {
                 let contentHeight = self.containerExternalState.contentHeight
                 let footerHeight = self.footerHeight
                 if contentHeight > 0.0 {
-                    let delta = (layout.size.height - defaultTopInset - containerTopInset) - contentHeight - footerHeight - 16.0
-                    if delta > 0.0 {
-                        defaultTopInset += delta
+                    if case .search = controller.mode {
+                        return (layout.size.height - containerTopInset) - contentHeight
+                    } else {
+                        let delta = (layout.size.height - defaultTopInset - containerTopInset) - contentHeight - footerHeight - 16.0
+                        if delta > 0.0 {
+                            defaultTopInset += delta
+                        }
                     }
                 }
                 return defaultTopInset
@@ -1005,7 +1039,7 @@ public class AdsInfoScreen: ViewController {
         }
         
         @objc func panGesture(_ recognizer: UIPanGestureRecognizer) {
-            guard let layout = self.currentLayout else {
+            guard let layout = self.currentLayout, let controller = self.controller else {
                 return
             }
             
@@ -1040,6 +1074,9 @@ public class AdsInfoScreen: ViewController {
                     let contentOffset = scrollView?.contentOffset.y ?? 0.0
                     
                     var translation = recognizer.translation(in: self.view).y
+                    if case .search = controller.mode {
+                        translation = max(0.0, translation)
+                    }
 
                     var currentOffset = topInset + translation
                 
@@ -1087,9 +1124,13 @@ public class AdsInfoScreen: ViewController {
                 
                     let contentOffset = scrollView?.contentOffset.y ?? 0.0
                 
-                    let translation = recognizer.translation(in: self.view).y
+                    var translation = recognizer.translation(in: self.view).y
                     var velocity = recognizer.velocity(in: self.view)
-                    
+                    if case .search = controller.mode {
+                        translation = max(0.0, translation)
+                        velocity.y = max(0.0, velocity.y)
+                    }
+                
                     if self.isExpanded {
                         if contentOffset > 0.1 {
                             velocity = CGPoint()
@@ -1252,22 +1293,19 @@ public class AdsInfoScreen: ViewController {
                     guard let navigationController = self?.controller?.navigationController as? NavigationController else {
                         return
                     }
-                    
-                    self?.controller?.dismiss(animated: true)
-                                        
-                    let _ = (context.engine.messages.reportAdMessage(peerId: message.id.peerId, opaqueId: adAttribute.opaqueId, option: nil)
+                                                            
+                    let _ = (context.engine.messages.reportAdMessage(opaqueId: adAttribute.opaqueId, option: nil)
                     |> deliverOnMainQueue).start(next: { [weak navigationController] result in
                         if case let .options(title, options) = result {
                             Queue.mainQueue().after(0.2) {
                                 navigationController?.pushViewController(
                                     AdsReportScreen(
                                         context: context,
-                                        peerId: message.id.peerId,
                                         opaqueId: adAttribute.opaqueId,
                                         title: title,
                                         options: options,
                                         completed: {
-                                            removeAd?(adAttribute.opaqueId)
+                                           // removeAd?(adAttribute.opaqueId)
                                         }
                                     )
                                 )
@@ -1306,7 +1344,7 @@ public class AdsInfoScreen: ViewController {
                 })))
             }
             
-            let contextController = ContextController(presentationData: presentationData, source: .reference(AdsInfoContextReferenceContentSource(controller: controller, sourceView: referenceView, insets: .zero, contentInsets: .zero)), items: .single(ContextController.Items(content: .list(actions))), gesture: nil)
+            let contextController = makeContextController(presentationData: presentationData, source: .reference(AdsInfoContextReferenceContentSource(controller: controller, sourceView: referenceView, insets: .zero, contentInsets: .zero)), items: .single(ContextController.Items(content: .list(actions))), gesture: nil)
             controller.presentInGlobalOverlay(contextController)
         }
         
@@ -1414,12 +1452,14 @@ private final class FooterComponent: Component {
     let context: AccountContext
     let theme: PresentationTheme
     let title: String
+    let showBackground: Bool
     let action: () -> Void
 
-    init(context: AccountContext, theme: PresentationTheme, title: String, action: @escaping () -> Void) {
+    init(context: AccountContext, theme: PresentationTheme, title: String, showBackground: Bool, action: @escaping () -> Void) {
         self.context = context
         self.theme = theme
         self.title = title
+        self.showBackground = showBackground
         self.action = action
     }
 
@@ -1431,6 +1471,9 @@ private final class FooterComponent: Component {
             return false
         }
         if lhs.title != rhs.title {
+            return false
+        }
+        if lhs.showBackground != rhs.showBackground {
             return false
         }
         return true
@@ -1472,6 +1515,9 @@ private final class FooterComponent: Component {
             
             self.separator.backgroundColor = component.theme.rootController.tabBar.separatorColor.cgColor
             transition.setFrame(layer: self.separator, frame: CGRect(origin: .zero, size: CGSize(width: availableSize.width, height: UIScreenPixel)))
+            
+            self.backgroundView.isHidden = !component.showBackground
+            self.separator.isHidden = !component.showBackground
             
             let buttonSize = self.button.update(
                 transition: .immediate,

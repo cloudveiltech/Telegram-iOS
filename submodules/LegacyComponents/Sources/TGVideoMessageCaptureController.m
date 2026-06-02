@@ -1,4 +1,4 @@
-#import "TGVideoMessageCaptureController.h"
+#import <LegacyComponents/TGVideoMessageCaptureController.h>
 
 #import "LegacyComponentsInternal.h"
 
@@ -25,11 +25,14 @@
 #import <LegacyComponents/TGModernConversationInputMicButton.h>
 
 #import "TGColor.h"
-#import "TGImageUtils.h"
+#import <LegacyComponents/TGImageUtils.h>
 
-#import "TGMediaPickerSendActionSheetController.h"
-#import "TGOverlayControllerWindow.h"
+#import <LegacyComponents/TGMediaPickerSendActionSheetController.h>
+#import <LegacyComponents/TGOverlayControllerWindow.h>
 #import <LegacyComponents/TGPhotoEditorSparseView.h>
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 const NSTimeInterval TGVideoMessageMaximumDuration = 60.0;
 
@@ -327,11 +330,7 @@ typedef enum
     _circleWrapperView.alpha = 0.0f;
     _circleWrapperView.clipsToBounds = false;
     [_wrapperView addSubview:_circleWrapperView];
-    
-    _shadowView = [[UIImageView alloc] initWithImage:TGComponentsImageNamed(@"VideoMessageShadow")];
-    _shadowView.frame = _circleWrapperView.bounds;
-    [_circleWrapperView addSubview:_shadowView];
-    
+        
     _circleView = [[UIView alloc] initWithFrame:CGRectInset(_circleWrapperView.bounds, shadowSize, shadowSize)];
     _circleView.clipsToBounds = true;
     _circleView.layer.cornerRadius = _circleView.frame.size.width / 2.0f;
@@ -841,13 +840,13 @@ typedef enum
         }
         
         if (strongSelf.presentScheduleController) {
-            strongSelf.presentScheduleController(^(int32_t time) {
+            strongSelf.presentScheduleController(^(int32_t time, bool silentPosting) {
                 __strong TGVideoMessageCaptureController *strongSelf = weakSelf;
                 if (strongSelf == nil) {
                     return;
                 }
                 
-                [strongSelf finishWithURL:strongSelf->_url dimensions:CGSizeMake(240.0f, 240.0f) duration:strongSelf->_duration liveUploadData:strongSelf->_liveUploadData thumbnailImage:strongSelf->_thumbnailImage isSilent:false scheduleTimestamp:time];
+                [strongSelf finishWithURL:strongSelf->_url dimensions:CGSizeMake(240.0f, 240.0f) duration:strongSelf->_duration liveUploadData:strongSelf->_liveUploadData thumbnailImage:strongSelf->_thumbnailImage isSilent:silentPosting scheduleTimestamp:time];
                 
                 _automaticDismiss = true;
                 [strongSelf dismiss:false];
@@ -1641,3 +1640,5 @@ static UIImage *startImage = nil;
 }
 
 @end
+
+#pragma clang diagnostic pop

@@ -31,6 +31,9 @@ func applyMediaResourceChanges(from: Media, to: Media, postbox: Postbox, force: 
                 copyOrMoveResourceData(from: fromLargestRepresentation.resource, to: toLargestRepresentation.resource, mediaBox: postbox.mediaBox)
             }
         }
+        if let fromVideo = fromImage.video, let toVideo = toImage.video {
+            applyMediaResourceChanges(from: fromVideo, to: toVideo, postbox: postbox, force: true)
+        }
     } else if let fromFile = from as? TelegramMediaFile, let toFile = to as? TelegramMediaFile {
         if !skipPreviews {
             if let fromPreview = smallestImageRepresentation(fromFile.previewRepresentations), let toPreview = smallestImageRepresentation(toFile.previewRepresentations) {
@@ -67,7 +70,8 @@ func applyUpdateMessage(postbox: Postbox, stateManager: AccountStateManager, mes
         
         for update in result.allUpdates {
             switch update {
-            case let .updateMessageID(id, randomId):
+            case let .updateMessageID(updateMessageIDData):
+                let (id, randomId) = (updateMessageIDData.id, updateMessageIDData.randomId)
                 for attribute in message.attributes {
                     if let attribute = attribute as? OutgoingMessageInfoAttribute {
                         if attribute.uniqueId == randomId {
@@ -104,16 +108,19 @@ func applyUpdateMessage(postbox: Postbox, stateManager: AccountStateManager, mes
         var updatedTimestamp: Int32?
         if let apiMessage = apiMessage {
             switch apiMessage {
-                case let .message(_, _, _, _, _, _, _, _, _, _, _, date, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _):
+                case let .message(messageData):
+                    let date = messageData.date
                     updatedTimestamp = date
                 case .messageEmpty:
                     break
-                case let .messageService(_, _, _, _, _, date, _, _):
+                case let .messageService(messageServiceData):
+                    let date = messageServiceData.date
                     updatedTimestamp = date
             }
         } else {
             switch result {
-                case let .updateShortSentMessage(_, _, _, _, date, _, _, _):
+                case let .updateShortSentMessage(updateShortSentMessageData):
+                    let (_, _, _, _, date, _, _, _) = (updateShortSentMessageData.flags, updateShortSentMessageData.id, updateShortSentMessageData.pts, updateShortSentMessageData.ptsCount, updateShortSentMessageData.date, updateShortSentMessageData.media, updateShortSentMessageData.entities, updateShortSentMessageData.ttlPeriod)
                     updatedTimestamp = date
                 default:
                     break
@@ -145,14 +152,15 @@ func applyUpdateMessage(postbox: Postbox, stateManager: AccountStateManager, mes
                 namespace = Namespaces.Message.ScheduledCloud
             }
             
-            if let apiMessage = apiMessage, let apiMessagePeerId = apiMessage.peerId, let updatedMessage = StoreMessage(apiMessage: apiMessage, accountPeerId: accountPeerId, peerIsForum: transaction.getPeer(apiMessagePeerId)?.isForum ?? false, namespace: namespace) {
+            if let apiMessage = apiMessage, let apiMessagePeerId = apiMessage.peerId, let updatedMessage = StoreMessage(apiMessage: apiMessage, accountPeerId: accountPeerId, peerIsForum: transaction.getPeer(apiMessagePeerId)?.isForumOrMonoForum ?? false, namespace: namespace) {
                 media = updatedMessage.media
                 attributes = updatedMessage.attributes
                 text = updatedMessage.text
                 forwardInfo = updatedMessage.forwardInfo
                 threadId = updatedMessage.threadId
-            } else if case let .updateShortSentMessage(_, _, _, _, _, apiMedia, entities, ttlPeriod) = result {
-                let (mediaValue, _, nonPremium, hasSpoiler, _) = textMediaAndExpirationTimerFromApiMedia(apiMedia, currentMessage.id.peerId)
+            } else if case let .updateShortSentMessage(updateShortSentMessageData) = result {
+                let (_, _, _, _, _, apiMedia, entities, ttlPeriod) = (updateShortSentMessageData.flags, updateShortSentMessageData.id, updateShortSentMessageData.pts, updateShortSentMessageData.ptsCount, updateShortSentMessageData.date, updateShortSentMessageData.media, updateShortSentMessageData.entities, updateShortSentMessageData.ttlPeriod)
+                let (mediaValue, _, nonPremium, hasSpoiler, _, _) = textMediaAndExpirationTimerFromApiMedia(apiMedia, currentMessage.id.peerId)
                 if let mediaValue = mediaValue {
                     media = [mediaValue]
                 } else {
@@ -316,7 +324,7 @@ func applyUpdateMessage(postbox: Postbox, stateManager: AccountStateManager, mes
                 }
             }
             
-            let updatedMessageValue = StoreMessage(id: updatedId, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: updatedTimestamp ?? currentMessage.timestamp, flags: [], tags: tags, globalTags: globalTags, localTags: currentMessage.localTags, forwardInfo: forwardInfo, authorId: currentMessage.author?.id, text: text, attributes: attributes, media: media)
+            let updatedMessageValue = StoreMessage(id: updatedId, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: updatedTimestamp ?? currentMessage.timestamp, flags: [], tags: tags, globalTags: globalTags, localTags: currentMessage.localTags, forwardInfo: forwardInfo, authorId: currentMessage.author?.id, text: text, attributes: attributes, media: media)
             updatedMessage = updatedMessageValue
             
             return .update(updatedMessageValue)
@@ -400,7 +408,7 @@ func applyUpdateGroupMessages(postbox: Postbox, stateManager: AccountStateManage
         } else if let message = messages.first, let apiMessage = result.messages.first {
             if message.scheduleTime != nil && message.scheduleTime == apiMessage.timestamp {
                 namespace = Namespaces.Message.ScheduledCloud
-            } else if let apiMessage = result.messages.first, case let .message(_, flags2, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = apiMessage, (flags2 & (1 << 4)) != 0 {
+            } else if let apiMessage = result.messages.first, case let .message(messageData) = apiMessage, (messageData.flags2 & (1 << 4)) != 0 {
                 namespace = Namespaces.Message.ScheduledCloud
             }
         }
@@ -409,7 +417,7 @@ func applyUpdateGroupMessages(postbox: Postbox, stateManager: AccountStateManage
         for apiMessage in result.messages {
             var peerIsForum = false
             if let apiMessagePeerId = apiMessage.peerId, let peer = transaction.getPeer(apiMessagePeerId) {
-                if peer.isForum {
+                if peer.isForumOrMonoForum {
                     peerIsForum = true
                 }
             }
@@ -546,7 +554,7 @@ func applyUpdateGroupMessages(postbox: Postbox, stateManager: AccountStateManage
                 
                 let (tags, globalTags) = tagsForStoreMessage(incoming: currentMessage.flags.contains(.Incoming), attributes: attributes, media: media, textEntities: entitiesAttribute?.entities, isPinned: currentMessage.tags.contains(.pinned))
                 
-                return .update(StoreMessage(id: updatedId, globallyUniqueId: nil, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: updatedMessage.timestamp, flags: [], tags: tags, globalTags: globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: text, attributes: attributes, media: media))
+                return .update(StoreMessage(id: updatedId, customStableId: nil, globallyUniqueId: nil, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: updatedMessage.timestamp, flags: [], tags: tags, globalTags: globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: text, attributes: attributes, media: media))
             })
         }
         

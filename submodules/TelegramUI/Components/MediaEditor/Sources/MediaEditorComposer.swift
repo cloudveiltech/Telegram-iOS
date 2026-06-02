@@ -50,17 +50,25 @@ private func roundedCornersMaskImage(size: CGSize) -> CIImage {
     return CIImage(cgImage: image!)
 }
 
-final class MediaEditorComposer {
-    enum Input {
-        case texture(MTLTexture, CMTime, Bool, CGRect?)
-        case videoBuffer(VideoPixelBuffer, CGRect?)
+private func rectangleMaskImage(size: CGSize) -> CIImage {
+    let image = generateImage(size, opaque: true, scale: 1.0) { size, context in
+        context.setFillColor(UIColor.white.cgColor)
+        context.fill(CGRect(origin: .zero, size: size))
+    }?.cgImage
+    return CIImage(cgImage: image!)
+}
+
+public final class MediaEditorComposer {
+    public enum Input {
+        case texture(MTLTexture, CMTime, Bool, CGRect?, CGFloat, CGPoint)
+        case videoBuffer(VideoPixelBuffer, CGRect?, CGFloat, CGPoint)
         case ciImage(CIImage, CMTime)
         
         var timestamp: CMTime {
             switch self {
-            case let .texture(_, timestamp, _, _):
+            case let .texture(_, timestamp, _, _, _, _):
                 return timestamp
-            case let .videoBuffer(videoBuffer, _):
+            case let .videoBuffer(videoBuffer, _, _, _):
                 return videoBuffer.timestamp
             case let .ciImage(_, timestamp):
                 return timestamp
@@ -69,10 +77,10 @@ final class MediaEditorComposer {
         
         var rendererInput: MediaEditorRenderer.Input {
             switch self {
-            case let .texture(texture, timestamp, hasTransparency, rect):
-                return .texture(texture, timestamp, hasTransparency, rect)
-            case let .videoBuffer(videoBuffer, rect):
-                return .videoBuffer(videoBuffer, rect)
+            case let .texture(texture, timestamp, hasTransparency, rect, scale, offset):
+                return .texture(texture, timestamp, hasTransparency, rect, scale, offset)
+            case let .videoBuffer(videoBuffer, rect, scale, offset):
+                return .videoBuffer(videoBuffer, rect, scale, offset)
             case let .ciImage(image, timestamp):
                 return .ciImage(image, timestamp)
             }
@@ -84,10 +92,18 @@ final class MediaEditorComposer {
     let ciContext: CIContext?
     private var textureCache: CVMetalTextureCache?
     
-    private let values: MediaEditorValues
+    public var values: MediaEditorValues {
+        didSet {
+            self.renderChain.update(values: self.values)
+            self.renderer.videoFinishPass.update(values: self.values, videoDuration: nil, additionalVideoDuration: nil)
+        }
+    }
     private let dimensions: CGSize
     private let outputDimensions: CGSize
     private let textScale: CGFloat
+    
+    private let outputsYuvBuffers: Bool
+    private let yuvPixelFormat: OSType = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
     
     private let renderer = MediaEditorRenderer()
     private let renderChain = MediaEditorRenderChain()
@@ -97,19 +113,21 @@ final class MediaEditorComposer {
     
     private var maskImage: CIImage?
     
-    init(
-        postbox: Postbox,
+    public init(
+        postbox: Postbox?,
         values: MediaEditorValues,
         dimensions: CGSize,
         outputDimensions: CGSize,
         textScale: CGFloat,
         videoDuration: Double?,
-        additionalVideoDuration: Double?
+        additionalVideoDuration: Double?,
+        outputsYuvBuffers: Bool = false
     ) {
         self.values = values
         self.dimensions = dimensions
         self.outputDimensions = outputDimensions
         self.textScale = textScale
+        self.outputsYuvBuffers = outputsYuvBuffers
         
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         self.colorSpace = colorSpace
@@ -118,6 +136,8 @@ final class MediaEditorComposer {
         
         if values.isSticker {
             self.maskImage = roundedCornersMaskImage(size: CGSize(width: floor(1080.0 * 0.97), height: floor(1080.0 * 0.97)))
+        } else if values.isAvatar {
+            self.maskImage = rectangleMaskImage(size: CGSize(width: 1080.0, height: 1080.0))
         }
         
         if let drawing = values.drawing, let drawingImage = CIImage(image: drawing, options: [.colorSpace: self.colorSpace]) {
@@ -127,8 +147,10 @@ final class MediaEditorComposer {
         }
                 
         var entities: [MediaEditorComposerEntity] = []
-        for entity in values.entities {
-            entities.append(contentsOf: composerEntitiesForDrawingEntity(postbox: postbox, textScale: textScale, entity: entity.entity, colorSpace: colorSpace))
+        if let postbox {
+            for entity in values.entities {
+                entities.append(contentsOf: composerEntitiesForDrawingEntity(postbox: postbox, textScale: textScale, entity: entity.entity, colorSpace: colorSpace))
+            }
         }
         self.entities = entities
         
@@ -149,9 +171,9 @@ final class MediaEditorComposer {
         self.renderChain.update(values: self.values)
         self.renderer.videoFinishPass.update(values: self.values, videoDuration: videoDuration, additionalVideoDuration: additionalVideoDuration)
     }
-        
+    
     var previousAdditionalInput: [Int: Input] = [:]
-    func process(main: Input, additional: [Input?], timestamp: CMTime, pool: CVPixelBufferPool?, completion: @escaping (CVPixelBuffer?) -> Void) {
+    public func process(main: Input, additional: [Input?], timestamp: CMTime, pool: CVPixelBufferPool?, completion: @escaping (CVPixelBuffer?) -> Void) {
         guard let pool, let ciContext = self.ciContext else {
             completion(nil)
             return
@@ -173,26 +195,35 @@ final class MediaEditorComposer {
         
         if let resultTexture = self.renderer.resultTexture, var ciImage = CIImage(mtlTexture: resultTexture, options: [.colorSpace: self.colorSpace]) {
             ciImage = ciImage.transformed(by: CGAffineTransformMakeScale(1.0, -1.0).translatedBy(x: 0.0, y: -ciImage.extent.height))
-            
+                        
             var pixelBuffer: CVPixelBuffer?
             CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &pixelBuffer)
             
-            if let pixelBuffer {                
+            guard let pixelBuffer else {
+                completion(nil)
+                return
+            }
+            
+            if self.outputsYuvBuffers {
+                let scale = self.outputDimensions.width / ciImage.extent.width
+                ciImage = ciImage.samplingLinear().transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+                
+                ciContext.render(ciImage, to: pixelBuffer)
+                completion(pixelBuffer)
+            } else {
                 makeEditorImageFrameComposition(context: ciContext, inputImage: ciImage, drawingImage: self.drawingImage, maskImage: self.maskImage, dimensions: self.dimensions, values: self.values, entities: self.entities, time: timestamp, completion: { compositedImage in
                     if var compositedImage {
                         let scale = self.outputDimensions.width / compositedImage.extent.width
                         compositedImage = compositedImage.samplingLinear().transformed(by: CGAffineTransform(scaleX: scale, y: scale))
                         
-                        self.ciContext?.render(compositedImage, to: pixelBuffer)
+                        ciContext.render(compositedImage, to: pixelBuffer)
                         completion(pixelBuffer)
                     } else {
                         completion(nil)
                     }
                 })
-                return
             }
         }
-        completion(nil)
     }
     
     private var cachedTextures: [Int: MTLTexture] = [:]
@@ -216,6 +247,10 @@ public func makeEditorImageComposition(context: CIContext, postbox: Postbox, inp
     var maskImage: CIImage?
     if values.isSticker {
         maskImage = roundedCornersMaskImage(size: CGSize(width: floor(1080.0 * 0.97), height: floor(1080.0 * 0.97)))
+    } else if values.isAvatar {
+        maskImage = rectangleMaskImage(size: CGSize(width: 1080.0, height: 1080.0))
+    } else if let outputDimensions {
+        maskImage = rectangleMaskImage(size: outputDimensions.aspectFitted(CGSize(width: 1080.0, height: 1920.0)))
     }
     
     if let drawing = values.drawing, let image = CIImage(image: drawing, options: [.colorSpace: colorSpace]) {
@@ -227,7 +262,7 @@ public func makeEditorImageComposition(context: CIContext, postbox: Postbox, inp
         entities.append(contentsOf: composerEntitiesForDrawingEntity(postbox: postbox, textScale: textScale, entity: entity.entity, colorSpace: colorSpace))
     }
     
-    makeEditorImageFrameComposition(context: context, inputImage: inputImage, drawingImage: drawingImage, maskImage: maskImage, dimensions: dimensions, values: values, entities: entities, time: time, textScale: textScale, completion: { compositedImage in
+    makeEditorImageFrameComposition(context: context, inputImage: inputImage, drawingImage: drawingImage, maskImage: maskImage, dimensions: dimensions, outputDimensions: outputDimensions, values: values, entities: entities, time: time, textScale: textScale, completion: { compositedImage in
         if var compositedImage {
             let outputDimensions = outputDimensions ?? dimensions
             let scale = outputDimensions.width / compositedImage.extent.width
@@ -240,11 +275,13 @@ public func makeEditorImageComposition(context: CIContext, postbox: Postbox, inp
                 return
             }
         }
-        completion(nil)
+        Queue.mainQueue().async {
+            completion(nil)
+        }
     })
 }
 
-private func makeEditorImageFrameComposition(context: CIContext, inputImage: CIImage, drawingImage: CIImage?, maskImage: CIImage?, dimensions: CGSize, values: MediaEditorValues, entities: [MediaEditorComposerEntity], time: CMTime, textScale: CGFloat = 1.0, completion: @escaping (CIImage?) -> Void) {
+private func makeEditorImageFrameComposition(context: CIContext, inputImage: CIImage, drawingImage: CIImage?, maskImage: CIImage?, dimensions: CGSize, outputDimensions: CGSize? = nil, values: MediaEditorValues, entities: [MediaEditorComposerEntity], time: CMTime, textScale: CGFloat = 1.0, completion: @escaping (CIImage?) -> Void) {
     var isClear = false
     if let gradientColor = values.gradientColors?.first, gradientColor.alpha.isZero {
         isClear = true
@@ -254,7 +291,7 @@ private func makeEditorImageFrameComposition(context: CIContext, inputImage: CII
     
     var mediaImage = inputImage.samplingLinear().transformed(by: CGAffineTransform(translationX: -inputImage.extent.midX, y: -inputImage.extent.midY))
     
-    if values.isStory || values.isSticker {
+    if values.isStory || values.isSticker || values.isAvatar || values.isCover {
         resultImage = mediaImage.samplingLinear().composited(over: resultImage)
     } else {
         let initialScale = dimensions.width / mediaImage.extent.width
@@ -288,6 +325,13 @@ private func makeEditorImageFrameComposition(context: CIContext, inputImage: CII
             if values.isSticker {
                 let minSize = min(dimensions.width, dimensions.height)
                 let scaledSize = CGSize(width: floor(minSize * 0.97), height: floor(minSize * 0.97))
+                resultImage = resultImage.transformed(by: CGAffineTransform(translationX: -(dimensions.width - scaledSize.width) / 2.0, y: -(dimensions.height - scaledSize.height) / 2.0)).cropped(to: CGRect(origin: .zero, size: scaledSize))
+            } else if values.isAvatar {
+                let minSize = min(dimensions.width, dimensions.height)
+                let scaledSize = CGSize(width: minSize, height: minSize)
+                resultImage = resultImage.transformed(by: CGAffineTransform(translationX: -(dimensions.width - scaledSize.width) / 2.0, y: -(dimensions.height - scaledSize.height) / 2.0)).cropped(to: CGRect(origin: .zero, size: scaledSize))
+            } else if values.isCover, let outputDimensions {
+                let scaledSize = outputDimensions.aspectFitted(dimensions)
                 resultImage = resultImage.transformed(by: CGAffineTransform(translationX: -(dimensions.width - scaledSize.width) / 2.0, y: -(dimensions.height - scaledSize.height) / 2.0)).cropped(to: CGRect(origin: .zero, size: scaledSize))
             } else if values.isStory {
                 resultImage = resultImage.cropped(to: CGRect(origin: .zero, size: dimensions))

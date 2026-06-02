@@ -26,7 +26,6 @@ swift_library(
         # CloudVeil start
         "//CloudVeil/SecurityManager:CloudVeilSecurityManager"
         # CloudVeil end
-    
     ],
     visibility = [
         "//visibility:public",

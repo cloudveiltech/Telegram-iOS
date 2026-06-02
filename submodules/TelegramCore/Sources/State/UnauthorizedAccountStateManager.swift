@@ -34,11 +34,14 @@ private final class UnauthorizedUpdateMessageService: NSObject, MTMessageService
     
     func addUpdates(_ updates: Api.Updates) {
         switch updates {
-        case let .updates(updates, _, _, _, _):
+        case let .updates(updatesData):
+            let updates = updatesData.updates
             self.putNext(updates)
-        case let .updatesCombined(updates, _, _, _, _, _):
+        case let .updatesCombined(updatesCombinedData):
+            let updates = updatesCombinedData.updates
             self.putNext(updates)
-        case let .updateShort(update, _):
+        case let .updateShort(updateShortData):
+            let update = updateShortData.update
             self.putNext([update])
         case .updateShortChatMessage, .updateShortMessage, .updatesTooLong, .updateShortSentMessage:
                 break
@@ -53,11 +56,18 @@ final class UnauthorizedAccountStateManager {
     private var updateService: UnauthorizedUpdateMessageService?
     private let updateServiceDisposable = MetaDisposable()
     private let updateLoginToken: () -> Void
+    private let updateSentCode: (Api.auth.SentCode) -> Void
     private let displayServiceNotification: (String) -> Void
     
-    init(network: Network, updateLoginToken: @escaping () -> Void, displayServiceNotification: @escaping (String) -> Void) {
+    init(
+        network: Network,
+        updateLoginToken: @escaping () -> Void,
+        updateSentCode: @escaping (Api.auth.SentCode) -> Void,
+        displayServiceNotification: @escaping (String) -> Void
+    ) {
         self.network = network
         self.updateLoginToken = updateLoginToken
+        self.updateSentCode = updateSentCode
         self.displayServiceNotification = displayServiceNotification
     }
     
@@ -65,22 +75,33 @@ final class UnauthorizedAccountStateManager {
         self.updateServiceDisposable.dispose()
     }
     
+    func addUpdates(_ updates: Api.Updates) {
+        self.queue.async {
+            self.updateService?.addUpdates(updates)
+        }
+    }
+    
     func reset() {
         self.queue.async {
             if self.updateService == nil {
                 self.updateService = UnauthorizedUpdateMessageService()
                 let updateLoginToken = self.updateLoginToken
+                let updateSentCode = self.updateSentCode
                 let displayServiceNotification = self.displayServiceNotification
                 self.updateServiceDisposable.set(self.updateService!.pipe.signal().start(next: { updates in
                     for update in updates {
                         switch update {
                         case .updateLoginToken:
                             updateLoginToken()
-                        case let .updateServiceNotification(flags, _, _, message, _, _):
+                        case let .updateServiceNotification(updateServiceNotificationData):
+                            let (flags, message) = (updateServiceNotificationData.flags, updateServiceNotificationData.message)
                             let popup = (flags & (1 << 0)) != 0
                             if popup {
                                 displayServiceNotification(message)
                             }
+                        case let .updateSentPhoneCode(updateSentPhoneCodeData):
+                            let sentCode = updateSentPhoneCodeData.sentCode
+                            updateSentCode(sentCode)
                         default:
                             break
                         }

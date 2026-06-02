@@ -8,11 +8,11 @@ public extension UIView {
     }
 }
 
-public func makeSpringAnimation(_ keyPath: String) -> CABasicAnimation {
-    return makeSpringAnimationImpl(keyPath)
+public func makeSpringAnimation(_ keyPath: String, duration: Double) -> CABasicAnimation {
+    return makeSpringAnimationImpl(keyPath, duration)
 }
 
-public func makeSpringBounceAnimation(_ keyPath: String, _ initialVelocity: CGFloat, _ damping: CGFloat) -> CABasicAnimation {
+public func makeSpringBounceAnimation(_ keyPath: String, _ initialVelocity: CGFloat, _ damping: CGFloat) -> CASpringAnimation {
     return makeSpringBounceAnimationImpl(keyPath, initialVelocity, damping)
 }
 
@@ -45,9 +45,9 @@ public func dumpLayers(_ layer: CALayer) {
 }
 
 private func dumpLayers(_ layer: CALayer, indent: String = "") {
-    print("\(indent)\(layer)(frame: \(layer.frame), bounds: \(layer.bounds))")
+    print("\(indent)\(layer.debugDescription)(frame: \(layer.frame), bounds: \(layer.bounds))")
     if layer.sublayers != nil {
-        let nextIndent = indent + ".."
+        let nextIndent = indent + "—"
         if let sublayers = layer.sublayers {
             for sublayer in sublayers {
                 dumpLayers(sublayer as CALayer, indent: nextIndent)
@@ -80,19 +80,15 @@ public extension UIColor {
     }
     
     convenience init?(hexString: String) {
-        let scanner = Scanner(string: hexString)
-        if hexString.hasPrefix("#") {
-            scanner.scanLocation = 1
-        }
-        var value: UInt32 = 0
-        if scanner.scanHexInt32(&value) {
-            if hexString.count > 7 {
-                self.init(argb: value)
-            } else {
-                self.init(rgb: value)
-            }
-        } else {
+        let cleanedString = hexString.hasPrefix("#") ? hexString.dropFirst() : hexString[...]
+        guard let value = UInt32(cleanedString, radix: 16) else {
             return nil
+        }
+        
+        if hexString.count > 7 {
+            self.init(argb: value)
+        } else {
+            self.init(rgb: value)
         }
     }
     
@@ -112,9 +108,13 @@ public extension UIColor {
         var green: CGFloat = 0.0
         var blue: CGFloat = 0.0
         if self.getRed(&red, green: &green, blue: &blue, alpha: nil) {
-            return (UInt32(max(0.0, red) * 255.0) << 16) | (UInt32(max(0.0, green) * 255.0) << 8) | (UInt32(max(0.0, blue) * 255.0))
+            let r: UInt32 = UInt32(max(0.0, red) * 255.0)
+            let g: UInt32 = UInt32(max(0.0, green) * 255.0)
+            let b: UInt32 = UInt32(max(0.0, blue) * 255.0)
+            return (r << 16) | (g << 8) | b
         } else if self.getWhite(&red, alpha: nil) {
-            return (UInt32(max(0.0, red) * 255.0) << 16) | (UInt32(max(0.0, red) * 255.0) << 8) | (UInt32(max(0.0, red) * 255.0))
+            let w: UInt32 = UInt32(max(0.0, red) * 255.0)
+            return (w << 16) | (w << 8) | w
         } else {
             return 0
         }
@@ -126,9 +126,15 @@ public extension UIColor {
         var blue: CGFloat = 0.0
         var alpha: CGFloat = 0.0
         if self.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
-            return (UInt32(alpha * 255.0) << 24) | (UInt32(max(0.0, red) * 255.0) << 16) | (UInt32(max(0.0, green) * 255.0) << 8) | (UInt32(max(0.0, blue) * 255.0))
+            let a: UInt32 = UInt32(alpha * 255.0)
+            let r: UInt32 = UInt32(max(0.0, red) * 255.0)
+            let g: UInt32 = UInt32(max(0.0, green) * 255.0)
+            let b: UInt32 = UInt32(max(0.0, blue) * 255.0)
+            return (a << 24) | (r << 16) | (g << 8) | b
         } else if self.getWhite(&red, alpha: &alpha) {
-            return (UInt32(max(0.0, alpha) * 255.0) << 24) | (UInt32(max(0.0, red) * 255.0) << 16) | (UInt32(max(0.0, red) * 255.0) << 8) | (UInt32(max(0.0, red) * 255.0))
+            let a: UInt32 = UInt32(max(0.0, alpha) * 255.0)
+            let w: UInt32 = UInt32(max(0.0, red) * 255.0)
+            return (a << 24) | (w << 16) | (w << 8) | w
         } else {
             return 0
         }
@@ -206,6 +212,37 @@ public extension UIColor {
         return UIColor(hue: hue, saturation: saturation, brightness: max(0.0, min(1.0, brightness * factor)), alpha: alpha)
     }
     
+    func adjustedPerceivedBrightness(_ factor: CGFloat) -> UIColor {
+        let f = max(0, factor)
+        let base = self
+        guard
+            let cs = CGColorSpace(name: CGColorSpace.extendedSRGB),
+            let cg = base.cgColor.converted(to: cs, intent: .defaultIntent, options: nil),
+            let c = cg.components, c.count >= 3
+        else { return base }
+
+        func toLin(_ x: CGFloat) -> CGFloat { x <= 0.04045 ? x/12.92 : pow((x+0.055)/1.055, 2.4) }
+        func toSRGB(_ x: CGFloat) -> CGFloat { x <= 0.0031308 ? 12.92*x : 1.055*pow(x, 1/2.4) - 0.055 }
+        func clamp(_ x: CGFloat) -> CGFloat { min(max(x, 0), 1) }
+
+        var r = toLin(c[0]), g = toLin(c[1]), b = toLin(c[2])
+        if f >= 1 {
+            // mix toward white: t = 1 - 1/f (so f=1 → t=0, f→∞ → t→1)
+            let t = 1 - 1/f
+            r = r + (1 - r) * t
+            g = g + (1 - g) * t
+            b = b + (1 - b) * t
+        } else {
+            // scale toward black
+            r *= f; g *= f; b *= f
+        }
+
+        return UIColor(red: clamp(toSRGB(r)),
+                       green: clamp(toSRGB(g)),
+                       blue: clamp(toSRGB(b)),
+                       alpha: cg.alpha)
+    }
+    
     func withMultiplied(hue: CGFloat, saturation: CGFloat, brightness: CGFloat) -> UIColor {
         var hueValue: CGFloat = 0.0
         var saturationValue: CGFloat = 0.0
@@ -214,6 +251,58 @@ public extension UIColor {
         self.getHue(&hueValue, saturation: &saturationValue, brightness: &brightnessValue, alpha: &alphaValue)
         
         return UIColor(hue: max(0.0, min(1.0, hueValue * hue)), saturation: max(0.0, min(1.0, saturationValue * saturation)), brightness: max(0.0, min(1.0, brightnessValue * brightness)), alpha: alphaValue)
+    }
+    
+    func desaturatedHSL(by amount: CGFloat) -> UIColor {
+        let amount = max(0, min(1, amount))
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard self.getRed(&r, green: &g, blue: &b, alpha: &a) else { return self }
+        
+        let maxC = max(r, g, b)
+        let minC = min(r, g, b)
+        let delta = maxC - minC
+        
+        var h: CGFloat = 0
+        let l: CGFloat = (maxC + minC) / 2
+        var s: CGFloat = 0
+        
+        if delta != 0 {
+            s = delta / (1 - abs(2 * l - 1))
+            if maxC == r {
+                h = ((g - b) / delta).truncatingRemainder(dividingBy: 6)
+            } else if maxC == g {
+                h = ((b - r) / delta) + 2
+            } else {
+                h = ((r - g) / delta) + 4
+            }
+            h /= 6
+            if h < 0 { h += 1 }
+        }
+        
+        let s2 = s * (1 - amount)
+        
+        func hue2rgb(_ p: CGFloat, _ q: CGFloat, _ t: CGFloat) -> CGFloat {
+            var t = t
+            if t < 0 { t += 1 }
+            if t > 1 { t -= 1 }
+            if t < 1/6 { return p + (q - p) * 6 * t }
+            if t < 1/2 { return q }
+            if t < 2/3 { return p + (q - p) * (2/3 - t) * 6 }
+            return p
+        }
+        
+        let q: CGFloat = l < 0.5 ? l * (1 + s2) : l + s2 - l * s2
+        let p: CGFloat = 2 * l - q
+        
+        let r2 = hue2rgb(p, q, h + 1/3)
+        let g2 = hue2rgb(p, q, h)
+        let b2 = hue2rgb(p, q, h - 1/3)
+        
+        return UIColor(red: r2, green: g2, blue: b2, alpha: a)
+    }
+    
+    func desaturated() -> UIColor {
+        return desaturatedHSL(by: 1.0)
     }
     
     func mixedWith(_ other: UIColor, alpha: CGFloat) -> UIColor {
@@ -484,6 +573,17 @@ public extension UIImage {
         }
         return result
     }
+    
+    func fixedOrientation() -> UIImage {
+        if self.imageOrientation == .up { return self }
+        
+        UIGraphicsBeginImageContextWithOptions(self.size, false, self.scale)
+        self.draw(in: CGRect(origin: .zero, size: size))
+        let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return normalizedImage ?? self
+    }
 }
 
 private func makeSubtreeSnapshot(layer: CALayer, keepPortals: Bool = false, keepTransform: Bool = false) -> UIView? {
@@ -502,9 +602,29 @@ private func makeSubtreeSnapshot(layer: CALayer, keepPortals: Bool = false, keep
             return nil
         }
     }
+    var unhide = false
+    var markToHide = false
+    if keepPortals {
+        if let view = (layer.delegate as? UIView) {
+            if view.tag == 0x1bad, view.alpha > 0.0 {
+                return nil
+            } else if view.tag == 0x2bad {
+                markToHide = true
+            } else if view.tag == 0x3bad {
+                unhide = true
+            }
+        }
+    }
     let view = UIView()
+    if markToHide {
+        view.tag = 0x2bad
+    }
     view.layer.isHidden = layer.isHidden
-    view.layer.opacity = layer.opacity
+    if unhide {
+        view.layer.opacity = 1.0
+    } else {
+        view.layer.opacity = layer.opacity
+    }
     view.layer.contents = layer.contents
     view.layer.contentsRect = layer.contentsRect
     view.layer.contentsScale = layer.contentsScale
@@ -534,10 +654,14 @@ private func makeSubtreeSnapshot(layer: CALayer, keepPortals: Bool = false, keep
     }
     view.layer.cornerRadius = layer.cornerRadius
     view.layer.backgroundColor = layer.backgroundColor
+    
     if let sublayers = layer.sublayers {
         for sublayer in sublayers {
             let subtree = makeSubtreeSnapshot(layer: sublayer, keepPortals: keepPortals, keepTransform: keepTransform)
             if let subtree = subtree {
+                if subtree.tag == 0x2bad {
+                    return nil
+                }
                 if keepTransform {
                     subtree.layer.transform = sublayer.transform
                 }
@@ -561,6 +685,7 @@ private func makeSubtreeSnapshot(layer: CALayer, keepPortals: Bool = false, keep
             }
         }
     }
+    
     return view
 }
 
@@ -582,77 +707,6 @@ private func makeLayerSubtreeSnapshot(layer: CALayer) -> CALayer? {
         view.cornerRadius = layer.cornerRadius
         view.backgroundColor = layer.backgroundColor
         view.layerTintColor = layer.layerTintColor
-        
-        /*
-         open var path: CGPath?
-
-         
-         /* The color to fill the path, or nil for no fill. Defaults to opaque
-          * black. Animatable. */
-         
-         open var fillColor: CGColor?
-
-         
-         /* The fill rule used when filling the path. Options are `non-zero' and
-          * `even-odd'. Defaults to `non-zero'. */
-         
-         open var fillRule: CAShapeLayerFillRule
-
-         
-         /* The color to fill the path's stroked outline, or nil for no stroking.
-          * Defaults to nil. Animatable. */
-         
-         open var strokeColor: CGColor?
-
-         
-         /* These values define the subregion of the path used to draw the
-          * stroked outline. The values must be in the range [0,1] with zero
-          * representing the start of the path and one the end. Values in
-          * between zero and one are interpolated linearly along the path
-          * length. strokeStart defaults to zero and strokeEnd to one. Both are
-          * animatable. */
-         
-         open var strokeStart: CGFloat
-
-         open var strokeEnd: CGFloat
-
-         
-         /* The line width used when stroking the path. Defaults to one.
-          * Animatable. */
-         
-         open var lineWidth: CGFloat
-
-         
-         /* The miter limit used when stroking the path. Defaults to ten.
-          * Animatable. */
-         
-         open var miterLimit: CGFloat
-
-         
-         /* The cap style used when stroking the path. Options are `butt', `round'
-          * and `square'. Defaults to `butt'. */
-         
-         open var lineCap: CAShapeLayerLineCap
-
-         
-         /* The join style used when stroking the path. Options are `miter', `round'
-          * and `bevel'. Defaults to `miter'. */
-         
-         open var lineJoin: CAShapeLayerLineJoin
-
-         
-         /* The phase of the dashing pattern applied when creating the stroke.
-          * Defaults to zero. Animatable. */
-         
-         open var lineDashPhase: CGFloat
-
-         
-         /* The dash pattern (an array of NSNumbers) applied when creating the
-          * stroked version of the path. Defaults to nil. */
-         
-         open var lineDashPattern: [NSNumber]?
-         */
-        
         view.path = layer.path
         view.fillColor = layer.fillColor
         view.fillRule = layer.fillRule
@@ -665,6 +719,40 @@ private func makeLayerSubtreeSnapshot(layer: CALayer) -> CALayer? {
         view.lineJoin = layer.lineJoin
         view.lineDashPhase = layer.lineDashPhase
         view.lineDashPattern = layer.lineDashPattern
+        
+        if let sublayers = layer.sublayers {
+            for sublayer in sublayers {
+                let subtree = makeLayerSubtreeSnapshot(layer: sublayer)
+                if let subtree = subtree {
+                    subtree.transform = sublayer.transform
+                    subtree.position = sublayer.position
+                    subtree.bounds = sublayer.bounds
+                    subtree.anchorPoint = sublayer.anchorPoint
+                    view.addSublayer(subtree)
+                } else {
+                    return nil
+                }
+            }
+        }
+        return view
+    } else if let layer = layer as? CAGradientLayer {
+        let view = CAGradientLayer()
+        view.isHidden = layer.isHidden
+        view.opacity = layer.opacity
+        view.contents = layer.contents
+        view.contentsRect = layer.contentsRect
+        view.contentsScale = layer.contentsScale
+        view.contentsCenter = layer.contentsCenter
+        view.contentsGravity = layer.contentsGravity
+        view.masksToBounds = layer.masksToBounds
+        view.cornerRadius = layer.cornerRadius
+        view.backgroundColor = layer.backgroundColor
+        view.layerTintColor = layer.layerTintColor
+        view.colors = layer.colors
+        view.locations = layer.locations
+        view.startPoint = layer.startPoint
+        view.endPoint = layer.endPoint
+        view.type = layer.type
         
         if let sublayers = layer.sublayers {
             for sublayer in sublayers {
@@ -747,6 +835,17 @@ private func makeLayerSubtreeSnapshotAsView(layer: CALayer) -> UIView? {
 }
 
 
+public func findParentScrollView(view: UIView?) -> UIScrollView? {
+    if let view = view {
+        if let view = view as? UIScrollView {
+            return view
+        }
+        return findParentScrollView(view: view.superview)
+    } else {
+        return nil
+    }
+}
+
 public extension UIView {
     func snapshotContentTree(unhide: Bool = false, keepPortals: Bool = false, keepTransform: Bool = false) -> UIView? {
         let wasHidden = self.isHidden
@@ -793,8 +892,28 @@ public extension CALayer {
         return makeBlurFilter()
     }
     
+    static func variableBlur() -> NSObject? {
+        return makeVariableBlurFilter()
+    }
+    
     static func luminanceToAlpha() -> NSObject? {
         return makeLuminanceToAlphaFilter()
+    }
+    
+    static func colorInvert() -> NSObject? {
+        return makeColorInvertFilter()
+    }
+    
+    static func monochrome() -> NSObject? {
+        return makeMonochromeFilter()
+    }
+    
+    static func displacementMap() -> NSObject? {
+        return makeDisplacementMapFilter()
+    }
+    
+    static func colorMatrix() -> NSObject? {
+        return makeColorMatrixFilter()
     }
 }
 
@@ -864,5 +983,56 @@ public extension CGRect {
 public extension CGPoint {
     func offsetBy(dx: CGFloat, dy: CGFloat) -> CGPoint {
         return CGPoint(x: self.x + dx, y: self.y + dy)
+    }
+}
+
+public extension UIView {
+    func setMonochromaticEffect(tintColor: UIColor?) {
+        var overrideUserInterfaceStyle: UIUserInterfaceStyle = .unspecified
+        var red: CGFloat = 0.0
+        var green: CGFloat = 0.0
+        var blue: CGFloat = 0.0
+        var alpha: CGFloat = 1.0
+        if let tintColor {
+            if tintColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+                if red == 0.0 && green == 0.0 && blue == 0.0 && alpha == 1.0 {
+                    overrideUserInterfaceStyle = .light
+                }
+            } else {
+                if red == 1.0 && green == 1.0 && blue == 1.0 && alpha == 1.0 {
+                    overrideUserInterfaceStyle = .dark
+                }
+            }
+        }
+        
+        if self.overrideUserInterfaceStyle != overrideUserInterfaceStyle {
+            self.overrideUserInterfaceStyle = overrideUserInterfaceStyle
+            setMonochromaticEffectImpl(self, overrideUserInterfaceStyle != .unspecified)
+        }
+    }
+    
+    func setMonochromaticEffectAndAlpha(tintColor: UIColor?, transition: ContainedViewLayoutTransition) {
+        var overrideUserInterfaceStyle: UIUserInterfaceStyle = .unspecified
+        var red: CGFloat = 0.0
+        var green: CGFloat = 0.0
+        var blue: CGFloat = 0.0
+        var alpha: CGFloat = 1.0
+        if let tintColor {
+            if tintColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+                if red == 0.0 && green == 0.0 && blue == 0.0 {
+                    overrideUserInterfaceStyle = .light
+                }
+            } else {
+                if red == 1.0 && green == 1.0 && blue == 1.0 {
+                    overrideUserInterfaceStyle = .dark
+                }
+            }
+        }
+        
+        if self.overrideUserInterfaceStyle != overrideUserInterfaceStyle {
+            self.overrideUserInterfaceStyle = overrideUserInterfaceStyle
+            setMonochromaticEffectImpl(self, overrideUserInterfaceStyle != .unspecified)
+        }
+        transition.updateAlpha(layer: self.layer, alpha: alpha)
     }
 }

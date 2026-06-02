@@ -11,6 +11,8 @@ import UniversalMediaPlayer
 import AccountContext
 import PhotoResources
 import RangeSet
+import CoreMedia
+import AVFoundation
 
 public final class SystemVideoContent: UniversalVideoContent {
     public let id: AnyHashable
@@ -29,7 +31,7 @@ public final class SystemVideoContent: UniversalVideoContent {
         self.duration = duration
     }
     
-    public func makeContentNode(accountId: AccountRecordId, postbox: Postbox, audioSession: ManagedAudioSession) -> UniversalVideoContentNode & ASDisplayNode {
+    public func makeContentNode(context: AccountContext, postbox: Postbox, audioSession: ManagedAudioSession) -> UniversalVideoContentNode & ASDisplayNode {
         return SystemVideoContentNode(postbox: postbox, audioSessionManager: audioSession, userLocation: self.userLocation, url: self.url, imageReference: self.imageReference, intrinsicDimensions: self.dimensions, approximateDuration: self.duration)
     }
 }

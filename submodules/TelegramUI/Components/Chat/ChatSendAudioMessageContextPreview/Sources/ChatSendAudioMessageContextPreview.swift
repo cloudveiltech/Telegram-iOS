@@ -86,7 +86,7 @@ public final class ChatSendContactMessageContextPreview: UIView, ChatSendMessage
         for peer in self.contactPeers {
             switch peer {
             case let .peer(contact, _, _):
-                guard let contact = contact as? TelegramUser, let phoneNumber = contact.phone else {
+                guard case let .user(contact) = contact, let phoneNumber = contact.phone else {
                     continue
                 }
                 let contactData = DeviceContactExtendedData(basicData: DeviceContactBasicData(firstName: contact.firstName ?? "", lastName: contact.lastName ?? "", phoneNumbers: [DeviceContactPhoneNumberData(label: "_$!<Mobile>!$_", value: phoneNumber)]), middleName: "", prefix: "", suffix: "", organization: "", jobTitle: "", department: "", emailAddresses: [], urls: [], addresses: [], birthdayDate: nil, socialProfiles: [], instantMessagingProfiles: [], note: "")
@@ -126,7 +126,9 @@ public final class ChatSendContactMessageContextPreview: UIView, ChatSendMessage
                 accountPeer: nil,
                 isCentered: false,
                 isPreview: true,
-                isStandalone: true
+                isStandalone: true,
+                rank: nil,
+                rankRole: nil
             )
             items.append(item)
         }
@@ -279,7 +281,9 @@ public final class ChatSendAudioMessageContextPreview: UIView, ChatSendMessageCo
             accountPeer: nil,
             isCentered: false,
             isPreview: true,
-            isStandalone: true
+            isStandalone: true,
+            rank: nil,
+            rankRole: nil
         )
         let items = [item]
         
@@ -421,14 +425,17 @@ public final class ChatSendGroupMediaMessageContextPreview: UIView, ChatSendMess
         }, clickThroughMessage: { _, _ in
         }, toggleMessagesSelection: { _, _ in }, sendCurrentMessage: { _, _ in }, sendMessage: { _ in }, sendSticker: { _, _, _, _, _, _, _, _, _ in return false }, sendEmoji: { _, _, _ in }, sendGif: { _, _, _, _, _ in return false }, sendBotContextResultAsGif: { _, _, _, _, _, _ in
             return false
-        }, requestMessageActionCallback: { _, _, _, _ in }, requestMessageActionUrlAuth: { _, _ in }, activateSwitchInline: { _, _, _ in }, openUrl: { _ in }, shareCurrentLocation: {}, shareAccountContact: {}, sendBotCommand: { _, _ in }, openInstantPage: { _, _ in  }, openWallpaper: { _ in  }, openTheme: { _ in  }, openHashtag: { _, _ in }, updateInputState: { _ in }, updateInputMode: { _ in }, openMessageShareMenu: { _ in
+        }, editGif: { _, _ in
+        }, requestMessageActionCallback: { _, _, _, _, _ in }, requestMessageActionUrlAuth: { _, _ in }, activateSwitchInline: { _, _, _ in }, openUrl: { _ in }, shareCurrentLocation: {}, shareAccountContact: {}, sendBotCommand: { _, _ in }, openInstantPage: { _, _ in  }, openWallpaper: { _ in  }, openTheme: { _ in  }, openHashtag: { _, _ in }, updateInputState: { _ in }, updateInputMode: { _ in }, updatePresentationState: { _ in }, openMessageShareMenu: { _ in
         }, presentController: { _, _ in
         }, presentControllerInCurrent: { _, _ in
         }, navigationController: {
             return nil
         }, chatControllerNode: {
             return nil
-        }, presentGlobalOverlayController: { _, _ in }, callPeer: { _, _ in }, longTap: { _, _ in }, openCheckoutOrReceipt: { _, _ in }, openSearch: { }, setupReply: { _ in
+        }, presentGlobalOverlayController: { _, _ in }, callPeer: { _, _ in }, openConferenceCall: { _ in
+        }, longTap: { _, _ in }, todoItemLongTap: { _, _ in }, pollOptionLongTap: { _, _ in
+        }, openCheckoutOrReceipt: { _, _ in }, openSearch: { }, setupReply: { _ in
         }, canSetupReply: { _ in
             return .none
         }, canSendMessages: {
@@ -438,6 +445,7 @@ public final class ChatSendGroupMediaMessageContextPreview: UIView, ChatSendMess
         }, addContact: { _ in
         }, rateCall: { _, _, _ in
         }, requestSelectMessagePollOptions: { _, _ in
+        }, requestAddMessagePollOption: { _, _, _, _, _ in
         }, requestOpenMessagePollResults: { _, _ in
         }, openAppStorePage: {
         }, displayMessageTooltip: { _, _, _, _, _ in
@@ -445,12 +453,13 @@ public final class ChatSendGroupMediaMessageContextPreview: UIView, ChatSendMess
         }, scheduleCurrentMessage: { _ in
         }, sendScheduledMessagesNow: { _ in
         }, editScheduledMessagesTime: { _ in
-        }, performTextSelectionAction: { _, _, _, _ in
+        }, performTextSelectionAction: { _, _, _, _, _ in
         }, displayImportedMessageTooltip: { _ in
         }, displaySwipeToReplyHint: {
         }, dismissReplyMarkupMessage: { _ in
         }, openMessagePollResults: { _, _ in
         }, openPollCreation: { _ in
+        }, openPollMedia: { _, _ in
         }, displayPollSolution: { _, _ in
         }, displayPsa: { _, _ in
         }, displayDiceTooltip: { _ in
@@ -488,6 +497,9 @@ public final class ChatSendGroupMediaMessageContextPreview: UIView, ChatSendMess
         }, openAgeRestrictedMessageMedia: { _, _ in
         }, playMessageEffect: { _ in
         }, editMessageFactCheck: { _ in
+        }, sendGift: { _ in
+        }, openUniqueGift: { _ in
+        }, openMessageFeeException: {
         }, requestMessageUpdate: { _, _ in
         }, cancelInteractiveKeyboardGestures: {
         }, dismissTextInput: {
@@ -496,6 +508,14 @@ public final class ChatSendGroupMediaMessageContextPreview: UIView, ChatSendMess
         }, attemptedNavigationToPrivateQuote: { _ in
         }, forceUpdateWarpContents: {
         }, playShakeAnimation: {
+        }, displayQuickShare: { _, _ ,_ in
+        }, updateChatLocationThread: { _, _ in
+        }, requestToggleTodoMessageItem: { _, _, _ in
+        }, displayTodoToggleUnavailable: { _ in
+        }, openStarsPurchase: { _ in
+        }, openRankInfo: { _, _, _ in
+        }, openSetPeerAvatar: {
+        }, displayPollRestrictedToast: { _ in
         }, automaticMediaDownloadSettings: MediaAutoDownloadSettings.defaultSettings,
         pollActionState: ChatInterfacePollActionState(), stickerSettings: ChatInterfaceStickerSettings(), presentationContext: ChatPresentationContext(context: self.context, backgroundNode: self.wallpaperBackgroundNode))
         
@@ -508,11 +528,12 @@ public final class ChatSendGroupMediaMessageContextPreview: UIView, ChatSendMess
             availableMessageEffects: nil,
             savedMessageTags: nil,
             defaultReaction: nil,
+            areStarReactionsEnabled: false,
             isPremium: false,
             accountPeer: nil
         )
         
-        let entryAttributes = ChatMessageEntryAttributes(rank: nil, isContact: false, contentTypeHint: .generic, updatingMedia: nil, isPlaying: false, isCentered: false, authorStoryStats: nil)
+        let entryAttributes = ChatMessageEntryAttributes(rank: nil, isContact: false, contentTypeHint: .generic, updatingMedia: nil, isPlaying: false, isCentered: false, authorStoryStats: nil, displayContinueThreadFooter: false, pinToTop: false)
         
         let items = self.messages.map { message -> ChatMessageBubbleContentItem in
             return ChatMessageBubbleContentItem(
@@ -520,6 +541,7 @@ public final class ChatSendGroupMediaMessageContextPreview: UIView, ChatSendMess
                 controllerInteraction: controllerInteraction,
                 message: message,
                 topMessage: message,
+                content: .message(message: message, read: true, selection: .none, attributes: entryAttributes, location: nil),
                 read: true,
                 chatLocation: .peer(id: self.context.account.peerId),
                 presentationData: chatPresentationData,

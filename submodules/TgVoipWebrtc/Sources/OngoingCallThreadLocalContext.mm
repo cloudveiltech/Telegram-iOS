@@ -1,4 +1,5 @@
 #import <TgVoipWebrtc/OngoingCallThreadLocalContext.h>
+#include <cstdint>
 
 #import "MediaUtils.h"
 
@@ -6,7 +7,6 @@
 #import "InstanceImpl.h"
 #import "v2/InstanceV2Impl.h"
 #import "v2/InstanceV2ReferenceImpl.h"
-//#import "v2_4_0_0/InstanceV2_4_0_0Impl.h"
 #include "StaticThreads.h"
 
 #import "VideoCaptureInterface.h"
@@ -42,6 +42,40 @@
 #import "platform/darwin/TGRTCCVPixelBuffer.h"
 #include "rtc_base/logging.h"
 
+#import <TdBinding/TdBinding.h>
+
+@implementation OngoingCallConnectionDescription
+
+- (instancetype _Nonnull)initWithConnectionId:(int64_t)connectionId ip:(NSString * _Nonnull)ip ipv6:(NSString * _Nonnull)ipv6 port:(int32_t)port peerTag:(NSData * _Nonnull)peerTag {
+    self = [super init];
+    if (self != nil) {
+        _connectionId = connectionId;
+        _ip = ip;
+        _ipv6 = ipv6;
+        _port = port;
+        _peerTag = peerTag;
+    }
+    return self;
+}
+
+@end
+
+@implementation VoipProxyServer
+
+- (instancetype _Nonnull)initWithHost:(NSString * _Nonnull)host port:(int32_t)port username:(NSString * _Nullable)username password:(NSString * _Nullable)password {
+    self = [super init];
+    if (self != nil) {
+        _host = host;
+        _port = port;
+        _username = username;
+        _password = password;
+    }
+    return self;
+}
+
+@end
+
+
 @implementation CallAudioTone
 
 - (instancetype _Nonnull)initWithSamples:(NSData * _Nonnull)samples sampleRate:(NSInteger)sampleRate loopCount:(NSInteger)loopCount {
@@ -66,63 +100,682 @@
 
 namespace tgcalls {
 
+class WrappedChildAudioDeviceModuleControl {
+public:
+    WrappedChildAudioDeviceModuleControl() {
+    }
+    
+    virtual ~WrappedChildAudioDeviceModuleControl() {
+        _mutex.Lock();
+        _mutex.Unlock();
+    }
+    
+public:
+    void setActive() {
+        _mutex.Lock();
+        
+        
+        
+        _mutex.Unlock();
+    }
+    
+private:
+    webrtc::Mutex _mutex;
+};
+
 class SharedAudioDeviceModule {
 public:
     virtual ~SharedAudioDeviceModule() = default;
     
 public:
-    virtual rtc::scoped_refptr<webrtc::tgcalls_ios_adm::AudioDeviceModuleIOS> audioDeviceModule() = 0;
+    virtual rtc::scoped_refptr<tgcalls::WrappedAudioDeviceModule> audioDeviceModule() = 0;
+    virtual rtc::scoped_refptr<tgcalls::WrappedAudioDeviceModule> makeChildAudioDeviceModule(bool isActive) = 0;
     virtual void start() = 0;
 };
 
 }
 
+class WrappedAudioDeviceModuleIOS : public tgcalls::DefaultWrappedAudioDeviceModule, public webrtc::AudioTransport {
+public:
+    WrappedAudioDeviceModuleIOS(webrtc::scoped_refptr<webrtc::AudioDeviceModule> impl) :
+    tgcalls::DefaultWrappedAudioDeviceModule(impl) {
+    }
+
+    virtual ~WrappedAudioDeviceModuleIOS() {
+        ActualStop();
+    }
+
+    virtual int32_t ActiveAudioLayer(AudioLayer *audioLayer) const override {
+        return 0;
+    }
+    
+    void UpdateAudioCallback(webrtc::AudioTransport *previousAudioCallback, webrtc::AudioTransport *audioCallback, bool isActive) {
+        _mutex.Lock();
+        
+        if (audioCallback) {
+            _audioTransports.push_back(std::make_pair(audioCallback, isActive));
+        } else if (previousAudioCallback) {
+            for (size_t i = 0; i < _audioTransports.size(); i++) {
+                if (_audioTransports[i].first == previousAudioCallback) {
+                    _audioTransports.erase(_audioTransports.begin() + i);
+                    break;
+                }
+            }
+        }
+        
+        _mutex.Unlock();
+    }
+    
+    void UpdateAudioCallbackIsActive(webrtc::AudioTransport *audioCallback, bool isActive) {
+        _mutex.Lock();
+        
+        for (auto &it : _audioTransports) {
+            if (it.first == audioCallback) {
+                it.second = isActive;
+            }
+        }
+        
+        _mutex.Unlock();
+    }
+
+    virtual int32_t RegisterAudioCallback(webrtc::AudioTransport *audioCallback) override {
+        return 0;
+    }
+
+    virtual int32_t Init() override {
+        return 0;
+    }
+
+    virtual int32_t Terminate() override {
+        return 0;
+    }
+
+    virtual bool Initialized() const override {
+        return true;
+    }
+
+    virtual int16_t PlayoutDevices() override {
+        return 0;
+    }
+
+    virtual int16_t RecordingDevices() override {
+        return 0;
+    }
+
+    virtual int32_t PlayoutDeviceName(uint16_t index, char name[webrtc::kAdmMaxDeviceNameSize], char guid[webrtc::kAdmMaxGuidSize]) override {
+        return -1;
+    }
+
+    virtual int32_t RecordingDeviceName(uint16_t index, char name[webrtc::kAdmMaxDeviceNameSize], char guid[webrtc::kAdmMaxGuidSize]) override {
+        return -1;
+    }
+
+    virtual int32_t SetPlayoutDevice(uint16_t index) override {
+        return 0;
+    }
+
+    virtual int32_t SetPlayoutDevice(WindowsDeviceType device) override {
+        return 0;
+    }
+
+    virtual int32_t SetRecordingDevice(uint16_t index) override {
+        return 0;
+    }
+
+    virtual int32_t SetRecordingDevice(WindowsDeviceType device) override {
+        return 0;
+    }
+
+    virtual int32_t PlayoutIsAvailable(bool *available) override {
+        return 0;
+    }
+
+    virtual int32_t InitPlayout() override {
+        return 0;
+    }
+
+    virtual bool PlayoutIsInitialized() const override {
+        return true;
+    }
+
+    virtual int32_t RecordingIsAvailable(bool *available) override {
+        if (available) {
+            *available = true;
+        }
+        return 0;
+    }
+
+    virtual int32_t InitRecording() override {
+        return 0;
+    }
+
+    virtual bool RecordingIsInitialized() const override {
+        return true;
+    }
+
+    virtual int32_t StartPlayout() override {
+        return 0;
+    }
+
+    virtual int32_t StopPlayout() override {
+        return 0;
+    }
+
+    virtual bool Playing() const override {
+        return true;
+    }
+
+    virtual int32_t StartRecording() override {
+        return 0;
+    }
+
+    virtual int32_t StopRecording() override {
+        return 0;
+    }
+
+    virtual bool Recording() const override {
+        return true;
+    }
+
+    virtual int32_t InitSpeaker() override {
+        return 0;
+    }
+
+    virtual bool SpeakerIsInitialized() const override {
+        return true;
+    }
+
+    virtual int32_t InitMicrophone() override {
+        return 0;
+    }
+
+    virtual bool MicrophoneIsInitialized() const override {
+        return true;
+    }
+
+    virtual int32_t SpeakerVolumeIsAvailable(bool *available) override {
+        if (available) {
+            *available = false;
+        }
+        return 0;
+    }
+
+    virtual int32_t SetSpeakerVolume(uint32_t volume) override {
+        return 0;
+    }
+
+    virtual int32_t SpeakerVolume(uint32_t* volume) const override {
+        if (volume) {
+            *volume = 0;
+        }
+        return 0;
+    }
+
+    virtual int32_t MaxSpeakerVolume(uint32_t *maxVolume) const override {
+        if (maxVolume) {
+            *maxVolume = 0;
+        }
+        return 0;
+    }
+
+    virtual int32_t MinSpeakerVolume(uint32_t *minVolume) const override {
+        if (minVolume) {
+            *minVolume = 0;
+        }
+        return 0;
+    }
+
+    virtual int32_t MicrophoneVolumeIsAvailable(bool *available) override {
+        if (available) {
+            *available = false;
+        }
+        return 0;
+    }
+
+    virtual int32_t SetMicrophoneVolume(uint32_t volume) override {
+        return 0;
+    }
+
+    virtual int32_t MicrophoneVolume(uint32_t *volume) const override {
+        if (volume) {
+            *volume = 0;
+        }
+        return 0;
+    }
+
+    virtual int32_t MaxMicrophoneVolume(uint32_t *maxVolume) const override {
+        if (maxVolume) {
+            *maxVolume = 0;
+        }
+        return 0;
+    }
+
+    virtual int32_t MinMicrophoneVolume(uint32_t *minVolume) const override {
+        if (minVolume) {
+            *minVolume = 0;
+        }
+        return 0;
+    }
+
+    virtual int32_t SpeakerMuteIsAvailable(bool *available) override {
+        if (available) {
+            *available = false;
+        }
+        return 0;
+    }
+
+    virtual int32_t SetSpeakerMute(bool enable) override {
+        return 0;
+    }
+
+    virtual int32_t SpeakerMute(bool *enabled) const override {
+        if (enabled) {
+            *enabled = false;
+        }
+        return 0;
+    }
+
+    virtual int32_t MicrophoneMuteIsAvailable(bool *available) override {
+        if (available) {
+            *available = false;
+        }
+        return 0;
+    }
+
+    virtual int32_t SetMicrophoneMute(bool enable) override {
+        return 0;
+    }
+
+    virtual int32_t MicrophoneMute(bool *enabled) const override {
+        if (enabled) {
+            *enabled = false;
+        }
+        return 0;
+    }
+
+    virtual int32_t StereoPlayoutIsAvailable(bool *available) const override {
+        if (available) {
+            *available = false;
+        }
+        return 0;
+    }
+
+    virtual int32_t SetStereoPlayout(bool enable) override {
+        return 0;
+    }
+
+    virtual int32_t StereoPlayout(bool *enabled) const override {
+        if (enabled) {
+            *enabled = false;
+        }
+        return 0;
+    }
+
+    virtual int32_t StereoRecordingIsAvailable(bool *available) const override {
+        if (available) {
+            *available = false;
+        }
+        return 0;
+    }
+
+    virtual int32_t SetStereoRecording(bool enable) override {
+        return 0;
+    }
+
+    virtual int32_t StereoRecording(bool *enabled) const override {
+        if (enabled) {
+            *enabled = false;
+        }
+        return 0;
+    }
+
+    virtual int32_t PlayoutDelay(uint16_t* delayMS) const override {
+        if (delayMS) {
+            *delayMS = 0;
+        }
+        return 0;
+    }
+
+    virtual bool BuiltInAECIsAvailable() const override {
+        return true;
+    }
+
+    virtual bool BuiltInAGCIsAvailable() const override {
+        return true;
+    }
+
+    virtual bool BuiltInNSIsAvailable() const override {
+        return true;
+    }
+
+    virtual int32_t EnableBuiltInAEC(bool enable) override {
+        return 0;
+    }
+
+    virtual int32_t EnableBuiltInAGC(bool enable) override {
+        return 0;
+    }
+
+    virtual int32_t EnableBuiltInNS(bool enable) override {
+        return 0;
+    }
+
+    virtual int32_t GetPlayoutUnderrunCount() const override {
+        return 0;
+    }
+    
+    virtual int GetPlayoutAudioParameters(webrtc::AudioParameters *params) const override {
+        return WrappedInstance()->GetPlayoutAudioParameters(params);
+    }
+    
+    virtual int GetRecordAudioParameters(webrtc::AudioParameters *params) const override {
+        return WrappedInstance()->GetRecordAudioParameters(params);
+    }
+    
+public:
+    virtual int32_t RecordedDataIsAvailable(
+        const void* audioSamples,
+        size_t nSamples,
+        size_t nBytesPerSample,
+        size_t nChannels,
+        uint32_t samplesPerSec,
+        uint32_t totalDelayMS,
+        int32_t clockDrift,
+        uint32_t currentMicLevel,
+        bool keyPressed,
+        uint32_t& newMicLevel
+    ) override {
+        _mutex.Lock();
+        if (!_audioTransports.empty()) {
+            for (size_t i = 0; i < _audioTransports.size(); i++) {
+                _audioTransports[i].first->RecordedDataIsAvailable(
+                    audioSamples,
+                    nSamples,
+                    nBytesPerSample,
+                    nChannels,
+                    samplesPerSec,
+                    totalDelayMS,
+                    clockDrift,
+                    currentMicLevel,
+                    keyPressed,
+                    newMicLevel
+                );
+            }
+        }
+        _mutex.Unlock();
+        return 0;
+    }
+    
+    virtual int32_t RecordedDataIsAvailable(
+        const void *audioSamples,
+        size_t nSamples,
+        size_t nBytesPerSample,
+        size_t nChannels,
+        uint32_t samplesPerSec,
+        uint32_t totalDelayMS,
+        int32_t clockDrift,
+        uint32_t currentMicLevel,
+        bool keyPressed,
+        uint32_t& newMicLevel,
+        absl::optional<int64_t> estimatedCaptureTimeNS
+    ) override {
+        _mutex.Lock();
+        if (!_audioTransports.empty()) {
+            for (size_t i = 0; i < _audioTransports.size(); i++) {
+                _audioTransports[i].first->RecordedDataIsAvailable(
+                    audioSamples,
+                    nSamples,
+                    nBytesPerSample,
+                    nChannels,
+                    samplesPerSec,
+                    totalDelayMS,
+                    clockDrift,
+                    currentMicLevel,
+                    keyPressed,
+                    newMicLevel,
+                    estimatedCaptureTimeNS
+                );
+            }
+        }
+        _mutex.Unlock();
+        return 0;
+    }
+
+    // Implementation has to setup safe values for all specified out parameters.
+    virtual int32_t NeedMorePlayData(
+        size_t nSamples,
+        size_t nBytesPerSample,
+        size_t nChannels,
+        uint32_t samplesPerSec,
+        void* audioSamples,
+        size_t& nSamplesOut,
+        int64_t* elapsed_time_ms,
+        int64_t* ntp_time_ms
+    ) override {
+        _mutex.Lock();
+        
+        int32_t result = 0;
+        if (!_audioTransports.empty()) {
+            if (_audioTransports.size() > 1) {
+                size_t totalNumSamples = nSamples * nBytesPerSample * nChannels;
+                if (_mixAudioSamples.size() < totalNumSamples) {
+                    _mixAudioSamples.resize(totalNumSamples);
+                }
+                memset(audioSamples, 0, totalNumSamples);
+
+                int16_t *resultAudioSamples = (int16_t *)audioSamples;
+
+                for (size_t i = 0; i < _audioTransports.size(); i++) {
+                    if (!_audioTransports[i].second) {
+                        continue;
+                    }
+                    int64_t localElapsedTimeMs = 0;
+                    int64_t localNtpTimeMs = 0;
+                    size_t localNSamplesOut = 0;
+                    
+                    _audioTransports[i].first->NeedMorePlayData(
+                        nSamples,
+                        nBytesPerSample,
+                        nChannels,
+                        samplesPerSec,
+                        _mixAudioSamples.data(),
+                        localNSamplesOut,
+                        &localElapsedTimeMs,
+                        &localNtpTimeMs
+                    );
+
+                    for (size_t j = 0; j < localNSamplesOut; j++) {
+                        int32_t mixedSample = (int32_t)resultAudioSamples[j] + (int32_t)_mixAudioSamples[j];
+                        resultAudioSamples[j] = (int16_t)std::clamp(mixedSample, INT16_MIN, INT16_MAX);
+                    }
+                    
+                    if (i == _audioTransports.size() - 1) {
+                        nSamplesOut = localNSamplesOut;
+                        if (elapsed_time_ms) {
+                            *elapsed_time_ms = localElapsedTimeMs;
+                        }
+                        if (ntp_time_ms) {
+                            *ntp_time_ms = localNtpTimeMs;
+                        }
+                    }
+                }
+                nSamplesOut = nSamples;
+            } else {
+                result = _audioTransports[_audioTransports.size() - 1].first->NeedMorePlayData(
+                    nSamples,
+                    nBytesPerSample,
+                    nChannels,
+                    samplesPerSec,
+                    audioSamples,
+                    nSamplesOut,
+                    elapsed_time_ms,
+                    ntp_time_ms
+                );
+            }
+        } else {
+            nSamplesOut = 0;
+        }
+        
+        _mutex.Unlock();
+        
+        return result;
+    }
+
+    virtual void PullRenderData(
+        int bits_per_sample,
+        int sample_rate,
+        size_t number_of_channels,
+        size_t number_of_frames,
+        void* audio_data,
+        int64_t* elapsed_time_ms,
+        int64_t* ntp_time_ms
+    ) override {
+        _mutex.Lock();
+        
+        if (!_audioTransports.empty()) {
+            _audioTransports[_audioTransports.size() - 1].first->PullRenderData(
+                bits_per_sample,
+                sample_rate,
+                number_of_channels,
+                number_of_frames,
+                audio_data,
+                elapsed_time_ms,
+                ntp_time_ms
+            );
+        }
+        
+        _mutex.Unlock();
+    }
+    
+public:
+    virtual void Start() {
+        if (!_isStarted) {
+            _isStarted = true;
+            WrappedInstance()->Init();
+            
+            WrappedInstance()->RegisterAudioCallback(this);
+            
+            if (!WrappedInstance()->Playing()) {
+                WrappedInstance()->InitPlayout();
+                for (int i = 0; i < 3; i++) {
+                    if (!WrappedInstance()->PlayoutIsInitialized()) {
+                        sleep(1);
+                        WrappedInstance()->InitPlayout();
+                    } else {
+                        break;
+                    }
+                }
+                if (!WrappedInstance()->PlayoutIsInitialized()) {
+                    return;
+                }
+                WrappedInstance()->StartPlayout();
+                WrappedInstance()->InitRecording();
+                WrappedInstance()->StartRecording();
+            }
+        }
+    }
+
+    virtual void Stop() override {
+    }
+    
+    virtual void setIsActive(bool isActive) override {
+    }
+    
+    virtual void ActualStop() {
+        if (_isStarted) {
+            _isStarted = false;
+            WrappedInstance()->StopPlayout();
+            WrappedInstance()->StopRecording();
+            WrappedInstance()->Terminate();
+        }
+    }
+    
+private:
+    bool _isStarted = false;
+    std::vector<std::pair<webrtc::AudioTransport *, bool>> _audioTransports;
+    webrtc::Mutex _mutex;
+    std::vector<int16_t> _mixAudioSamples;
+};
+
+class WrappedChildAudioDeviceModule : public tgcalls::DefaultWrappedAudioDeviceModule {
+public:
+    WrappedChildAudioDeviceModule(webrtc::scoped_refptr<WrappedAudioDeviceModuleIOS> impl, bool isActive) :
+    tgcalls::DefaultWrappedAudioDeviceModule(impl),
+    _isActive(isActive) {
+    }
+    
+    virtual ~WrappedChildAudioDeviceModule() {
+        if (_audioCallback) {
+            auto previousAudioCallback = _audioCallback;
+            _audioCallback = nullptr;
+            ((WrappedAudioDeviceModuleIOS *)WrappedInstance().get())->UpdateAudioCallback(previousAudioCallback, nullptr, false);
+        }
+    }
+    
+    virtual int32_t RegisterAudioCallback(webrtc::AudioTransport *audioCallback) override {
+        auto previousAudioCallback = _audioCallback;
+        _audioCallback = audioCallback;
+        
+        if (_isActive) {
+            ((WrappedAudioDeviceModuleIOS *)WrappedInstance().get())->UpdateAudioCallback(previousAudioCallback, audioCallback, _isActive);
+        }
+        
+        return 0;
+    }
+    
+    void setIsActive(bool isActive) override {
+        if (_isActive == isActive) {
+            return;
+        }
+        _isActive = isActive;
+        
+        if (_audioCallback) {
+            ((WrappedAudioDeviceModuleIOS *)WrappedInstance().get())->UpdateAudioCallbackIsActive(_audioCallback, isActive);
+        }
+    }
+    
+private:
+    webrtc::AudioTransport *_audioCallback = nullptr;
+    bool _isActive = false;
+};
+
 class SharedAudioDeviceModuleImpl: public tgcalls::SharedAudioDeviceModule {
 public:
     SharedAudioDeviceModuleImpl(bool disableAudioInput, bool enableSystemMute) {
         RTC_DCHECK(tgcalls::StaticThreads::getThreads()->getWorkerThread()->IsCurrent());
-        _audioDeviceModule = rtc::make_ref_counted<webrtc::tgcalls_ios_adm::AudioDeviceModuleIOS>(false, disableAudioInput, enableSystemMute, disableAudioInput ? 2 : 1);
+        auto sourceDeviceModule = rtc::make_ref_counted<webrtc::tgcalls_ios_adm::AudioDeviceModuleIOS>(false, disableAudioInput, enableSystemMute, disableAudioInput ? 2 : 1);
+        _audioDeviceModule = rtc::make_ref_counted<WrappedAudioDeviceModuleIOS>(sourceDeviceModule);
     }
     
     virtual ~SharedAudioDeviceModuleImpl() override {
         if (tgcalls::StaticThreads::getThreads()->getWorkerThread()->IsCurrent()) {
-            if (_audioDeviceModule->Playing()) {
-                _audioDeviceModule->StopPlayout();
-                _audioDeviceModule->StopRecording();
-            }
+            _audioDeviceModule->ActualStop();
             _audioDeviceModule = nullptr;
         } else {
             tgcalls::StaticThreads::getThreads()->getWorkerThread()->BlockingCall([&]() {
-                if (_audioDeviceModule->Playing()) {
-                    _audioDeviceModule->StopPlayout();
-                    _audioDeviceModule->StopRecording();
-                }
+                _audioDeviceModule->ActualStop();
                 _audioDeviceModule = nullptr;
             });
         }
     }
     
 public:
-    virtual rtc::scoped_refptr<webrtc::tgcalls_ios_adm::AudioDeviceModuleIOS> audioDeviceModule() override {
+    virtual rtc::scoped_refptr<tgcalls::WrappedAudioDeviceModule> audioDeviceModule() override {
         return _audioDeviceModule;
+    }
+    
+    rtc::scoped_refptr<tgcalls::WrappedAudioDeviceModule> makeChildAudioDeviceModule(bool isActive) override {
+        return rtc::make_ref_counted<WrappedChildAudioDeviceModule>(_audioDeviceModule, isActive);
     }
     
     virtual void start() override {
         RTC_DCHECK(tgcalls::StaticThreads::getThreads()->getWorkerThread()->IsCurrent());
         
-        _audioDeviceModule->Init();
-        if (!_audioDeviceModule->Playing()) {
-            _audioDeviceModule->InitPlayout();
-            //_audioDeviceModule->InitRecording();
-            if (_audioDeviceModule->PlayoutIsInitialized()) {
-                _audioDeviceModule->InternalStartPlayout();
-            }
-            //_audioDeviceModule->InternalStartRecording();
-        }
+        _audioDeviceModule->Start();
     }
     
 private:
-    rtc::scoped_refptr<webrtc::tgcalls_ios_adm::AudioDeviceModuleIOS> _audioDeviceModule;
+    rtc::scoped_refptr<WrappedAudioDeviceModuleIOS> _audioDeviceModule;
 };
 
 @implementation SharedCallAudioDevice {
@@ -145,7 +798,11 @@ private:
 
 - (void)setTone:(CallAudioTone * _Nullable)tone {
     _audioDeviceModule->perform([tone](tgcalls::SharedAudioDeviceModule *audioDeviceModule) {
-        audioDeviceModule->audioDeviceModule()->setTone([tone asTone]);
+        #ifdef WEBRTC_IOS
+        WrappedAudioDeviceModuleIOS *deviceModule = (WrappedAudioDeviceModuleIOS *)audioDeviceModule->audioDeviceModule().get();
+        webrtc::tgcalls_ios_adm::AudioDeviceModuleIOS *deviceModule_iOS = (webrtc::tgcalls_ios_adm::AudioDeviceModuleIOS *)deviceModule->WrappedInstance().get();
+        deviceModule_iOS->setTone([tone asTone]);
+        #endif
     });
 }
 
@@ -667,8 +1324,11 @@ tgcalls::VideoCaptureInterfaceObject *GetVideoCaptureAssumingSameThread(tgcalls:
 }
 
 #if TARGET_OS_IOS
-- (void)submitPixelBuffer:(CVPixelBufferRef _Nonnull)pixelBuffer rotation:(OngoingCallVideoOrientationWebrtc)rotation {
-    if (!pixelBuffer) {
+- (void)submitSampleBuffer:(CMSampleBufferRef _Nonnull)sampleBuffer rotation:(OngoingCallVideoOrientationWebrtc)rotation completion:(void (^_Nonnull)())completion {
+    if (!sampleBuffer) {
+        if (completion) {
+            completion();
+        }
         return;
     }
     
@@ -688,19 +1348,30 @@ tgcalls::VideoCaptureInterfaceObject *GetVideoCaptureAssumingSameThread(tgcalls:
         break;
     }
 
-    if (_isProcessingCustomSampleBuffer.value) {
+    /*if (_isProcessingCustomSampleBuffer.value) {
+        if (completion) {
+            completion();
+        }
         return;
-    }
+    }*/
     _isProcessingCustomSampleBuffer.value = true;
 
-    tgcalls::StaticThreads::getThreads()->getMediaThread()->PostTask([interface = _interface, pixelBuffer = CFRetain(pixelBuffer), croppingBuffer = _croppingBuffer, videoRotation = videoRotation, isProcessingCustomSampleBuffer = _isProcessingCustomSampleBuffer]() {
+    void (^capturedCompletion)() = [completion copy];
+    
+    tgcalls::StaticThreads::getThreads()->getMediaThread()->PostTask([interface = _interface, sampleBuffer = CFRetain(sampleBuffer), croppingBuffer = _croppingBuffer, videoRotation = videoRotation, isProcessingCustomSampleBuffer = _isProcessingCustomSampleBuffer, capturedCompletion]() {
         auto capture = GetVideoCaptureAssumingSameThread(interface.get());
         auto source = capture->source();
         if (source) {
-            [CustomExternalCapturer passPixelBuffer:(CVPixelBufferRef)pixelBuffer rotation:videoRotation toSource:source croppingBuffer:*croppingBuffer];
+            CVImageBufferRef pixelBuffer = CMSampleBufferGetImageBuffer((CMSampleBufferRef)sampleBuffer);
+            
+            [CustomExternalCapturer passPixelBuffer:pixelBuffer sampleBufferReference:(CMSampleBufferRef)sampleBuffer rotation:videoRotation toSource:source croppingBuffer:*croppingBuffer];
         }
-        CFRelease(pixelBuffer);
+        CFRelease(sampleBuffer);
         isProcessingCustomSampleBuffer.value = false;
+        
+        if (capturedCompletion) {
+            capturedCompletion();
+        }
     });
 }
 
@@ -937,9 +1608,6 @@ static void (*InternalVoipLoggingFunction)(NSString *) = NULL;
 }
 
 + (void)applyServerConfig:(NSString *)string {
-    if (string.length != 0) {
-        //TgVoip::setGlobalServerConfig(std::string(string.UTF8String));
-    }
 }
 
 + (void)setupAudioSession {
@@ -963,7 +1631,6 @@ static void (*InternalVoipLoggingFunction)(NSString *) = NULL;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         tgcalls::Register<tgcalls::InstanceImpl>();
-        //tgcalls::Register<tgcalls::InstanceV2_4_0_0Impl>();
         tgcalls::Register<tgcalls::InstanceV2Impl>();
         tgcalls::Register<tgcalls::InstanceV2ReferenceImpl>();
     });
@@ -1287,6 +1954,14 @@ static void (*InternalVoipLoggingFunction)(NSString *) = NULL;
                         }
                     }];
                     return resultModule;
+                }
+            },
+            .createWrappedAudioDeviceModule = [audioDeviceModule](webrtc::TaskQueueFactory *taskQueueFactory) -> rtc::scoped_refptr<tgcalls::WrappedAudioDeviceModule> {
+                if (audioDeviceModule) {
+                    auto result = audioDeviceModule->getSyncAssumingSameThread()->makeChildAudioDeviceModule(true);
+                    return result;
+                } else {
+                    return nullptr;
                 }
             },
             .directConnectionChannel = directConnectionChannel
@@ -1614,6 +2289,17 @@ static void (*InternalVoipLoggingFunction)(NSString *) = NULL;
     }
 }
 
+- (void)deactivateIncomingAudio {
+    if (_currentAudioDeviceModuleThread) {
+        auto currentAudioDeviceModule = _currentAudioDeviceModule;
+        if (currentAudioDeviceModule) {
+            _currentAudioDeviceModuleThread->PostTask([currentAudioDeviceModule]() {
+                ((tgcalls::WrappedAudioDeviceModule *)currentAudioDeviceModule.get())->setIsActive(false);
+            });
+        }
+    }
+}
+
 @end
 
 namespace {
@@ -1671,6 +2357,8 @@ private:
     SharedCallAudioDevice * _audioDevice;
     
     void (^_onMutedSpeechActivityDetected)(bool);
+    
+    int32_t _signalBars;
 }
 
 @end
@@ -1680,6 +2368,7 @@ private:
 - (instancetype _Nonnull)initWithQueue:(id<OngoingCallThreadLocalContextQueueWebrtc> _Nonnull)queue
     networkStateUpdated:(void (^ _Nonnull)(GroupCallNetworkState))networkStateUpdated
     audioLevelsUpdated:(void (^ _Nonnull)(NSArray<NSNumber *> * _Nonnull))audioLevelsUpdated
+    activityUpdated:(void (^ _Nonnull)(NSArray<NSNumber *> * _Nonnull))activityUpdated
     inputDeviceId:(NSString * _Nonnull)inputDeviceId
     outputDeviceId:(NSString * _Nonnull)outputDeviceId
     videoCapturer:(OngoingCallThreadLocalContextVideoCapturer * _Nullable)videoCapturer
@@ -1692,15 +2381,17 @@ private:
     enableNoiseSuppression:(bool)enableNoiseSuppression
     disableAudioInput:(bool)disableAudioInput
     enableSystemMute:(bool)enableSystemMute
-    preferX264:(bool)preferX264
+prioritizeVP8:(bool)prioritizeVP8
     logPath:(NSString * _Nonnull)logPath
+statsLogPath:(NSString * _Nonnull)statsLogPath
 onMutedSpeechActivityDetected:(void (^ _Nullable)(bool))onMutedSpeechActivityDetected
-audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
+audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice
+isConference:(bool)isConference
+isActiveByDefault:(bool)isActiveByDefault
+encryptDecrypt:(NSData * _Nullable (^ _Nullable)(NSData * _Nonnull, int64_t, bool, int32_t))encryptDecrypt {
     self = [super init];
     if (self != nil) {
         _queue = queue;
-        
-        tgcalls::PlatformInterface::SharedInstance()->preferX264 = preferX264;
 
         _sinks = [[NSMutableDictionary alloc] init];
         
@@ -1753,6 +2444,9 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
 #endif
         
         std::vector<tgcalls::VideoCodecName> videoCodecPreferences;
+        if (prioritizeVP8) {
+            videoCodecPreferences.push_back(tgcalls::VideoCodecName::VP8);
+        }
 
         int minOutgoingVideoBitrateKbit = 500;
         bool disableOutgoingAudioProcessing = false;
@@ -1760,11 +2454,27 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
         tgcalls::GroupConfig config;
         config.need_log = true;
         config.logPath.data = std::string(logPath.length == 0 ? "" : logPath.UTF8String);
+        
+        std::string statsLogPathValue(statsLogPath.length == 0 ? "" : statsLogPath.UTF8String);
+        
+        std::function<std::vector<uint8_t>(std::vector<uint8_t> const &, int64_t, bool, int32_t)> mappedEncryptDecrypt;
+        if (encryptDecrypt) {
+            NSData * _Nullable (^encryptDecryptBlock)(NSData * _Nonnull, int64_t, bool, int32_t) = [encryptDecrypt copy];
+            mappedEncryptDecrypt = [encryptDecryptBlock](std::vector<uint8_t> const &message, int64_t userId, bool isEncrypt, int32_t plaintextPrefixLength) -> std::vector<uint8_t> {
+                NSData *mappedMessage = [[NSData alloc] initWithBytes:message.data() length:message.size()];
+                NSData *result = encryptDecryptBlock(mappedMessage, userId, isEncrypt, plaintextPrefixLength);
+                if (!result) {
+                    return std::vector<uint8_t>();
+                }
+                return std::vector<uint8_t>((uint8_t *)result.bytes, ((uint8_t *)result.bytes) + result.length);
+            };
+        }
 
         __weak GroupCallThreadLocalContext *weakSelf = self;
         _instance.reset(new tgcalls::GroupInstanceCustomImpl((tgcalls::GroupInstanceDescriptor){
             .threads = tgcalls::StaticThreads::getThreads(),
             .config = config,
+            .statsLogPath = statsLogPathValue,
             .networkStateUpdated = [weakSelf, queue, networkStateUpdated](tgcalls::GroupNetworkState networkState) {
                 [queue dispatch:^{
                     __strong GroupCallThreadLocalContext *strongSelf = weakSelf;
@@ -1774,7 +2484,19 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
                     GroupCallNetworkState mappedState;
                     mappedState.isConnected = networkState.isConnected;
                     mappedState.isTransitioningFromBroadcastToRtc = networkState.isTransitioningFromBroadcastToRtc;
+                    mappedState.isBroadcast = networkState.connectionMode == tgcalls::GroupConnectionMode::GroupConnectionModeBroadcast;
                     networkStateUpdated(mappedState);
+                }];
+            },
+            .signalBarsUpdated = [weakSelf, queue](int value) {
+                [queue dispatch:^{
+                    __strong GroupCallThreadLocalContext *strongSelf = weakSelf;
+                    if (strongSelf) {
+                        strongSelf->_signalBars = value;
+                        if (strongSelf->_signalBarsChanged) {
+                            strongSelf->_signalBarsChanged(value);
+                        }
+                    }
                 }];
             },
             .audioLevelsUpdated = [audioLevelsUpdated](tgcalls::GroupLevelsUpdate const &levels) {
@@ -1789,6 +2511,13 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
                     [result addObject:@(it.value.voice)];
                 }
                 audioLevelsUpdated(result);
+            },
+            .ssrcActivityUpdated = [activityUpdated](tgcalls::GroupActivitiesUpdate const &update) {
+                NSMutableArray *result = [[NSMutableArray alloc] init];
+                for (auto &it : update.updates) {
+                    [result addObject:@(it.ssrc)];
+                }
+                activityUpdated(result);
             },
             .initialInputDeviceId = inputDeviceId.UTF8String,
             .initialOutputDeviceId = outputDeviceId.UTF8String,
@@ -1917,6 +2646,7 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
                                 continue;
                             }
                         }
+                        mappedChannel.userId = channel.peerId;
                         mappedChannel.audioSsrc = channel.audioSsrc;
                         mappedChannel.videoInformation = channel.videoDescription.UTF8String ?: "";
                         mappedChannels.push_back(std::move(mappedChannel));
@@ -1951,6 +2681,14 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
                     return resultModule;
                 }
             },
+            .createWrappedAudioDeviceModule = [audioDeviceModule, isActiveByDefault](webrtc::TaskQueueFactory *taskQueueFactory) -> rtc::scoped_refptr<tgcalls::WrappedAudioDeviceModule> {
+                if (audioDeviceModule) {
+                    auto result = audioDeviceModule->getSyncAssumingSameThread()->makeChildAudioDeviceModule(isActiveByDefault || true);
+                    return result;
+                } else {
+                    return nullptr;
+                }
+            },
             .onMutedSpeechActivityDetected = [weakSelf, queue](bool value) {
                 [queue dispatch:^{
                     __strong GroupCallThreadLocalContext *strongSelf = weakSelf;
@@ -1958,7 +2696,9 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
                         strongSelf->_onMutedSpeechActivityDetected(value);
                     }
                 }];
-            }
+            },
+            .e2eEncryptDecrypt = mappedEncryptDecrypt,
+            .isConference = isConference
         }));
     }
     return self;
@@ -1974,7 +2714,7 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
     }
 }
 
-- (void)stop {
+- (void)stop:(void (^ _Nullable)())completion {
     if (_currentAudioDeviceModuleThread) {
         auto currentAudioDeviceModule = _currentAudioDeviceModule;
         _currentAudioDeviceModule = nullptr;
@@ -1984,8 +2724,17 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
     }
     
     if (_instance) {
-        _instance->stop();
+        void (^capturedCompletion)() = [completion copy];
+        _instance->stop([capturedCompletion] {
+            if (capturedCompletion) {
+                capturedCompletion();
+            }
+        });
         _instance.reset();
+    } else {
+        if (completion) {
+            completion();
+        }
     }
 }
 
@@ -2100,6 +2849,7 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
         for (OngoingGroupCallRequestedVideoChannel *channel : requestedVideoChannels) {
             tgcalls::VideoChannelDescription description;
             description.audioSsrc = channel.audioSsrc;
+            description.userId = channel.userId;
             description.endpointId = channel.endpointId.UTF8String ?: "";
             for (OngoingGroupCallSsrcGroup *group in channel.ssrcGroups) {
                 tgcalls::MediaSsrcGroup parsedGroup;
@@ -2277,16 +3027,29 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
     }
 }
 
+- (void)activateIncomingAudio {
+    if (_currentAudioDeviceModuleThread) {
+        auto currentAudioDeviceModule = _currentAudioDeviceModule;
+        if (currentAudioDeviceModule) {
+            _currentAudioDeviceModuleThread->PostTask([currentAudioDeviceModule]() {
+                ((tgcalls::WrappedAudioDeviceModule *)currentAudioDeviceModule.get())->setIsActive(true);
+            });
+        }
+    }
+}
+
 @end
 
 @implementation OngoingGroupCallMediaChannelDescription
 
 - (instancetype _Nonnull)initWithType:(OngoingGroupCallMediaChannelType)type
-    audioSsrc:(uint32_t)audioSsrc
-    videoDescription:(NSString * _Nullable)videoDescription {
+                               peerId:(int64_t)peerId
+                            audioSsrc:(uint32_t)audioSsrc
+                     videoDescription:(NSString * _Nullable)videoDescription {
     self = [super init];
     if (self != nil) {
         _type = type;
+        _peerId = peerId;
         _audioSsrc = audioSsrc;
         _videoDescription = videoDescription;
     }
@@ -2325,10 +3088,11 @@ audioDevice:(SharedCallAudioDevice * _Nullable)audioDevice {
 
 @implementation OngoingGroupCallRequestedVideoChannel
 
-- (instancetype)initWithAudioSsrc:(uint32_t)audioSsrc endpointId:(NSString * _Nonnull)endpointId ssrcGroups:(NSArray<OngoingGroupCallSsrcGroup *> * _Nonnull)ssrcGroups minQuality:(OngoingGroupCallRequestedVideoQuality)minQuality maxQuality:(OngoingGroupCallRequestedVideoQuality)maxQuality {
+- (instancetype)initWithAudioSsrc:(uint32_t)audioSsrc userId:(int64_t)userId endpointId:(NSString * _Nonnull)endpointId ssrcGroups:(NSArray<OngoingGroupCallSsrcGroup *> * _Nonnull)ssrcGroups minQuality:(OngoingGroupCallRequestedVideoQuality)minQuality maxQuality:(OngoingGroupCallRequestedVideoQuality)maxQuality {
     self = [super init];
     if (self != nil) {
         _audioSsrc = audioSsrc;
+        _userId = userId;
         _endpointId = endpointId;
         _ssrcGroups = ssrcGroups;
         _minQuality = minQuality;

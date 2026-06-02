@@ -36,11 +36,39 @@ private class WebViewTouchGestureRecognizer: UITapGestureRecognizer {
     }
 }
 
-private let eventProxySource = "var TelegramWebviewProxyProto = function() {}; " +
-    "TelegramWebviewProxyProto.prototype.postEvent = function(eventName, eventData) { " +
-    "window.webkit.messageHandlers.performAction.postMessage({'eventName': eventName, 'eventData': eventData}); " +
-    "}; " +
-"var TelegramWebviewProxy = new TelegramWebviewProxyProto();"
+private func jsStringLiteral(_ value: String) -> String {
+    if let data = try? JSONSerialization.data(withJSONObject: [value], options: []), let string = String(data: data, encoding: .utf8), string.hasPrefix("["), string.hasSuffix("]") {
+        return String(string.dropFirst().dropLast())
+    }
+    return "\"\""
+}
+
+private func eventProxySource() -> String {
+    return """
+    (function() {
+        var TelegramWebviewProxyProto = function() {};
+        TelegramWebviewProxyProto.prototype.postEvent = function(eventName, eventData) {
+            window.webkit.messageHandlers.performAction.postMessage({'eventName': eventName, 'eventData': eventData});
+        };
+        window.TelegramWebviewProxy = new TelegramWebviewProxyProto();
+    })();
+    """
+}
+
+private func securedEventProxySource(trustedOrigin: String) -> String {
+    return """
+    (function() {
+        if (window.location.origin !== \(jsStringLiteral(trustedOrigin))) {
+            return;
+        }
+        var TelegramWebviewProxyProto = function() {};
+        TelegramWebviewProxyProto.prototype.postEvent = function(eventName, eventData) {
+            window.webkit.messageHandlers.performAction.postMessage({'eventName': eventName, 'eventData': eventData});
+        };
+        window.TelegramWebviewProxy = new TelegramWebviewProxyProto();
+    })();
+    """
+}
 
 private let selectionSource = "var css = '*{-webkit-touch-callout:none;} :not(input):not(textarea):not([\"contenteditable\"=\"true\"]){-webkit-user-select:none;}';"
         + " var head = document.head || document.getElementsByTagName('head')[0];"
@@ -48,11 +76,10 @@ private let selectionSource = "var css = '*{-webkit-touch-callout:none;} :not(in
         " style.appendChild(document.createTextNode(css)); head.appendChild(style);"
 
 private let videoSource = """
+document.addEventListener('DOMContentLoaded', () => {
 function tgBrowserDisableWebkitEnterFullscreen(videoElement) {
   if (videoElement && videoElement.webkitEnterFullscreen) {
-    Object.defineProperty(videoElement, 'webkitEnterFullscreen', {
-      value: undefined
-    });
+    videoElement.setAttribute('playsinline', '');
   }
 }
 
@@ -65,10 +92,10 @@ function tgBrowserHandleMutations(mutations) {
     if (mutation.addedNodes && mutation.addedNodes.length > 0) {
       mutation.addedNodes.forEach((newNode) => {
         if (newNode.tagName === 'VIDEO') {
-          disableWebkitEnterFullscreen(newNode);
+          tgBrowserDisableWebkitEnterFullscreen(newNode);
         }
         if (newNode.querySelectorAll) {
-          newNode.querySelectorAll('video').forEach(disableWebkitEnterFullscreen);
+          newNode.querySelectorAll('video').forEach(tgBrowserDisableWebkitEnterFullscreen);
         }
       });
     }
@@ -87,10 +114,12 @@ _tgbrowser_observer.observe(document.body, {
 function tgBrowserDisconnectObserver() {
   _tgbrowser_observer.disconnect();
 }
+});
 """
 
 final class WebAppWebView: WKWebView {
     var handleScriptMessage: (WKScriptMessage) -> Void = { _ in }
+    private(set) var trustedOrigin: String?
 
     var customInsets: UIEdgeInsets = .zero {
         didSet {
@@ -134,8 +163,6 @@ final class WebAppWebView: WKWebView {
         let contentController = WKUserContentController()
                            
         var handleScriptMessageImpl: ((WKScriptMessage) -> Void)?
-        let eventProxyScript = WKUserScript(source: eventProxySource, injectionTime: .atDocumentStart, forMainFrameOnly: false)
-        contentController.addUserScript(eventProxyScript)
         contentController.add(WeakGameScriptMessageHandler { message in
             handleScriptMessageImpl?(message)
         }, name: "performAction")
@@ -151,9 +178,9 @@ final class WebAppWebView: WKWebView {
         configuration.allowsInlineMediaPlayback = true
         configuration.allowsPictureInPictureMediaPlayback = false
         if #available(iOS 10.0, *) {
-            configuration.mediaTypesRequiringUserActionForPlayback = .audio
+            configuration.mediaTypesRequiringUserActionForPlayback = []
         } else {
-            configuration.mediaPlaybackRequiresUserAction = true
+            configuration.mediaPlaybackRequiresUserAction = false
         }
         
         super.init(frame: CGRect(), configuration: configuration)
@@ -162,12 +189,8 @@ final class WebAppWebView: WKWebView {
         
         self.isOpaque = false
         self.backgroundColor = .clear
-        if #available(iOS 9.0, *) {
-            self.allowsLinkPreview = false
-        }
-        if #available(iOS 11.0, *) {
-            self.scrollView.contentInsetAdjustmentBehavior = .never
-        }
+        self.allowsLinkPreview = false
+        self.scrollView.contentInsetAdjustmentBehavior = .never
         self.interactiveTransitionGestureRecognizerTest = { point -> Bool in
             return point.x > 30.0
         }
@@ -191,6 +214,47 @@ final class WebAppWebView: WKWebView {
         print()
     }
     
+    var useSecuredEventProxy = true
+    func bindTrustedOrigin(from url: URL) {
+        guard self.trustedOrigin == nil else {
+            return
+        }
+        guard let origin = normalizedOrigin(url: url) else {
+            return
+        }
+
+        self.trustedOrigin = origin
+
+        let eventProxyScript = WKUserScript(source: securedEventProxySource(trustedOrigin: origin), injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        self.configuration.userContentController.addUserScript(eventProxyScript)
+    }
+    
+    func setupEventProxySource() {
+        self.useSecuredEventProxy = false
+        
+        let eventProxyScript = WKUserScript(source: eventProxySource(), injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        self.configuration.userContentController.addUserScript(eventProxyScript)
+    }
+
+    func isTrustedMainFrameMessage(_ message: WKScriptMessage) -> Bool {
+        guard message.frameInfo.isMainFrame else {
+            return false
+        }
+        if !self.useSecuredEventProxy {
+            return true
+        }
+        guard let trustedOrigin = self.trustedOrigin else {
+            return false
+        }
+        guard message.frameInfo.securityOriginString == trustedOrigin else {
+            return false
+        }
+        if let currentOrigin = self.origin, currentOrigin != trustedOrigin {
+            return false
+        }
+        return true
+    }
+
     override func didMoveToSuperview() {
         super.didMoveToSuperview()
         
@@ -227,7 +291,12 @@ final class WebAppWebView: WKWebView {
     }
     
     func sendEvent(name: String, data: String?) {
-        let script = "window.TelegramGameProxy.receiveEvent(\"\(name)\", \(data ?? "null"))"
+        if self.useSecuredEventProxy {
+            guard let trustedOrigin = self.trustedOrigin, self.origin == trustedOrigin else {
+                return
+            }
+        }
+        let script = "window.TelegramGameProxy && window.TelegramGameProxy.receiveEvent && window.TelegramGameProxy.receiveEvent(\"\(name)\", \(data ?? "null"))"
         self.evaluateJavaScript(script, completionHandler: { _, _ in
         })
     }
@@ -249,7 +318,7 @@ final class WebAppWebView: WKWebView {
             if let result = result as? CGFloat {
                 Queue.mainQueue().async {
                     let convertedY = result - self.scrollView.contentOffset.y
-                    let viewportHeight = self.frame.height - (layout.inputHeight ?? 0.0) + 26.0
+                    let viewportHeight = self.frame.height
                     if convertedY < 0.0 || (convertedY + 44.0) > viewportHeight {
                         let targetOffset: CGFloat
                         if convertedY < 0.0 {
@@ -280,5 +349,42 @@ final class WebAppWebView: WKWebView {
     
     override var inputAccessoryView: UIView? {
         return nil
+    }
+    
+    var origin: String? {
+        guard let url = self.url else {
+            return nil
+        }
+        return normalizedOrigin(url: url)
+    }
+}
+
+extension WKFrameInfo {
+    var securityOriginString: String {
+        let securityOrigin = self.securityOrigin
+        return normalizedOrigin(scheme: securityOrigin.protocol, host: securityOrigin.host, port: securityOrigin.port == 0 ? nil : securityOrigin.port) ?? ""
+    }
+}
+
+private func normalizedOrigin(url: URL) -> String? {
+    return normalizedOrigin(scheme: url.scheme, host: url.host, port: url.port)
+}
+
+private func normalizedOrigin(scheme: String?, host: String?, port: Int?) -> String? {
+    guard let scheme = scheme?.lowercased(), !scheme.isEmpty, let host = host?.lowercased(), !host.isEmpty else {
+        return nil
+    }
+
+    let includePort: Bool
+    if let port {
+        includePort = !(scheme == "http" && port == 80) && !(scheme == "https" && port == 443)
+    } else {
+        includePort = false
+    }
+
+    if includePort, let port {
+        return "\(scheme)://\(host):\(port)"
+    } else {
+        return "\(scheme)://\(host)"
     }
 }

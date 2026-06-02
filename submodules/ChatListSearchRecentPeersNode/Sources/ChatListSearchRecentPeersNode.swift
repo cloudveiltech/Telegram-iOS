@@ -79,8 +79,7 @@ private struct ChatListSearchRecentPeersEntry: Comparable, Identifiable {
     
     func item(
         accountPeerId: EnginePeer.Id,
-        postbox: Postbox,
-        network: Network,
+        stateManager: AccountStateManager,
         energyUsageSettings: EnergyUsageSettings,
         contentSettings: ContentSettings,
         animationCache: AnimationCache,
@@ -96,8 +95,7 @@ private struct ChatListSearchRecentPeersEntry: Comparable, Identifiable {
             strings: self.strings,
             mode: mode,
             accountPeerId: accountPeerId,
-            postbox: postbox,
-            network: network,
+            stateManager: stateManager,
             energyUsageSettings: energyUsageSettings,
             contentSettings: contentSettings,
             animationCache: animationCache,
@@ -126,8 +124,7 @@ private struct ChatListSearchRecentNodeTransition {
 
 private func preparedRecentPeersTransition(
     accountPeerId: EnginePeer.Id,
-    postbox: Postbox,
-    network: Network,
+    stateManager: AccountStateManager,
     energyUsageSettings: EnergyUsageSettings,
     contentSettings: ContentSettings,
     animationCache: AnimationCache,
@@ -148,8 +145,7 @@ private func preparedRecentPeersTransition(
     let deletions = deleteIndices.map { ListViewDeleteItem(index: $0, directionHint: nil) }
     let insertions = indicesAndItems.map { ListViewInsertItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(
         accountPeerId: accountPeerId,
-        postbox: postbox,
-        network: network,
+        stateManager: stateManager,
         energyUsageSettings: energyUsageSettings,
         contentSettings: contentSettings,
         animationCache: animationCache,
@@ -162,8 +158,7 @@ private func preparedRecentPeersTransition(
     ), directionHint: .Down) }
     let updates = updateIndices.map { ListViewUpdateItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(
         accountPeerId: accountPeerId,
-        postbox: postbox,
-        network: network,
+        stateManager: stateManager,
         energyUsageSettings: energyUsageSettings,
         contentSettings: contentSettings,
         animationCache: animationCache,
@@ -204,8 +199,7 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
     
     public init(
         accountPeerId: EnginePeer.Id,
-        postbox: Postbox,
-        network: Network,
+        stateManager: AccountStateManager,
         energyUsageSettings: EnergyUsageSettings,
         contentSettings: ContentSettings,
         animationCache: AnimationCache,
@@ -214,7 +208,8 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
         theme: PresentationTheme,
         mode: HorizontalPeerItemMode,
         strings: PresentationStrings,
-        peerSelected: @escaping (EnginePeer) -> Void, peerContextAction: @escaping (EnginePeer, ASDisplayNode, ContextGesture?, CGPoint?) -> Void, isPeerSelected: @escaping (EnginePeer.Id) -> Bool, share: Bool = false) {
+        peerSelected: @escaping (EnginePeer) -> Void, peerContextAction: @escaping (EnginePeer, ASDisplayNode, ContextGesture?, CGPoint?) -> Void, isPeerSelected: @escaping (EnginePeer.Id) -> Bool, share: Bool = false)
+    {
         self.theme = theme
         self.strings = strings
         self.themeAndStringsPromise = Promise((self.theme, self.strings))
@@ -224,7 +219,8 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
         self.peerContextAction = peerContextAction
         self.isPeerSelected = isPeerSelected
         
-        self.listView = ListView()
+        self.listView = ListViewImpl()
+        self.listView.preloadPages = false
         self.listView.transform = CATransform3DMakeRotation(-CGFloat.pi / 2.0, 0.0, 0.0, 1.0)
         self.listView.accessibilityPageScrolledString = { row, count in
             return strings.VoiceOver_ScrollStatus(row, count).string
@@ -236,7 +232,7 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
         
         let peersDisposable = DisposableSet()
         
-        let recent: Signal<([EnginePeer], [EnginePeer.Id: (Int32, Bool)], [EnginePeer.Id : EnginePeer.Presence]), NoError> = _internal_recentPeers(accountPeerId: accountPeerId, postbox: postbox)
+        let recent: Signal<([EnginePeer], [EnginePeer.Id: (Int32, Bool)], [EnginePeer.Id : EnginePeer.Presence]), NoError> = _internal_recentPeers(accountPeerId: accountPeerId, postbox: stateManager.postbox)
         |> filter { value -> Bool in
             switch value {
                 case .disabled:
@@ -254,11 +250,11 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
                     peers.filter {
                         !$0.isDeleted
                     }.map {
-                        postbox.peerView(id: $0.id)
+                        stateManager.postbox.peerView(id: $0.id)
                     }
                 )
                 |> mapToSignal { peerViews -> Signal<([EnginePeer], [EnginePeer.Id: (Int32, Bool)], [EnginePeer.Id: EnginePeer.Presence]), NoError> in
-                    return postbox.combinedView(keys: peerViews.map { item -> PostboxViewKey in
+                    return stateManager.postbox.combinedView(keys: peerViews.map { item -> PostboxViewKey in
                         let key = PostboxViewKey.unreadCounts(items: [UnreadMessageCountsItem.peer(id: item.peerId, handleThreads: true)])
                         return key
                     })
@@ -322,8 +318,7 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
                 
                 let transition = preparedRecentPeersTransition(
                     accountPeerId: accountPeerId,
-                    postbox: postbox,
-                    network: network,
+                    stateManager: stateManager,
                     energyUsageSettings: energyUsageSettings,
                     contentSettings: contentSettings,
                     animationCache: animationCache,
@@ -340,15 +335,10 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
                 )
 
                 strongSelf.enqueueTransition(transition)
-                
-                if !strongSelf.didSetReady {
-                    strongSelf.ready.set(.single(true))
-                    strongSelf.didSetReady = true
-                }
             }
         }))
         if case .actionSheet = mode {
-            peersDisposable.add(_internal_managedUpdatedRecentPeers(accountPeerId: accountPeerId, postbox: postbox, network: network).startStrict())
+            peersDisposable.add(_internal_managedUpdatedRecentPeers(accountPeerId: accountPeerId, postbox: stateManager.postbox, network: stateManager.network).startStrict())
         }
         self.disposable.set(peersDisposable)
     }
@@ -371,7 +361,20 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
             } else if transition.animated {
                 options.insert(.AnimateInsertion)
             }
-            self.listView.transaction(deleteIndices: transition.deletions, insertIndicesAndItems: transition.insertions, updateIndicesAndItems: transition.updates, options: options, updateOpaqueState: nil, completion: { _ in })
+            self.listView.transaction(deleteIndices: transition.deletions, insertIndicesAndItems: transition.insertions, updateIndicesAndItems: transition.updates, options: options, updateOpaqueState: nil, completion: { [weak self] _ in
+                guard let self else {
+                    return
+                }
+                if !self.didSetReady {
+                    self.ready.set(.single(true))
+                    self.didSetReady = true
+                }
+                if !self.listView.preloadPages {
+                    Queue.mainQueue().after(0.5) {
+                        self.listView.preloadPages = true
+                    }
+                }
+            })
         }
     }
     

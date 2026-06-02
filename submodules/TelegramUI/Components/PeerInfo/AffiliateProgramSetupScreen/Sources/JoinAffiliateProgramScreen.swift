@@ -100,6 +100,7 @@ private final class JoinAffiliateProgramScreenComponent: Component {
         
         private let title = ComponentView<Empty>()
         private let subtitle = ComponentView<Empty>()
+        private let openBotButton = ComponentView<Empty>()
         private var dailyRevenueText: ComponentView<Empty>?
         private let titleTransformContainer: UIView
         private let bottomPanelContainer: UIView
@@ -449,7 +450,7 @@ private final class JoinAffiliateProgramScreenComponent: Component {
                 })))
             }
             
-            let contextController = ContextController(presentationData: presentationData, source: .reference(HeaderContextReferenceContentSource(controller: controller, sourceView: sourceView, actionsOnTop: true)), items: .single(ContextController.Items(id: AnyHashable(0), content: .list(items))), gesture: nil)
+            let contextController = makeContextController(presentationData: presentationData, source: .reference(HeaderContextReferenceContentSource(controller: controller, sourceView: sourceView, actionsOnTop: true)), items: .single(ContextController.Items(id: AnyHashable(0), content: .list(items))), gesture: nil)
             controller.presentInGlobalOverlay(contextController)
         }
         
@@ -832,6 +833,83 @@ private final class JoinAffiliateProgramScreenComponent: Component {
             self.navigationBackgroundView.update(size: navigationBackgroundFrame.size, cornerRadius: 10.0, maskedCorners: [.layerMinXMinYCorner, .layerMaxXMinYCorner], transition: transition.containedViewLayoutTransition)
             transition.setFrame(layer: self.navigationBarSeparator, frame: CGRect(origin: CGPoint(x: 0.0, y: 54.0), size: CGSize(width: availableSize.width, height: UIScreenPixel)))
             
+            var openBotComponents: [AnyComponentWithIdentity<Empty>] = []
+            var openBotLeftInset: CGFloat = 12.0
+            if case .active = component.mode {
+                openBotLeftInset = 1.0
+                openBotComponents.append(AnyComponentWithIdentity(id: 0, component: AnyComponent(TransformContents(
+                    content: AnyComponent(AvatarComponent(
+                    context: component.context,
+                    peer: component.sourcePeer,
+                    size: CGSize(width: 30.0, height: 30.0)
+                    )), fixedSize: CGSize(width: 30.0, height: 2.0),
+                    translation: CGPoint(x: 0.0, y: 1.0)))))
+            }
+            openBotComponents.append(AnyComponentWithIdentity(id: 1, component: AnyComponent(MultilineTextComponent(
+                text: .plain(NSAttributedString(string: environment.strings.AffiliateProgram_OpenBot(component.sourcePeer.compactDisplayTitle).string, font: Font.medium(15.0), textColor: environment.theme.list.itemInputField.primaryColor))
+            ))))
+            openBotComponents.append(AnyComponentWithIdentity(id: 2, component: AnyComponent(TransformContents(
+                content: AnyComponent(BundleIconComponent(
+                    name: "Item List/DisclosureArrow",
+                    tintColor: environment.theme.list.itemInputField.primaryColor.withMultipliedAlpha(0.5),
+                    scaleFactor: 0.8
+                )),
+                fixedSize: CGSize(width: 8.0, height: 2.0),
+                translation: CGPoint(x: 0.0, y: 2.0)
+            ))))
+            let openBotButtonSize = self.openBotButton.update(
+                transition: .immediate,
+                component: AnyComponent(PlainButtonComponent(
+                    content: AnyComponent(HStack(openBotComponents, spacing: 2.0)),
+                    background: AnyComponent(FilledRoundedRectangleComponent(color: environment.theme.list.itemInputField.backgroundColor, cornerRadius: .minEdge, smoothCorners: false)),
+                    effectAlignment: .center,
+                    minSize: CGSize(width: 1.0, height: 30.0 + 2.0),
+                    contentInsets: UIEdgeInsets(top: 0.0, left: openBotLeftInset, bottom: 0.0, right: 12.0),
+                    action: { [weak self] in
+                        guard let self, let component = self.component, let environment = self.environment else {
+                            return
+                        }
+                        guard let controller = environment.controller(), let navigationController = controller.navigationController as? NavigationController else {
+                            return
+                        }
+                        guard let infoController = component.context.sharedContext.makePeerInfoController(
+                            context: component.context,
+                            updatedPresentationData: nil,
+                            peer: component.sourcePeer,
+                            mode: .generic,
+                            avatarInitiallyExpanded: false,
+                            fromChat: false,
+                            requestsContext: nil
+                        ) else {
+                            return
+                        }
+                        controller.dismiss(completion: { [weak navigationController] in
+                            DispatchQueue.main.async {
+                                guard let navigationController else {
+                                    return
+                                }
+                                navigationController.pushViewController(infoController)
+                            }
+                        })
+                    },
+                    animateAlpha: true,
+                    animateScale: true,
+                    animateContents: false
+                )),
+                environment: {},
+                containerSize: CGSize(width: availableSize.width - sideInset * 2.0, height: 10000.0)
+            )
+            let openBotButtonFrame = CGRect(origin: CGPoint(x: floor((availableSize.width - openBotButtonSize.width) * 0.5), y: contentHeight), size: openBotButtonSize)
+            if let openBotButtonView = self.openBotButton.view {
+                if openBotButtonView.superview == nil {
+                    self.scrollContentView.addSubview(openBotButtonView)
+                }
+                transition.setPosition(view: openBotButtonView, position: openBotButtonFrame.center)
+                openBotButtonView.bounds = CGRect(origin: CGPoint(), size: openBotButtonFrame.size)
+            }
+            contentHeight += openBotButtonSize.height
+            contentHeight += 20.0
+            
             let subtitleSize = self.subtitle.update(
                 transition: .immediate,
                 component: AnyComponent(MultilineTextComponent(
@@ -1052,11 +1130,11 @@ private final class JoinAffiliateProgramScreenComponent: Component {
                         )),
                         background: AnyComponent(FilledRoundedRectangleComponent(
                             color: environment.theme.list.itemInputField.backgroundColor,
-                            cornerRadius: .value(8.0),
+                            cornerRadius: .minEdge,
                             smoothCorners: true
                         )),
                         effectAlignment: .center,
-                        minSize: CGSize(width: availableSize.width - sideInset * 2.0, height: 50.0),
+                        minSize: CGSize(width: availableSize.width - sideInset * 2.0, height: 52.0),
                         contentInsets: UIEdgeInsets(top: 0.0, left: 10.0, bottom: 0.0, right: 10.0),
                         action: { [weak self] in
                             guard let self, case let .active(active) = self.currentMode else {
@@ -1070,7 +1148,7 @@ private final class JoinAffiliateProgramScreenComponent: Component {
                         animateContents: false
                     )),
                     environment: {},
-                    containerSize: CGSize(width: availableSize.width - sideInset * 2.0, height: 50.0)
+                    containerSize: CGSize(width: availableSize.width - sideInset * 2.0, height: 52.0)
                 )
                 let linkTextFrame = CGRect(origin: CGPoint(x: floor((availableSize.width - linkTextSize.width) * 0.5), y: contentHeight), size: linkTextSize)
                 if let linkTextView = self.linkText.view {
@@ -1091,10 +1169,13 @@ private final class JoinAffiliateProgramScreenComponent: Component {
             case .active:
                 actionButtonTitle = environment.strings.AffiliateProgram_ActionCopyLink
             }
+            
+            let buttonSideInset: CGFloat = 30.0
             let actionButtonSize = self.actionButton.update(
                 transition: transition,
                 component: AnyComponent(ButtonComponent(
                     background: ButtonComponent.Background(
+                        style: .glass,
                         color: environment.theme.list.itemCheckColors.fillColor,
                         foreground: environment.theme.list.itemCheckColors.foregroundColor,
                         pressedColor: environment.theme.list.itemCheckColors.fillColor.withMultipliedAlpha(0.9)
@@ -1128,7 +1209,7 @@ private final class JoinAffiliateProgramScreenComponent: Component {
                     }
                 )),
                 environment: {},
-                containerSize: CGSize(width: availableSize.width - sideInset * 2.0, height: 50.0)
+                containerSize: CGSize(width: availableSize.width - buttonSideInset * 2.0, height: 52.0)
             )
             
             let bottomTextSize = self.bottomText.update(
@@ -1158,7 +1239,7 @@ private final class JoinAffiliateProgramScreenComponent: Component {
             let bottomPanelFrame = CGRect(origin: CGPoint(x: 0.0, y: availableSize.height - bottomPanelHeight), size: CGSize(width: availableSize.width, height: bottomPanelHeight))
             transition.setFrame(view: self.bottomPanelContainer, frame: bottomPanelFrame)
             
-            let actionButtonFrame = CGRect(origin: CGPoint(x: sideInset, y: 0.0), size: actionButtonSize)
+            let actionButtonFrame = CGRect(origin: CGPoint(x: buttonSideInset, y: 0.0), size: actionButtonSize)
             if let actionButtonView = self.actionButton.view {
                 if actionButtonView.superview == nil {
                     self.bottomPanelContainer.addSubview(actionButtonView)
@@ -2072,7 +2153,7 @@ final class PeerBadgeAvatarComponent: Component {
                 peer: component.peer,
                 synchronousLoad: synchronousLoad,
                 displayDimensions: size,
-                cutoutRect: component.hasBadge ? badgeFrame.insetBy(dx: -(1.0 + UIScreenPixel), dy: -(1.0 + UIScreenPixel)) : nil
+                cutoutRect: component.hasBadge ? CGRect(origin: CGPoint(x: badgeFrame.minX, y: size.height - badgeFrame.maxY), size: badgeFrame.size).insetBy(dx: -1.0 + UIScreenPixel, dy: -1.0 + UIScreenPixel) : nil
             )
             
             if self.badgeBackground.image == nil {

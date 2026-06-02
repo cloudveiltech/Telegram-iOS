@@ -93,7 +93,7 @@ final class PremiumOptionComponent: CombinedComponent {
         return { context in
             let component = context.component
             
-            var insets = UIEdgeInsets(top: 11.0, left: 46.0, bottom: 13.0, right: 16.0)
+            var insets = UIEdgeInsets(top: 15.0, left: 46.0, bottom: 17.0, right: 16.0)
                         
             let label = label.update(
                 component: MultilineTextComponent(
@@ -153,8 +153,7 @@ final class PremiumOptionComponent: CombinedComponent {
                     transition: context.transition
                 )
                 
-                let discountPosition = CGPoint(x: insets.left + title.size.width + 6.0 + discountSize.width / 2.0, y: insets.top + title.size.height / 2.0)
-                
+                let discountPosition = CGPoint(x: insets.left + title.size.width + 6.0 + discountSize.width / 2.0, y: insets.top + title.size.height / 2.0 - 2.0)
                 context.add(discountBackground
                     .position(discountPosition)
                 )

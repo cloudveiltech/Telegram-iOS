@@ -1,8 +1,8 @@
-#import "TGWebPageMediaAttachment.h"
+#import <LegacyComponents/TGWebPageMediaAttachment.h>
 
 #import "LegacyComponentsInternal.h"
 
-#import "NSInputStream+TL.h"
+#import <LegacyComponents/NSInputStream+TL.h>
 
 @implementation TGWebPageMediaAttachment
 
@@ -149,7 +149,7 @@
 
 - (void)serialize:(NSMutableData *)data
 {
-    NSData *serializedData = [NSKeyedArchiver archivedDataWithRootObject:self];
+    NSData *serializedData = [NSKeyedArchiver archivedDataWithRootObject:self requiringSecureCoding:false error:nil];
     int32_t length = (int32_t)serializedData.length;
     [data appendBytes:&length length:4];
     [data appendData:serializedData];
@@ -157,10 +157,20 @@
 
 - (TGMediaAttachment *)parseMediaAttachment:(NSInputStream *)is
 {
-    int32_t length = [is readInt32];
-    NSData *data = [is readData:length];
+    bool readingError = false;
+    int32_t length = [is readInt32:&readingError];
+    if (readingError) {
+        return nil;
+    }
+    NSData *data = [is readData:length failed:&readingError];
+    if (readingError) {
+        return nil;
+    }
     @try {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         return [NSKeyedUnarchiver unarchiveObjectWithData:data];
+#pragma clang diagnostic pop
     } @catch (NSException *e) {
     }
     return nil;

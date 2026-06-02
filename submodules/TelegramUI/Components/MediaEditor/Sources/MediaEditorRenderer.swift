@@ -5,12 +5,12 @@ import MetalKit
 import Photos
 import SwiftSignalKit
 
-final class VideoPixelBuffer {
+public final class VideoPixelBuffer {
     let pixelBuffer: CVPixelBuffer
     let rotation: TextureRotation
     let timestamp: CMTime
     
-    init(
+    public init(
         pixelBuffer: CVPixelBuffer,
         rotation: TextureRotation,
         timestamp: CMTime
@@ -18,19 +18,6 @@ final class VideoPixelBuffer {
         self.pixelBuffer = pixelBuffer
         self.rotation = rotation
         self.timestamp = timestamp
-    }
-}
-
-final class RenderingContext {
-    let device: MTLDevice
-    let commandBuffer: MTLCommandBuffer
-    
-    init(
-        device: MTLDevice,
-        commandBuffer: MTLCommandBuffer
-    ) {
-        self.device = device
-        self.commandBuffer = commandBuffer
     }
 }
 
@@ -59,15 +46,15 @@ protocol RenderTarget: AnyObject {
 
 final class MediaEditorRenderer {
     enum Input {
-        case texture(MTLTexture, CMTime, Bool, CGRect?)
-        case videoBuffer(VideoPixelBuffer, CGRect?)
+        case texture(MTLTexture, CMTime, Bool, CGRect?, CGFloat, CGPoint)
+        case videoBuffer(VideoPixelBuffer, CGRect?, CGFloat, CGPoint)
         case ciImage(CIImage, CMTime)
         
         var timestamp: CMTime {
             switch self {
-            case let .texture(_, timestamp, _, _):
+            case let .texture(_, timestamp, _, _, _, _):
                 return timestamp
-            case let .videoBuffer(videoBuffer, _):
+            case let .videoBuffer(videoBuffer, _, _, _):
                 return videoBuffer.timestamp
             case let .ciImage(_, timestamp):
                 return timestamp
@@ -125,7 +112,7 @@ final class MediaEditorRenderer {
     
     func addRenderPass(_ renderPass: RenderPass) {
         self.renderPasses.append(renderPass)
-        if let device = self.renderTarget?.mtlDevice, let library = self.library {
+        if let device = self.effectiveDevice, let library = self.library {
             renderPass.setup(device: device, library: library)
         }
     }
@@ -160,6 +147,14 @@ final class MediaEditorRenderer {
         self.renderPasses.forEach { $0.setup(device: device, library: library) }
     }
     
+    var effectiveDevice: MTLDevice? {
+        if let device = self.renderTarget?.mtlDevice {
+            return device
+        } else {
+            return self.device
+        }
+    }
+    
     private func setup() {
         guard let device = self.renderTarget?.mtlDevice else {
             return
@@ -180,6 +175,11 @@ final class MediaEditorRenderer {
         self.commonSetup(device: device)
     }
     
+    func setupForStandaloneDevice(device: MTLDevice) {
+        self.device = device
+        self.commonSetup(device: device)
+    }
+    
     func setRate(_ rate: Float) {
         self.textureSource?.setRate(rate)
     }
@@ -193,17 +193,17 @@ final class MediaEditorRenderer {
         
         func textureFromInput(_ input: MediaEditorRenderer.Input, videoInputPass: VideoInputPass) -> VideoFinishPass.Input? {
             switch input {
-            case let .texture(texture, _, hasTransparency, rect):
-                return VideoFinishPass.Input(texture: texture, hasTransparency: hasTransparency, rect: rect)
-            case let .videoBuffer(videoBuffer, rect):
+            case let .texture(texture, _, hasTransparency, rect, scale, offset):
+                return VideoFinishPass.Input(texture: texture, hasTransparency: hasTransparency, rect: rect, scale: scale, offset: offset)
+            case let .videoBuffer(videoBuffer, rect, scale, offset):
                 if let texture = videoInputPass.processPixelBuffer(videoBuffer, textureCache: textureCache, device: device, commandBuffer: commandBuffer) {
-                    return VideoFinishPass.Input(texture: texture, hasTransparency: false, rect: rect)
+                    return VideoFinishPass.Input(texture: texture, hasTransparency: false, rect: rect, scale: scale, offset: offset)
                 } else {
                     return nil
                 }
             case let .ciImage(image, _):
                 if let texture = self.ciInputPass.processCIImage(image, device: device, commandBuffer: commandBuffer) {
-                    return VideoFinishPass.Input(texture: texture, hasTransparency: true, rect: nil)
+                    return VideoFinishPass.Input(texture: texture, hasTransparency: true, rect: nil, scale: 1.0, offset: .zero)
                 } else {
                     return nil
                 }
@@ -240,15 +240,7 @@ final class MediaEditorRenderer {
     }
     
     func renderFrame() {
-        let device: MTLDevice?
-        if let renderTarget = self.renderTarget {
-            device = renderTarget.mtlDevice
-        } else if let currentDevice = self.device {
-            device = currentDevice
-        } else {
-            device = nil
-        }
-        guard let device = device,
+        guard let device = self.effectiveDevice,
               let commandQueue = self.commandQueue,
               let textureCache = self.textureCache,
               let commandBuffer = commandQueue.makeCommandBuffer(),
@@ -366,7 +358,7 @@ final class MediaEditorRenderer {
     }
     
     func finalRenderedImage(mirror: Bool = false) -> UIImage? {
-        if let finalTexture = self.resultTexture, let device = self.renderTarget?.mtlDevice {
+        if let finalTexture = self.resultTexture, let device = self.effectiveDevice {
             return getTextureImage(device: device, texture: finalTexture, mirror: mirror)
         } else {
             return nil

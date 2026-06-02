@@ -58,7 +58,7 @@ final class InstantPagePlayableVideoNode: ASDisplayNode, InstantPageNode, Galler
             fileValue = file
         }
         
-        self.videoNode = UniversalVideoNode(accountId: context.account.id, postbox: context.account.postbox, audioSession: context.sharedContext.mediaManager.audioSession, manager: context.sharedContext.mediaManager.universalVideoManager, decoration: GalleryVideoDecoration(), content: NativeVideoContent(id: .instantPage(webPage.webpageId, media.media.id!), userLocation: userLocation, fileReference: .webPage(webPage: WebpageReference(webPage), media: fileValue!), imageReference: imageReference, streamVideo: streamVideo ? .conservative : .none, loopVideo: true, enableSound: false, fetchAutomatically: true, placeholderColor: theme.pageBackgroundColor, storeAfterDownload: nil), priority: .embedded, autoplay: true)
+        self.videoNode = UniversalVideoNode(context: context, postbox: context.account.postbox, audioSession: context.sharedContext.mediaManager.audioSession, manager: context.sharedContext.mediaManager.universalVideoManager, decoration: GalleryVideoDecoration(), content: NativeVideoContent(id: .instantPage(webPage.webpageId, media.media.id!), userLocation: userLocation, fileReference: .webPage(webPage: WebpageReference(webPage), media: fileValue!), imageReference: imageReference, streamVideo: streamVideo ? .conservative : .none, loopVideo: true, enableSound: false, fetchAutomatically: true, placeholderColor: theme.pageBackgroundColor, storeAfterDownload: nil), priority: .embedded, autoplay: true)
         self.videoNode.isUserInteractionEnabled = false
         
         self.statusNode = RadialStatusNode(backgroundNodeColor: UIColor(white: 0.0, alpha: 0.6))
@@ -68,12 +68,12 @@ final class InstantPagePlayableVideoNode: ASDisplayNode, InstantPageNode, Galler
         self.addSubnode(self.videoNode)
         
         if case let .file(file) = media.media {
-            self.fetchedDisposable.set(fetchedMediaResource(mediaBox: context.account.postbox.mediaBox, userLocation: userLocation, userContentType: .video, reference: AnyMediaReference.webPage(webPage: WebpageReference(webPage), media: file).resourceReference(file.resource)).start())
+            self.fetchedDisposable.set(context.engine.resources.fetch(reference: AnyMediaReference.webPage(webPage: WebpageReference(webPage), media: file).resourceReference(file.resource), userLocation: userLocation, userContentType: .video).start())
             
-            self.statusDisposable.set((context.account.postbox.mediaBox.resourceStatus(file.resource) |> deliverOnMainQueue).start(next: { [weak self] status in
+            self.statusDisposable.set((context.engine.resources.status(resource: EngineMediaResource(file.resource)) |> deliverOnMainQueue).start(next: { [weak self] status in
                 displayLinkDispatcher.dispatch {
                     if let strongSelf = self {
-                        strongSelf.fetchStatus = EngineMediaResource.FetchStatus(status)
+                        strongSelf.fetchStatus = status
                         strongSelf.updateFetchStatus()
                     }
                 }
@@ -176,5 +176,9 @@ final class InstantPagePlayableVideoNode: ASDisplayNode, InstantPageNode, Galler
                     self.fetchControls?.cancel()
             }
         }
+    }
+    
+    func scrubberTransition() -> GalleryItemScrubberTransition? {
+        return nil
     }
 }

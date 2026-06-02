@@ -44,7 +44,7 @@ public final class StoryContentItem: Equatable {
     }
     
     open class View: UIView {
-        open func setProgressMode(_ progressMode: ProgressMode) {
+        open func setProgressMode(mode: StoryContentItem.ProgressMode, isCentral: Bool) {
         }
         
         open func rewind() {
@@ -68,20 +68,26 @@ public final class StoryContentItem: Equatable {
         public let externalState: ExternalState
         public let sharedState: SharedState
         public let theme: PresentationTheme
+        public let containerInsets: UIEdgeInsets
         public let presentationProgressUpdated: (Double, Bool, Bool) -> Void
+        public let customItemSubtitleUpdated: () -> Void
         public let markAsSeen: (StoryId) -> Void
         
         public init(
             externalState: ExternalState,
             sharedState: SharedState,
             theme: PresentationTheme,
+            containerInsets: UIEdgeInsets,
             presentationProgressUpdated: @escaping (Double, Bool, Bool) -> Void,
+            customItemSubtitleUpdated: @escaping () -> Void,
             markAsSeen: @escaping (StoryId) -> Void
         ) {
             self.externalState = externalState
             self.sharedState = sharedState
             self.theme = theme
+            self.containerInsets = containerInsets
             self.presentationProgressUpdated = presentationProgressUpdated
+            self.customItemSubtitleUpdated = customItemSubtitleUpdated
             self.markAsSeen = markAsSeen
         }
         
@@ -93,6 +99,9 @@ public final class StoryContentItem: Equatable {
                 return false
             }
             if lhs.theme !== rhs.theme {
+                return false
+            }
+            if lhs.containerInsets != rhs.containerInsets {
                 return false
             }
             return true
@@ -161,6 +170,7 @@ public final class StoryContentContextState {
         public let preferHighQualityStories: Bool
         public let boostsToUnrestrict: Int32?
         public let appliedBoosts: Int32?
+        public let sendPaidMessageStars: StarsAmount?
         
         public init(
             isMuted: Bool,
@@ -170,7 +180,8 @@ public final class StoryContentContextState {
             isPremiumRequiredForMessaging: Bool,
             preferHighQualityStories: Bool,
             boostsToUnrestrict: Int32?,
-            appliedBoosts: Int32?
+            appliedBoosts: Int32?,
+            sendPaidMessageStars: StarsAmount?
         ) {
             self.isMuted = isMuted
             self.areVoiceMessagesAvailable = areVoiceMessagesAvailable
@@ -180,6 +191,7 @@ public final class StoryContentContextState {
             self.preferHighQualityStories = preferHighQualityStories
             self.boostsToUnrestrict = boostsToUnrestrict
             self.appliedBoosts = appliedBoosts
+            self.sendPaidMessageStars = sendPaidMessageStars
         }
         
         public static func == (lhs: StoryContentContextState.AdditionalPeerData, rhs: StoryContentContextState.AdditionalPeerData) -> Bool {
@@ -205,6 +217,9 @@ public final class StoryContentContextState {
                 return false
             }
             if lhs.appliedBoosts != rhs.appliedBoosts {
+                return false
+            }
+            if lhs.sendPaidMessageStars != rhs.sendPaidMessageStars {
                 return false
             }
             return true

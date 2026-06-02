@@ -23,9 +23,10 @@ import ChatMediaInputStickerGridItem
 import UndoUI
 import PremiumUI
 import LottieComponent
+import BundleIconComponent
 
 private protocol ChatEmptyNodeContent {
-    func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, transition: ContainedViewLayoutTransition) -> CGSize
+    func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGSize
 }
 
 private let titleFont = Font.semibold(15.0)
@@ -45,7 +46,7 @@ private final class ChatEmptyNodeRegularChatContent: ASDisplayNode, ChatEmptyNod
         self.addSubnode(self.textNode)
     }
     
-    func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
+    func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGSize {
         if self.currentTheme !== interfaceState.theme || self.currentStrings !== interfaceState.strings {
             self.currentTheme = interfaceState.theme
             self.currentStrings = interfaceState.strings
@@ -151,10 +152,10 @@ public final class ChatEmptyNodeGreetingChatContent: ASDisplayNode, ChatEmptyNod
         guard let stickerItem = self.stickerItem else {
             return
         }
-        let _ = self.interaction?.sendSticker(.standalone(media: stickerItem.stickerItem.file), false, self.view, self.stickerNode.bounds, nil, [])
+        let _ = self.interaction?.sendSticker(.standalone(media: stickerItem.stickerItem.file._parse()), false, self.view, self.stickerNode.bounds, nil, [])
     }
     
-    public func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
+    public func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGSize {
         let isFirstTime = self.currentTheme == nil
         
         if self.currentTheme !== interfaceState.theme || self.currentStrings !== interfaceState.strings {
@@ -296,177 +297,6 @@ public final class ChatEmptyNodeGreetingChatContent: ASDisplayNode, ChatEmptyNod
     }
 }
 
-public final class ChatEmptyNodeNearbyChatContent: ASDisplayNode, ChatEmptyNodeStickerContentNode, ChatEmptyNodeContent, ASGestureRecognizerDelegate {
-    private let context: AccountContext
-    private let interaction: ChatPanelInterfaceInteraction?
-    
-    private let titleNode: ImmediateTextNode
-    private let textNode: ImmediateTextNode
-    
-    private var stickerItem: ChatMediaInputStickerGridItem?
-    public let stickerNode: ChatMediaInputStickerGridItemNode
-    
-    private var currentTheme: PresentationTheme?
-    private var currentStrings: PresentationStrings?
-    
-    private var didSetupSticker = false
-    private let disposable = MetaDisposable()
-    
-    public init(context: AccountContext, interaction: ChatPanelInterfaceInteraction?) {
-        self.context = context
-        self.interaction = interaction
-        
-        self.titleNode = ImmediateTextNode()
-        self.titleNode.maximumNumberOfLines = 0
-        self.titleNode.lineSpacing = 0.15
-        self.titleNode.textAlignment = .center
-        self.titleNode.isUserInteractionEnabled = false
-        self.titleNode.displaysAsynchronously = false
-        
-        self.textNode = ImmediateTextNode()
-        self.textNode.maximumNumberOfLines = 0
-        self.textNode.lineSpacing = 0.15
-        self.textNode.textAlignment = .center
-        self.textNode.isUserInteractionEnabled = false
-        self.textNode.displaysAsynchronously = false
-        
-        self.stickerNode = ChatMediaInputStickerGridItemNode()
-        
-        super.init()
-        
-        self.addSubnode(self.titleNode)
-        self.addSubnode(self.textNode)
-        self.addSubnode(self.stickerNode)
-    }
-    
-    override public func didLoad() {
-        super.didLoad()
-        
-        let tapRecognizer = UITapGestureRecognizer(target: self, action: #selector(self.stickerTapGesture(_:)))
-        tapRecognizer.delegate = self.wrappedGestureRecognizerDelegate
-        self.stickerNode.view.addGestureRecognizer(tapRecognizer)
-    }
-    
-    deinit {
-        self.disposable.dispose()
-    }
-    
-    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        return true
-    }
-    
-    @objc private func stickerTapGesture(_ gestureRecognizer: UITapGestureRecognizer) {
-        guard let stickerItem = self.stickerItem else {
-            return
-        }
-        let _ = self.interaction?.sendSticker(.standalone(media: stickerItem.stickerItem.file), false, self.view, self.stickerNode.bounds, nil, [])
-    }
-    
-    public func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
-        if self.currentTheme !== interfaceState.theme || self.currentStrings !== interfaceState.strings {
-            self.currentTheme = interfaceState.theme
-            self.currentStrings = interfaceState.strings
-            
-            var displayName = ""
-            let distance = interfaceState.peerNearbyData?.distance ?? 0
-            
-            if let renderedPeer = interfaceState.renderedPeer {
-                if let chatPeer = renderedPeer.peers[renderedPeer.peerId] {
-                    displayName = EnginePeer(chatPeer).compactDisplayTitle
-                }
-            }
-
-            let titleString = interfaceState.strings.Conversation_PeerNearbyTitle(displayName, shortStringForDistance(strings: interfaceState.strings, distance: distance)).string
-            let serviceColor = serviceMessageColorComponents(theme: interfaceState.theme, wallpaper: interfaceState.chatWallpaper)
-            
-            self.titleNode.attributedText = NSAttributedString(string: titleString, font: titleFont, textColor: serviceColor.primaryText)
-            
-            self.textNode.attributedText = NSAttributedString(string: interfaceState.strings.Conversation_PeerNearbyText, font: messageFont, textColor: serviceColor.primaryText)
-        }
-        
-        let stickerSize = CGSize(width: 160.0, height: 160.0)
-        if let item = self.stickerItem {
-            self.stickerNode.updateLayout(item: item, size: stickerSize, isVisible: true, synchronousLoads: true)
-        } else if !self.didSetupSticker {
-            let sticker: Signal<TelegramMediaFile?, NoError>
-            if let preloadedSticker = interfaceState.greetingData?.sticker {
-                sticker = preloadedSticker
-            } else {
-                sticker = self.context.engine.stickers.randomGreetingSticker()
-                |> map { item -> TelegramMediaFile? in
-                    return item?.file
-                }
-            }
-            
-            self.didSetupSticker = true
-            self.disposable.set((sticker
-            |> deliverOnMainQueue).startStrict(next: { [weak self] sticker in
-                if let strongSelf = self, let sticker = sticker {
-                    let inputNodeInteraction = ChatMediaInputNodeInteraction(
-                        navigateToCollectionId: { _ in
-                        },
-                        navigateBackToStickers: {
-                        },
-                        setGifMode: { _ in
-                        },
-                        openSettings: {
-                        },
-                        openTrending: { _ in
-                        },
-                        dismissTrendingPacks: { _ in
-                        },
-                        toggleSearch: { _, _, _ in
-                        },
-                        openPeerSpecificSettings: {
-                        },
-                        dismissPeerSpecificSettings: {
-                        },
-                        clearRecentlyUsedStickers: {
-                        }
-                    )
-                    inputNodeInteraction.displayStickerPlaceholder = false
-                    
-                    let index = ItemCollectionItemIndex(index: 0, id: 0)
-                    let collectionId = ItemCollectionId(namespace: 0, id: 0)
-                    let stickerPackItem = StickerPackItem(index: index, file: sticker, indexKeys: [])
-                    let item = ChatMediaInputStickerGridItem(context: strongSelf.context, collectionId: collectionId, stickerPackInfo: nil, index: ItemCollectionViewEntryIndex(collectionIndex: 0, collectionId: collectionId, itemIndex: index), stickerItem: stickerPackItem, canManagePeerSpecificPack: nil, interfaceInteraction: nil, inputNodeInteraction: inputNodeInteraction, hasAccessory: false, theme: interfaceState.theme, large: true, selected: {})
-                    strongSelf.stickerItem = item
-                    strongSelf.stickerNode.updateLayout(item: item, size: stickerSize, isVisible: true, synchronousLoads: true)
-                    strongSelf.stickerNode.isVisibleInGrid = true
-                    strongSelf.stickerNode.updateIsPanelVisible(true)
-                }
-            }))
-        }
-        
-        let insets = UIEdgeInsets(top: 15.0, left: 15.0, bottom: 15.0, right: 15.0)
-        let titleSpacing: CGFloat = 5.0
-        let stickerSpacing: CGFloat = 5.0
-        
-        var contentWidth: CGFloat = 210.0
-        var contentHeight: CGFloat = 0.0
-                
-        let titleSize = self.titleNode.updateLayout(CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude))
-        let textSize = self.textNode.updateLayout(CGSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude))
-        
-        contentWidth = max(contentWidth, max(titleSize.width, textSize.width))
-        
-        contentHeight += titleSize.height + titleSpacing + textSize.height + stickerSpacing + stickerSize.height
-        
-        let contentRect = CGRect(origin: CGPoint(x: insets.left, y: insets.top), size: CGSize(width: contentWidth, height: contentHeight))
-        
-        let titleFrame = CGRect(origin: CGPoint(x: contentRect.minX + floor((contentRect.width - titleSize.width) / 2.0), y: contentRect.minY), size: titleSize)
-        transition.updateFrame(node: self.titleNode, frame: titleFrame)
-      
-        let textFrame = CGRect(origin: CGPoint(x: contentRect.minX + floor((contentRect.width - textSize.width) / 2.0), y: titleFrame.maxY + titleSpacing), size: textSize)
-        transition.updateFrame(node: self.textNode, frame: textFrame)
-        
-        let stickerFrame = CGRect(origin: CGPoint(x: contentRect.minX + floor((contentRect.width - stickerSize.width) / 2.0), y: textFrame.maxY + stickerSpacing), size: stickerSize)
-        transition.updateFrame(node: self.stickerNode, frame: stickerFrame)
-        
-        return contentRect.insetBy(dx: -insets.left, dy: -insets.top).size
-    }
-}
-
 private final class ChatEmptyNodeSecretChatContent: ASDisplayNode, ChatEmptyNodeContent {
     private let titleNode: ImmediateTextNode
     private let subtitleNode: ImmediateTextNode
@@ -495,7 +325,7 @@ private final class ChatEmptyNodeSecretChatContent: ASDisplayNode, ChatEmptyNode
         self.addSubnode(self.subtitleNode)
     }
     
-    func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
+    func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGSize {
         if self.currentTheme !== interfaceState.theme || self.currentStrings !== interfaceState.strings {
             self.currentTheme = interfaceState.theme
             self.currentStrings = interfaceState.strings
@@ -629,7 +459,7 @@ private final class ChatEmptyNodeGroupChatContent: ASDisplayNode, ChatEmptyNodeC
         self.addSubnode(self.subtitleNode)
     }
     
-    func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
+    func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGSize {
         if self.currentTheme !== interfaceState.theme || self.currentStrings !== interfaceState.strings {
             self.currentTheme = interfaceState.theme
             self.currentStrings = interfaceState.strings
@@ -758,7 +588,7 @@ private final class ChatEmptyNodeCloudChatContent: ASDisplayNode, ChatEmptyNodeC
         self.shareBusinessLink?(businessLink.url)
     }
     
-    func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
+    func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGSize {
         var maxWidth: CGFloat = size.width
         var centerText = false
         
@@ -1124,7 +954,7 @@ public final class ChatEmptyNodeTopicChatContent: ASDisplayNode, ChatEmptyNodeCo
         self.addSubnode(self.textNode)
     }
     
-    public func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
+    public func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGSize {
         let serviceColor = serviceMessageColorComponents(theme: interfaceState.theme, wallpaper: interfaceState.chatWallpaper)
         if self.currentTheme !== interfaceState.theme || self.currentStrings !== interfaceState.strings {
             self.currentTheme = interfaceState.theme
@@ -1204,7 +1034,7 @@ public final class ChatEmptyNodePremiumRequiredChatContent: ASDisplayNode, ChatE
     private let interaction: ChatPanelInterfaceInteraction?
     
     private let iconBackground: SimpleLayer
-    private let icon =  ComponentView<Empty>()
+    private var icon = ComponentView<Empty>()
     private let text = ComponentView<Empty>()
     private let buttonTitle = ComponentView<Empty>()
     private let button: HighlightTrackingButton
@@ -1212,10 +1042,13 @@ public final class ChatEmptyNodePremiumRequiredChatContent: ASDisplayNode, ChatE
         
     private var currentTheme: PresentationTheme?
     private var currentStrings: PresentationStrings?
-            
-    public init(context: AccountContext, interaction: ChatPanelInterfaceInteraction?) {
+    
+    private let stars: Int64?
+    
+    public init(context: AccountContext, interaction: ChatPanelInterfaceInteraction?, stars: Int64?) {
         let premiumConfiguration = PremiumConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
         self.isPremiumDisabled = premiumConfiguration.isPremiumDisabled
+        self.stars = stars
         
         self.interaction = interaction
         
@@ -1254,14 +1087,18 @@ public final class ChatEmptyNodePremiumRequiredChatContent: ASDisplayNode, ChatE
     
     @objc private func buttonPressed() {
         if let interaction = self.interaction {
-            interaction.openPremiumRequiredForMessaging()
+            if let _ = self.stars {
+                interaction.openStarsPurchase(nil)
+            } else {
+                interaction.openPremiumRequiredForMessaging()
+            }
         }
     }
     
-    public func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
+    public func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: ChatEmptyNode.Subject, size: CGSize, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGSize {
         let serviceColor = serviceMessageColorComponents(theme: interfaceState.theme, wallpaper: interfaceState.chatWallpaper)
         
-        let maxWidth = min(200.0, size.width)
+        let maxWidth = min(270.0, size.width)
         
         let sideInset: CGFloat = 22.0
         let topInset: CGFloat = 16.0
@@ -1271,29 +1108,60 @@ public final class ChatEmptyNodePremiumRequiredChatContent: ASDisplayNode, ChatE
         let textButtonSpacing: CGFloat = 12.0
         
         let peerTitle: String
-        if let peer = interfaceState.renderedPeer?.chatMainPeer {
+        if let peer = interfaceState.renderedPeer?.chatOrMonoforumMainPeer {
             peerTitle = EnginePeer(peer).compactDisplayTitle
         } else {
             peerTitle = " "
         }
         
-        let text: String
-        if self.isPremiumDisabled {
-            text = interfaceState.strings.Chat_EmptyStateMessagingRestrictedToPremiumDisabled_Text(peerTitle).string
+        let text: NSAttributedString
+        var actionText: String?
+        let attributes = MarkdownAttributes(
+            body: MarkdownAttributeSet(font: Font.regular(15.0), textColor: serviceColor.primaryText),
+            bold: MarkdownAttributeSet(font: Font.semibold(15.0), textColor: serviceColor.primaryText),
+            link: MarkdownAttributeSet(font: Font.regular(15.0), textColor: serviceColor.primaryText),
+            linkAttribute: { url in
+                return ("URL", url)
+            }
+        )
+        if let amount = self.stars {
+            let starsString = presentationStringsFormattedNumber(Int32(amount), interfaceState.dateTimeFormat.groupingSeparator)
+            let rawText: String
+            
+            if let channel = interfaceState.renderedPeer?.peer as? TelegramChannel, channel.isMonoForum {
+                rawText = interfaceState.strings.Chat_EmptyStateMonoforumPaid_Text(peerTitle, " $ \(starsString)").string
+            } else if self.isPremiumDisabled {
+                rawText = interfaceState.strings.Chat_EmptyStatePaidMessagingDisabled_Text(peerTitle, " $ \(starsString)").string
+            } else {
+                rawText = interfaceState.strings.Chat_EmptyStatePaidMessaging_Text(peerTitle, " $ \(starsString)").string
+            }
+            let attributedString = parseMarkdownIntoAttributedString(rawText, attributes: attributes).mutableCopy() as! NSMutableAttributedString
+            if let range = attributedString.string.range(of: "$") {
+                attributedString.addAttribute(.attachment, value: PresentationResourcesChat.chatEmptyStateStarIcon(interfaceState.theme)!, range: NSRange(range, in: attributedString.string))
+                attributedString.addAttribute(.foregroundColor, value: serviceColor.primaryText, range: NSRange(range, in: attributedString.string))
+                attributedString.addAttribute(.baselineOffset, value: 2.0, range: NSRange(range, in: attributedString.string))
+            }
+            text = attributedString
+            actionText = interfaceState.strings.Chat_EmptyStatePaidMessaging_Action
         } else {
-            text = interfaceState.strings.Chat_EmptyStateMessagingRestrictedToPremium_Text(peerTitle).string
+            if let channel = interfaceState.renderedPeer?.peer as? TelegramChannel, channel.isMonoForum {
+                let rawText = interfaceState.strings.Chat_EmptyStateMonoforum_Text(peerTitle).string
+                text = parseMarkdownIntoAttributedString(rawText, attributes: attributes)
+            } else {
+                let rawText: String
+                if self.isPremiumDisabled {
+                    rawText = interfaceState.strings.Chat_EmptyStateMessagingRestrictedToPremiumDisabled_Text(peerTitle).string
+                } else {
+                    rawText = interfaceState.strings.Chat_EmptyStateMessagingRestrictedToPremium_Text(peerTitle).string
+                }
+                text = parseMarkdownIntoAttributedString(rawText, attributes: attributes)
+                actionText = interfaceState.strings.Chat_EmptyStateMessagingRestrictedToPremium_Action
+            }
         }
         let textSize = self.text.update(
             transition: .immediate,
             component: AnyComponent(BalancedTextComponent(
-                text: .markdown(text: text, attributes: MarkdownAttributes(
-                    body: MarkdownAttributeSet(font: Font.regular(15.0), textColor: serviceColor.primaryText),
-                    bold: MarkdownAttributeSet(font: Font.semibold(15.0), textColor: serviceColor.primaryText),
-                    link: MarkdownAttributeSet(font: Font.regular(15.0), textColor: serviceColor.primaryText),
-                    linkAttribute: { url in
-                        return ("URL", url)
-                    }
-                )),
+                text: .plain(text),
                 horizontalAlignment: .center,
                 maximumNumberOfLines: 0
             )),
@@ -1301,21 +1169,30 @@ public final class ChatEmptyNodePremiumRequiredChatContent: ASDisplayNode, ChatE
             containerSize: CGSize(width: maxWidth - sideInset * 2.0, height: 500.0)
         )
         
-        let buttonTitleSize = self.buttonTitle.update(
-            transition: .immediate,
-            component: AnyComponent(MultilineTextComponent(
-                text: .plain(NSAttributedString(string: interfaceState.strings.Chat_EmptyStateMessagingRestrictedToPremium_Action, font: Font.semibold(15.0), textColor: serviceColor.primaryText))
-            )),
-            environment: {},
-            containerSize: CGSize(width: 200.0, height: 100.0)
-        )
-        let buttonSize = CGSize(width: buttonTitleSize.width + 20.0 * 2.0, height: buttonTitleSize.height + 9.0 * 2.0)
+        var buttonTitleSize: CGSize?
+        if let actionText {
+            buttonTitleSize = self.buttonTitle.update(
+                transition: .immediate,
+                component: AnyComponent(MultilineTextComponent(
+                    text: .plain(NSAttributedString(string: actionText, font: Font.semibold(15.0), textColor: serviceColor.primaryText))
+                )),
+                environment: {},
+                containerSize: CGSize(width: 250.0, height: 100.0)
+            )
+        } else {
+            self.buttonTitle.view?.removeFromSuperview()
+        }
+        
+        var buttonSize: CGSize?
+        if let buttonTitleSize {
+            buttonSize = CGSize(width: buttonTitleSize.width + 20.0 * 2.0, height: buttonTitleSize.height + 9.0 * 2.0)
+        }
         
         var contentsWidth: CGFloat = 0.0
         contentsWidth = max(contentsWidth, iconBackgroundSize + sideInset * 2.0)
         contentsWidth = max(contentsWidth, textSize.width + sideInset * 2.0)
         
-        if !self.isPremiumDisabled {
+        if !self.isPremiumDisabled, let buttonSize {
             contentsWidth = max(contentsWidth, buttonSize.width + sideInset * 2.0)
         }
         
@@ -1329,16 +1206,37 @@ public final class ChatEmptyNodePremiumRequiredChatContent: ASDisplayNode, ChatE
         contentsHeight += iconBackgroundSize
         contentsHeight += iconTextSpacing
         
+        let iconComponent: AnyComponent<Empty>
+        do {
+            if let channel = interfaceState.renderedPeer?.peer as? TelegramChannel, channel.isMonoForum {
+                if let view = self.icon.view, !(view is BundleIconComponent.View) {
+                    view.removeFromSuperview()
+                    self.icon = ComponentView()
+                }
+                
+                iconComponent = AnyComponent(BundleIconComponent(
+                    name: "Chat/Empty Chat/ChannelMessages",
+                    tintColor: serviceColor.primaryText
+                ))
+            } else {
+                if let view = self.icon.view, !(view is LottieComponent.View) {
+                    view.removeFromSuperview()
+                    self.icon = ComponentView()
+                }
+                
+                iconComponent = AnyComponent(
+                    LottieComponent(
+                        content: LottieComponent.AppBundleContent(name: "PremiumRequired"),
+                        color: serviceColor.primaryText,
+                        size: CGSize(width: 120.0, height: 120.0),
+                        loop: true
+                    )
+                )
+            }
+        }
         let iconSize = self.icon.update(
             transition: .immediate,
-            component: AnyComponent(
-                LottieComponent(
-                    content: LottieComponent.AppBundleContent(name: "PremiumRequired"),
-                    color: serviceColor.primaryText,
-                    size: CGSize(width: 120.0, height: 120.0),
-                    loop: true
-                )
-            ),
+            component: iconComponent,
             environment: {},
             containerSize: CGSize(width: maxWidth - sideInset * 2.0, height: 500.0)
         )
@@ -1361,9 +1259,7 @@ public final class ChatEmptyNodePremiumRequiredChatContent: ASDisplayNode, ChatE
         }
         contentsHeight += textSize.height
         
-        if self.isPremiumDisabled {
-            contentsHeight += bottomInset
-        } else {
+        if !self.isPremiumDisabled, let buttonTitleSize, let buttonSize {
             contentsHeight += textButtonSpacing
             
             let buttonFrame = CGRect(origin: CGPoint(x: floor((contentsWidth - buttonSize.width) * 0.5), y: contentsHeight), size: buttonSize)
@@ -1380,6 +1276,8 @@ public final class ChatEmptyNodePremiumRequiredChatContent: ASDisplayNode, ChatE
             self.buttonStarsNode.frame = CGRect(origin: CGPoint(), size: buttonSize)
             contentsHeight += buttonSize.height
             contentsHeight += bottomInset
+        } else {
+            contentsHeight += bottomInset
         }
             
         
@@ -1392,10 +1290,10 @@ private enum ChatEmptyNodeContentType: Equatable {
     case secret
     case group
     case cloud
-    case peerNearby
     case greeting
     case topic
     case premiumRequired
+    case starsRequired(Int64?)
 }
 
 private final class EmptyAttachedDescriptionNode: HighlightTrackingButtonNode {
@@ -1741,7 +1639,7 @@ public final class ChatEmptyNode: ASDisplayNode {
         }
     }
     
-    public func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: Subject, loadingNode: ChatLoadingNode?, backgroundNode: WallpaperBackgroundNode?, size: CGSize, insets: UIEdgeInsets, transition: ContainedViewLayoutTransition) {
+    public func updateLayout(interfaceState: ChatPresentationInterfaceState, subject: Subject, loadingNode: ChatLoadingNode?, backgroundNode: WallpaperBackgroundNode?, size: CGSize, insets: UIEdgeInsets, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) {
         self.wallpaperBackgroundNode = backgroundNode
         
         if self.currentTheme !== interfaceState.theme || self.currentStrings !== interfaceState.strings {
@@ -1756,7 +1654,7 @@ public final class ChatEmptyNode: ASDisplayNode {
             isScheduledMessages = true
         }
         
-        let contentType: ChatEmptyNodeContentType
+        var contentType: ChatEmptyNodeContentType
         var displayAttachedDescription = false
         switch subject {
         case .detailsPlaceholder:
@@ -1779,12 +1677,12 @@ public final class ChatEmptyNode: ASDisplayNode {
                     contentType = .secret
                 } else if let group = peer as? TelegramGroup, case .creator = group.role {
                     contentType = .group
-                } else if let channel = peer as? TelegramChannel, case .group = channel.info, channel.flags.contains(.isCreator) && !channel.flags.contains(.isGigagroup) {
+                } else if let channel = peer as? TelegramChannel, case .group = channel.info, channel.flags.contains(.isCreator) && !channel.flags.contains(.isGigagroup) && !channel.isMonoForum {
                     contentType = .group
-                } else if let _ = interfaceState.peerNearbyData {
-                    contentType = .peerNearby
                 } else if let peer = peer as? TelegramUser {
-                    if interfaceState.isPremiumRequiredForMessaging {
+                    if let sendPaidMessageStars = interfaceState.sendPaidMessageStars, interfaceState.businessIntro == nil {
+                        contentType = .starsRequired(sendPaidMessageStars.value)
+                    } else if interfaceState.isPremiumRequiredForMessaging {
                         contentType = .premiumRequired
                     } else {
                         if peer.isDeleted || peer.botInfo != nil || peer.flags.contains(.isSupport) || peer.isScam || interfaceState.peerIsBlocked {
@@ -1795,6 +1693,12 @@ public final class ChatEmptyNode: ASDisplayNode {
                                 displayAttachedDescription = true
                             }
                         }
+                    }
+                } else if let channel = peer as? TelegramChannel, channel.isMonoForum {
+                    if let mainChannel = interfaceState.renderedPeer?.chatOrMonoforumMainPeer as? TelegramChannel, mainChannel.hasPermission(.manageDirect) {
+                        contentType = .regular
+                    } else {
+                        contentType = .starsRequired(interfaceState.sendPaidMessageStars?.value)
                     }
                 } else {
                     contentType = .regular
@@ -1839,15 +1743,15 @@ public final class ChatEmptyNode: ASDisplayNode {
                     })
                     interfaceInteraction.presentControllerInCurrent(controller, nil)
                 }
-            case .peerNearby:
-                node = ChatEmptyNodeNearbyChatContent(context: self.context, interaction: self.interaction)
             case .greeting:
                 node = ChatEmptyNodeGreetingChatContent(context: self.context, interaction: self.interaction)
                 updateGreetingSticker = true
             case .topic:
                 node = ChatEmptyNodeTopicChatContent(context: self.context)
             case .premiumRequired:
-                node = ChatEmptyNodePremiumRequiredChatContent(context: self.context, interaction: self.interaction)
+                node = ChatEmptyNodePremiumRequiredChatContent(context: self.context, interaction: self.interaction, stars: nil)
+            case let .starsRequired(stars):
+                node = ChatEmptyNodePremiumRequiredChatContent(context: self.context, interaction: self.interaction, stars: stars)
             }
             self.content = (contentType, node)
             self.addSubnode(node)
@@ -1858,20 +1762,25 @@ public final class ChatEmptyNode: ASDisplayNode {
                 node.layer.animateScale(from: 0.0, to: 1.0, duration: duration, timingFunction: curve.timingFunction)
             }
         }
-        self.isUserInteractionEnabled = [.peerNearby, .greeting, .premiumRequired, .cloud].contains(contentType)
-        
+        switch contentType {
+        case .greeting, .premiumRequired, .starsRequired, .cloud:
+            self.isUserInteractionEnabled = true
+        default:
+            self.isUserInteractionEnabled = false
+        }
+
         let displayRect = CGRect(origin: CGPoint(x: 0.0, y: insets.top), size: CGSize(width: size.width, height: size.height - insets.top - insets.bottom))
         
         var contentSize = CGSize()
         if let contentNode = self.content?.1 {
-            contentSize = contentNode.updateLayout(interfaceState: interfaceState, subject: subject, size: displayRect.size, transition: contentTransition)
+            contentSize = contentNode.updateLayout(interfaceState: interfaceState, subject: subject, size: displayRect.size, leftInset: leftInset, rightInset: rightInset, transition: contentTransition)
             
             if updateGreetingSticker {
                 self.context.prefetchManager?.prepareNextGreetingSticker()
             }
         }
         
-        let contentFrame = CGRect(origin: CGPoint(x: displayRect.minX + floor((displayRect.width - contentSize.width) / 2.0), y: displayRect.minY + floor((displayRect.height - contentSize.height) / 2.0)), size: contentSize)
+        let contentFrame = CGRect(origin: CGPoint(x: displayRect.minX + leftInset + floor((displayRect.width - leftInset - rightInset - contentSize.width) / 2.0), y: displayRect.minY + floor((displayRect.height - contentSize.height) / 2.0)), size: contentSize)
         if let contentNode = self.content?.1 {
             contentTransition.updateFrame(node: contentNode, frame: contentFrame)
         }
@@ -1879,7 +1788,7 @@ public final class ChatEmptyNode: ASDisplayNode {
         transition.updateFrame(node: self.backgroundNode, frame: contentFrame)
         self.backgroundNode.update(size: self.backgroundNode.bounds.size, cornerRadius: min(20.0, self.backgroundNode.bounds.height / 2.0), transition: transition)
         
-        if displayAttachedDescription, let peer = interfaceState.renderedPeer?.chatMainPeer {
+        if displayAttachedDescription, let peer = interfaceState.renderedPeer?.chatOrMonoforumMainPeer {
             let isPremium = interfaceState.isPremium
             let attachedDescriptionNode: EmptyAttachedDescriptionNode
             if let current = self.attachedDescriptionNode {
@@ -1932,7 +1841,7 @@ public final class ChatEmptyNode: ASDisplayNode {
                 wallpaperBackgroundNode: backgroundNode,
                 constrainedSize: CGSize(width: size.width - insets.left - insets.right, height: 200.0)
             )
-            let attachedDescriptionFrame = CGRect(origin: CGPoint(x: floor((size.width - attachedDescriptionSize.width) * 0.5), y: contentFrame.maxY + 4.0), size: attachedDescriptionSize)
+            let attachedDescriptionFrame = CGRect(origin: CGPoint(x: leftInset + floor((size.width - leftInset - rightInset - attachedDescriptionSize.width) * 0.5), y: contentFrame.maxY + 4.0), size: attachedDescriptionSize)
             transition.updateFrame(node: attachedDescriptionNode, frame: attachedDescriptionFrame)
             
             if let (rect, containerSize) = self.absolutePosition {

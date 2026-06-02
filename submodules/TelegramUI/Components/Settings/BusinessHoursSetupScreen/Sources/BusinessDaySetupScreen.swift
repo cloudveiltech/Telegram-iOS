@@ -3,7 +3,6 @@ import UIKit
 import Display
 import AsyncDisplayKit
 import SwiftSignalKit
-import Postbox
 import TelegramCore
 import TelegramPresentationData
 import TelegramUIPreferences
@@ -20,6 +19,7 @@ import LottieComponent
 import Markdown
 import LocationUI
 import TelegramStringFormatting
+import TextFormat
 import PlainButtonComponent
 import TimeSelectionActionSheet
 
@@ -127,8 +127,7 @@ final class BusinessDaySetupScreenComponent: Component {
                 }
             }
             
-            let presentationData = component.context.sharedContext.currentPresentationData.with { $0 }
-            self.environment?.controller()?.present(standardTextAlertController(theme: AlertControllerTheme(presentationData: presentationData), title: nil, text: enviroment.strings.BusinessHoursSetup_ErrorIntersectingHours_Text, actions: [
+            self.environment?.controller()?.present(textAlertController(context: component.context, title: nil, text: enviroment.strings.BusinessHoursSetup_ErrorIntersectingHours_Text, actions: [
                 TextAlertAction(type: .genericAction, title: enviroment.strings.Common_Cancel, action: {
                 }),
                 TextAlertAction(type: .defaultAction, title: enviroment.strings.BusinessHoursSetup_ErrorIntersectingHours_ResetAction, action: {
@@ -592,8 +591,8 @@ final class BusinessDaySetupScreenComponent: Component {
                 self.scrollView.contentSize = contentSize
             }
             let scrollInsets = UIEdgeInsets(top: environment.navigationHeight, left: 0.0, bottom: 0.0, right: 0.0)
-            if self.scrollView.scrollIndicatorInsets != scrollInsets {
-                self.scrollView.scrollIndicatorInsets = scrollInsets
+            if self.scrollView.verticalScrollIndicatorInsets != scrollInsets {
+                self.scrollView.verticalScrollIndicatorInsets = scrollInsets
             }
                         
             if !previousBounds.isEmpty, !transition.animation.isImmediate {

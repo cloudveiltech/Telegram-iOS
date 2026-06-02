@@ -1,8 +1,8 @@
-#import "TGPhotoEditorSliderView.h"
+#import <LegacyComponents/TGPhotoEditorSliderView.h>
 
 #import "LegacyComponentsInternal.h"
 
-#import "TGPhotoEditorInterfaceAssets.h"
+#import <LegacyComponents/TGPhotoEditorInterfaceAssets.h>
 
 const CGFloat TGPhotoEditorSliderViewLineSize = 3.0f;
 const CGFloat TGPhotoEditorSliderViewMargin = 15.0f;
@@ -141,7 +141,7 @@ const CGFloat TGPhotoEditorSliderViewInternalMargin = 7.0f;
     if (vertical)
         startPosition = 2 * visualMargin + visualTotalLength - startPosition;
     
-    CGFloat endPosition = visualMargin + visualTotalLength / (_maximumValue - _minimumValue) * (ABS(_minimumValue) + 1.0);
+    CGFloat endPosition = visualMargin + visualTotalLength / (_maximumValue - _minimumValue) * (ABS(_minimumValue) + _maximumValue);
     if (vertical)
         endPosition = 2 * visualMargin + visualTotalLength - endPosition;
     

@@ -169,7 +169,7 @@ private final class TitleFieldComponent: Component {
             
             let iconContent: EmojiStatusComponent.Content
             if component.isGeneral {
-                iconContent = .image(image: generateTintedImage(image: UIImage(bundleImageName: "Chat List/GeneralTopicIcon"), color: component.placeholderColor))
+                iconContent = .image(image: generateTintedImage(image: UIImage(bundleImageName: "Chat List/GeneralTopicIcon"), color: component.placeholderColor), tintColor: nil)
                 self.iconButton.isUserInteractionEnabled = false
             } else if component.fileId == 0 {
                 iconContent = .topic(title: String(component.text.prefix(1)), color: component.iconColor, size: CGSize(width: 32.0, height: 32.0))
@@ -350,6 +350,7 @@ private final class TopicIconSelectionComponent: Component {
                     defaultToEmojiTab: true,
                     externalTopPanelContainer: self.panelHostView,
                     externalBottomPanelContainer: nil,
+                    externalTintMaskContainer: nil,
                     displayTopPanelBackground: .blur,
                     topPanelExtensionUpdated: { _, _ in },
                     topPanelScrollingOffset: { _, _ in },
@@ -910,7 +911,7 @@ private final class ForumCreateTopicScreenComponent: CombinedComponent {
                                 }
                                 for featuredEmojiPack in view.items.lazy.map({ $0.contents.get(FeaturedStickerPackItem.self)! }) {
                                     if featuredEmojiPack.info.id == collectionId {
-                                        let _ = accountContext.engine.stickers.addStickerPackInteractively(info: featuredEmojiPack.info, items: featuredEmojiPack.topItems).start()
+                                        let _ = accountContext.engine.stickers.addStickerPackInteractively(info: featuredEmojiPack.info._parse(), items: featuredEmojiPack.topItems).start()
                                         
                                         break
                                     }
@@ -1011,7 +1012,7 @@ public class ForumCreateTopicScreen: ViewControllerComponentContainer {
             isHiddenUpdatedImpl?(isHidden)
         }, openPremium: {
             openPremiumImpl?()
-        }), navigationBarAppearance: .transparent)
+        }), navigationBarAppearance: .default)
         
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
         let title: String
@@ -1019,10 +1020,10 @@ public class ForumCreateTopicScreen: ViewControllerComponentContainer {
         switch mode {
         case .create:
             title = presentationData.strings.CreateTopic_CreateTitle
-            doneTitle = presentationData.strings.CreateTopic_Create
+            doneTitle = "___done"
         case let .edit(threadId, topic, isHidden):
             title = presentationData.strings.CreateTopic_EditTitle
-            doneTitle = presentationData.strings.Common_Done
+            doneTitle = "___done"
             
             self.state = (topic.title, topic.icon, topic.iconColor, threadId == 1 ? isHidden : nil)
         }
@@ -1031,7 +1032,7 @@ public class ForumCreateTopicScreen: ViewControllerComponentContainer {
         
         self.readyValue.set(componentReady.get() |> timeout(0.3, queue: .mainQueue(), alternate: .single(true)))
         
-        self.navigationItem.leftBarButtonItem = UIBarButtonItem(title: presentationData.strings.Common_Cancel, style: .plain, target: self, action: #selector(self.cancelPressed))
+        self.navigationItem.leftBarButtonItem = UIBarButtonItem(title: "___close", style: .plain, target: self, action: #selector(self.cancelPressed))
         
         self.doneBarItem = UIBarButtonItem(title: doneTitle, style: .done, target: self, action: #selector(self.createPressed))
         self.navigationItem.rightBarButtonItem = self.doneBarItem

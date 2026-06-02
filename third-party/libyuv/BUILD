@@ -25,11 +25,12 @@ arch_specific_cflags = select({
     "@build_bazel_rules_apple//apple:ios_arm64": common_flags + arm64_specific_flags,
     "//build-system:ios_sim_arm64": common_flags + arm64_specific_flags,
     "@build_bazel_rules_apple//apple:ios_x86_64": common_flags + x86_64_specific_flags,
+    "//conditions:default": common_flags,
 })
 
 cc_library(
     name = "libyuv",
-    srcs = [ "third_party/libyuv/" + path for path in [
+    hdrs = [ "third_party/libyuv/" + path for path in [
         # Headers
         "include/libyuv.h",
         "include/libyuv/basic_types.h",
@@ -55,7 +56,8 @@ cc_library(
         "include/libyuv/scale.h",
         "include/libyuv/version.h",
         "include/libyuv/video_common.h",
-
+    ]],
+    srcs = [ "third_party/libyuv/" + path for path in [
         # Source Files
         "source/compare.cc",
         "source/compare_common.cc",
@@ -102,40 +104,11 @@ cc_library(
         "source/scale_neon.cc",
         "source/scale_neon64.cc",
     ]],
+    includes = [
+        "third_party/libyuv/include",
+    ],
     copts = [
         "-ffp-contract=fast",
-        "-Ithird-party/libyuv/third_party/libyuv/include",
     ] + arch_specific_cflags + optimization_flags,
     visibility = ["//visibility:public"],
 )
-
-
-objc_library(
-    name = "LibYuvBinding",
-    enable_modules = True,
-    module_name = "LibYuvBinding",
-    srcs = glob([
-        "LibYuvBinding/Sources/**/*.m",
-        "LibYuvBinding/Sources/**/*.c",
-        "LibYuvBinding/Sources/**/*.h",
-    ]),
-    hdrs = glob([
-        "LibYuvBinding/PublicHeaders/**/*.h",
-    ]),
-    includes = [
-        "LibYuvBinding/PublicHeaders",
-    ],
-    copts = [
-        "-Ithird-party/libyuv/third_party/libyuv/include",
-    ],
-    deps = [
-        ":libyuv",
-    ],
-    sdk_frameworks = [
-        "Foundation",
-    ],
-    visibility = [
-        "//visibility:public",
-    ],
-)
-

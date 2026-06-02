@@ -32,8 +32,6 @@ extension PremiumGiftSource {
             return "attach"
         case .settings:
             return "settings"
-        case .stars:
-            return ""
         case .chatList:
             return "chats"
         case .channelBoost:
@@ -44,6 +42,8 @@ extension PremiumGiftSource {
             } else {
                 return "deeplink"
             }
+        case .stars, .starGiftTransfer:
+            return ""
         }
     }
 }
@@ -163,7 +163,7 @@ private final class PremiumGiftScreenContentComponent: CombinedComponent {
                 if let view = views.views[stickersKey] as? OrderedItemListView {
                     for item in view.items {
                         if let mediaItem = item.contents.get(RecentMediaItem.self) {
-                            let file = mediaItem.media
+                            let file = mediaItem.media._parse()
                             strongSelf.preloadDisposableSet.add(freeMediaFileResourceInteractiveFetched(account: context.account, userLocation: .other, fileReference: .standalone(media: file), resource: file.resource).start())
                             if let effect = file.videoThumbnails.first {
                                 strongSelf.preloadDisposableSet.add(freeMediaFileResourceInteractiveFetched(account: context.account, userLocation: .other, fileReference: .standalone(media: file), resource: effect.resource).start())
@@ -433,6 +433,7 @@ private final class PremiumGiftScreenContentComponent: CombinedComponent {
                 UIColor(rgb: 0xdb374b),
                 UIColor(rgb: 0xcb3e6d),
                 UIColor(rgb: 0xbc4395),
+                UIColor(rgb: 0xbc4395),
                 UIColor(rgb: 0xab4ac4),
                 UIColor(rgb: 0xab4ac4),
                 UIColor(rgb: 0xa34cd7),
@@ -441,6 +442,7 @@ private final class PremiumGiftScreenContentComponent: CombinedComponent {
                 UIColor(rgb: 0x676bff),
                 UIColor(rgb: 0x676bff),
                 UIColor(rgb: 0x6172ff),
+                UIColor(rgb: 0x5b79ff),
                 UIColor(rgb: 0x5b79ff),
                 UIColor(rgb: 0x4492ff),
                 UIColor(rgb: 0x429bd5),
