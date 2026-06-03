@@ -72,22 +72,11 @@ local_path_override(
 
 # CloudVeil start
 http_archive(
-    name = "rules_pods",
-    urls = ["https://github.com/pinterest/PodToBUILD/releases/download/6.3.2-370b622/PodToBUILD.zip"],
-    sha256 = "ffdfe8c7a4c73cca5d7b7a67daa6ccdd046355637dbdb9b1366d021b4ad339b5",
-)
-
-new_pod_repository = use_repo_rule("@rules_pods//BazelExtensions:workspace.bzl", "new_pod_repository")
-
-new_pod_repository(
-    name = "Sentry",
-    url = "https://github.com/getsentry/sentry-cocoa/releases/download/8.41.0/Sentry.xcframework.zip",
-    podspec_url = "Sentry.podspec.json",
-    is_xcframework = True,
-)
-
-new_pod_repository(
     name = "ObjectMapper",
-    url = "https://github.com/tristanhimmelman/ObjectMapper/archive/3.3.0.zip",
+    build_file = "//third-party/ObjectMapper:BUILD.bazel",
+    sha256 = "351eee91905d13c2a6e7390bee00df1806e5de597e6cc1dc1508194ab7846079",
+    strip_prefix = "ObjectMapper-3.3.0",
+    url = "https://github.com/tristanhimmelman/ObjectMapper/archive/refs/tags/3.3.0.zip",
 )
+
 # CloudVeil end

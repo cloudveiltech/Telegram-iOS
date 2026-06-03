@@ -83,3 +83,5 @@ xcode-files
 /buildbox/*
 
 build.log
+/provisioning
+third-party/Sentry/Sentry.xcframework

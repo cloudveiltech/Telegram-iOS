@@ -56,7 +56,7 @@ swift_library(
     deps = [
         #CloudVeil start
         "//CloudVeil/SecurityManager:CloudVeilSecurityManager",
-        "@Sentry//:Sentry",
+        "//third-party/Sentry:Sentry",
         #CloudVeil end
         "//third-party/recaptcha:RecaptchaEnterprise",
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
