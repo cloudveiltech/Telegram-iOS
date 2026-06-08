@@ -304,7 +304,6 @@ extension PeerInfoScreenNode {
             if let tonContext = self.controller?.tonContext {
                 push(self.context.sharedContext.makeStarsTransactionsScreen(context: self.context, starsContext: tonContext))
             }
-        }
         // CloudVeil start 
         case .policy:
             if let orgId = CloudVeilSecurityController.shared.organizationId {
@@ -326,7 +325,8 @@ extension PeerInfoScreenNode {
                     navigationController: navCtrl, dismissInput: {}
                 )
             }
-        // CloudVeil end   
+        // CloudVeil end
+        }
     }
 
     func setupFaqIfNeeded() {

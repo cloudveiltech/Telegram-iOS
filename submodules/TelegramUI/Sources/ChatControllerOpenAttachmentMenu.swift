@@ -1501,13 +1501,9 @@ extension ChatControllerImpl {
                     legacyController.deferScreenEdgeGestures = [.top]
 
                     configureLegacyAssetPicker(controller, context: strongSelf.context, peer: peer, chatLocation: strongSelf.chatLocation, initialCaption: inputText, hasSchedule: strongSelf.presentationInterfaceState.subject != .scheduledMessages && peer.id.namespace != Namespaces.Peer.SecretChat, presentWebSearch: editingMedia ? nil : { [weak self, weak legacyController] in
-                        //CloudVeil start
-                        //Disable all code below, and keep the code for future reference also prevent build failure
-                        let disable = true
-                        if disable {
-                            return
-                        }
-                        //CloudVeil end
+                        // CloudVeil start
+                        _ = self; _ = legacyController
+                        /* Disable all code below, and keep the code for future reference also prevent build failure
                         if let strongSelf = self {
                             let controller = WebSearchController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, peer: EnginePeer(peer), chatLocation: strongSelf.chatLocation, configuration: searchBotsConfiguration, mode: .media(attachment: false, completion: { results, selectionState, editingState, silentPosting, scheduleTime in
                                 if let legacyController = legacyController {
@@ -1532,6 +1528,8 @@ extension ChatControllerImpl {
                             }
                             strongSelf.effectiveNavigationController?.pushViewController(controller)
                         }
+                        */
+                        // CloudVeil end
                     }, presentSelectionLimitExceeded: {
                         guard let strongSelf = self else {
                             return

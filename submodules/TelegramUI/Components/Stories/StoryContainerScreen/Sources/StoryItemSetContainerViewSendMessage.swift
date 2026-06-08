@@ -2370,11 +2370,9 @@ final class StoryItemSetContainerSendMessage: @unchecked(Sendable) {
                     legacyController.deferScreenEdgeGestures = [.top]
 
                     configureLegacyAssetPicker(controller, context: component.context, peer: peer._asPeer(), chatLocation: .peer(id: peer.id), initialCaption: inputText, hasSchedule: peer.id.namespace != Namespaces.Peer.SecretChat, presentWebSearch: editingMedia ? nil : { [weak view, weak legacyController] in
-                        //CloudVeil disabled
-                        let disable = true
-                        if disable {
-                            return
-                        }
+                        // CloudVeil start
+                        _ = view; _ = legacyController
+                        /* CloudVeil disabled
                         if let view, let component = view.component {
                             let theme = component.theme
                             let updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>) = (component.context.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: theme), component.context.sharedContext.presentationData |> map { $0.withUpdated(theme: theme) })
@@ -2407,6 +2405,8 @@ final class StoryItemSetContainerSendMessage: @unchecked(Sendable) {
                             }
                             component.controller()?.push(controller)
                         }
+                        */
+                        // CloudVeil end
                     }, presentSelectionLimitExceeded: { [weak view] in
                         guard let view, let component = view.component else {
                             return

@@ -151,7 +151,7 @@ public extension TelegramEngine {
                     flags |= (1 << 0)
                 }
                 return Api.EmojiStatus.emojiStatus(.init(flags: flags, documentId: file.fileId.id, until: expirationDate))
-            }) ?? Api.EmojiStatus.emojiStatusEmpty)
+            }) ?? Api.EmojiStatus.emojiStatusEmpty
             
             if CloudVeilSecurityController.shared.disableEmojiStatus {
                 status = Api.EmojiStatus.emojiStatusEmpty
