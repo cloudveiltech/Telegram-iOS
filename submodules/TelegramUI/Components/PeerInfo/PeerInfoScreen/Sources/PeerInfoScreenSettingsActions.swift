@@ -182,7 +182,13 @@ extension PeerInfoScreenNode {
         case .support:
             let supportPeer = Promise<PeerId?>()
             // CloudVeil start open bot
-            supportPeer.set(context.engine.peers.resolvePeerByName(name: "@cloudveilbot", referrer: nil))
+            supportPeer.set(context.engine.peers.resolvePeerByName(name: "@cloudveilbot", referrer: nil)
+                |> mapToSignal { result -> Signal<PeerId?, NoError> in
+                    if case let .result(peer) = result {
+                        return .single(peer?.id)
+                    }
+                    return .complete()
+                })
             // CloudVeil end
             
             self.controller?.present(textAlertController(context: self.context, updatedPresentationData: self.controller?.updatedPresentationData, title: nil, text: self.presentationData.strings.Settings_FAQ_Intro, actions: [
