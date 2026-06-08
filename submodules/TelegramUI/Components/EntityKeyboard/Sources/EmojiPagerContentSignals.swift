@@ -2139,7 +2139,7 @@ public extension EmojiPagerContentComponent {
                 var items: [EmojiPagerContentComponent.Item] = []
                 for item in group.items {
                     if let file = item.itemFile {
-                        for attribute in file.attributes {
+                        for attribute in file._parse().attributes {
                             if case let .Sticker(_, pack, _) = attribute {
                                 if case let .id(id, _) = pack {
                                     if CloudVeilSecurityController.shared.isStickerAvailable(stickerId: NSInteger(id)) {
