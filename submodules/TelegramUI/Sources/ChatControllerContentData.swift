@@ -15,6 +15,7 @@ import EmojiStatusComponent
 import TelegramUIPreferences
 import TranslateUI
 import TelegramNotices
+import CloudVeilSecurityManager
 
 extension ChatControllerImpl {
     final class ContentData {
@@ -931,7 +932,6 @@ extension ChatControllerImpl {
                     var autoremoveTimeout: Int32?
                     var copyProtectionEnabled: Bool = false
                     var myCopyProtectionEnabled: Bool = false
-                    var hasBirthdayToday = false
                     var hasBirthdayToday = false
                     //CloudVeil start
                     var hasAllowedBots = false

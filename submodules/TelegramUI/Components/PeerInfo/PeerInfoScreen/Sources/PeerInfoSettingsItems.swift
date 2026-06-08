@@ -13,6 +13,7 @@ import ItemListPeerItem
 import DeviceAccess
 import TelegramStringFormatting
 import PeerNameColorItem
+import CloudVeilSecurityManager
 
 enum SettingsSection: Int, CaseIterable {
     case edit
@@ -346,7 +347,7 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     items[.support]!.append(PeerInfoScreenDisclosureItem(id: 3, text: presentationData.strings.Settings_Policy, icon: PresentationResourcesSettings.proxy, action: {
         interaction.openSettings(.policy)
     }))
-    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 4, text: presentationData.strings.Settings_AboutUs, icon: PresentationResourcesSettings.editProfile, action: {
+    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 4, text: presentationData.strings.Settings_AboutUs, icon: PresentationResourcesSettings.myProfile, action: {
         interaction.openSettings(.aboutUs)
     }))
     // CloudVeil end

@@ -298,7 +298,8 @@ private func handleInternetUrl(
                 } else {
 
                     //CloudVeil start
-                    if CloudVeilSecurityController.SecurityStaticSettings.disableInAppBrowser && !CloudVeilSecurityController.shared.isUrlWhitelisted(url) {
+                    if CloudVeilSecurityController.SecurityStaticSettings.disableInAppBrowser &&
+                        !CloudVeilSecurityController.shared.isUrlWhitelisted(parsedUrl.absoluteString) {
                         context.sharedContext.applicationBindings.openUrl(parsedUrl.absoluteString)
                         return
                     }
