@@ -148,7 +148,9 @@ private final class BrowserScreenComponent: CombinedComponent {
                         component: AnyComponent(
                             TitleBarContentComponent(
                                 theme: environment.theme,
-                                title: title
+                                title: title,
+                                readingProgress: context.component.contentState?.readingProgress ?? 0.0,
+                                loadingProgress: context.component.contentState?.estimatedProgress,
                             )
                         )
                     )
