@@ -3334,7 +3334,7 @@ public final class ChatListNode: ListViewImpl {
                                     if participant.peer.isDeleted {
                                         return nil
                                     }
-                                    return EnginePeer(participant.peer)
+                                    return participant.peer
                                 }, true))
                             }
                         })
@@ -3344,7 +3344,7 @@ public final class ChatListNode: ListViewImpl {
                         }
                     }
                     |> runOn(Queue.mainQueue())
-                }
+                 }
                 
                 return Signal { subscriber in
                     let (disposable, _) = self.context.peerChannelMemberCategoriesContextsManager.recent(engine: self.context.engine, postbox: self.context.account.postbox, network: self.context.account.network, accountPeerId: self.context.account.peerId, peerId: peerId, searchQuery: nil, updated: { state in
@@ -3353,7 +3353,7 @@ public final class ChatListNode: ListViewImpl {
                                 if participant.peer.isDeleted {
                                     return nil
                                 }
-                                return EnginePeer(participant.peer)
+                                return participant.peer
                             }, true))
                         }
                     })
@@ -3433,7 +3433,7 @@ public final class ChatListNode: ListViewImpl {
             let avail = CloudVeilSecurityController.shared.isConversationAvailable(conversationId: NSInteger(peer.peerId.id._internalGetInt64Value())) ?? true
             if !avail {
                 var chatListDisposable: Disposable?
-                chatListDisposable = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [peer.peerId], setToValue: false).start(next: { _ in
+                chatListDisposable = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [peer.peerId], setToValue: false).start(completed: {
                     chatListDisposable?.dispose()
                 })
             }
