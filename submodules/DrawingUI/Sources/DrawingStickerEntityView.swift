@@ -142,6 +142,8 @@ public class DrawingStickerEntityView: DrawingEntityView {
             return image
         } else if case .message = self.stickerEntity.content {
             return self.animatedImageView?.image
+        } else if case .gift = self.stickerEntity.content {
+            return self.animatedImageView?.image
         } else {
             return nil
         }
@@ -167,7 +169,7 @@ public class DrawingStickerEntityView: DrawingEntityView {
             return file.dimensions?.cgSize ?? CGSize(width: 512.0, height: 512.0)
         case .dualVideoReference:
             return CGSize(width: 512.0, height: 512.0)
-        case let .message(_, size, _, _, _):
+        case let .message(_, size, _, _, _), let .gift(_, size):
             return size
         }
     }
@@ -296,6 +298,43 @@ public class DrawingStickerEntityView: DrawingEntityView {
             if let file, let _ = mediaRect {
                 self.setupWithVideo(file)
             }
+        } else if case let .gift(gift, _) = self.stickerEntity.content {
+            if let image = self.stickerEntity.renderImage {
+                self.setupWithImage(image, overlayImage: self.stickerEntity.overlayRenderImage)
+            }
+            
+            var file: TelegramMediaFile?
+            for attribute in gift.attributes {
+                if case let .model(_, fileValue, _, _) = attribute {
+                    file = fileValue
+                    break
+                }
+            }
+            guard let file, let dimensions = file.dimensions else {
+                return
+            }
+            if self.animationNode == nil {
+                let animationNode = DefaultAnimatedStickerNodeImpl()
+                animationNode.clipsToBounds = true
+                animationNode.autoplay = false
+                self.animationNode = animationNode
+                animationNode.started = { [weak self, weak animationNode] in
+                    self?.imageNode.isHidden = true
+                                                
+                    if let animationNode = animationNode {
+                        let _ = (animationNode.status
+                        |> take(1)
+                        |> deliverOnMainQueue).start(next: { [weak self] status in
+                            self?.started?(status.duration)
+                        })
+                    }
+                }
+                self.addSubnode(self.imageNode)
+                self.addSubnode(animationNode)
+            }
+            self.imageNode.setSignal(chatMessageAnimatedSticker(postbox: self.context.account.postbox, userLocation: .other, file: file, small: false, size: dimensions.cgSize.aspectFitted(CGSize(width: 256.0, height: 256.0))))
+            self.stickerFetchedDisposable.set(freeMediaFileResourceInteractiveFetched(account: self.context.account, userLocation: .other, fileReference: stickerPackFileReference(file), resource: file.resource).start())
+            self.setNeedsLayout()
         }
     }
     
@@ -306,7 +345,11 @@ public class DrawingStickerEntityView: DrawingEntityView {
         } else {
             imageView = UIImageView()
             imageView.contentMode = .scaleAspectFit
-            self.addSubview(imageView)
+            if let _ = self.animationNode {
+                self.insertSubview(imageView, at: 0)
+            } else {
+                self.addSubview(imageView)
+            }
             self.animatedImageView = imageView
         }
         imageView.image = image
@@ -330,7 +373,7 @@ public class DrawingStickerEntityView: DrawingEntityView {
     
     private func setupWithVideo(_ file: TelegramMediaFile) {
         let videoNode = UniversalVideoNode(
-            accountId: self.context.account.id,
+            context: self.context,
             postbox: self.context.account.postbox,
             audioSession: self.context.sharedContext.mediaManager.audioSession,
             manager: self.context.sharedContext.mediaManager.universalVideoManager,
@@ -418,13 +461,24 @@ public class DrawingStickerEntityView: DrawingEntityView {
         if self.isPlaying != isPlaying {
             self.isPlaying = isPlaying
             
-            if let file = self.file {
+            var file: TelegramMediaFile?
+            if let fileValue = self.file {
+                file = fileValue
+            } else if case let .gift(gift, _) = self.stickerEntity.content {
+                for attribute in gift.attributes {
+                    if case let .model(_, fileValue, _, _) = attribute {
+                        file = fileValue
+                        break
+                    }
+                }
+            }
+            if let file {
                 if isPlaying && !self.didSetUpAnimationNode {
                     self.didSetUpAnimationNode = true
                     let dimensions = file.dimensions ?? PixelDimensions(width: 512, height: 512)
                     let fittedDimensions = dimensions.cgSize.aspectFitted(CGSize(width: 384.0, height: 384.0))
                     let source = AnimatedStickerResourceSource(account: self.context.account, resource: file.resource, isVideo: file.isVideoSticker || file.mimeType == "video/webm")
-                    let pathPrefix = self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(file.resource.id)
+                    let pathPrefix = self.context.engine.resources.shortLivedResourceCachePathPrefix(id: EngineMediaResource.Id(file.resource.id))
                     let playbackMode: AnimatedStickerPlaybackMode = .loop
                     self.animationNode?.setup(source: source, width: Int(fittedDimensions.width), height: Int(fittedDimensions.height), playbackMode: playbackMode, mode: .direct(cachePathPrefix: pathPrefix))
                     
@@ -596,15 +650,22 @@ public class DrawingStickerEntityView: DrawingEntityView {
 
             let imageSize = self.dimensions.aspectFitted(boundingSize)
             let imageFrame = CGRect(origin: CGPoint(x: floor((size.width - imageSize.width) / 2.0), y: (size.height - imageSize.height) / 2.0), size: imageSize)
-
-            self.imageNode.asyncLayout()(TransformImageArguments(corners: ImageCorners(), imageSize: imageSize, boundingSize: imageSize, intrinsicInsets: UIEdgeInsets()))()
-            self.imageNode.frame = imageFrame
+            
+            var animationSize = CGSize(width: imageSize.width, height: imageSize.width)
+            var animationFrame = imageFrame
+            if case .gift = self.stickerEntity.content {
+                animationSize = CGSize(width: animationSize.width * 0.48, height: animationSize.height * 0.48)
+                animationFrame = CGRect(origin: CGPoint(x: floor((size.width - animationSize.width) / 2.0), y: 22.0), size: animationSize)
+            }
+            
+            self.imageNode.asyncLayout()(TransformImageArguments(corners: ImageCorners(), imageSize: animationSize, boundingSize: animationSize, intrinsicInsets: UIEdgeInsets()))()
+            self.imageNode.frame = animationFrame
             if let animationNode = self.animationNode {
                 if self.isReaction {
-                    animationNode.cornerRadius = floor(imageSize.width * 0.1)
+                    animationNode.cornerRadius = floor(animationSize.width * 0.1)
                 }
-                animationNode.frame = imageFrame
-                animationNode.updateLayout(size: imageSize)
+                animationNode.frame = animationFrame
+                animationNode.updateLayout(size: animationSize)
                 
                 if !self.didApplyVisibility {
                     self.didApplyVisibility = true
@@ -697,11 +758,16 @@ public class DrawingStickerEntityView: DrawingEntityView {
     
         self.updateAnimationColor()
 
-        if case .message = self.stickerEntity.content, self.animatedImageView == nil {
-            let image = self.isNightTheme ? self.stickerEntity.secondaryRenderImage : self.stickerEntity.renderImage
-            if let image {
-                self.setupWithImage(image)
+        switch self.stickerEntity.content {
+        case .message, .gift:
+            if self.animatedImageView == nil {
+                let image = self.isNightTheme ? self.stickerEntity.secondaryRenderImage : self.stickerEntity.renderImage
+                if let image {
+                    self.setupWithImage(image)
+                }
             }
+        default:
+            break
         }
         
         self.updateMirroring(animated: animated)
@@ -817,6 +883,35 @@ public class DrawingStickerEntityView: DrawingEntityView {
                 }
                 
                 return entities
+            }
+        } else if case let .gift(gift, _) = self.stickerEntity.content {
+            var file: TelegramMediaFile?
+            for attribute in gift.attributes {
+                if case let .model(_, fileValue, _, _) = attribute {
+                    file = fileValue
+                    break
+                }
+            }
+            if let file, let animationNode = self.animationNode {
+                let stickerSize = self.bounds.size
+                let stickerPosition = self.stickerEntity.position
+                let videoSize = animationNode.frame.size
+                let scale = self.stickerEntity.scale
+                let rotation = self.stickerEntity.rotation
+                
+                let videoPosition = animationNode.position.offsetBy(dx: -stickerSize.width / 2.0, dy: -stickerSize.height / 2.0)
+                let videoScale = videoSize.width / stickerSize.width
+                
+                let videoEntity = DrawingStickerEntity(content: .file(.standalone(media: file), .sticker))
+                videoEntity.referenceDrawingSize = self.stickerEntity.referenceDrawingSize
+                videoEntity.position = stickerPosition.offsetBy(
+                    dx: (videoPosition.x * cos(rotation) - videoPosition.y * sin(rotation)) * scale,
+                    dy: (videoPosition.y * cos(rotation) + videoPosition.x * sin(rotation)) * scale
+                )
+                videoEntity.scale = scale * videoScale
+                videoEntity.rotation = rotation
+                
+                return [videoEntity]
             }
         }
         return []
@@ -1103,6 +1198,9 @@ final class DrawingStickerEntitySelectionView: DrawingEntitySelectionView {
             if case .message = entity.content {
                 cornerRadius *= 2.1
                 count = 24
+            } else if case .gift = entity.content {
+                cornerRadius *= 2.1
+                count = 24
             } else if case .image = entity.content {
                 count = 24
             }
@@ -1245,86 +1343,6 @@ private final class StickerVideoDecoration: UniversalVideoDecoration {
     }
     
     public func tap() {
-    }
-}
-
-private extension UIBezierPath {
-    static func smoothCurve(
-        through points: [CGPoint],
-        length: CGFloat
-    ) -> UIBezierPath {
-        let angle = (CGFloat.pi * 2) / CGFloat(points.count)
-        let smoothness: CGFloat = ((4 / 3) * tan(angle / 4)) / sin(angle / 2) / 2
-        
-        var smoothPoints = [SmoothPoint]()
-        for index in (0 ..< points.count) {
-            let prevIndex = index - 1
-            let prev = points[prevIndex >= 0 ? prevIndex : points.count + prevIndex]
-            let curr = points[index]
-            let next = points[(index + 1) % points.count]
-            
-            let angle: CGFloat = {
-                let dx = next.x - prev.x
-                let dy = -next.y + prev.y
-                let angle = atan2(dy, dx)
-                if angle < 0 {
-                    return abs(angle)
-                } else {
-                    return 2 * .pi - angle
-                }
-            }()
-            
-            smoothPoints.append(
-                SmoothPoint(
-                    point: curr,
-                    inAngle: angle + .pi,
-                    inLength: smoothness * distance(from: curr, to: prev),
-                    outAngle: angle,
-                    outLength: smoothness * distance(from: curr, to: next)
-                )
-            )
-        }
-        
-        let resultPath = UIBezierPath()
-        resultPath.move(to: smoothPoints[0].point)
-        for index in (0 ..< smoothPoints.count) {
-            let curr = smoothPoints[index]
-            let next = smoothPoints[(index + 1) % points.count]
-            let currSmoothOut = curr.smoothOut()
-            let nextSmoothIn = next.smoothIn()
-            resultPath.addCurve(to: next.point, controlPoint1: currSmoothOut, controlPoint2: nextSmoothIn)
-        }
-        resultPath.close()
-        return resultPath
-    }
-    
-    static private func distance(from fromPoint: CGPoint, to toPoint: CGPoint) -> CGFloat {
-        return sqrt((fromPoint.x - toPoint.x) * (fromPoint.x - toPoint.x) + (fromPoint.y - toPoint.y) * (fromPoint.y - toPoint.y))
-    }
-    
-    struct SmoothPoint {
-        let point: CGPoint
-        
-        let inAngle: CGFloat
-        let inLength: CGFloat
-        
-        let outAngle: CGFloat
-        let outLength: CGFloat
-        
-        func smoothIn() -> CGPoint {
-            return smooth(angle: inAngle, length: inLength)
-        }
-        
-        func smoothOut() -> CGPoint {
-            return smooth(angle: outAngle, length: outLength)
-        }
-        
-        private func smooth(angle: CGFloat, length: CGFloat) -> CGPoint {
-            return CGPoint(
-                x: point.x + length * cos(angle),
-                y: point.y + length * sin(angle)
-            )
-        }
     }
 }
 

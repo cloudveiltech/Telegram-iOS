@@ -17,6 +17,7 @@ import Postbox
 import TelegramCore
 import EmojiStatusComponent
 import GalleryUI
+import HierarchyTrackingLayer
 import CloudVeilSecurityManager
 
 final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
@@ -31,6 +32,8 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
     var iconView: ComponentView<Empty>?
     private var videoContent: NativeVideoContent?
     private var videoStartTimestamp: Double?
+    
+    private let hierarchyTrackingLayer = HierarchyTrackingLayer()
     
     var isExpanded: Bool = false
     var canAttachVideo: Bool = true {
@@ -50,7 +53,7 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
     
     private let playbackStartDisposable = MetaDisposable()
     
-    var storyData: (totalCount: Int, unseenCount: Int, hasUnseenCloseFriends: Bool)?
+    var storyData: (totalCount: Int, unseenCount: Int, hasUnseenCloseFriends: Bool, hasLiveItems: Bool)?
     var storyProgress: Float?
     
     init(context: AccountContext) {
@@ -78,17 +81,45 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
             tapGestureRecognizer.isEnabled = true
             strongSelf.contextAction?(strongSelf.containerNode, gesture)
         }
+
+        self.hierarchyTrackingLayer.isInHierarchyUpdated = { [weak self] value in
+            guard let self else {
+                return
+            }
+            
+            if value {
+                self.updateFromParams()
+            } else {
+                self.videoNode?.removeFromSupernode()
+                self.videoNode = nil
+                self.videoContent = nil
+            }
+        }
+        self.layer.addSublayer(self.hierarchyTrackingLayer)
     }
     
     deinit {
         self.playbackStartDisposable.dispose()
     }
     
-    func updateStoryView(transition: ContainedViewLayoutTransition, theme: PresentationTheme, peer: Peer?) {
+    func updateStoryView(transition: ContainedViewLayoutTransition, theme: PresentationTheme, peer: EnginePeer?) {
         var colors = AvatarNode.Colors(theme: theme)
         
         let regularNavigationContentsSecondaryColor: UIColor
-        if let profileColor = peer?.profileColor {
+        if case let .starGift(_, _, _, _, _, innerColorValue, outerColorValue, _, _) = peer?.emojiStatus?.content {
+            let innerColor = UIColor(rgb: UInt32(bitPattern: innerColorValue))
+            let outerColor = UIColor(rgb: UInt32(bitPattern: outerColorValue))
+            regularNavigationContentsSecondaryColor = UIColor(white: 1.0, alpha: 0.6).blitOver(innerColor.withMultiplied(hue: 1.0, saturation: 2.2, brightness: 1.5), alpha: 1.0)
+                    
+            let baseBackgroundColor = UIColor(white: 1.0, alpha: 0.75)
+    
+            let topColor = baseBackgroundColor.blendOver(background: innerColor.mixedWith(outerColor, alpha: 0.1)).withMultiplied(hue: 1.0, saturation: 1.2, brightness: 1.5)
+            let bottomColor = baseBackgroundColor.blendOver(background: outerColor).withMultiplied(hue: 1.0, saturation: 1.2, brightness: 1.5)
+        
+            colors.unseenColors = [topColor, bottomColor]
+            colors.unseenCloseFriendsColors = colors.unseenColors
+            colors.seenColors = colors.unseenColors
+        } else if let profileColor = peer?.profileColor {
             let backgroundColors = self.context.peerNameColors.getProfile(profileColor, dark: theme.overallDarkAppearance)
             regularNavigationContentsSecondaryColor = UIColor(white: 1.0, alpha: 0.6).blitOver(backgroundColors.main.withMultiplied(hue: 1.0, saturation: 2.2, brightness: 1.5), alpha: 1.0)
             
@@ -116,6 +147,7 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                 totalCount: storyData.totalCount,
                 unseenCount: storyData.unseenCount,
                 hasUnseenCloseFriendsItems: storyData.hasUnseenCloseFriends,
+                hasLiveItems: storyData.hasLiveItems,
                 progress: self.storyProgress
             )
         } else if let storyProgress = self.storyProgress {
@@ -123,12 +155,13 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                 totalCount: 1,
                 unseenCount: 1,
                 hasUnseenCloseFriendsItems: false,
+                hasLiveItems: false,
                 progress: storyProgress
             )
         }
         
         var isForum = false
-        if let peer, let channel = peer as? TelegramChannel, channel.isForum {
+        if let peer, case let .channel(channel) = peer, channel.isForumOrMonoForum {
             isForum = true
         }
         
@@ -176,9 +209,52 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
             transition.updateAlpha(node: markupNode, alpha: 1.0 - fraction)
         }
     }
+
+    private struct Params {
+        let peer: EnginePeer?
+        let threadId: Int64?
+        let threadInfo: EngineMessageHistoryThread.Info?
+        let item: PeerInfoAvatarListItem?
+        let theme: PresentationTheme
+        let avatarSize: CGFloat
+        let isExpanded: Bool
+        let isSettings: Bool
+
+        init(peer: EnginePeer?, threadId: Int64?, threadInfo: EngineMessageHistoryThread.Info?, item: PeerInfoAvatarListItem?, theme: PresentationTheme, avatarSize: CGFloat, isExpanded: Bool, isSettings: Bool) {
+            self.peer = peer
+            self.threadId = threadId
+            self.threadInfo = threadInfo
+            self.item = item
+            self.theme = theme
+            self.avatarSize = avatarSize
+            self.isExpanded = isExpanded
+            self.isSettings = isSettings
+        }
+    }
         
     var removedPhotoResourceIds = Set<String>()
-    func update(peer: Peer?, threadId: Int64?, threadInfo: EngineMessageHistoryThread.Info?, item: PeerInfoAvatarListItem?, theme: PresentationTheme, avatarSize: CGFloat, isExpanded: Bool, isSettings: Bool) {
+    private var params: Params?
+
+    private func updateFromParams() {
+        guard let params = self.params else {
+            return
+        }
+
+        self.update(
+            peer: params.peer,
+            threadId: params.threadId,
+            threadInfo: params.threadInfo,
+            item: params.item,
+            theme: params.theme,
+            avatarSize: params.avatarSize,
+            isExpanded: params.isExpanded,
+            isSettings: params.isSettings
+        )
+    }
+
+    func update(peer: EnginePeer?, threadId: Int64?, threadInfo: EngineMessageHistoryThread.Info?, item: PeerInfoAvatarListItem?, theme: PresentationTheme, avatarSize: CGFloat, isExpanded: Bool, isSettings: Bool) {
+        self.params = Params(peer: peer, threadId: threadId, threadInfo: threadInfo, item: item, theme: theme, avatarSize: avatarSize, isExpanded: isExpanded, isSettings: isSettings)
+
         if let peer = peer {
             let previousItem = self.item
             var item = item
@@ -207,7 +283,7 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
             }
             
             self.avatarNode.imageNode.animateFirstTransition = !isSettings
-            self.avatarNode.setPeer(context: self.context, theme: theme, peer: EnginePeer(peer), overrideImage: overrideImage, clipStyle: .none, synchronousLoad: self.isFirstAvatarLoading, displayDimensions: CGSize(width: avatarSize, height: avatarSize), storeUnrounded: true)
+            self.avatarNode.setPeer(context: self.context, theme: theme, peer: peer, overrideImage: overrideImage, clipStyle: .none, synchronousLoad: self.isFirstAvatarLoading, displayDimensions: CGSize(width: avatarSize, height: avatarSize), storeUnrounded: true)
             
             if let threadInfo = threadInfo {
                 self.avatarNode.isHidden = true
@@ -221,7 +297,7 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                 }
                 let content: EmojiStatusComponent.Content
                 if threadId == 1 {
-                    content = .image(image: PresentationResourcesChat.chatGeneralThreadIcon(theme))
+                    content = .image(image: PresentationResourcesChat.chatGeneralThreadIcon(theme), tintColor: nil)
                 } else if let iconFileId = threadInfo.icon {
                     content = .animation(content: .customEmoji(fileId: iconFileId), size: CGSize(width: avatarSize, height: avatarSize), placeholderColor: theme.list.mediaPlaceholderColor, themeColor: theme.list.itemAccentColor, loopMode: .forever)
                 } else {
@@ -252,7 +328,7 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
             
             var isForum = false
             let avatarCornerRadius: CGFloat
-            if let channel = peer as? TelegramChannel, channel.flags.contains(.isForum) {
+            if case let .channel(channel) = peer, channel.isForumOrMonoForum {
                 avatarCornerRadius = floor(avatarSize * 0.25)
                 isForum = true
             } else {
@@ -342,52 +418,54 @@ final class PeerInfoAvatarTransformContainerNode: ASDisplayNode {
                     if videoContent.id != self.videoContent?.id {
                         self.videoNode?.removeFromSupernode()
                         
-                        let mediaManager = self.context.sharedContext.mediaManager
-                        let videoNode = UniversalVideoNode(accountId: self.context.account.id, postbox: self.context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: GalleryVideoDecoration(), content: videoContent, priority: .embedded)
-                        videoNode.isUserInteractionEnabled = false
-                        videoNode.isHidden = true
-                        
-                        if let startTimestamp = video.representation.startTimestamp {
-                            self.videoStartTimestamp = startTimestamp
-                            self.playbackStartDisposable.set((videoNode.status
-                            |> map { status -> Bool in
-                                if let status = status, case .playing = status.status {
-                                    return true
-                                } else {
-                                    return false
-                                }
-                            }
-                            |> filter { playing in
-                                return playing
-                            }
-                            |> take(1)
-                            |> deliverOnMainQueue).start(completed: { [weak self] in
-                                if let strongSelf = self {
-                                    Queue.mainQueue().after(0.15) {
-                                        strongSelf.videoNode?.isHidden = false
+                        if self.hierarchyTrackingLayer.isInHierarchy {
+                            let mediaManager = self.context.sharedContext.mediaManager
+                            let videoNode = UniversalVideoNode(context: self.context, postbox: self.context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: GalleryVideoDecoration(), content: videoContent, priority: .embedded)
+                            videoNode.isUserInteractionEnabled = false
+                            videoNode.isHidden = true
+                            
+                            if let startTimestamp = video.representation.startTimestamp {
+                                self.videoStartTimestamp = startTimestamp
+                                self.playbackStartDisposable.set((videoNode.status
+                                |> map { status -> Bool in
+                                    if let status = status, case .playing = status.status {
+                                        return true
+                                    } else {
+                                        return false
                                     }
                                 }
-                            }))
-                        } else {
-                            self.videoStartTimestamp = nil
-                            self.playbackStartDisposable.set(nil)
-                            videoNode.isHidden = false
+                                |> filter { playing in
+                                    return playing
+                                }
+                                |> take(1)
+                                |> deliverOnMainQueue).start(completed: { [weak self] in
+                                    if let strongSelf = self {
+                                        Queue.mainQueue().after(0.15) {
+                                            strongSelf.videoNode?.isHidden = false
+                                        }
+                                    }
+                                }))
+                            } else {
+                                self.videoStartTimestamp = nil
+                                self.playbackStartDisposable.set(nil)
+                                videoNode.isHidden = false
+                            }
+                            
+                            self.videoContent = videoContent
+                            self.videoNode = videoNode
+                            
+                            let maskPath: UIBezierPath
+                            if isForum {
+                                maskPath = UIBezierPath(roundedRect: CGRect(origin: CGPoint(), size: self.avatarNode.frame.size), cornerRadius: avatarCornerRadius)
+                            } else {
+                                maskPath = UIBezierPath(ovalIn: CGRect(origin: CGPoint(), size: self.avatarNode.frame.size))
+                            }
+                            let shape = CAShapeLayer()
+                            shape.path = maskPath.cgPath
+                            videoNode.layer.mask = shape
+                            
+                            self.avatarNode.contentNode.addSubnode(videoNode)
                         }
-                        
-                        self.videoContent = videoContent
-                        self.videoNode = videoNode
-                        
-                        let maskPath: UIBezierPath
-                        if isForum {
-                            maskPath = UIBezierPath(roundedRect: CGRect(origin: CGPoint(), size: self.avatarNode.frame.size), cornerRadius: avatarCornerRadius)
-                        } else {
-                            maskPath = UIBezierPath(ovalIn: CGRect(origin: CGPoint(), size: self.avatarNode.frame.size))
-                        }
-                        let shape = CAShapeLayer()
-                        shape.path = maskPath.cgPath
-                        videoNode.layer.mask = shape
-                                                            
-                        self.avatarNode.contentNode.addSubnode(videoNode)
                     }
                 } else {
                     if let markupNode = self.markupNode {

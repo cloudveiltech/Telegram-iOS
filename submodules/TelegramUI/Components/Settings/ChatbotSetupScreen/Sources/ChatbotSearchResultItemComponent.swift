@@ -74,6 +74,7 @@ final class ChatbotSearchResultItemComponent: Component {
         private weak var state: EmptyComponentState?
         
         var customUpdateIsHighlighted: ((Bool) -> Void)?
+        var enumerateSiblings: (((UIView) -> Void) -> Void)?
         private(set) var separatorInset: CGFloat = 0.0
         
         override init(frame: CGRect) {
@@ -128,7 +129,7 @@ final class ChatbotSearchResultItemComponent: Component {
                         animateScale: false
                     )),
                     environment: {},
-                    containerSize: CGSize(width: 100.0, height: 100.0)
+                    containerSize: CGSize(width: 140.0, height: 100.0)
                 )
             } else {
                 if let addButton = self.addButton {
@@ -207,7 +208,11 @@ final class ChatbotSearchResultItemComponent: Component {
             case let .found(peer, _):
                 isTextVisible = true
                 titleValue = peer.displayTitle(strings: component.strings, displayOrder: .firstLast)
-                subtitleValue = component.strings.Bot_GenericBotStatus
+                if let addressName = peer.addressName {
+                    subtitleValue = "@\(addressName)"
+                } else {
+                    subtitleValue = component.strings.Bot_GenericBotStatus
+                }
             }
             
             let titleSize = self.titleLabel.update(

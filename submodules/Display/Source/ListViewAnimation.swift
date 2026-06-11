@@ -89,7 +89,7 @@ extension CGSize {
 }
 
 private let springAnimationIn: CABasicAnimation = {
-    let animation = makeSpringAnimation("")
+    let animation = makeSpringAnimation("", duration: 0.5)
     return animation
 }()
 
@@ -117,6 +117,10 @@ public let listViewAnimationCurveEaseInOut: (CGFloat) -> CGFloat = { t in
     return bezierPoint(0.42, 0.0, 0.58, 1.0, t)
 }
 
+public let listViewAnimationCurveEaseIn: (CGFloat) -> CGFloat = { t in
+    return bezierPoint(0.42, 0.0, 1.0, 1.0, t)
+}
+
 #if os(iOS)
 public func listViewAnimationCurveFromAnimationOptions(animationOptions: UIView.AnimationOptions) -> (CGFloat) -> CGFloat {
     if animationOptions.rawValue == UInt(7 << 16) {
@@ -129,7 +133,7 @@ public func listViewAnimationCurveFromAnimationOptions(animationOptions: UIView.
 
 public final class ListViewAnimation {
     let from: Interpolatable
-    let to: Interpolatable
+    public let to: Interpolatable
     let duration: Double
     let startTime: Double
     let invertOffsetDirection: Bool
@@ -214,6 +218,8 @@ public func listViewAnimationDurationAndCurve(transition: ContainedViewLayoutTra
             case .linear:
                 return (animationDuration, .Default(duration: animationDuration))
             case .easeInOut:
+                return (animationDuration, .Default(duration: animationDuration))
+            case .easeIn:
                 return (animationDuration, .Default(duration: animationDuration))
             case .spring, .customSpring:
                 return (animationDuration, .Spring(duration: animationDuration))

@@ -168,6 +168,11 @@ public final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContent
                 return ChatMessageBubbleContentTapAction(content: .none)
             }
             
+            let incoming = item.message.effectivelyIncoming(item.context.account.peerId)
+            if incoming && item.associatedData.isSuspiciousPeer {
+                return ChatMessageBubbleContentTapAction(content: .none)
+            }
+            
             if let file = content.file {
                 if !file.isVideo, !file.isVideoSticker, !file.isAnimated, !file.isAnimatedSticker, !file.isSticker, !file.isMusic {
                     return ChatMessageBubbleContentTapAction(content: .openMessage)
@@ -372,7 +377,7 @@ public final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContent
                     if case .full = automaticDownload {
                         automaticPlayback = true
                     } else {
-                        automaticPlayback = item.context.account.postbox.mediaBox.completedResourcePath(file.resource) != nil
+                        automaticPlayback = item.context.engine.resources.completedResourcePath(id: EngineMediaResource.Id(file.resource.id)) != nil
                     }
                 }
                 
@@ -383,121 +388,142 @@ public final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContent
                 //CloudVeil end
                 
                 switch type {
-                    case .instagram, .twitter:
-                        if automaticPlayback {
-                            mainMedia = webpage.story ?? webpage.file ?? webpage.image
-                        } else {
-                            mainMedia = webpage.story ?? webpage.image ?? webpage.file
-                        }
-                    default:
-                        //CloudVeil start
-                        if automaticPlayback {
-                            mainMedia = webpage.story ?? webpage.file ?? webpage.image
-                        } else {
-                            mainMedia = webpage.story ?? webpage.image ?? webpage.file
-                        }
-                        //CloudVeil end
+                case .instagram, .twitter:
+                    if automaticPlayback {
+                         mainMedia = webpage.story ?? webpage.file ?? webpage.image
+                    } else {
+                        mainMedia = webpage.story ?? webpage.image ?? webpage.file
+                    }
+                default:
+                    //CloudVeil start
+                    if automaticPlayback {
+                        mainMedia = webpage.story ?? webpage.file ?? webpage.image
+                    } else {
+                        mainMedia = webpage.story ?? webpage.image ?? webpage.file
+                    }
+                    //CloudVeil end
                 }
                 
                 let themeMimeType = "application/x-tgtheme-ios"
                 
-                if let file = mainMedia as? TelegramMediaFile, webpage.type != "telegram_theme" {
-                    if let embedUrl = webpage.embedUrl, !embedUrl.isEmpty {
-                        if automaticPlayback {
-                            mediaAndFlags = ([file], [.preferMediaBeforeText])
-                        } else {
-                            mediaAndFlags = ([webpage.image ?? file], [.preferMediaBeforeText])
-                        }
-                    } else if webpage.type == "telegram_background" {
-                        var colors: [UInt32] = []
-                        var rotation: Int32?
-                        var intensity: Int32?
-                        if let wallpaper = parseWallpaperUrl(sharedContext: item.context.sharedContext, url: webpage.url), case let .slug(_, _, colorsValue, intensityValue, rotationValue) = wallpaper {
+                switch webpage.type {
+                case "telegram_background":
+                    var colors: [UInt32] = []
+                    var rotation: Int32?
+                    if let wallpaper = parseWallpaperUrl(sharedContext: item.context.sharedContext, url: webpage.url) {
+                        if case let .color(color) = wallpaper {
+                            colors = [color.rgb]
+                        } else if case let .gradient(colorsValue, rotationValue) = wallpaper {
                             colors = colorsValue
                             rotation = rotationValue
-                            intensity = intensityValue
                         }
-                        let media = WallpaperPreviewMedia(content: .file(file: file, colors: colors, rotation: rotation, intensity: intensity, false, false))
-                        mediaAndFlags = ([media], [.preferMediaAspectFilled])
-                        if let fileSize = file.size {
-                            badge = dataSizeString(fileSize, formatting: DataSizeStringFormatting(chatPresentationData: item.presentationData))
-                        }
-                    } else {
-                        mediaAndFlags = ([file], [])
                     }
-                } else if let image = mainMedia as? TelegramMediaImage {
-                    if let type = webpage.type, ["photo", "video", "embed", "gif", "document", "telegram_album"].contains(type) {
-                        var flags = ChatMessageAttachedContentNodeMediaFlags()
-                        if webpage.instantPage != nil, let largest = largestImageRepresentation(image.representations) {
-                            if largest.dimensions.width >= 256 {
-                                flags.insert(.preferMediaBeforeText)
+                    
+                    var content: WallpaperPreviewMediaContent?
+                    if !colors.isEmpty {
+                        if colors.count >= 2 {
+                            content = .gradient(colors, rotation)
+                        } else {
+                            content = .color(UIColor(rgb: colors[0]))
+                        }
+                    }
+                    if let content = content {
+                        let media = WallpaperPreviewMedia(content: content)
+                        mediaAndFlags = ([media], [])
+                    }
+                case "telegram_theme":
+                    var file: TelegramMediaFile?
+                    var settings: TelegramThemeSettings?
+                    var isSupported = false
+                    
+                    for attribute in webpage.attributes {
+                        if case let .theme(attribute) = attribute {
+                            if let attributeSettings = attribute.settings {
+                                settings = attributeSettings
+                                isSupported = true
+                            } else if let filteredFile = attribute.files.filter({ $0.mimeType == themeMimeType }).first {
+                                file = filteredFile
+                                isSupported = true
                             }
-                        } else if let embedUrl = webpage.embedUrl, !embedUrl.isEmpty {
-                            flags.insert(.preferMediaBeforeText)
                         }
-                        mediaAndFlags = ([image], flags)
-                    } else if let _ = largestImageRepresentation(image.representations)?.dimensions {
-                        let flags = ChatMessageAttachedContentNodeMediaFlags()
-                        mediaAndFlags = ([image], flags)
                     }
-                } else if let story = mainMedia as? TelegramMediaStory {
-                    mediaAndFlags = ([story], [.preferMediaBeforeText, .titleBeforeMedia])
-                    if let storyItem = item.message.associatedStories[story.storyId]?.get(Stories.StoredItem.self), case let .item(itemValue) = storyItem {
-                        text = itemValue.text
-                        entities = itemValue.entities
+                    
+                    if !isSupported, let contentFile = webpage.file {
+                        isSupported = true
+                        file = contentFile
                     }
-                } else if let type = webpage.type {
-                    if type == "telegram_background" {
-                        var colors: [UInt32] = []
-                        var rotation: Int32?
-                        if let wallpaper = parseWallpaperUrl(sharedContext: item.context.sharedContext, url: webpage.url) {
-                            if case let .color(color) = wallpaper {
-                                colors = [color.rgb]
-                            } else if case let .gradient(colorsValue, rotationValue) = wallpaper {
+                    if let file = file {
+                        let media = WallpaperPreviewMedia(content: .file(file: file, colors: [],  rotation: nil, intensity: nil, true, isSupported))
+                        mediaAndFlags = ([media], ChatMessageAttachedContentNodeMediaFlags())
+                    } else if let settings = settings {
+                        let media = WallpaperPreviewMedia(content: .themeSettings(settings))
+                        mediaAndFlags = ([media], ChatMessageAttachedContentNodeMediaFlags())
+                    }
+                case "telegram_nft":
+                    for attribute in webpage.attributes {
+                        if case let .starGift(gift) = attribute, case let .unique(uniqueGift) = gift.gift {
+                            let media = UniqueGiftPreviewMedia(content: uniqueGift)
+                            mediaAndFlags = ([media], [])
+                            break
+                        }
+                    }
+                case "telegram_auction":
+                    for attribute in webpage.attributes {
+                        if case let .giftAuction(giftAuction) = attribute, case let .generic(gift) = giftAuction.gift {
+                            let media = GiftAuctionPreviewMedia(content: gift, endTime: giftAuction.endDate)
+                            mediaAndFlags = ([media], [])
+                            break
+                        }
+                    }
+                default:
+                    if var file = mainMedia as? TelegramMediaFile, webpage.type != "telegram_theme" {
+                        if webpage.imageIsVideoCover, let image = webpage.image {
+                            file = file.withUpdatedVideoCover(image)
+                        }
+                        
+                        if let embedUrl = webpage.embedUrl, !embedUrl.isEmpty {
+                            if automaticPlayback {
+                                mediaAndFlags = ([file], [.preferMediaBeforeText])
+                            } else {
+                                mediaAndFlags = ([webpage.image ?? file], [.preferMediaBeforeText])
+                            }
+                        } else if webpage.type == "telegram_background" {
+                            var colors: [UInt32] = []
+                            var rotation: Int32?
+                            var intensity: Int32?
+                            if let wallpaper = parseWallpaperUrl(sharedContext: item.context.sharedContext, url: webpage.url), case let .slug(_, _, colorsValue, intensityValue, rotationValue) = wallpaper {
                                 colors = colorsValue
                                 rotation = rotationValue
+                                intensity = intensityValue
                             }
-                        }
-                        
-                        var content: WallpaperPreviewMediaContent?
-                        if !colors.isEmpty {
-                            if colors.count >= 2 {
-                                content = .gradient(colors, rotation)
-                            } else {
-                                content = .color(UIColor(rgb: colors[0]))
+                            let media = WallpaperPreviewMedia(content: .file(file: file, colors: colors, rotation: rotation, intensity: intensity, false, false))
+                            mediaAndFlags = ([media], [.preferMediaAspectFilled])
+                            if let fileSize = file.size {
+                                badge = dataSizeString(fileSize, formatting: DataSizeStringFormatting(chatPresentationData: item.presentationData))
                             }
+                        } else {
+                            mediaAndFlags = ([file], [])
                         }
-                        if let content = content {
-                            let media = WallpaperPreviewMedia(content: content)
-                            mediaAndFlags = ([media], [])
-                        }
-                    } else if type == "telegram_theme" {
-                        var file: TelegramMediaFile?
-                        var settings: TelegramThemeSettings?
-                        var isSupported = false
-                        
-                        for attribute in webpage.attributes {
-                            if case let .theme(attribute) = attribute {
-                                if let attributeSettings = attribute.settings {
-                                    settings = attributeSettings
-                                    isSupported = true
-                                } else if let filteredFile = attribute.files.filter({ $0.mimeType == themeMimeType }).first {
-                                    file = filteredFile
-                                    isSupported = true
+                    } else if let image = mainMedia as? TelegramMediaImage {
+                        if let type = webpage.type, ["photo", "video", "embed", "gif", "document", "telegram_album"].contains(type) {
+                            var flags = ChatMessageAttachedContentNodeMediaFlags()
+                            if webpage.instantPage != nil, let largest = largestImageRepresentation(image.representations) {
+                                if largest.dimensions.width >= 256 {
+                                    flags.insert(.preferMediaBeforeText)
                                 }
+                            } else if let embedUrl = webpage.embedUrl, !embedUrl.isEmpty {
+                                flags.insert(.preferMediaBeforeText)
                             }
+                            mediaAndFlags = ([image], flags)
+                        } else if let _ = largestImageRepresentation(image.representations)?.dimensions {
+                            let flags = ChatMessageAttachedContentNodeMediaFlags()
+                            mediaAndFlags = ([image], flags)
                         }
-                        
-                        if !isSupported, let contentFile = webpage.file {
-                            isSupported = true
-                            file = contentFile
-                        }
-                        if let file = file {
-                            let media = WallpaperPreviewMedia(content: .file(file: file, colors: [],  rotation: nil, intensity: nil, true, isSupported))
-                            mediaAndFlags = ([media], ChatMessageAttachedContentNodeMediaFlags())
-                        } else if let settings = settings {
-                            let media = WallpaperPreviewMedia(content: .themeSettings(settings))
-                            mediaAndFlags = ([media], ChatMessageAttachedContentNodeMediaFlags())
+                    } else if let story = mainMedia as? TelegramMediaStory {
+                        mediaAndFlags = ([story], [.preferMediaBeforeText, .titleBeforeMedia])
+                        if let storyItem = item.message.associatedStories[story.storyId]?.get(Stories.StoredItem.self), case let .item(itemValue) = storyItem {
+                            text = itemValue.text
+                            entities = itemValue.entities
                         }
                     }
                 }
@@ -576,6 +602,55 @@ public final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContent
                                 }
                             }
                             actionTitle = isEmoji ? item.presentationData.strings.Conversation_ViewEmojis : item.presentationData.strings.Conversation_ViewStickers
+                        case "telegram_nft":
+                            actionTitle = item.presentationData.strings.Conversation_ViewStarGift
+                            text = nil
+                            entities = nil
+                        case "telegram_call":
+                            actionTitle = item.presentationData.strings.Chat_ViewGroupCall
+                        case "telegram_collection":
+                            actionTitle = item.presentationData.strings.Chat_ViewCollection
+                        case "telegram_story_album":
+                            actionTitle = item.presentationData.strings.Chat_ViewAlbum
+                        case "telegram_auction":
+                            var hasEnded = false
+                            var isUpcoming = false
+                            let currentTime = Int32(CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970)
+                            for attribute in webpage.attributes {
+                                if case let .giftAuction(giftAuction) = attribute {
+                                    if case let .generic(gift) = giftAuction.gift, let auctionStartDate = gift.auctionStartDate, currentTime < auctionStartDate {
+                                        isUpcoming = true
+                                    }
+                                    if giftAuction.endDate < currentTime {
+                                        hasEnded = true
+                                    }
+                                    break
+                                }
+                            }
+                            text = nil
+                            if isUpcoming {
+                                subtitle = NSAttributedString(string: item.presentationData.strings.Chat_Auction_Upcoming, font: titleFont)
+                                actionTitle = item.presentationData.strings.Chat_Auction_View
+                                actionIcon = nil
+                            } else {
+                                subtitle = NSAttributedString(string: item.presentationData.strings.Chat_Auction, font: titleFont)
+                                actionTitle = hasEnded ? item.presentationData.strings.Chat_Auction_ViewResults : item.presentationData.strings.Chat_Auction_Join
+                                actionIcon = !hasEnded ? .bid : nil
+                            }
+                        case "telegram_channel_direct":
+                            actionTitle = item.presentationData.strings.Chat_ContactChannel
+                        case "telegram_newbot":
+                            actionTitle = item.presentationData.strings.Chat_CreateBotLink
+                        case "telegram_aicomposetone":
+                            actionTitle = "VIEW STYLE"
+                        
+                            for attribute in webpage.attributes {
+                                if case let .aiTextStyle(aiTextStyle) = attribute {
+                                    if let file = item.message.associatedMedia[MediaId(namespace: Namespaces.Media.CloudFile, id: aiTextStyle.emojiFileId)] {
+                                        mediaAndFlags = ([file], [.preferMediaInline])
+                                    }
+                                }
+                            }
                         default:
                             break
                     }
@@ -583,6 +658,9 @@ public final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContent
                 for attribute in webpage.attributes {
                     if case let .stickerPack(stickerPack) = attribute, !stickerPack.files.isEmpty {
                         mediaAndFlags = (stickerPack.files, [.preferMediaInline, .stickerPack])
+                        break
+                    } else if case let .giftCollection(giftCollection) = attribute, !giftCollection.files.isEmpty {
+                        mediaAndFlags = (giftCollection.files, [.preferMediaInline, .stickerPack])
                         break
                     }
                 }
@@ -795,7 +873,10 @@ public final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContent
                         if let image = content.image {
                             mediaList.append(image)
                         }
-                        if let file = content.file {
+                        if var file = content.file {
+                            if content.imageIsVideoCover, let image = content.image {
+                                file = file.withUpdatedVideoCover(image)
+                            }
                             mediaList.append(file)
                         }
                         updatedMedia = mediaList
@@ -804,7 +885,10 @@ public final class ChatMessageWebpageBubbleContentNode: ChatMessageBubbleContent
                         if let image = content.image {
                             mediaList.append(image)
                         }
-                        if let file = content.file {
+                        if var file = content.file {
+                            if content.imageIsVideoCover, let image = content.image {
+                                file = file.withUpdatedVideoCover(image)
+                            }
                             mediaList.append(file)
                         }
                         updatedMedia = mediaList

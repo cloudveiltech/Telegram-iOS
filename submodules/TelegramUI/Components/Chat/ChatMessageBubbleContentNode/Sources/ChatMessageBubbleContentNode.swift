@@ -10,6 +10,7 @@ import AccountContext
 import ChatMessageBackground
 import ChatControllerInteraction
 import ChatHistoryEntry
+import ChatMessageItem
 import ChatMessageItemCommon
 import SwiftSignalKit
 
@@ -150,6 +151,7 @@ public struct ChatMessageBubbleContentTapAction {
         case wallpaper
         case theme
         case call(peerId: PeerId, isVideo: Bool)
+        case conferenceCall(message: Message)
         case openMessage
         case timecode(Double, String)
         case tooltip(String, ASDisplayNode?, CGRect?)
@@ -157,6 +159,7 @@ public struct ChatMessageBubbleContentTapAction {
         case ignore
         case openPollResults(Data)
         case copy(String)
+        case date(Int32, String)
         case largeEmoji(String, String?, TelegramMediaFile)
         case customEmoji(TelegramMediaFile)
         case custom(() -> Void)
@@ -180,6 +183,7 @@ public final class ChatMessageBubbleContentItem {
     public let controllerInteraction: ChatControllerInteraction
     public let message: Message
     public let topMessage: Message
+    public let content: ChatMessageItemContent
     public let read: Bool
     public let chatLocation: ChatLocation
     public let presentationData: ChatPresentationData
@@ -188,11 +192,12 @@ public final class ChatMessageBubbleContentItem {
     public let isItemPinned: Bool
     public let isItemEdited: Bool
     
-    public init(context: AccountContext, controllerInteraction: ChatControllerInteraction, message: Message, topMessage: Message, read: Bool, chatLocation: ChatLocation, presentationData: ChatPresentationData, associatedData: ChatMessageItemAssociatedData, attributes: ChatMessageEntryAttributes, isItemPinned: Bool, isItemEdited: Bool) {
+    public init(context: AccountContext, controllerInteraction: ChatControllerInteraction, message: Message, topMessage: Message, content: ChatMessageItemContent, read: Bool, chatLocation: ChatLocation, presentationData: ChatPresentationData, associatedData: ChatMessageItemAssociatedData, attributes: ChatMessageEntryAttributes, isItemPinned: Bool, isItemEdited: Bool) {
         self.context = context
         self.controllerInteraction = controllerInteraction
         self.message = message
         self.topMessage = topMessage
+        self.content = content
         self.read = read
         self.chatLocation = chatLocation
         self.presentationData = presentationData
@@ -220,6 +225,7 @@ open class ChatMessageBubbleContentNode: ASDisplayNode {
     
     public var updateIsTextSelectionActive: ((Bool) -> Void)?
     public var requestInlineUpdate: (() -> Void)?
+    public var requestFullUpdate: (() -> Void)?
     
     open var disablesClipping: Bool {
         return false

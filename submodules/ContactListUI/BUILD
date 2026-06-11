@@ -25,7 +25,6 @@ swift_library(
         "//submodules/ChatListSearchItemHeader:ChatListSearchItemHeader",
         "//submodules/ItemListPeerItem:ItemListPeerItem",
         "//submodules/ContactsPeerItem:ContactsPeerItem",
-        "//submodules/ChatListSearchItemNode:ChatListSearchItemNode",
         "//submodules/TelegramPermissionsUI:TelegramPermissionsUI",
         "//submodules/TelegramNotices:TelegramNotices",
         "//submodules/AlertUI:AlertUI",
@@ -49,6 +48,10 @@ swift_library(
         "//submodules/UndoUI",
         "//submodules/TelegramIntents",
         "//submodules/ContextUI",
+        "//submodules/TelegramUI/Components/EdgeEffect",
+        "//submodules/TelegramUI/Components/SearchInputPanelComponent",
+        "//submodules/TelegramUI/Components/ButtonComponent",
+        "//submodules/SearchBarNode",
     ],
     visibility = [
         "//visibility:public",

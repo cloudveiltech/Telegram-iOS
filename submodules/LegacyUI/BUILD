@@ -10,8 +10,8 @@ swift_library(
         "-warnings-as-errors",
     ],
     deps = [
+        "//submodules/SSignalKit/SSignalKit",
     	"//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
-        "//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
@@ -20,6 +20,9 @@ swift_library(
         "//submodules/DeviceAccess:DeviceAccess",
         "//submodules/LegacyComponents:LegacyComponents",
         "//submodules/StickerResources:StickerResources",
+        "//submodules/Camera",
+        "//submodules/Utils/DeviceModel",
+        "//submodules/TooltipUI",
     ],
     visibility = [
         "//visibility:public",

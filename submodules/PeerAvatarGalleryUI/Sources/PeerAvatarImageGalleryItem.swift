@@ -7,7 +7,6 @@ import TelegramCore
 import TelegramPresentationData
 import AccountContext
 import RadialStatusNode
-import ShareController
 import PhotoResources
 import GalleryUI
 import TelegramUniversalVideoContent
@@ -193,9 +192,9 @@ final class PeerAvatarImageGalleryItemNode: ZoomableContentGalleryItemNode {
             if let strongSelf = self, let entry = strongSelf.entry, !entry.representations.isEmpty {
                 let subject: ShareControllerSubject
                 var actionCompletionText: String?
-                if let video = entry.videoRepresentations.last, let peerReference = PeerReference(peer._asPeer()) {
+                if let video = entry.videoRepresentations.last, let peerReference = PeerReference(peer) {
                     let videoFileReference = FileMediaReference.avatarList(peer: peerReference, media: TelegramMediaFile(fileId: EngineMedia.Id(namespace: Namespaces.Media.LocalFile, id: 0), partialReference: nil, resource: video.representation.resource, previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "video/mp4", size: nil, attributes: [.Animated, .Video(duration: 0, size: video.representation.dimensions, flags: [], preloadSize: nil, coverTime: nil, videoCodec: nil)], alternativeRepresentations: []))
-                    subject = .media(videoFileReference.abstract)
+                    subject = .media(videoFileReference.abstract, nil)
                     actionCompletionText = strongSelf.presentationData.strings.Gallery_VideoSaved
                 } else {
                     subject = .image(entry.representations)
@@ -208,12 +207,11 @@ final class PeerAvatarImageGalleryItemNode: ZoomableContentGalleryItemNode {
                     forceTheme = defaultDarkColorPresentationTheme
                 }
                 
-                let shareController = ShareController(context: strongSelf.context, subject: subject, preferredAction: .saveToCameraRoll, forceTheme: forceTheme)
-                shareController.actionCompleted = {
+                let shareController = strongSelf.context.sharedContext.makeShareController(context: strongSelf.context, params: ShareControllerParams(subject: subject, preferredAction: .saveToCameraRoll, forceTheme: forceTheme, actionCompleted: {
                     if let actionCompletionText = actionCompletionText {
                         interaction.presentController(UndoOverlayController(presentationData: presentationData, content: .mediaSaved(text: actionCompletionText), elevatedLayout: true, animateInAsReplacement: false, action: { _ in return true }), nil)
                     }
-                }
+                }))
                 interaction.presentController(shareController, nil)
             }
         }
@@ -269,7 +267,7 @@ final class PeerAvatarImageGalleryItemNode: ZoomableContentGalleryItemNode {
                 self.zoomableContent = (largestSize.dimensions.cgSize, self.contentNode)
 
                 if let largestIndex = representations.firstIndex(where: { $0.representation == largestSize }) {
-                    self.fetchDisposable.set(fetchedMediaResource(mediaBox: self.context.account.postbox.mediaBox, userLocation: .other, userContentType: .image, reference: representations[largestIndex].reference).start())
+                    self.fetchDisposable.set(self.context.engine.resources.fetch(reference: representations[largestIndex].reference, userLocation: .other, userContentType: .image).start())
                 }
                 
                 var id: Int64
@@ -283,12 +281,12 @@ final class PeerAvatarImageGalleryItemNode: ZoomableContentGalleryItemNode {
                         id = id &+ resource.photoId
                     }
                 }
-                if let video = entry.videoRepresentations.last, let peerReference = PeerReference(self.peer._asPeer()) {
+                if let video = entry.videoRepresentations.last, let peerReference = PeerReference(self.peer) {
                     if video != previousVideoRepresentations?.last {
                         let mediaManager = self.context.sharedContext.mediaManager
                         let videoFileReference = FileMediaReference.avatarList(peer: peerReference, media: TelegramMediaFile(fileId: EngineMedia.Id(namespace: Namespaces.Media.LocalFile, id: 0), partialReference: nil, resource: video.representation.resource, previewRepresentations: representations.map { $0.representation }, videoThumbnails: [], immediateThumbnailData: entry.immediateThumbnailData, mimeType: "video/mp4", size: nil, attributes: [.Animated, .Video(duration: 0, size: video.representation.dimensions, flags: [], preloadSize: nil, coverTime: nil, videoCodec: nil)], alternativeRepresentations: []))
                         let videoContent = NativeVideoContent(id: .profileVideo(id, category), userLocation: .other, fileReference: videoFileReference, streamVideo: isMediaStreamable(resource: video.representation.resource) ? .conservative : .none, loopVideo: true, enableSound: false, fetchAutomatically: true, onlyFullSizeThumbnail: true, useLargeThumbnail: true, continuePlayingWithoutSoundOnLostAudioSession: false, placeholderColor: .clear, storeAfterDownload: nil)
-                        let videoNode = UniversalVideoNode(accountId: self.context.account.id, postbox: self.context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: GalleryVideoDecoration(), content: videoContent, priority: .overlay)
+                        let videoNode = UniversalVideoNode(context: self.context, postbox: self.context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: GalleryVideoDecoration(), content: videoContent, priority: .overlay)
                         videoNode.isUserInteractionEnabled = false
                         videoNode.isHidden = true
                         self.videoStartTimestamp = video.representation.startTimestamp
@@ -608,7 +606,7 @@ final class PeerAvatarImageGalleryItemNode: ZoomableContentGalleryItemNode {
         if let entry = self.entry, let largestSize = largestImageRepresentation(entry.representations.map({ $0.representation })), let status = self.status {
             switch status {
                 case .Fetching:
-                    self.context.account.postbox.mediaBox.cancelInteractiveResourceFetch(largestSize.resource)
+                    self.context.engine.resources.cancelInteractiveResourceFetch(id: EngineMediaResource.Id(largestSize.resource.id))
                 case .Remote:
                     let representations: [ImageRepresentationWithReference]
                     switch entry {
@@ -619,7 +617,7 @@ final class PeerAvatarImageGalleryItemNode: ZoomableContentGalleryItemNode {
                     }
                     
                     if let largestIndex = representations.firstIndex(where: { $0.representation == largestSize }) {
-                        self.fetchDisposable.set(fetchedMediaResource(mediaBox: self.context.account.postbox.mediaBox, userLocation: .other, userContentType: .image, reference: representations[largestIndex].reference).start())
+                        self.fetchDisposable.set(self.context.engine.resources.fetch(reference: representations[largestIndex].reference, userLocation: .other, userContentType: .image).start())
                     }
                 default:
                     break

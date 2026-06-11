@@ -11,6 +11,10 @@ public final class SelectivePrivacyPeer: Equatable {
         self.peer = peer
         self.participantCount = participantCount
     }
+
+    public convenience init(peer: EnginePeer, participantCount: Int32?) {
+        self.init(peer: peer._asPeer(), participantCount: participantCount)
+    }
     
     public static func ==(lhs: SelectivePrivacyPeer, rhs: SelectivePrivacyPeer) -> Bool {
         if !lhs.peer.isEqual(rhs.peer) {
@@ -130,12 +134,14 @@ public struct AccountPrivacySettings: Equatable {
     public var bio: SelectivePrivacySettings
     public var birthday: SelectivePrivacySettings
     public var giftsAutoSave: SelectivePrivacySettings
+    public var noPaidMessages: SelectivePrivacySettings
+    public var savedMusic: SelectivePrivacySettings
     
     public var globalSettings: GlobalPrivacySettings
     public var accountRemovalTimeout: Int32
     public var messageAutoremoveTimeout: Int32?
     
-    public init(presence: SelectivePrivacySettings, groupInvitations: SelectivePrivacySettings, voiceCalls: SelectivePrivacySettings, voiceCallsP2P: SelectivePrivacySettings, profilePhoto: SelectivePrivacySettings, forwards: SelectivePrivacySettings, phoneNumber: SelectivePrivacySettings, phoneDiscoveryEnabled: Bool, voiceMessages: SelectivePrivacySettings, bio: SelectivePrivacySettings, birthday: SelectivePrivacySettings, giftsAutoSave: SelectivePrivacySettings, globalSettings: GlobalPrivacySettings, accountRemovalTimeout: Int32, messageAutoremoveTimeout: Int32?) {
+    public init(presence: SelectivePrivacySettings, groupInvitations: SelectivePrivacySettings, voiceCalls: SelectivePrivacySettings, voiceCallsP2P: SelectivePrivacySettings, profilePhoto: SelectivePrivacySettings, forwards: SelectivePrivacySettings, phoneNumber: SelectivePrivacySettings, phoneDiscoveryEnabled: Bool, voiceMessages: SelectivePrivacySettings, bio: SelectivePrivacySettings, birthday: SelectivePrivacySettings, giftsAutoSave: SelectivePrivacySettings, noPaidMessages: SelectivePrivacySettings, savedMusic: SelectivePrivacySettings, globalSettings: GlobalPrivacySettings, accountRemovalTimeout: Int32, messageAutoremoveTimeout: Int32?) {
         self.presence = presence
         self.groupInvitations = groupInvitations
         self.voiceCalls = voiceCalls
@@ -148,6 +154,8 @@ public struct AccountPrivacySettings: Equatable {
         self.bio = bio
         self.birthday = birthday
         self.giftsAutoSave = giftsAutoSave
+        self.noPaidMessages = noPaidMessages
+        self.savedMusic = savedMusic
         self.globalSettings = globalSettings
         self.accountRemovalTimeout = accountRemovalTimeout
         self.messageAutoremoveTimeout = messageAutoremoveTimeout
@@ -190,6 +198,12 @@ public struct AccountPrivacySettings: Equatable {
         if lhs.giftsAutoSave != rhs.giftsAutoSave {
             return false
         }
+        if lhs.noPaidMessages != rhs.noPaidMessages {
+            return false
+        }
+        if lhs.savedMusic != rhs.savedMusic {
+            return false
+        }
         if lhs.globalSettings != rhs.globalSettings {
             return false
         }
@@ -220,7 +234,8 @@ extension SelectivePrivacySettings {
                     current = .enableEveryone(disableFor: [:])
                 case .privacyValueAllowContacts:
                     current = .enableContacts(enableFor: [:], disableFor: [:], enableForPremium: false, enableForBots: false)
-                case let .privacyValueAllowUsers(users):
+                case let .privacyValueAllowUsers(privacyValueAllowUsersData):
+                    let users = privacyValueAllowUsersData.users
                     for id in users {
                         if let peer = peers[PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(id))] {
                             enableFor[peer.peer.id] = peer
@@ -230,13 +245,15 @@ extension SelectivePrivacySettings {
                     break
                 case .privacyValueDisallowContacts:
                     break
-                case let .privacyValueDisallowUsers(users):
+                case let .privacyValueDisallowUsers(privacyValueDisallowUsersData):
+                    let users = privacyValueDisallowUsersData.users
                     for id in users {
                         if let peer = peers[PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(id))] {
                             disableFor[peer.peer.id] = peer
                         }
                     }
-                case let .privacyValueAllowChatParticipants(chats):
+                case let .privacyValueAllowChatParticipants(privacyValueAllowChatParticipantsData):
+                    let chats = privacyValueAllowChatParticipantsData.chats
                     for id in chats {
                         for possibleId in [PeerId(namespace: Namespaces.Peer.CloudGroup, id: PeerId.Id._internalFromInt64Value(id)), PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(id))] {
                             if let peer = peers[possibleId] {
@@ -244,7 +261,8 @@ extension SelectivePrivacySettings {
                             }
                         }
                     }
-                case let .privacyValueDisallowChatParticipants(chats):
+                case let .privacyValueDisallowChatParticipants(privacyValueDisallowChatParticipantsData):
+                    let chats = privacyValueDisallowChatParticipantsData.chats
                     for id in chats {
                         for possibleId in [PeerId(namespace: Namespaces.Peer.CloudGroup, id: PeerId.Id._internalFromInt64Value(id)), PeerId(namespace: Namespaces.Peer.CloudChannel, id: PeerId.Id._internalFromInt64Value(id))] {
                             if let peer = peers[possibleId] {
@@ -287,33 +305,140 @@ func updateGlobalMessageAutoremoveTimeoutSettings(transaction: Transaction, _ f:
     })
 }
 
+public struct TelegramDisallowedGifts: OptionSet, Codable {
+    public var rawValue: Int32
+    
+    public init() {
+        self.rawValue = 0
+    }
+    
+    public init(rawValue: Int32) {
+        self.rawValue = rawValue
+    }
+    
+    public static let unlimited = TelegramDisallowedGifts(rawValue: 1 << 0)
+    public static let limited = TelegramDisallowedGifts(rawValue: 1 << 1)
+    public static let unique = TelegramDisallowedGifts(rawValue: 1 << 2)
+    public static let premium = TelegramDisallowedGifts(rawValue: 1 << 3)
+    public static let channel = TelegramDisallowedGifts(rawValue: 1 << 4)
+    
+    public static let All: TelegramDisallowedGifts = [
+        .unlimited,
+        .limited,
+        .unique,
+        .premium
+    ]
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: StringCodingKey.self)
+        let value = try? container.decode(Int32.self, forKey: "v")
+        self = TelegramDisallowedGifts(rawValue: value ?? 0)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: StringCodingKey.self)
+        try container.encode(self.rawValue, forKey: "v")
+    }
+}
+
+extension TelegramDisallowedGifts {
+    init(apiDisallowedGifts: Api.DisallowedGiftsSettings?) {
+        var disallowedGifts: TelegramDisallowedGifts = []
+        switch apiDisallowedGifts {
+        case let .disallowedGiftsSettings(disallowedGiftsSettingsData):
+            let giftFlags = disallowedGiftsSettingsData.flags
+            if (giftFlags & (1 << 0)) != 0 {
+                disallowedGifts.insert(.unlimited)
+            }
+            if (giftFlags & (1 << 1)) != 0 {
+                disallowedGifts.insert(.limited)
+            }
+            if (giftFlags & (1 << 2)) != 0 {
+                disallowedGifts.insert(.unique)
+            }
+            if (giftFlags & (1 << 3)) != 0 {
+                disallowedGifts.insert(.premium)
+            }
+            if (giftFlags & (1 << 4)) != 0 {
+                disallowedGifts.insert(.channel)
+            }
+        default:
+            break
+        }
+        self = disallowedGifts
+    }
+}
+
 public struct GlobalPrivacySettings: Equatable, Codable {
+    public enum NonContactChatsPrivacy: Equatable, Codable {
+        case everybody
+        case requirePremium
+        case paidMessages(StarsAmount)
+        
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: StringCodingKey.self)
+
+            switch (try? container.decode(Int32.self, forKey: "t")) ?? 0 {
+            case 0:
+                self = .everybody
+            case 1:
+                self = .requirePremium
+            case 2:
+                self = .paidMessages(StarsAmount(value: try container.decodeIfPresent(Int64.self, forKey: "stars") ?? 0, nanos: 0))
+            default:
+                assertionFailure()
+                self = .everybody
+            }
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: StringCodingKey.self)
+            switch self {
+            case .everybody:
+                try container.encode(0 as Int32, forKey: "t")
+            case .requirePremium:
+                try container.encode(1 as Int32, forKey: "t")
+            case let .paidMessages(amount):
+                try container.encode(2 as Int32, forKey: "t")
+                try container.encode(amount.value, forKey: "stars")
+            }
+        }
+    }
+        
     public static var `default` = GlobalPrivacySettings(
         automaticallyArchiveAndMuteNonContacts: false,
         keepArchivedUnmuted: true,
         keepArchivedFolders: true,
         hideReadTime: false,
-        nonContactChatsRequirePremium: false
+        nonContactChatsPrivacy: .everybody,
+        disallowedGifts: [],
+        displayGiftButton: false
     )
 
     public var automaticallyArchiveAndMuteNonContacts: Bool
     public var keepArchivedUnmuted: Bool
     public var keepArchivedFolders: Bool
     public var hideReadTime: Bool
-    public var nonContactChatsRequirePremium: Bool
+    public var nonContactChatsPrivacy: NonContactChatsPrivacy
+    public var disallowedGifts: TelegramDisallowedGifts
+    public var displayGiftButton: Bool
 
     public init(
         automaticallyArchiveAndMuteNonContacts: Bool,
         keepArchivedUnmuted: Bool,
         keepArchivedFolders: Bool,
         hideReadTime: Bool,
-        nonContactChatsRequirePremium: Bool
+        nonContactChatsPrivacy: NonContactChatsPrivacy,
+        disallowedGifts: TelegramDisallowedGifts,
+        displayGiftButton: Bool
     ) {
         self.automaticallyArchiveAndMuteNonContacts = automaticallyArchiveAndMuteNonContacts
         self.keepArchivedUnmuted = keepArchivedUnmuted
         self.keepArchivedFolders = keepArchivedFolders
         self.hideReadTime = hideReadTime
-        self.nonContactChatsRequirePremium = nonContactChatsRequirePremium
+        self.nonContactChatsPrivacy = nonContactChatsPrivacy
+        self.disallowedGifts = disallowedGifts
+        self.displayGiftButton = displayGiftButton
     }
 }
 

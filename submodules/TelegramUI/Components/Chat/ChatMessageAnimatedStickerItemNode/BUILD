@@ -32,6 +32,7 @@ swift_library(
         "//submodules/WallpaperBackgroundNode",
         "//submodules/LocalMediaResources",
         "//submodules/AppBundle",
+        "//submodules/TelegramStringFormatting",
         "//submodules/ChatPresentationInterfaceState",
         "//submodules/TelegramUI/Components/TextNodeWithEntities",
         "//submodules/TelegramUI/Components/ChatControllerInteraction",
@@ -53,6 +54,7 @@ swift_library(
         "//submodules/TelegramUI/Components/Chat/ManagedDiceAnimationNode",
         "//submodules/TelegramUI/Components/Chat/MessageHaptics",
         "//submodules/TelegramUI/Components/Chat/ChatMessageTransitionNode",
+        "//submodules/TelegramUI/Components/Chat/ChatMessageSuggestedPostInfoNode",
     ],
     visibility = [
         "//visibility:public",

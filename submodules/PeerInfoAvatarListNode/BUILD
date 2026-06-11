@@ -16,7 +16,6 @@ swift_library(
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
-        "//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
         "//submodules/TelegramPresentationData:TelegramPresentationData",
         "//submodules/AvatarNode:AvatarNode",
@@ -32,6 +31,7 @@ swift_library(
         "//submodules/ComponentFlow",
         "//submodules/Components/ComponentDisplayAdapters",
         "//submodules/TelegramUI/Components/Stories/StorySetIndicatorComponent",
+        "//submodules/Components/HierarchyTrackingLayer",
     ],
     visibility = [
         "//visibility:public",

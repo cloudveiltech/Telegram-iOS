@@ -15,7 +15,6 @@ import PeerOnlineMarkerNode
 import LocalizedPeerData
 import PeerPresenceStatusManager
 import PhotoResources
-import ChatListSearchItemNode
 import ContextUI
 import ChatInterfaceState
 import TextFormat
@@ -28,21 +27,47 @@ import EmojiStatusComponent
 import AvatarVideoNode
 import AppBundle
 import MultilineTextComponent
+import MultilineTextWithEntitiesComponent
+import ShimmerEffect
 
 public enum ChatListItemContent {
-    public struct ThreadInfo: Equatable {
-        public var id: Int64
-        public var info: EngineMessageHistoryThread.Info
-        public var isOwnedByMe: Bool
-        public var isClosed: Bool
-        public var isHidden: Bool
+    public final class ThreadInfo: Equatable {
+        public let id: Int64
+        public let info: EngineMessageHistoryThread.Info
+        public let isOwnedByMe: Bool
+        public let isClosed: Bool
+        public let isHidden: Bool
+        public let threadPeer: EnginePeer?
         
-        public init(id: Int64, info: EngineMessageHistoryThread.Info, isOwnedByMe: Bool, isClosed: Bool, isHidden: Bool) {
+        public init(id: Int64, info: EngineMessageHistoryThread.Info, isOwnedByMe: Bool, isClosed: Bool, isHidden: Bool, threadPeer: EnginePeer?) {
             self.id = id
             self.info = info
             self.isOwnedByMe = isOwnedByMe
             self.isClosed = isClosed
             self.isHidden = isHidden
+            self.threadPeer = threadPeer
+        }
+        
+        public static func ==(lhs: ThreadInfo, rhs: ThreadInfo) -> Bool {
+            if lhs.id != rhs.id {
+                return false
+            }
+            if lhs.info != rhs.info {
+                return false
+            }
+            if lhs.isOwnedByMe != rhs.isOwnedByMe {
+                return false
+            }
+            if lhs.isClosed != rhs.isClosed {
+                return false
+            }
+            if lhs.isHidden != rhs.isHidden {
+                return false
+            }
+            if lhs.threadPeer != rhs.threadPeer {
+                return false
+            }
+            return true
         }
     }
     
@@ -81,10 +106,10 @@ public enum ChatListItemContent {
     
     public struct Tag: Equatable {
         public var id: Int32
-        public var title: String
+        public var title: ChatFolderTitle
         public var colorId: Int32
         
-        public init(id: Int32, title: String, colorId: Int32) {
+        public init(id: Int32, title: ChatFolderTitle, colorId: Int32) {
             self.id = id
             self.title = title
             self.colorId = colorId
@@ -98,14 +123,16 @@ public enum ChatListItemContent {
         public var hideSeparator: Bool
         public var hideDate: Bool
         public var hidePeerStatus: Bool
+        public var isInTransparentContainer: Bool
         
-        public init(commandPrefix: String?, searchQuery: String?, messageCount: Int?, hideSeparator: Bool, hideDate: Bool, hidePeerStatus: Bool) {
+        public init(commandPrefix: String?, searchQuery: String?, messageCount: Int?, hideSeparator: Bool, hideDate: Bool, hidePeerStatus: Bool, isInTransparentContainer: Bool = false) {
             self.commandPrefix = commandPrefix
             self.searchQuery = searchQuery
             self.messageCount = messageCount
             self.hideSeparator = hideSeparator
             self.hideDate = hideDate
             self.hidePeerStatus = hidePeerStatus
+            self.isInTransparentContainer = isInTransparentContainer
         }
     }
     
@@ -118,6 +145,7 @@ public enum ChatListItemContent {
         public var presence: EnginePeer.Presence?
         public var hasUnseenMentions: Bool
         public var hasUnseenReactions: Bool
+        public var hasUnseenPollVotes: Bool
         public var draftState: DraftState?
         public var mediaDraftContentType: EngineChatList.MediaDraftContentType?
         public var inputActivities: [(EnginePeer, PeerInputActivity)]?
@@ -143,6 +171,7 @@ public enum ChatListItemContent {
             presence: EnginePeer.Presence?,
             hasUnseenMentions: Bool,
             hasUnseenReactions: Bool,
+            hasUnseenPollVotes: Bool,
             draftState: DraftState?,
             mediaDraftContentType: EngineChatList.MediaDraftContentType?,
             inputActivities: [(EnginePeer, PeerInputActivity)]?,
@@ -167,6 +196,7 @@ public enum ChatListItemContent {
             self.presence =  presence
             self.hasUnseenMentions = hasUnseenMentions
             self.hasUnseenReactions =  hasUnseenReactions
+            self.hasUnseenPollVotes = hasUnseenPollVotes
             self.draftState = draftState
             self.mediaDraftContentType = mediaDraftContentType
             self.inputActivities = inputActivities
@@ -191,6 +221,7 @@ public enum ChatListItemContent {
         public var message: EngineMessage?
         public var unreadCount: Int
         public var hiddenByDefault: Bool
+        public var appearsPinned: Bool
         public var storyState: StoryState?
         
         public init(
@@ -199,6 +230,7 @@ public enum ChatListItemContent {
             message: EngineMessage?,
             unreadCount: Int,
             hiddenByDefault: Bool,
+            appearsPinned: Bool,
             storyState: StoryState?
         ) {
             self.groupId = groupId
@@ -206,15 +238,19 @@ public enum ChatListItemContent {
             self.message = message
             self.unreadCount = unreadCount
             self.hiddenByDefault = hiddenByDefault
+            self.appearsPinned = appearsPinned
             self.storyState = storyState
         }
     }
 
+    case loading
     case peer(PeerData)
     case groupReference(GroupReferenceData)
     
     public var chatLocation: ChatLocation? {
         switch self {
+        case .loading:
+            return nil
         case let .peer(peerData):
             return .peer(id: peerData.peer.peerId)
         case .groupReference:
@@ -265,6 +301,8 @@ private final class ChatListItemTagListComponent: Component {
         let backgroundView: UIImageView
         let title = ComponentView<Empty>()
         
+        private var currentTitle: ChatFolderTitle?
+        
         override init(frame: CGRect) {
             self.backgroundView = UIImageView(image: tagBackgroundImage)
             
@@ -277,11 +315,20 @@ private final class ChatListItemTagListComponent: Component {
             preconditionFailure()
         }
         
-        func update(context: AccountContext, title: String, backgroundColor: UIColor, foregroundColor: UIColor, sizeFactor: CGFloat) -> CGSize {
+        func update(context: AccountContext, title: ChatFolderTitle, backgroundColor: UIColor, foregroundColor: UIColor, sizeFactor: CGFloat) -> CGSize {
+            self.currentTitle = title
+            
+            let titleValue = ChatFolderTitle(text: title.text.isEmpty ? " " : title.text, entities: title.entities, enableAnimations: title.enableAnimations)
             let titleSize = self.title.update(
                 transition: .immediate,
-                component: AnyComponent(MultilineTextComponent(
-                    text: .plain(NSAttributedString(string: title.isEmpty ? " " : title, font: Font.semibold(floor(11.0 * sizeFactor)), textColor: foregroundColor))
+                component: AnyComponent(MultilineTextWithEntitiesComponent(
+                    context: context,
+                    animationCache: context.animationCache,
+                    animationRenderer: context.animationRenderer,
+                    placeholderColor: foregroundColor.withMultipliedAlpha(0.1),
+                    text: .plain(titleValue.attributedString(font: Font.semibold(floor(11.0 * sizeFactor)), textColor: foregroundColor)),
+                    manualVisibilityControl: true,
+                    resetAnimationsOnVisibilityChange: true
                 )),
                 environment: {},
                 containerSize: CGSize(width: 100.0, height: 100.0)
@@ -305,10 +352,29 @@ private final class ChatListItemTagListComponent: Component {
             
             return backgroundSize
         }
+        
+        func updateVisibility(_ isVisible: Bool) {
+            guard let currentTitle = self.currentTitle else {
+                return
+            }
+            if let titleView = self.title.view as? MultilineTextWithEntitiesComponent.View {
+                titleView.updateVisibility(isVisible && currentTitle.enableAnimations)
+            }
+        }
     }
     
     final class View: UIView {
         private var itemViews: [Int32: ItemView] = [:]
+        
+        var isVisible: Bool = false {
+            didSet {
+                if self.isVisible != oldValue {
+                    for (_, itemView) in self.itemViews {
+                        itemView.updateVisibility(self.isVisible)
+                    }
+                }
+            }
+        }
         
         override init(frame: CGRect) {
             super.init(frame: frame)
@@ -328,13 +394,13 @@ private final class ChatListItemTagListComponent: Component {
                 }
                 
                 let itemId: Int32
-                let itemTitle: String
+                let itemTitle: ChatFolderTitle
                 let itemBackgroundColor: UIColor
                 let itemForegroundColor: UIColor
                 
                 if validIds.count >= 3 {
                     itemId = Int32.max
-                    itemTitle = "+\(component.tags.count - validIds.count)"
+                    itemTitle = ChatFolderTitle(text: "+\(component.tags.count - validIds.count)", entities: [], enableAnimations: true)
                     itemForegroundColor = component.theme.chatList.dateTextColor
                     itemBackgroundColor = itemForegroundColor.withMultipliedAlpha(0.1)
                 } else {
@@ -343,7 +409,7 @@ private final class ChatListItemTagListComponent: Component {
                     let tagColor = PeerNameColor(rawValue: tag.colorId)
                     let resolvedColor = component.context.peerNameColors.getChatFolderTag(tagColor, dark: component.theme.overallDarkAppearance)
                     
-                    itemTitle = tag.title.uppercased()
+                    itemTitle = ChatFolderTitle(text: tag.title.text.uppercased(), entities: tag.title.entities, enableAnimations: tag.title.enableAnimations)
                     itemBackgroundColor = resolvedColor.main.withMultipliedAlpha(0.1)
                     itemForegroundColor = resolvedColor.main
                 }
@@ -360,6 +426,7 @@ private final class ChatListItemTagListComponent: Component {
                 let itemSize = itemView.update(context: component.context, title: itemTitle, backgroundColor: itemBackgroundColor, foregroundColor: itemForegroundColor, sizeFactor: component.sizeFactor)
                 let itemFrame = CGRect(origin: CGPoint(x: nextX, y: 0.0), size: itemSize)
                 itemView.frame = itemFrame
+                itemView.updateVisibility(self.isVisible)
                 
                 validIds.append(itemId)
                 nextX += itemSize.width
@@ -392,7 +459,24 @@ private final class ChatListItemTagListComponent: Component {
     }
 }
 
-public class ChatListItem: ListViewItem, ChatListSearchItemNeighbour {
+public class ChatListItem: ListViewItem {
+    public enum EnabledContextActions {
+        public struct Actions: OptionSet {
+            public var rawValue: Int32
+            
+            public init(rawValue: Int32) {
+                self.rawValue = rawValue
+            }
+            
+            public static let toggleUnread = Actions(rawValue: 1 << 0)
+            public static let delete = Actions(rawValue: 1 << 1)
+            public static let togglePinned = Actions(rawValue: 1 << 2)
+        }
+        
+        case custom(Actions)
+        case auto
+    }
+    
     let presentationData: ChatListPresentationData
     let context: AccountContext
     let chatListLocation: ChatListControllerLocation
@@ -402,7 +486,7 @@ public class ChatListItem: ListViewItem, ChatListSearchItemNeighbour {
     let editing: Bool
     let hasActiveRevealControls: Bool
     let selected: Bool
-    let enableContextActions: Bool
+    let enabledContextActions: EnabledContextActions?
     let hiddenOffset: Bool
     let interaction: ChatListNodeInteraction
     
@@ -427,7 +511,7 @@ public class ChatListItem: ListViewItem, ChatListSearchItemNeighbour {
         }
     }
     
-    public init(presentationData: ChatListPresentationData, context: AccountContext, chatListLocation: ChatListControllerLocation, filterData: ChatListItemFilterData?, index: EngineChatList.Item.Index, content: ChatListItemContent, editing: Bool, hasActiveRevealControls: Bool, selected: Bool, header: ListViewItemHeader?, enableContextActions: Bool, hiddenOffset: Bool, interaction: ChatListNodeInteraction) {
+    public init(presentationData: ChatListPresentationData, context: AccountContext, chatListLocation: ChatListControllerLocation, filterData: ChatListItemFilterData?, index: EngineChatList.Item.Index, content: ChatListItemContent, editing: Bool, hasActiveRevealControls: Bool, selected: Bool, header: ListViewItemHeader?, enabledContextActions: EnabledContextActions?, hiddenOffset: Bool, interaction: ChatListNodeInteraction) {
         self.presentationData = presentationData
         self.chatListLocation = chatListLocation
         self.filterData = filterData
@@ -438,7 +522,7 @@ public class ChatListItem: ListViewItem, ChatListSearchItemNeighbour {
         self.hasActiveRevealControls = hasActiveRevealControls
         self.selected = selected
         self.header = header
-        self.enableContextActions = enableContextActions
+        self.enabledContextActions = enabledContextActions
         self.hiddenOffset = hiddenOffset
         self.interaction = interaction
     }
@@ -492,14 +576,19 @@ public class ChatListItem: ListViewItem, ChatListSearchItemNeighbour {
     
     public func selected(listView: ListView) {
         switch self.content {
+        case .loading:
+            break
         case let .peer(peerData):
             if let message = peerData.messages.last, let peer = peerData.peer.peer {
                 var threadId: Int64?
                 if case let .forum(_, _, threadIdValue, _, _) = self.index {
                     threadId = threadIdValue
                 }
-                if threadId == nil, self.interaction.searchTextHighightState != nil, case let .channel(channel) = peerData.peer.peer, channel.flags.contains(.isForum) {
+                if threadId == nil, self.interaction.searchTextHighightState != nil, case let .channel(channel) = peerData.peer.peer, channel.isForumOrMonoForum {
                     threadId = message.threadId
+                }
+                if case let .user(user) = peer, let botInfo = user.botInfo, botInfo.flags.contains(.hasForum), let forumTopicData = peerData.forumTopicData {
+                    threadId = forumTopicData.id
                 }
                 self.interaction.messageSelected(peer, threadId, message, peerData.promoInfo)
             } else if let peer = peerData.peer.peer {
@@ -730,7 +819,7 @@ private func leftRevealOptions(strings: PresentationStrings, theme: Presentation
                 options.append(ItemListRevealOption(key: RevealOptionKey.toggleMarkedUnread.rawValue, title: strings.DialogList_Read, icon: readIcon, color: theme.list.itemDisclosureActions.inactive.fillColor, textColor: theme.list.itemDisclosureActions.neutral1.foregroundColor))
             } else {
                 var canMarkUnread = true
-                if case let .channel(channel) = peer, channel.flags.contains(.isForum) {
+                if case let .channel(channel) = peer, channel.isForumOrMonoForum {
                     canMarkUnread = false
                 }
                 
@@ -909,89 +998,130 @@ private final class ChatListMediaPreviewNode: ASDisplayNode {
     }
 }
 
+private let telegramCodeRegex = try? NSRegularExpression(pattern: "(?<=: )\\b\\d{5,8}\\b(?=\\.)", options: [])
 private let loginCodeRegex = try? NSRegularExpression(pattern: "\\b\\d{5,8}\\b", options: [])
 
 public class ChatListItemNode: ItemListRevealOptionsItemNode {
     final class TopicItemNode: ASDisplayNode {
         let topicTitleNode: TextNode
-        let titleTopicIconView: ComponentHostView<Empty>
-        var titleTopicIconComponent: EmojiStatusComponent
+        let titleTopicIconView: ComponentHostView<Empty>?
+        var titleTopicAvatarNode: AvatarNode?
+        var titleTopicIconComponent: EmojiStatusComponent?
         
         var visibilityStatus: Bool = false {
             didSet {
                 if self.visibilityStatus != oldValue {
-                    let _ = self.titleTopicIconView.update(
-                        transition: .immediate,
-                        component: AnyComponent(self.titleTopicIconComponent.withVisibleForAnimations(self.visibilityStatus)),
-                        environment: {},
-                        containerSize: self.titleTopicIconView.bounds.size
-                    )
+                    if let titleTopicIconView = self.titleTopicIconView, let titleTopicIconComponent = self.titleTopicIconComponent {
+                        let _ = titleTopicIconView.update(
+                            transition: .immediate,
+                            component: AnyComponent(titleTopicIconComponent.withVisibleForAnimations(self.visibilityStatus)),
+                            environment: {},
+                            containerSize: titleTopicIconView.bounds.size
+                        )
+                    }
                 }
             }
         }
         
-        private init(topicTitleNode: TextNode, titleTopicIconView: ComponentHostView<Empty>, titleTopicIconComponent: EmojiStatusComponent) {
+        private init(topicTitleNode: TextNode, titleTopicIconView: ComponentHostView<Empty>?, titleTopicAvatarNode: AvatarNode?, titleTopicIconComponent: EmojiStatusComponent?) {
             self.topicTitleNode = topicTitleNode
             self.titleTopicIconView = titleTopicIconView
+            self.titleTopicAvatarNode = titleTopicAvatarNode
             self.titleTopicIconComponent = titleTopicIconComponent
             
             super.init()
             
             self.addSubnode(self.topicTitleNode)
-            self.view.addSubview(self.titleTopicIconView)
+            if let titleTopicAvatarNode = self.titleTopicAvatarNode {
+                self.view.addSubview(titleTopicAvatarNode.view)
+            }
+            if let titleTopicIconView = self.titleTopicIconView {
+                self.view.addSubview(titleTopicIconView)
+            }
         }
         
-        static func asyncLayout(_ currentNode: TopicItemNode?) -> (_ constrainedWidth: CGFloat, _ context: AccountContext, _ theme: PresentationTheme, _ threadId: Int64, _ title: NSAttributedString, _ iconId: Int64?, _ iconColor: Int32) -> (CGSize, () -> TopicItemNode) {
+        static func asyncLayout(_ currentNode: TopicItemNode?) -> (_ constrainedWidth: CGFloat, _ context: AccountContext, _ theme: PresentationTheme, _ threadId: Int64, _ threadPeer: EnginePeer?, _ title: NSAttributedString, _ iconId: Int64?, _ iconColor: Int32?) -> (CGSize, () -> TopicItemNode) {
             let makeTopicTitleLayout = TextNode.asyncLayout(currentNode?.topicTitleNode)
             
-            return { constrainedWidth, context, theme, threadId, title, iconId, iconColor in
-                let remainingWidth = max(1.0, constrainedWidth - (18.0 + 2.0))
+            return { constrainedWidth, context, theme, threadId, threadPeer, title, iconId, iconColor in
+                let remainingWidth = max(1.0, constrainedWidth - (((iconId == nil && iconColor == nil && threadPeer == nil) ? 1.0 : 18.0) + 2.0))
                 
                 let topicTitleArguments = TextNodeLayoutArguments(attributedString: title, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: remainingWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: nil, insets: UIEdgeInsets(top: 2.0, left: 1.0, bottom: 2.0, right: 1.0))
                 
                 let topicTitleLayout = makeTopicTitleLayout(topicTitleArguments)
                 
-                return (CGSize(width: 18.0 + 2.0 + topicTitleLayout.0.size.width, height: topicTitleLayout.0.size.height), {
+                return (CGSize(width: ((iconId == nil && iconColor == nil && threadPeer == nil) ? 1.0 : 18.0) + 2.0 + topicTitleLayout.0.size.width, height: topicTitleLayout.0.size.height), {
                     let topicTitleNode = topicTitleLayout.1()
                     
-                    let titleTopicIconView: ComponentHostView<Empty>
-                    if let current = currentNode?.titleTopicIconView {
-                        titleTopicIconView = current
-                    } else {
-                        titleTopicIconView = ComponentHostView<Empty>()
-                    }
-                    
-                    let titleTopicIconContent: EmojiStatusComponent.Content
+                    let titleTopicIconContent: EmojiStatusComponent.Content?
                     if threadId == 1 {
-                        titleTopicIconContent = .image(image: PresentationResourcesChatList.generalTopicSmallIcon(theme))
+                        titleTopicIconContent = .image(image: PresentationResourcesChatList.generalTopicSmallIcon(theme), tintColor: nil)
                     } else if let fileId = iconId, fileId != 0 {
                         titleTopicIconContent = .animation(content: .customEmoji(fileId: fileId), size: CGSize(width: 36.0, height: 36.0), placeholderColor: theme.list.mediaPlaceholderColor, themeColor: theme.list.itemAccentColor, loopMode: .count(0))
-                    } else {
+                    } else if let iconColor {
                         titleTopicIconContent = .topic(title: String(title.string.prefix(1)), color: iconColor, size: CGSize(width: 18.0, height: 18.0))
+                    } else {
+                        titleTopicIconContent = nil
                     }
                     
-                    let titleTopicIconComponent = EmojiStatusComponent(
-                        context: context,
-                        animationCache: context.animationCache,
-                        animationRenderer: context.animationRenderer,
-                        content: titleTopicIconContent,
-                        isVisibleForAnimations: (currentNode?.visibilityStatus ?? false) && context.sharedContext.energyUsageSettings.loopEmoji,
-                        action: nil
-                    )
+                    var titleTopicIconComponent: EmojiStatusComponent?
+                    var titleTopicIconView: ComponentHostView<Empty>?
                     
-                    let targetNode = currentNode ?? TopicItemNode(topicTitleNode: topicTitleNode, titleTopicIconView: titleTopicIconView, titleTopicIconComponent: titleTopicIconComponent)
+                    if let titleTopicIconContent {
+                        titleTopicIconComponent = EmojiStatusComponent(
+                            context: context,
+                            animationCache: context.animationCache,
+                            animationRenderer: context.animationRenderer,
+                            content: titleTopicIconContent,
+                            isVisibleForAnimations: (currentNode?.visibilityStatus ?? false) && context.sharedContext.energyUsageSettings.loopEmoji,
+                            action: nil
+                        )
+                        
+                        if let current = currentNode?.titleTopicIconView {
+                            titleTopicIconView = current
+                        } else {
+                            titleTopicIconView = ComponentHostView<Empty>()
+                        }
+                    }
+                    
+                    var titleTopicAvatarNode: AvatarNode?
+                    if let _ = threadPeer {
+                        if let current = currentNode?.titleTopicAvatarNode {
+                            titleTopicAvatarNode = current
+                        } else {
+                            titleTopicAvatarNode = AvatarNode(font: avatarPlaceholderFont(size: 8.0))
+                        }
+                    }
+                    
+                    let targetNode = currentNode ?? TopicItemNode(topicTitleNode: topicTitleNode, titleTopicIconView: titleTopicIconView, titleTopicAvatarNode: titleTopicAvatarNode, titleTopicIconComponent: titleTopicIconComponent)
                     
                     targetNode.titleTopicIconComponent = titleTopicIconComponent
                     
-                    let iconSize = titleTopicIconView.update(
-                        transition: .immediate,
-                        component: AnyComponent(titleTopicIconComponent),
-                        environment: {},
-                        containerSize: CGSize(width: 18.0, height: 18.0)
-                    )
-                    titleTopicIconView.frame = CGRect(origin: CGPoint(x: 0.0, y: 2.0), size: iconSize)
-                    
-                    topicTitleNode.frame = CGRect(origin: CGPoint(x: 18.0 + 2.0, y: 0.0), size: topicTitleLayout.0.size)
+                    if let titleTopicIconView, let titleTopicIconComponent {
+                        let iconSize = titleTopicIconView.update(
+                            transition: .immediate,
+                            component: AnyComponent(titleTopicIconComponent),
+                            environment: {},
+                            containerSize: CGSize(width: 18.0, height: 18.0)
+                        )
+                        titleTopicIconView.frame = CGRect(origin: CGPoint(x: 0.0, y: 2.0), size: iconSize)
+                        
+                        topicTitleNode.frame = CGRect(origin: CGPoint(x: 18.0 + 2.0, y: 0.0), size: topicTitleLayout.0.size)
+                    } else if let titleTopicAvatarNode, let threadPeer {
+                        let iconSize = CGSize(width: 18.0, height: 18.0)
+                        
+                        titleTopicAvatarNode.frame = CGRect(origin: CGPoint(x: 0.0, y: 2.0), size: iconSize)
+                        titleTopicAvatarNode.updateSize(size: iconSize)
+                        if threadPeer.smallProfileImage != nil {
+                            titleTopicAvatarNode.setPeerV2(context: context, theme: theme, peer: threadPeer, overrideImage: nil, emptyColor: theme.list.mediaPlaceholderColor, clipStyle: .round, synchronousLoad: false, displayDimensions: iconSize)
+                        } else {
+                            titleTopicAvatarNode.setPeer(context: context, theme: theme, peer: threadPeer, overrideImage: nil, emptyColor: theme.list.mediaPlaceholderColor, clipStyle: .round, synchronousLoad: false, displayDimensions: iconSize)
+                        }
+                        
+                        topicTitleNode.frame = CGRect(origin: CGPoint(x: 18.0 + 2.0, y: 0.0), size: topicTitleLayout.0.size)
+                    } else {
+                        topicTitleNode.frame = CGRect(origin: CGPoint(x: 1.0, y: 0.0), size: topicTitleLayout.0.size)
+                    }
                     
                     return targetNode
                 })
@@ -1051,9 +1181,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             }
         }
         
-        func asyncLayout() -> (_ context: AccountContext, _ constrainedWidth: CGFloat, _ theme: PresentationTheme, _ authorTitle: NSAttributedString?, _ topics: [(id: Int64, title: NSAttributedString, iconId: Int64?, iconColor: Int32)]) -> (CGSize, () -> CGRect?) {
+        func asyncLayout() -> (_ context: AccountContext, _ constrainedWidth: CGFloat, _ theme: PresentationTheme, _ authorTitle: NSAttributedString?, _ topics: [(id: Int64, threadPeer: EnginePeer?, title: NSAttributedString, iconId: Int64?, iconColor: Int32?)]) -> (CGSize, () -> CGRect?) {
             let makeAuthorLayout = TextNode.asyncLayout(self.authorNode)
-            var makeExistingTopicLayouts: [Int64: (_ constrainedWidth: CGFloat, _ context: AccountContext, _ theme: PresentationTheme, _ threadId: Int64, _ title: NSAttributedString, _ iconId: Int64?, _ iconColor: Int32) -> (CGSize, () -> TopicItemNode)] = [:]
+            var makeExistingTopicLayouts: [Int64: (_ constrainedWidth: CGFloat, _ context: AccountContext, _ theme: PresentationTheme, _ threadId: Int64, _ threadPeer: EnginePeer?, _ title: NSAttributedString, _ iconId: Int64?, _ iconColor: Int32?) -> (CGSize, () -> TopicItemNode)] = [:]
             for (topicId, topicNode) in self.topicNodes {
                 makeExistingTopicLayouts[topicId] = TopicItemNode.asyncLayout(topicNode)
             }
@@ -1080,12 +1210,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 
                 var topicsSizeAndApply: [(Int64, CGSize, () -> TopicItemNode)] = []
                 for topic in topics {
-                    if remainingWidth <= 22.0 + 2.0 + 10.0 {
+                    if remainingWidth <= ((topic.iconId == nil && topic.iconColor == nil) ? 8.0 : 22.0) + 2.0 + 10.0 {
                         break
                     }
                     
                     let makeTopicLayout = makeExistingTopicLayouts[topic.id] ?? TopicItemNode.asyncLayout(nil)
-                    let (topicSize, topicApply) = makeTopicLayout(remainingWidth, context, theme, topic.id, topic.title, topic.iconId, topic.iconColor)
+                    let (topicSize, topicApply) = makeTopicLayout(remainingWidth, context, theme, topic.id, topic.threadPeer, topic.title, topic.iconId, topic.iconColor)
                     topicsSizeAndApply.append((topic.id, topicSize, topicApply))
                     
                     remainingWidth -= topicSize.width + 4.0
@@ -1179,7 +1309,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
         }
     }
     
-    var item: ChatListItem?
+    public private(set) var item: ChatListItem?
     
     private let backgroundNode: ASDisplayNode
     private let highlightedBackgroundNode: ASDisplayNode
@@ -1198,6 +1328,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
     private var inlineNavigationMarkLayer: SimpleLayer?
     
     public let titleNode: TextNode
+    private var titleBadge: (backgroundView: UIImageView, textNode: TextNode)?
     public let authorNode: AuthorNode
     private var compoundHighlightingNode: LinkHighlightingNode?
     private var textArrowNode: ASImageNode?
@@ -1222,17 +1353,23 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
     let onlineNode: PeerOnlineMarkerNode
     var avatarTimerBadge: AvatarBadgeView?
     private var starView: StarView?
+    var avatarLiveBadge: (outline: UIImageView, foreground: UIImageView)?
     let pinnedIconNode: ASImageNode
     var secretIconNode: ASImageNode?
     var verifiedIconView: ComponentHostView<Empty>?
     var verifiedIconComponent: EmojiStatusComponent?
     var credibilityIconView: ComponentHostView<Empty>?
     var credibilityIconComponent: EmojiStatusComponent?
+    var statusIconView: ComponentHostView<Empty>?
+    var statusIconComponent: EmojiStatusComponent?
     let mutedIconNode: ASImageNode
     var itemTagList: ComponentView<Empty>?
     var actionButtonTitleNode: TextNode?
     var actionButtonBackgroundView: UIImageView?
     var actionButtonNode: HighlightableButtonNode?
+    
+    private var placeholderNode: ShimmerEffectNode?
+    private var absoluteLocation: (CGRect, CGSize)?
     
     private var hierarchyTrackingLayer: HierarchyTrackingLayer?
     private var cachedDataDisposable = MetaDisposable()
@@ -1293,6 +1430,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 return nil
             }
             switch item.content {
+                case .loading:
+                    return nil
                 case let .groupReference(groupReferenceData):
                     var result = item.presentationData.strings.ChatList_ArchivedChatsTitle
                 let allCount = groupReferenceData.unreadCount
@@ -1301,7 +1440,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     }
                     return result
                 case let .peer(peerData):
-                    guard let chatMainPeer = peerData.peer.chatMainPeer else {
+                    guard let chatMainPeer = peerData.peer.chatOrMonoforumMainPeer else {
                         return nil
                     }
                     var result = ""
@@ -1325,6 +1464,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 return nil
             }
             switch item.content {
+                case .loading:
+                    return nil
                 case let .groupReference(groupReferenceData):
                     let peers = groupReferenceData.peers
                     let messageValue = groupReferenceData.message
@@ -1336,7 +1477,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         } else {
                             result += item.presentationData.strings.VoiceOver_ChatList_OutgoingMessage
                         }
-                        let (_, initialHideAuthor, messageText, _, _) = chatListItemStrings(strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, contentSettings: item.context.currentContentSettings.with { $0 }, messages: messages, chatPeer: peer, accountPeerId: item.context.account.peerId, isPeerGroup: false)
+                        let (_, initialHideAuthor, messageText, _, _, _) = chatListItemStrings(strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, contentSettings: item.context.currentContentSettings.with { $0 }, messages: messages, chatPeer: peer, accountPeerId: item.context.account.peerId, isPeerGroup: false)
                         if message.flags.contains(.Incoming), !initialHideAuthor, let author = message.author, case .user = author {
                             result += "\n\(item.presentationData.strings.VoiceOver_ChatList_MessageFrom(author.displayTitle(strings: item.presentationData.strings, displayOrder: item.presentationData.nameDisplayOrder)).string)"
                         }
@@ -1346,7 +1487,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         var result = ""
                         var isFirst = true
                         for peer in peers {
-                            if let chatMainPeer = peer.peer.chatMainPeer {
+                            if let chatMainPeer = peer.peer.chatOrMonoforumMainPeer {
                                 let peerTitle = chatMainPeer.compactDisplayTitle
                                 if !peerTitle.isEmpty {
                                     if isFirst {
@@ -1370,7 +1511,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         } else {
                             result += item.presentationData.strings.VoiceOver_ChatList_OutgoingMessage
                         }
-                        let (_, initialHideAuthor, messageText, _, _) = chatListItemStrings(strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, contentSettings: item.context.currentContentSettings.with { $0 }, messages: peerData.messages, chatPeer: peerData.peer, accountPeerId: item.context.account.peerId, isPeerGroup: false)
+                        let (_, initialHideAuthor, messageText, _, _, _) = chatListItemStrings(strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, contentSettings: item.context.currentContentSettings.with { $0 }, messages: peerData.messages, chatPeer: peerData.peer, accountPeerId: item.context.account.peerId, isPeerGroup: false)
                         if message.flags.contains(.Incoming), !initialHideAuthor, let author = message.author, case .user = author {
                             result += "\n\(item.presentationData.strings.VoiceOver_ChatList_MessageFrom(author.displayTitle(strings: item.presentationData.strings, displayOrder: item.presentationData.nameDisplayOrder)).string)"
                         }
@@ -1438,6 +1579,10 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     )
                 }
                 self.authorNode.visibilityStatus = self.visibilityStatus
+                
+                if let itemTagListView = self.itemTagList?.view as? ChatListItemTagListComponent.View {
+                    itemTagListView.isVisible = self.visibilityStatus
+                }
             }
         }
     }
@@ -1516,7 +1661,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
         self.separatorNode = ASDisplayNode()
         self.separatorNode.isLayerBacked = true
         
-        super.init(layerBacked: false, dynamicBounce: false, rotated: false, seeThrough: false)
+        super.init(layerBacked: false, rotated: false, seeThrough: false)
         
         self.isAccessibilityElement = true
         
@@ -1618,13 +1763,20 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
         var peer: EnginePeer?
         var displayAsMessage = false
         var enablePreview = true
+        var peerIsMonoforum = false
         switch item.content {
+        case .loading:
+            displayAsMessage = true
+            enablePreview = false
         case let .peer(peerData):
             displayAsMessage = peerData.displayAsMessage
             if displayAsMessage, case let .user(author) = peerData.messages.last?.author {
                 peer = .user(author)
             } else {
-                peer = peerData.peer.chatMainPeer
+                peer = peerData.peer.chatOrMonoforumMainPeer
+                if case let .channel(channel) = peerData.peer.peer, channel.isMonoForum {
+                    peerIsMonoforum = true
+                }
             }
             if peerData.peer.peerId.namespace == Namespaces.Peer.SecretChat {
                 enablePreview = false
@@ -1645,7 +1797,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             return AvatarNode.StoryStats(
                 totalCount: storyState.stats.totalCount,
                 unseenCount: storyState.stats.unseenCount,
-                hasUnseenCloseFriendsItems: storyState.hasUnseenCloseFriends
+                hasUnseenCloseFriendsItems: storyState.hasUnseenCloseFriends,
+                hasLiveItems: storyState.stats.hasLiveItems
             )
         }, presentationParams: AvatarNode.StoryPresentationParams(
             colors: AvatarNode.Colors(theme: item.presentationData.theme),
@@ -1653,6 +1806,91 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             inactiveLineWidth: 1.33
         ), transition: .immediate)
         self.avatarNode.isUserInteractionEnabled = storyState != nil
+        
+        if let stats = storyState?.stats, stats.hasLiveItems {
+            if self.avatarLiveBadge == nil {
+                let avatarLiveBadge: (outline: UIImageView, foreground: UIImageView) = (UIImageView(), UIImageView())
+                self.avatarLiveBadge = avatarLiveBadge
+                self.avatarNode.view.addSubview(avatarLiveBadge.outline)
+                self.avatarNode.view.addSubview(avatarLiveBadge.foreground)
+                
+                let liveString = NSAttributedString(string: item.presentationData.strings.Story_LiveBadge, font: Font.semibold(10.0), textColor: .white)
+                let liveStringBounds = liveString.boundingRect(with: CGSize(width: 100.0, height: 100.0), options: .usesLineFragmentOrigin, context: nil)
+                let liveBadgeSize = CGSize(width: ceil(liveStringBounds.width) + 4.0 * 2.0, height: ceil(liveStringBounds.height) + 2.0 * 2.0)
+                avatarLiveBadge.foreground.image = generateImage(liveBadgeSize, rotatedContext: { size, context in
+                    UIGraphicsPushContext(context)
+                    defer {
+                        UIGraphicsPopContext()
+                    }
+                    
+                    context.clear(CGRect(origin: CGPoint(), size: size))
+                    context.setFillColor(UIColor(rgb: 0xFF2D55).cgColor)
+                    
+                    func roundedRectCgPath(roundRect rect: CGRect, topLeftRadius: CGFloat, topRightRadius: CGFloat, bottomLeftRadius: CGFloat, bottomRightRadius: CGFloat) -> CGPath {
+                        let path = CGMutablePath()
+
+                        let topLeft = rect.origin
+                        let topRight = CGPoint(x: rect.maxX, y: rect.minY)
+                        let bottomRight = CGPoint(x: rect.maxX, y: rect.maxY)
+                        let bottomLeft = CGPoint(x: rect.minX, y: rect.maxY)
+
+                        if topLeftRadius != .zero {
+                            path.move(to: CGPoint(x: topLeft.x+topLeftRadius, y: topLeft.y))
+                        } else {
+                            path.move(to: CGPoint(x: topLeft.x, y: topLeft.y))
+                        }
+
+                        if topRightRadius != .zero {
+                            path.addLine(to: CGPoint(x: topRight.x-topRightRadius, y: topRight.y))
+                            path.addCurve(to:  CGPoint(x: topRight.x, y: topRight.y+topRightRadius), control1: CGPoint(x: topRight.x, y: topRight.y), control2:CGPoint(x: topRight.x, y: topRight.y + topRightRadius))
+                        } else {
+                             path.addLine(to: CGPoint(x: topRight.x, y: topRight.y))
+                        }
+
+                        if bottomRightRadius != .zero {
+                            path.addLine(to: CGPoint(x: bottomRight.x, y: bottomRight.y-bottomRightRadius))
+                            path.addCurve(to: CGPoint(x: bottomRight.x-bottomRightRadius, y: bottomRight.y), control1: CGPoint(x: bottomRight.x, y: bottomRight.y), control2: CGPoint(x: bottomRight.x-bottomRightRadius, y: bottomRight.y))
+                        } else {
+                            path.addLine(to: CGPoint(x: bottomRight.x, y: bottomRight.y))
+                        }
+
+                        if bottomLeftRadius != .zero {
+                            path.addLine(to: CGPoint(x: bottomLeft.x+bottomLeftRadius, y: bottomLeft.y))
+                            path.addCurve(to: CGPoint(x: bottomLeft.x, y: bottomLeft.y-bottomLeftRadius), control1: CGPoint(x: bottomLeft.x, y: bottomLeft.y), control2: CGPoint(x: bottomLeft.x, y: bottomLeft.y-bottomLeftRadius))
+                        } else {
+                            path.addLine(to: CGPoint(x: bottomLeft.x, y: bottomLeft.y))
+                        }
+
+                        if topLeftRadius != .zero {
+                            path.addLine(to: CGPoint(x: topLeft.x, y: topLeft.y+topLeftRadius))
+                            path.addCurve(to: CGPoint(x: topLeft.x+topLeftRadius, y: topLeft.y) , control1: CGPoint(x: topLeft.x, y: topLeft.y) , control2: CGPoint(x: topLeft.x+topLeftRadius, y: topLeft.y))
+                        } else {
+                            path.addLine(to: CGPoint(x: topLeft.x, y: topLeft.y))
+                        }
+
+                        path.closeSubpath()
+                                
+                        return path
+                    }
+                    
+                    let radius = size.height * 0.5
+                    context.addPath(roundedRectCgPath(roundRect: CGRect(origin: CGPoint(), size: size), topLeftRadius: radius, topRightRadius: radius, bottomLeftRadius: radius, bottomRightRadius: radius))
+                    context.fillPath()
+                    
+                    liveString.draw(at: CGPoint(x: floorToScreenPixels((size.width - liveStringBounds.width) * 0.5), y: floorToScreenPixels((size.height - liveStringBounds.height) * 0.5)))
+                })
+                
+                if let image = avatarLiveBadge.foreground.image {
+                    avatarLiveBadge.outline.image = generateStretchableFilledCircleImage(diameter: image.size.height + 2.0 * 2.0, color: .white)?.withRenderingMode(.alwaysTemplate)
+                }
+            }
+        } else {
+            if let avatarLiveBadge = self.avatarLiveBadge {
+                self.avatarLiveBadge = nil
+                avatarLiveBadge.outline.removeFromSuperview()
+                avatarLiveBadge.foreground.removeFromSuperview()
+            }
+        }
         
         if let peer = peer {
             var overrideImage: AvatarNodeImageOverride?
@@ -1671,7 +1909,10 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 overrideImage = .deletedIcon
             }
             var isForumAvatar = false
-            if case let .channel(channel) = peer, channel.flags.contains(.isForum) {
+            if peerIsMonoforum {
+                isForumAvatar = true
+            }
+            if case let .channel(channel) = peer, channel.isForumOrMonoForum {
                 isForumAvatar = true
             }
             if case let .peer(data) = item.content {
@@ -1692,7 +1933,20 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     self.avatarNode.font = avatarPlaceholderFont(size: avatarFontSize)
                 }
             }
-            self.avatarNode.setPeer(context: item.context, theme: item.presentationData.theme, peer: peer, overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, clipStyle: isForumAvatar ? .roundedRect : .round, synchronousLoad: synchronousLoads, displayDimensions: CGSize(width: 60.0, height: 60.0))
+            let avatarClipStyle: AvatarNodeClipStyle
+            if peerIsMonoforum {
+                avatarClipStyle = .bubble
+            } else if isForumAvatar {
+                avatarClipStyle = .roundedRect
+            } else {
+                avatarClipStyle = .round
+            }
+            
+            if peer.smallProfileImage != nil && overrideImage == nil {
+                self.avatarNode.setPeerV2(context: item.context, theme: item.presentationData.theme, peer: peer, overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, clipStyle: avatarClipStyle, synchronousLoad: synchronousLoads, displayDimensions: CGSize(width: avatarDiameter, height: avatarDiameter))
+            } else {
+                self.avatarNode.setPeer(context: item.context, theme: item.presentationData.theme, peer: peer, overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, clipStyle: avatarClipStyle, synchronousLoad: synchronousLoads, displayDimensions: CGSize(width: 60.0, height: 60.0))
+            }
             
             if peer.isPremium && peer.id != item.context.account.peerId {
                 let context = item.context
@@ -1712,6 +1966,10 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                             isKnown = true
                         }
                         if case let .known(maybePhoto) = cachedPeerData.photo {
+                            profilePhoto = maybePhoto
+                            isKnown = true
+                        }
+                        if profilePhoto == nil, case let .known(maybePhoto) = cachedPeerData.fallbackPhoto {
                             profilePhoto = maybePhoto
                             isKnown = true
                         }
@@ -1806,6 +2064,11 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     reallyHighlighted = true
                 }
             }
+            if case let .peer(peerData) = item.content, let customMessageListData = peerData.customMessageListData {
+                if customMessageListData.isInTransparentContainer {
+                    reallyHighlighted = false
+                }
+            }
         }
         return reallyHighlighted
     }
@@ -1858,6 +2121,21 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 self.starView?.setOutlineColor(effectiveBackgroundColor, transition: transition)
             }
         }
+        
+        if let item = self.item {
+            if let avatarLiveBadge = self.avatarLiveBadge {
+                let effectiveBackgroundColor: UIColor
+                if item.isPinned {
+                    effectiveBackgroundColor = item.presentationData.theme.chatList.pinnedItemBackgroundColor
+                } else {
+                    effectiveBackgroundColor = item.presentationData.theme.chatList.itemBackgroundColor
+                }
+                
+                let highlightAlpha = self.highlightedBackgroundNode.supernode == nil ? 0.0 : self.highlightedBackgroundNode.alpha
+                let outlineColor = item.presentationData.theme.chatList.itemHighlightedBackgroundColor.mixedWith(effectiveBackgroundColor, alpha: 1.0 - highlightAlpha)
+                transition.updateTintColor(view: avatarLiveBadge.outline, color: outlineColor)
+            }
+        }
     }
     
     override public func tapped() {
@@ -1881,6 +2159,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
         let textLayout = TextNodeWithEntities.asyncLayout(self.textNode)
         let makeTrailingTextBadgeLayout = TextNode.asyncLayout(self.trailingTextBadgeNode)
         let titleLayout = TextNode.asyncLayout(self.titleNode)
+        let titleBadgeLayout = TextNode.asyncLayout(self.titleBadge?.textNode)
         let authorLayout = self.authorNode.asyncLayout()
         let makeMeasureLayout = TextNode.asyncLayout(self.measureNode)
         let inputActivitiesLayout = self.inputActivitiesNode.asyncLayout()
@@ -1902,7 +2181,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             let textFont = Font.regular(floor(item.presentationData.fontSize.itemListBaseFontSize * 15.0 / 17.0))
             let italicTextFont = Font.italic(floor(item.presentationData.fontSize.itemListBaseFontSize * 15.0 / 17.0))
             let dateFont = Font.regular(floor(item.presentationData.fontSize.itemListBaseFontSize * 14.0 / 17.0))
-            let badgeFont = Font.with(size: floor(item.presentationData.fontSize.itemListBaseFontSize * 14.0 / 17.0), design: .regular, weight: .regular, traits: [.monospacedNumbers])
+            let badgeFont = Font.with(size: floor(item.presentationData.fontSize.itemListBaseFontSize * 12.0 / 17.0), design: .regular, weight: .semibold, traits: [.monospacedNumbers])
             let avatarBadgeFont = Font.with(size: floor(item.presentationData.fontSize.itemListBaseFontSize * 16.0 / 17.0), design: .regular, weight: .regular, traits: [.monospacedNumbers])
             
             let account = item.context.account
@@ -1920,6 +2199,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             let mediaDraftContentType: EngineChatList.MediaDraftContentType?
             let hasUnseenMentions: Bool
             let hasUnseenReactions: Bool
+            let hasUnseenPollVotes: Bool
             let inputActivities: [(EnginePeer, PeerInputActivity)]?
             let isPeerGroup: Bool
             let promoInfo: ChatListNodeEntryPromoInfo?
@@ -1934,6 +2214,23 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             var groupHiddenByDefault = false
             
             switch item.content {
+                case .loading:
+                    messages = []
+                    contentPeer = .group([])
+                    combinedReadState = nil
+                    unreadCount = (0, false, false, nil, false)
+                    isRemovedFromTotalUnreadCount = false
+                    peerPresence = nil
+                    draftState = nil
+                    mediaDraftContentType = nil
+                    hasUnseenMentions = false
+                    hasUnseenReactions = false
+                    hasUnseenPollVotes = false
+                    inputActivities = nil
+                    isPeerGroup = false
+                    promoInfo = nil
+                    displayAsMessage = true
+                    hasFailedMessages = false
                 case let .peer(peerData):
                     let messagesValue = peerData.messages
                     let peerValue = peerData.peer
@@ -1943,6 +2240,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     let peerPresenceValue = peerData.presence
                     let hasUnseenMentionsValue = peerData.hasUnseenMentions
                     let hasUnseenReactionsValue = peerData.hasUnseenReactions
+                    let hasUnseenPollVotesValue = peerData.hasUnseenPollVotes
                     let draftStateValue = peerData.draftState
                     let inputActivitiesValue = peerData.inputActivities
                     let promoInfoValue = peerData.promoInfo
@@ -1976,17 +2274,28 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     threadInfo = threadInfoValue
                     hasUnseenMentions = hasUnseenMentionsValue
                     hasUnseenReactions = hasUnseenReactionsValue
+                    hasUnseenPollVotes = hasUnseenPollVotesValue
                     forumTopicData = forumTopicDataValue
                     topForumTopicItems = topForumTopicItemsValue
                 
                     if item.interaction.searchTextHighightState != nil, threadInfo == nil, topForumTopicItems.isEmpty, let message = messagesValue.first, let threadId = message.threadId, let associatedThreadInfo = message.associatedThreadInfo {
-                        topForumTopicItems = [EngineChatList.ForumTopicData(id: threadId, title: associatedThreadInfo.title, iconFileId: associatedThreadInfo.icon, iconColor: associatedThreadInfo.iconColor, maxOutgoingReadMessageId: message.id, isUnread: false)]
+                        var threadPeer: EnginePeer?
+                        if case let .channel(channel) = peerValue.peer, channel.isMonoForum {
+                            threadPeer = message.peers[EnginePeer.Id(threadId)].flatMap(EnginePeer.init)
+                        }
+                        topForumTopicItems = [EngineChatList.ForumTopicData(id: threadId, title: associatedThreadInfo.title, iconFileId: associatedThreadInfo.icon, iconColor: associatedThreadInfo.iconColor, maxOutgoingReadMessageId: message.id, isUnread: false, threadPeer: threadPeer)]
                     }
                     
                     switch peerValue.peer {
                     case .user, .secretChat:
-                        if let peerPresence = peerPresence, case .present = peerPresence.status {
-                            inputActivities = inputActivitiesValue
+                        if let peerPresence = peerPresence {
+                            if case .present = peerPresence.status {
+                                inputActivities = inputActivitiesValue
+                            } else if item.context.sharedContext.immediateExperimentalUISettings.alwaysDisplayTyping {
+                                inputActivities = inputActivitiesValue
+                            } else {
+                                inputActivities = nil
+                            }
                         } else {
                             inputActivities = nil
                         }
@@ -2020,6 +2329,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     mediaDraftContentType = nil
                     hasUnseenMentions = false
                     hasUnseenReactions = false
+                    hasUnseenPollVotes = false
                     inputActivities = nil
                     isPeerGroup = true
                     groupHiddenByDefault = hiddenByDefault
@@ -2063,6 +2373,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             var textLeftCutout: CGFloat = 0.0
             var dateAttributedString: NSAttributedString?
             var titleAttributedString: NSAttributedString?
+            var titleBadgeText: String?
             var badgeContent = ChatListBadgeContent.none
             var mentionBadgeContent = ChatListBadgeContent.none
             var statusState = ChatListStatusNodeState.none
@@ -2074,10 +2385,11 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             var currentMutedIconImage: UIImage?
             var currentCredibilityIconContent: EmojiStatusComponent.Content?
             var currentVerifiedIconContent: EmojiStatusComponent.Content?
+            var currentStatusIconContent: EmojiStatusComponent.Content?
+            var currentStatusIconParticleColor: UIColor?
             var currentSecretIconImage: UIImage?
-            var currentForwardedIcon: UIImage?
-            var currentStoryIcon: UIImage?
-            var currentGiftIcon: UIImage?
+            var currentMessageTypeIcon: UIImage?
+            var currentMessageTypeIconOffset: CGPoint = .zero
             
             var selectableControlSizeAndApply: (CGFloat, (CGSize, Bool) -> ItemListSelectableControlNode)?
             var reorderControlSizeAndApply: (CGFloat, (CGFloat, Bool, ContainedViewLayoutTransition) -> ItemListEditableReorderControlNode)?
@@ -2092,7 +2404,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     selectionControlStyle = .compact
                 }
                 
-                let sizeAndApply = selectableControlLayout(item.presentationData.theme.list.itemCheckColors.strokeColor, item.presentationData.theme.list.itemCheckColors.fillColor, item.presentationData.theme.list.itemCheckColors.foregroundColor, item.selected, selectionControlStyle)
+                let sizeAndApply = selectableControlLayout(item.presentationData.theme.list.itemCheckColors.strokeColor, item.presentationData.theme.list.itemCheckColors.fillColor, item.presentationData.theme.list.itemCheckColors.foregroundColor, item.selected, selectionControlStyle, nil)
                 if promoInfo == nil && !isPeerGroup {
                     selectableControlSizeAndApply = sizeAndApply
                 }
@@ -2152,7 +2464,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             let leftInset: CGFloat = params.leftInset + avatarLeftInset
             
             enum ContentData {
-                case chat(itemPeer: EngineRenderedPeer, threadInfo: ChatListItemContent.ThreadInfo?, peer: EnginePeer?, hideAuthor: Bool, messageText: String, spoilers: [NSRange]?, customEmojiRanges: [(NSRange, ChatTextInputTextCustomEmojiAttribute)]?)
+                case chat(itemPeer: EngineRenderedPeer, threadInfo: ChatListItemContent.ThreadInfo?, peer: EnginePeer?, hideAuthor: Bool, messageText: String, messageEntities: [MessageTextEntity], spoilers: [NSRange]?, customEmojiRanges: [(NSRange, ChatTextInputTextCustomEmojiAttribute)]?)
                 case group(peers: [EngineChatList.GroupItem.Item])
             }
             
@@ -2161,7 +2473,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             var hideAuthor = false
             switch contentPeer {
                 case let .chat(itemPeer):
-                    var (peer, initialHideAuthor, messageText, spoilers, customEmojiRanges) = chatListItemStrings(strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, contentSettings: item.context.currentContentSettings.with { $0 }, messages: messages, chatPeer: itemPeer, accountPeerId: item.context.account.peerId, enableMediaEmoji: !enableChatListPhotos, isPeerGroup: isPeerGroup)
+                    var (peer, initialHideAuthor, messageText, messageEntities, spoilers, customEmojiRanges) = chatListItemStrings(strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, contentSettings: item.context.currentContentSettings.with { $0 }, messages: messages, chatPeer: itemPeer, accountPeerId: item.context.account.peerId, enableMediaEmoji: !enableChatListPhotos, isPeerGroup: isPeerGroup)
                     
                     if case let .psa(_, maybePsaText) = promoInfo, let psaText = maybePsaText {
                         initialHideAuthor = true
@@ -2189,7 +2501,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         break
                     }
                     
-                    contentData = .chat(itemPeer: itemPeer, threadInfo: threadInfo, peer: peer, hideAuthor: hideAuthor, messageText: messageText, spoilers: spoilers, customEmojiRanges: customEmojiRanges)
+                    contentData = .chat(itemPeer: itemPeer, threadInfo: threadInfo, peer: peer, hideAuthor: hideAuthor, messageText: messageText, messageEntities: messageEntities, spoilers: spoilers, customEmojiRanges: customEmojiRanges)
                     hideAuthor = initialHideAuthor
                 case let .group(groupPeers):
                     contentData = .group(peers: groupPeers)
@@ -2208,7 +2520,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 forumTopicData = nil
                 topForumTopicItems = []
                 
-                if case let .chat(itemPeer, _, _, _, _, _, _) = contentData {
+                if case let .chat(itemPeer, _, _, _, _, _, _, _) = contentData {
                     if let messagePeer = itemPeer.chatMainPeer {
                         switch messagePeer {
                         case let .channel(channel):
@@ -2247,18 +2559,39 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             
             var contentImageSpecs: [ContentImageSpec] = []
             var avatarContentImageSpec: ContentImageSpec?
-            var forumThread: (id: Int64, title: String, iconId: Int64?, iconColor: Int32, isUnread: Bool)?
-            
-            var displayForwardedIcon = false
-            var displayStoryReplyIcon = false
-            var displayGiftIcon = false
+            var forumThread: (id: Int64, title: String, iconId: Int64?, iconColor: Int32, threadPeer: EnginePeer?, isUnread: Bool)?
+
+            enum MessageTypeIcon {
+                enum CallType {
+                    case voice
+                    case video
+                }
+                enum CallDirection {
+                    case incoming
+                    case outgoing
+                }
+                case call(CallType, CallDirection)
+                case forward
+                case story
+                case gift
+                case location
+                case poll
+                case todo
+                case game
+                case voiceMessage
+            }
+            var messageTypeIcon: MessageTypeIcon?
             var ignoreForwardedIcon = false
             
             switch contentData {
-                case let .chat(itemPeer, _, _, _, text, spoilers, customEmojiRanges):
+                case let .chat(itemPeer, _, _, _, text, entities, spoilers, customEmojiRanges):
                     var isUser = false
                     if case .user = itemPeer.chatMainPeer {
                         isUser = true
+                    }
+                    var isGuestChatAuthor = false
+                    if case let .user(user) = messages.last?.author, let botInfo = user.botInfo, botInfo.flags.contains(.isGuestChat) {
+                        isGuestChatAuthor = true
                     }
 
                     var peerText: String?
@@ -2277,14 +2610,14 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                             if let message = messages.last, let forwardInfo = message.forwardInfo, let author = forwardInfo.author {
                                 peerText = EnginePeer(author).compactDisplayTitle
                             }
-                        } else if !isUser {
+                        } else if !isUser || isGuestChatAuthor {
                             if case let .channel(peer) = peer, case .broadcast = peer.info {
                             } else if !displayAsMessage {
                                 if let forwardInfo = message.forwardInfo, forwardInfo.flags.contains(.isImported), let authorSignature = forwardInfo.authorSignature {
                                     peerText = authorSignature
                                 } else {
                                     peerText = author.id == account.peerId ? item.presentationData.strings.DialogList_You : EnginePeer(author).displayTitle(strings: item.presentationData.strings, displayOrder: item.presentationData.nameDisplayOrder)
-                                    authorIsCurrentChat = author.id == peer.id
+                                    authorIsCurrentChat = !isGuestChatAuthor && author.id == peer.id
                                 }
                             }
                         }
@@ -2295,14 +2628,14 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         if let forwardInfo = message.forwardInfo {
                             effectiveAuthor = forwardInfo.author
                             if effectiveAuthor == nil, let authorSignature = forwardInfo.authorSignature  {
-                                effectiveAuthor = TelegramUser(id: PeerId(namespace: Namespaces.Peer.Empty, id: PeerId.Id._internalFromInt64Value(Int64(authorSignature.persistentHashValue % 32))), accessHash: nil, firstName: authorSignature, lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil)
+                                effectiveAuthor = TelegramUser(id: PeerId(namespace: Namespaces.Peer.Empty, id: PeerId.Id._internalFromInt64Value(Int64(authorSignature.persistentHashValue % 32))), accessHash: nil, firstName: authorSignature, lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil)
                             }
                         }
                         if let sourceAuthorInfo = message._asMessage().sourceAuthorInfo {
                             if let originalAuthor = sourceAuthorInfo.originalAuthor, let peer = message.peers[originalAuthor] {
                                 effectiveAuthor = peer
                             } else if let authorSignature = sourceAuthorInfo.originalAuthorName {
-                                effectiveAuthor = TelegramUser(id: PeerId(namespace: Namespaces.Peer.Empty, id: PeerId.Id._internalFromInt64Value(Int64(authorSignature.persistentHashValue % 32))), accessHash: nil, firstName: authorSignature, lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil)
+                                effectiveAuthor = TelegramUser(id: PeerId(namespace: Namespaces.Peer.Empty, id: PeerId.Id._internalFromInt64Value(Int64(authorSignature.persistentHashValue % 32))), accessHash: nil, firstName: authorSignature, lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil)
                             }
                         }
                         
@@ -2313,12 +2646,15 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         }
                     }
                 
-                    if let _ = peerText, case let .channel(channel) = itemPeer.chatMainPeer, channel.flags.contains(.isForum), threadInfo == nil {
-                        if let forumTopicData = forumTopicData {
-                            forumThread = (forumTopicData.id, forumTopicData.title, forumTopicData.iconFileId, forumTopicData.iconColor, forumTopicData.isUnread)
-                        } else if let threadInfo = threadInfo {
-                            forumThread = (threadInfo.id, threadInfo.info.title, threadInfo.info.icon, threadInfo.info.iconColor, false)
+                    if let _ = peerText, case let .channel(channel) = itemPeer.chatMainPeer, channel.isForumOrMonoForum, threadInfo == nil {
+                        if let forumTopicData {
+                            forumThread = (forumTopicData.id, forumTopicData.title, forumTopicData.iconFileId, forumTopicData.iconColor, forumTopicData.threadPeer, forumTopicData.isUnread)
+                        } else if let threadInfo {
+                            forumThread = (threadInfo.id, threadInfo.info.title, threadInfo.info.icon, threadInfo.info.iconColor, nil, false)
                         }
+                    }
+                    if let forumTopicData, forumThread == nil, case let .user(user) = itemPeer.chatMainPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasForum) {
+                        forumThread = (forumTopicData.id, forumTopicData.title, forumTopicData.iconFileId, forumTopicData.iconColor, forumTopicData.threadPeer, forumTopicData.isUnread)
                     }
                     
                     let messageText: String
@@ -2335,7 +2671,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         }
                         chatListText = (text, messageText)
                     }
-                    
+                
                     if inlineAuthorPrefix == nil, let mediaDraftContentType {
                         hasDraft = true
                         authorAttributedString = NSAttributedString(string: item.presentationData.strings.DialogList_Draft, font: textFont, textColor: theme.messageDraftTextColor)
@@ -2367,10 +2703,10 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         if let peerText = peerText {
                             authorAttributedString = NSAttributedString(string: peerText, font: textFont, textColor: theme.authorNameColor)
                         }
-                        
-                        var entities = (message._asMessage().textEntitiesAttribute?.entities ?? []).filter { entity in
+                                       
+                        var entities = entities.filter { entity in
                             switch entity.type {
-                            case .Spoiler, .CustomEmoji:
+                            case .Spoiler, .CustomEmoji, .FormattedDate:
                                 return true
                             case .Strikethrough, .Underline, .Italic, .Bold:
                                 return true
@@ -2378,16 +2714,25 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                                 return false
                             }
                         }
+                        if let _ = message.media.first(where: { $0 is TelegramMediaPoll }) {
+                            entities = []
+                        }
                         
                         if message.id.peerId.isTelegramNotifications || message.id.peerId.isVerificationCodes {
-                            if let cached = currentCustomTextEntities, cached.matches(text: message.text) {
+                            let regex: NSRegularExpression?
+                            if message.id.peerId.isTelegramNotifications {
+                                regex = telegramCodeRegex
+                            } else {
+                                regex = loginCodeRegex
+                            }
+                            if let cached = currentCustomTextEntities, cached.matches(text: messageText) {
                                 customTextEntities = cached
-                            } else if let matches = loginCodeRegex?.matches(in: message.text, options: [], range: NSMakeRange(0, (message.text as NSString).length)) {
+                            } else if let matches = regex?.matches(in: messageText, options: [], range: NSMakeRange(0, (messageText as NSString).length)) {
                                 var entities: [MessageTextEntity] = []
                                 if let first = matches.first {
                                     entities.append(MessageTextEntity(range: first.range.location ..< first.range.location + first.range.length, type: .Spoiler))
                                 }
-                                customTextEntities = CachedCustomTextEntities(text: message.text, textEntities: entities)
+                                customTextEntities = CachedCustomTextEntities(text: messageText, textEntities: entities)
                             }
                         }
                         
@@ -2396,15 +2741,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         }
                         
                         let messageString: NSAttributedString
-                        if !message.text.isEmpty && entities.count > 0 {
-                            var messageText = message.text
-                            var entities = entities
-                            if !"".isEmpty, let translation = message.attributes.first(where: { $0 is TranslationMessageAttribute }) as? TranslationMessageAttribute, !translation.text.isEmpty {
-                                messageText = translation.text
-                                entities = translation.entities
-                            }
-                            
-                            messageString = foldLineBreaks(stringWithAppliedEntities(messageText, entities: entities, baseColor: theme.messageTextColor, linkColor: theme.messageTextColor, baseFont: textFont, linkFont: textFont, boldFont: textFont, italicFont: italicTextFont, boldItalicFont: textFont, fixedFont: textFont, blockQuoteFont: textFont, underlineLinks: false, message: message._asMessage()))
+                        if !messageText.isEmpty && entities.count > 0 {
+                            let appliedString = stringWithAppliedEntities(messageText, entities: entities, strings: item.presentationData.strings, dateTimeFormat: item.presentationData.dateTimeFormat, baseColor: theme.messageTextColor, linkColor: theme.messageTextColor, baseFont: textFont, linkFont: textFont, boldFont: textFont, italicFont: italicTextFont, boldItalicFont: textFont, fixedFont: textFont, blockQuoteFont: textFont, underlineLinks: false, message: message._asMessage())
+                            messageString = foldLineBreaks(appliedString)
                         } else if spoilers != nil || customEmojiRanges != nil {
                             let mutableString = NSMutableAttributedString(string: messageText, font: textFont, textColor: theme.messageTextColor)
                             if let spoilers = spoilers {
@@ -2555,20 +2894,33 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         
                         if !ignoreForwardedIcon {
                             if case .savedMessagesChats = item.chatListLocation {
-                                displayForwardedIcon = false
                             } else if let forwardInfo = message.forwardInfo, !forwardInfo.flags.contains(.isImported) && !message.id.peerId.isVerificationCodes {
-                                displayForwardedIcon = true
+                                messageTypeIcon = .forward
                             } else if let _ = message.attributes.first(where: { $0 is ReplyStoryAttribute }) {
-                                displayStoryReplyIcon = true
+                                messageTypeIcon = .story
                             } else {
                                 for media in message.media {
-                                    if let action = media as? TelegramMediaAction {
+                                    if let file = media as? TelegramMediaFile {
+                                        if file.isVoice {
+                                            messageTypeIcon = .voiceMessage
+                                        }
+                                    } else if let _ = media as? TelegramMediaPoll {
+                                        messageTypeIcon = .poll
+                                    } else if let _ = media as? TelegramMediaTodo {
+                                        messageTypeIcon = .todo
+                                    } else if let _ = media as? TelegramMediaGame {
+                                        messageTypeIcon = .game
+                                    } else if let _ = media as? TelegramMediaMap {
+                                        messageTypeIcon = .location
+                                    } else if let action = media as? TelegramMediaAction {
                                         switch action.action {
-                                        case .giftPremium, .giftStars, .starGift:
-                                            displayGiftIcon = true
+                                        case let .phoneCall(_, _, _, isVideo):
+                                            messageTypeIcon = .call(isVideo ? .video : .voice, message.flags.contains(.Incoming) ? .incoming : .outgoing)
+                                        case .giftPremium, .giftStars, .starGift, .starGiftUnique:
+                                            messageTypeIcon = .gift
                                         case let .giftCode(_, _, _, boostPeerId, _, _, _, _, _, _, _):
                                             if boostPeerId == nil {
-                                                displayGiftIcon = true
+                                                messageTypeIcon = .gift
                                             }
                                         default:
                                             break
@@ -2632,7 +2984,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                                     } else if let image = media as? TelegramMediaImage {
                                         if let _ = largestImageRepresentation(image.representations) {
                                             let fitSize = contentImageSize
-                                            contentImageSpecs.append(ContentImageSpec(message: message, media:  .image(image), size: fitSize))
+                                            contentImageSpecs.append(ContentImageSpec(message: message, media: .image(image), size: fitSize))
                                         }
                                         break inner
                                     } else if let file = media as? TelegramMediaFile {
@@ -2642,7 +2994,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                                         } else if contentImageIsDisplayedAsAvatar && (file.isSticker || file.isVideoSticker) {
                                             let fitSize = contentImageSize
                                             contentImageSpecs.append(ContentImageSpec(message: message,  media: .file(file), size: fitSize))
-                                        } else if !file.previewRepresentations.isEmpty, let _ = file.dimensions {
+                                        } else if !file.previewRepresentations.isEmpty, let _ = file.dimensions, !file.isSticker && !file.isAnimatedSticker && !file.isVideoSticker {
                                             let fitSize = contentImageSize
                                             contentImageSpecs.append(ContentImageSpec(message: message,  media: .file(file), size: fitSize))
                                         }
@@ -2725,42 +3077,57 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     attributedText = textString
             }
             
-            if displayForwardedIcon {
-                currentForwardedIcon = PresentationResourcesChatList.forwardedIcon(item.presentationData.theme)
-            }
-            
-            if displayStoryReplyIcon {
-                currentStoryIcon = PresentationResourcesChatList.storyReplyIcon(item.presentationData.theme)
-            }
-            
-            if displayGiftIcon {
-                currentGiftIcon = PresentationResourcesChatList.giftIcon(item.presentationData.theme)
-            }
-            
-            if let currentForwardedIcon {
-                textLeftCutout += currentForwardedIcon.size.width
-                if !contentImageSpecs.isEmpty {
-                    textLeftCutout += forwardedIconSpacing
-                } else {
-                    textLeftCutout += contentImageTrailingSpace
+            switch messageTypeIcon {
+            case let .call(type, direction):
+                switch type {
+                case .voice:
+                    switch direction {
+                    case .incoming:
+                        currentMessageTypeIcon = PresentationResourcesChatList.callIncomingIcon(item.presentationData.theme)
+                    case .outgoing:
+                        currentMessageTypeIcon = PresentationResourcesChatList.callOutgoingIcon(item.presentationData.theme)
+                    }
+                case .video:
+                    switch direction {
+                    case .incoming:
+                        currentMessageTypeIcon = PresentationResourcesChatList.callVideoIncomingIcon(item.presentationData.theme)
+                    case .outgoing:
+                        currentMessageTypeIcon = PresentationResourcesChatList.callVideoOutgoingIcon(item.presentationData.theme)
+                    }
                 }
+            case .forward:
+                currentMessageTypeIcon = PresentationResourcesChatList.forwardedIcon(item.presentationData.theme)
+                currentMessageTypeIconOffset.y = 3.0
+            case .story:
+                currentMessageTypeIcon = PresentationResourcesChatList.storyReplyIcon(item.presentationData.theme)
+            case .gift:
+                currentMessageTypeIcon = PresentationResourcesChatList.giftIcon(item.presentationData.theme)
+                currentMessageTypeIconOffset.y = -2.0 - UIScreenPixel
+            case .location:
+                currentMessageTypeIcon = PresentationResourcesChatList.locationIcon(item.presentationData.theme)
+                currentMessageTypeIconOffset.y = -1.0 - UIScreenPixel
+            case .poll:
+                currentMessageTypeIcon = PresentationResourcesChatList.pollIcon(item.presentationData.theme)
+                currentMessageTypeIconOffset.y = -1.0
+            case .todo:
+                currentMessageTypeIcon = PresentationResourcesChatList.todoIcon(item.presentationData.theme)
+                currentMessageTypeIconOffset.y = -1.0
+            case .game:
+                currentMessageTypeIcon = PresentationResourcesChatList.gameIcon(item.presentationData.theme)
+                currentMessageTypeIconOffset.y = -1.0
+            case .voiceMessage:
+                currentMessageTypeIcon = PresentationResourcesChatList.voiceMessageIcon(item.presentationData.theme)
+                currentMessageTypeIconOffset.y = -1.0
+            default:
+                break
             }
             
-            if let currentStoryIcon {
-                textLeftCutout += currentStoryIcon.size.width
+            if let currentMessageTypeIcon {
+                textLeftCutout += currentMessageTypeIcon.size.width
                 if !contentImageSpecs.isEmpty {
                     textLeftCutout += forwardedIconSpacing
                 } else {
-                    textLeftCutout += contentImageTrailingSpace
-                }
-            }
-            
-            if let currentGiftIcon {
-                textLeftCutout += currentGiftIcon.size.width
-                if !contentImageSpecs.isEmpty {
-                    textLeftCutout += forwardedIconSpacing
-                } else {
-                    textLeftCutout += contentImageTrailingSpace
+                    textLeftCutout += contentImageTrailingSpace - 1.0
                 }
             }
             
@@ -2775,12 +3142,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             }
             
             switch contentData {
-                case let .chat(itemPeer, threadInfo, _, _, _, _, _):
+                case let .chat(itemPeer, threadInfo, _, _, _, _, _, _):
                     if case let .peer(peerData) = item.content, let customMessageListData = peerData.customMessageListData {
                         if customMessageListData.commandPrefix != nil {
                             titleAttributedString = nil
                         } else {
-                            if let displayTitle = itemPeer.chatMainPeer?.displayTitle(strings: item.presentationData.strings, displayOrder: item.presentationData.nameDisplayOrder) {
+                            if let displayTitle = itemPeer.chatOrMonoforumMainPeer?.displayTitle(strings: item.presentationData.strings, displayOrder: item.presentationData.nameDisplayOrder) {
                                 let textColor: UIColor
                                 if case let .chatList(index) = item.index, index.messageIndex.id.peerId.namespace == Namespaces.Peer.SecretChat {
                                     textColor = theme.secretTitleColor
@@ -2788,6 +3155,10 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                                     textColor = theme.titleColor
                                 }
                                 titleAttributedString = NSAttributedString(string: displayTitle, font: titleFont, textColor: textColor)
+                                
+                                if case let .channel(channel) = itemPeer.peer, channel.flags.contains(.isMonoforum) {
+                                    titleBadgeText = item.presentationData.strings.ChatList_MonoforumLabel
+                                }
                             }
                         }
                     } else if let threadInfo = threadInfo {
@@ -2806,12 +3177,15 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                          titleAttributedString = NSAttributedString(string: item.presentationData.strings.DialogList_Replies, font: titleFont, textColor: theme.titleColor)
                     } else if let id = itemPeer.chatMainPeer?.id, id.isAnonymousSavedMessages {
                         titleAttributedString = NSAttributedString(string: item.presentationData.strings.ChatList_AuthorHidden, font: titleFont, textColor: theme.titleColor)
-                    } else if let displayTitle = itemPeer.chatMainPeer?.displayTitle(strings: item.presentationData.strings, displayOrder: item.presentationData.nameDisplayOrder) {
+                    } else if let displayTitle = itemPeer.chatOrMonoforumMainPeer?.displayTitle(strings: item.presentationData.strings, displayOrder: item.presentationData.nameDisplayOrder) {
                         let textColor: UIColor
                         if case let .chatList(index) = item.index, index.messageIndex.id.peerId.namespace == Namespaces.Peer.SecretChat {
                             textColor = theme.secretTitleColor
                         } else {
                             textColor = theme.titleColor
+                        }
+                        if case let .channel(channel) = itemPeer.peer, channel.flags.contains(.isMonoforum) {
+                            titleBadgeText = item.presentationData.strings.ChatList_MonoforumLabel
                         }
                         titleAttributedString = NSAttributedString(string: displayTitle, font: titleFont, textColor: textColor)
                     }
@@ -2824,6 +3198,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             let dateText: String
             var topIndex: MessageIndex?
             switch item.content {
+            case .loading:
+                break
             case let .groupReference(groupReferenceData):
                 topIndex = groupReferenceData.message?.index
             case let .peer(peerData):
@@ -2890,44 +3266,41 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             }
             
             if unreadCount.unread {
-                if !isPeerGroup, let message = messages.last, message.tags.contains(.unseenPersonalMessage), unreadCount.count == 1 {
+                let badgeTextColor: UIColor
+                if unreadCount.muted {
+                    if unreadCount.isProvisonal, case .forum = item.chatListLocation {
+                        badgeTextColor = theme.unreadBadgeInactiveBackgroundColor
+                        currentBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundInactiveProvisional(item.presentationData.theme, diameter: badgeDiameter)
+                        currentAvatarBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundInactiveProvisional(item.presentationData.theme, diameter: avatarBadgeDiameter)
+                    } else {
+                        badgeTextColor = theme.unreadBadgeInactiveTextColor
+                        currentBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundInactive(item.presentationData.theme, diameter: badgeDiameter)
+                        currentAvatarBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundInactive(item.presentationData.theme, diameter: avatarBadgeDiameter)
+                    }
                 } else {
-                    let badgeTextColor: UIColor
-                    if unreadCount.muted {
-                        if unreadCount.isProvisonal, case .forum = item.chatListLocation {
-                            badgeTextColor = theme.unreadBadgeInactiveBackgroundColor
-                            currentBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundInactiveProvisional(item.presentationData.theme, diameter: badgeDiameter)
-                            currentAvatarBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundInactiveProvisional(item.presentationData.theme, diameter: avatarBadgeDiameter)
-                        } else {
-                            badgeTextColor = theme.unreadBadgeInactiveTextColor
-                            currentBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundInactive(item.presentationData.theme, diameter: badgeDiameter)
-                            currentAvatarBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundInactive(item.presentationData.theme, diameter: avatarBadgeDiameter)
-                        }
+                    if unreadCount.isProvisonal, case .forum = item.chatListLocation {
+                        badgeTextColor = theme.unreadBadgeActiveBackgroundColor
+                        currentBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundActiveProvisional(item.presentationData.theme, diameter: badgeDiameter)
+                        currentAvatarBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundActiveProvisional(item.presentationData.theme, diameter: avatarBadgeDiameter)
                     } else {
-                        if unreadCount.isProvisonal, case .forum = item.chatListLocation {
-                            badgeTextColor = theme.unreadBadgeActiveBackgroundColor
-                            currentBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundActiveProvisional(item.presentationData.theme, diameter: badgeDiameter)
-                            currentAvatarBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundActiveProvisional(item.presentationData.theme, diameter: avatarBadgeDiameter)
-                        } else {
-                            badgeTextColor = theme.unreadBadgeActiveTextColor
-                            currentBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundActive(item.presentationData.theme, diameter: badgeDiameter)
-                            currentAvatarBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundActive(item.presentationData.theme, diameter: avatarBadgeDiameter)
-                        }
+                        badgeTextColor = theme.unreadBadgeActiveTextColor
+                        currentBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundActive(item.presentationData.theme, diameter: badgeDiameter)
+                        currentAvatarBadgeBackgroundImage = PresentationResourcesChatList.badgeBackgroundActive(item.presentationData.theme, diameter: avatarBadgeDiameter)
                     }
-                    let unreadCountText = compactNumericCountString(Int(unreadCount.count), decimalSeparator: item.presentationData.dateTimeFormat.decimalSeparator)
-                    if unreadCount.count > 0 {
-                        badgeContent = .text(NSAttributedString(string: unreadCountText, font: badgeFont, textColor: badgeTextColor))
-                    } else if isPeerGroup {
-                        badgeContent = .none
-                    } else {
-                        badgeContent = .blank
-                    }
-                    
-                    if let mutedCount = unreadCount.mutedCount, mutedCount > 0 {
-                        let mutedUnreadCountText = compactNumericCountString(Int(mutedCount), decimalSeparator: item.presentationData.dateTimeFormat.decimalSeparator)
-                        currentMentionBadgeImage = PresentationResourcesChatList.badgeBackgroundInactive(item.presentationData.theme, diameter: badgeDiameter)
-                        mentionBadgeContent = .text(NSAttributedString(string: mutedUnreadCountText, font: badgeFont, textColor: theme.unreadBadgeInactiveTextColor))
-                    }
+                }
+                let unreadCountText = compactNumericCountString(Int(unreadCount.count), decimalSeparator: item.presentationData.dateTimeFormat.decimalSeparator)
+                if unreadCount.count > 0 {
+                    badgeContent = .text(NSAttributedString(string: unreadCountText, font: badgeFont, textColor: badgeTextColor))
+                } else if isPeerGroup {
+                    badgeContent = .none
+                } else {
+                    badgeContent = .blank
+                }
+                
+                if let mutedCount = unreadCount.mutedCount, mutedCount > 0 {
+                    let mutedUnreadCountText = compactNumericCountString(Int(mutedCount), decimalSeparator: item.presentationData.dateTimeFormat.decimalSeparator)
+                    currentMentionBadgeImage = PresentationResourcesChatList.badgeBackgroundInactive(item.presentationData.theme, diameter: badgeDiameter)
+                    mentionBadgeContent = .text(NSAttributedString(string: mutedUnreadCountText, font: badgeFont, textColor: theme.unreadBadgeInactiveTextColor))
                 }
             }
 
@@ -2944,6 +3317,13 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         currentMentionBadgeImage = PresentationResourcesChatList.badgeBackgroundInactiveReactions(item.presentationData.theme, diameter: badgeDiameter)
                     } else {
                         currentMentionBadgeImage = PresentationResourcesChatList.badgeBackgroundReactions(item.presentationData.theme, diameter: badgeDiameter)
+                    }
+                    mentionBadgeContent = .mention
+                } else if hasUnseenPollVotes {
+                    if isRemovedFromTotalUnreadCount {
+                        currentMentionBadgeImage = PresentationResourcesChatList.badgeBackgroundInactivePollVotes(item.presentationData.theme, diameter: badgeDiameter)
+                    } else {
+                        currentMentionBadgeImage = PresentationResourcesChatList.badgeBackgroundPollVotes(item.presentationData.theme, diameter: badgeDiameter)
                     }
                     mentionBadgeContent = .mention
                 } else if item.isPinned, promoInfo == nil, currentBadgeBackgroundImage == nil {
@@ -2996,11 +3376,19 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             if case let .chatList(index) = item.index, index.messageIndex.id.peerId == item.context.account.peerId {
                 isAccountPeer = true
             }
+            
             if !isPeerGroup && !isAccountPeer && threadInfo == nil {
                 if displayAsMessage {
                     switch item.content {
                     case let .peer(peerData):
-                        if let peer = peerData.messages.last?.author {
+                        var iconPeer: EnginePeer?
+                        if case let .chat(itemPeer) = contentPeer, let peer = itemPeer.chatOrMonoforumMainPeer {
+                            iconPeer = peer
+                        } else {
+                            iconPeer = peerData.messages.last?.author
+                        }
+                        
+                        if let peer = iconPeer {
                             if case let .peer(peerData) = item.content, peerData.customMessageListData != nil {
                                 currentCredibilityIconContent = nil
                             } else if case .savedMessagesChats = item.chatListLocation, peer.id == item.context.account.peerId {
@@ -3009,43 +3397,51 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                                 currentCredibilityIconContent = .text(color: item.presentationData.theme.chat.message.incoming.scamColor, string: item.presentationData.strings.Message_ScamAccount.uppercased())
                             } else if peer.isFake {
                                 currentCredibilityIconContent = .text(color: item.presentationData.theme.chat.message.incoming.scamColor, string: item.presentationData.strings.Message_FakeAccount.uppercased())
-                            } else if let emojiStatus = peer.emojiStatus, !premiumConfiguration.isPremiumDisabled {
-                                if case .channel = peer, peer.isVerified {
-                                    currentVerifiedIconContent = .verified(fillColor: item.presentationData.theme.list.itemCheckColors.fillColor, foregroundColor: item.presentationData.theme.list.itemCheckColors.foregroundColor, sizeType: .compact)
+                            } else if let emojiStatus = peer.emojiStatus {
+                                currentStatusIconContent = .animation(content: .customEmoji(fileId: emojiStatus.fileId), size: CGSize(width: 32.0, height: 32.0), placeholderColor: item.presentationData.theme.list.mediaPlaceholderColor, themeColor: item.presentationData.theme.list.itemAccentColor, loopMode: .count(2))
+                                if let color = emojiStatus.color {
+                                    currentStatusIconParticleColor = UIColor(rgb: UInt32(bitPattern: color))
                                 }
-                                
-                                currentCredibilityIconContent = .animation(content: .customEmoji(fileId: emojiStatus.fileId), size: CGSize(width: 32.0, height: 32.0), placeholderColor: item.presentationData.theme.list.mediaPlaceholderColor, themeColor: item.presentationData.theme.list.itemAccentColor, loopMode: .count(2))
-                            } else if peer.isVerified {
-                                currentCredibilityIconContent = .verified(fillColor: item.presentationData.theme.list.itemCheckColors.fillColor, foregroundColor: item.presentationData.theme.list.itemCheckColors.foregroundColor, sizeType: .compact)
                             } else if peer.isPremium && !premiumConfiguration.isPremiumDisabled {
                                 currentCredibilityIconContent = .premium(color: item.presentationData.theme.list.itemAccentColor)
+                            }
+                            
+                            if peer.isVerified {
+                                currentCredibilityIconContent = .verified(fillColor: item.presentationData.theme.list.itemCheckColors.fillColor, foregroundColor: item.presentationData.theme.list.itemCheckColors.foregroundColor, sizeType: .compact)
+                            }
+                            if let verificationIconFileId = peer.verificationIconFileId {
+                                currentVerifiedIconContent = .animation(content: .customEmoji(fileId: verificationIconFileId), size: CGSize(width: 32.0, height: 32.0), placeholderColor: item.presentationData.theme.list.mediaPlaceholderColor, themeColor: item.presentationData.theme.list.itemAccentColor, loopMode: .count(0))
                             }
                         }
                     default:
                         break
                     }
-                } else if case let .chat(itemPeer) = contentPeer, let peer = itemPeer.chatMainPeer {
+                } else if case let .chat(itemPeer) = contentPeer, let peer = itemPeer.chatOrMonoforumMainPeer {
                     if peer.isSubscription {
                         isSubscription = true
                     }
                     if case let .peer(peerData) = item.content, peerData.customMessageListData?.hidePeerStatus == true {
                         currentCredibilityIconContent = nil
-                    } else if case .savedMessagesChats = item.chatListLocation, peer.id == item.context.account.peerId {
+                    } else if case let .savedMessagesChats(peerId) = item.chatListLocation, peer.id == peerId {
                         currentCredibilityIconContent = nil
                     } else if peer.isScam {
                         currentCredibilityIconContent = .text(color: item.presentationData.theme.chat.message.incoming.scamColor, string: item.presentationData.strings.Message_ScamAccount.uppercased())
                     } else if peer.isFake {
                         currentCredibilityIconContent = .text(color: item.presentationData.theme.chat.message.incoming.scamColor, string: item.presentationData.strings.Message_FakeAccount.uppercased())
-                    } else if let emojiStatus = peer.emojiStatus, !premiumConfiguration.isPremiumDisabled {
-                        if case .channel = peer, peer.isVerified {
-                            currentVerifiedIconContent = .verified(fillColor: item.presentationData.theme.list.itemCheckColors.fillColor, foregroundColor: item.presentationData.theme.list.itemCheckColors.foregroundColor, sizeType: .compact)
+                    } else if let emojiStatus = peer.emojiStatus {
+                        currentStatusIconContent = .animation(content: .customEmoji(fileId: emojiStatus.fileId), size: CGSize(width: 32.0, height: 32.0), placeholderColor: item.presentationData.theme.list.mediaPlaceholderColor, themeColor: item.presentationData.theme.list.itemAccentColor, loopMode: .count(2))
+                        if let color = emojiStatus.color {
+                            currentStatusIconParticleColor = UIColor(rgb: UInt32(bitPattern: color))
                         }
-                        
-                        currentCredibilityIconContent = .animation(content: .customEmoji(fileId: emojiStatus.fileId), size: CGSize(width: 32.0, height: 32.0), placeholderColor: item.presentationData.theme.list.mediaPlaceholderColor, themeColor: item.presentationData.theme.list.itemAccentColor, loopMode: .count(2))
-                    } else if peer.isVerified {
-                        currentCredibilityIconContent = .verified(fillColor: item.presentationData.theme.list.itemCheckColors.fillColor, foregroundColor: item.presentationData.theme.list.itemCheckColors.foregroundColor, sizeType: .compact)
                     } else if peer.isPremium && !premiumConfiguration.isPremiumDisabled {
                         currentCredibilityIconContent = .premium(color: item.presentationData.theme.list.itemAccentColor)
+                    }
+                    
+                    if peer.isVerified {
+                        currentCredibilityIconContent = .verified(fillColor: item.presentationData.theme.list.itemCheckColors.fillColor, foregroundColor: item.presentationData.theme.list.itemCheckColors.foregroundColor, sizeType: .compact)
+                    }
+                    if let verificationIconFileId = peer.verificationIconFileId {
+                        currentVerifiedIconContent = .animation(content: .customEmoji(fileId: verificationIconFileId), size: CGSize(width: 32.0, height: 32.0), placeholderColor: item.presentationData.theme.list.mediaPlaceholderColor, themeColor: item.presentationData.theme.list.itemAccentColor, loopMode: .count(0))
                     }
                 }
             }
@@ -3053,7 +3449,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 titleIconsWidth += currentSecretIconImage.size.width + 2.0
             }
             
+            var titleLeftOffset: CGFloat = 0.0
             if let currentVerifiedIconContent {
+                if titleLeftOffset.isZero, case .animation = currentVerifiedIconContent {
+                    titleLeftOffset += 19.0
+                }
+                
                 if titleIconsWidth.isZero {
                     titleIconsWidth += 4.0
                 } else {
@@ -3085,6 +3486,22 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 }
             }
             
+            if let currentStatusIconContent {
+                if titleIconsWidth.isZero {
+                    titleIconsWidth += 4.0
+                } else {
+                    titleIconsWidth += 2.0
+                }
+                switch currentStatusIconContent {
+                case let .text(_, string):
+                    let textString = NSAttributedString(string: string, font: Font.bold(10.0), textColor: .black, paragraphAlignment: .center)
+                    let stringRect = textString.boundingRect(with: CGSize(width: 100.0, height: 16.0), options: .usesLineFragmentOrigin, context: nil)
+                    titleIconsWidth += floor(stringRect.width) + 11.0
+                default:
+                    titleIconsWidth += 8.0
+                }
+            }
+            
             let layoutOffset: CGFloat = 0.0
             
             let rawContentWidth = params.width - leftInset - params.rightInset - 10.0 - editingOffset
@@ -3097,7 +3514,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             
             var actionButtonTitleNodeLayoutAndApply: (TextNodeLayout, () -> TextNode)?
             if case .none = badgeContent, case .none = mentionBadgeContent, case let .chat(itemPeer) = contentPeer, case let .user(user) = itemPeer.chatMainPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp) {
-                actionButtonTitleNodeLayoutAndApply = makeActionButtonTitleNodeLayout(TextNodeLayoutArguments(attributedString: NSAttributedString(string: item.presentationData.strings.ChatList_InlineButtonOpenApp, font: Font.semibold(15.0), textColor: theme.unreadBadgeActiveTextColor), backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: rawContentWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
+                actionButtonTitleNodeLayoutAndApply = makeActionButtonTitleNodeLayout(TextNodeLayoutArguments(attributedString: NSAttributedString(string: item.presentationData.strings.ChatList_InlineButtonOpenApp, font: Font.semibold(floor(item.presentationData.fontSize.itemListBaseFontSize * 15.0 / 17.0)), textColor: theme.unreadBadgeActiveTextColor), backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: rawContentWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
             }
             
             var badgeSize: CGFloat = 0.0
@@ -3139,18 +3556,45 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             let isSearching = item.interaction.searchTextHighightState != nil
             
             var isFirstForumThreadSelectable = false
-            var forumThreads: [(id: Int64, title: NSAttributedString, iconId: Int64?, iconColor: Int32)] = []
+            var forumThreads: [(id: Int64, threadPeer: EnginePeer?, title: NSAttributedString, iconId: Int64?, iconColor: Int32?)] = []
             if case .savedMessagesChats = item.chatListLocation {
+            } else if case let .peer(peer) = item.content, case let .channel(channel) = peer.peer.peer, channel.flags.contains(.isMonoforum) {
+                if forumThread != nil || !topForumTopicItems.isEmpty {
+                    if let forumThread {
+                        isFirstForumThreadSelectable = false
+                        forumThreads.append((id: forumThread.id, threadPeer: forumThread.threadPeer, title: NSAttributedString(string: forumThread.threadPeer?.compactDisplayTitle ?? " ", font: textFont, textColor: forumThread.isUnread || isSearching ? theme.authorNameColor : theme.messageTextColor), iconId: nil, iconColor: nil))
+                    }
+                    for topicItem in topForumTopicItems {
+                        if forumThread?.id != topicItem.id {
+                            forumThreads.append((id: topicItem.id, threadPeer: topicItem.threadPeer, title: NSAttributedString(string: topicItem.threadPeer?.compactDisplayTitle ?? " ", font: textFont, textColor: topicItem.isUnread || isSearching ? theme.authorNameColor : theme.messageTextColor), iconId: nil, iconColor: nil))
+                        }
+                    }
+                    
+                    if let effectiveAuthorTitle, let textAttributedStringValue = textAttributedString {
+                        let mutableTextAttributedString = NSMutableAttributedString()
+                        mutableTextAttributedString.append(NSAttributedString(string: effectiveAuthorTitle.string + ": ", font: textFont, textColor: theme.authorNameColor))
+                        mutableTextAttributedString.append(textAttributedStringValue)
+                        
+                        textAttributedString = mutableTextAttributedString
+                    }
+                    
+                    effectiveAuthorTitle = nil
+                }
             } else if forumThread != nil || !topForumTopicItems.isEmpty {
                 if let forumThread = forumThread {
-                    isFirstForumThreadSelectable = forumThread.isUnread
-                    forumThreads.append((id: forumThread.id, title: NSAttributedString(string: forumThread.title, font: textFont, textColor: forumThread.isUnread || isSearching ? theme.authorNameColor : theme.messageTextColor), iconId: forumThread.iconId, iconColor: forumThread.iconColor))
+                    if case let .peer(peer) = item.content, case .user = peer.peer.chatMainPeer {
+                        isFirstForumThreadSelectable = false
+                    } else {
+                        isFirstForumThreadSelectable = forumThread.isUnread
+                    }
+                    
+                    forumThreads.append((id: forumThread.id, threadPeer: forumThread.threadPeer, title: NSAttributedString(string: forumThread.title, font: textFont, textColor: forumThread.isUnread || isSearching ? theme.authorNameColor : theme.messageTextColor), iconId: forumThread.iconId, iconColor: forumThread.iconColor))
                 }
                 for topicItem in topForumTopicItems {
                     if case let .peer(peer) = item.content, peer.peer.peerId.id._internalGetInt64Value() == topicItem.id {
                         
                     } else if forumThread?.id != topicItem.id {
-                        forumThreads.append((id: topicItem.id, title: NSAttributedString(string: topicItem.title, font: textFont, textColor: topicItem.isUnread || isSearching ? theme.authorNameColor : theme.messageTextColor), iconId: topicItem.iconFileId, iconColor: topicItem.iconColor))
+                        forumThreads.append((id: topicItem.id, threadPeer: topicItem.threadPeer, title: NSAttributedString(string: topicItem.title, font: textFont, textColor: topicItem.isUnread || isSearching ? theme.authorNameColor : theme.messageTextColor), iconId: topicItem.iconFileId, iconColor: topicItem.iconColor))
                     }
                 }
                 
@@ -3197,7 +3641,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 textMaxWidth -= 18.0
             }
             
-            let (textLayout, textApply) = textLayout(TextNodeLayoutArguments(attributedString: textAttributedString, backgroundColor: nil, maximumNumberOfLines: (authorAttributedString == nil && itemTags.isEmpty) ? 2 : 1, truncationType: .end, constrainedSize: CGSize(width: textMaxWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: textCutout, insets: UIEdgeInsets(top: 2.0, left: 1.0, bottom: 2.0, right: 1.0)))
+            let (textLayout, textApply) = textLayout(TextNodeLayoutArguments(attributedString: textAttributedString, backgroundColor: nil, maximumNumberOfLines: (authorAttributedString == nil && itemTags.isEmpty && forumThread == nil && topForumTopicItems.isEmpty) ? 2 : 1, truncationType: .end, constrainedSize: CGSize(width: textMaxWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: textCutout, insets: UIEdgeInsets(top: 2.0, left: 1.0, bottom: 2.0, right: 1.0)))
             
             let maxTitleLines: Int
             switch item.index {
@@ -3216,11 +3660,19 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 titleAttributedString = NSAttributedString(string: " ", font: titleFont, textColor: theme.titleColor)
             }
                         
-            let titleRectWidth = rawContentWidth - dateLayout.size.width - 10.0 - statusWidth - titleIconsWidth
+            var titleRectWidth = rawContentWidth - dateLayout.size.width - 10.0 - statusWidth - titleIconsWidth
             var titleCutout: TextNodeCutout?
             if !titleLeftCutout.isZero {
                 titleCutout = TextNodeCutout(topLeft: CGSize(width: titleLeftCutout, height: 10.0), topRight: nil, bottomRight: nil)
             }
+            
+            var titleBadgeLayoutAndApply: (TextNodeLayout, () -> TextNode)?
+            if let titleBadgeText {
+                let titleBadgeLayoutAndApplyValue = titleBadgeLayout(TextNodeLayoutArguments(attributedString: NSAttributedString(string: titleBadgeText, font: Font.semibold(11.0), textColor: theme.titleColor.withMultipliedAlpha(0.4)), backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: titleRectWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
+                titleBadgeLayoutAndApply = titleBadgeLayoutAndApplyValue
+                titleRectWidth = max(10.0, titleRectWidth - titleBadgeLayoutAndApplyValue.0.size.width - 8.0)
+            }
+            
             let (titleLayout, titleApply) = titleLayout(TextNodeLayoutArguments(attributedString: titleAttributedString, backgroundColor: nil, maximumNumberOfLines: maxTitleLines, truncationType: .end, constrainedSize: CGSize(width: titleRectWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: titleCutout, insets: UIEdgeInsets()))
         
             var inputActivitiesSize: CGSize?
@@ -3257,6 +3709,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             var peerRevealOptions: [ItemListRevealOption]
             var peerLeftRevealOptions: [ItemListRevealOption]
             switch item.content {
+                case .loading:
+                    peerRevealOptions = []
+                    peerLeftRevealOptions = []
                 case let .peer(peerData):
                     let renderedPeer = peerData.peer
                     let presence = peerData.presence
@@ -3286,57 +3741,74 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         }
                     }
                     
-                    if item.enableContextActions {
-                        if case .forum = item.chatListLocation {
-                            if case let .chat(itemPeer) = contentPeer, case let .channel(channel) = itemPeer.peer {
-                                var canOpenClose = false
-                                if channel.flags.contains(.isCreator) {
-                                    canOpenClose = true
-                                } else if channel.hasPermission(.manageTopics) {
-                                    canOpenClose = true
-                                } else if let threadInfo = threadInfo, threadInfo.isOwnedByMe {
-                                    canOpenClose = true
-                                }
-                                let canDelete = channel.hasPermission(.deleteAllMessages)
-                                var isClosed = false
-                                if let threadInfo {
-                                    isClosed = threadInfo.isClosed
-                                }
-                                if let threadInfo, threadInfo.id == 1 {
-                                    peerRevealOptions = forumGeneralRevealOptions(strings: item.presentationData.strings, theme: item.presentationData.theme, isMuted: (currentMutedIconImage != nil), isClosed: isClosed, isEditing: item.editing, canOpenClose: canOpenClose, canHide: channel.flags.contains(.isCreator) || channel.hasPermission(.manageTopics), hiddenByDefault: threadInfo.isHidden)
+                    if let enabledContextActions = item.enabledContextActions {
+                        switch enabledContextActions {
+                        case .auto:
+                            if case .forum = item.chatListLocation {
+                                if case let .chat(itemPeer) = contentPeer, case let .channel(channel) = itemPeer.peer {
+                                    var canOpenClose = false
+                                    if channel.flags.contains(.isCreator) {
+                                        canOpenClose = true
+                                    } else if channel.hasPermission(.manageTopics) {
+                                        canOpenClose = true
+                                    } else if let threadInfo = threadInfo, threadInfo.isOwnedByMe {
+                                        canOpenClose = true
+                                    }
+                                    let canDelete = channel.hasPermission(.deleteAllMessages)
+                                    var isClosed = false
+                                    if let threadInfo {
+                                        isClosed = threadInfo.isClosed
+                                    }
+                                    if let threadInfo, threadInfo.id == 1 {
+                                        peerRevealOptions = forumGeneralRevealOptions(strings: item.presentationData.strings, theme: item.presentationData.theme, isMuted: (currentMutedIconImage != nil), isClosed: isClosed, isEditing: item.editing, canOpenClose: canOpenClose, canHide: channel.flags.contains(.isCreator) || channel.hasPermission(.manageTopics), hiddenByDefault: threadInfo.isHidden)
+                                    } else {
+                                        peerRevealOptions = forumThreadRevealOptions(strings: item.presentationData.strings, theme: item.presentationData.theme, isMuted: (currentMutedIconImage != nil), isClosed: isClosed, isEditing: item.editing, canOpenClose: canOpenClose, canDelete: canDelete)
+                                    }
+                                    peerLeftRevealOptions = []
                                 } else {
-                                    peerRevealOptions = forumThreadRevealOptions(strings: item.presentationData.strings, theme: item.presentationData.theme, isMuted: (currentMutedIconImage != nil), isClosed: isClosed, isEditing: item.editing, canOpenClose: canOpenClose, canDelete: canDelete)
+                                    peerRevealOptions = []
+                                    peerLeftRevealOptions = []
                                 }
-                                peerLeftRevealOptions = []
-                            } else {
-                                peerRevealOptions = []
-                                peerLeftRevealOptions = []
-                            }
-                        } else if case .psa = promoInfo {
-                            peerRevealOptions = [
-                                ItemListRevealOption(key: RevealOptionKey.hidePsa.rawValue, title: item.presentationData.strings.ChatList_HideAction, icon: deleteIcon, color: item.presentationData.theme.list.itemDisclosureActions.inactive.fillColor, textColor: item.presentationData.theme.list.itemDisclosureActions.neutral1.foregroundColor)
-                            ]
-                            peerLeftRevealOptions = []
-                        } else if case let .peer(peerData) = item.content, let customMessageListData = peerData.customMessageListData {
-                            peerLeftRevealOptions = []
-                            if customMessageListData.commandPrefix != nil {
+                            } else if case .psa = promoInfo {
                                 peerRevealOptions = [
-                                    ItemListRevealOption(key: RevealOptionKey.edit.rawValue, title: item.presentationData.strings.ChatList_ItemMenuEdit, icon: .none, color: item.presentationData.theme.list.itemDisclosureActions.neutral2.fillColor, textColor: item.presentationData.theme.list.itemDisclosureActions.neutral2.foregroundColor),
-                                    ItemListRevealOption(key: RevealOptionKey.delete.rawValue, title: item.presentationData.strings.ChatList_ItemMenuDelete, icon: .none, color: item.presentationData.theme.list.itemDisclosureActions.destructive.fillColor, textColor: item.presentationData.theme.list.itemDisclosureActions.destructive.foregroundColor)
+                                    ItemListRevealOption(key: RevealOptionKey.hidePsa.rawValue, title: item.presentationData.strings.ChatList_HideAction, icon: deleteIcon, color: item.presentationData.theme.list.itemDisclosureActions.inactive.fillColor, textColor: item.presentationData.theme.list.itemDisclosureActions.neutral1.foregroundColor)
                                 ]
+                                peerLeftRevealOptions = []
+                            } else if case let .peer(peerData) = item.content, let customMessageListData = peerData.customMessageListData {
+                                peerLeftRevealOptions = []
+                                if customMessageListData.commandPrefix != nil {
+                                    peerRevealOptions = [
+                                        ItemListRevealOption(key: RevealOptionKey.edit.rawValue, title: item.presentationData.strings.ChatList_ItemMenuEdit, icon: .none, color: item.presentationData.theme.list.itemDisclosureActions.neutral2.fillColor, textColor: item.presentationData.theme.list.itemDisclosureActions.neutral2.foregroundColor),
+                                        ItemListRevealOption(key: RevealOptionKey.delete.rawValue, title: item.presentationData.strings.ChatList_ItemMenuDelete, icon: .none, color: item.presentationData.theme.list.itemDisclosureActions.destructive.fillColor, textColor: item.presentationData.theme.list.itemDisclosureActions.destructive.foregroundColor)
+                                    ]
+                                } else {
+                                    peerRevealOptions = []
+                                }
+                            } else if promoInfo == nil {
+                                peerRevealOptions = revealOptions(strings: item.presentationData.strings, theme: item.presentationData.theme, isPinned: isPinned, isMuted: !isAccountPeer ? (currentMutedIconImage != nil) : nil, location: item.chatListLocation, peerId: renderedPeer.peerId, accountPeerId: item.context.account.peerId, canDelete: true, isEditing: item.editing, filterData: item.filterData)
+                                if case let .chat(itemPeer) = contentPeer {
+                                    peerLeftRevealOptions = leftRevealOptions(strings: item.presentationData.strings, theme: item.presentationData.theme, isUnread: unreadCount.unread, isEditing: item.editing, isPinned: isPinned, isSavedMessages: itemPeer.peerId == item.context.account.peerId, location: item.chatListLocation, peer: itemPeer.peers[itemPeer.peerId]!, filterData: item.filterData)
+                                } else {
+                                    peerLeftRevealOptions = []
+                                }
                             } else {
                                 peerRevealOptions = []
-                            }
-                        } else if promoInfo == nil {
-                            peerRevealOptions = revealOptions(strings: item.presentationData.strings, theme: item.presentationData.theme, isPinned: isPinned, isMuted: !isAccountPeer ? (currentMutedIconImage != nil) : nil, location: item.chatListLocation, peerId: renderedPeer.peerId, accountPeerId: item.context.account.peerId, canDelete: true, isEditing: item.editing, filterData: item.filterData)
-                            if case let .chat(itemPeer) = contentPeer {
-                                peerLeftRevealOptions = leftRevealOptions(strings: item.presentationData.strings, theme: item.presentationData.theme, isUnread: unreadCount.unread, isEditing: item.editing, isPinned: isPinned, isSavedMessages: itemPeer.peerId == item.context.account.peerId, location: item.chatListLocation, peer: itemPeer.peers[itemPeer.peerId]!, filterData: item.filterData)
-                            } else {
                                 peerLeftRevealOptions = []
                             }
-                        } else {
+                        case let .custom(actions):
                             peerRevealOptions = []
                             peerLeftRevealOptions = []
+                            
+                            if actions.contains(.toggleUnread) {
+                                if unreadCount.unread {
+                                    peerLeftRevealOptions.append(ItemListRevealOption(key: RevealOptionKey.toggleMarkedUnread.rawValue, title: item.presentationData.strings.DialogList_Read, icon: readIcon, color: item.presentationData.theme.list.itemDisclosureActions.inactive.fillColor, textColor: item.presentationData.theme.list.itemDisclosureActions.neutral1.foregroundColor))
+                                } else {
+                                    peerLeftRevealOptions.append(ItemListRevealOption(key: RevealOptionKey.toggleMarkedUnread.rawValue, title: item.presentationData.strings.DialogList_Unread, icon: unreadIcon, color: item.presentationData.theme.list.itemDisclosureActions.accent.fillColor, textColor: item.presentationData.theme.list.itemDisclosureActions.accent.foregroundColor))
+                                }
+                            }
+                            if actions.contains(.delete) {
+                                peerRevealOptions.append(ItemListRevealOption(key: RevealOptionKey.delete.rawValue, title: item.presentationData.strings.Common_Delete, icon: deleteIcon, color: item.presentationData.theme.list.itemDisclosureActions.destructive.fillColor, textColor: item.presentationData.theme.list.itemDisclosureActions.destructive.foregroundColor))
+                            }
                         }
                     } else {
                         peerRevealOptions = []
@@ -3427,6 +3899,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     } else {
                         transition = .immediate
                     }
+                    
+                    transition.updateAlpha(node: strongSelf, alpha: item.hiddenOffset ? 0.0 : 1.0)
+                    ComponentTransition(transition).setBlur(layer: strongSelf.layer, radius: item.hiddenOffset ? 8.0 : 0.0)
                     
                     let contextContainerFrame = CGRect(origin: CGPoint(), size: CGSize(width: layout.contentSize.width, height: itemHeight))
 //                    strongSelf.contextContainer.position = contextContainerFrame.center
@@ -3643,7 +4118,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         
                         let avatarIconContent: EmojiStatusComponent.Content
                         if threadInfo.id == 1 {
-                            avatarIconContent = .image(image: PresentationResourcesChatList.generalTopicIcon(item.presentationData.theme))
+                            avatarIconContent = .image(image: PresentationResourcesChatList.generalTopicIcon(item.presentationData.theme), tintColor: nil)
                         } else if let fileId = threadInfo.info.icon, fileId != 0 {
                             avatarIconContent = .animation(content: .customEmoji(fileId: fileId), size: CGSize(width: 48.0, height: 48.0), placeholderColor: item.presentationData.theme.list.mediaPlaceholderColor, themeColor: item.presentationData.theme.list.itemAccentColor, loopMode: .count(0))
                         } else {
@@ -3692,6 +4167,24 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         onlineFrame = CGRect(origin: CGPoint(x: avatarFrame.width - onlineLayout.width - 2.0, y: avatarFrame.height - onlineLayout.height - 2.0), size: onlineLayout)
                     }
                     transition.updateFrame(node: strongSelf.onlineNode, frame: onlineFrame)
+                    
+                    if let avatarLiveBadge = strongSelf.avatarLiveBadge, let iconImage = avatarLiveBadge.foreground.image, let outlineImage = avatarLiveBadge.outline.image {
+                        let outlineInset = (outlineImage.size.height - iconImage.size.height) * 0.5
+                        let liveBadgeFrame = CGRect(origin: CGPoint(x: floor((avatarFrame.width - iconImage.size.width) * 0.5), y: avatarFrame.height + 5.0 - iconImage.size.height), size: iconImage.size)
+                        transition.updateFrame(view: avatarLiveBadge.foreground, frame: liveBadgeFrame)
+                        transition.updateFrame(view: avatarLiveBadge.outline, frame: liveBadgeFrame.insetBy(dx: -outlineInset, dy: -outlineInset))
+                        
+                        let effectiveBackgroundColor: UIColor
+                        if item.isPinned {
+                            effectiveBackgroundColor = item.presentationData.theme.chatList.pinnedItemBackgroundColor
+                        } else {
+                            effectiveBackgroundColor = item.presentationData.theme.chatList.itemBackgroundColor
+                        }
+                        
+                        let highlightAlpha = strongSelf.highlightedBackgroundNode.supernode == nil ? 0.0 : strongSelf.highlightedBackgroundNode.alpha
+                        let outlineColor = item.presentationData.theme.chatList.itemHighlightedBackgroundColor.mixedWith(effectiveBackgroundColor, alpha: 1.0 - highlightAlpha)
+                        transition.updateTintColor(view: avatarLiveBadge.outline, color: outlineColor)
+                    }
                     
                     let onlineInlineNavigationFraction: CGFloat = item.interaction.inlineNavigationLocation?.progress ?? 0.0
                     transition.updateAlpha(node: strongSelf.onlineNode, alpha: 1.0 - onlineInlineNavigationFraction)
@@ -3893,8 +4386,13 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     }
                     
                     if let (actionButtonTitleNodeLayout, apply) = actionButtonTitleNodeLayoutAndApply {
-                        let actionButtonSize = CGSize(width: actionButtonTitleNodeLayout.size.width + 12.0 * 2.0, height: actionButtonTitleNodeLayout.size.height + 5.0 + 4.0)
-                        let actionButtonFrame = CGRect(x: nextBadgeX - actionButtonSize.width, y: contentRect.maxY - actionButtonSize.height, width: actionButtonSize.width, height: actionButtonSize.height)
+                        let actionButtonSideInset = floor(item.presentationData.fontSize.itemListBaseFontSize * 12.0 / 17.0)
+                        let actionButtonTopInset = floor(item.presentationData.fontSize.itemListBaseFontSize * 5.0 / 17.0)
+                        let actionButtonBottomInset = floor(item.presentationData.fontSize.itemListBaseFontSize * 4.0 / 17.0)
+                        
+                        let actionButtonSize = CGSize(width: actionButtonTitleNodeLayout.size.width + actionButtonSideInset * 2.0, height: actionButtonTitleNodeLayout.size.height + actionButtonTopInset + actionButtonBottomInset)
+                        var actionButtonFrame = CGRect(x: nextBadgeX - actionButtonSize.width, y: contentRect.minY + floor((contentRect.height - actionButtonSize.height) * 0.5), width: actionButtonSize.width, height: actionButtonSize.height)
+                        actionButtonFrame.origin.y = max(actionButtonFrame.origin.y, dateFrame.maxY + floor(item.presentationData.fontSize.itemListBaseFontSize * 4.0 / 17.0))
                         
                         let actionButtonNode: HighlightableButtonNode
                         if let current = strongSelf.actionButtonNode {
@@ -3913,10 +4411,10 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                             actionButtonBackgroundView = UIImageView()
                             strongSelf.actionButtonBackgroundView = actionButtonBackgroundView
                             actionButtonNode.view.addSubview(actionButtonBackgroundView)
-                            
-                            if actionButtonBackgroundView.image?.size.height != actionButtonSize.height {
-                                actionButtonBackgroundView.image = generateStretchableFilledCircleImage(diameter: actionButtonSize.height, color: .white)?.withRenderingMode(.alwaysTemplate)
-                            }
+                        }
+                        
+                        if actionButtonBackgroundView.image?.size.height != actionButtonSize.height {
+                            actionButtonBackgroundView.image = generateStretchableFilledCircleImage(diameter: actionButtonSize.height, color: .white)?.withRenderingMode(.alwaysTemplate)
                         }
                         
                         actionButtonBackgroundView.tintColor = theme.unreadBadgeActiveBackgroundColor
@@ -3930,7 +4428,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         
                         actionButtonNode.frame = actionButtonFrame
                         actionButtonBackgroundView.frame = CGRect(origin: CGPoint(), size: actionButtonFrame.size)
-                        actionButtonTitleNode.frame = CGRect(origin: CGPoint(x: floorToScreenPixels((actionButtonFrame.width - actionButtonTitleNodeLayout.size.width) * 0.5), y: 5.0), size: actionButtonTitleNodeLayout.size)
+                        actionButtonTitleNode.frame = CGRect(origin: CGPoint(x: floorToScreenPixels((actionButtonFrame.width - actionButtonTitleNodeLayout.size.width) * 0.5), y: actionButtonTopInset), size: actionButtonTitleNodeLayout.size)
                         
                         nextBadgeX -= actionButtonSize.width + 6.0
                     } else {
@@ -3948,7 +4446,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         }
                     }
                     
-                    var titleOffset: CGFloat = 0.0
+                    var titleOffset: CGFloat = titleLeftOffset
                     if let currentSecretIconImage = currentSecretIconImage {
                         let iconNode: ASImageNode
                         if let current = strongSelf.secretIconNode {
@@ -3962,7 +4460,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                             strongSelf.secretIconNode = iconNode
                         }
                         iconNode.image = currentSecretIconImage
-                        transition.updateFrame(node: iconNode, frame: CGRect(origin: CGPoint(x: contentRect.origin.x, y: contentRect.origin.y + floor((titleLayout.size.height - currentSecretIconImage.size.height) / 2.0)), size: currentSecretIconImage.size))
+                        transition.updateFrame(node: iconNode, frame: CGRect(origin: CGPoint(x: contentRect.origin.x + titleLeftOffset, y: contentRect.origin.y + floor((titleLayout.size.height - currentSecretIconImage.size.height) / 2.0)), size: currentSecretIconImage.size))
                         titleOffset += currentSecretIconImage.size.width + 3.0
                     } else if let secretIconNode = strongSelf.secretIconNode {
                         strongSelf.secretIconNode = nil
@@ -3972,6 +4470,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     let contentDelta = CGPoint(x: contentRect.origin.x - (strongSelf.titleNode.frame.minX - titleOffset), y: contentRect.origin.y - (strongSelf.titleNode.frame.minY - UIScreenPixel))
                     let titleFrame = CGRect(origin: CGPoint(x: contentRect.origin.x + titleOffset, y: contentRect.origin.y + UIScreenPixel), size: titleLayout.size)
                     strongSelf.titleNode.frame = titleFrame
+                    
                     let authorNodeFrame = CGRect(origin: CGPoint(x: contentRect.origin.x - 1.0, y: contentRect.minY + titleLayout.size.height), size: authorLayout)
                     strongSelf.authorNode.frame = authorNodeFrame
                     let textNodeFrame = CGRect(origin: CGPoint(x: contentRect.origin.x - 1.0, y: contentRect.minY + titleLayout.size.height - 1.0 + UIScreenPixel + (authorLayout.height.isZero ? 0.0 : (authorLayout.height - 3.0))), size: textLayout.size)
@@ -4179,13 +4678,14 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                             environment: {},
                             containerSize: itemTagListFrame.size
                         )
-                        if let itemTagListView = itemTagList.view {
+                        if let itemTagListView = itemTagList.view as? ChatListItemTagListComponent.View {
                             if itemTagListView.superview == nil {
                                 itemTagListView.isUserInteractionEnabled = false
                                 strongSelf.mainContentContainerNode.view.addSubview(itemTagListView)
                             }
                             
                             itemTagListTransition.updateFrame(view: itemTagListView, frame: itemTagListFrame)
+                            itemTagListView.isVisible = strongSelf.visibilityStatus && item.context.sharedContext.energyUsageSettings.loopEmoji
                         }
                     } else {
                         if let itemTagList = strongSelf.itemTagList {
@@ -4283,25 +4783,16 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     
                     var mediaPreviewOffset = textNodeFrame.origin.offsetBy(dx: 1.0, dy: 1.0 + floor((measureLayout.size.height - contentImageSize.height) / 2.0))
                     
-                    var messageTypeIcon: UIImage?
-                    var messageTypeIconOffset = mediaPreviewOffset
-                    if let currentForwardedIcon {
-                        messageTypeIcon = currentForwardedIcon
-                        messageTypeIconOffset.y += 3.0
-                    } else if let currentStoryIcon {
-                        messageTypeIcon = currentStoryIcon
-                    } else if let currentGiftIcon {
-                        messageTypeIcon = currentGiftIcon
-                        messageTypeIconOffset.y -= 2.0 - UIScreenPixel
-                    }
+                    let messageTypeIconImage = currentMessageTypeIcon
+                    let messageTypeIconOffset = CGPoint(x: mediaPreviewOffset.x + currentMessageTypeIconOffset.x, y: mediaPreviewOffset.y + currentMessageTypeIconOffset.y)
                     
-                    if let messageTypeIcon {
-                        strongSelf.forwardedIconNode.image = messageTypeIcon
+                    if let messageTypeIconImage {
+                        strongSelf.forwardedIconNode.image = messageTypeIconImage
                         if strongSelf.forwardedIconNode.supernode == nil {
                             strongSelf.mainContentContainerNode.addSubnode(strongSelf.forwardedIconNode)
                         }
-                        transition.updateFrame(node: strongSelf.forwardedIconNode, frame: CGRect(origin: messageTypeIconOffset, size: messageTypeIcon.size))
-                        mediaPreviewOffset.x += messageTypeIcon.size.width + forwardedIconSpacing
+                        transition.updateFrame(node: strongSelf.forwardedIconNode, frame: CGRect(origin: messageTypeIconOffset, size: messageTypeIconImage.size))
+                        mediaPreviewOffset.x += messageTypeIconImage.size.width + forwardedIconSpacing
                     } else if strongSelf.forwardedIconNode.supernode != nil {
                         strongSelf.forwardedIconNode.removeFromSupernode()
                     }
@@ -4412,6 +4903,42 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     } else {
                         lastLineRect = CGRect(origin: CGPoint(), size: titleLayout.size)
                     }
+                                        
+                    if let currentStatusIconContent {
+                        let statusIconView: ComponentHostView<Empty>
+                        if let current = strongSelf.statusIconView {
+                            statusIconView = current
+                        } else {
+                            statusIconView = ComponentHostView<Empty>()
+                            strongSelf.statusIconView = statusIconView
+                            strongSelf.mainContentContainerNode.view.addSubview(statusIconView)
+                        }
+                                                        
+                        let statusIconComponent = EmojiStatusComponent(
+                            context: item.context,
+                            animationCache: item.interaction.animationCache,
+                            animationRenderer: item.interaction.animationRenderer,
+                            content: currentStatusIconContent,
+                            particleColor: currentStatusIconParticleColor,
+                            isVisibleForAnimations: strongSelf.visibilityStatus && item.context.sharedContext.energyUsageSettings.loopEmoji,
+                            action: nil
+                        )
+                        strongSelf.statusIconComponent = statusIconComponent
+                        
+                        let iconOrigin: CGFloat = nextTitleIconOrigin
+                        let containerSize = CGSize(width: 20.0, height: 20.0)
+                        let iconSize = statusIconView.update(
+                            transition: .immediate,
+                            component: AnyComponent(statusIconComponent),
+                            environment: {},
+                            containerSize: containerSize
+                        )
+                        transition.updateFrame(view: statusIconView, frame: CGRect(origin: CGPoint(x: iconOrigin, y: floorToScreenPixels(titleFrame.maxY - lastLineRect.height * 0.5 - iconSize.height / 2.0) - UIScreenPixel), size: iconSize))
+                        nextTitleIconOrigin += statusIconView.bounds.width + 4.0
+                    } else if let statusIconView = strongSelf.statusIconView {
+                        strongSelf.statusIconView = nil
+                        statusIconView.removeFromSuperview()
+                    }
                     
                     if let currentCredibilityIconContent {
                         let credibilityIconView: ComponentHostView<Empty>
@@ -4422,7 +4949,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                             strongSelf.credibilityIconView = credibilityIconView
                             strongSelf.mainContentContainerNode.view.addSubview(credibilityIconView)
                         }
-                        
+                                                
                         let credibilityIconComponent = EmojiStatusComponent(
                             context: item.context,
                             animationCache: item.interaction.animationCache,
@@ -4433,13 +4960,20 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         )
                         strongSelf.credibilityIconComponent = credibilityIconComponent
                         
+                        let iconOrigin: CGFloat = nextTitleIconOrigin
+                        let containerSize: CGSize
+                        if case .verified = currentCredibilityIconContent {
+                            containerSize = CGSize(width: 16.0, height: 16.0)
+                        } else {
+                            containerSize = CGSize(width: 20.0, height: 20.0)
+                        }
                         let iconSize = credibilityIconView.update(
                             transition: .immediate,
                             component: AnyComponent(credibilityIconComponent),
                             environment: {},
-                            containerSize: CGSize(width: 20.0, height: 20.0)
+                            containerSize: containerSize
                         )
-                        transition.updateFrame(view: credibilityIconView, frame: CGRect(origin: CGPoint(x: nextTitleIconOrigin, y: floorToScreenPixels(titleFrame.maxY - lastLineRect.height * 0.5 - iconSize.height / 2.0) - UIScreenPixel), size: iconSize))
+                        transition.updateFrame(view: credibilityIconView, frame: CGRect(origin: CGPoint(x: iconOrigin, y: floorToScreenPixels(titleFrame.maxY - lastLineRect.height * 0.5 - iconSize.height / 2.0) - UIScreenPixel), size: iconSize))
                         nextTitleIconOrigin += credibilityIconView.bounds.width + 4.0
                     } else if let credibilityIconView = strongSelf.credibilityIconView {
                         strongSelf.credibilityIconView = nil
@@ -4466,14 +5000,21 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         )
                         strongSelf.verifiedIconComponent = verifiedIconComponent
                         
+                        let iconOrigin: CGFloat
+                        if case .animation = currentVerifiedIconContent {
+                            iconOrigin = contentRect.origin.x
+                        } else {
+                            iconOrigin = nextTitleIconOrigin
+                        }
+                        let containerSize = CGSize(width: 16.0, height: 16.0)
+                        
                         let iconSize = verifiedIconView.update(
                             transition: .immediate,
                             component: AnyComponent(verifiedIconComponent),
                             environment: {},
-                            containerSize: CGSize(width: 20.0, height: 20.0)
+                            containerSize: containerSize
                         )
-                        transition.updateFrame(view: verifiedIconView, frame: CGRect(origin: CGPoint(x: nextTitleIconOrigin, y: floorToScreenPixels(titleFrame.maxY - lastLineRect.height * 0.5 - iconSize.height / 2.0) - UIScreenPixel), size: iconSize))
-                        nextTitleIconOrigin += verifiedIconView.bounds.width + 4.0
+                        transition.updateFrame(view: verifiedIconView, frame: CGRect(origin: CGPoint(x: iconOrigin, y: floorToScreenPixels(titleFrame.maxY - lastLineRect.height * 0.5 - iconSize.height / 2.0) - UIScreenPixel), size: iconSize))
                     } else if let verifiedIconView = strongSelf.verifiedIconView {
                         strongSelf.verifiedIconView = nil
                         verifiedIconView.removeFromSuperview()
@@ -4489,11 +5030,45 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         strongSelf.mutedIconNode.isHidden = true
                     }
                     
+                    if let (titleBadgeLayout, titleBadgeApply) = titleBadgeLayoutAndApply {
+                        let titleBadgeNode = titleBadgeApply()
+                        let backgroundView: UIImageView
+                        if let current = strongSelf.titleBadge {
+                            backgroundView = current.backgroundView
+                        } else {
+                            backgroundView = UIImageView(image: generateStretchableFilledCircleImage(radius: 4.0, color: .white)?.withRenderingMode(.alwaysTemplate))
+                            strongSelf.titleBadge = (backgroundView, titleBadgeNode)
+                            
+                            strongSelf.mainContentContainerNode.view.addSubview(backgroundView)
+                            strongSelf.mainContentContainerNode.addSubnode(titleBadgeNode)
+                        }
+                        if currentMutedIconImage != nil {
+                            nextTitleIconOrigin -= 7.0
+                        }
+                        nextTitleIconOrigin += 7.0
+                        let titleBadgeFrame = CGRect(origin: CGPoint(x: nextTitleIconOrigin, y: titleFrame.minY + floor((titleFrame.height - titleBadgeLayout.size.height) * 0.5)), size: titleBadgeLayout.size)
+                        nextTitleIconOrigin += titleBadgeLayout.size.width + 4.0
+                        titleBadgeNode.frame = titleBadgeFrame
+                        
+                        var titleBadgeBackgroundFrame = titleBadgeFrame.insetBy(dx: -4.0, dy: -2.0)
+                        titleBadgeBackgroundFrame.size.height -= 1.0
+                        backgroundView.frame = titleBadgeBackgroundFrame
+                        if item.presentationData.theme.overallDarkAppearance {
+                            backgroundView.tintColor = theme.titleColor.withMultipliedAlpha(0.1)
+                        } else {
+                            backgroundView.tintColor = theme.titleColor.withMultipliedAlpha(0.05)
+                        }
+                    } else if let titleBadge = strongSelf.titleBadge {
+                        strongSelf.titleBadge = nil
+                        titleBadge.backgroundView.removeFromSuperview()
+                        titleBadge.textNode.removeFromSupernode()
+                    }
+                    
                     let separatorInset: CGFloat
                     if case let .groupReference(groupReferenceData) = item.content, groupReferenceData.hiddenByDefault {
                         separatorInset = 0.0
                     } else if (!nextIsPinned && isPinned) || last {
-                            separatorInset = 0.0
+                        separatorInset = 0.0
                     } else {
                         separatorInset = editingOffset + leftInset + rawContentRect.origin.x
                     }
@@ -4519,8 +5094,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         highlightedBackgroundColor = theme.itemHighlightedBackgroundColor
                     } else if isPinned {
                         if case let .groupReference(groupReferenceData) = item.content, groupReferenceData.hiddenByDefault {
-                            backgroundColor = theme.itemBackgroundColor
-                            highlightedBackgroundColor = theme.itemHighlightedBackgroundColor
+                            backgroundColor = groupReferenceData.appearsPinned ? theme.pinnedItemBackgroundColor : theme.itemBackgroundColor
+                            highlightedBackgroundColor = groupReferenceData.appearsPinned ? theme.pinnedItemHighlightedBackgroundColor : theme.itemHighlightedBackgroundColor
                         } else {
                             backgroundColor = theme.pinnedItemBackgroundColor
                             highlightedBackgroundColor = theme.pinnedItemHighlightedBackgroundColor
@@ -4577,8 +5152,57 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     }
                     
                     strongSelf.avatarTapRecognizer?.isEnabled = item.interaction.inlineNavigationLocation == nil
+                    
+                    if case .loading = item.content {
+                        let shimmerNode: ShimmerEffectNode
+                        if let current = strongSelf.placeholderNode {
+                            shimmerNode = current
+                        } else {
+                            shimmerNode = ShimmerEffectNode()
+                            strongSelf.placeholderNode = shimmerNode
+                            strongSelf.addSubnode(shimmerNode)
+                        }
+                        shimmerNode.frame = CGRect(origin: CGPoint(), size: CGSize(width: layout.contentSize.width, height: layout.contentSize.height - 1.0))
+                        if let (rect, size) = strongSelf.absoluteLocation {
+                            shimmerNode.updateAbsoluteRect(rect, within: size)
+                        }
+                        
+                        var shapes: [ShimmerEffectNode.Shape] = []
+                        
+                        let titleLineWidth: CGFloat = 180.0
+                        let dateLineWidth: CGFloat = 36.0
+                        let textFirstLineWidth: CGFloat = 240.0
+                        let textSecondLineWidth: CGFloat = 200.0
+                        let lineDiameter: CGFloat = 10.0
+                        
+                        shapes.append(.circle(avatarFrame))
+                        
+                        let titleFrame = strongSelf.titleNode.frame
+                        shapes.append(.roundedRectLine(startPoint: CGPoint(x: titleFrame.minX, y: titleFrame.minY + floor((titleFrame.height - lineDiameter) / 2.0)), width: titleLineWidth, diameter: lineDiameter))
+                        
+                        let textFrame = strongSelf.textNode.textNode.frame
+                        shapes.append(.roundedRectLine(startPoint: CGPoint(x: textFrame.minX, y: textFrame.minY + 7.0), width: textFirstLineWidth, diameter: lineDiameter))
+                        shapes.append(.roundedRectLine(startPoint: CGPoint(x: textFrame.minX, y: textFrame.minY + 7.0 + lineDiameter + 9.0), width: textSecondLineWidth, diameter: lineDiameter))
+                        
+                        let dateFrame = strongSelf.dateNode.frame
+                        shapes.append(.roundedRectLine(startPoint: CGPoint(x: dateFrame.maxX - dateLineWidth, y: dateFrame.minY + 3.0), width: dateLineWidth, diameter: lineDiameter))
+                        
+                        shimmerNode.update(backgroundColor: item.presentationData.theme.list.plainBackgroundColor, foregroundColor: item.presentationData.theme.list.mediaPlaceholderColor, shimmeringColor: item.presentationData.theme.list.itemBlocksBackgroundColor.withAlphaComponent(0.4), shapes: shapes, size: shimmerNode.frame.size)
+                    } else if let shimmerNode = strongSelf.placeholderNode {
+                        strongSelf.placeholderNode = nil
+                        shimmerNode.removeFromSupernode()
+                    }
                 }
             })
+        }
+    }
+    
+    override public func updateAbsoluteRect(_ rect: CGRect, within containerSize: CGSize) {
+        var rect = rect
+        rect.origin.y += self.insets.top
+        self.absoluteLocation = (rect, containerSize)
+        if let shimmerNode = self.placeholderNode {
+            shimmerNode.updateAbsoluteRect(rect, within: containerSize)
         }
     }
     
@@ -4686,6 +5310,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             switch option.key {
             case RevealOptionKey.pin.rawValue:
                 switch item.content {
+                case .loading:
+                    break
                 case .peer:
                     let itemId: EngineChatList.PinnedItem.Id = .peer(index.messageIndex.id.peerId)
                     item.interaction.setItemPinned(itemId, true)
@@ -4694,6 +5320,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 }
             case RevealOptionKey.unpin.rawValue:
                 switch item.content {
+                case .loading:
+                    break
                 case .peer:
                     let itemId: EngineChatList.PinnedItem.Id = .peer(index.messageIndex.id.peerId)
                     item.interaction.setItemPinned(itemId, false)
@@ -4892,6 +5520,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 return
             }
             switch item.content {
+            case .loading:
+                break
             case let .peer(peerData):
                 item.interaction.openStories(.peer(peerData.peer.peerId), self)
             case .groupReference:

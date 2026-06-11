@@ -62,6 +62,7 @@ public struct Namespaces {
         public static let CloudIconStatusEmoji: Int32 = 10
         public static let CloudIconTopicEmoji: Int32 = 11
         public static let CloudIconChannelStatusEmoji: Int32 = 12
+        public static let CloudTonGifts: Int32 = 13
     }
     
     public struct OrderedItemList {
@@ -95,6 +96,7 @@ public struct Namespaces {
         public static let CloudFeaturedChannelStatusEmoji: Int32 = 27
         public static let CloudDisabledChannelStatusEmoji: Int32 = 28
         public static let CloudDefaultTagReactions: Int32 = 29
+        public static let CloudUniqueStarGifts: Int32 = 30
     }
     
     public struct CachedItemCollection {
@@ -137,6 +139,17 @@ public struct Namespaces {
         public static let recommendedApps: Int8 = 40
         public static let starsReactionDefaultToPrivate: Int8 = 41
         public static let cachedPremiumGiftCodeOptions: Int8 = 42
+        public static let cachedProfileGifts: Int8 = 43
+        public static let recommendedBots: Int8 = 44
+        public static let channelsForPublicReaction: Int8 = 45
+        public static let cachedGroupsInCommon: Int8 = 46
+        public static let groupCallPersistentSettings: Int8 = 47
+        public static let cachedProfileGiftsCollections: Int8 = 48
+        public static let cachedProfileSavedMusic: Int8 = 49
+        public static let cachedChatThemes: Int8 = 50
+        public static let cachedLiveStorySendAsPeers: Int8 = 51
+        public static let cachedGiftUpgradesAttributes: Int8 = 52
+        public static let cachedCloudAITextStyles: Int8 = 53
     }
     
     public struct UnorderedItemList {
@@ -165,8 +178,12 @@ public extension MessageTags {
     static let video = MessageTags(rawValue: 1 << 9)
     static let pinned = MessageTags(rawValue: 1 << 10)
     static let unseenReaction = MessageTags(rawValue: 1 << 11)
+    static let voice = MessageTags(rawValue: 1 << 12)
+    static let roundVideo = MessageTags(rawValue: 1 << 13)
+    static let polls = MessageTags(rawValue: 1 << 14)
+    static let unseenPollVote = MessageTags(rawValue: 1 << 15)
     
-    static let all: MessageTags = [.photoOrVideo, .file, .music, .webPage, .voiceOrInstantVideo, .unseenPersonalMessage, .liveLocation, .gif, .photo, .video, .pinned, .unseenReaction]
+    static let all: MessageTags = [.photoOrVideo, .file, .music, .webPage, .voiceOrInstantVideo, .unseenPersonalMessage, .liveLocation, .gif, .photo, .video, .pinned, .unseenReaction, .voice, .roundVideo, .polls, .unseenPollVote]
 }
 
 public extension GlobalMessageTags {
@@ -185,8 +202,9 @@ public extension PendingMessageActionType {
     static let consumeUnseenPersonalMessage = PendingMessageActionType(rawValue: 0)
     static let updateReaction = PendingMessageActionType(rawValue: 1)
     static let sendScheduledMessageImmediately = PendingMessageActionType(rawValue: 2)
-    static let readReaction = PendingMessageActionType(rawValue: 3)
+    static let readReactionOrPollVote = PendingMessageActionType(rawValue: 3)
     static let sendStarsReaction = PendingMessageActionType(rawValue: 4)
+    static let sendPostponedPaidMessage = PendingMessageActionType(rawValue: 5)
 }
 
 public let peerIdNamespacesWithInitialCloudMessageHoles = [Namespaces.Peer.CloudUser, Namespaces.Peer.CloudGroup, Namespaces.Peer.CloudChannel]
@@ -219,6 +237,7 @@ public struct OperationLogTags {
     public static let SynchronizeViewStories = PeerOperationLogTag(value: 24)
     public static let SynchronizePeerStories = PeerOperationLogTag(value: 25)
     public static let SynchronizePinnedSavedChats = PeerOperationLogTag(value: 26)
+    public static let SynchronizeMarkAllUnseenPollVotes = PeerOperationLogTag(value: 27)
 }
 
 public struct LegacyPeerSummaryCounterTags: OptionSet, Sequence, Hashable {
@@ -302,6 +321,13 @@ private enum PreferencesKeyValues: Int32 {
     case botBiometricsState = 39
     case businessLinks = 40
     case starGifts = 41
+    case botStorageState = 42
+    case secureBotStorageState = 43
+    case serverSuggestionInfo = 44
+    case persistentChatInterfaceData = 45
+    case globalPostSearchState = 46
+    case savedMusicIds = 47
+    case emojiGameInfo = 48
 }
 
 public func applicationSpecificPreferencesKey(_ value: Int32) -> ValueBoxKey {
@@ -532,6 +558,50 @@ public struct PreferencesKeys {
         key.setInt32(0, value: PreferencesKeyValues.starGifts.rawValue)
         return key
     }
+    
+    public static func botStorageState(peerId: PeerId) -> ValueBoxKey {
+        let key = ValueBoxKey(length: 4 + 8)
+        key.setInt32(0, value: PreferencesKeyValues.botStorageState.rawValue)
+        key.setInt64(4, value: peerId.toInt64())
+        return key
+    }
+    
+    public static func secureBotStorageState() -> ValueBoxKey {
+        let key = ValueBoxKey(length: 4 + 8)
+        key.setInt32(0, value: PreferencesKeyValues.secureBotStorageState.rawValue)
+        return key
+    }
+    
+    public static func serverSuggestionInfo() -> ValueBoxKey {
+        let key = ValueBoxKey(length: 4 + 8)
+        key.setInt32(0, value: PreferencesKeyValues.serverSuggestionInfo.rawValue)
+        return key
+    }
+    
+    public static func persistentChatInterfaceData(peerId: PeerId) -> ValueBoxKey {
+        let key = ValueBoxKey(length: 4 + 8)
+        key.setInt32(0, value: PreferencesKeyValues.persistentChatInterfaceData.rawValue)
+        key.setInt64(4, value: peerId.toInt64())
+        return key
+    }
+    
+    public static func globalPostSearchState() -> ValueBoxKey {
+        let key = ValueBoxKey(length: 4)
+        key.setInt32(0, value: PreferencesKeyValues.globalPostSearchState.rawValue)
+        return key
+    }
+    
+    public static func savedMusicIds() -> ValueBoxKey {
+        let key = ValueBoxKey(length: 4)
+        key.setInt32(0, value: PreferencesKeyValues.savedMusicIds.rawValue)
+        return key
+    }
+    
+    public static func emojiGameInfo() -> ValueBoxKey {
+        let key = ValueBoxKey(length: 4)
+        key.setInt32(0, value: PreferencesKeyValues.emojiGameInfo.rawValue)
+        return key
+    }
 }
 
 private enum SharedDataKeyValues: Int32 {
@@ -544,6 +614,7 @@ private enum SharedDataKeyValues: Int32 {
     case countriesList = 7
     case wallapersState = 8
     case chatThemes = 10
+    case deviceContacts = 11
 }
 
 public struct SharedDataKeys {
@@ -598,6 +669,12 @@ public struct SharedDataKeys {
     public static let chatThemes: ValueBoxKey = {
         let key = ValueBoxKey(length: 4)
         key.setInt32(0, value: SharedDataKeyValues.chatThemes.rawValue)
+        return key
+    }()
+    
+    public static let deviceContacts: ValueBoxKey = {
+        let key = ValueBoxKey(length: 4)
+        key.setInt32(0, value: SharedDataKeyValues.deviceContacts.rawValue)
         return key
     }()
 }

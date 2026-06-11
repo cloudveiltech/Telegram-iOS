@@ -93,7 +93,7 @@ func pushPeerNotificationSettings(postbox: Postbox, network: Network, peerId: Pe
     return postbox.transaction { transaction -> Signal<Void, NoError> in
         if let peer = transaction.getPeer(peerId), let inputPeer = apiInputPeer(peer) {
             var notificationPeerId = peerId
-            if let associatedPeerId = peer.associatedPeerId {
+            if peer is TelegramSecretChat, let associatedPeerId = peer.associatedPeerId {
                 notificationPeerId = associatedPeerId
             }
             
@@ -162,8 +162,8 @@ func pushPeerNotificationSettings(postbox: Postbox, network: Network, peerId: Pe
                         flags |= (1 << 8)
                     }
                     
-                    let inputSettings = Api.InputPeerNotifySettings.inputPeerNotifySettings(flags: flags, showPreviews: showPreviews, silent: nil, muteUntil: muteUntil, sound: sound, storiesMuted: storiesMuted, storiesHideSender: storiesHideSender, storiesSound: storiesSound)
-                    return network.request(Api.functions.account.updateNotifySettings(peer: .inputNotifyForumTopic(peer: inputPeer, topMsgId: Int32(clamping: threadId)), settings: inputSettings))
+                    let inputSettings = Api.InputPeerNotifySettings.inputPeerNotifySettings(.init(flags: flags, showPreviews: showPreviews, silent: nil, muteUntil: muteUntil, sound: sound, storiesMuted: storiesMuted, storiesHideSender: storiesHideSender, storiesSound: storiesSound))
+                    return network.request(Api.functions.account.updateNotifySettings(peer: .inputNotifyForumTopic(.init(peer: inputPeer, topMsgId: Int32(clamping: threadId))), settings: inputSettings))
                     |> `catch` { _ -> Signal<Api.Bool, NoError> in
                         return .single(.boolFalse)
                     }
@@ -237,8 +237,8 @@ func pushPeerNotificationSettings(postbox: Postbox, network: Network, peerId: Pe
                         flags |= (1 << 8)
                     }
                     
-                    let inputSettings = Api.InputPeerNotifySettings.inputPeerNotifySettings(flags: flags, showPreviews: showPreviews, silent: nil, muteUntil: muteUntil, sound: sound, storiesMuted: storiesMuted, storiesHideSender: storiesHideSender, storiesSound: storiesSound)
-                    return network.request(Api.functions.account.updateNotifySettings(peer: .inputNotifyPeer(peer: inputPeer), settings: inputSettings))
+                    let inputSettings = Api.InputPeerNotifySettings.inputPeerNotifySettings(.init(flags: flags, showPreviews: showPreviews, silent: nil, muteUntil: muteUntil, sound: sound, storiesMuted: storiesMuted, storiesHideSender: storiesHideSender, storiesSound: storiesSound))
+                    return network.request(Api.functions.account.updateNotifySettings(peer: .inputNotifyPeer(.init(peer: inputPeer)), settings: inputSettings))
                     |> `catch` { _ -> Signal<Api.Bool, NoError> in
                         return .single(.boolFalse)
                     }

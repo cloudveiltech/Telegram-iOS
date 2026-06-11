@@ -14,7 +14,7 @@ import SectionHeaderItem
 import TelegramStringFormatting
 import MergeLists
 import ContextUI
-import ShareController
+
 import OverlayStatusController
 import PresentationDataUtils
 import DirectionalPanGesture
@@ -271,6 +271,7 @@ private enum InviteLinkViewEntry: Comparable, Identifiable {
                 }, contextAction: invite.link?.hasSuffix("...") == true ? nil : { node, gesture in
                     interaction.contextAction(invite, node, gesture)
                 }, viewAction: {
+                }, openCallAction: {
                 })
             case let .subscriptionHeader(_, title):
                 return SectionHeaderItem(presentationData: ItemListPresentationData(presentationData), title: title)
@@ -538,7 +539,7 @@ public final class InviteLinkViewController: ViewController {
             self.headerNode.clipsToBounds = true
             
             self.headerBackgroundNode = ASDisplayNode()
-            self.headerBackgroundNode.backgroundColor = self.presentationData.theme.list.plainBackgroundColor
+            self.headerBackgroundNode.backgroundColor = self.presentationData.theme.actionSheet.opaqueItemBackgroundColor
             self.headerBackgroundNode.cornerRadius = 16.0
             
             self.titleNode = ImmediateTextNode()
@@ -566,7 +567,7 @@ public final class InviteLinkViewController: ViewController {
             
             self.historyBackgroundNode.addSubnode(self.historyBackgroundContentNode)
             
-            self.listNode = ListView()
+            self.listNode = ListViewImpl()
             self.listNode.verticalScrollIndicatorColor = UIColor(white: 0.0, alpha: 0.3)
             self.listNode.verticalScrollIndicatorFollowsOverscroll = true
             self.listNode.accessibilityPageScrolledString = { row, count in
@@ -594,10 +595,7 @@ public final class InviteLinkViewController: ViewController {
                     guard let peer else {
                         return
                     }
-                    var usdRate = 0.012
-                    if let usdWithdrawRate = configuration.usdWithdrawRate {
-                        usdRate = Double(usdWithdrawRate) / 1000.0 / 100.0
-                    }
+                    let usdRate = Double(configuration.usdWithdrawRate) / 1000.0 / 100.0
                     let subscriptionController = context.sharedContext.makeStarsSubscriptionScreen(context: context, peer: peer, pricing: pricing, importer: importer, usdRate: usdRate)
                     self?.controller?.push(subscriptionController)
                 })
@@ -612,8 +610,10 @@ public final class InviteLinkViewController: ViewController {
                 guard let inviteLink = invite.link else {
                     return
                 }
-                let shareController = ShareController(context: context, subject: .url(inviteLink))
-                shareController.completed = { [weak self] peerIds in
+                let shareController = context.sharedContext.makeShareController(context: context, params: ShareControllerParams(subject: .url(inviteLink), actionCompleted: { [weak self] in
+                    let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                    self?.controller?.present(UndoOverlayController(presentationData: presentationData, content: .linkCopied(title: nil, text: presentationData.strings.InviteLink_InviteLinkCopiedText), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .window(.root))
+                }, completed: { [weak self] peerIds in
                     if let strongSelf = self {
                         let _ = (strongSelf.context.engine.data.get(
                             EngineDataList(
@@ -624,7 +624,7 @@ public final class InviteLinkViewController: ViewController {
                             if let strongSelf = self {
                                 let peers = peerList.compactMap { $0 }
                                 let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
-                                
+
                                 let text: String
                                 var savedMessages = false
                                 if peerIds.count == 1, let peerId = peerIds.first, peerId == strongSelf.context.account.peerId {
@@ -645,7 +645,7 @@ public final class InviteLinkViewController: ViewController {
                                         text = ""
                                     }
                                 }
-                                
+
                                 strongSelf.controller?.present(UndoOverlayController(presentationData: presentationData, content: .forward(savedMessages: savedMessages, text: text), elevatedLayout: false, animateInAsReplacement: true, action: { action in
                                     if savedMessages, let self, action == .info {
                                         let _ = (self.context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: self.context.account.peerId))
@@ -664,11 +664,7 @@ public final class InviteLinkViewController: ViewController {
                             }
                         })
                     }
-                }
-                shareController.actionCompleted = { [weak self] in
-                    let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-                    self?.controller?.present(UndoOverlayController(presentationData: presentationData, content: .linkCopied(title: nil, text: presentationData.strings.InviteLink_InviteLinkCopiedText), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .window(.root))
-                }
+                }))
                 self?.controller?.present(shareController, in: .window(.root))
             }, editLink: { [weak self] invite in
                 self?.editButtonPressed()
@@ -745,19 +741,26 @@ public final class InviteLinkViewController: ViewController {
                             }, action: { [weak self] _, f in
                                 f(.dismissWithoutContent)
                                 
-                                let _ = (context.account.postbox.loadedPeerWithId(peerId)
+                                let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId))
+                                |> mapToSignal { peer -> Signal<EnginePeer, NoError> in
+                                    if let peer {
+                                        return .single(peer)
+                                    } else {
+                                        return .never()
+                                    }
+                                }
                                 |> deliverOnMainQueue).start(next: { [weak self] peer in
                                     guard let strongSelf = self, let parentController = strongSelf.controller else {
                                         return
                                     }
                                     let isGroup: Bool
-                                    if let peer = peer as? TelegramChannel, case .broadcast = peer.info {
+                                    if case let .channel(channel) = peer, case .broadcast = channel.info {
                                         isGroup = false
                                     } else {
                                         isGroup = true
                                     }
                                     let updatedPresentationData = (strongSelf.presentationData, parentController.presentationDataPromise.get())
-                                    strongSelf.controller?.present(QrCodeScreen(context: context, updatedPresentationData: updatedPresentationData, subject: .invite(invite: invite, isGroup: isGroup)), in: .window(.root))
+                                    strongSelf.controller?.present(QrCodeScreen(context: context, updatedPresentationData: updatedPresentationData, subject: .invite(invite: invite, type: isGroup ? .group : .channel)), in: .window(.root))
                                 })
                             })))
                         }
@@ -767,10 +770,17 @@ public final class InviteLinkViewController: ViewController {
                             }, action: { [weak self] _, f in
                                 f(.dismissWithoutContent)
                                 
-                                let _ = (context.account.postbox.loadedPeerWithId(peerId)
+                                let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId))
+                                |> mapToSignal { peer -> Signal<EnginePeer, NoError> in
+                                    if let peer {
+                                        return .single(peer)
+                                    } else {
+                                        return .never()
+                                    }
+                                }
                                 |> deliverOnMainQueue).start(next: { peer in
                                     let isGroup: Bool
-                                    if let peer = peer as? TelegramChannel, case .broadcast = peer.info {
+                                    if case let .channel(channel) = peer, case .broadcast = channel.info {
                                         isGroup = false
                                     } else {
                                         isGroup = true
@@ -810,7 +820,7 @@ public final class InviteLinkViewController: ViewController {
                         }
                     }
                     
-                    let contextController = ContextController(presentationData: presentationData, source: .reference(InviteLinkContextReferenceContentSource(controller: controller, sourceNode: node)), items: .single(ContextController.Items(content: .list(items))), gesture: gesture)
+                    let contextController = makeContextController(presentationData: presentationData, source: .reference(InviteLinkContextReferenceContentSource(controller: controller, sourceNode: node)), items: .single(ContextController.Items(content: .list(items))), gesture: gesture)
                     self?.controller?.presentInGlobalOverlay(contextController)
                 })
             })
@@ -827,18 +837,23 @@ public final class InviteLinkViewController: ViewController {
             }
                         
             if case let .link(_, _, _, _, _, adminId, date, _, _, usageLimit, _, _, _) = invite {
+                let creatorPeerSignal = context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: adminId))
+                |> mapToSignal { peer -> Signal<EnginePeer, NoError> in
+                    if let peer {
+                        return .single(peer)
+                    } else {
+                        return .never()
+                    }
+                }
                 self.disposable = (combineLatest(
                     self.presentationDataPromise.get(),
                     self.importersContext.state,
                     requestsState,
-                    context.account.postbox.loadedPeerWithId(adminId)
+                    creatorPeerSignal
                 ) |> deliverOnMainQueue).start(next: { [weak self] presentationData, state, requestsState, creatorPeer in
                     if let strongSelf = self {
-                        var usdRate = 0.012
-                        if let usdWithdrawRate = configuration.usdWithdrawRate {
-                            usdRate = Double(usdWithdrawRate) / 1000.0 / 100.0
-                        }
-                                                                        
+                        let usdRate = Double(configuration.usdWithdrawRate) / 1000.0 / 100.0
+             
                         var entries: [InviteLinkViewEntry] = []
                         
                         entries.append(.link(presentationData.theme, invite))
@@ -856,7 +871,7 @@ public final class InviteLinkViewController: ViewController {
                         }
                         
                         entries.append(.creatorHeader(presentationData.theme, presentationData.strings.InviteLink_CreatedBy.uppercased()))
-                        entries.append(.creator(presentationData.theme, presentationData.dateTimeFormat, EnginePeer(creatorPeer), date))
+                        entries.append(.creator(presentationData.theme, presentationData.dateTimeFormat, creatorPeer, date))
                                             
                         if !requestsState.importers.isEmpty || (state.isLoadingMore && requestsState.count > 0) {
                             entries.append(.requestHeader(presentationData.theme, presentationData.strings.MemberRequests_PeopleRequested(Int32(requestsState.count)).uppercased(), "", false))
@@ -868,7 +883,7 @@ public final class InviteLinkViewController: ViewController {
                         if requestsState.importers.isEmpty && requestsState.isLoadingMore {
                             count = min(4, state.count)
                             loading = true
-                            let fakeUser = TelegramUser(id: EnginePeer.Id(namespace: .max, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "", lastName: "", username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil)
+                            let fakeUser = TelegramUser(id: EnginePeer.Id(namespace: .max, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "", lastName: "", username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil)
                             for i in 0 ..< count {
                                 entries.append(.request(Int32(i), presentationData.theme, presentationData.dateTimeFormat, EnginePeer.user(fakeUser), 0, true))
                             }
@@ -902,7 +917,7 @@ public final class InviteLinkViewController: ViewController {
                         if state.importers.isEmpty && state.isLoadingMore {
                             count = min(4, state.count)
                             loading = true
-                            let fakeUser = TelegramUser(id: EnginePeer.Id(namespace: .max, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "", lastName: "", username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil)
+                            let fakeUser = TelegramUser(id: EnginePeer.Id(namespace: .max, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "", lastName: "", username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil)
                             for i in 0 ..< count {
                                 entries.append(.importer(Int32(i), presentationData.theme, presentationData.dateTimeFormat, EnginePeer.user(fakeUser), 0, false, true, nil, nil))
                             }
@@ -1031,8 +1046,8 @@ public final class InviteLinkViewController: ViewController {
             self.presentationData = presentationData
             self.presentationDataPromise.set(.single(presentationData))
             
-            self.historyBackgroundContentNode.backgroundColor = self.presentationData.theme.list.plainBackgroundColor
-            self.headerBackgroundNode.backgroundColor = self.presentationData.theme.list.plainBackgroundColor
+            self.historyBackgroundContentNode.backgroundColor = self.presentationData.theme.actionSheet.opaqueItemBackgroundColor
+            self.headerBackgroundNode.backgroundColor = self.presentationData.theme.actionSheet.opaqueItemBackgroundColor
             self.titleNode.attributedText = NSAttributedString(string: self.titleNode.attributedText?.string ?? "", font: titleFont, textColor: self.presentationData.theme.actionSheet.primaryTextColor)
             self.subtitleNode.attributedText = NSAttributedString(string: self.subtitleNode.attributedText?.string ?? "", font: subtitleFont, textColor: self.presentationData.theme.list.itemSecondaryTextColor)
             

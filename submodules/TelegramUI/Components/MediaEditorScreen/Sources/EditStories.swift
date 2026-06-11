@@ -24,7 +24,7 @@ public extension MediaEditorScreenImpl {
         willDismiss: @escaping () -> Void = {},
         update: @escaping (Disposable?) -> Void
     ) -> MediaEditorScreenImpl? {
-        guard let peerReference = PeerReference(peer._asPeer()) else {
+        guard let peerReference = PeerReference(peer) else {
             return nil
         }
         let subject: Signal<MediaEditorScreenImpl.Subject?, NoError>
@@ -34,15 +34,15 @@ public extension MediaEditorScreenImpl {
                 return .single(.draft(source, Int64(storyItem.id)))
             } else {
                 let media = storyItem.media._asMedia()
-                return fetchMediaData(context: context, postbox: context.account.postbox, userLocation: .peer(peerReference.id), customUserContentType: .story, mediaReference: .story(peer: peerReference, id: storyItem.id, media: media))
+                return fetchMediaData(context: context, userLocation: .peer(peerReference.id), customUserContentType: .story, mediaReference: .story(peer: peerReference, id: storyItem.id, media: media))
                 |> mapToSignal { (value, isImage) -> Signal<MediaEditorScreenImpl.Subject?, NoError> in
-                    guard case let .data(data) = value, data.complete else {
+                    guard case let .data(data) = value, data.isComplete else {
                         return .complete()
                     }
                     if let image = UIImage(contentsOfFile: data.path) {
                         return .single(nil)
                         |> then(
-                            .single(.image(image: image, dimensions: PixelDimensions(image.size), additionalImage: nil, additionalImagePosition: .bottomRight))
+                            .single(.image(image: image, dimensions: PixelDimensions(image.size), additionalImage: nil, additionalImagePosition: .bottomRight, fromCamera: false))
                             |> delay(0.1, queue: Queue.mainQueue())
                         )
                     } else {
@@ -56,7 +56,7 @@ public extension MediaEditorScreenImpl {
                         }
                         return .single(nil)
                         |> then(
-                            .single(.video(videoPath: symlinkPath, thumbnail: nil, mirror: false, additionalVideoPath: nil, additionalThumbnail: nil, dimensions: PixelDimensions(width: 720, height: 1280), duration: duration ?? 0.0, videoPositionChanges: [], additionalVideoPosition: .bottomRight))
+                            .single(.video(videoPath: symlinkPath, thumbnail: nil, mirror: false, additionalVideoPath: nil, additionalThumbnail: nil, dimensions: PixelDimensions(width: 720, height: 1280), duration: duration ?? 0.0, videoPositionChanges: [], additionalVideoPosition: .bottomRight, fromCamera: false))
                         )
                     }
                 }
@@ -97,7 +97,7 @@ public extension MediaEditorScreenImpl {
         var updateProgressImpl: ((Float) -> Void)?
         let controller = MediaEditorScreenImpl(
             context: context,
-            mode: .storyEditor,
+            mode: .storyEditor(remainingCount: 1),
             subject: subject,
             isEditing: !repost,
             isEditingCover: cover,
@@ -122,7 +122,10 @@ public extension MediaEditorScreenImpl {
                     return transitionOut
                 }
             },
-            completion: { result, commit in
+            completion: { results, commit in
+                guard let result = results.first else {
+                    return
+                }
                 let entities = generateChatInputTextEntities(result.caption)
                 
                 if repost {
@@ -160,7 +163,7 @@ public extension MediaEditorScreenImpl {
                             } else {
                                 existingMedia = storyItem.media
                             }
-                            rootController.proceedWithStoryUpload(target: target, result: result as! MediaEditorScreenResult, existingMedia: existingMedia, forwardInfo: forwardInfo, externalState: externalState, commit: commit)
+                            rootController.proceedWithStoryUpload(target: target, results: [result as! MediaEditorScreenResult], existingMedia: existingMedia, forwardInfo: forwardInfo, externalState: externalState, commit: commit)
                         }
                     })
                 } else {

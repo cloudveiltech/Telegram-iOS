@@ -228,6 +228,7 @@ public protocol ManagedAudioSession: AnyObject {
     func isActive() -> Signal<Bool, NoError>
     func isPlaybackActive() -> Signal<Bool, NoError>
     func isOtherAudioPlaying() -> Bool
+    func didActivateWithZeroVolume() -> Signal<Void, NoError>
     
     func push(params: ManagedAudioSessionClientParams) -> Disposable
     func dropAll()
@@ -310,6 +311,11 @@ public final class ManagedAudioSessionImpl: NSObject, ManagedAudioSession {
     
     private var isActiveValue: Bool = false
     private var callKitAudioSessionIsActive: Bool = false
+    
+    private let zeroVolumeEvents = ValuePipe<Void>()
+    public func didActivateWithZeroVolume() -> Signal<Void, NoError> {
+        return self.zeroVolumeEvents.signal()
+    }
     
     override public init() {
         self.queue = Queue()
@@ -867,11 +873,19 @@ public final class ManagedAudioSessionImpl: NSObject, ManagedAudioSession {
                         options.insert(.allowBluetoothA2DP)
                     }
                 case .voiceCall, .videoCall:
+                    #if canImport(AlarmKit) //Xcode 26
+                    options.insert(.allowBluetoothHFP)
+                    #else
                     options.insert(.allowBluetooth)
+                    #endif
                     options.insert(.allowBluetoothA2DP)
                     options.insert(.mixWithOthers)
                 case let .record(_, video, mixWithOthers):
+                    #if canImport(AlarmKit) //Xcode 26
+                    options.insert(.allowBluetoothHFP)
+                    #else
                     options.insert(.allowBluetooth)
+                    #endif
                     if video {
                         options.insert(.allowBluetoothA2DP)
                     }
@@ -1114,6 +1128,22 @@ public final class ManagedAudioSessionImpl: NSObject, ManagedAudioSession {
                 
                 if case .voiceCall = type {
                     //try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(0.005)
+                }
+                
+                if AVAudioSession.sharedInstance().outputVolume <= 0.01 {
+                    let queue = self.queue
+                    DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 0.1, execute: { [weak self] in
+                        queue.async {
+                            guard let self else {
+                                return
+                            }
+                            if self.currentTypeAndOutputMode != nil {
+                                if AVAudioSession.sharedInstance().outputVolume <= 0.01 {
+                                    self.zeroVolumeEvents.putNext(Void())
+                                }
+                            }
+                        }
+                    })
                 }
             } catch let error {
                 managedAudioSessionLog("ManagedAudioSession activate error \(error)")

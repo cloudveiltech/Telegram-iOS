@@ -14,7 +14,6 @@ swift_library(
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
         "//submodules/TelegramCore:TelegramCore",
-        "//submodules/Postbox",
         "//submodules/AccountContext:AccountContext",
         "//submodules/TelegramPresentationData:TelegramPresentationData",
         "//submodules/ContextUI:ContextUI",
@@ -38,6 +37,7 @@ swift_library(
         "//submodules/ActivityIndicator",
         "//submodules/UndoUI",
         "//submodules/RadialStatusNode",
+        "//submodules/TelegramUI/Components/GlassBackgroundComponent",
     ],
     visibility = [
         "//visibility:public",

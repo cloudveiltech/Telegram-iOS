@@ -132,7 +132,7 @@ final class ComposeControllerNode: ASDisplayNode {
             return
         }
         
-        self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ContactsSearchContainerNode(context: self.context, onlyWriteable: false, categories: [.cloudContacts, .global], addContact: nil, openPeer: { [weak self] peer in
+        self.searchDisplayController = SearchDisplayController(presentationData: self.presentationData, contentNode: ContactsSearchContainerNode(context: self.context, onlyWriteable: false, categories: [.cloudContacts, .global], addContact: nil, openPeer: { [weak self] peer, _ in
             if let requestOpenPeerFromSearch = self?.requestOpenPeerFromSearch, case let .peer(peer, _, _) = peer {
                 requestOpenPeerFromSearch(peer.id)
             }
@@ -143,7 +143,7 @@ final class ComposeControllerNode: ASDisplayNode {
             self.requestOpenDisabledPeerFromSearch?(peer, reason)
         }, contextAction: nil), cancel: { [weak self] in
             self?.requestDeactivateSearch?()
-        })
+        }, fieldStyle: placeholderNode.fieldStyle)
         
         self.searchDisplayController?.containerLayoutUpdated(containerLayout, navigationBarHeight: navigationBarHeight, transition: .immediate)
         self.searchDisplayController?.activate(insertSubnode: { [weak self, weak placeholderNode] subnode, isSearchBar in

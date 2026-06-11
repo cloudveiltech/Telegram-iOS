@@ -96,3 +96,17 @@ Telegram has some fake codesigning files that we can use. (see build-system/fake
 - Create a file `buildNumber.txt` at root folder
 - Put the build number on this before start a new build
 - If build_number is not correct after build, please check `build.sh` - `BUILD_NUMBER`
+
+
+# Helper
+
+- `bazel mod tidy` to update `MODULE.bazel` with new dependencies.
+- Generate project without codesigning:
+```sh
+python3 build-system/Make/Make.py \
+    --cacheDir="$HOME/telegram-bazel-cache" \
+    generateProject \
+    --configurationPath=provisioning/cvm/dist/configuration.json \
+    --codesigningInformationPath=provisioning/cvm/dist \
+    --disableProvisioningProfiles
+```

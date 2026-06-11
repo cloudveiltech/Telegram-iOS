@@ -122,7 +122,7 @@ final class WebSearchVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                 switch gesture {
                     case .tap:
                         if let item = self.item, let selectionState = item.controllerInteraction?.selectionState {
-                            let legacyItem = legacyWebSearchItem(account: item.context.account, result: item.result)
+                            let legacyItem = legacyWebSearchItem(engine: item.context.engine, result: item.result)
                             selectionState.toggleItemSelection(legacyItem, success: nil)
                         }
                     case .doubleTap:
@@ -165,7 +165,7 @@ final class WebSearchVideoGalleryItemNode: ZoomableContentGalleryItemNode {
             
             let mediaManager = item.context.sharedContext.mediaManager
             
-            let videoNode = UniversalVideoNode(accountId: item.context.account.id, postbox: item.context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: GalleryVideoDecoration(), content: item.content, priority: .gallery)
+            let videoNode = UniversalVideoNode(context: item.context, postbox: item.context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: GalleryVideoDecoration(), content: item.content, priority: .gallery)
             let videoSize = CGSize(width: item.content.dimensions.width * 2.0, height: item.content.dimensions.height * 2.0)
             videoNode.updateLayout(size: videoSize, transition: .immediate)
             self.videoNode = videoNode
@@ -176,10 +176,7 @@ final class WebSearchVideoGalleryItemNode: ZoomableContentGalleryItemNode {
             self.requiresDownload = true
             var mediaFileStatus: Signal<EngineMediaResource.FetchStatus?, NoError> = .single(nil)
             if let mediaResource = mediaResource {
-                mediaFileStatus = item.context.account.postbox.mediaBox.resourceStatus(mediaResource._asResource())
-                |> map { status in
-                    return EngineMediaResource.FetchStatus(status)
-                }
+                mediaFileStatus = item.context.engine.resources.status(resource: mediaResource)
                 |> map(Optional.init)
             }
             

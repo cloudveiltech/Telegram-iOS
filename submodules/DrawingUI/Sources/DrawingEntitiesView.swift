@@ -109,6 +109,7 @@ public final class DrawingEntitiesView: UIView, TGPhotoDrawingEntitiesView {
 
     public var onInteractionUpdated: (Bool) -> Void = { _ in }
     public var edgePreviewUpdated: (Bool) -> Void = { _ in }
+    public var onTextEditingEnded: (Bool) -> Void = { _ in }
     
     private let hapticFeedback = HapticFeedback()
     
@@ -566,6 +567,14 @@ public final class DrawingEntitiesView: UIView, TGPhotoDrawingEntitiesView {
         self.hasSelectionChanged(false)
     }
     
+    public func clearAll() {
+        for case let view as DrawingEntityView in self.subviews {
+            view.reset()
+            view.selectionView?.removeFromSuperview()
+            view.removeFromSuperview()
+        }
+    }
+    
     private func clear(animated: Bool = false) {
         if animated {
             for case let view as DrawingEntityView in self.subviews {
@@ -809,6 +818,8 @@ public final class DrawingEntitiesView: UIView, TGPhotoDrawingEntitiesView {
             } else if let stickerEntity = selectedEntityView.entity as? DrawingStickerEntity, case .dualVideoReference = stickerEntity.content {
                 selectionView.handlePan(gestureRecognizer)
             } else if let stickerEntity = selectedEntityView.entity as? DrawingStickerEntity, case .message = stickerEntity.content {
+                selectionView.handlePan(gestureRecognizer)
+            } else if let stickerEntity = selectedEntityView.entity as? DrawingStickerEntity, case .gift = stickerEntity.content {
                 selectionView.handlePan(gestureRecognizer)
             } else {
                 var isTrappedInBin = false

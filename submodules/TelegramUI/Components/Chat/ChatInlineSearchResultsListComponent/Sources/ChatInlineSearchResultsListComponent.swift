@@ -71,6 +71,17 @@ public final class ChatInlineSearchResultsListComponent: Component {
         case empty
         case tag(MemoryBuffer)
         case search(query: String, includeSavedPeers: Bool)
+        case monoforumChats(query: String)
+    }
+    
+    public final class ScrollingState {
+        fileprivate let entryId: Entry.Id
+        fileprivate let entryOffset: CGFloat
+        
+        fileprivate init(entryId: Entry.Id, entryOffset: CGFloat) {
+            self.entryId = entryId
+            self.entryOffset = entryOffset
+        }
     }
     
     public let context: AccountContext
@@ -80,11 +91,13 @@ public final class ChatInlineSearchResultsListComponent: Component {
     public let insets: UIEdgeInsets
     public let inputHeight: CGFloat
     public let showEmptyResults: Bool
+    public let initialScrollingState: ScrollingState?
     public let messageSelected: (EngineMessage) -> Void
     public let peerSelected: (EnginePeer) -> Void
     public let loadTagMessages: (MemoryBuffer, MessageIndex?) -> Signal<MessageHistoryView, NoError>?
     public let getSearchResult: () -> Signal<SearchMessagesResult?, NoError>?
     public let getSavedPeers: (String) -> Signal<[(EnginePeer, MessageIndex?)], NoError>?
+    public let getChats: (String) -> Signal<EngineChatList?, NoError>?
     public let loadMoreSearchResults: () -> Void
     
     public init(
@@ -95,11 +108,13 @@ public final class ChatInlineSearchResultsListComponent: Component {
         insets: UIEdgeInsets,
         inputHeight: CGFloat,
         showEmptyResults: Bool,
+        initialScrollingState: ScrollingState?,
         messageSelected: @escaping (EngineMessage) -> Void,
         peerSelected: @escaping (EnginePeer) -> Void,
         loadTagMessages: @escaping (MemoryBuffer, MessageIndex?) -> Signal<MessageHistoryView, NoError>?,
         getSearchResult: @escaping () -> Signal<SearchMessagesResult?, NoError>?,
         getSavedPeers: @escaping (String) -> Signal<[(EnginePeer, MessageIndex?)], NoError>?,
+        getChats: @escaping (String) -> Signal<EngineChatList?, NoError>?,
         loadMoreSearchResults: @escaping () -> Void
     ) {
         self.context = context
@@ -109,11 +124,13 @@ public final class ChatInlineSearchResultsListComponent: Component {
         self.insets = insets
         self.inputHeight = inputHeight
         self.showEmptyResults = showEmptyResults
+        self.initialScrollingState = initialScrollingState
         self.messageSelected = messageSelected
         self.peerSelected = peerSelected
         self.loadTagMessages = loadTagMessages
         self.getSearchResult = getSearchResult
         self.getSavedPeers = getSavedPeers
+        self.getChats = getChats
         self.loadMoreSearchResults = loadMoreSearchResults
     }
     
@@ -142,14 +159,16 @@ public final class ChatInlineSearchResultsListComponent: Component {
         return true
     }
     
-    private enum Entry: Equatable, Comparable {
+    fileprivate enum Entry: Equatable, Comparable {
         enum Id: Hashable {
             case peer(EnginePeer.Id)
             case message(EngineMessage.Id)
+            case chat(EngineChatList.Item.Id)
         }
         
         case peer(EnginePeer)
         case message(EngineMessage)
+        case chat(EngineChatList.Item)
         
         var id: Id {
             switch self {
@@ -157,6 +176,8 @@ public final class ChatInlineSearchResultsListComponent: Component {
                 return .peer(peer.id)
             case let .message(message):
                 return .message(message.id)
+            case let .chat(chat):
+                return .chat(chat.id)
             }
         }
         
@@ -170,6 +191,12 @@ public final class ChatInlineSearchResultsListComponent: Component {
                 }
             case let .message(message):
                 if case .message(message) = rhs {
+                    return true
+                } else {
+                    return false
+                }
+            case let .chat(chat):
+                if case .chat(chat) = rhs {
                     return true
                 } else {
                     return false
@@ -188,13 +215,26 @@ public final class ChatInlineSearchResultsListComponent: Component {
                     return lhsPeer.id < rhsPeer.id
                 case .message:
                     return true
+                case .chat:
+                    return true
                 }
             case let .message(lhsMessage):
                 switch rhs {
                 case .peer:
                     return false
+                case .chat:
+                    return false
                 case let .message(rhsMessage):
                     return lhsMessage.index > rhsMessage.index
+                }
+            case let .chat(lhsChat):
+                switch rhs {
+                case let .chat(rhsChat):
+                    return lhsChat.index > rhsChat.index
+                case .peer:
+                    return false
+                case .message:
+                    return true
                 }
             }
         }
@@ -250,8 +290,11 @@ public final class ChatInlineSearchResultsListComponent: Component {
             return self.isReadyPromise.get()
         }
         
+        private var hintDeletedChats = Set<EnginePeer.Id>()
+        private var hintAnimateListTransition: Bool = false
+        
         override public init(frame: CGRect) {
-            self.listNode = ListView()
+            self.listNode = ListViewImpl()
             
             super.init(frame: frame)
             
@@ -301,6 +344,66 @@ public final class ChatInlineSearchResultsListComponent: Component {
                 self.listNode.layer.filters = [blurFilter]
                 self.listNode.layer.animate(from: 0.0 as NSNumber, to: 30.0 as NSNumber, keyPath: "filters.gaussianBlur.inputRadius", timingFunction: CAMediaTimingFunctionName.easeOut.rawValue, duration: 0.3, removeOnCompletion: false)
             }
+        }
+        
+        private func performDeleteAction(peerId: EnginePeer.Id, threadId: Int64?) {
+            guard let component = self.component else {
+                return
+            }
+            guard let mainPeerId = component.peerId else {
+                return
+            }
+            if case .monoforumChats = component.contents {
+                let threadId = threadId ?? peerId.toInt64()
+                
+                self.hintDeletedChats.insert(peerId)
+                let _ = component.context.engine.peers.removeForumChannelThread(id: mainPeerId, threadId: threadId).startStandalone()
+            }
+        }
+        
+        private func performToggleUnreadAction(peerId: EnginePeer.Id, threadId: Int64?) {
+            guard let component = self.component else {
+                return
+            }
+            guard let mainPeerId = component.peerId, case .monoforumChats = component.contents else {
+                return
+            }
+            
+            let threadId = threadId ?? peerId.toInt64()
+            
+            let _ = component.context.engine.messages.togglePeerUnreadMarkInteractively(peerId: mainPeerId, threadId: threadId, setToValue: nil).startStandalone()
+        }
+        
+        override public func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+            guard let result = super.hitTest(point, with: event) else {
+                return nil
+            }
+            if result === self.listNode.view {
+                if self.backgroundColor == nil {
+                    return nil
+                }
+            }
+            return result
+        }
+        
+        public func scrollingState() -> ScrollingState? {
+            var scrollingState: ScrollingState?
+            self.listNode.forEachVisibleItemNode { itemNode in
+                if scrollingState != nil {
+                    return
+                }
+                if let itemNode = itemNode as? ChatListItemNode, let item = itemNode.item {
+                    switch item.content {
+                    case let .peer(peerData):
+                        if let message = peerData.messages.first {
+                            scrollingState = ScrollingState(entryId: .message(message.id), entryOffset: itemNode.frame.minY - self.listNode.insets.top)
+                        }
+                    default:
+                        break
+                    }
+                }
+            }
+            return scrollingState
         }
         
         func update(component: ChatInlineSearchResultsListComponent, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
@@ -406,6 +509,8 @@ public final class ChatInlineSearchResultsListComponent: Component {
                             }
                         case .search:
                             break
+                        case .monoforumChats:
+                            break
                         }
                     }
                 } else if let (currentIndex, disposable) = self.searchContents {
@@ -419,6 +524,8 @@ public final class ChatInlineSearchResultsListComponent: Component {
                             self.searchContents = (loadAroundIndex, disposable)
                             
                             component.loadMoreSearchResults()
+                        case .monoforumChats:
+                            break
                         }
                     }
                 }
@@ -569,6 +676,151 @@ public final class ChatInlineSearchResultsListComponent: Component {
                         }))
                     }
                 }
+            case let .monoforumChats(query):
+                let _ = query
+                
+                if previousComponent?.contents != component.contents {
+                    self.tagContents?.disposable?.dispose()
+                    self.tagContents = nil
+                    
+                    self.searchContents?.disposable?.dispose()
+                    self.searchContents = nil
+                    
+                    let disposable = MetaDisposable()
+                    self.searchContents = (nil, disposable)
+                    
+                    let savedPeers: Signal<EngineChatList?, NoError>
+                    if let savedPeersSignal = component.getChats(query) {
+                        savedPeers = savedPeersSignal
+                    } else {
+                        savedPeers = .single(nil)
+                    }
+                    
+                    disposable.set((savedPeers
+                    |> deliverOnMainQueue).startStrict(next: { [weak self] chatList in
+                        guard let self else {
+                            return
+                        }
+                        
+                        let messages: [EngineMessage] = [] /*result?.messages.map { entry in
+                            return EngineMessage(entry)
+                        } ?? []*/
+                        
+                        var entries: [Entry] = []
+                        if let chatList {
+                            for item in chatList.items {
+                                entries.append(.chat(item))
+                            }
+                        }
+                        for message in messages {
+                            entries.append(.message(message))
+                        }
+                        entries.sort()
+                        
+                        let contentsId = self.nextContentsId
+                        self.nextContentsId += 1
+                        
+                        let contentId: ContentsState.ContentId = .search(query)
+                        
+                        if let previousContentsState = self.contentsState, previousContentsState.contentId == contentId {
+                            for deletedPeerId in self.hintDeletedChats {
+                                if previousContentsState.entries.contains(where: { entry in
+                                    if case let .chat(id) = entry.id, case .chatList(deletedPeerId) = id {
+                                        return true
+                                    }
+                                    return false
+                                }) && !entries.contains(where: { entry in
+                                    if case let .chat(id) = entry.id, case .chatList(deletedPeerId) = id {
+                                        return true
+                                    }
+                                    return false
+                                }) {
+                                    self.hintAnimateListTransition = true
+                                    break
+                                }
+                            }
+                        }
+                        
+                        self.hintDeletedChats.removeAll()
+                        
+                        self.contentsState = ContentsState(
+                            id: contentsId,
+                            contentId: contentId,
+                            entries: entries,
+                            messages: messages,
+                            hasEarlier: false, //!(result?.completed ?? true),
+                            hasLater: false
+                        )
+                        if !self.isUpdating {
+                            self.state?.updated(transition: .immediate)
+                        }
+                        
+                        if !self.didSetReady {
+                            self.didSetReady = true
+                            self.isReadyPromise.set(.single(true))
+                        }
+                    }))
+                    
+                    /*if !query.isEmpty, let savedPeersSignal = component.getSavedPeers(query) {
+                        savedPeers = savedPeersSignal
+                    } else {
+                        savedPeers = .single([])
+                    }*/
+                    
+                    /*if let historySignal = component.getSearchResult() {
+                        disposable.set((savedPeers
+                        |> mapToSignal { savedPeers -> Signal<([(EnginePeer, MessageIndex?)], SearchMessagesResult?), NoError> in
+                            if savedPeers.isEmpty {
+                                return historySignal
+                                |> map { result in
+                                    return ([], result)
+                                }
+                            } else {
+                                return (.single(nil) |> then(historySignal))
+                                |> map { result in
+                                    return (savedPeers, result)
+                                }
+                            }
+                        }
+                        |> deliverOnMainQueue).startStrict(next: { [weak self] savedPeers, result in
+                            guard let self else {
+                                return
+                            }
+                            
+                            let messages: [EngineMessage] = result?.messages.map { entry in
+                                return EngineMessage(entry)
+                            } ?? []
+                            
+                            var entries: [Entry] = []
+                            for (peer, _) in savedPeers {
+                                entries.append(.peer(peer))
+                            }
+                            for message in messages {
+                                entries.append(.message(message))
+                            }
+                            entries.sort()
+                            
+                            let contentsId = self.nextContentsId
+                            self.nextContentsId += 1
+                            self.contentsState = ContentsState(
+                                id: contentsId,
+                                contentId: .search(query),
+                                entries: entries,
+                                messages: messages,
+                                hasEarlier: !(result?.completed ?? true),
+                                hasLater: false
+                            )
+                            if !self.isUpdating {
+                                self.state?.updated(transition: .immediate)
+                            }
+                            
+                            if !self.didSetReady {
+                                self.didSetReady = true
+                                self.isReadyPromise.set(.single(true))
+                            }
+                        }))
+                    }*/
+                }
             }
             
             if let contentsState = self.contentsState, self.contentsState != self.appliedContentsState {
@@ -595,13 +847,17 @@ public final class ChatInlineSearchResultsListComponent: Component {
                         },
                         additionalCategorySelected: { _ in
                         },
-                        messageSelected: { [weak self] _, _, message, _ in
-                            guard let self else {
+                        messageSelected: { [weak self] peer, _, message, _ in
+                            guard let self, let component = self.component else {
                                 return
                             }
                             self.listNode.clearHighlightAnimated(true)
                             
-                            self.component?.messageSelected(message)
+                            if case .monoforumChats = component.contents {
+                                component.peerSelected(peer)
+                            } else {
+                                component.messageSelected(message)
+                            }
                         },
                         groupSelected: { _ in
                         },
@@ -615,9 +871,17 @@ public final class ChatInlineSearchResultsListComponent: Component {
                         },
                         setPeerThreadMuted: { _, _, _ in
                         },
-                        deletePeer: { _, _ in
+                        deletePeer: { [weak self] peerId, _ in
+                            guard let self else {
+                                return
+                            }
+                            self.performDeleteAction(peerId: peerId, threadId: nil)
                         },
-                        deletePeerThread: { _, _ in
+                        deletePeerThread: { [weak self] peerId, threadId in
+                            guard let self else {
+                                return
+                            }
+                            self.performDeleteAction(peerId: peerId, threadId: nil)
                         },
                         setPeerThreadStopped: { _, _, _ in
                         },
@@ -627,7 +891,11 @@ public final class ChatInlineSearchResultsListComponent: Component {
                         },
                         updatePeerGrouping: { _, _ in
                         },
-                        togglePeerMarkedUnread: { _, _ in
+                        togglePeerMarkedUnread: { [weak self] peerId, _ in
+                            guard let self else {
+                                return
+                            }
+                            self.performToggleUnreadAction(peerId: peerId, threadId: nil)
                         },
                         toggleArchivedFolderHiddenByDefault: {
                         },
@@ -666,11 +934,16 @@ public final class ChatInlineSearchResultsListComponent: Component {
                         },
                         openStarsTopup: { _ in
                         },
-                        dismissNotice: { _ in
-                        },
                         editPeer: { _ in
                         },
                         openWebApp: { _ in
+                        },
+                        openPhotoSetup: {
+                        },
+                        openAdInfo: { _, _ in
+                        },
+                        openAccountFreezeInfo: {
+                        }, openUrl: { _ in
                         }
                     )
                     self.chatListNodeInteraction = chatListNodeInteraction
@@ -757,14 +1030,14 @@ public final class ChatInlineSearchResultsListComponent: Component {
                         if let forwardInfo = message.forwardInfo {
                             effectiveAuthor = forwardInfo.author.flatMap(EnginePeer.init)
                             if effectiveAuthor == nil, let authorSignature = forwardInfo.authorSignature  {
-                                effectiveAuthor = EnginePeer(TelegramUser(id: PeerId(namespace: Namespaces.Peer.Empty, id: PeerId.Id._internalFromInt64Value(Int64(authorSignature.persistentHashValue % 32))), accessHash: nil, firstName: authorSignature, lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil))
+                                effectiveAuthor = EnginePeer(TelegramUser(id: PeerId(namespace: Namespaces.Peer.Empty, id: PeerId.Id._internalFromInt64Value(Int64(authorSignature.persistentHashValue % 32))), accessHash: nil, firstName: authorSignature, lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil))
                             }
                         }
                         if let sourceAuthorInfo = message._asMessage().sourceAuthorInfo {
                             if let originalAuthor = sourceAuthorInfo.originalAuthor, let peer = message.peers[originalAuthor] {
                                 effectiveAuthor = EnginePeer(peer)
                             } else if let authorSignature = sourceAuthorInfo.originalAuthorName {
-                                effectiveAuthor = EnginePeer(TelegramUser(id: PeerId(namespace: Namespaces.Peer.Empty, id: PeerId.Id._internalFromInt64Value(Int64(authorSignature.persistentHashValue % 32))), accessHash: nil, firstName: authorSignature, lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil))
+                                effectiveAuthor = EnginePeer(TelegramUser(id: PeerId(namespace: Namespaces.Peer.Empty, id: PeerId.Id._internalFromInt64Value(Int64(authorSignature.persistentHashValue % 32))), accessHash: nil, firstName: authorSignature, lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil))
                             }
                         }
                         if effectiveAuthor == nil {
@@ -785,7 +1058,7 @@ public final class ChatInlineSearchResultsListComponent: Component {
                         return ChatListItem(
                             presentationData: chatListPresentationData,
                             context: component.context,
-                            chatListLocation: component.peerId == component.context.account.peerId ? .savedMessagesChats : .chatList(groupId: .root),
+                            chatListLocation: .savedMessagesChats(peerId: component.peerId ?? component.context.account.peerId),
                             filterData: nil,
                             index: .forum(
                                 pinnedIndex: .none,
@@ -803,6 +1076,7 @@ public final class ChatInlineSearchResultsListComponent: Component {
                                 presence: nil,
                                 hasUnseenMentions: false,
                                 hasUnseenReactions: false,
+                                hasUnseenPollVotes: false,
                                 draftState: nil,
                                 mediaDraftContentType: nil,
                                 inputActivities: nil,
@@ -822,7 +1096,47 @@ public final class ChatInlineSearchResultsListComponent: Component {
                             hasActiveRevealControls: false,
                             selected: false,
                             header: displayMessagesHeader ? ChatListSearchItemHeader(type: .messages(location: nil), theme: listPresentationData.theme, strings: listPresentationData.strings) : nil,
-                            enableContextActions: false,
+                            enabledContextActions: nil,
+                            hiddenOffset: false,
+                            interaction: chatListNodeInteraction
+                        )
+                    case let .chat(item):
+                        return ChatListItem(
+                            presentationData: chatListPresentationData,
+                            context: component.context,
+                            chatListLocation: component.peerId.flatMap { peerId in .savedMessagesChats(peerId: peerId) } ?? .chatList(groupId: .root),
+                            filterData: nil,
+                            index: item.index,
+                            content: .peer(ChatListItemContent.PeerData(
+                                messages: item.messages,
+                                peer: item.renderedPeer,
+                                threadInfo: nil,
+                                combinedReadState: item.readCounters,
+                                isRemovedFromTotalUnreadCount: false,
+                                presence: nil,
+                                hasUnseenMentions: false,
+                                hasUnseenReactions: false,
+                                hasUnseenPollVotes: false,
+                                draftState: item.draft.flatMap(ChatListItemContent.DraftState.init(draft:)),
+                                mediaDraftContentType: nil,
+                                inputActivities: nil,
+                                promoInfo: nil,
+                                ignoreUnreadBadge: false,
+                                displayAsMessage: component.peerId != component.context.account.peerId && !component.showEmptyResults,
+                                hasFailedMessages: false,
+                                forumTopicData: nil,
+                                topForumTopicItems: [],
+                                autoremoveTimeout: nil,
+                                storyState: nil,
+                                requiresPremiumForMessaging: false,
+                                displayAsTopicList: false,
+                                tags: []
+                            )),
+                            editing: false,
+                            hasActiveRevealControls: false,
+                            selected: false,
+                            header: nil,
+                            enabledContextActions: .custom([.toggleUnread, .delete]),
                             hiddenOffset: false,
                             interaction: chatListNodeInteraction
                         )
@@ -830,6 +1144,7 @@ public final class ChatInlineSearchResultsListComponent: Component {
                 }
                 
                 var scrollToItem: ListViewScrollToItem?
+                var listTransactionOptions: ListViewDeleteAndInsertOptions = [.Synchronous, .LowLatency, .PreferSynchronousDrawing, .PreferSynchronousResourceLoading]
                 if previousContentsState?.contentId != contentsState.contentId && !contentsState.entries.isEmpty {
                     scrollToItem = ListViewScrollToItem(
                         index: 0,
@@ -838,6 +1153,27 @@ public final class ChatInlineSearchResultsListComponent: Component {
                         curve: .Default(duration: nil),
                         directionHint: .Up
                     )
+                }
+                
+                if previousContentsState?.contentId == contentsState.contentId && self.hintAnimateListTransition {
+                    listTransactionOptions.insert(.AnimateInsertion)
+                }
+                self.hintAnimateListTransition = false
+                
+                if previousComponent == nil, let initialScrollingState = component.initialScrollingState {
+                    var index = 0
+                    for entry in contentsState.entries {
+                        if entry.id == initialScrollingState.entryId {
+                            scrollToItem = ListViewScrollToItem(
+                                index: index,
+                                position: .top(initialScrollingState.entryOffset),
+                                animated: false,
+                                curve: .Default(duration: nil),
+                                directionHint: .Up
+                            )
+                        }
+                        index += 1
+                    }
                 }
                 
                 self.listNode.transaction(
@@ -861,7 +1197,7 @@ public final class ChatInlineSearchResultsListComponent: Component {
                             directionHint: nil
                         )
                     },
-                    options: [.Synchronous, .LowLatency, .PreferSynchronousDrawing, .PreferSynchronousResourceLoading],
+                    options: listTransactionOptions,
                     scrollToItem: scrollToItem,
                     updateSizeAndInsets: nil,
                     updateOpaqueState: contentsState.id

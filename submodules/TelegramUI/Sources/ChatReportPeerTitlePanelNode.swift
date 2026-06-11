@@ -3,6 +3,7 @@ import UIKit
 import Display
 import AsyncDisplayKit
 import Postbox
+import SwiftSignalKit
 import TelegramCore
 import TelegramPresentationData
 import LocalizedPeerData
@@ -14,27 +15,34 @@ import TextNodeWithEntities
 import AnimationCache
 import MultiAnimationRenderer
 import AccountContext
+import PremiumUI
+import LegacyChatHeaderPanelComponent
+import AppBundle
 
 private enum ChatReportPeerTitleButton: Equatable {
     case block
-    case addContact(String?)
+    case addContact(String?, Bool)
     case shareMyPhoneNumber
     case reportSpam
     case reportUserSpam
-    case reportIrrelevantGeoLocation
     case unarchive
     case addMembers
     case restartTopic
+    case setPhoto
     
     func title(strings: PresentationStrings) -> String {
         switch self {
         case .block:
             return strings.Conversation_BlockUser
-        case let .addContact(name):
+        case let .addContact(name, long):
             if let name = name {
                 return strings.Conversation_AddNameToContacts(name).string
             } else {
-                return strings.Conversation_AddToContacts
+                if long {
+                    return strings.Conversation_AddToContactsLong
+                } else {
+                    return strings.Conversation_AddToContacts
+                }
             }
         case .shareMyPhoneNumber:
             return strings.Conversation_ShareMyPhoneNumber
@@ -42,21 +50,23 @@ private enum ChatReportPeerTitleButton: Equatable {
             return strings.Conversation_ReportSpamAndLeave
         case .reportUserSpam:
             return strings.Conversation_ReportSpam
-        case .reportIrrelevantGeoLocation:
-            return strings.Conversation_ReportGroupLocation
         case .unarchive:
             return strings.Conversation_Unarchive
         case .addMembers:
             return strings.Conversation_AddMembers
         case .restartTopic:
             return strings.Chat_PanelRestartTopic
+        case .setPhoto:
+            return strings.Chat_PanelSetBotPhoto
         }
     }
 }
 
 private func peerButtons(_ state: ChatPresentationInterfaceState) -> [ChatReportPeerTitleButton] {
     var buttons: [ChatReportPeerTitleButton] = []
-    if let peer = state.renderedPeer?.chatMainPeer as? TelegramUser, let contactStatus = state.contactStatus, let peerStatusSettings = contactStatus.peerStatusSettings {
+    if let _ = state.renderedPeer?.chatMainPeer as? TelegramUser, state.isManagedBot {
+        buttons.append(.setPhoto)
+    } else if let peer = state.renderedPeer?.chatMainPeer as? TelegramUser, let contactStatus = state.contactStatus, let peerStatusSettings = contactStatus.peerStatusSettings {
         if peerStatusSettings.contains(.autoArchived) {
             if peerStatusSettings.contains(.canBlock) || peerStatusSettings.contains(.canReport) {
                 if peer.isDeleted {
@@ -76,9 +86,9 @@ private func peerButtons(_ state: ChatPresentationInterfaceState) -> [ChatReport
                 }
             }
             if buttons.isEmpty, let phone = peer.phone, !phone.isEmpty {
-                buttons.append(.addContact(EnginePeer(peer).compactDisplayTitle))
+                buttons.append(.addContact(EnginePeer(peer).compactDisplayTitle, buttons.isEmpty))
             } else {
-                buttons.append(.addContact(nil))
+                buttons.append(.addContact(nil, buttons.isEmpty))
             }
         } else {
             if peerStatusSettings.contains(.canBlock) || peerStatusSettings.contains(.canReport) {
@@ -97,7 +107,7 @@ private func peerButtons(_ state: ChatPresentationInterfaceState) -> [ChatReport
             }
         }
     } else if let peer = state.renderedPeer?.chatMainPeer {
-        if let channel = peer as? TelegramChannel, channel.flags.contains(.isForum) {
+        if let channel = peer as? TelegramChannel, channel.isForumOrMonoForum {
             if let threadData = state.threadData {
                 if threadData.isClosed {
                     var canManage = false
@@ -119,8 +129,6 @@ private func peerButtons(_ state: ChatPresentationInterfaceState) -> [ChatReport
         if case .peer = state.chatLocation {
             if let contactStatus = state.contactStatus, let peerStatusSettings = contactStatus.peerStatusSettings, peerStatusSettings.contains(.suggestAddMembers) {
                 buttons.append(.addMembers)
-            } else if let contactStatus = state.contactStatus, contactStatus.canReportIrrelevantLocation, let peerStatusSettings = contactStatus.peerStatusSettings, peerStatusSettings.contains(.canReportIrrelevantGeoLocation) {
-                buttons.append(.reportIrrelevantGeoLocation)
             } else if let contactStatus = state.contactStatus, let peerStatusSettings = contactStatus.peerStatusSettings, peerStatusSettings.contains(.autoArchived) {
                 buttons.append(.reportUserSpam)
                 buttons.append(.unarchive)
@@ -340,18 +348,26 @@ final class ChatReportPeerTitlePanelNode: ChatTitleAccessoryPanelNode {
     private let context: AccountContext
     private let animationCache: AnimationCache
     private let animationRenderer: MultiAnimationRenderer
-    
+        
     private let separatorNode: ASDisplayNode
     
     private let closeButton: HighlightableButtonNode
     private var buttons: [(ChatReportPeerTitleButton, UIButton)] = []
     private let textNode: ImmediateTextNode
-    private var emojiStatusTextNode: TextNodeWithEntities?
+    private var emojiStatusTextNode: ImmediateTextNodeWithEntities?
+    private let emojiSeparatorNode: ASDisplayNode
     
     private var theme: PresentationTheme?
+    private var presentationInterfaceState: ChatPresentationInterfaceState?
     
     private var inviteInfoNode: ChatInfoTitlePanelInviteInfoNode?
     private var peerNearbyInfoNode: ChatInfoTitlePanelPeerNearbyInfoNode?
+    
+    private var cachedChevronImage: (UIImage, PresentationTheme)?
+    
+    private var emojiStatusPackDisposable = MetaDisposable()
+    private var emojiStatusFileId: Int64?
+    private var emojiStatusFileAndPackTitle = Promise<(TelegramMediaFile, LoadedStickerPack)?>()
     
     private var tapGestureRecognizer: UITapGestureRecognizer?
     
@@ -363,21 +379,30 @@ final class ChatReportPeerTitlePanelNode: ChatTitleAccessoryPanelNode {
         self.separatorNode = ASDisplayNode()
         self.separatorNode.isLayerBacked = true
         
+        self.emojiSeparatorNode = ASDisplayNode()
+        self.emojiSeparatorNode.isLayerBacked = true
+        
         self.closeButton = HighlightableButtonNode()
         self.closeButton.hitTestSlop = UIEdgeInsets(top: -8.0, left: -8.0, bottom: -8.0, right: -8.0)
         self.closeButton.displaysAsynchronously = false
         
         self.textNode = ImmediateTextNode()
         self.textNode.maximumNumberOfLines = 3
+        self.textNode.truncationType = .middle
         self.textNode.textAlignment = .center
         
         super.init()
 
         self.addSubnode(self.separatorNode)
+        self.addSubnode(self.emojiSeparatorNode)
         self.addSubnode(self.textNode)
         
         self.closeButton.addTarget(self, action: #selector(self.closePressed), forControlEvents: [.touchUpInside])
         self.addSubnode(self.closeButton)
+    }
+    
+    deinit {
+        self.emojiStatusPackDisposable.dispose()
     }
     
     override func didLoad() {
@@ -393,14 +418,49 @@ final class ChatReportPeerTitlePanelNode: ChatTitleAccessoryPanelNode {
         self.interfaceInteraction?.presentChatRequestAdminInfo()
     }
     
+    private func openPremiumEmojiStatusDemo() {
+        guard let navigationController = self.interfaceInteraction?.getNavigationController(), let peerId = self.presentationInterfaceState?.chatLocation.peerId, let emojiStatus = self.presentationInterfaceState?.renderedPeer?.peer?.emojiStatus else {
+            return
+        }
+        
+        let fileId = emojiStatus.fileId
+        let source: Signal<PremiumSource, NoError> = self.emojiStatusFileAndPackTitle.get()
+        |> take(1)
+        |> mapToSignal { emojiStatusFileAndPack -> Signal<PremiumSource, NoError> in
+            if let (file, pack) = emojiStatusFileAndPack {
+                return .single(.emojiStatus(peerId, fileId, file, pack))
+            } else {
+                return .complete()
+            }
+        }
+  
+        let _ = (source
+        |> deliverOnMainQueue).startStandalone(next: { [weak self, weak navigationController] source in
+            guard let self, let navigationController else {
+                return
+            }
+            let controller = PremiumIntroScreen(context: self.context, source: source)
+            if let textView = self.emojiStatusTextNode?.view {
+                controller.sourceView = textView
+                controller.sourceRect = CGRect(origin: .zero, size: CGSize(width: textView.frame.height, height: textView.frame.height))
+            }
+            controller.containerView = navigationController.view
+            navigationController.pushViewController(controller)
+        })
+    }
+    
     override func updateLayout(width: CGFloat, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition, interfaceState: ChatPresentationInterfaceState) -> LayoutResult {
+        var themeUpdated = false
         if interfaceState.theme !== self.theme {
+            themeUpdated = true
             self.theme = interfaceState.theme
             
             self.closeButton.setImage(PresentationResourcesChat.chatInputPanelEncircledCloseIconImage(interfaceState.theme), for: [])
             self.separatorNode.backgroundColor = interfaceState.theme.rootController.navigationBar.separatorColor
+            self.emojiSeparatorNode.backgroundColor = interfaceState.theme.rootController.navigationBar.separatorColor
         }
-
+        self.presentationInterfaceState = interfaceState
+        
         var panelHeight: CGFloat = 40.0
         
         let contentRightInset: CGFloat = 14.0 + rightInset
@@ -431,13 +491,31 @@ final class ChatReportPeerTitlePanelNode: ChatTitleAccessoryPanelNode {
             self.buttons.removeAll()
             for button in updatedButtons {
                 let view = UIButton()
+                if case .setPhoto = button {
+                    if view.image(for: []) == nil || themeUpdated {
+                        if let sourceImage = generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Camera"), color: interfaceState.theme.rootController.navigationBar.accentTextColor) {
+                            let image = generateImage(CGSize(width: sourceImage.size.width + 6.0, height: sourceImage.size.height), rotatedContext: { size, context in
+                                UIGraphicsPushContext(context)
+                                defer {
+                                    UIGraphicsPopContext()
+                                }
+                                
+                                context.clear(CGRect(origin: CGPoint(), size: size))
+                                sourceImage.draw(at: CGPoint())
+                            })
+                            
+                            view.setImage(image?.withRenderingMode(.alwaysOriginal), for: [])
+                            view.setImage(generateTintedImage(image: image, color: interfaceState.theme.rootController.navigationBar.accentTextColor.withAlphaComponent(0.7))?.withRenderingMode(.alwaysOriginal), for: [.highlighted])
+                        }
+                    }
+                }
                 view.setTitle(button.title(strings: interfaceState.strings), for: [])
                 view.titleLabel?.font = Font.regular(16.0)
                 switch button {
-                    case .block, .reportSpam, .reportUserSpam:
+                case .block, .reportSpam, .reportUserSpam:
                     view.setTitleColor(interfaceState.theme.chat.inputPanel.panelControlDestructiveColor, for: [])
                     view.setTitleColor(interfaceState.theme.chat.inputPanel.panelControlDestructiveColor.withAlphaComponent(0.7), for: [.highlighted])
-                    default:
+                default:
                     view.setTitleColor(interfaceState.theme.rootController.navigationBar.accentTextColor, for: [])
                     view.setTitleColor(interfaceState.theme.rootController.navigationBar.accentTextColor.withAlphaComponent(0.7), for: [.highlighted])
                 }
@@ -506,7 +584,7 @@ final class ChatReportPeerTitlePanelNode: ChatTitleAccessoryPanelNode {
             
             transition.updateAlpha(node: self.textNode, alpha: 1.0)
             
-            let textSize = self.textNode.updateLayout(CGSize(width: width - leftInset - rightInset - 80.0, height: 40.0))
+            let textSize = self.textNode.updateLayout(CGSize(width: width - leftInset - rightInset - 80.0, height: 80.0))
             self.textNode.frame = CGRect(origin: CGPoint(x: floorToScreenPixels((width - textSize.width) / 2.0), y: 10.0), size: textSize)
             
             for (_, view) in self.buttons {
@@ -515,7 +593,7 @@ final class ChatReportPeerTitlePanelNode: ChatTitleAccessoryPanelNode {
             
             self.tapGestureRecognizer?.isEnabled = true
             
-            panelHeight += 15.0
+            panelHeight += max(15.0, textSize.height - 19.0)
         } else {
             transition.updateAlpha(node: self.textNode, alpha: 0.0)
             
@@ -536,7 +614,7 @@ final class ChatReportPeerTitlePanelNode: ChatTitleAccessoryPanelNode {
         
         var emojiStatus: PeerEmojiStatus?
         if let user = interfaceState.renderedPeer?.peer as? TelegramUser, let emojiStatusValue = user.emojiStatus {
-            if user.isFake || user.isScam {
+            if user.isFake || user.isScam { 
             } else {
                 emojiStatus = emojiStatusValue
             }
@@ -547,60 +625,108 @@ final class ChatReportPeerTitlePanelNode: ChatTitleAccessoryPanelNode {
             }
         }
         
-        /*#if DEBUG
-        emojiStatus = PeerEmojiStatus(fileId: 5062172592505356289, expirationDate: nil)
-        #endif*/
-        
-        if let emojiStatus = emojiStatus {
-            let emojiStatusTextNode: TextNodeWithEntities
+        if let emojiStatus {
+            let fileId = emojiStatus.fileId
+            if self.emojiStatusFileId != fileId {
+                self.emojiStatusFileId = fileId
+                
+                let emojiFileAndPack = self.context.engine.stickers.resolveInlineStickers(fileIds: [fileId])
+                |> mapToSignal { result in
+                    if let emojiFile = result.first?.value {
+                        for attribute in emojiFile.attributes {
+                            if case let .CustomEmoji(_, _, _, packReference) = attribute, let packReference = packReference {
+                                return self.context.engine.stickers.loadedStickerPack(reference: packReference, forceActualized: false)
+                                |> filter { result in
+                                    if case .result = result {
+                                        return true
+                                    } else {
+                                        return false
+                                    }
+                                }
+                                |> mapToSignal { result -> Signal<(TelegramMediaFile, LoadedStickerPack)?, NoError> in
+                                    if case let .result(_, items, _) = result {
+                                        return .single(items.first.flatMap { ($0.file._parse(), result) })
+                                    } else {
+                                        return .complete()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return .complete()
+                }
+                self.emojiStatusPackDisposable.set(emojiFileAndPack.startStrict(next: { [weak self] fileAndPackTitle in
+                    guard let self else {
+                        return
+                    }
+                    self.emojiStatusFileAndPackTitle.set(.single(fileAndPackTitle))
+                }))
+            }
+
+            self.emojiSeparatorNode.isHidden = false
+            
+            transition.updateFrame(node: self.emojiSeparatorNode, frame: CGRect(origin: CGPoint(x: leftInset + 12.0, y: 40.0), size: CGSize(width: width - leftInset - rightInset - 24.0, height: UIScreenPixel)))
+            
+            let emojiStatusTextNode: ImmediateTextNodeWithEntities
             if let current = self.emojiStatusTextNode {
                 emojiStatusTextNode = current
             } else {
-                emojiStatusTextNode = TextNodeWithEntities()
+                emojiStatusTextNode = ImmediateTextNodeWithEntities()
+                emojiStatusTextNode.maximumNumberOfLines = 0
+                emojiStatusTextNode.textAlignment = .center
+                emojiStatusTextNode.linkHighlightInset = UIEdgeInsets(top: 0.0, left: 0.0, bottom: 0.0, right: -8.0)
+                emojiStatusTextNode.highlightAttributeAction = { attributes in
+                    if let _ = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)] {
+                        return NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)
+                    } else {
+                        return nil
+                    }
+                }
+                emojiStatusTextNode.tapAttributeAction = { [weak self] attributes, _ in
+                    if let _ = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)] as? String {
+                        self?.openPremiumEmojiStatusDemo()
+                    }
+                }
                 self.emojiStatusTextNode = emojiStatusTextNode
-                self.addSubnode(emojiStatusTextNode.textNode)
+                self.addSubnode(emojiStatusTextNode)
             }
             
-            let plainText = interfaceState.strings.Chat_PanelCustomStatusInfo(".")
-            let attributedText = NSMutableAttributedString(attributedString: NSAttributedString(string: plainText.string, font: Font.regular(13.0), textColor: interfaceState.theme.rootController.navigationBar.secondaryTextColor, paragraphAlignment: .center))
-            for range in plainText.ranges {
-                attributedText.addAttribute(ChatTextInputAttributes.customEmoji, value: ChatTextInputTextCustomEmojiAttribute(interactivelySelectedFromPackId: nil, fileId: emojiStatus.fileId, file: nil), range: range.range)
+            if self.cachedChevronImage == nil || self.cachedChevronImage?.1 !== interfaceState.theme {
+                self.cachedChevronImage = (generateTintedImage(image: UIImage(bundleImageName: "Item List/InlineTextRightArrow"), color: interfaceState.theme.rootController.navigationBar.accentTextColor)!, interfaceState.theme)
             }
             
-            let makeEmojiStatusLayout = TextNodeWithEntities.asyncLayout(emojiStatusTextNode)
-            let (emojiStatusLayout, emojiStatusApply) = makeEmojiStatusLayout(TextNodeLayoutArguments(
-                attributedString: attributedText,
-                backgroundColor: nil,
-                minimumNumberOfLines: 0,
-                maximumNumberOfLines: 0,
-                truncationType: .end,
-                constrainedSize: CGSize(width: width - leftInset * 2.0 - 8.0 * 2.0, height: CGFloat.greatestFiniteMagnitude),
-                alignment: .center,
-                verticalAlignment: .top,
-                lineSpacing: 0.0,
-                cutout: nil,
-                insets: UIEdgeInsets(),
-                lineColor: nil,
-                textShadowColor: nil,
-                textStroke: nil,
-                displaySpoilers: false,
-                displayEmbeddedItemsUnderSpoilers: false
-            ))
-            let _ = emojiStatusApply(TextNodeWithEntities.Arguments(
+            let plainText = interfaceState.strings.Chat_PanelCustomStatusShortInfo("#").string
+            let markdownAttributes = MarkdownAttributes(body: MarkdownAttributeSet(font: Font.regular(12.0), textColor: interfaceState.theme.rootController.navigationBar.secondaryTextColor), bold: MarkdownAttributeSet(font: Font.semibold(12.0), textColor: interfaceState.theme.rootController.navigationBar.secondaryTextColor), link: MarkdownAttributeSet(font: Font.regular(12.0), textColor: interfaceState.theme.rootController.navigationBar.accentTextColor), linkAttribute: { contents in
+                return (TelegramTextAttributes.URL, contents)
+            })
+            let attributedString = parseMarkdownIntoAttributedString(plainText, attributes: markdownAttributes, textAlignment: .center).mutableCopy() as! NSMutableAttributedString
+            if let range = attributedString.string.range(of: ">"), let chevronImage = self.cachedChevronImage?.0 {
+                attributedString.addAttribute(.attachment, value: chevronImage, range: NSRange(range, in: attributedString.string))
+            }
+            if let range = attributedString.string.range(of: "#") {
+                attributedString.addAttribute(ChatTextInputAttributes.customEmoji, value: ChatTextInputTextCustomEmojiAttribute(interactivelySelectedFromPackId: nil, fileId: emojiStatus.fileId, file: nil), range: NSRange(range, in: attributedString.string))
+            }
+            emojiStatusTextNode.attributedText = attributedString
+            emojiStatusTextNode.arguments = TextNodeWithEntities.Arguments(
                 context: self.context,
                 cache: self.animationCache,
                 renderer: self.animationRenderer,
                 placeholderColor: interfaceState.theme.list.mediaPlaceholderColor,
                 attemptSynchronous: false
-            ))
-            transition.updateFrame(node: emojiStatusTextNode.textNode, frame: CGRect(origin: CGPoint(x: floor((width - emojiStatusLayout.size.width) / 2.0), y: panelHeight), size: emojiStatusLayout.size))
-            panelHeight += emojiStatusLayout.size.height + 8.0
+            )
+            emojiStatusTextNode.linkHighlightColor = interfaceState.theme.list.itemAccentColor.withAlphaComponent(0.1)
             
-            emojiStatusTextNode.visibilityRect = .infinite
+            let emojiStatusTextSize = emojiStatusTextNode.updateLayout(CGSize(width: width - leftInset * 2.0 - 8.0 * 2.0, height: CGFloat.greatestFiniteMagnitude))
+            transition.updateFrame(node: emojiStatusTextNode, frame: CGRect(origin: CGPoint(x: floor((width - emojiStatusTextSize.width) / 2.0), y: panelHeight + 10.0), size: emojiStatusTextSize))
+            panelHeight += emojiStatusTextSize.height + 20.0
+            
+            emojiStatusTextNode.visibility = true
         } else {
+            self.emojiSeparatorNode.isHidden = true
+            
             if let emojiStatusTextNode = self.emojiStatusTextNode {
                 self.emojiStatusTextNode = nil
-                emojiStatusTextNode.textNode.removeFromSupernode()
+                emojiStatusTextNode.removeFromSupernode()
             }
         }
 
@@ -690,10 +816,10 @@ final class ChatReportPeerTitlePanelNode: ChatTitleAccessoryPanelNode {
                     self.interfaceInteraction?.presentInviteMembers()
                 case .addContact:
                     self.interfaceInteraction?.presentPeerContact()
-                case .reportIrrelevantGeoLocation:
-                    self.interfaceInteraction?.reportPeerIrrelevantGeoLocation()
                 case .restartTopic:
                     self.interfaceInteraction?.restartTopic()
+                case .setPhoto:
+                    self.interfaceInteraction?.openSetPeerAvatar()
                 }
                 break
             }
@@ -713,7 +839,9 @@ final class ChatReportPeerTitlePanelNode: ChatTitleAccessoryPanelNode {
                 return result
             }
         }
-        if point.y > 40.0 {
+        if let _ = self.emojiStatusTextNode {
+            
+        } else if point.y > 40.0 {
             return nil
         }
         return super.hitTest(point, with: event)

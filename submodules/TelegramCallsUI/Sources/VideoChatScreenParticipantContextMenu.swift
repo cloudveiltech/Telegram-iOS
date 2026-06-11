@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import Display
+import SSignalKit
 import SwiftSignalKit
 import AccountContext
 import TelegramCore
@@ -8,34 +9,41 @@ import ContextUI
 import DeleteChatPeerActionSheetItem
 import UndoUI
 import LegacyComponents
-import WebSearchUI
 import MapResourceToAvatarSizes
 import LegacyUI
 import LegacyMediaPickerUI
+import AVFoundation
+import CloudVeilSecurityManager
 
 extension VideoChatScreenComponent.View {
     func openParticipantContextMenu(id: EnginePeer.Id, sourceView: ContextExtractedContentContainingView, gesture: ContextGesture?) {
-        guard let component = self.component, let environment = self.environment else {
+        guard let environment = self.environment else {
             return
         }
-        guard let members = self.members, let participant = members.participants.first(where: { $0.peer.id == id }) else {
+        guard let members = self.members, let participant = members.participants.first(where: { $0.id == .peer(id) }) else {
+            return
+        }
+        guard let currentCall = self.currentCall else {
             return
         }
         
         let muteStatePromise = Promise<GroupCallParticipantsContext.Participant.MuteState?>(participant.muteState)
            
         let itemsForEntry: (GroupCallParticipantsContext.Participant.MuteState?) -> [ContextMenuItem] = { [weak self] muteState in
-            guard let self, let component = self.component, let environment = self.environment else {
+            guard let self, let environment = self.environment, let currentCall = self.currentCall else {
                 return []
             }
             guard let callState = self.callState else {
                 return []
             }
             
-            var items: [ContextMenuItem] = []
+            guard let peer = participant.peer else {
+                return []
+            }
             
+            var items: [ContextMenuItem] = []
             var hasVolumeSlider = false
-            let peer = participant.peer
+            
             if let muteState = muteState, !muteState.canUnmute || muteState.mutedByYou {
             } else {
                 if callState.canManageCall || callState.myPeerId != id {
@@ -48,21 +56,21 @@ extension VideoChatScreenComponent.View {
                         minValue = 0.0
                     }
                     items.append(.custom(VoiceChatVolumeContextItem(minValue: minValue, value: participant.volume.flatMap { CGFloat($0) / 10000.0 } ?? 1.0, valueChanged: { [weak self] newValue, finished in
-                        guard let self, let component = self.component else {
+                        guard let self, case let .group(groupCall) = self.currentCall else {
                             return
                         }
                         
                         if finished && newValue.isZero {
-                            let updatedMuteState = component.call.updateMuteState(peerId: peer.id, isMuted: true)
+                            let updatedMuteState = groupCall.updateMuteState(peerId: peer.id, isMuted: true)
                             muteStatePromise.set(.single(updatedMuteState))
                         } else {
-                            component.call.setVolume(peerId: peer.id, volume: Int32(newValue * 10000), sync: finished)
+                            groupCall.setVolume(peerId: peer.id, volume: Int32(newValue * 10000), sync: finished)
                         }
                     }), true))
                 }
             }
             
-            if callState.myPeerId == id && !hasVolumeSlider && ((participant.about?.isEmpty ?? true) || participant.peer.smallProfileImage == nil) {
+            if callState.myPeerId == id && !hasVolumeSlider && ((participant.about?.isEmpty ?? true) || participant.peer?.smallProfileImage == nil) {
                 items.append(.custom(VoiceChatInfoContextItem(text: environment.strings.VoiceChat_ImproveYourProfileText, icon: { theme in
                     return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Tip"), color: theme.actionSheet.primaryTextColor)
                 }), true))
@@ -73,10 +81,10 @@ extension VideoChatScreenComponent.View {
                     items.append(.action(ContextMenuActionItem(text: environment.strings.VoiceChat_CancelSpeakRequest, icon: { theme in
                         return generateTintedImage(image: UIImage(bundleImageName: "Call/Context Menu/RevokeSpeak"), color: theme.actionSheet.primaryTextColor)
                     }, action: { [weak self] _, f in
-                        guard let self, let component = self.component else {
+                        guard let self, case let .group(groupCall) = self.currentCall else {
                             return
                         }
-                        component.call.lowerHand()
+                        groupCall.lowerHand()
                         
                         f(.default)
                     })))
@@ -100,7 +108,7 @@ extension VideoChatScreenComponent.View {
                     f(.default)
                     
                     Queue.mainQueue().after(0.1) {
-                        guard let self, let component = self.component, let environment = self.environment else {
+                        guard let self, let environment = self.environment, let currentCall = self.currentCall else {
                             return
                         }
                         let maxBioLength: Int
@@ -109,63 +117,63 @@ extension VideoChatScreenComponent.View {
                         } else {
                             maxBioLength = 100
                         }
-                        let controller = voiceChatTitleEditController(sharedContext: component.call.accountContext.sharedContext, account: component.call.accountContext.account, forceTheme: environment.theme, title: environment.strings.VoiceChat_EditBioTitle, text: environment.strings.VoiceChat_EditBioText, placeholder: environment.strings.VoiceChat_EditBioPlaceholder, doneButtonTitle: environment.strings.VoiceChat_EditBioSave, value: participant.about, maxLength: maxBioLength, apply: { [weak self] bio in
-                            guard let self, let component = self.component, let environment = self.environment, let bio else {
+                        let controller = voiceChatTitleEditController(context: currentCall.accountContext, forceTheme: environment.theme, title: environment.strings.VoiceChat_EditBioTitle, text: environment.strings.VoiceChat_EditBioText, placeholder: environment.strings.VoiceChat_EditBioPlaceholder, doneButtonTitle: environment.strings.VoiceChat_EditBioSave, value: participant.about, maxLength: maxBioLength, apply: { [weak self] bio in
+                            guard let self, let environment = self.environment, let currentCall = self.currentCall, let bio else {
                                 return
                             }
                             if peer.id.namespace == Namespaces.Peer.CloudUser {
-                                let _ = (component.call.accountContext.engine.accountData.updateAbout(about: bio)
+                                let _ = (currentCall.accountContext.engine.accountData.updateAbout(about: bio)
                                 |> `catch` { _ -> Signal<Void, NoError> in
                                     return .complete()
                                 }).start()
                             } else {
-                                let _ = (component.call.accountContext.engine.peers.updatePeerDescription(peerId: peer.id, description: bio)
+                                let _ = (currentCall.accountContext.engine.peers.updatePeerDescription(peerId: peer.id, description: bio)
                                 |> `catch` { _ -> Signal<Void, NoError> in
                                     return .complete()
                                 }).start()
                             }
                             
-                            self.presentUndoOverlay(content: .info(title: nil, text: environment.strings.VoiceChat_EditBioSuccess, timeout: nil, customUndoText: nil), action: { _ in return false })
+                            self.presentToast(icon: .animation("anim_infotip"), text: environment.strings.VoiceChat_EditBioSuccess, duration: 4)
                         })
                         environment.controller()?.present(controller, in: .window(.root))
                     }
                 })))
                 
-                if let peer = peer as? TelegramUser {
+                if case let .user(peer) = peer {
                     items.append(.action(ContextMenuActionItem(text: environment.strings.VoiceChat_ChangeName, icon: { theme in
                         return generateTintedImage(image: UIImage(bundleImageName: "Call/Context Menu/ChangeName"), color: theme.actionSheet.primaryTextColor)
                     }, action: { [weak self] _, f in
                         f(.default)
                            
                         Queue.mainQueue().after(0.1) {
-                            guard let self, let component = self.component, let environment = self.environment else {
+                            guard let self, let environment = self.environment, let currentCall = self.currentCall else {
                                 return
                             }
-                            let controller = voiceChatUserNameController(sharedContext: component.call.accountContext.sharedContext, account: component.call.accountContext.account, forceTheme: environment.theme, title: environment.strings.VoiceChat_ChangeNameTitle, firstNamePlaceholder: environment.strings.UserInfo_FirstNamePlaceholder, lastNamePlaceholder: environment.strings.UserInfo_LastNamePlaceholder, doneButtonTitle: environment.strings.VoiceChat_EditBioSave, firstName: peer.firstName, lastName: peer.lastName, maxLength: 128, apply: { [weak self] firstAndLastName in
-                                guard let self, let component = self.component, let environment = self.environment, let (firstName, lastName) = firstAndLastName else {
+                            let controller = voiceChatUserNameController(context: currentCall.accountContext, forceTheme: environment.theme, title: environment.strings.VoiceChat_ChangeNameTitle, firstNamePlaceholder: environment.strings.UserInfo_FirstNamePlaceholder, lastNamePlaceholder: environment.strings.UserInfo_LastNamePlaceholder, doneButtonTitle: environment.strings.VoiceChat_EditBioSave, firstName: peer.firstName, lastName: peer.lastName, maxLength: 128, apply: { [weak self] firstAndLastName in
+                                guard let self, let environment = self.environment, let currentCall = self.currentCall, let (firstName, lastName) = firstAndLastName else {
                                     return
                                 }
-                                let _ = component.call.accountContext.engine.accountData.updateAccountPeerName(firstName: firstName, lastName: lastName).startStandalone()
+                                let _ = currentCall.accountContext.engine.accountData.updateAccountPeerName(firstName: firstName, lastName: lastName).startStandalone()
                                 
-                                self.presentUndoOverlay(content: .info(title: nil, text: environment.strings.VoiceChat_EditNameSuccess, timeout: nil, customUndoText: nil), action: { _ in return false })
+                                self.presentToast(icon: .animation("anim_infotip"), text: environment.strings.VoiceChat_EditNameSuccess, duration: 4)
                             })
                             environment.controller()?.present(controller, in: .window(.root))
                         }
                     })))
                 }
             } else {
-                if (callState.canManageCall || callState.adminIds.contains(component.call.accountContext.account.peerId)) {
+                if (callState.canManageCall || callState.adminIds.contains(currentCall.accountContext.account.peerId)) {
                     if callState.adminIds.contains(peer.id) {
                         if let _ = muteState {
                         } else {
                             items.append(.action(ContextMenuActionItem(text: environment.strings.VoiceChat_MutePeer, icon: { theme in
                                 return generateTintedImage(image: UIImage(bundleImageName: "Call/Context Menu/Mute"), color: theme.actionSheet.primaryTextColor)
                             }, action: { [weak self] _, f in
-                                guard let self, let component = self.component else {
+                                guard let self, case let .group(groupCall) = self.currentCall else {
                                     return
                                 }
                                 
-                                let _ = component.call.updateMuteState(peerId: peer.id, isMuted: true)
+                                let _ = groupCall.updateMuteState(peerId: peer.id, isMuted: true)
                                 f(.default)
                             })))
                         }
@@ -174,24 +182,27 @@ extension VideoChatScreenComponent.View {
                             items.append(.action(ContextMenuActionItem(text: environment.strings.VoiceChat_UnmutePeer, icon: { theme in
                                 return generateTintedImage(image: UIImage(bundleImageName: participant.hasRaiseHand ? "Call/Context Menu/AllowToSpeak" : "Call/Context Menu/Unmute"), color: theme.actionSheet.primaryTextColor)
                             }, action: { [weak self] _, f in
-                                guard let self, let component = self.component, let environment = self.environment else {
+                                guard let self, let environment = self.environment, case let .group(groupCall) = self.currentCall else {
                                     return
                                 }
                                 
-                                let _ = component.call.updateMuteState(peerId: peer.id, isMuted: false)
+                                let _ = groupCall.updateMuteState(peerId: peer.id, isMuted: false)
                                 f(.default)
                                 
-                                self.presentUndoOverlay(content: .voiceChatCanSpeak(text: environment.strings.VoiceChat_UserCanNowSpeak(EnginePeer(participant.peer).displayTitle(strings: environment.strings, displayOrder: component.call.accountContext.sharedContext.currentPresentationData.with({ $0 }).nameDisplayOrder)).string), action: { _ in return true })
+                                if let participantPeer = participant.peer {
+                                    let text = environment.strings.VoiceChat_UserCanNowSpeak(participantPeer.displayTitle(strings: environment.strings, displayOrder: groupCall.accountContext.sharedContext.currentPresentationData.with({ $0 }).nameDisplayOrder)).string
+                                    self.presentToast(icon: .animation("anim_vcspeak"), text: text, duration: 3)
+                                }
                             })))
                         } else {
                             items.append(.action(ContextMenuActionItem(text: environment.strings.VoiceChat_MutePeer, icon: { theme in
                                 return generateTintedImage(image: UIImage(bundleImageName: "Call/Context Menu/Mute"), color: theme.actionSheet.primaryTextColor)
                             }, action: { [weak self] _, f in
-                                guard let self, let component = self.component else {
+                                guard let self, case let .group(groupCall) = self.currentCall else {
                                     return
                                 }
                                 
-                                let _ = component.call.updateMuteState(peerId: peer.id, isMuted: true)
+                                let _ = groupCall.updateMuteState(peerId: peer.id, isMuted: true)
                                 f(.default)
                             })))
                         }
@@ -201,22 +212,21 @@ extension VideoChatScreenComponent.View {
                         items.append(.action(ContextMenuActionItem(text: environment.strings.VoiceChat_UnmuteForMe, icon: { theme in
                             return generateTintedImage(image: UIImage(bundleImageName: "Call/Context Menu/Unmute"), color: theme.actionSheet.primaryTextColor)
                         }, action: { [weak self] _, f in
-                            guard let self, let component = self.component else {
+                            guard let self, case let .group(groupCall) = self.currentCall else {
                                 return
                             }
-                            
-                            let _ = component.call.updateMuteState(peerId: peer.id, isMuted: false)
+                            let _ = groupCall.updateMuteState(peerId: peer.id, isMuted: false)
                             f(.default)
                         })))
                     } else {
                         items.append(.action(ContextMenuActionItem(text: environment.strings.VoiceChat_MuteForMe, icon: { theme in
                             return generateTintedImage(image: UIImage(bundleImageName: "Call/Context Menu/Mute"), color: theme.actionSheet.primaryTextColor)
                         }, action: { [weak self] _, f in
-                            guard let self, let component = self.component else {
+                            guard let self, case let .group(groupCall) = self.currentCall else {
                                 return
                             }
                             
-                            let _ = component.call.updateMuteState(peerId: peer.id, isMuted: true)
+                            let _ = groupCall.updateMuteState(peerId: peer.id, isMuted: true)
                             f(.default)
                         })))
                     }
@@ -225,7 +235,7 @@ extension VideoChatScreenComponent.View {
                 let openTitle: String
                 let openIcon: UIImage?
                 if [Namespaces.Peer.CloudChannel, Namespaces.Peer.CloudGroup].contains(peer.id.namespace) {
-                    if let peer = peer as? TelegramChannel, case .broadcast = peer.info {
+                    if case let .channel(peer) = peer, case .broadcast = peer.info {
                         openTitle = environment.strings.VoiceChat_OpenChannel
                         openIcon = UIImage(bundleImageName: "Chat/Context Menu/Channels")
                     } else {
@@ -239,60 +249,68 @@ extension VideoChatScreenComponent.View {
                 items.append(.action(ContextMenuActionItem(text: openTitle, icon: { theme in
                     return generateTintedImage(image: openIcon, color: theme.actionSheet.primaryTextColor)
                 }, action: { [weak self] _, f in
-                    guard let self, let component = self.component, let environment = self.environment else {
+                    guard let self else {
                         return
                     }
+                    self.openPeer(peer)
                     
-                    guard let controller = environment.controller() as? VideoChatScreenV2Impl, let navigationController = controller.parentNavigationController else {
-                        return
-                    }
-                
-                    let context = component.call.accountContext
-                    controller.dismiss(completion: { [weak navigationController] in
-                        Queue.mainQueue().after(0.1) {
-                            guard let navigationController else {
-                                return
-                            }
-                            context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(EnginePeer(peer)), keepStack: .always, purposefulAction: {}, peekData: nil))
-                        }
-                    })
-                
                     f(.dismissWithoutContent)
                 })))
             
-                if (callState.canManageCall && !callState.adminIds.contains(peer.id)), peer.id != component.call.peerId {
+                if case let .group(groupCall) = self.currentCall, (callState.canManageCall && !callState.adminIds.contains(peer.id)), peer.id != groupCall.peerId {
                     items.append(.action(ContextMenuActionItem(text: environment.strings.VoiceChat_RemovePeer, textColor: .destructive, icon: { theme in
                         return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Clear"), color: theme.actionSheet.destructiveActionTextColor)
                     }, action: { [weak self] c, _ in
                         c?.dismiss(completion: {
-                            guard let self, let component = self.component else {
+                            guard let self, case let .group(groupCall) = self.currentCall else {
                                 return
                             }
+                            
+                            let chatPeer: Signal<EnginePeer?, NoError>
+                            if let peerId = groupCall.peerId {
+                                chatPeer = groupCall.accountContext.engine.data.get(
+                                    TelegramEngine.EngineData.Item.Peer.Peer(id: peerId)
+                                )
+                            } else {
+                                chatPeer = .single(nil)
+                            }
 
-                            let _ = (component.call.accountContext.account.postbox.loadedPeerWithId(component.call.peerId)
+                            let _ = (chatPeer
                             |> deliverOnMainQueue).start(next: { [weak self] chatPeer in
-                                guard let self, let component = self.component, let environment = self.environment else {
+                                guard let self, let environment = self.environment, case let .group(groupCall) = self.currentCall else {
                                     return
                                 }
                                 
-                                let presentationData = component.call.accountContext.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: environment.theme)
+                                let presentationData = groupCall.accountContext.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: environment.theme)
                                 let actionSheet = ActionSheetController(presentationData: presentationData)
                                 var items: [ActionSheetItem] = []
                                 
                                 let nameDisplayOrder = presentationData.nameDisplayOrder
-                                items.append(DeleteChatPeerActionSheetItem(context: component.call.accountContext, peer: EnginePeer(peer), chatPeer: EnginePeer(chatPeer), action: .removeFromGroup, strings: environment.strings, nameDisplayOrder: nameDisplayOrder))
+                                if let chatPeer {
+                                    items.append(DeleteChatPeerActionSheetItem(context: groupCall.accountContext, peer: peer, chatPeer: chatPeer, action: .removeFromGroup, strings: environment.strings, nameDisplayOrder: nameDisplayOrder))
+                                } else {
+                                    items.append(ActionSheetTextItem(title: environment.strings.VoiceChat_RemoveConferencePeerConfirmation(peer.displayTitle(strings: environment.strings, displayOrder: nameDisplayOrder)).string, parseMarkdown: true))
+                                }
 
                                 items.append(ActionSheetButtonItem(title: environment.strings.VoiceChat_RemovePeerRemove, color: .destructive, action: { [weak self, weak actionSheet] in
                                     actionSheet?.dismissAnimated()
                                     
-                                    guard let self, let component = self.component, let environment = self.environment else {
+                                    guard let self, let environment = self.environment, case let .group(groupCall) = self.currentCall else {
                                         return
                                     }
                                     
-                                    let _ = component.call.accountContext.peerChannelMemberCategoriesContextsManager.updateMemberBannedRights(engine: component.call.accountContext.engine, peerId: component.call.peerId, memberId: peer.id, bannedRights: TelegramChatBannedRights(flags: [.banReadMessages], untilDate: Int32.max)).start()
-                                    component.call.removedPeer(peer.id)
-                                    
-                                    self.presentUndoOverlay(content: .banned(text: environment.strings.VoiceChat_RemovedPeerText(EnginePeer(peer).displayTitle(strings: environment.strings, displayOrder: nameDisplayOrder)).string), action: { _ in return false })
+                                    if groupCall.isConference {
+                                        groupCall.kickPeer(id: peer.id)
+                                        
+                                        self.presentToast(icon: .animation("anim_banned"), text: environment.strings.VoiceChat_RemovedConferencePeerText(peer.displayTitle(strings: environment.strings, displayOrder: nameDisplayOrder)).string, duration: 3)
+                                    } else {
+                                        if let callPeerId = groupCall.peerId {
+                                            let _ = groupCall.accountContext.peerChannelMemberCategoriesContextsManager.updateMemberBannedRights(engine: groupCall.accountContext.engine, peerId: callPeerId, memberId: peer.id, bannedRights: TelegramChatBannedRights(flags: [.banReadMessages], untilDate: Int32.max)).start()
+                                            groupCall.removedPeer(peer.id)
+                                        }
+                                        
+                                        self.presentToast(icon: .animation("anim_banned"), text: environment.strings.VoiceChat_RemovedPeerText(peer.displayTitle(strings: environment.strings, displayOrder: nameDisplayOrder)).string, duration: 3)
+                                    }
                                 }))
 
                                 actionSheet.setItemGroups([
@@ -317,8 +335,8 @@ extension VideoChatScreenComponent.View {
             return itemsForEntry(muteState)
         }
         
-        let presentationData = component.call.accountContext.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: environment.theme)
-        let contextController = ContextController(
+        let presentationData = currentCall.accountContext.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: environment.theme)
+        let contextController = makeContextController(
             presentationData: presentationData,
             source: .extracted(ParticipantExtractedContentSource(contentView: sourceView)),
             items: items |> map { items in
@@ -338,8 +356,82 @@ extension VideoChatScreenComponent.View {
         environment.controller()?.presentInGlobalOverlay(contextController)
     }
     
+    func openInvitedParticipantContextMenu(id: EnginePeer.Id, sourceView: ContextExtractedContentContainingView, gesture: ContextGesture?) {
+        guard let environment = self.environment else {
+            return
+        }
+        guard let currentCall = self.currentCall else {
+            return
+        }
+        guard case .group = self.currentCall else {
+            return
+        }
+           
+        let itemsForEntry: () -> [ContextMenuItem] = { [weak self] in
+            guard let self, let environment = self.environment else {
+                return []
+            }
+            
+            var items: [ContextMenuItem] = []
+            
+            items.append(.action(ContextMenuActionItem(text: environment.strings.VoiceChat_RemovePeer, textColor: .destructive, icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Clear"), color: theme.actionSheet.destructiveActionTextColor)
+            }, action: { [weak self] c, _ in
+                c?.dismiss(result: .dismissWithoutContent, completion: nil)
+                
+                guard let self else {
+                    return
+                }
+                guard case let .group(groupCall) = self.currentCall else {
+                    return
+                }
+                
+                groupCall.kickPeer(id: id)
+            })))
+            return items
+        }
+        
+        let items = itemsForEntry()
+        
+        let presentationData = currentCall.accountContext.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: environment.theme)
+        let contextController = makeContextController(
+            presentationData: presentationData,
+            source: .extracted(ParticipantExtractedContentSource(contentView: sourceView)),
+            items: .single(ContextController.Items(content: .list(items))),
+            recognizer: nil,
+            gesture: gesture
+        )
+        
+        environment.controller()?.forEachController({ controller in
+            if let controller = controller as? UndoOverlayController {
+                controller.dismiss()
+            }
+            return true
+        })
+        
+        environment.controller()?.presentInGlobalOverlay(contextController)
+    }
+    
+    func openPeer(_ peer: EnginePeer) {
+        guard let environment = self.environment, let currentCall = self.currentCall else {
+            return
+        }
+        guard let controller = environment.controller() as? VideoChatScreenV2Impl, let navigationController = controller.parentNavigationController else {
+            return
+        }
+        let context = currentCall.accountContext
+        controller.dismiss(completion: { [weak navigationController] in
+            Queue.mainQueue().after(0.1) {
+                guard let navigationController else {
+                    return
+                }
+                context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), keepStack: .always, purposefulAction: {}, peekData: nil))
+            }
+        })
+    }
+    
     private func openAvatarForEditing(fromGallery: Bool = false, completion: @escaping () -> Void = {}) {
-        guard let component = self.component else {
+        guard let currentCall = self.currentCall else {
             return
         }
         guard let callState = self.callState else {
@@ -347,19 +439,19 @@ extension VideoChatScreenComponent.View {
         }
         let peerId = callState.myPeerId
         
-        let _ = (component.call.accountContext.engine.data.get(
+        let _ = (currentCall.accountContext.engine.data.get(
             TelegramEngine.EngineData.Item.Peer.Peer(id: peerId),
             TelegramEngine.EngineData.Item.Configuration.SearchBots()
         )
         |> deliverOnMainQueue).start(next: { [weak self] peer, searchBotsConfiguration in
-            guard let self, let component = self.component, let environment = self.environment else {
+            guard let self, let currentCall = self.currentCall, let environment = self.environment else {
                 return
             }
             guard let peer else {
                 return
             }
             
-            let presentationData = component.call.accountContext.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: environment.theme)
+            let presentationData = currentCall.accountContext.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: environment.theme)
             
             let legacyController = LegacyController(presentation: .custom, theme: environment.theme)
             legacyController.statusBar.statusBarStyle = .Ignore
@@ -378,30 +470,14 @@ extension VideoChatScreenComponent.View {
             if !peer.profileImageRepresentations.isEmpty {
                 hasPhotos = true
             }
-                            
-            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: true, hasDeleteButton: hasPhotos && !fromGallery, hasViewButton: false, personalPhoto: peerId.namespace == Namespaces.Peer.CloudUser, isVideo: false, saveEditedPhotos: false, saveCapturedMedia: false, signup: false, forum: false, title: nil, isSuggesting: false)!
+            
+            // CloudVeil start
+            let hasSearchButton = !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch
+            let mixin = TGMediaAvatarMenuMixin(context: legacyController.context, parentController: emptyController, hasSearchButton: hasSearchButton, hasDeleteButton: hasPhotos && !fromGallery, hasViewButton: false, personalPhoto: peerId.namespace == Namespaces.Peer.CloudUser, isVideo: false, saveEditedPhotos: false, saveCapturedMedia: false, signup: false, forum: false, title: nil, isSuggesting: false)!
+            // CloudVeil end
             mixin.forceDark = true
-            mixin.stickersContext = LegacyPaintStickersContext(context: component.call.accountContext)
+            mixin.stickersContext = LegacyPaintStickersContext(context: currentCall.accountContext)
             let _ = self.currentAvatarMixin.swap(mixin)
-            mixin.requestSearchController = { [weak self] assetsController in
-                guard let self, let component = self.component, let environment = self.environment else {
-                    return
-                }
-                let controller = WebSearchController(context: component.call.accountContext, peer: peer, chatLocation: nil, configuration: searchBotsConfiguration, mode: .avatar(initialQuery: peer.id.namespace == Namespaces.Peer.CloudUser ? nil : peer.displayTitle(strings: environment.strings, displayOrder: presentationData.nameDisplayOrder), completion: { [weak self] result in
-                    assetsController?.dismiss()
-                    
-                    guard let self else {
-                        return
-                    }
-                    self.updateProfilePhoto(result)
-                }))
-                controller.navigationPresentation = .modal
-                environment.controller()?.push(controller)
-                
-                if fromGallery {
-                    completion()
-                }
-            }
             mixin.didFinishWithImage = { [weak self] image in
                 if let image = image {
                     completion()
@@ -420,14 +496,13 @@ extension VideoChatScreenComponent.View {
                 }
                 
                 let proceed = { [weak self] in
-                    guard let self, let component = self.component else {
+                    guard let self, let currentCall = self.currentCall else {
                         return
                     }
                     
                     let _ = self.currentAvatarMixin.swap(nil)
-                    let postbox = component.call.accountContext.account.postbox
-                    self.updateAvatarDisposable.set((component.call.accountContext.engine.peers.updatePeerPhoto(peerId: peerId, photo: nil, mapResourceToAvatarSizes: { resource, representations in
-                        return mapResourceToAvatarSizes(postbox: postbox, resource: resource, representations: representations)
+                    self.updateAvatarDisposable.set((currentCall.accountContext.engine.peers.updatePeerPhoto(peerId: peerId, photo: nil, mapResourceToAvatarSizes: { resource, representations in
+                        return mapResourceToAvatarSizes(engine: currentCall.accountContext.engine, resource: resource, representations: representations)
                     })
                     |> deliverOnMainQueue).start())
                 }
@@ -467,7 +542,7 @@ extension VideoChatScreenComponent.View {
     }
     
     private func updateProfilePhoto(_ image: UIImage) {
-        guard let component = self.component else {
+        guard let currentCall = self.currentCall else {
             return
         }
         guard let callState = self.callState else {
@@ -480,16 +555,15 @@ extension VideoChatScreenComponent.View {
         let peerId = callState.myPeerId
         
         let resource = LocalFileMediaResource(fileId: Int64.random(in: Int64.min ... Int64.max))
-        component.call.account.postbox.mediaBox.storeResourceData(resource.id, data: data)
+        currentCall.accountContext.engine.resources.storeResourceData(id: EngineMediaResource.Id(resource.id), data: data)
         let representation = TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 640, height: 640), resource: resource, progressiveSizes: [], immediateThumbnailData: nil, hasVideo: false, isPersonal: false)
         
         self.currentUpdatingAvatar = (representation, 0.0)
 
-        let postbox = component.call.account.postbox
-        let signal = peerId.namespace == Namespaces.Peer.CloudUser ? component.call.accountContext.engine.accountData.updateAccountPhoto(resource: resource, videoResource: nil, videoStartTimestamp: nil, markup: nil, mapResourceToAvatarSizes: { resource, representations in
-            return mapResourceToAvatarSizes(postbox: postbox, resource: resource, representations: representations)
-        }) : component.call.accountContext.engine.peers.updatePeerPhoto(peerId: peerId, photo: component.call.accountContext.engine.peers.uploadedPeerPhoto(resource: resource), mapResourceToAvatarSizes: { resource, representations in
-            return mapResourceToAvatarSizes(postbox: postbox, resource: resource, representations: representations)
+        let signal = peerId.namespace == Namespaces.Peer.CloudUser ? currentCall.accountContext.engine.accountData.updateAccountPhoto(resource: EngineMediaResource(resource), videoResource: nil, videoStartTimestamp: nil, markup: nil, mapResourceToAvatarSizes: { resource, representations in
+            return mapResourceToAvatarSizes(engine: currentCall.accountContext.engine, resource: resource, representations: representations)
+        }) : currentCall.accountContext.engine.peers.updatePeerPhoto(peerId: peerId, photo: currentCall.accountContext.engine.peers.uploadedPeerPhoto(resource: EngineMediaResource(resource)), mapResourceToAvatarSizes: { resource, representations in
+            return mapResourceToAvatarSizes(engine: currentCall.accountContext.engine, resource: resource, representations: representations)
         })
         
         self.updateAvatarDisposable.set((signal
@@ -510,7 +584,7 @@ extension VideoChatScreenComponent.View {
     }
     
     private func updateProfileVideo(_ image: UIImage, asset: Any?, adjustments: TGVideoEditAdjustments?) {
-        guard let component = self.component else {
+        guard let currentCall = self.currentCall else {
             return
         }
         guard let callState = self.callState else {
@@ -522,7 +596,7 @@ extension VideoChatScreenComponent.View {
         let peerId = callState.myPeerId
         
         let photoResource = LocalFileMediaResource(fileId: Int64.random(in: Int64.min ... Int64.max))
-        component.call.accountContext.account.postbox.mediaBox.storeResourceData(photoResource.id, data: data)
+        currentCall.accountContext.engine.resources.storeResourceData(id: EngineMediaResource.Id(photoResource.id), data: data)
         let representation = TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: 640, height: 640), resource: photoResource, progressiveSizes: [], immediateThumbnailData: nil, hasVideo: false, isPersonal: false)
         
         self.currentUpdatingAvatar = (representation, 0.0)
@@ -532,7 +606,7 @@ extension VideoChatScreenComponent.View {
             videoStartTimestamp = adjustments.videoStartValue - adjustments.trimStartValue
         }
 
-        let context = component.call.accountContext
+        let context = currentCall.accountContext
         let account = context.account
         let signal = Signal<TelegramMediaResource, UploadPeerPhotoError> { [weak self] subscriber in
             let entityRenderer: LegacyPaintEntityRenderer? = adjustments.flatMap { adjustments in
@@ -621,12 +695,12 @@ extension VideoChatScreenComponent.View {
         self.updateAvatarDisposable.set((signal
         |> mapToSignal { videoResource -> Signal<UpdatePeerPhotoStatus, UploadPeerPhotoError> in
             if peerId.namespace == Namespaces.Peer.CloudUser {
-                return context.engine.accountData.updateAccountPhoto(resource: photoResource, videoResource: videoResource, videoStartTimestamp: videoStartTimestamp, markup: nil, mapResourceToAvatarSizes: { resource, representations in
-                    return mapResourceToAvatarSizes(postbox: account.postbox, resource: resource, representations: representations)
+                return context.engine.accountData.updateAccountPhoto(resource: EngineMediaResource(photoResource), videoResource: EngineMediaResource(videoResource), videoStartTimestamp: videoStartTimestamp, markup: nil, mapResourceToAvatarSizes: { resource, representations in
+                    return mapResourceToAvatarSizes(engine: context.engine, resource: resource, representations: representations)
                 })
             } else {
-                return context.engine.peers.updatePeerPhoto(peerId: peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: photoResource), video: context.engine.peers.uploadedPeerVideo(resource: videoResource) |> map(Optional.init), videoStartTimestamp: videoStartTimestamp, mapResourceToAvatarSizes: { resource, representations in
-                    return mapResourceToAvatarSizes(postbox: account.postbox, resource: resource, representations: representations)
+                return context.engine.peers.updatePeerPhoto(peerId: peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: EngineMediaResource(photoResource)), video: context.engine.peers.uploadedPeerVideo(resource: EngineMediaResource(videoResource)) |> map(Optional.init), videoStartTimestamp: videoStartTimestamp, mapResourceToAvatarSizes: { resource, representations in
+                    return mapResourceToAvatarSizes(engine: context.engine, resource: resource, representations: representations)
                 })
             }
         }

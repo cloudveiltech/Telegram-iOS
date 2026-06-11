@@ -28,7 +28,6 @@ public struct ChatListNodePeersFilter: OptionSet {
     public static let removeSearchHeader = ChatListNodePeersFilter(rawValue: 1 << 9)
     
     public static let excludeDisabled = ChatListNodePeersFilter(rawValue: 1 << 10)
-    public static let includeSavedMessages = ChatListNodePeersFilter(rawValue: 1 << 11)
     
     public static let excludeChannels = ChatListNodePeersFilter(rawValue: 1 << 12)
     public static let onlyGroupsAndChannels = ChatListNodePeersFilter(rawValue: 1 << 13)
@@ -36,6 +35,8 @@ public struct ChatListNodePeersFilter: OptionSet {
     public static let excludeGroups = ChatListNodePeersFilter(rawValue: 1 << 14)
     public static let excludeUsers = ChatListNodePeersFilter(rawValue: 1 << 15)
     public static let excludeBots = ChatListNodePeersFilter(rawValue: 1 << 16)
+    
+    public static let includeSelf = ChatListNodePeersFilter(rawValue: 1 << 7)
 }
 
 
@@ -49,7 +50,7 @@ public final class PeerSelectionControllerParams {
     public let updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?
     public let filter: ChatListNodePeersFilter
     public let requestPeerType: [ReplyMarkupButtonRequestPeerType]?
-    public let forumPeerId: EnginePeer.Id?
+    public let forumPeerId: (id: EnginePeer.Id, isMonoforum: Bool)?
     public let hasFilters: Bool
     public let hasChatListSelector: Bool
     public let hasContactSelector: Bool
@@ -64,14 +65,16 @@ public final class PeerSelectionControllerParams {
     public let hasTypeHeaders: Bool
     public let selectForumThreads: Bool
     public let hasCreation: Bool
+    public let immediatelySwitchToContacts: Bool
     public let immediatelyActivateMultipleSelection: Bool
+    public let suggestedPeers: [EnginePeer]
     
     public init(
         context: AccountContext,
         updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil,
         filter: ChatListNodePeersFilter = [.onlyWriteable],
         requestPeerType: [ReplyMarkupButtonRequestPeerType]? = nil,
-        forumPeerId: EnginePeer.Id? = nil,
+        forumPeerId: (id: EnginePeer.Id, isMonoforum: Bool)? = nil,
         hasFilters: Bool = false,
         hasChatListSelector: Bool = true,
         hasContactSelector: Bool = true,
@@ -86,7 +89,9 @@ public final class PeerSelectionControllerParams {
         hasTypeHeaders: Bool = false,
         selectForumThreads: Bool = false,
         hasCreation: Bool = false,
-        immediatelyActivateMultipleSelection: Bool = false
+        immediatelySwitchToContacts: Bool = false,
+        immediatelyActivateMultipleSelection: Bool = false,
+        suggestedPeers: [EnginePeer] = []
     ) {
         self.context = context
         self.updatedPresentationData = updatedPresentationData
@@ -107,7 +112,9 @@ public final class PeerSelectionControllerParams {
         self.hasTypeHeaders = hasTypeHeaders
         self.selectForumThreads = selectForumThreads
         self.hasCreation = hasCreation
+        self.immediatelySwitchToContacts = immediatelySwitchToContacts
         self.immediatelyActivateMultipleSelection = immediatelyActivateMultipleSelection
+        self.suggestedPeers = suggestedPeers
     }
 }
 
@@ -168,5 +175,6 @@ public enum SelectivePrivacySettingsKind {
     case voiceMessages
     case bio
     case birthday
+    case savedMusic
     case giftsAutoSave
 }

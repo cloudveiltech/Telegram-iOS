@@ -354,7 +354,7 @@ final class ThemeGridSearchContentNode: SearchDisplayControllerContentNode {
         self.presentationDataPromise = Promise(self.presentationData)
         
         self.dimNode = ASDisplayNode()
-        self.recentListNode = ListView()
+        self.recentListNode = ListViewImpl()
         self.recentListNode.verticalScrollIndicatorColor = self.presentationData.theme.list.scrollIndicatorColor
         self.recentListNode.accessibilityPageScrolledString = { row, count in
             return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
@@ -585,7 +585,7 @@ final class ThemeGridSearchContentNode: SearchDisplayControllerContentNode {
                     entries.append(.query(i, queries[i]))
                 }
                 
-                let header = ChatListSearchItemHeader(type: .recentPeers, theme: presentationData.theme, strings: presentationData.strings, actionTitle: presentationData.strings.WebSearch_RecentSectionClear, action: {
+                let header = ChatListSearchItemHeader(type: .recentPeers, theme: presentationData.theme, strings: presentationData.strings, actionTitle: presentationData.strings.WebSearch_RecentSectionClear, action: { _ in
                     let _ = clearRecentWallpaperSearchQueries(engine: strongSelf.context.engine).start()
                 })
                 

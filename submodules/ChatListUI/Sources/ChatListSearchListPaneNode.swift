@@ -1,3 +1,5 @@
+import Foundation
+import UIKit
 import AsyncDisplayKit
 import Display
 import TelegramCore
@@ -31,6 +33,12 @@ import FetchManagerImpl
 import AnimationCache
 import MultiAnimationRenderer
 import AvatarNode
+import ComponentFlow
+import MultilineTextComponent
+import ButtonComponent
+import BundleIconComponent
+import AnimatedTextComponent
+import TextFormat
 import CloudVeilSecurityManager
 
 private enum ChatListRecentEntryStableId: Hashable {
@@ -116,7 +124,7 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
         presentationData: ChatListPresentationData,
         filter: ChatListNodePeersFilter,
         key: ChatListSearchPaneKey,
-        peerSelected: @escaping (EnginePeer, Int64?, Bool) -> Void,
+        peerSelected: @escaping (EnginePeer, Int64?, Bool, OpenPeerAction) -> Void,
         disabledPeerSelected: @escaping (EnginePeer, Int64?, ChatListDisabledPeerReason) -> Void,
         peerContextAction: ((EnginePeer, ChatListSearchContextActionSource, ASDisplayNode, ContextGesture?, CGPoint?) -> Void)?,
         clearRecentlySearchedPeers: @escaping () -> Void,
@@ -131,10 +139,10 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
         switch self {
             case let .topPeers(peers, theme, strings):
                 return ChatListRecentPeersListItem(theme: theme, strings: strings, context: context, peers: peers, peerSelected: { peer in
-                    peerSelected(peer, nil, false)
+                    peerSelected(peer, nil, false, .generic)
                 }, peerContextAction: { peer, node, gesture, location in
                     if let peerContextAction = peerContextAction {
-                        peerContextAction(peer, .recentPeers, node, gesture, location)
+                        peerContextAction(peer, .recentPeers(isTopPeer: true), node, gesture, location)
                     } else {
                         gesture?.cancel()
                     }
@@ -143,8 +151,11 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                 let primaryPeer: EnginePeer
                 var chatPeer: EnginePeer?
                 let maybeChatPeer = EnginePeer(peer.peer.peers[peer.peer.peerId]!)
-                if let associatedPeerId = maybeChatPeer._asPeer().associatedPeerId, let associatedPeer = peer.peer.peers[associatedPeerId] {
+                if case .secretChat = maybeChatPeer, let associatedPeerId = maybeChatPeer.associatedPeerId, let associatedPeer = peer.peer.peers[associatedPeerId] {
                     primaryPeer = EnginePeer(associatedPeer)
+                    chatPeer = maybeChatPeer
+                } else if case .channel = maybeChatPeer, let mainChannel = peer.peer.chatOrMonoforumMainPeer {
+                    primaryPeer = EnginePeer(mainChannel)
                     chatPeer = maybeChatPeer
                 } else {
                     primaryPeer = maybeChatPeer
@@ -154,9 +165,9 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                 var enabled = true
                 if filter.contains(.onlyWriteable) {
                     if let peer = chatPeer {
-                        enabled = canSendMessagesToPeer(peer._asPeer())
+                        enabled = canSendMessagesToPeer(peer)
                     } else {
-                        enabled = canSendMessagesToPeer(primaryPeer._asPeer())
+                        enabled = canSendMessagesToPeer(primaryPeer)
                     }
                     if requiresPremiumForMessaging {
                         enabled = false
@@ -198,12 +209,12 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                 } else if case let .user(user) = primaryPeer {
                     let servicePeer = isServicePeer(primaryPeer._asPeer())
                     if user.flags.contains(.isSupport) && !servicePeer {
-                        status = .custom(string: strings.Bot_GenericSupportStatus, multiline: false, isActive: false, icon: nil)
+                        status = .custom(string: NSAttributedString(string: strings.Bot_GenericSupportStatus), multiline: false, isActive: false, icon: nil)
                     } else if let _ = user.botInfo {
                         if let subscriberCount = user.subscriberCount {
-                            status = .custom(string: strings.Conversation_StatusBotSubscribers(subscriberCount), multiline: false, isActive: false, icon: nil)
+                            status = .custom(string: NSAttributedString(string: strings.Conversation_StatusBotSubscribers(subscriberCount)), multiline: false, isActive: false, icon: nil)
                         } else {
-                            status = .custom(string: strings.Bot_GenericBotStatus, multiline: false, isActive: false, icon: nil)
+                            status = .custom(string: NSAttributedString(string: strings.Bot_GenericBotStatus), multiline: false, isActive: false, icon: nil)
                         }
                     } else if user.id != context.account.peerId && !servicePeer {
                         let presence = peer.presence ?? TelegramUserPresence(status: .none, lastActivity: 0)
@@ -212,19 +223,19 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                         status = .none
                     }
                 } else if case let .legacyGroup(group) = primaryPeer {
-                    status = .custom(string: strings.GroupInfo_ParticipantCount(Int32(group.participantCount)), multiline: false, isActive: false, icon: nil)
+                    status = .custom(string: NSAttributedString(string: strings.GroupInfo_ParticipantCount(Int32(group.participantCount))), multiline: false, isActive: false, icon: nil)
                 } else if case let .channel(channel) = primaryPeer {
                     if case .group = channel.info {
                         if let count = peer.subpeerSummary?.count, count > 0 {
-                            status = .custom(string: strings.GroupInfo_ParticipantCount(Int32(count)), multiline: false, isActive: false, icon: nil)
+                            status = .custom(string: NSAttributedString(string: strings.GroupInfo_ParticipantCount(Int32(count))), multiline: false, isActive: false, icon: nil)
                         } else {
-                            status = .custom(string: strings.Group_Status, multiline: false, isActive: false, icon: nil)
+                            status = .custom(string: NSAttributedString(string: strings.Group_Status), multiline: false, isActive: false, icon: nil)
                         }
                     } else {
                         if let count = peer.subpeerSummary?.count, count > 0 {
-                            status = .custom(string: strings.Conversation_StatusSubscribers(Int32(count)), multiline: false, isActive: false, icon: nil)
+                            status = .custom(string: NSAttributedString(string: strings.Conversation_StatusSubscribers(Int32(count))), multiline: false, isActive: false, icon: nil)
                         } else {
-                            status = .custom(string: strings.Channel_Status, multiline: false, isActive: false, icon: nil)
+                            status = .custom(string: NSAttributedString(string: strings.Channel_Status), multiline: false, isActive: false, icon: nil)
                         }
                     }
                 } else {
@@ -262,7 +273,7 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                         header = ChatListSearchItemHeader(type: .text(presentationData.strings.ChatList_Search_SectionRecommendedChannels, 1), theme: theme, strings: strings)
                     } else {
                         if let isChannelsTabExpanded {
-                            header = ChatListSearchItemHeader(type: .text(presentationData.strings.ChatList_Search_SectionLocalChannels, 0), theme: theme, strings: strings, actionTitle: isChannelsTabExpanded ? presentationData.strings.ChatList_Search_SectionActionShowLess : presentationData.strings.ChatList_Search_SectionActionShowMore, action: {
+                            header = ChatListSearchItemHeader(type: .text(presentationData.strings.ChatList_Search_SectionLocalChannels, 0), theme: theme, strings: strings, actionTitle: isChannelsTabExpanded ? presentationData.strings.ChatList_Search_SectionActionShowLess : presentationData.strings.ChatList_Search_SectionActionShowMore, action: { _ in
                                 toggleChannelsTabExpanded()
                             })
                         } else {
@@ -274,27 +285,36 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                         header = ChatListSearchItemHeader(type: .text(presentationData.strings.ChatList_Search_SectionPopularApps, 1), theme: theme, strings: strings)
                     } else {
                         if let isChannelsTabExpanded {
-                            header = ChatListSearchItemHeader(type: .text(presentationData.strings.ChatList_Search_SectionRecentApps, 0), theme: theme, strings: strings, actionTitle: isChannelsTabExpanded ? presentationData.strings.ChatList_Search_SectionActionShowLess : presentationData.strings.ChatList_Search_SectionActionShowMore, action: {
+                            header = ChatListSearchItemHeader(type: .text(presentationData.strings.ChatList_Search_SectionRecentApps, 0), theme: theme, strings: strings, actionTitle: isChannelsTabExpanded ? presentationData.strings.ChatList_Search_SectionActionShowLess : presentationData.strings.ChatList_Search_SectionActionShowMore, action: { _ in
                                 toggleChannelsTabExpanded()
                             })
                         } else {
                             header = ChatListSearchItemHeader(type: .text(presentationData.strings.ChatList_Search_SectionRecentApps, 0), theme: theme, strings: strings, actionTitle: nil, action: nil)
                         }
                     }
+                } else if case .globalPosts = key {
+                    header = ChatListSearchItemHeader(type: .text(strings.ChatList_HeaderPublicPosts, 0), theme: theme, strings: strings, actionTitle: nil, action: nil)
                 } else {
-                    header = ChatListSearchItemHeader(type: .recentPeers, theme: theme, strings: strings, actionTitle: strings.WebSearch_RecentSectionClear, action: {
+                    header = ChatListSearchItemHeader(type: .recentPeers, theme: theme, strings: strings, actionTitle: strings.WebSearch_RecentSectionClear, action: { _ in
                         clearRecentlySearchedPeers()
                     })
                 }
             
                 var buttonAction: ContactsPeerItemButtonAction?
-                if case .chats = key, case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp) {
+                if [.chats, .apps].contains(key), case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp) {
                     buttonAction = ContactsPeerItemButtonAction(
                         title: presentationData.strings.ChatList_Search_Open,
                         action: { peer, _, _ in
-                            peerSelected(primaryPeer, nil, true)
+                            peerSelected(primaryPeer, nil, false, .openApp)
                         }
                     )
+                }
+            
+                var peerMode: ContactsPeerItemPeerMode
+                if case .apps = key {
+                    peerMode = .app(isPopular: section == .popularApps)
+                } else {
+                    peerMode = .generalSearch(isSavedMessages: false)
                 }
             
                 return ContactsPeerItem(
@@ -302,7 +322,7 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                     sortOrder: nameSortOrder,
                     displayOrder: nameDisplayOrder,
                     context: context,
-                    peerMode: .generalSearch(isSavedMessages: false),
+                    peerMode: peerMode,
                     peer: .peer(peer: primaryPeer, chatPeer: chatPeer),
                     status: status,
                     badge: badge,
@@ -316,7 +336,7 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                     alwaysShowLastSeparator: key == .apps,
                     action: { _ in
                         if let chatPeer = peer.peer.peers[peer.peer.peerId] {
-                            peerSelected(EnginePeer(chatPeer), nil, section == .recommendedChannels || section == .popularApps)
+                            peerSelected(EnginePeer(chatPeer), nil, section == .recommendedChannels, section == .popularApps ? .info : .generic)
                         }
                     },
                     disabledAction: { _ in
@@ -349,7 +369,7 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                     animationCache: animationCache,
                     animationRenderer: animationRenderer,
                     storyStats: storyStats.flatMap { stats in
-                        return (stats.totalCount, unseen: stats.unseenCount, stats.hasUnseenCloseFriends)
+                        return (stats.totalCount, unseen: stats.unseenCount, stats.hasUnseenCloseFriends, hasLiveItems: stats.hasLiveItems)
                     },
                     openStories: { itemPeer, sourceNode in
                         guard case let .peer(_, chatPeer) = itemPeer, let peer = chatPeer else {
@@ -363,7 +383,7 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
         case let .footer(_, text):
             return ItemListTextItem(presentationData: ItemListPresentationData(theme: presentationData.theme, fontSize: presentationData.fontSize, strings: presentationData.strings, nameDisplayOrder: presentationData.nameDisplayOrder, dateTimeFormat: presentationData.dateTimeFormat), text: .markdown(text), sectionId: 0, linkAction: { _ in
                 openTopAppsInfo()
-            }, style: .plain, textSize: .larger, textAlignment: .center, trimBottomInset: true, additionalInsets: UIEdgeInsets(top: 10.0, left: 0.0, bottom: 10.0, right: 0.0))
+            }, style: .plain, textSize: .larger, textAlignment: .center, additionalInsets: UIEdgeInsets(top: 10.0, left: 0.0, bottom: 10.0, right: 0.0), additionalOuterInsets: UIEdgeInsets(top: 0.0, left: 0.0, bottom: -44.0, right: 0.0))
         }
     }
 }
@@ -373,6 +393,8 @@ public enum ChatListSearchEntryStableId: Hashable {
     case localPeerId(EnginePeer.Id)
     case globalPeerId(EnginePeer.Id)
     case messageId(EngineMessage.Id, ChatListSearchEntry.MessageSection)
+    case messagePlaceholder(Int32)
+    case emptyMessagesFooter
     case addContact
 }
 
@@ -431,9 +453,12 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
     
     case topic(EnginePeer, ChatListItemContent.ThreadInfo, Int, PresentationTheme, PresentationStrings, ChatListSearchSectionExpandType)
     case recentlySearchedPeer(EnginePeer, EnginePeer?, (Int32, Bool)?, Int, PresentationTheme, PresentationStrings, PresentationPersonNameOrder, PresentationPersonNameOrder, PeerStoryStats?, Bool)
-    case localPeer(EnginePeer, EnginePeer?, (Int32, Bool)?, Int, PresentationTheme, PresentationStrings, PresentationPersonNameOrder, PresentationPersonNameOrder, ChatListSearchSectionExpandType, PeerStoryStats?, Bool)
+    case adPeer(AdPeer, Int, PresentationTheme, PresentationStrings, PresentationPersonNameOrder, PresentationPersonNameOrder, ChatListSearchSectionExpandType, String?)
+    case localPeer(EnginePeer, EnginePeer?, (Int32, Bool)?, Int, PresentationTheme, PresentationStrings, PresentationPersonNameOrder, PresentationPersonNameOrder, ChatListSearchSectionExpandType, PeerStoryStats?, Bool, Bool)
     case globalPeer(FoundPeer, (Int32, Bool)?, Int, PresentationTheme, PresentationStrings, PresentationPersonNameOrder, PresentationPersonNameOrder, ChatListSearchSectionExpandType, PeerStoryStats?, Bool, String?)
-    case message(EngineMessage, EngineRenderedPeer, EnginePeerReadCounters?, EngineMessageHistoryThread.Info?, ChatListPresentationData, Int32, Bool?, Bool, MessageOrderingKey, (id: String, size: Int64, isFirstInList: Bool)?, MessageSection, Bool, PeerStoryStats?, Bool)
+    case message(EngineMessage, EngineRenderedPeer, EnginePeerReadCounters?, EngineMessageHistoryThread.Info?, ChatListPresentationData, Int32, Bool?, Bool, MessageOrderingKey, (id: String, size: Int64, isFirstInList: Bool)?, MessageSection, Bool, PeerStoryStats?, Bool, TelegramSearchPeersScope)
+    case messagePlaceholder(Int32, ChatListPresentationData, TelegramSearchPeersScope)
+    case emptyMessagesFooter(ChatListPresentationData, TelegramSearchPeersScope, String?)
     case addContact(String, PresentationTheme, PresentationStrings)
     
     public var stableId: ChatListSearchEntryStableId {
@@ -442,12 +467,18 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
             return .threadId(threadInfo.id)
         case let .recentlySearchedPeer(peer, _, _, _, _, _, _, _, _, _):
             return .localPeerId(peer.id)
-        case let .localPeer(peer, _, _, _, _, _, _, _, _, _, _):
+        case let .localPeer(peer, _, _, _, _, _, _, _, _, _, _, _):
             return .localPeerId(peer.id)
+        case let .adPeer(peer, _, _, _, _, _, _, _):
+            return .globalPeerId(peer.peer.id)
         case let .globalPeer(peer, _, _, _, _, _, _, _, _, _, _):
             return .globalPeerId(peer.peer.id)
-        case let .message(message, _, _, _, _, _, _, _, _, _, section, _, _, _):
+        case let .message(message, _, _, _, _, _, _, _, _, _, section, _, _, _, _):
             return .messageId(message.id, section)
+        case let .messagePlaceholder(index, _, _):
+            return .messagePlaceholder(index)
+        case .emptyMessagesFooter:
+            return .emptyMessagesFooter
         case .addContact:
             return .addContact
         }
@@ -467,8 +498,14 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
             } else {
                 return false
             }
-        case let .localPeer(lhsPeer, lhsAssociatedPeer, lhsUnreadBadge, lhsIndex, lhsTheme, lhsStrings, lhsSortOrder, lhsDisplayOrder, lhsExpandType, lhsStoryStats, lhsRequiresPremiumForMessaging):
-            if case let .localPeer(rhsPeer, rhsAssociatedPeer, rhsUnreadBadge, rhsIndex, rhsTheme, rhsStrings, rhsSortOrder, rhsDisplayOrder, rhsExpandType, rhsStoryStats, rhsRequiresPremiumForMessaging) = rhs, lhsPeer == rhsPeer && lhsAssociatedPeer == rhsAssociatedPeer && lhsIndex == rhsIndex && lhsTheme === rhsTheme && lhsStrings === rhsStrings && lhsSortOrder == rhsSortOrder && lhsDisplayOrder == rhsDisplayOrder && lhsUnreadBadge?.0 == rhsUnreadBadge?.0 && lhsUnreadBadge?.1 == rhsUnreadBadge?.1 && lhsExpandType == rhsExpandType && lhsStoryStats == rhsStoryStats && lhsRequiresPremiumForMessaging == rhsRequiresPremiumForMessaging {
+        case let .localPeer(lhsPeer, lhsAssociatedPeer, lhsUnreadBadge, lhsIndex, lhsTheme, lhsStrings, lhsSortOrder, lhsDisplayOrder, lhsExpandType, lhsStoryStats, lhsRequiresPremiumForMessaging, lhsIsSelf):
+            if case let .localPeer(rhsPeer, rhsAssociatedPeer, rhsUnreadBadge, rhsIndex, rhsTheme, rhsStrings, rhsSortOrder, rhsDisplayOrder, rhsExpandType, rhsStoryStats, rhsRequiresPremiumForMessaging, rhsIsSelf) = rhs, lhsPeer == rhsPeer && lhsAssociatedPeer == rhsAssociatedPeer && lhsIndex == rhsIndex && lhsTheme === rhsTheme && lhsStrings === rhsStrings && lhsSortOrder == rhsSortOrder && lhsDisplayOrder == rhsDisplayOrder && lhsUnreadBadge?.0 == rhsUnreadBadge?.0 && lhsUnreadBadge?.1 == rhsUnreadBadge?.1 && lhsExpandType == rhsExpandType && lhsStoryStats == rhsStoryStats && lhsRequiresPremiumForMessaging == rhsRequiresPremiumForMessaging && lhsIsSelf == rhsIsSelf {
+                return true
+            } else {
+                return false
+            }
+        case let .adPeer(lhsPeer, lhsIndex, lhsTheme, lhsStrings, lhsSortOrder, lhsDisplayOrder, lhsExpandType, lhsQuery):
+            if case let .adPeer(rhsPeer, rhsIndex, rhsTheme, rhsStrings, rhsSortOrder, rhsDisplayOrder, rhsExpandType, rhsQuery) = rhs, lhsPeer == rhsPeer && lhsIndex == rhsIndex && lhsTheme === rhsTheme && lhsStrings === rhsStrings && lhsSortOrder == rhsSortOrder && lhsDisplayOrder == rhsDisplayOrder && lhsExpandType == rhsExpandType && lhsQuery == rhsQuery {
                 return true
             } else {
                 return false
@@ -479,8 +516,8 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
             } else {
                 return false
             }
-        case let .message(lhsMessage, lhsPeer, lhsCombinedPeerReadState, lhsThreadInfo, lhsPresentationData, lhsTotalCount, lhsSelected, lhsDisplayCustomHeader, lhsKey, lhsResourceId, lhsSection, lhsAllPaused, lhsStoryStats, lhsRequiresPremiumForMessaging):
-            if case let .message(rhsMessage, rhsPeer, rhsCombinedPeerReadState, rhsThreadInfo, rhsPresentationData, rhsTotalCount, rhsSelected, rhsDisplayCustomHeader, rhsKey, rhsResourceId, rhsSection, rhsAllPaused, rhsStoryStats, rhsRequiresPremiumForMessaging) = rhs {
+        case let .message(lhsMessage, lhsPeer, lhsCombinedPeerReadState, lhsThreadInfo, lhsPresentationData, lhsTotalCount, lhsSelected, lhsDisplayCustomHeader, lhsKey, lhsResourceId, lhsSection, lhsAllPaused, lhsStoryStats, lhsRequiresPremiumForMessaging, lhsSearchScope):
+            if case let .message(rhsMessage, rhsPeer, rhsCombinedPeerReadState, rhsThreadInfo, rhsPresentationData, rhsTotalCount, rhsSelected, rhsDisplayCustomHeader, rhsKey, rhsResourceId, rhsSection, rhsAllPaused, rhsStoryStats, rhsRequiresPremiumForMessaging, rhsSearchScope) = rhs {
                 if lhsMessage.id != rhsMessage.id {
                     return false
                 }
@@ -529,6 +566,39 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                 if lhsRequiresPremiumForMessaging != rhsRequiresPremiumForMessaging {
                     return false
                 }
+                if lhsSearchScope != rhsSearchScope {
+                    return false
+                }
+                return true
+            } else {
+                return false
+            }
+        case let .messagePlaceholder(lhsIndex, lhsPresentationData, lhsSearchScope):
+            if case let .messagePlaceholder(rhsIndex, rhsPresentationData, rhsSearchScope) = rhs {
+                if lhsIndex != rhsIndex {
+                    return false
+                }
+                if lhsPresentationData !== rhsPresentationData {
+                    return false
+                }
+                if lhsSearchScope != rhsSearchScope {
+                    return false
+                }
+                return true
+            } else {
+                return false
+            }
+        case let .emptyMessagesFooter(lhsPresentationData, lhsSearchScope, lhsQuery):
+            if case let .emptyMessagesFooter(rhsPresentationData, rhsSearchScope, rhsQuery) = rhs {
+                if lhsPresentationData !== rhsPresentationData {
+                    return false
+                }
+                if lhsSearchScope != rhsSearchScope {
+                    return false
+                }
+                if lhsQuery != rhsQuery {
+                    return false
+                }
                 return true
             } else {
                 return false
@@ -567,28 +637,57 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
             } else {
                 return true
             }
-        case let .localPeer(_, _, _, lhsIndex, _, _, _, _, _, _, _):
+        case let .localPeer(_, _, _, lhsIndex, _, _, _, _, _, _, _, _):
             switch rhs {
             case .topic, .recentlySearchedPeer:
                 return false
-            case let .localPeer(_, _, _, rhsIndex, _, _, _, _, _, _, _):
+            case let .localPeer(_, _, _, rhsIndex, _, _, _, _, _, _, _, _):
                 return lhsIndex <= rhsIndex
-            case .globalPeer, .message, .addContact:
+            case .adPeer, .globalPeer, .message, .messagePlaceholder, .emptyMessagesFooter, .addContact:
+                return true
+            }
+        case let .adPeer(_, lhsIndex, _, _, _, _, _, _):
+            switch rhs {
+            case .topic, .recentlySearchedPeer, .localPeer:
+                return false
+            case let .adPeer(_, rhsIndex, _, _, _, _, _, _):
+                return lhsIndex <= rhsIndex
+            case .globalPeer, .message, .messagePlaceholder, .emptyMessagesFooter, .addContact:
                 return true
             }
         case let .globalPeer(_, _, lhsIndex, _, _, _, _, _, _, _, _):
             switch rhs {
-            case .topic, .recentlySearchedPeer, .localPeer:
+            case .topic, .recentlySearchedPeer, .localPeer, .adPeer:
                 return false
             case let .globalPeer(_, _, rhsIndex, _, _, _, _, _, _, _, _):
                 return lhsIndex <= rhsIndex
-            case .message, .addContact:
+            case .message, .messagePlaceholder, .emptyMessagesFooter, .addContact:
                 return true
             }
-        case let .message(_, _, _, _, _, _, _, _, lhsKey, _, _, _, _, _):
-            if case let .message(_, _, _, _, _, _, _, _, rhsKey, _, _, _, _, _) = rhs {
+        case let .message(_, _, _, _, _, _, _, _, lhsKey, _, _, _, _, _, _):
+            if case let .message(_, _, _, _, _, _, _, _, rhsKey, _, _, _, _, _, _) = rhs {
                 return lhsKey < rhsKey
+            } else if case .messagePlaceholder = rhs {
+                return true
+            } else if case .emptyMessagesFooter = rhs {
+                return true
             } else if case .addContact = rhs {
+                return true
+            } else {
+                return false
+            }
+        case let .messagePlaceholder(lhsIndex, _, _):
+            if case let .messagePlaceholder(rhsIndex, _, _) = rhs {
+                return lhsIndex < rhsIndex
+            } else if case .emptyMessagesFooter = rhs {
+                return true
+            } else if case .addContact = rhs {
+                return true
+            } else {
+                return false
+            }
+        case .emptyMessagesFooter:
+            if case .addContact = rhs {
                 return true
             } else {
                 return false
@@ -598,7 +697,31 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
         }
     }
     
-    public func item(context: AccountContext, presentationData: PresentationData, enableHeaders: Bool, filter: ChatListNodePeersFilter, requestPeerType: [ReplyMarkupButtonRequestPeerType]?, location: ChatListControllerLocation, key: ChatListSearchPaneKey, tagMask: EngineMessage.Tags?, interaction: ChatListNodeInteraction, listInteraction: ListMessageItemInteraction, peerContextAction: ((EnginePeer, ChatListSearchContextActionSource, ASDisplayNode, ContextGesture?, CGPoint?) -> Void)?, toggleExpandLocalResults: @escaping () -> Void, toggleExpandGlobalResults: @escaping () -> Void, searchPeer: @escaping (EnginePeer) -> Void, searchQuery: String?, searchOptions: ChatListSearchOptions?, messageContextAction: ((EngineMessage, ASDisplayNode?, CGRect?, UIGestureRecognizer?, ChatListSearchPaneKey, (id: String, size: Int64, isFirstInList: Bool)?) -> Void)?, openClearRecentlyDownloaded: @escaping () -> Void, toggleAllPaused: @escaping () -> Void, openStories: @escaping (EnginePeer.Id, AvatarNode) -> Void, openPublicPosts: @escaping () -> Void) -> ListViewItem {
+    public func item(
+        context: AccountContext,
+        presentationData: PresentationData,
+        enableHeaders: Bool,
+        filter: ChatListNodePeersFilter,
+        requestPeerType: [ReplyMarkupButtonRequestPeerType]?,
+        location: ChatListControllerLocation,
+        key: ChatListSearchPaneKey,
+        tagMask: EngineMessage.Tags?,
+        interaction: ChatListNodeInteraction,
+        listInteraction: ListMessageItemInteraction,
+        peerContextAction: ((EnginePeer, ChatListSearchContextActionSource, ASDisplayNode, ContextGesture?, CGPoint?) -> Void)?,
+        toggleExpandLocalResults: @escaping () -> Void,
+        toggleExpandGlobalResults: @escaping () -> Void,
+        searchPeer: @escaping (EnginePeer) -> Void,
+        searchQuery: String?,
+        searchOptions: ChatListSearchOptions?,
+        messageContextAction: ((EngineMessage, ASDisplayNode?, CGRect?, UIGestureRecognizer?, ChatListSearchPaneKey, (id: String, size: Int64, isFirstInList: Bool)?) -> Void)?,
+        openClearRecentlyDownloaded: @escaping () -> Void,
+        toggleAllPaused: @escaping () -> Void,
+        openStories: @escaping (EnginePeer.Id, AvatarNode) -> Void,
+        openPublicPosts: @escaping () -> Void,
+        openMessagesFilter: @escaping (ASDisplayNode) -> Void,
+        switchMessagesFilter: @escaping (TelegramSearchPeersScope) -> Void
+    ) -> ListViewItem {
         switch self {
             case let .topic(peer, threadInfo, _, theme, strings, expandType):
                 let actionTitle: String?
@@ -610,7 +733,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                 case .collapse:
                     actionTitle = strings.ChatList_Search_ShowLess
                 }
-                let header = ChatListSearchItemHeader(type: .topics, theme: theme, strings: strings, actionTitle: actionTitle, action: actionTitle == nil ? nil : {
+                let header = ChatListSearchItemHeader(type: .topics, theme: theme, strings: strings, actionTitle: actionTitle, action: actionTitle == nil ? nil : { _ in
                     toggleExpandGlobalResults()
                 })
                 
@@ -631,7 +754,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                 var enabled = true
                 if filter.contains(.onlyWriteable) {
                     if let peer = chatPeer {
-                        enabled = canSendMessagesToPeer(peer._asPeer())
+                        enabled = canSendMessagesToPeer(peer)
                     } else {
                         enabled = false
                     }
@@ -708,7 +831,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                         }
                     }
                 }, arrowAction: nil, animationCache: interaction.animationCache, animationRenderer: interaction.animationRenderer, storyStats: storyStats.flatMap { stats in
-                    return (stats.totalCount, stats.unseenCount, stats.hasUnseenCloseFriends)
+                    return (stats.totalCount, stats.unseenCount, stats.hasUnseenCloseFriends, stats.hasLiveItems)
                 }, openStories: { itemPeer, sourceNode in
                     guard case let .peer(_, chatPeer) = itemPeer, let peer = chatPeer else {
                         return
@@ -717,7 +840,46 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                         openStories(peer.id, sourceNode.avatarNode)
                     }
                 })
-            case let .localPeer(peer, associatedPeer, unreadBadge, _, theme, strings, nameSortOrder, nameDisplayOrder, expandType, storyStats, requiresPremiumForMessaging):
+            case let .adPeer(peer, _, theme, strings, nameSortOrder, nameDisplayOrder, expandType, _):
+                let enabled = true
+                var suffixString = ""
+                if let subscribers = peer.subscribers, subscribers != 0 {
+                    if case .user = peer.peer {
+                        suffixString = ", \(strings.Conversation_StatusBotSubscribers(subscribers))"
+                    } else if case let .channel(channel) = peer.peer, case .broadcast = channel.info {
+                        suffixString = ", \(strings.Conversation_StatusSubscribers(subscribers))"
+                    } else {
+                        suffixString = ", \(strings.Conversation_StatusMembers(subscribers))"
+                    }
+                }
+                
+                let header: ChatListSearchItemHeader?
+                let actionTitle: String?
+                switch expandType {
+                case .none:
+                    actionTitle = nil
+                case .expand:
+                    actionTitle = strings.ChatList_Search_ShowMore
+                case .collapse:
+                    actionTitle = strings.ChatList_Search_ShowLess
+                }
+                header = ChatListSearchItemHeader(type: .globalPeers, theme: theme, strings: strings, actionTitle: actionTitle, action: actionTitle == nil ? nil : { _ in
+                    toggleExpandGlobalResults()
+                })
+                            
+                return ContactsPeerItem(presentationData: ItemListPresentationData(presentationData), sortOrder: nameSortOrder, displayOrder: nameDisplayOrder, context: context, peerMode: .generalSearch(isSavedMessages: false), peer: .peer(peer: peer.peer, chatPeer: peer.peer), status: .addressName(suffixString), badge: nil, requiresPremiumForMessaging: false, enabled: enabled, selection: .none, editing: ContactsPeerItemEditing(editable: false, editing: false, revealed: false), index: nil, header: header, searchQuery: nil, isAd: true, action: { _ in
+                    interaction.peerSelected(peer.peer, nil, nil, nil, false)
+                    context.engine.messages.markAdAction(opaqueId: peer.opaqueId, media: false, fullscreen: false)
+                }, disabledAction: { _ in
+                    interaction.disabledPeerSelected(peer.peer, nil, .generic)
+                }, animationCache: interaction.animationCache, animationRenderer: interaction.animationRenderer, storyStats: nil, adButtonAction: { node in
+                    interaction.openAdInfo(node, peer)
+                }, visibilityUpdated: { isVisible in
+                    if isVisible {
+                        context.engine.messages.markAdAsSeen(opaqueId: peer.opaqueId)
+                    }
+                })
+            case let .localPeer(peer, associatedPeer, unreadBadge, _, theme, strings, nameSortOrder, nameDisplayOrder, expandType, storyStats, requiresPremiumForMessaging, isSelf):
                 let primaryPeer: EnginePeer
                 var chatPeer: EnginePeer?
                 if let associatedPeer = associatedPeer {
@@ -731,7 +893,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                 var enabled = true
                 if filter.contains(.onlyWriteable) {
                     if let peer = chatPeer {
-                        enabled = canSendMessagesToPeer(peer._asPeer())
+                        enabled = canSendMessagesToPeer(peer)
                     } else {
                         enabled = false
                     }
@@ -797,7 +959,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                             }
                         }
                     }
-                    header = ChatListSearchItemHeader(type: headerType, theme: theme, strings: strings, actionTitle: actionTitle, action: actionTitle == nil ? nil : {
+                    header = ChatListSearchItemHeader(type: headerType, theme: theme, strings: strings, actionTitle: actionTitle, action: actionTitle == nil ? nil : { _ in
                         toggleExpandLocalResults()
                     })
                 }
@@ -809,9 +971,9 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                 var status: ContactsPeerItemStatus = .none
                 if case let .user(user) = primaryPeer, let _ = user.botInfo, !primaryPeer.id.isVerificationCodes {
                     if let subscriberCount = user.subscriberCount {
-                        status = .custom(string: presentationData.strings.Conversation_StatusBotSubscribers(subscriberCount), multiline: false, isActive: false, icon: nil)
+                        status = .custom(string: NSAttributedString(string: presentationData.strings.Conversation_StatusBotSubscribers(subscriberCount)), multiline: false, isActive: false, icon: nil)
                     } else {
-                        status = .custom(string: presentationData.strings.Bot_GenericBotStatus, multiline: false, isActive: false, icon: nil)
+                        status = .custom(string: NSAttributedString(string: presentationData.strings.Bot_GenericBotStatus), multiline: false, isActive: false, icon: nil)
                     }
                 }
             
@@ -825,7 +987,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                     )
                 }
                 
-                return ContactsPeerItem(presentationData: ItemListPresentationData(presentationData), sortOrder: nameSortOrder, displayOrder: nameDisplayOrder, context: context, peerMode: .generalSearch(isSavedMessages: isSavedMessages), peer: .peer(peer: primaryPeer, chatPeer: chatPeer), status: status, badge: badge, requiresPremiumForMessaging: requiresPremiumForMessaging, enabled: enabled, selection: .none, editing: ContactsPeerItemEditing(editable: false, editing: false, revealed: false), buttonAction: buttonAction, index: nil, header: header, action: { contactPeer in
+                return ContactsPeerItem(presentationData: ItemListPresentationData(presentationData), sortOrder: nameSortOrder, displayOrder: nameDisplayOrder, context: context, peerMode: .generalSearch(isSavedMessages: isSavedMessages), aliasHandling: isSelf ? .standard : .treatSelfAsSaved, peer: .peer(peer: primaryPeer, chatPeer: chatPeer), status: status, badge: badge, requiresPremiumForMessaging: requiresPremiumForMessaging, enabled: enabled, selection: .none, editing: ContactsPeerItemEditing(editable: false, editing: false, revealed: false), buttonAction: buttonAction, index: nil, header: header, action: { contactPeer in
                     if case let .peer(maybePeer, maybeChatPeer) = contactPeer, let peer = maybePeer, let chatPeer = maybeChatPeer {
                         interaction.peerSelected(chatPeer, peer, nil, nil, false)
                     } else {
@@ -842,7 +1004,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                         }
                     }
                 }, arrowAction: nil, animationCache: interaction.animationCache, animationRenderer: interaction.animationRenderer, storyStats: storyStats.flatMap { stats in
-                    return (stats.totalCount, stats.unseenCount, stats.hasUnseenCloseFriends)
+                    return (stats.totalCount, stats.unseenCount, stats.hasUnseenCloseFriends, stats.hasLiveItems)
                 }, openStories: { itemPeer, sourceNode in
                     guard case let .peer(_, chatPeer) = itemPeer, let peer = chatPeer else {
                         return
@@ -860,13 +1022,16 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                     }
                 }
                 if filter.contains(.onlyPrivateChats) {
-                    if !(peer.peer is TelegramUser || peer.peer is TelegramSecretChat) {
+                    switch peer.peer {
+                    case .user, .secretChat:
+                        break
+                    default:
                         enabled = false
                     }
                 }
                 if filter.contains(.onlyGroups) {
-                    if let _ = peer.peer as? TelegramGroup {
-                    } else if let peer = peer.peer as? TelegramChannel, case .group = peer.info {
+                    if case .legacyGroup = peer.peer {
+                    } else if case let .channel(channel) = peer.peer, case .group = channel.info {
                     } else {
                         enabled = false
                     }
@@ -874,9 +1039,9 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                 
                 var suffixString = ""
                 if let subscribers = peer.subscribers, subscribers != 0 {
-                    if peer.peer is TelegramUser {
+                    if case .user = peer.peer {
                         suffixString = ", \(strings.Conversation_StatusBotSubscribers(subscribers))"
-                    } else if let channel = peer.peer as? TelegramChannel, case .broadcast = channel.info {
+                    } else if case let .channel(channel) = peer.peer, case .broadcast = channel.info {
                         suffixString = ", \(strings.Conversation_StatusSubscribers(subscribers))"
                     } else {
                         suffixString = ", \(strings.Conversation_StatusMembers(subscribers))"
@@ -901,7 +1066,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                     case .collapse:
                         actionTitle = strings.ChatList_Search_ShowLess
                     }
-                    header = ChatListSearchItemHeader(type: .globalPeers, theme: theme, strings: strings, actionTitle: actionTitle, action: actionTitle == nil ? nil : {
+                    header = ChatListSearchItemHeader(type: .globalPeers, theme: theme, strings: strings, actionTitle: actionTitle, action: actionTitle == nil ? nil : { _ in
                         toggleExpandGlobalResults()
                     })
                 }
@@ -911,16 +1076,16 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                     isSavedMessages = true
                 }
                 
-                return ContactsPeerItem(presentationData: ItemListPresentationData(presentationData), sortOrder: nameSortOrder, displayOrder: nameDisplayOrder, context: context, peerMode: .generalSearch(isSavedMessages: isSavedMessages), peer: .peer(peer: EnginePeer(peer.peer), chatPeer: EnginePeer(peer.peer)), status: .addressName(suffixString), badge: badge, requiresPremiumForMessaging: requiresPremiumForMessaging, enabled: enabled, selection: .none, editing: ContactsPeerItemEditing(editable: false, editing: false, revealed: false), index: nil, header: header, searchQuery: query, action: { _ in
-                    interaction.peerSelected(EnginePeer(peer.peer), nil, nil, nil, false)
+                return ContactsPeerItem(presentationData: ItemListPresentationData(presentationData), sortOrder: nameSortOrder, displayOrder: nameDisplayOrder, context: context, peerMode: .generalSearch(isSavedMessages: isSavedMessages), peer: .peer(peer: peer.peer, chatPeer: peer.peer), status: .addressName(suffixString), badge: badge, requiresPremiumForMessaging: requiresPremiumForMessaging, enabled: enabled, selection: .none, editing: ContactsPeerItemEditing(editable: false, editing: false, revealed: false), index: nil, header: header, searchQuery: query, isAd: false, action: { _ in
+                    interaction.peerSelected(peer.peer, nil, nil, nil, false)
                 }, disabledAction: { _ in
-                    interaction.disabledPeerSelected(EnginePeer(peer.peer), nil, requiresPremiumForMessaging ? .premiumRequired : .generic)
+                    interaction.disabledPeerSelected(peer.peer, nil, requiresPremiumForMessaging ? .premiumRequired : .generic)
                 }, contextAction: peerContextAction.flatMap { peerContextAction in
                     return { node, gesture, location in
-                        peerContextAction(EnginePeer(peer.peer), .search(nil), node, gesture, location)
+                        peerContextAction(peer.peer, .search(nil), node, gesture, location)
                     }
                 }, animationCache: interaction.animationCache, animationRenderer: interaction.animationRenderer, storyStats: storyStats.flatMap { stats in
-                    return (stats.totalCount, stats.unseenCount, stats.hasUnseenCloseFriends)
+                    return (stats.totalCount, stats.unseenCount, stats.hasUnseenCloseFriends, stats.hasLiveItems)
                 }, openStories: { itemPeer, sourceNode in
                     guard case let .peer(_, chatPeer) = itemPeer, let peer = chatPeer else {
                         return
@@ -928,22 +1093,23 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                     if let sourceNode = sourceNode as? ContactsPeerItemNode {
                         openStories(peer.id, sourceNode.avatarNode)
                     }
+                }, adButtonAction: { _ in
                 })
-            case let .message(message, peer, readState, threadInfo, presentationData, _, selected, displayCustomHeader, orderingKey, _, section, allPaused, storyStats, requiresPremiumForMessaging):
+            case let .message(message, peer, readState, threadInfo, presentationData, _, selected, displayCustomHeader, orderingKey, _, section, allPaused, storyStats, requiresPremiumForMessaging, searchScope):
                 let header: ChatListSearchItemHeader
                 switch orderingKey {
                 case .downloading:
                     if allPaused {
-                        header = ChatListSearchItemHeader(type: .downloading, theme: presentationData.theme, strings: presentationData.strings, actionTitle: presentationData.strings.DownloadList_ResumeAll, action: {
+                        header = ChatListSearchItemHeader(type: .downloading, theme: presentationData.theme, strings: presentationData.strings, actionTitle: presentationData.strings.DownloadList_ResumeAll, action: { _ in
                             toggleAllPaused()
                         })
                     } else {
-                        header = ChatListSearchItemHeader(type: .downloading, theme: presentationData.theme, strings: presentationData.strings, actionTitle: presentationData.strings.DownloadList_PauseAll, action: {
+                        header = ChatListSearchItemHeader(type: .downloading, theme: presentationData.theme, strings: presentationData.strings, actionTitle: presentationData.strings.DownloadList_PauseAll, action: { _ in
                             toggleAllPaused()
                         })
                     }
                 case .downloaded:
-                    header = ChatListSearchItemHeader(type: .recentDownloads, theme: presentationData.theme, strings: presentationData.strings, actionTitle: presentationData.strings.DownloadList_Clear, action: {
+                    header = ChatListSearchItemHeader(type: .recentDownloads, theme: presentationData.theme, strings: presentationData.strings, actionTitle: presentationData.strings.DownloadList_Clear, action: { _ in
                         openClearRecentlyDownloaded()
                     })
                 case .index:
@@ -951,19 +1117,42 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                         if case .publicPosts = key {
                             header = ChatListSearchItemHeader(type: .publicPosts, theme: presentationData.theme, strings: presentationData.strings, actionTitle: nil, action: nil)
                         } else {
-                            header = ChatListSearchItemHeader(type: .publicPosts, theme: presentationData.theme, strings: presentationData.strings, actionTitle: "\(presentationData.strings.ChatList_Search_ShowMore) >", action: {
+                            header = ChatListSearchItemHeader(type: .publicPosts, theme: presentationData.theme, strings: presentationData.strings, actionTitle: "\(presentationData.strings.ChatList_Search_ShowMore) >", action: { _ in
                                 openPublicPosts()
                             })
                         }
                     } else {
                         var headerType: ChatListSearchItemHeaderType = .messages(location: nil)
-                        if case let .forum(peerId) = location, let peer = peer.peer, peer.id == peerId {
-                            headerType = .messages(location: peer.compactDisplayTitle)
+                        var actionTitle: String?
+                        if key == .globalPosts {
+                            headerType = .text(presentationData.strings.ChatList_HeaderPublicPosts, 0)
+                        } else {
+                            if case let .forum(peerId) = location, let peer = peer.peer, peer.id == peerId {
+                                headerType = .messages(location: peer.compactDisplayTitle)
+                            }
+                            if case .generic = section {
+                                let filterTitle: String
+                                switch searchScope {
+                                case .everywhere:
+                                    filterTitle = presentationData.strings.ChatList_Search_Messages_AllChats
+                                case .channels:
+                                    filterTitle = presentationData.strings.ChatList_Search_Messages_Channels
+                                case .groups:
+                                    filterTitle = presentationData.strings.ChatList_Search_Messages_GroupChats
+                                case .privateChats:
+                                    filterTitle = presentationData.strings.ChatList_Search_Messages_PrivateChats
+                                case .globalPosts:
+                                    filterTitle = presentationData.strings.ChatList_HeaderPublicPosts
+                                }
+                                actionTitle = "\(filterTitle)  <"
+                            }
                         }
-                        header = ChatListSearchItemHeader(type: headerType, theme: presentationData.theme, strings: presentationData.strings, actionTitle: nil, action: nil)
+                        header = ChatListSearchItemHeader(type: headerType, theme: presentationData.theme, strings: presentationData.strings, actionTitle: actionTitle, action: { sourceNode in
+                            openMessagesFilter(sourceNode)
+                        })
                     }
                 }
-                let selection: ChatHistoryMessageSelection = selected.flatMap { .selectable(selected: $0) } ?? .none
+                let selection: ChatHistoryMessageSelection = selected.flatMap { .selectable(selected: $0, num: nil) } ?? .none
                 var isMedia = false
                 if let tagMask, tagMask != .photoOrVideo {
                     isMedia = true
@@ -988,7 +1177,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                         
                         if message.id.peerId == peerId {
                             if let threadId = message.threadId, let threadInfo = threadInfo {
-                                chatThreadInfo = ChatListItemContent.ThreadInfo(id: threadId, info: threadInfo, isOwnedByMe: false, isClosed: false, isHidden: false)
+                                chatThreadInfo = ChatListItemContent.ThreadInfo(id: threadId, info: threadInfo, isOwnedByMe: false, isClosed: false, isHidden: false, threadPeer: nil)
                                 index = .forum(pinnedIndex: .none, timestamp: message.index.timestamp, threadId: threadId, namespace: message.index.id.namespace, id: message.index.id.id)
                             } else {
                                 index = .chatList(EngineChatList.Item.Index.ChatList(pinningIndex: nil, messageIndex: message.index))
@@ -1006,6 +1195,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                         presence: nil,
                         hasUnseenMentions: false,
                         hasUnseenReactions: false,
+                        hasUnseenPollVotes: false,
                         draftState: nil,
                         mediaDraftContentType: nil,
                         inputActivities: nil,
@@ -1021,7 +1211,8 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                                 stats: EngineChatList.StoryStats(
                                     totalCount: stats.totalCount,
                                     unseenCount: stats.unseenCount,
-                                    hasUnseenCloseFriends: stats.hasUnseenCloseFriends
+                                    hasUnseenCloseFriends: stats.hasUnseenCloseFriends,
+                                    hasLiveItems: stats.hasLiveItems
                                 ),
                                 hasUnseenCloseFriends: stats.hasUnseenCloseFriends
                             )
@@ -1029,8 +1220,63 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                         requiresPremiumForMessaging: requiresPremiumForMessaging,
                         displayAsTopicList: false,
                         tags: []
-                    )), editing: false, hasActiveRevealControls: false, selected: false, header: tagMask == nil ? header : nil, enableContextActions: false, hiddenOffset: false, interaction: interaction)
+                    )), editing: false, hasActiveRevealControls: false, selected: false, header: tagMask == nil ? header : nil, enabledContextActions: nil, hiddenOffset: false, interaction: interaction)
                 }
+            case let .messagePlaceholder(_, presentationData, searchScope):
+                var actionTitle: String?
+                let filterTitle: String
+                switch searchScope {
+                case .everywhere:
+                    filterTitle = presentationData.strings.ChatList_Search_Messages_AllChats
+                case .channels:
+                    filterTitle = presentationData.strings.ChatList_Search_Messages_Channels
+                case .groups:
+                    filterTitle = presentationData.strings.ChatList_Search_Messages_GroupChats
+                case .privateChats:
+                    filterTitle = presentationData.strings.ChatList_Search_Messages_PrivateChats
+                case .globalPosts:
+                    filterTitle = presentationData.strings.ChatList_HeaderPublicPosts
+                }
+                actionTitle = "\(filterTitle)  <"
+                
+                let header: ChatListSearchItemHeader
+                if key == .globalPosts {
+                    header = ChatListSearchItemHeader(type: .text(presentationData.strings.ChatList_HeaderPublicPosts, 0), theme: presentationData.theme, strings: presentationData.strings, actionTitle: nil, action: nil)
+                } else {
+                    header = ChatListSearchItemHeader(type: .messages(location: nil), theme: presentationData.theme, strings: presentationData.strings, actionTitle: actionTitle, action: { sourceNode in
+                        openMessagesFilter(sourceNode)
+                    })
+                }
+                return ChatListItem(presentationData: presentationData, context: context, chatListLocation: location, filterData: nil, index: EngineChatList.Item.Index.chatList(ChatListIndex(pinningIndex: nil, messageIndex: MessageIndex(id: MessageId(peerId: PeerId(0), namespace: Namespaces.Message.Cloud, id: 0), timestamp: 0))), content: .loading, editing: false, hasActiveRevealControls: false, selected: false, header: header, enabledContextActions: nil, hiddenOffset: false, interaction: interaction)
+            case let .emptyMessagesFooter(presentationData, searchScope, searchQuery):
+                var actionTitle: String?
+                let filterTitle: String
+                switch searchScope {
+                case .everywhere:
+                    filterTitle = presentationData.strings.ChatList_Search_Messages_AllChats
+                case .channels:
+                    filterTitle = presentationData.strings.ChatList_Search_Messages_Channels
+                case .groups:
+                    filterTitle = presentationData.strings.ChatList_Search_Messages_GroupChats
+                case .privateChats:
+                    filterTitle = presentationData.strings.ChatList_Search_Messages_PrivateChats
+                case .globalPosts:
+                    filterTitle = presentationData.strings.ChatList_HeaderPublicPosts
+                }
+                actionTitle = "\(filterTitle)  <"
+                
+                let header = ChatListSearchItemHeader(type: .messages(location: nil), theme: presentationData.theme, strings: presentationData.strings, actionTitle: actionTitle, action: { sourceNode in
+                    openMessagesFilter(sourceNode)
+                })
+                return ChatListSearchEmptyFooterItem(
+                    theme: presentationData.theme,
+                    strings: presentationData.strings,
+                    header: header,
+                    searchQuery: searchQuery,
+                    searchAllMessages: searchScope == .everywhere ? nil : {
+                        switchMessagesFilter(.everywhere)
+                    }
+                )
             case let .addContact(phoneNumber, theme, strings):
                 return ContactsAddItem(context: context, theme: theme, strings: strings, phoneNumber: phoneNumber, header: ChatListSearchItemHeader(type: .phoneNumber, theme: theme, strings: strings, actionTitle: nil, action: nil), action: {
                     interaction.addContact(phoneNumber)
@@ -1054,18 +1300,28 @@ public struct ChatListSearchContainerTransition {
     public let isEmpty: Bool
     public let isLoading: Bool
     public let query: String?
+    public let approvedGlobalPostQueryState: ApprovedGlobalPostQueryState?
+    public let globalSearchStateValue: TelegramGlobalPostSearchState?
     public var animated: Bool
     
-    public init(deletions: [ListViewDeleteItem], insertions: [ListViewInsertItem], updates: [ListViewUpdateItem], displayingResults: Bool, isEmpty: Bool, isLoading: Bool, query: String?, animated: Bool) {
+    public init(deletions: [ListViewDeleteItem], insertions: [ListViewInsertItem], updates: [ListViewUpdateItem], displayingResults: Bool, isEmpty: Bool, isLoading: Bool, query: String?, approvedGlobalPostQueryState: ApprovedGlobalPostQueryState?, globalSearchStateValue: TelegramGlobalPostSearchState?, animated: Bool) {
         self.deletions = deletions
         self.insertions = insertions
         self.updates = updates
         self.displayingResults = displayingResults
         self.isEmpty = isEmpty
         self.isLoading = isLoading
+        self.approvedGlobalPostQueryState = approvedGlobalPostQueryState
+        self.globalSearchStateValue = globalSearchStateValue
         self.query = query
         self.animated = animated
     }
+}
+
+enum OpenPeerAction {
+    case generic
+    case info
+    case openApp
 }
 
 private func chatListSearchContainerPreparedRecentTransition(
@@ -1076,7 +1332,7 @@ private func chatListSearchContainerPreparedRecentTransition(
     presentationData: ChatListPresentationData,
     filter: ChatListNodePeersFilter,
     key: ChatListSearchPaneKey,
-    peerSelected: @escaping (EnginePeer, Int64?, Bool) -> Void,
+    peerSelected: @escaping (EnginePeer, Int64?, Bool, OpenPeerAction) -> Void,
     disabledPeerSelected: @escaping (EnginePeer, Int64?, ChatListDisabledPeerReason) -> Void,
     peerContextAction: ((EnginePeer, ChatListSearchContextActionSource, ASDisplayNode, ContextGesture?, CGPoint?) -> Void)?,
     clearRecentlySearchedPeers: @escaping () -> Void,
@@ -1098,14 +1354,46 @@ private func chatListSearchContainerPreparedRecentTransition(
     return ChatListSearchContainerRecentTransition(deletions: deletions, insertions: insertions, updates: updates, isEmpty: isEmpty)
 }
 
-public func chatListSearchContainerPreparedTransition(from fromEntries: [ChatListSearchEntry], to toEntries: [ChatListSearchEntry], displayingResults: Bool, isEmpty: Bool, isLoading: Bool, animated: Bool, context: AccountContext, presentationData: PresentationData, enableHeaders: Bool, filter: ChatListNodePeersFilter, requestPeerType: [ReplyMarkupButtonRequestPeerType]?, location: ChatListControllerLocation, key: ChatListSearchPaneKey, tagMask: EngineMessage.Tags?, interaction: ChatListNodeInteraction, listInteraction: ListMessageItemInteraction, peerContextAction: ((EnginePeer, ChatListSearchContextActionSource, ASDisplayNode, ContextGesture?, CGPoint?) -> Void)?, toggleExpandLocalResults: @escaping () -> Void, toggleExpandGlobalResults: @escaping () -> Void, searchPeer: @escaping (EnginePeer) -> Void, searchQuery: String?, searchOptions: ChatListSearchOptions?, messageContextAction: ((EngineMessage, ASDisplayNode?, CGRect?, UIGestureRecognizer?, ChatListSearchPaneKey, (id: String, size: Int64, isFirstInList: Bool)?) -> Void)?, openClearRecentlyDownloaded: @escaping () -> Void, toggleAllPaused: @escaping () -> Void, openStories: @escaping (EnginePeer.Id, AvatarNode) -> Void, openPublicPosts: @escaping () -> Void) -> ChatListSearchContainerTransition {
+public func chatListSearchContainerPreparedTransition(
+    from fromEntries: [ChatListSearchEntry],
+    to toEntries: [ChatListSearchEntry],
+    displayingResults: Bool,
+    isEmpty: Bool,
+    isLoading: Bool,
+    animated: Bool,
+    context: AccountContext,
+    presentationData: PresentationData,
+    enableHeaders: Bool,
+    filter: ChatListNodePeersFilter,
+    requestPeerType: [ReplyMarkupButtonRequestPeerType]?,
+    location: ChatListControllerLocation,
+    key: ChatListSearchPaneKey,
+    tagMask: EngineMessage.Tags?,
+    interaction: ChatListNodeInteraction,
+    listInteraction: ListMessageItemInteraction,
+    peerContextAction: ((EnginePeer, ChatListSearchContextActionSource, ASDisplayNode, ContextGesture?, CGPoint?) -> Void)?,
+    toggleExpandLocalResults: @escaping () -> Void,
+    toggleExpandGlobalResults: @escaping () -> Void,
+    searchPeer: @escaping (EnginePeer) -> Void,
+    searchQuery: String?,
+    approvedGlobalPostQueryState: ApprovedGlobalPostQueryState?,
+    globalSearchStateValue: TelegramGlobalPostSearchState?,
+    searchOptions: ChatListSearchOptions?,
+    messageContextAction: ((EngineMessage, ASDisplayNode?, CGRect?, UIGestureRecognizer?, ChatListSearchPaneKey, (id: String, size: Int64, isFirstInList: Bool)?) -> Void)?,
+    openClearRecentlyDownloaded: @escaping () -> Void,
+    toggleAllPaused: @escaping () -> Void,
+    openStories: @escaping (EnginePeer.Id, AvatarNode) -> Void,
+    openPublicPosts: @escaping () -> Void,
+    openMessagesFilter: @escaping (ASDisplayNode) -> Void,
+    switchMessagesFilter: @escaping (TelegramSearchPeersScope) -> Void
+) -> ChatListSearchContainerTransition {
     let (deleteIndices, indicesAndItems, updateIndices) = mergeListsStableWithUpdates(leftList: fromEntries, rightList: toEntries)
     
     let deletions = deleteIndices.map { ListViewDeleteItem(index: $0, directionHint: nil) }
-    let insertions = indicesAndItems.map { ListViewInsertItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(context: context, presentationData: presentationData, enableHeaders: enableHeaders, filter: filter, requestPeerType: requestPeerType, location: location, key: key, tagMask: tagMask, interaction: interaction, listInteraction: listInteraction, peerContextAction: peerContextAction, toggleExpandLocalResults: toggleExpandLocalResults, toggleExpandGlobalResults: toggleExpandGlobalResults, searchPeer: searchPeer, searchQuery: searchQuery, searchOptions: searchOptions, messageContextAction: messageContextAction, openClearRecentlyDownloaded: openClearRecentlyDownloaded, toggleAllPaused: toggleAllPaused, openStories: openStories, openPublicPosts: openPublicPosts), directionHint: nil) }
-    let updates = updateIndices.map { ListViewUpdateItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(context: context, presentationData: presentationData, enableHeaders: enableHeaders, filter: filter, requestPeerType: requestPeerType, location: location, key: key, tagMask: tagMask,  interaction: interaction, listInteraction: listInteraction, peerContextAction: peerContextAction, toggleExpandLocalResults: toggleExpandLocalResults, toggleExpandGlobalResults: toggleExpandGlobalResults, searchPeer: searchPeer, searchQuery: searchQuery, searchOptions: searchOptions, messageContextAction: messageContextAction, openClearRecentlyDownloaded: openClearRecentlyDownloaded, toggleAllPaused: toggleAllPaused, openStories: openStories, openPublicPosts: openPublicPosts), directionHint: nil) }
+    let insertions = indicesAndItems.map { ListViewInsertItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(context: context, presentationData: presentationData, enableHeaders: enableHeaders, filter: filter, requestPeerType: requestPeerType, location: location, key: key, tagMask: tagMask, interaction: interaction, listInteraction: listInteraction, peerContextAction: peerContextAction, toggleExpandLocalResults: toggleExpandLocalResults, toggleExpandGlobalResults: toggleExpandGlobalResults, searchPeer: searchPeer, searchQuery: searchQuery, searchOptions: searchOptions, messageContextAction: messageContextAction, openClearRecentlyDownloaded: openClearRecentlyDownloaded, toggleAllPaused: toggleAllPaused, openStories: openStories, openPublicPosts: openPublicPosts, openMessagesFilter: openMessagesFilter, switchMessagesFilter: switchMessagesFilter), directionHint: nil) }
+    let updates = updateIndices.map { ListViewUpdateItem(index: $0.0, previousIndex: $0.2, item: $0.1.item(context: context, presentationData: presentationData, enableHeaders: enableHeaders, filter: filter, requestPeerType: requestPeerType, location: location, key: key, tagMask: tagMask,  interaction: interaction, listInteraction: listInteraction, peerContextAction: peerContextAction, toggleExpandLocalResults: toggleExpandLocalResults, toggleExpandGlobalResults: toggleExpandGlobalResults, searchPeer: searchPeer, searchQuery: searchQuery, searchOptions: searchOptions, messageContextAction: messageContextAction, openClearRecentlyDownloaded: openClearRecentlyDownloaded, toggleAllPaused: toggleAllPaused, openStories: openStories, openPublicPosts: openPublicPosts, openMessagesFilter: openMessagesFilter, switchMessagesFilter: switchMessagesFilter), directionHint: nil) }
     
-    return ChatListSearchContainerTransition(deletions: deletions, insertions: insertions, updates: updates, displayingResults: displayingResults, isEmpty: isEmpty, isLoading: isLoading, query: searchQuery, animated: animated)
+    return ChatListSearchContainerTransition(deletions: deletions, insertions: insertions, updates: updates, displayingResults: displayingResults, isEmpty: isEmpty, isLoading: isLoading, query: searchQuery, approvedGlobalPostQueryState: approvedGlobalPostQueryState, globalSearchStateValue: globalSearchStateValue, animated: animated)
 }
 
 private struct ChatListSearchListPaneNodeState: Equatable {
@@ -1117,7 +1405,7 @@ private struct ChatListSearchListPaneNodeState: Equatable {
 
 private func doesPeerMatchFilter(peer: EnginePeer, filter: ChatListNodePeersFilter) -> Bool {
     var enabled = true
-    if filter.contains(.onlyWriteable), !canSendMessagesToPeer(peer._asPeer()) {
+    if filter.contains(.onlyWriteable), !canSendMessagesToPeer(peer) {
         enabled = false
     }
     if filter.contains(.onlyPrivateChats) {
@@ -1154,7 +1442,7 @@ private struct ChatListSearchMessagesContext {
 }
 
 public enum ChatListSearchContextActionSource {
-    case recentPeers
+    case recentPeers(isTopPeer: Bool)
     case recentSearch
     case recentApps
     case popularApps
@@ -1164,17 +1452,22 @@ public enum ChatListSearchContextActionSource {
 public struct ChatListSearchOptions {
     let peer: (EnginePeer.Id, Bool, String)?
     let date: (Int32?, Int32, String)?
+    let folder: (Int32, String)?
     
     var isEmpty: Bool {
-        return self.peer == nil && self.date == nil
+        return self.peer == nil && self.date == nil && self.folder == nil
     }
     
     func withUpdatedPeer(_ peerIdIsGroupAndName: (EnginePeer.Id, Bool, String)?) -> ChatListSearchOptions {
-        return ChatListSearchOptions(peer: peerIdIsGroupAndName, date: self.date)
+        return ChatListSearchOptions(peer: peerIdIsGroupAndName, date: self.date, folder: self.folder)
     }
     
     func withUpdatedDate(_ minDateMaxDateAndTitle: (Int32?, Int32, String)?) -> ChatListSearchOptions {
-        return ChatListSearchOptions(peer: self.peer, date: minDateMaxDateAndTitle)
+        return ChatListSearchOptions(peer: self.peer, date: minDateMaxDateAndTitle, folder: self.folder)
+    }
+    
+    func withUpdatedFolder(_ folder: (Int32, String)?) -> ChatListSearchOptions {
+        return ChatListSearchOptions(peer: self.peer, date: self.date, folder: folder)
     }
 }
 
@@ -1203,19 +1496,19 @@ private struct DownloadItem: Equatable {
 
 private func filteredPeerSearchQueryResults(value: ([FoundPeer], [FoundPeer]), scope: TelegramSearchPeersScope) -> ([FoundPeer], [FoundPeer]) {
     switch scope {
-    case .everywhere:
+    case .everywhere, .privateChats, .groups, .globalPosts:
         return value
     case .channels:
         return (
             value.0.filter { peer in
-                if let channel = peer.peer as? TelegramChannel, case .broadcast = channel.info {
+                if case let .channel(channel) = peer.peer, case .broadcast = channel.info {
                     return true
                 } else {
                     return false
                 }
             },
             value.1.filter { peer in
-                if let channel = peer.peer as? TelegramChannel, case .broadcast = channel.info {
+                if case let .channel(channel) = peer.peer, case .broadcast = channel.info {
                     return true
                 } else {
                     return false
@@ -1322,6 +1615,16 @@ final class GlobalPeerSearchContext {
     }
 }
 
+public struct ApprovedGlobalPostQueryState: Equatable {
+    public var query: String
+    public var price: Int?
+    
+    public init(query: String, price: Int?) {
+        self.query = query
+        self.price = price
+    }
+}
+
 final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     private let context: AccountContext
     private let animationCache: AnimationCache
@@ -1339,8 +1642,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     
     private let recentListNode: ListView
     private let shimmerNode: ChatListSearchShimmerNode
-    private let listNode: ListView
-    private let mediaNode: ChatListSearchMediaNode
+    private let listNode: ListView?
+    private let mediaNode: ChatListSearchMediaNode?
     private var enqueuedRecentTransitions: [(ChatListSearchContainerRecentTransition, Bool)] = []
     private var enqueuedTransitions: [(ChatListSearchContainerTransition, Bool)] = []
     
@@ -1358,8 +1661,19 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     
     private var deletedMessagesDisposable: Disposable?
     
+    private var adsHiddenPromise = ValuePromise<Bool>(false)
+    private var adsHidden = false {
+        didSet {
+            self.adsHiddenPromise.set(self.adsHidden)
+        }
+    }
+    
     private var searchQueryValue: String?
     private var searchOptionsValue: ChatListSearchOptions?
+    private var approvedGlobalPostQueryStateValue: ApprovedGlobalPostQueryState?
+    private var globalPostSearchStateValue: TelegramGlobalPostSearchState?
+    private var globalPostSearchUnlockTimer: Foundation.Timer?
+    private var isPremium: Bool = false
     
     var isCurrent: Bool = false
     
@@ -1382,6 +1696,10 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     private let emptyResultsTextNode: ImmediateTextNode
     private let emptyResultsAnimationNode: AnimatedStickerNode
     private var emptyResultsAnimationSize = CGSize()
+    private var emptyResultsButton: ComponentView<Empty>?
+    private var emptyResultsButtonSubtitle: ComponentView<Empty>?
+    private var emptyResultsButtonContent: EmptyResultsButton.Content?
+    private var emptyResultsButtonSubtitleText: String?
     
     private var recentEmptyNode: ASDisplayNode?
     private var emptyRecentTitleNode: ImmediateTextNode?
@@ -1389,7 +1707,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     private var emptyRecentAnimationNode: AnimatedStickerNode?
     private var emptyRecentAnimationSize = CGSize()
     
-    private var currentParams: (size: CGSize, sideInset: CGFloat, bottomInset: CGFloat, visibleHeight: CGFloat, presentationData: PresentationData)?
+    private var currentParams: (size: CGSize, sideInset: CGFloat, topInset: CGFloat, bottomInset: CGFloat, visibleHeight: CGFloat, presentationData: PresentationData)?
     
     private let ready = Promise<Bool>()
     private var didSetReady: Bool = false
@@ -1408,8 +1726,16 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     
     private var hiddenMediaDisposable: Disposable?
     private var searchQueryDisposable: Disposable?
+    private var approvedSearchQueryDisposable: Disposable?
     private var searchOptionsDisposable: Disposable?
   
+    private let searchScopePromise = ValuePromise<TelegramSearchPeersScope>(.everywhere)
+    
+    private let approvedGlobalPostQueryState = ValuePromise<ApprovedGlobalPostQueryState?>(nil, ignoreRepeated: true)
+    private let globalPostSearchState = Promise<TelegramGlobalPostSearchState?>()
+    
+    private var refreshGlobalPostSearchStateDisposable: Disposable?
+    
     init(context: AccountContext, animationCache: AnimationCache, animationRenderer: MultiAnimationRenderer, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil, interaction: ChatListSearchInteraction, key: ChatListSearchPaneKey, peersFilter: ChatListNodePeersFilter, requestPeerType: [ReplyMarkupButtonRequestPeerType]?, location: ChatListControllerLocation, searchQuery: Signal<String?, NoError>, searchOptions: Signal<ChatListSearchOptions?, NoError>, navigationController: NavigationController?, parentController: ViewController?, globalPeerSearchContext: GlobalPeerSearchContext?) {
         self.context = context
         self.animationCache = animationCache
@@ -1445,6 +1771,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             tagMask = nil
         case .apps:
             tagMask = nil
+        case .globalPosts:
+            tagMask = nil
         case .media:
             tagMask = .photoOrVideo
         case .downloads:
@@ -1457,6 +1785,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             tagMask = .music
         case .voice:
             tagMask = .voiceOrInstantVideo
+        case .instantVideo:
+            tagMask = .roundVideo
         }
         self.tagMask = tagMask
         
@@ -1468,7 +1798,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         self.selectedMessages = interaction.getSelectedMessageIds()
         self.selectedMessagesPromise.set(.single(self.selectedMessages))
         
-        self.recentListNode = ListView()
+        self.recentListNode = ListViewImpl()
+        self.recentListNode.preloadPages = false
         self.recentListNode.verticalScrollIndicatorColor = self.presentationData.theme.list.scrollIndicatorColor
         self.recentListNode.accessibilityPageScrolledString = { row, count in
             return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
@@ -1478,9 +1809,9 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         self.shimmerNode.isUserInteractionEnabled = false
         self.shimmerNode.allowsGroupOpacity = true
             
-        self.listNode = ListView()
-        self.listNode.verticalScrollIndicatorColor = self.presentationData.theme.list.scrollIndicatorColor
-        self.listNode.accessibilityPageScrolledString = { row, count in
+        self.listNode = ListViewImpl()
+        self.listNode?.verticalScrollIndicatorColor = self.presentationData.theme.list.scrollIndicatorColor
+        self.listNode?.accessibilityPageScrolledString = { row, count in
             return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
         }
     
@@ -1488,13 +1819,17 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         var transitionNodeImpl: ((EngineMessage.Id, EngineMedia) -> (ASDisplayNode, CGRect, () -> (UIView?, UIView?))?)?
         var addToTransitionSurfaceImpl: ((UIView) -> Void)?
         
-        self.mediaNode = ChatListSearchMediaNode(context: self.context, contentType: .photoOrVideo, openMessage: { message, mode in
-            openMediaMessageImpl?(EngineMessage(message), mode)
-        }, messageContextAction: { message, node, rect, gesture in
-            interaction.mediaMessageContextAction(EngineMessage(message), node, rect, gesture)
-        }, toggleMessageSelection: { messageId, selected in
-            interaction.toggleMessageSelection(messageId, selected)
-        })
+        if key == .media {
+            self.mediaNode = ChatListSearchMediaNode(context: self.context, contentType: .photoOrVideo, openMessage: { message, mode in
+                openMediaMessageImpl?(EngineMessage(message), mode)
+            }, messageContextAction: { message, node, rect, gesture in
+                interaction.mediaMessageContextAction(EngineMessage(message), node, rect, gesture)
+            }, toggleMessageSelection: { messageId, selected in
+                interaction.toggleMessageSelection(messageId, selected)
+            })
+        } else {
+            self.mediaNode = nil
+        }
         
         self.mediaAccessoryPanelContainer = PassthroughContainerNode()
         self.mediaAccessoryPanelContainer.clipsToBounds = true
@@ -1509,6 +1844,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         self.emptyResultsTextNode.displaysAsynchronously = false
         self.emptyResultsTextNode.maximumNumberOfLines = 0
         self.emptyResultsTextNode.textAlignment = .center
+        self.emptyResultsTextNode.lineSpacing = 0.2
         self.emptyResultsTextNode.isHidden = true
              
         self.emptyResultsAnimationNode = DefaultAnimatedStickerNodeImpl()
@@ -1564,8 +1900,12 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             self.addSubnode(recentEmptyNode)
         }
         
-        self.addSubnode(self.listNode)
-        self.addSubnode(self.mediaNode)
+        if let listNode = self.listNode {
+            self.addSubnode(listNode)
+        }
+        if let mediaNode = self.mediaNode {
+            self.addSubnode(mediaNode)
+        }
         
         self.addSubnode(self.emptyResultsAnimationNode)
         self.addSubnode(self.emptyResultsTitleNode)
@@ -1592,11 +1932,11 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             }
         }
         
-        self.listNode.isHidden = true
-        self.mediaNode.isHidden = true
+        self.listNode?.isHidden = true
+        self.mediaNode?.isHidden = true
         self.recentListNode.isHidden = peersFilter.contains(.excludeRecent)
         
-        let currentRemotePeers = Atomic<([FoundPeer], [FoundPeer])?>(value: nil)
+        let currentRemotePeers = Atomic<([FoundPeer], [FoundPeer], [AdPeer])?>(value: nil)
         let presentationDataPromise = self.presentationDataPromise
         let searchStatePromise = self.searchStatePromise
         let selectionPromise = self.selectedMessagesPromise
@@ -1694,10 +2034,71 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             var query: String?
         }
         let previousRecentlySearchedPeersState = Atomic<SearchedPeersState?>(value: nil)
+        let hadAnySearchMessages = Atomic<Bool>(value: false)
         
-        let foundItems: Signal<([ChatListSearchEntry], Bool)?, NoError> = combineLatest(queue: .mainQueue(), searchQuery, searchOptions, downloadItems)
-        |> mapToSignal { [weak self] query, options, downloadItems -> Signal<([ChatListSearchEntry], Bool)?, NoError> in
-            if query == nil && options == nil && [.chats, .topics, .channels, .apps].contains(key) {
+        let adsHiddenPromise = self.adsHiddenPromise
+        
+        let isPremium = context.engine.data.subscribe(
+            TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId)
+        )
+        |> map { peer -> Bool in
+            guard case let .user(user) = peer else {
+                return false
+            }
+            return user.isPremium
+        }
+        |> distinctUntilChanged
+        
+        let globalPostSearchStateType = self.globalPostSearchState.get()
+        |> map { state -> Bool in
+            guard let state else {
+                return false
+            }
+            return state.unlockTimestamp != nil
+        }
+        |> distinctUntilChanged
+        
+        struct FoundRemoteMessages {
+            var messages: [EngineMessage]
+            var readCounters: [EnginePeer.Id: EnginePeerReadCounters]
+            var threadsData: [EngineMessage.Id: MessageHistoryThreadData]
+            var totalCount: Int32
+            
+            init(messages: [EngineMessage], readCounters: [EnginePeer.Id: EnginePeerReadCounters], threadsData: [EngineMessage.Id: MessageHistoryThreadData], totalCount: Int32) {
+                self.messages = messages
+                self.readCounters = readCounters
+                self.threadsData = threadsData
+                self.totalCount = totalCount
+            }
+        }
+        
+        var defaultFoundRemoteMessagesSignal: Signal<([FoundRemoteMessages], Bool), NoError> = .single(([FoundRemoteMessages(messages: [], readCounters: [:], threadsData: [:], totalCount: 0)], false))
+        if key == .globalPosts, let data = context.currentAppConfiguration.with({ $0 }).data, let value = data["ios_load_empty_global_posts"] as? Double, value != 0.0 {
+            let searchSignal = context.engine.messages.searchMessages(location: .general(scope: .globalPosts(allowPaidStars: nil), groupId: nil, tags: nil, minDate: nil, maxDate: nil, folderId: nil), query: "", state: nil, limit: 50)
+            |> map { resultData -> ChatListSearchMessagesResult in
+                let (result, updatedState) = resultData
+                    
+                return ChatListSearchMessagesResult(query: "", messages: result.messages.map({ EngineMessage($0) }).sorted(by: { $0.index > $1.index }), readStates: result.readStates.mapValues { EnginePeerReadCounters(state: $0, isMuted: false) }, threadInfo: result.threadInfo, hasMore: !result.completed, totalCount: result.totalCount, state: updatedState)
+            }
+            
+            defaultFoundRemoteMessagesSignal = .single(([FoundRemoteMessages(messages: [], readCounters: [:], threadsData: [:], totalCount: 0)], true))
+            |> then(
+                searchSignal
+                |> map { foundMessages -> ([FoundRemoteMessages], Bool) in
+                    var result: [FoundRemoteMessages] = []
+                    result.append(FoundRemoteMessages(messages: foundMessages.messages, readCounters: foundMessages.readStates, threadsData: foundMessages.threadInfo, totalCount: foundMessages.totalCount))
+                    return (result, false)
+                }
+            )
+        }
+        
+        let defaultFoundRemoteMessages = Promise<([FoundRemoteMessages], Bool)>()
+        defaultFoundRemoteMessages.set(defaultFoundRemoteMessagesSignal)
+        
+        let foundItems: Signal<([ChatListSearchEntry], Bool, String?)?, NoError> = combineLatest(queue: .mainQueue(), searchQuery, self.approvedGlobalPostQueryState.get(), searchOptions, self.searchScopePromise.get(), downloadItems, globalPostSearchStateType, isPremium)
+        |> debounceOnMainThread
+        |> mapToSignal { [weak self] query, approvedGlobalPostQueryState, options, searchScope, downloadItems, _, _ -> Signal<([ChatListSearchEntry], Bool, String?)?, NoError> in
+            if query == nil && (options == nil || options?.withUpdatedFolder(nil).isEmpty == true) && [.chats, .topics, .channels, .apps].contains(key) {
                 let _ = currentRemotePeers.swap(nil)
                 return .single(nil)
             }
@@ -1723,7 +2124,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 }
                 
                 return combineLatest(queue: .mainQueue(), presentationDataPromise.get(), selectionPromise.get())
-                |> map { presentationData, selectionState -> ([ChatListSearchEntry], Bool)? in
+                |> map { presentationData, selectionState -> ([ChatListSearchEntry], Bool, String?)? in
                     var entries: [ChatListSearchEntry] = []
                     var existingMessageIds = Set<MessageId>()
                     
@@ -1761,7 +2162,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             resource = (resourceValue.id.stringRepresentation, size, entries.isEmpty)
                         }
                                                 
-                        entries.append(.message(message, peer, nil, nil, presentationData, 1, nil, false, .downloading(item.priority), resource, .downloading, allPaused, nil, false))
+                        entries.append(.message(message, peer, nil, nil, presentationData, 1, nil, false, .downloading(item.priority), resource, .downloading, allPaused, nil, false, .everywhere))
                     }
                     for item in downloadItems.doneItems.sorted(by: { ChatListSearchEntry.MessageOrderingKey.downloaded(timestamp: $0.timestamp, index: $0.message.index) < ChatListSearchEntry.MessageOrderingKey.downloaded(timestamp: $1.timestamp, index: $1.message.index) }) {
                         if !item.isSeen {
@@ -1789,13 +2190,22 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             }
                         }
                         
-                        entries.append(.message(message, peer, nil, nil, presentationData, 1, selectionState?.contains(message.id), false, .downloaded(timestamp: item.timestamp, index: message.index), (item.resourceId, item.size, false), .recentlyDownloaded, false, nil, false))
+                        entries.append(.message(message, peer, nil, nil, presentationData, 1, selectionState?.contains(message.id), false, .downloaded(timestamp: item.timestamp, index: message.index), (item.resourceId, item.size, false), .recentlyDownloaded, false, nil, false, .everywhere))
                     }
-                    return (entries.sorted(), false)
+                    return (entries.sorted(), false, query)
                 }
             }
             
-            let accountPeer = context.account.postbox.loadedPeerWithId(context.account.peerId) |> take(1)
+            let accountPeer = context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId))
+            |> mapToSignal { peer -> Signal<EnginePeer, NoError> in
+                if let peer {
+                    return .single(peer)
+                } else {
+                    return .never()
+                }
+            }
+            |> map { $0._asPeer() }
+            |> take(1)
             let foundLocalPeers: Signal<(peers: [EngineRenderedPeer], unread: [EnginePeer.Id: (Int32, Bool)], recentlySearchedPeerIds: Set<EnginePeer.Id>), NoError>
             
             if case .savedMessagesChats = location {
@@ -1852,11 +2262,48 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         return result
                     }
                     
+                    var predicate: Signal<ChatListFilterPredicate?, NoError> = .single(nil)
+                    if let folderId = options?.folder?.0 {
+                        predicate = context.engine.peers.currentChatListFilters()
+                        |> take(1)
+                        |> map { filters -> ChatListFilterPredicate? in
+                            guard let filter = filters.first(where: { $0.id == folderId }) else {
+                                return nil
+                            }
+                            guard case let .filter(_, _, _, data) = filter else {
+                                return nil
+                            }
+                            return chatListFilterPredicate(filter: data, accountPeerId: context.account.peerId)
+                        }
+                    }
+                    
+                    let updatedLocalPeers = predicate |> mapToSignal { predicate in
+                        return context.engine.contacts.searchLocalPeers(query: query.lowercased(), predicate: predicate)
+                    }
+                    |> mapToSignal { peers -> Signal<[EngineRenderedPeer], NoError> in
+                        return context.engine.data.subscribe(
+                            EngineDataMap(peers.map { peer in
+                                return TelegramEngine.EngineData.Item.Messages.ChatListIndex(id: peer.peerId)
+                            })
+                        )
+                        |> map { chatListIndices -> [EngineRenderedPeer] in
+                            return peers.filter { peer in
+                                if peer.peerId.namespace == Namespaces.Peer.CloudUser || peer.peerId.namespace == Namespaces.Peer.SecretChat {
+                                    return true
+                                }
+                                if let maybeIndex = chatListIndices[peer.peerId], maybeIndex != nil {
+                                    return true
+                                }
+                                return false
+                            }
+                        }
+                    }
+                    
                     foundLocalPeers = combineLatest(
-                        context.engine.contacts.searchLocalPeers(query: query.lowercased()),
+                        updatedLocalPeers,
                         fixedOrRemovedRecentlySearchedPeers
                     )
-                    |> mapToSignal { local, allRecentlySearched -> Signal<([EnginePeer.Id: Optional<EnginePeer.NotificationSettings>], [EnginePeer.Id: Int], [EngineRenderedPeer], Set<EnginePeer.Id>, EngineGlobalNotificationSettings), NoError> in
+                    |> mapToSignal { local, allRecentlySearched -> Signal<([EnginePeer.Id: Optional<EnginePeer.NotificationSettings>], [EnginePeer.Id: TelegramEngine.EngineData.Item.Messages.PeerUnreadState.Result], [EngineRenderedPeer], Set<EnginePeer.Id>, EngineGlobalNotificationSettings), NoError> in
                         let recentlySearched = allRecentlySearched.filter { peer in
                             guard let peer = peer.peer.peer else {
                                 return false
@@ -1887,8 +2334,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 }
                             ),
                             EngineDataMap(
-                                peerIds.map { peerId -> TelegramEngine.EngineData.Item.Messages.PeerUnreadCount in
-                                    return TelegramEngine.EngineData.Item.Messages.PeerUnreadCount(id: peerId)
+                                peerIds.map { peerId -> TelegramEngine.EngineData.Item.Messages.PeerUnreadState in
+                                    return TelegramEngine.EngineData.Item.Messages.PeerUnreadState(id: peerId)
                                 }
                             ),
                             TelegramEngine.EngineData.Item.NotificationSettings.Global()
@@ -1922,8 +2369,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 }
                             }
                             let unreadCount = unreadCounts[peer.peerId]
-                            if let unreadCount = unreadCount, unreadCount > 0 {
-                                unread[peer.peerId] = (Int32(unreadCount), isMuted)
+                            if let unreadCount = unreadCount, (unreadCount.count > 0 || unreadCount.isMarkedUnread) {
+                                unread[peer.peerId] = (Int32(unreadCount.count), isMuted)
                             }
                         }
                         return (peers: peers, unread: unread, recentlySearchedPeerIds: recentlySearchedPeerIds)
@@ -2135,78 +2582,71 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 let _ = previousRecentlySearchedPeersState.swap(nil)
             }
             
-            let foundRemotePeers: Signal<([FoundPeer], [FoundPeer], Bool), NoError>
-            let currentRemotePeersValue: ([FoundPeer], [FoundPeer]) = currentRemotePeers.with { $0 } ?? ([], [])
+            let foundRemotePeers: Signal<([FoundPeer], [FoundPeer], [AdPeer], Bool), NoError>
+            let currentRemotePeersValue: ([FoundPeer], [FoundPeer], [AdPeer]) = currentRemotePeers.with { $0 } ?? ([], [], [])
             if case .savedMessagesChats = location {
-                foundRemotePeers = .single(([], [], false))
+                foundRemotePeers = .single(([], [], [], false))
             } else if let query = query, case .chats = key {
-                if query.hasPrefix("#") {
-                    foundRemotePeers = .single(([], [], false))
+                if query.hasPrefix("#") || options?.folder != nil {
+                    foundRemotePeers = .single(([], [], [], false))
                 } else {
                     foundRemotePeers = (
-                        .single((currentRemotePeersValue.0, currentRemotePeersValue.1, true))
+                        .single((currentRemotePeersValue.0, currentRemotePeersValue.1, currentRemotePeersValue.2, true))
                         |> then(
                             globalPeerSearchContext.searchRemotePeers(engine: context.engine, query: query)
-                            |> map { ($0.0, $0.1, false) }
+                            |> mapToSignal { result in
+                                return context.engine.peers.searchAdPeers(query: query)
+                                |> map { adPeers in
+                                    return (result.0, result.1, adPeers, false)
+                                }
+                            }
                         )
                     )
                 }
             } else if let query = query, case .channels = key {
                 foundRemotePeers = (
-                    .single((currentRemotePeersValue.0, currentRemotePeersValue.1, true))
+                    .single((currentRemotePeersValue.0, currentRemotePeersValue.1, currentRemotePeersValue.2, true))
                     |> then(
                         globalPeerSearchContext.searchRemotePeers(engine: context.engine, query: query, scope: .channels)
-                        |> map { ($0.0, $0.1, false) }
+                        |> map { ($0.0, $0.1, [], false) }
                     )
                 )
             } else if let query, case .apps = key {
                 let _ = query
-                foundRemotePeers = .single(([], [], false))
+                foundRemotePeers = .single(([], [], [], false))
             } else {
-                foundRemotePeers = .single(([], [], false))
+                foundRemotePeers = .single(([], [], [], false))
             }
             let searchLocations: [SearchMessagesLocation]
-            if let options = options {
+            if key == .globalPosts {
+                searchLocations = [SearchMessagesLocation.general(scope: .globalPosts(allowPaidStars: approvedGlobalPostQueryState?.price), groupId: nil, tags: nil, minDate: nil, maxDate: nil, folderId: nil)]
+            } else if let options {
                 if case let .forum(peerId) = location {
-                    searchLocations = [.peer(peerId: peerId, fromId: nil, tags: tagMask, reactions: nil, threadId: nil, minDate: options.date?.0, maxDate: options.date?.1), .general(scope: .everywhere, tags: tagMask, minDate: options.date?.0, maxDate: options.date?.1)]
+                    searchLocations = [.peer(peerId: peerId, fromId: nil, tags: tagMask, reactions: nil, threadId: nil, minDate: options.date?.0, maxDate: options.date?.1), .general(scope: .everywhere, groupId: nil, tags: tagMask, minDate: options.date?.0, maxDate: options.date?.1, folderId: nil)]
                 } else if let (peerId, _, _) = options.peer {
                     searchLocations = [.peer(peerId: peerId, fromId: nil, tags: tagMask, reactions: nil, threadId: nil, minDate: options.date?.0, maxDate: options.date?.1)]
                 } else {
-                    if case let .chatList(groupId) = location, case .archive = groupId {
-                        searchLocations = [.group(groupId: groupId._asGroup(), tags: tagMask, minDate: options.date?.0, maxDate: options.date?.1)]
+                    if case let .chatList(groupId) = location {
+                        searchLocations = [.general(scope: searchScope, groupId: groupId._asGroup(), tags: tagMask, minDate: options.date?.0, maxDate: options.date?.1, folderId: options.folder?.0)]
                     } else {
-                        searchLocations = [.general(scope: .everywhere, tags: tagMask, minDate: options.date?.0, maxDate: options.date?.1)]
+                        searchLocations = [.general(scope: searchScope, groupId: nil, tags: tagMask, minDate: options.date?.0, maxDate: options.date?.1, folderId: options.folder?.0)]
                     }
                 }
             } else {
                 if case .channels = key {
-                    searchLocations = [.general(scope: .channels, tags: tagMask, minDate: nil, maxDate: nil)]
+                    searchLocations = [.general(scope: .channels, groupId: nil, tags: tagMask, minDate: nil, maxDate: nil, folderId: nil)]
                 } else if case let .forum(peerId) = location {
-                    searchLocations = [.peer(peerId: peerId, fromId: nil, tags: tagMask, reactions: nil, threadId: nil, minDate: nil, maxDate: nil), .general(scope: .everywhere, tags: tagMask, minDate: nil, maxDate: nil)]
-                } else if case let .chatList(groupId) = location, case .archive = groupId {
-                    searchLocations = [.group(groupId: groupId._asGroup(), tags: tagMask, minDate: nil, maxDate: nil)]
+                    searchLocations = [.peer(peerId: peerId, fromId: nil, tags: tagMask, reactions: nil, threadId: nil, minDate: nil, maxDate: nil), .general(scope: .everywhere, groupId: nil, tags: tagMask, minDate: nil, maxDate: nil, folderId: nil)]
+                } else if case let .chatList(groupId) = location {
+                    searchLocations = [.general(scope: searchScope, groupId: groupId._asGroup(), tags: tagMask, minDate: nil, maxDate: nil, folderId: nil)]
                 } else {
-                    searchLocations = [.general(scope: .everywhere, tags: tagMask, minDate: nil, maxDate: nil)]
+                    searchLocations = [.general(scope: searchScope, groupId: nil, tags: tagMask, minDate: nil, maxDate: nil, folderId: nil)]
                 }
             }
             
             let finalQuery = query ?? ""
             updateSearchContexts { _ in
                 return ([:], true)
-            }
-            
-            struct FoundRemoteMessages {
-                var messages: [EngineMessage]
-                var readCounters: [EnginePeer.Id: EnginePeerReadCounters]
-                var threadsData: [EngineMessage.Id: MessageHistoryThreadData]
-                var totalCount: Int32
-                
-                init(messages: [EngineMessage], readCounters: [EnginePeer.Id: EnginePeerReadCounters], threadsData: [EngineMessage.Id: MessageHistoryThreadData], totalCount: Int32) {
-                    self.messages = messages
-                    self.readCounters = readCounters
-                    self.threadsData = threadsData
-                    self.totalCount = totalCount
-                }
             }
             
             let foundPublicMessages: Signal<([FoundRemoteMessages], Bool), NoError>
@@ -2274,6 +2714,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 foundPublicMessages = .single(([FoundRemoteMessages(messages: [], readCounters: [:], threadsData: [:], totalCount: 0)], false))
             }
             
+            let cleanFinalQuery = finalQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            
             let foundRemoteMessages: Signal<([FoundRemoteMessages], Bool), NoError>
             if key == .publicPosts {
                 foundRemoteMessages = .single(([FoundRemoteMessages(messages: [], readCounters: [:], threadsData: [:], totalCount: 0)], false))
@@ -2283,13 +2725,25 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 foundRemoteMessages = .single(([FoundRemoteMessages(messages: [], readCounters: [:], threadsData: [:], totalCount: 0)], false))
             } else if key == .apps {
                 foundRemoteMessages = .single(([FoundRemoteMessages(messages: [], readCounters: [:], threadsData: [:], totalCount: 0)], false))
+            } else if key == .globalPosts && (cleanFinalQuery.isEmpty || approvedGlobalPostQueryState?.query != finalQuery) {
+                if cleanFinalQuery.isEmpty {
+                    foundRemoteMessages = defaultFoundRemoteMessages.get()
+                } else {
+                    foundRemoteMessages = .single(([FoundRemoteMessages(messages: [], readCounters: [:], threadsData: [:], totalCount: 0)], false))
+                }
             } else {
                 if !finalQuery.isEmpty {
                     addAppLogEvent(postbox: context.account.postbox, type: "search_global_query")
                 }
                 
-                let searchSignals: [Signal<(SearchMessagesResult, SearchMessagesState), NoError>] = searchLocations.map { searchLocation in
-                    return context.engine.messages.searchMessages(location: searchLocation, query: finalQuery, state: nil, limit: 50)
+                let searchSignals: [Signal<(SearchMessagesResult, SearchMessagesState), NoError>]
+                
+                if key == .globalPosts {
+                    searchSignals = [context.engine.messages.searchMessages(location: .general(scope: .globalPosts(allowPaidStars: approvedGlobalPostQueryState?.price), groupId: nil, tags: nil, minDate: nil, maxDate: nil, folderId: nil), query: finalQuery, state: nil, limit: 50)]
+                } else {
+                    searchSignals = searchLocations.map { searchLocation in
+                        return context.engine.messages.searchMessages(location: searchLocation, query: finalQuery, state: nil, limit: 50)
+                    }
                 }
                 
                 let searchSignal = combineLatest(searchSignals)
@@ -2381,9 +2835,6 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 |> mapToSignal { resolvedUrl -> Signal<EngineMessage?, NoError> in
                     if case let .channelMessage(_, messageId, _) = resolvedUrl {
                         return context.engine.messages.downloadMessage(messageId: messageId)
-                        |> map { message -> EngineMessage? in
-                            return message.flatMap(EngineMessage.init)
-                        }
                     } else {
                         return .single(nil)
                     }
@@ -2442,16 +2893,17 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 selectionPromise.get(),
                 resolvedMessage,
                 fixedRecentlySearchedPeers,
-                foundThreads
+                foundThreads,
+                adsHiddenPromise.get()
             )
-            |> map { accountPeer, foundLocalPeers, foundRemotePeers, foundRemoteMessages, foundPublicMessages, presentationData, searchState, selectionState, resolvedMessage, recentPeers, allAndFoundThreads -> ([ChatListSearchEntry], Bool)? in
-                let isSearching = foundRemotePeers.2 || foundRemoteMessages.1 || foundPublicMessages.1
+            |> map { accountPeer, foundLocalPeers, foundRemotePeers, foundRemoteMessages, foundPublicMessages, presentationData, searchState, selectionState, resolvedMessage, recentPeers, allAndFoundThreads, adsHidden -> ([ChatListSearchEntry], Bool, String?)? in
+                let isSearching = foundRemotePeers.3 || foundRemoteMessages.1 || foundPublicMessages.1
                 var entries: [ChatListSearchEntry] = []
                 var index = 0
                 
                 for thread in allAndFoundThreads {
                     if let peer = thread.renderedPeer.peer, let threadData = thread.threadData, case let .forum(_, _, id, _, _) = thread.index {
-                        entries.append(.topic(peer, ChatListItemContent.ThreadInfo(id: id, info: threadData.info, isOwnedByMe: threadData.isOwnedByMe, isClosed: threadData.isClosed, isHidden: threadData.isHidden), index, presentationData.theme, presentationData.strings, .none))
+                        entries.append(.topic(peer, ChatListItemContent.ThreadInfo(id: id, info: threadData.info, isOwnedByMe: threadData.isOwnedByMe, isClosed: threadData.isClosed, isHidden: threadData.isHidden, threadPeer: nil), index, presentationData.theme, presentationData.strings, .none))
                         index += 1
                     }
                 }
@@ -2461,7 +2913,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     recentPeers = []
                 }
                 
-                let _ = currentRemotePeers.swap((foundRemotePeers.0, foundRemotePeers.1))
+                let _ = currentRemotePeers.swap((foundRemotePeers.0, foundRemotePeers.1, foundRemotePeers.2))
                 
                 let filteredPeer: (EnginePeer, EnginePeer) -> Bool = { peer, accountPeer in
                     if let requestPeerType {
@@ -2528,7 +2980,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                         }
                                     }
                                     if let isForum = groupType.isForum {
-                                        if isForum != channel.flags.contains(.isForum) {
+                                        if isForum != channel.isForum {
                                             match = false
                                         }
                                     }
@@ -2582,6 +3034,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 } else {
                                     match = false
                                 }
+                            case .createBot:
+                                break
                             }
                             if match {
                                 return true
@@ -2589,7 +3043,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         }
                         return false
                     } else {
-                        guard !peersFilter.contains(.excludeSavedMessages) || peer.id != accountPeer.id else { return false }
+                        guard !peersFilter.contains(.excludeSavedMessages) || peersFilter.contains(.includeSelf) || peer.id != accountPeer.id else { return false }
                         guard !peersFilter.contains(.excludeSecretChats) || peer.id.namespace != Namespaces.Peer.SecretChat else { return false }
                         guard !peersFilter.contains(.onlyPrivateChats) || peer.id.namespace == Namespaces.Peer.CloudUser else { return false }
                         
@@ -2627,7 +3081,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 
                 var totalNumberOfLocalPeers = 0
                 for renderedPeer in foundLocalPeers.peers {
-                    if let peer = renderedPeer.peers[renderedPeer.peerId], peer.id != context.account.peerId, filteredPeer(peer, EnginePeer(accountPeer)) {
+                    if let peer = renderedPeer.peers[renderedPeer.peerId], peer.id != context.account.peerId || peersFilter.contains(.includeSelf), filteredPeer(peer, EnginePeer(accountPeer)) {
                         if !existingPeerIds.contains(peer.id) {
                             existingPeerIds.insert(peer.id)
                             totalNumberOfLocalPeers += 1
@@ -2635,7 +3089,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     }
                 }
                 for peer in foundRemotePeers.0 {
-                    if !existingPeerIds.contains(peer.peer.id), filteredPeer(EnginePeer(peer.peer), EnginePeer(accountPeer)) {
+                    if !existingPeerIds.contains(peer.peer.id), filteredPeer(peer.peer, EnginePeer(accountPeer)) {
                         existingPeerIds.insert(peer.peer.id)
                         totalNumberOfLocalPeers += 1
                     }
@@ -2645,7 +3099,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 //CloudVeil start
                 if !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
                     for peer in foundRemotePeers.1 {
-                        if !existingPeerIds.contains(peer.peer.id), filteredPeer(EnginePeer(peer.peer), EnginePeer(accountPeer)) {
+                        if !existingPeerIds.contains(peer.peer.id), filteredPeer(peer.peer, EnginePeer(accountPeer)) {
                             totalNumberOfGlobalPeers += 1
                         }
                     }
@@ -2666,8 +3120,20 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 if lowercasedQuery.count > 1 && (presentationData.strings.DialogList_SavedMessages.lowercased().hasPrefix(lowercasedQuery) || "saved messages".hasPrefix(lowercasedQuery)) {
                     if !existingPeerIds.contains(accountPeer.id), filteredPeer(EnginePeer(accountPeer), EnginePeer(accountPeer)) {
                         existingPeerIds.insert(accountPeer.id)
-                        entries.append(.localPeer(EnginePeer(accountPeer), nil, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType, nil, false))
+                        entries.append(.localPeer(EnginePeer(accountPeer), nil, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType, nil, false, false))
                         index += 1
+                    }
+                }
+                                
+                if peersFilter.contains(.includeSelf) {
+                    for renderedPeer in foundLocalPeers.peers {
+                        if renderedPeer.peerId == context.account.peerId, let peer = renderedPeer.peers[renderedPeer.peerId], filteredPeer(peer, EnginePeer(accountPeer)) {
+                            if !existingPeerIds.contains(peer.id) {
+                                existingPeerIds.insert(peer.id)
+                                entries.append(.localPeer(peer, nil, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType, nil, false, true))
+                            }
+                            break
+                        }
                     }
                 }
                 
@@ -2682,6 +3148,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             var associatedPeer: EnginePeer?
                             if case let .secretChat(secretChat) = peer, let associatedPeerId = secretChat.associatedPeerId {
                                 associatedPeer = renderedPeer.peers[associatedPeerId]
+                            } else if case let .channel(channel) = peer, channel.isMonoForum {
+                                associatedPeer = renderedPeer.chatOrMonoforumMainPeer
                             }
                             
                             entries.append(.recentlySearchedPeer(peer, associatedPeer, foundLocalPeers.unread[peer.id], index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, nil, false))
@@ -2693,8 +3161,13 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 
                 if lowercasedQuery.count > 1 {
                     for peer in recentPeers {
+                        let renderedPeer = peer
                         if let peer = peer.peer.chatMainPeer, !existingPeerIds.contains(peer.id) {
                             let peer = EnginePeer(peer)
+                            var associatedPeer: EnginePeer?
+                            if case let .channel(channel) = peer, channel.isMonoForum {
+                                associatedPeer = renderedPeer.peer.chatOrMonoforumMainPeer.flatMap(EnginePeer.init)
+                            }
                             
                             var matches = false
                             if case let .user(user) = peer {
@@ -2709,7 +3182,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             
                             if matches {
                                 existingPeerIds.insert(peer.id)
-                                entries.append(.localPeer(peer, nil, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType, nil, false))
+                                entries.append(.localPeer(peer, associatedPeer, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType, nil, false, false))
                             }
                         }
                     }
@@ -2730,23 +3203,25 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             var associatedPeer: EnginePeer?
                             if case let .secretChat(secretChat) = peer, let associatedPeerId = secretChat.associatedPeerId {
                                 associatedPeer = renderedPeer.peers[associatedPeerId]
+                            } else if case let .channel(channel) = peer, channel.isMonoForum {
+                                associatedPeer = renderedPeer.chatOrMonoforumMainPeer
                             }
                             
-                            entries.append(.localPeer(peer, associatedPeer, foundLocalPeers.unread[peer.id], index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType, nil, false))
+                            entries.append(.localPeer(peer, associatedPeer, foundLocalPeers.unread[peer.id], index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType, nil, false, false))
                             index += 1
                             numberOfLocalPeers += 1
                         }
                     }
                 }
-                
+                                
                 for peer in foundRemotePeers.0 {
                     if case .expand = localExpandType, numberOfLocalPeers >= 3 {
                         break
                     }
                     
-                    if !existingPeerIds.contains(peer.peer.id), filteredPeer(EnginePeer(peer.peer), EnginePeer(accountPeer)) {
+                    if !existingPeerIds.contains(peer.peer.id), filteredPeer(peer.peer, EnginePeer(accountPeer)) {
                         existingPeerIds.insert(peer.peer.id)
-                        entries.append(.localPeer(EnginePeer(peer.peer), nil, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType, nil, false))
+                        entries.append(.localPeer(peer.peer, nil, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType, nil, false, false))
                         index += 1
                         numberOfLocalPeers += 1
                     }
@@ -2754,6 +3229,16 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
 
                 var numberOfGlobalPeers = 0
                 index = 0
+                if !adsHidden {
+                    for peer in foundRemotePeers.2 {
+                        if !existingPeerIds.contains(peer.peer.id) {
+                            existingPeerIds.insert(peer.peer.id)
+                            entries.append(.adPeer(peer, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, globalExpandType, finalQuery))
+                            index += 1
+                        }
+                    }
+                }
+                
                 if let _ = tagMask {
                 } else {
                     //CloudVeil start
@@ -2763,9 +3248,10 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 break
                             }
                             
-                            if !existingPeerIds.contains(peer.peer.id), filteredPeer(EnginePeer(peer.peer), EnginePeer(accountPeer)) {
+                            if !existingPeerIds.contains(peer.peer.id), filteredPeer(peer.peer, EnginePeer(accountPeer)) {
                                 existingPeerIds.insert(peer.peer.id)
-                                entries.append(.globalPeer(peer, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, globalExpandType, nil, false, nil))
+                                
+                                entries.append(.globalPeer(peer, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, globalExpandType, nil, false, finalQuery))
                                 index += 1
                                 numberOfGlobalPeers += 1
                             }
@@ -2782,12 +3268,12 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         }
                     }
                     //TODO:requiresPremiumForMessaging
-                    entries.append(.message(message, peer, nil, nil, presentationData, 1, nil, true, .index(message.index), nil, .generic, false, nil, false))
+                    entries.append(.message(message, peer, nil, nil, presentationData, 1, nil, true, .index(message.index), nil, .generic, false, nil, false, .everywhere))
                     index += 1
                 }
                 
                 var firstHeaderId: Int64?
-                if !foundRemotePeers.2 {
+                if !foundRemotePeers.3 {
                     index = 0
                     var existingPostIds = Set<MessageId>()
                     for foundPublicMessageSet in foundPublicMessages.0 {
@@ -2802,38 +3288,62 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 firstHeaderId = headerId
                             }
                             let peer = EngineRenderedPeer(message: message)
-                            entries.append(.message(message, peer, foundPublicMessageSet.readCounters[message.id.peerId], foundPublicMessageSet.threadsData[message.id]?.info, presentationData, foundPublicMessageSet.totalCount, nil, headerId == firstHeaderId, .index(message.index), nil, .publicPosts, false, nil, false))
+                            entries.append(.message(message, peer, foundPublicMessageSet.readCounters[message.id.peerId], foundPublicMessageSet.threadsData[message.id]?.info, presentationData, foundPublicMessageSet.totalCount, nil, headerId == firstHeaderId, .index(message.index), nil, .publicPosts, false, nil, false, .everywhere))
                             index += 1
                         }
                     }
                     
+                    let hadAnySearchMessagesBefore = hadAnySearchMessages.with { $0 }
                     var existingMessageIds = Set<MessageId>()
-                    for foundRemoteMessageSet in foundRemoteMessages.0 {
-                        for message in foundRemoteMessageSet.messages {
-                            if existingMessageIds.contains(message.id) {
-                                continue
+                    if foundRemoteMessages.1 && (searchScope != .everywhere || hadAnySearchMessagesBefore) {
+                        for i in 0 ..< 6 {
+                            entries.append(.messagePlaceholder(Int32(i), presentationData, searchScope))
+                            index += 1
+                        }
+                    } else {
+                        var hasAnyMessages = false
+                        for foundRemoteMessageSet in foundRemoteMessages.0 {
+                            for message in foundRemoteMessageSet.messages {
+                                if existingMessageIds.contains(message.id) {
+                                    continue
+                                }
+                                existingMessageIds.insert(message.id)
+                                
+                                if searchState.deletedMessageIds.contains(message.id) {
+                                    continue
+                                } else if message.id.namespace == Namespaces.Message.Cloud && searchState.deletedGlobalMessageIds.contains(message.id.id) {
+                                    continue
+                                }
+                                let headerId = listMessageDateHeaderId(timestamp: message.timestamp)
+                                if firstHeaderId == nil {
+                                    firstHeaderId = headerId
+                                }
+                                var peer = EngineRenderedPeer(message: message)
+                                if let group = message.peers[message.id.peerId] as? TelegramGroup, let migrationReference = group.migrationReference {
+                                    if let channelPeer = message.peers[migrationReference.peerId] {
+                                        peer = EngineRenderedPeer(peer: EnginePeer(channelPeer))
+                                    }
+                                }
+                                
+                                //TODO:requiresPremiumForMessaging
+                                hasAnyMessages = true
+                                entries.append(.message(message, peer, foundRemoteMessageSet.readCounters[message.id.peerId], foundRemoteMessageSet.threadsData[message.id]?.info, presentationData, foundRemoteMessageSet.totalCount, selectionState?.contains(message.id), headerId == firstHeaderId, .index(message.index), nil, .generic, false, nil, false, searchScope))
+                                index += 1
                             }
-                            existingMessageIds.insert(message.id)
-                            
-                            if searchState.deletedMessageIds.contains(message.id) {
-                                continue
-                            } else if message.id.namespace == Namespaces.Message.Cloud && searchState.deletedGlobalMessageIds.contains(message.id.id) {
-                                continue
-                            }
-                            let headerId = listMessageDateHeaderId(timestamp: message.timestamp)
-                            if firstHeaderId == nil {
-                                firstHeaderId = headerId
-                            }
-                            var peer = EngineRenderedPeer(message: message)
-                            if let group = message.peers[message.id.peerId] as? TelegramGroup, let migrationReference = group.migrationReference {
-                                if let channelPeer = message.peers[migrationReference.peerId] {
-                                    peer = EngineRenderedPeer(peer: EnginePeer(channelPeer))
+                        }
+                        
+                        if hasAnyMessages {
+                            let _ = hadAnySearchMessages.swap(true)
+                        } else {
+                            switch searchScope {
+                            case .everywhere:
+                                break
+                            default:
+                                if let data = context.currentAppConfiguration.with({ $0 }).data, data["ios_killswitch_empty_search_footer"] != nil {
+                                } else {
+                                    entries.append(.emptyMessagesFooter(presentationData, searchScope, query))
                                 }
                             }
-                            
-                            //TODO:requiresPremiumForMessaging
-                            entries.append(.message(message, peer, foundRemoteMessageSet.readCounters[message.id.peerId], foundRemoteMessageSet.threadsData[message.id]?.info, presentationData, foundRemoteMessageSet.totalCount, selectionState?.contains(message.id), headerId == firstHeaderId, .index(message.index), nil, .generic, false, nil, false))
-                            index += 1
                         }
                     }
                 }
@@ -2842,7 +3352,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     entries.append(.addContact(finalQuery, presentationData.theme, presentationData.strings))
                 }
                 
-                return (entries, isSearching)
+                return (entries, isSearching, query)
             }
         }
         
@@ -2892,6 +3402,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 interaction.openUrl(url)
             }, openPeer: { _, _ in
             }, callPeer: { _, _ in
+            }, openConferenceCall: { _ in
             }, enqueueMessage: { _ in
             }, sendSticker: nil, sendEmoji: nil, setupTemporaryHiddenMedia: { _, _, _ in }, chatAvatarHiddenMedia: { _, _ in }, gallerySource: .custom(messages: foundMessages |> map { message, a, b in
                 return (message.map { $0._asMessage() }, a, b)
@@ -2901,16 +3412,16 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         }
         
         transitionNodeImpl = { [weak self] messageId, media in
-            if let strongSelf = self {
-                return strongSelf.mediaNode.transitionNodeForGallery(messageId: messageId, media: media._asMedia())
+            if let self {
+                return self.mediaNode?.transitionNodeForGallery(messageId: messageId, media: media._asMedia())
             } else {
                 return nil
             }
         }
         
         addToTransitionSurfaceImpl = { [weak self] view in
-            if let strongSelf = self {
-                strongSelf.mediaNode.addToTransitionSurface(view: view)
+            if let self {
+                self.mediaNode?.addToTransitionSurface(view: view)
             }
         }
         
@@ -2931,7 +3442,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         simple: true,
                         source: .generic,
                         skipTermsOfService: true,
-                        payload: nil
+                        payload: nil,
+                        verifyAgeCompletion: nil
                     )
                     interaction.dismissSearch()
                 }
@@ -2944,7 +3456,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             case .savedMessagesChats:
                 break
             }
-            self?.listNode.clearHighlightAnimated(true)
+            self?.listNode?.clearHighlightAnimated(true)
         }, disabledPeerSelected: { _, _, _ in
         }, togglePeerSelected: { _, _ in
         }, togglePeersSelection: { _, _ in
@@ -2954,12 +3466,12 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             if let strongSelf = self, let peer = message.peers[message.id.peerId] {
                 interaction.openMessage(EnginePeer(peer), threadId, message.id, strongSelf.key == .chats)
             }
-            self?.listNode.clearHighlightAnimated(true)
+            self?.listNode?.clearHighlightAnimated(true)
         }, groupSelected: { _ in
         }, addContact: { [weak self] phoneNumber in
             interaction.dismissInput()
             interaction.addContact(phoneNumber)
-            self?.listNode.clearHighlightAnimated(true)
+            self?.listNode?.clearHighlightAnimated(true)
         }, setPeerIdWithRevealedOptions: { _, _ in
         }, setItemPinned: { _, _ in
         }, setPeerMuted: { _, _ in
@@ -2980,8 +3492,12 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 return
             }
             switch item.content {
+            case .loading:
+                break
             case let .peer(peerData):
                 if let peer = peerData.peer.peer, let message = peerData.messages.first {
+                    let _ = context.engine.peers.ensurePeerIsLocallyAvailable(peer: peer).startStandalone()
+                    
                     peerContextAction(peer, .search(message.id), node, gesture, location)
                 }
             case .groupReference:
@@ -3000,7 +3516,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 }
                 interaction.dismissInput()
                 interaction.openPeer(peer, peer, threadId, false)
-                self.listNode.clearHighlightAnimated(true)
+                self.listNode?.clearHighlightAnimated(true)
             })
         }, openStorageManagement: {
         }, openPasswordSetup: {
@@ -3023,9 +3539,13 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 self.interaction.openStories?(id, sourceNode.avatarNode)
             }
         }, openStarsTopup: { _ in
-        }, dismissNotice: { _ in
         }, editPeer: { _ in
         }, openWebApp: { _ in
+        }, openPhotoSetup: {
+        }, openAdInfo: { node, adPeer in
+            interaction.openAdInfo(node, adPeer)
+        }, openAccountFreezeInfo: {
+        }, openUrl: { _ in
         })
         chatListInteraction.isSearchMode = true
         
@@ -3053,9 +3573,9 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             } else {
                 playlistLocation = .custom(messages: foundMessages |> map { message, a, b in
                     return (message.map { $0._asMessage() }, a, b)
-                }, at: message.id, loadMore: {
+                }, canReorder: false, at: message.id, loadMore: {
                     loadMore()
-                })
+                }, hidePanel: false)
             }
             
             return context.sharedContext.openChatMessage(OpenChatMessageParams(context: context, chatLocation: .peer(id: message.id.peerId), chatFilterTag: nil, chatLocationContextHolder: nil, message: message, standalone: false, reverseMessageGalleryOrder: true, mode: mode, navigationController: navigationController, dismissInput: {
@@ -3065,7 +3585,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             }, transitionNode: { messageId, media, _ in
                 var transitionNode: (ASDisplayNode, CGRect, () -> (UIView?, UIView?))?
                 if let strongSelf = self {
-                    strongSelf.listNode.forEachItemNode { itemNode in
+                    strongSelf.listNode?.forEachItemNode { itemNode in
                         if let itemNode = itemNode as? ListMessageNode {
                             if let result = itemNode.transitionNode(id: messageId, media: media, adjustRect: false) {
                                 transitionNode = result
@@ -3080,6 +3600,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 interaction.openUrl(url)
             }, openPeer: { peer, navigation in
             }, callPeer: { _, _ in
+            }, openConferenceCall: { _ in
             }, enqueueMessage: { _ in
             }, sendSticker: nil, sendEmoji: nil, setupTemporaryHiddenMedia: { _, _, _ in }, chatAvatarHiddenMedia: { _, _ in }, playlistLocation: playlistLocation, gallerySource: gallerySource))
         }, openMessageContextMenu: { [weak self] message, _, node, rect, gesture in
@@ -3090,7 +3611,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             var fetchResourceId: (id: String, size: Int64, isFirstInList: Bool)?
             for entry in currentEntries {
                 switch entry {
-                case let .message(m, _, _, _, _, _, _, _, _, resource, _, _, _, _):
+                case let .message(m, _, _, _, _, _, _, _, _, resource, _, _, _, _, _):
                     if m.id == message.id {
                         fetchResourceId = resource
                     }
@@ -3100,7 +3621,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             }
             
             interaction.messageContextAction(EngineMessage(message), node, rect, gesture, key, fetchResourceId)
-        }, toggleMessagesSelection: { messageId, selected in
+        }, toggleMediaPlayback: nil, toggleMessagesSelection: { messageId, selected in
             if let messageId = messageId.first {
                 interaction.toggleMessageSelection(messageId, selected)
             }
@@ -3120,14 +3641,66 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         listInteraction.preferredStoryHighQuality = context.sharedContext.currentAutomaticMediaDownloadSettings.highQualityStories
         
         let previousSearchItems = Atomic<[ChatListSearchEntry]?>(value: nil)
+        let previousSearchQuery = Atomic<String?>(value: nil)
         let previousSelectedMessages = Atomic<Set<EngineMessage.Id>?>(value: nil)
         let previousExpandGlobalSearch = Atomic<Bool>(value: false)
+        let previousAdsHidden = Atomic<Bool>(value: false)
         
         self.searchQueryDisposable = (searchQuery
         |> deliverOnMainQueue).startStrict(next: { [weak self, weak listInteraction, weak chatListInteraction] query in
-            self?.searchQueryValue = query
+            guard let self else {
+                return
+            }
+            
+            if let searchQueryValue = self.searchQueryValue, searchQueryValue == self.approvedGlobalPostQueryStateValue?.query {
+                self.approvedGlobalPostQueryState.set(nil)
+            }
+            self.searchQueryValue = query
+            
             listInteraction?.searchTextHighightState = query
             chatListInteraction?.searchTextHighightState = query
+        })
+        self.globalPostSearchState.set(context.engine.data.subscribe(
+            TelegramEngine.EngineData.Item.Messages.GlobalPostSearchState()
+        ))
+        self.approvedSearchQueryDisposable = (combineLatest(queue: .mainQueue(), self.approvedGlobalPostQueryState.get(), self.globalPostSearchState.get(), isPremium)
+        |> deliverOnMainQueue).startStrict(next: { [weak self] approvedGlobalPostQueryState, globalPostSearchState, isPremium in
+            guard let self else {
+                return
+            }
+            self.approvedGlobalPostQueryStateValue = approvedGlobalPostQueryState
+            self.globalPostSearchStateValue = globalPostSearchState
+            self.isPremium = isPremium
+            
+            if let globalPostSearchState, globalPostSearchState.unlockTimestamp != nil {
+                if self.globalPostSearchUnlockTimer == nil {
+                    self.globalPostSearchUnlockTimer = Foundation.Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true, block: { [weak self] _ in
+                        guard let self else {
+                            return
+                        }
+                        
+                        if let unlockTimestamp = self.globalPostSearchStateValue?.unlockTimestamp {
+                            var remainingTime: Int32 = unlockTimestamp - Int32(Date().timeIntervalSince1970)
+                            remainingTime = max(0, remainingTime)
+                            if remainingTime == 0 {
+                                if self.refreshGlobalPostSearchStateDisposable == nil {
+                                    self.refreshGlobalPostSearchStateDisposable = self.context.engine.messages.refreshGlobalPostSearchState().start(completed: { [weak self] in
+                                        guard let self else {
+                                            return
+                                        }
+                                        self.refreshGlobalPostSearchStateDisposable = nil
+                                    })
+                                }
+                            }
+                        }
+                    })
+                }
+            } else {
+                if let globalPostSearchUnlockTimer = self.globalPostSearchUnlockTimer {
+                    self.globalPostSearchUnlockTimer = nil
+                    globalPostSearchUnlockTimer.invalidate()
+                }
+            }
         })
         
         self.searchOptionsDisposable = (searchOptions
@@ -3136,8 +3709,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         })
 
         
-        self.searchDisposable.set((foundItems |> mapToSignal { items -> Signal<([ChatListSearchEntry], Bool)?, NoError> in
-            guard let (items, isSearching) = items else {
+        self.searchDisposable.set((foundItems |> mapToSignal { items -> Signal<([ChatListSearchEntry], Bool, String?)?, NoError> in
+            guard let (items, isSearching, query) = items else {
                 return .single(nil)
             }
             var storyStatsIds: [EnginePeer.Id] = []
@@ -3149,17 +3722,17 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     if case let .user(user) = peer, user.flags.contains(.requirePremium) {
                         requiresPremiumForMessagingPeerIds.append(peer.id)
                     }
-                case let .localPeer(peer, _, _, _, _, _, _, _, _, _, _):
+                case let .localPeer(peer, _, _, _, _, _, _, _, _, _, _, _):
                     storyStatsIds.append(peer.id)
                     if case let .user(user) = peer, user.flags.contains(.requirePremium) {
                         requiresPremiumForMessagingPeerIds.append(peer.id)
                     }
                 case let .globalPeer(foundPeer, _, _, _, _, _, _, _, _, _, _):
                     storyStatsIds.append(foundPeer.peer.id)
-                    if let user = foundPeer.peer as? TelegramUser, user.flags.contains(.requirePremium) {
+                    if case let .user(user) = foundPeer.peer, user.flags.contains(.requirePremium) {
                         requiresPremiumForMessagingPeerIds.append(foundPeer.peer.id)
                     }
-                case let .message(_, peer, _, _, _, _, _, _, _, _, _, _, _, _):
+                case let .message(_, peer, _, _, _, _, _, _, _, _, _, _, _, _, _):
                     if let peer = peer.peer {
                         storyStatsIds.append(peer.id)
                         if case let .user(user) = peer, user.flags.contains(.requirePremium) {
@@ -3180,7 +3753,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     requiresPremiumForMessagingPeerIds.map(TelegramEngine.EngineData.Item.Peer.IsPremiumRequiredForMessaging.init(id:))
                 )
             )
-            |> map { stats, requiresPremiumForMessaging -> ([ChatListSearchEntry], Bool)? in
+            |> map { stats, requiresPremiumForMessaging -> ([ChatListSearchEntry], Bool, String?)? in
                 var requiresPremiumForMessaging = requiresPremiumForMessaging
                 if !peersFilter.contains(.onlyWriteable) {
                     requiresPremiumForMessaging = [:]
@@ -3193,27 +3766,29 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     switch mappedItems[i] {
                     case let .recentlySearchedPeer(peer, associatedPeer, unreadBadge, index, theme, strings, sortOrder, displayOrder, _, _):
                         mappedItems[i] = .recentlySearchedPeer(peer, associatedPeer, unreadBadge, index, theme, strings, sortOrder, displayOrder, stats[peer.id] ?? nil, requiresPremiumForMessaging[peer.id] ?? false)
-                    case let .localPeer(peer, associatedPeer, unreadBadge, index, theme, strings, sortOrder, displayOrder, expandType, _, _):
-                        mappedItems[i] = .localPeer(peer, associatedPeer, unreadBadge, index, theme, strings, sortOrder, displayOrder, expandType, stats[peer.id] ?? nil, requiresPremiumForMessaging[peer.id] ?? false)
+                    case let .localPeer(peer, associatedPeer, unreadBadge, index, theme, strings, sortOrder, displayOrder, expandType, _, _, isSelf):
+                        mappedItems[i] = .localPeer(peer, associatedPeer, unreadBadge, index, theme, strings, sortOrder, displayOrder, expandType, stats[peer.id] ?? nil, requiresPremiumForMessaging[peer.id] ?? false, isSelf)
                     case let .globalPeer(peer, unreadBadge, index, theme, strings, sortOrder, displayOrder, expandType, _, _, searchQuery):
                         mappedItems[i] = .globalPeer(peer, unreadBadge, index, theme, strings, sortOrder, displayOrder, expandType, stats[peer.peer.id] ?? nil, requiresPremiumForMessaging[peer.peer.id] ?? false, searchQuery)
-                    case let .message(message, peer, combinedPeerReadState, threadInfo, presentationData, totalCount, selected, displayCustomHeader, key, resourceId, section, allPaused, _, _):
-                        mappedItems[i] = .message(message, peer, combinedPeerReadState, threadInfo, presentationData, totalCount, selected, displayCustomHeader, key, resourceId, section, allPaused, stats[peer.peerId] ?? nil, requiresPremiumForMessaging[peer.peerId] ?? false)
+                    case let .message(message, peer, combinedPeerReadState, threadInfo, presentationData, totalCount, selected, displayCustomHeader, key, resourceId, section, allPaused, _, _, searchScope):
+                        mappedItems[i] = .message(message, peer, combinedPeerReadState, threadInfo, presentationData, totalCount, selected, displayCustomHeader, key, resourceId, section, allPaused, stats[peer.peerId] ?? nil, requiresPremiumForMessaging[peer.peerId] ?? false, searchScope)
                     default:
                         break
                     }
                 }
-                return (mappedItems, isSearching)
+                return (mappedItems, isSearching, query)
             }
         }
         |> deliverOnMainQueue).startStrict(next: { [weak self] foundItems in
             if let strongSelf = self {
                 let previousSelectedMessageIds = previousSelectedMessages.swap(strongSelf.selectedMessages)
                 let previousExpandGlobalSearch = previousExpandGlobalSearch.swap(strongSelf.searchStateValue.expandGlobalSearch)
+                let previousAdsHidden = previousAdsHidden.swap(strongSelf.adsHidden)
                 
                 var entriesAndFlags = foundItems?.0
                 
                 let isSearching = foundItems?.1 ?? false
+                let currentQuery = foundItems?.2
                 strongSelf._isSearching.set(isSearching)
                 
                 if strongSelf.tagMask == .photoOrVideo {
@@ -3221,14 +3796,16 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     if isSearching && (entries?.isEmpty ?? true) {
                         entries = nil
                     }
-                    strongSelf.mediaNode.updateHistory(entries: entries, totalCount: 0, updateType: .Initial)
+                    strongSelf.mediaNode?.updateHistory(entries: entries, totalCount: 0, updateType: .Initial)
+                } else if strongSelf.tagMask == .roundVideo {
+                    
                 }
                 
                 var peers: [EnginePeer] = []
                 if let entries = entriesAndFlags {
                     var filteredEntries: [ChatListSearchEntry] = []
                     for entry in entries {
-                        if case let .localPeer(peer, _, _, _, _, _, _, _, _, _, _) = entry {
+                        if case let .localPeer(peer, _, _, _, _, _, _, _, _, _, _, _) = entry {
                             peers.append(peer)
                         } else if case .globalPeer = entry {    
                         } else {
@@ -3242,13 +3819,15 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 }
                 
                 let previousEntries = previousSearchItems.swap(entriesAndFlags)
+                let previousQuery = previousSearchQuery.swap(currentQuery)
                 let newEntries = entriesAndFlags ?? []
                 
                 let selectionChanged = (previousSelectedMessageIds == nil) != (strongSelf.selectedMessages == nil)
                 let expandGlobalSearchChanged = previousExpandGlobalSearch != strongSelf.searchStateValue.expandGlobalSearch
+                let adsHiddenChanged = previousAdsHidden != strongSelf.adsHidden
                 
-                let animated = selectionChanged || expandGlobalSearchChanged
-                let firstTime = previousEntries == nil
+                let animated = selectionChanged || expandGlobalSearchChanged || adsHiddenChanged
+                let firstTime = previousEntries == nil || previousQuery != currentQuery
                 var transition = chatListSearchContainerPreparedTransition(from: previousEntries ?? [], to: newEntries, displayingResults: entriesAndFlags != nil, isEmpty: !isSearching && (entriesAndFlags?.isEmpty ?? false), isLoading: isSearching, animated: animated, context: context, presentationData: strongSelf.presentationData, enableHeaders: true, filter: peersFilter, requestPeerType: requestPeerType, location: location, key: strongSelf.key, tagMask: tagMask, interaction: chatListInteraction, listInteraction: listInteraction, peerContextAction: { message, node, rect, gesture, location in
                     interaction.peerContextAction?(message, node, rect, gesture, location)
                 }, toggleExpandLocalResults: {
@@ -3270,7 +3849,11 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         return state
                     }
                 }, searchPeer: { peer in
-                }, searchQuery: strongSelf.searchQueryValue, searchOptions: strongSelf.searchOptionsValue, messageContextAction: { message, node, rect, gesture, paneKey, downloadResource in
+                },
+                searchQuery: strongSelf.searchQueryValue,
+                approvedGlobalPostQueryState: strongSelf.approvedGlobalPostQueryStateValue,
+                globalSearchStateValue: strongSelf.globalPostSearchStateValue,
+                searchOptions: strongSelf.searchOptionsValue, messageContextAction: { message, node, rect, gesture, paneKey, downloadResource in
                     interaction.messageContextAction(message, node, rect, gesture, paneKey, downloadResource)
                 }, openClearRecentlyDownloaded: {
                     guard let strongSelf = self else {
@@ -3331,9 +3914,25 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         }
                     })
                 }, openStories: { peerId, avatarNode in
+                    guard let strongSelf = self else {
+                        return
+                    }
                     strongSelf.interaction.openStories?(peerId, avatarNode)
                 }, openPublicPosts: {
+                    guard let strongSelf = self else {
+                        return
+                    }
                     strongSelf.interaction.switchToFilter(.publicPosts)
+                }, openMessagesFilter: { sourceNode in
+                    guard let strongSelf = self else {
+                        return
+                    }
+                    strongSelf.openMessagesFilter(sourceNode: sourceNode)
+                }, switchMessagesFilter: { filter in
+                    guard let strongSelf = self else {
+                        return
+                    }
+                    strongSelf.searchScopePromise.set(.everywhere)
                 })
                 strongSelf.currentEntries = newEntries
                 if strongSelf.key == .downloads {
@@ -3345,7 +3944,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 
                 var messages: [EngineMessage] = []
                 for entry in newEntries {
-                    if case let .message(message, _, _, _, _, _, _, _, _, _, _, _, _, _) = entry {
+                    if case let .message(message, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = entry {
                         messages.append(message)
                     }
                 }
@@ -3580,7 +4179,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         result.append(.peer(
                             index: result.count,
                             peer: RecentlySearchedPeer(
-                                peer: RenderedPeer(peer: peer._asPeer()),
+                                peer: RenderedPeer(peer: peer),
                                 presence: nil,
                                 notificationSettings: peerNotificationSettings.flatMap({ $0._asNotificationSettings() }),
                                 unreadCount: unreadCount,
@@ -3620,7 +4219,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             result.append(.peer(
                                 index: result.count,
                                 peer: RecentlySearchedPeer(
-                                    peer: RenderedPeer(peer: peer._asPeer()),
+                                    peer: RenderedPeer(peer: peer),
                                     presence: nil,
                                     notificationSettings: peerNotificationSettings.flatMap({ $0._asNotificationSettings() }),
                                     unreadCount: 0,
@@ -3743,7 +4342,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         result.append(.peer(
                             index: result.count,
                             peer: RecentlySearchedPeer(
-                                peer: RenderedPeer(peer: peer._asPeer()),
+                                peer: RenderedPeer(peer: peer),
                                 presence: nil,
                                 notificationSettings: peerNotificationSettings.flatMap({ $0._asNotificationSettings() }),
                                 unreadCount: unreadCount,
@@ -3778,7 +4377,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             result.append(.peer(
                                 index: result.count,
                                 peer: RecentlySearchedPeer(
-                                    peer: RenderedPeer(peer: peer._asPeer()),
+                                    peer: RenderedPeer(peer: peer),
                                     presence: nil,
                                     notificationSettings: peerNotificationSettings.flatMap({ $0._asNotificationSettings() }),
                                     unreadCount: 0,
@@ -3840,7 +4439,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     }
                 }
                 
-                let transition = chatListSearchContainerPreparedRecentTransition(from: previousRecentItems?.entries ?? [], to: recentItems.entries, forceUpdateAll: forceUpdateAll, context: context, presentationData: presentationData, filter: peersFilter, key: key, peerSelected: { peer, threadId, isRecommended in
+                let transition = chatListSearchContainerPreparedRecentTransition(from: previousRecentItems?.entries ?? [], to: recentItems.entries, forceUpdateAll: forceUpdateAll, context: context, presentationData: presentationData, filter: peersFilter, key: key, peerSelected: { peer, threadId, isRecommended, action in
                     guard let self else {
                         return
                     }
@@ -3866,36 +4465,40 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         }
                     } else if case .apps = key {
                         if let navigationController = self.navigationController {
-                            if isRecommended {
-                                if let peerInfoScreen = self.context.sharedContext.makePeerInfoController(context: self.context, updatedPresentationData: nil, peer: peer._asPeer(), mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
-                                    navigationController.pushViewController(peerInfoScreen)
-                                }
-                            } else if case let .user(user) = peer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), let parentController = self.parentController {
-                                self.context.sharedContext.openWebApp(
-                                    context: self.context,
-                                    parentController: parentController,
-                                    updatedPresentationData: nil,
-                                    botPeer: peer,
-                                    chatPeer: nil,
-                                    threadId: nil,
-                                    buttonText: "",
-                                    url: "",
-                                    simple: true,
-                                    source: .generic,
-                                    skipTermsOfService: true,
-                                    payload: nil
-                                )
-                            } else {
+                            switch action {
+                            case .generic:
                                 self.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(
                                     navigationController: navigationController,
                                     context: self.context,
                                     chatLocation: .peer(peer),
                                     keepStack: .always
                                 ))
+                            case .info:
+                                if let peerInfoScreen = self.context.sharedContext.makePeerInfoController(context: self.context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
+                                    navigationController.pushViewController(peerInfoScreen)
+                                }
+                            case .openApp:
+                                if let parentController = self.parentController {
+                                    self.context.sharedContext.openWebApp(
+                                        context: self.context,
+                                        parentController: parentController,
+                                        updatedPresentationData: nil,
+                                        botPeer: peer,
+                                        chatPeer: nil,
+                                        threadId: nil,
+                                        buttonText: "",
+                                        url: "",
+                                        simple: true,
+                                        source: .generic,
+                                        skipTermsOfService: true,
+                                        payload: nil,
+                                        verifyAgeCompletion: nil
+                                    )
+                                }
                             }
                         }
                     } else {
-                        if isRecommended, case let .user(user) = peer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), let parentController = self.parentController {
+                        if case .openApp = action, case let .user(user) = peer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), let parentController = self.parentController {
                             self.context.sharedContext.openWebApp(
                                 context: self.context,
                                 parentController: parentController,
@@ -3908,7 +4511,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 simple: true,
                                 source: .generic,
                                 skipTermsOfService: true,
-                                payload: nil
+                                payload: nil,
+                                verifyAgeCompletion: nil
                             )
                             interaction.dismissSearch()
                         } else {
@@ -3951,7 +4555,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 return
                             }
                             dismissImpl?()
-                            if let value = attributes[NSAttributedString.Key(rawValue: "URL")] as? String {
+                            if let value = attributes[NSAttributedString.Key(rawValue: TelegramTextAttributes.URL)] as? String {
                                 if !value.isEmpty {
                                     context.sharedContext.openExternalUrl(context: context, urlContext: .generic, url: value, forceExternal: false, presentationData: context.sharedContext.currentPresentationData.with { $0 }, navigationController: navigationController, dismissInput: {})
                                 } else {
@@ -3979,7 +4583,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     )
                     interaction.present(alertController, nil)
                     dismissImpl = { [weak alertController] in
-                        alertController?.dismissAnimated()
+                        alertController?.dismiss()
                     }
                 },
                 isChannelsTabExpanded: recentItems.isChannelsTabExpanded,
@@ -3998,7 +4602,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 if strongSelf.backgroundColor != nil {
                     strongSelf.backgroundColor = presentationData.theme.chatList.backgroundColor
                 }
-                strongSelf.listNode.forEachItemHeaderNode({ itemHeaderNode in
+                strongSelf.listNode?.forEachItemHeaderNode({ itemHeaderNode in
                     if let itemHeaderNode = itemHeaderNode as? ChatListSearchItemHeaderNode {
                         itemHeaderNode.updateTheme(theme: presentationData.theme)
                     }
@@ -4016,26 +4620,26 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             interaction.dismissInput()
         }
         
-        self.listNode.beganInteractiveDragging = { _ in
+        self.listNode?.beganInteractiveDragging = { _ in
             interaction.dismissInput()
         }
         
-        self.mediaNode.beganInteractiveDragging = {
+        self.mediaNode?.beganInteractiveDragging = {
             interaction.dismissInput()
         }
         
-        self.listNode.visibleBottomContentOffsetChanged = { offset in
+        self.listNode?.visibleBottomContentOffsetChanged = { offset in
             guard case let .known(value) = offset, value < 160.0 else {
                 return
             }
             loadMore()
         }
         
-        self.mediaNode.loadMore = {
+        self.mediaNode?.loadMore = {
             loadMore()
         }
         
-        if [.file, .music, .voiceOrInstantVideo].contains(tagMask) || self.key == .downloads {
+        if [.file, .music, .voiceOrInstantVideo, .voice, .roundVideo].contains(tagMask) || self.key == .downloads {
             let key = self.key
             self.mediaStatusDisposable = (context.sharedContext.mediaManager.globalMediaPlayerState
             |> mapToSignal { playlistStateAndType -> Signal<(Account, SharedMediaPlayerItemPlaybackState, MediaManagerPlayerType)?, NoError> in
@@ -4045,7 +4649,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         if let playlistId = state.playlistId as? PeerMessagesMediaPlaylistId, case .custom = playlistId {
                             switch type {
                             case .voice:
-                                if tagMask != .voiceOrInstantVideo {
+                                if ![.voiceOrInstantVideo, .voice, .roundVideo].contains(tagMask) {
                                     return .single(nil) |> delay(0.2, queue: .mainQueue())
                                 }
                             case .music:
@@ -4083,8 +4687,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         self.playlistStateAndType = nil
                     }
                     
-                    if let (size, sideInset, bottomInset, visibleHeight, presentationData) = self.currentParams {
-                        self.update(size: size, sideInset: sideInset, bottomInset: bottomInset, visibleHeight: visibleHeight, presentationData: presentationData, synchronous: true, transition: .animated(duration: 0.4, curve: .spring))
+                    if let (size, sideInset, topInset, bottomInset, visibleHeight, presentationData) = self.currentParams {
+                        self.update(size: size, sideInset: sideInset, topInset: topInset, bottomInset: bottomInset, visibleHeight: visibleHeight, presentationData: presentationData, synchronous: true, transition: .animated(duration: 0.4, curve: .spring))
                     }
                 }
                 self.playlistLocation = playlistStateAndType?.1.playlistLocation
@@ -4126,7 +4730,10 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         self.updatedRecentPeersDisposable.dispose()
         self.deletedMessagesDisposable?.dispose()
         self.searchQueryDisposable?.dispose()
+        self.approvedSearchQueryDisposable?.dispose()
         self.searchOptionsDisposable?.dispose()
+        self.globalPostSearchUnlockTimer?.invalidate()
+        self.refreshGlobalPostSearchStateDisposable?.dispose()
     }
     
     override func didLoad() {
@@ -4173,22 +4780,35 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     }
     
     func scrollToTop() -> Bool {
-        if !self.mediaNode.isHidden {
-            return self.mediaNode.scrollToTop()
-        }
-        let offset = self.listNode.visibleContentOffset()
-        switch offset {
-        case let .known(value) where value <= CGFloat.ulpOfOne:
+        if let mediaNode = self.mediaNode, !mediaNode.isHidden {
+            return mediaNode.scrollToTop()
+        } else if !self.recentListNode.isHidden {
+            let offset = self.recentListNode.visibleContentOffset()
+            switch offset {
+            case let .known(value) where value <= CGFloat.ulpOfOne:
+                return false
+            default:
+                self.recentListNode.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: [.Synchronous, .LowLatency], scrollToItem: ListViewScrollToItem(index: 0, position: .top(0.0), animated: true, curve: .Default(duration: nil), directionHint: .Up), updateSizeAndInsets: nil, stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
+                return true
+            }
+        } else if let listNode = self.listNode {
+            let offset = listNode.visibleContentOffset()
+            switch offset {
+            case let .known(value) where value <= CGFloat.ulpOfOne:
+                return false
+            default:
+                listNode.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: [.Synchronous, .LowLatency], scrollToItem: ListViewScrollToItem(index: 0, position: .top(0.0), animated: true, curve: .Default(duration: nil), directionHint: .Up), updateSizeAndInsets: nil, stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
+                return true
+            }
+        } else {
             return false
-        default:
-            self.listNode.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: [.Synchronous, .LowLatency], scrollToItem: ListViewScrollToItem(index: 0, position: .top(0.0), animated: true, curve: .Default(duration: nil), directionHint: .Up), updateSizeAndInsets: nil, stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
-            return true
         }
     }
     
-    func update(size: CGSize, sideInset: CGFloat, bottomInset: CGFloat, visibleHeight: CGFloat, presentationData: PresentationData, synchronous: Bool, transition: ContainedViewLayoutTransition) {
+    func update(size: CGSize, sideInset: CGFloat, topInset: CGFloat, bottomInset: CGFloat, visibleHeight: CGFloat, presentationData: PresentationData, synchronous: Bool, transition: ContainedViewLayoutTransition) {
         let hadValidLayout = self.currentParams != nil
-        self.currentParams = (size, sideInset, bottomInset, visibleHeight, presentationData)
+        let layoutChanged = self.currentParams?.size != size || self.currentParams?.sideInset != sideInset ||  self.currentParams?.topInset != topInset || self.currentParams?.bottomInset != bottomInset || self.currentParams?.visibleHeight != visibleHeight
+        self.currentParams = (size, sideInset, topInset, bottomInset, visibleHeight, presentationData)
         
         var topPanelHeight: CGFloat = 0.0
         if let (item, previousItem, nextItem, order, type, _) = self.playlistStateAndType {
@@ -4366,7 +4986,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 strongSelf.interaction.dismissInput()
                                 strongSelf.interaction.present(controller, nil)
                             } else if case let .messages(chatLocation, _, _) = playlistLocation {
-                                let signal = strongSelf.context.sharedContext.messageFromPreloadedChatHistoryViewForLocation(id: id.messageId, location: ChatHistoryLocationInput(content: .InitialSearch(subject: MessageHistoryInitialSearchSubject(location: .id(id.messageId), quote: nil), count: 60, highlight: true, setupReply: false), id: 0), context: strongSelf.context, chatLocation: chatLocation, subject: nil, chatLocationContextHolder: Atomic<ChatLocationContextHolder?>(value: nil), tag: .tag(EngineMessage.Tags.music))
+                                let signal = strongSelf.context.sharedContext.messageFromPreloadedChatHistoryViewForLocation(id: id.messageId, location: ChatHistoryLocationInput(content: .InitialSearch(subject: MessageHistoryInitialSearchSubject(location: .id(id.messageId)), count: 60, highlight: true, setupReply: false), id: 0), context: strongSelf.context, chatLocation: chatLocation, subject: nil, chatLocationContextHolder: Atomic<ChatLocationContextHolder?>(value: nil), tag: .tag(EngineMessage.Tags.music))
                                 
                                 var cancelImpl: (() -> Void)?
                                 let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
@@ -4462,9 +5082,9 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         
         transition.updateFrame(node: self.mediaAccessoryPanelContainer, frame: CGRect(origin: CGPoint(), size: CGSize(width: size.width, height: MediaNavigationAccessoryHeaderNode.minimizedHeight)))
         
-        let topInset: CGFloat = topPanelHeight
-        let overflowInset: CGFloat = 20.0
-        let insets = UIEdgeInsets(top: topPanelHeight, left: sideInset, bottom: bottomInset, right: sideInset)
+        let topInset: CGFloat = topInset + topPanelHeight
+        let overflowInset: CGFloat = 0.0
+        let insets = UIEdgeInsets(top: topInset + topPanelHeight, left: sideInset, bottom: bottomInset, right: sideInset)
         
         self.shimmerNode.frame = CGRect(origin: CGPoint(x: overflowInset, y: topInset), size: CGSize(width: size.width - overflowInset * 2.0, height: size.height))
         self.shimmerNode.update(context: self.context, size: CGSize(width: size.width - overflowInset * 2.0, height: size.height), presentationData: self.presentationData, animationCache: self.animationCache, animationRenderer: self.animationRenderer, key: !(self.searchQueryValue?.isEmpty ?? true) && self.key == .media ? .chats : self.key, hasSelection: self.selectedMessages != nil, transition: transition)
@@ -4491,11 +5111,11 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             emptyRecentAnimationNode.updateLayout(size: emptyRecentAnimationSize)
         }
         
-        self.listNode.frame = CGRect(origin: CGPoint(), size: size)
-        self.listNode.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: [.Synchronous], scrollToItem: nil, updateSizeAndInsets: ListViewUpdateSizeAndInsets(size: size, insets: insets, duration: duration, curve: curve), stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
+        self.listNode?.frame = CGRect(origin: CGPoint(), size: size)
+        self.listNode?.transaction(deleteIndices: [], insertIndicesAndItems: [], updateIndicesAndItems: [], options: [.Synchronous], scrollToItem: nil, updateSizeAndInsets: ListViewUpdateSizeAndInsets(size: size, insets: insets, duration: duration, curve: curve), stationaryItemRange: nil, updateOpaqueState: nil, completion: { _ in })
         
-        self.mediaNode.frame = CGRect(origin: CGPoint(x: 0.0, y: topInset), size: CGSize(width: size.width, height: size.height))
-        self.mediaNode.update(size: size, sideInset: sideInset, bottomInset: bottomInset, visibleHeight: visibleHeight, isScrollingLockedAtTop: false, expandProgress: 1.0, presentationData: self.presentationData, synchronous: true, transition: transition)
+        self.mediaNode?.frame = CGRect(origin: CGPoint(x: 0.0, y: topInset), size: CGSize(width: size.width, height: size.height))
+        self.mediaNode?.update(size: size, sideInset: sideInset, bottomInset: bottomInset, visibleHeight: visibleHeight, isScrollingLockedAtTop: false, expandProgress: 1.0, presentationData: self.presentationData, synchronous: true, transition: transition)
         
         do {
             let padding: CGFloat = 16.0
@@ -4504,15 +5124,172 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             
             let emptyAnimationHeight = self.emptyResultsAnimationSize.height
             let emptyAnimationSpacing: CGFloat = 8.0
-            let emptyTextSpacing: CGFloat = 8.0
-            let emptyTotalHeight = emptyAnimationHeight + emptyAnimationSpacing + emptyTitleSize.height + emptyTextSize.height + emptyTextSpacing
-            let emptyAnimationY = topInset + floorToScreenPixels((visibleHeight - topInset - bottomInset - emptyTotalHeight) / 2.0)
+            let emptyTextSpacing: CGFloat
+            let emptyButtonSpacing: CGFloat = 15.0
+            let emptyButtonSubtitleSpacing: CGFloat = 12.0
             
-            let textTransition = ContainedViewLayoutTransition.immediate
+            var displayEmptyAnimation = true
+            if self.key == .globalPosts && self.emptyResultsButtonContent != nil {
+                displayEmptyAnimation = false
+                emptyTextSpacing = 18.0
+            } else {
+                emptyTextSpacing = 8.0
+            }
+            
+            var emptyButtonSize: CGSize?
+            var emptyButtonSubtitleSize: CGSize?
+            
+            if let emptyResultsButtonContent = self.emptyResultsButtonContent {
+                let emptyResultsButton: ComponentView<Empty>
+                if let current = self.emptyResultsButton {
+                    emptyResultsButton = current
+                } else {
+                    emptyResultsButton = ComponentView()
+                    self.emptyResultsButton = emptyResultsButton
+                }
+                
+                let emptyResultsButtonSizeValue = emptyResultsButton.update(
+                    transition: .immediate,
+                    component: AnyComponent(EmptyResultsButton(
+                        theme: self.presentationData.theme,
+                        strings: self.presentationData.strings,
+                        content: emptyResultsButtonContent,
+                        action: { [weak self] in
+                            guard let self else {
+                                return
+                            }
+                            if !self.isPremium {
+                                guard let navigationController = self.navigationController else {
+                                    return
+                                }
+                                let context = self.context
+                                let controller = context.sharedContext.makePremiumIntroController(context: context, source: .ads, forceDark: false, dismissed: nil)
+                                navigationController.pushViewController(controller)
+                            } else {
+                                if let searchQueryValue = self.searchQueryValue, !searchQueryValue.isEmpty, self.approvedGlobalPostQueryStateValue?.query != searchQueryValue {
+                                    var price: Int?
+                                    
+                                    if let globalPostSearchStateValue = self.globalPostSearchStateValue, globalPostSearchStateValue.remainingFreeSearches == 0 {
+                                        price = Int(globalPostSearchStateValue.price.value)
+                                    }
+                                    
+                                    self.approvedGlobalPostQueryState.set(ApprovedGlobalPostQueryState(
+                                        query: searchQueryValue,
+                                        price: price
+                                    ))
+                                    
+                                    if let price {
+                                        if let controller = self.navigationController?.topViewController as? ViewController {
+                                            controller.present(UndoOverlayController(
+                                                presentationData: presentationData,
+                                                content: .starsSent(context: self.context, title: "", text: [AnimatedTextComponent.Item(
+                                                    id: AnyHashable(0),
+                                                    isUnbreakable: true,
+                                                    content: .text(presentationData.strings.ChatList_PaidSearchToast_Text(Int32(price)))
+                                                )], hasUndo: false),
+                                                elevatedLayout: false,
+                                                animateInAsReplacement: false,
+                                                action: { action in
+                                                    return true
+                                                }
+                                            ), in: .current)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    )),
+                    environment: {},
+                    containerSize: CGSize(width: min(282.0, size.width - sideInset - 24.0 * 2.0), height: 50.0)
+                )
+                emptyButtonSize = emptyResultsButtonSizeValue
+            } else {
+                if let emptyResultsButton = self.emptyResultsButton {
+                    self.emptyResultsButton = nil
+                    emptyResultsButton.view?.removeFromSuperview()
+                }
+            }
+            
+            if let emptyResultsButtonSubtitleText = self.emptyResultsButtonSubtitleText {
+                let emptyResultsButtonSubtitle: ComponentView<Empty>
+                if let current = self.emptyResultsButtonSubtitle {
+                    emptyResultsButtonSubtitle = current
+                } else {
+                    emptyResultsButtonSubtitle = ComponentView()
+                    self.emptyResultsButtonSubtitle = emptyResultsButtonSubtitle
+                }
+                
+                let emptyResultsButtonSubtitleSizeValue = emptyResultsButtonSubtitle.update(
+                    transition: .immediate,
+                    component: AnyComponent(MultilineTextComponent(
+                        text: .plain(NSAttributedString(
+                            string: emptyResultsButtonSubtitleText,
+                            font: Font.regular(13.0),
+                            textColor: self.presentationData.theme.list.freeTextColor
+                        )),
+                        horizontalAlignment: .center
+                    )),
+                    environment: {},
+                    containerSize: CGSize(width: size.width - sideInset - 24.0 * 2.0, height: 100.0)
+                )
+                emptyButtonSubtitleSize = emptyResultsButtonSubtitleSizeValue
+            } else {
+                if let emptyResultsButtonSubtitle = self.emptyResultsButtonSubtitle {
+                    self.emptyResultsButtonSubtitle = nil
+                    emptyResultsButtonSubtitle.view?.removeFromSuperview()
+                }
+            }
+            
+            var emptyTotalHeight = emptyTitleSize.height + emptyTextSize.height + emptyTextSpacing
+            if displayEmptyAnimation {
+                emptyTotalHeight += emptyAnimationHeight + emptyAnimationSpacing
+            }
+            if let emptyButtonSize {
+                emptyTotalHeight += emptyButtonSize.height + emptyButtonSpacing
+            }
+            if let emptyButtonSubtitleSize {
+                emptyTotalHeight += emptyButtonSubtitleSize.height + emptyButtonSubtitleSpacing
+            }
+            
+            let emptyAnimationY = topInset + floorToScreenPixels((visibleHeight - topInset - bottomInset - emptyTotalHeight) / 2.0)
+            let emptyTitleY: CGFloat
+            if displayEmptyAnimation {
+                emptyTitleY = emptyAnimationY + emptyAnimationHeight + emptyAnimationSpacing
+            } else {
+                emptyTitleY = emptyAnimationY
+            }
+            
+            let textTransition: ContainedViewLayoutTransition = layoutChanged ? transition : .immediate
             textTransition.updateFrame(node: self.emptyResultsAnimationNode, frame: CGRect(origin: CGPoint(x: sideInset + padding + (size.width - sideInset * 2.0 - padding * 2.0 - self.emptyResultsAnimationSize.width) / 2.0, y: emptyAnimationY), size: self.emptyResultsAnimationSize))
-            textTransition.updateFrame(node: self.emptyResultsTitleNode, frame: CGRect(origin: CGPoint(x: sideInset + padding + (size.width - sideInset * 2.0 - padding * 2.0 - emptyTitleSize.width) / 2.0, y: emptyAnimationY + emptyAnimationHeight + emptyAnimationSpacing), size: emptyTitleSize))
-            textTransition.updateFrame(node: self.emptyResultsTextNode, frame: CGRect(origin: CGPoint(x: sideInset + padding + (size.width - sideInset * 2.0 - padding * 2.0 - emptyTextSize.width) / 2.0, y: emptyAnimationY + emptyAnimationHeight + emptyAnimationSpacing + emptyTitleSize.height + emptyTextSpacing), size: emptyTextSize))
+            textTransition.updateFrame(node: self.emptyResultsTitleNode, frame: CGRect(origin: CGPoint(x: sideInset + padding + (size.width - sideInset * 2.0 - padding * 2.0 - emptyTitleSize.width) / 2.0, y: emptyTitleY), size: emptyTitleSize))
+            textTransition.updateFrame(node: self.emptyResultsTextNode, frame: CGRect(origin: CGPoint(x: sideInset + padding + (size.width - sideInset * 2.0 - padding * 2.0 - emptyTextSize.width) / 2.0, y: emptyTitleY + emptyTitleSize.height + emptyTextSpacing), size: emptyTextSize))
             self.emptyResultsAnimationNode.updateLayout(size: self.emptyResultsAnimationSize)
+            
+            var nextY: CGFloat = emptyTitleY + emptyTitleSize.height + emptyTextSpacing + emptyTextSize.height
+            if let emptyButtonView = self.emptyResultsButton?.view, let emptyButtonSize {
+                nextY += emptyButtonSpacing
+                
+                var emptyButtonTransition = textTransition
+                if emptyButtonView.superview == nil {
+                    emptyButtonTransition = .immediate
+                    self.view.insertSubview(emptyButtonView, aboveSubview: self.emptyResultsTextNode.view)
+                }
+                emptyButtonTransition.updateFrame(view: emptyButtonView, frame: CGRect(origin: CGPoint(x: floor((size.width - emptyButtonSize.width) * 0.5), y: nextY), size: emptyButtonSize))
+                
+                nextY += emptyButtonSize.height
+            }
+            if let emptyButtonSubtitleView = self.emptyResultsButtonSubtitle?.view, let emptyButtonSubtitleSize {
+                nextY += emptyButtonSubtitleSpacing
+                
+                var emptyButtonSubtitleTransition = textTransition
+                if emptyButtonSubtitleView.superview == nil {
+                    emptyButtonSubtitleTransition = .immediate
+                    self.view.insertSubview(emptyButtonSubtitleView, aboveSubview: self.emptyResultsTextNode.view)
+                }
+                emptyButtonSubtitleTransition.updateFrame(view: emptyButtonSubtitleView, frame: CGRect(origin: CGPoint(x: floor((size.width - emptyButtonSubtitleSize.width) * 0.5), y: nextY), size: emptyButtonSubtitleSize))
+                
+                nextY += emptyButtonSubtitleSize.height
+            }
         }
         
         if !hadValidLayout {
@@ -4526,7 +5303,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     }
     
     func updateHiddenMedia() {
-        self.listNode.forEachItemNode { itemNode in
+        self.listNode?.forEachItemNode { itemNode in
             if let itemNode = itemNode as? ListMessageNode {
                 itemNode.updateHiddenMedia()
             }
@@ -4538,7 +5315,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     
     func transitionNodeForGallery(messageId: EngineMessage.Id, media: EngineMedia) -> (ASDisplayNode, CGRect, () -> (UIView?, UIView?))? {
         var transitionNode: (ASDisplayNode, CGRect, () -> (UIView?, UIView?))?
-        self.listNode.forEachItemNode { itemNode in
+        self.listNode?.forEachItemNode { itemNode in
             if let itemNode = itemNode as? ListMessageNode {
                 if let result = itemNode.transitionNode(id: messageId, media: media._asMedia(), adjustRect: false) {
                     transitionNode = result
@@ -4554,8 +5331,12 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     
     func updateSelectedMessages(animated: Bool) {
         self.selectedMessages = self.interaction.getSelectedMessageIds()
-        self.mediaNode.selectedMessageIds = self.selectedMessages
-        self.mediaNode.updateSelectedMessages(animated: animated)
+        self.mediaNode?.selectedMessageIds = self.selectedMessages
+        self.mediaNode?.updateSelectedMessages(animated: animated)
+    }
+    
+    func removeAds() {
+        self.adsHidden = true
     }
     
     private func enqueueRecentTransition(_ transition: ChatListSearchContainerRecentTransition, firstTime: Bool) {
@@ -4599,6 +5380,11 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         strongSelf.ready.set(.single(true))
                     }
                     strongSelf.didSetReady = true
+                    if !strongSelf.recentListNode.preloadPages {
+                        Queue.mainQueue().after(0.5) {
+                            strongSelf.recentListNode.preloadPages = true
+                        }
+                    }
                     
                     strongSelf.emptyRecentAnimationNode?.isHidden = !transition.isEmpty
                     strongSelf.emptyRecentTitleNode?.isHidden = !transition.isEmpty
@@ -4624,9 +5410,10 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             self.enqueuedTransitions.remove(at: 0)
             
             var options = ListViewDeleteAndInsertOptions()
-            if isFirstTime && [.chats, .topics, .channels, .apps].contains(self.key) {
+            if isFirstTime && [.chats, .topics, .channels, .apps, .globalPosts].contains(self.key) {
                 options.insert(.PreferSynchronousDrawing)
                 options.insert(.PreferSynchronousResourceLoading)
+                options.insert(.Synchronous)
             } else if transition.animated {
                 options.insert(.AnimateInsertion)
             }
@@ -4636,53 +5423,112 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 options.insert(.PreferSynchronousResourceLoading)
             }
             
-            self.listNode.transaction(deleteIndices: transition.deletions, insertIndicesAndItems: transition.insertions, updateIndicesAndItems: transition.updates, options: options, updateSizeAndInsets: nil, updateOpaqueState: nil, completion: { [weak self] _ in
+            self.listNode?.transaction(deleteIndices: transition.deletions, insertIndicesAndItems: transition.insertions, updateIndicesAndItems: transition.updates, options: options, updateSizeAndInsets: nil, updateOpaqueState: nil, completion: { [weak self] _ in
                 if let strongSelf = self {
                     let searchOptions = strongSelf.searchOptionsValue
-                    strongSelf.listNode.isHidden = strongSelf.tagMask == .photoOrVideo && (strongSelf.searchQueryValue ?? "").isEmpty
-                    strongSelf.mediaNode.isHidden = !strongSelf.listNode.isHidden
+                    strongSelf.listNode?.isHidden = strongSelf.tagMask == .photoOrVideo && (strongSelf.searchQueryValue ?? "").isEmpty
+                    strongSelf.mediaNode?.isHidden = !(strongSelf.listNode?.isHidden ?? true)
                     
                     let displayingResults = transition.displayingResults
                     if !displayingResults {
-                        strongSelf.listNode.isHidden = true
-                        strongSelf.mediaNode.isHidden = true
+                        strongSelf.listNode?.isHidden = true
+                        strongSelf.mediaNode?.isHidden = true
                     }
                     
                     let emptyResults = displayingResults && transition.isEmpty
                     if emptyResults {
                         let emptyResultsTitle: String
                         let emptyResultsText: String
-                        if let query = transition.query, !query.isEmpty {
-                            emptyResultsTitle = strongSelf.presentationData.strings.ChatList_Search_NoResults
-                            emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsQueryDescription(query).string
-                        } else {
-                            if let searchOptions = searchOptions, searchOptions.date == nil && searchOptions.peer == nil {
-                                emptyResultsTitle = strongSelf.presentationData.strings.ChatList_Search_NoResultsFilter
-                                if strongSelf.tagMask == .photoOrVideo {
-                                    emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsFitlerMedia
-                                } else if strongSelf.tagMask == .webPage {
-                                    emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsFitlerLinks
-                                } else if strongSelf.tagMask == .file {
-                                    emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsFitlerFiles
-                                } else if strongSelf.tagMask == .music {
-                                    emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsFitlerMusic
-                                } else if strongSelf.tagMask == .voiceOrInstantVideo {
-                                    emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsFitlerVoice
+                        var emptyResultsButtonContent: EmptyResultsButton.Content?
+                        var emptyResultsButtonSubtitleText: String?
+                        
+                        if strongSelf.key == .globalPosts, let globalSearchStateValue = transition.globalSearchStateValue {
+                            if !strongSelf.isPremium {
+                                emptyResultsButtonContent = .premiumRequired
+                                emptyResultsTitle = strongSelf.presentationData.strings.ChatList_GlobalSearch_StartPlaceholder_Title
+                                emptyResultsText = strongSelf.presentationData.strings.ChatList_GlobalSearch_StartPlaceholder_Text
+                                emptyResultsButtonSubtitleText = strongSelf.presentationData.strings.ChatList_GlobalSearch_StartPlaceholder_Subtitle
+                            } else if let query = transition.query, !query.isEmpty {
+                                if transition.approvedGlobalPostQueryState?.query == query {
+                                    emptyResultsButtonContent = nil
+                                    emptyResultsTitle = strongSelf.presentationData.strings.ChatList_Search_NoResults
+                                    emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsQueryDescription(query).string
                                 } else {
-                                    emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsDescription
+                                    if globalSearchStateValue.remainingFreeSearches != 0 {
+                                        emptyResultsTitle = strongSelf.presentationData.strings.ChatList_GlobalSearch_StartPlaceholder_Title
+                                        emptyResultsText = strongSelf.presentationData.strings.ChatList_GlobalSearch_StartPlaceholder_Text
+                                        emptyResultsButtonSubtitleText = strongSelf.presentationData.strings.ChatList_GlobalSearch_StartPlaceholder_RemainingSubtitle(Int32(globalSearchStateValue.remainingFreeSearches))
+                                        
+                                        emptyResultsButtonContent = .searchQuery(query)
+                                    } else {
+                                        emptyResultsTitle = strongSelf.presentationData.strings.ChatList_GlobalSearch_LimitPlaceholder_Title
+                                        emptyResultsText = strongSelf.presentationData.strings.ChatList_GlobalSearch_LimitPlaceholder_Text(Int32(globalSearchStateValue.totalFreeSearches))
+                                        
+                                        emptyResultsButtonContent = .paidSearch(
+                                            price: Int(globalSearchStateValue.price.value),
+                                            timestamp: globalSearchStateValue.unlockTimestamp
+                                        )
+                                    }
                                 }
                             } else {
+                                if globalSearchStateValue.remainingFreeSearches != 0 {
+                                    emptyResultsButtonContent = .searchEmpty
+                                    emptyResultsTitle = strongSelf.presentationData.strings.ChatList_GlobalSearch_StartPlaceholder_Title
+                                    emptyResultsText = strongSelf.presentationData.strings.ChatList_GlobalSearch_StartPlaceholder_Text
+                                    emptyResultsButtonSubtitleText = strongSelf.presentationData.strings.ChatList_GlobalSearch_StartPlaceholder_RemainingSubtitle(Int32(globalSearchStateValue.remainingFreeSearches))
+                                } else {
+                                    emptyResultsTitle = strongSelf.presentationData.strings.ChatList_GlobalSearch_LimitPlaceholder_Title
+                                    emptyResultsText = strongSelf.presentationData.strings.ChatList_GlobalSearch_LimitPlaceholder_Text(Int32(globalSearchStateValue.totalFreeSearches))
+                                    
+                                    emptyResultsButtonContent = .paidSearch(
+                                        price: Int(globalSearchStateValue.price.value),
+                                        timestamp: globalSearchStateValue.unlockTimestamp
+                                    )
+                                }
+                            }
+                        } else {
+                            if let query = transition.query, !query.isEmpty {
                                 emptyResultsTitle = strongSelf.presentationData.strings.ChatList_Search_NoResults
-                                emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsDescription
+                                emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsQueryDescription(query).string
+                            } else {
+                                if let searchOptions = searchOptions, searchOptions.date == nil && searchOptions.peer == nil {
+                                    emptyResultsTitle = strongSelf.presentationData.strings.ChatList_Search_NoResultsFilter
+                                    if strongSelf.tagMask == .photoOrVideo {
+                                        emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsFitlerMedia
+                                    } else if strongSelf.tagMask == .webPage {
+                                        emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsFitlerLinks
+                                    } else if strongSelf.tagMask == .file {
+                                        emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsFitlerFiles
+                                    } else if strongSelf.tagMask == .music {
+                                        emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsFitlerMusic
+                                    } else if strongSelf.tagMask == .voiceOrInstantVideo {
+                                        emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsFitlerVoice
+                                    } else {
+                                        emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsDescription
+                                    }
+                                } else {
+                                    emptyResultsTitle = strongSelf.presentationData.strings.ChatList_Search_NoResults
+                                    emptyResultsText = strongSelf.presentationData.strings.ChatList_Search_NoResultsDescription
+                                }
                             }
                         }
                         
-                        strongSelf.emptyResultsTitleNode.attributedText = NSAttributedString(string: emptyResultsTitle, font: Font.semibold(17.0), textColor: strongSelf.presentationData.theme.list.freeTextColor)
-                        strongSelf.emptyResultsTextNode.attributedText = NSAttributedString(string: emptyResultsText, font: Font.regular(15.0), textColor: strongSelf.presentationData.theme.list.freeTextColor)
+                        if strongSelf.key == .globalPosts {
+                            strongSelf.emptyResultsTitleNode.attributedText = NSAttributedString(string: emptyResultsTitle, font: Font.semibold(17.0), textColor: strongSelf.presentationData.theme.list.itemPrimaryTextColor)
+                            strongSelf.emptyResultsTextNode.attributedText = NSAttributedString(string: emptyResultsText, font: Font.regular(15.0), textColor: strongSelf.presentationData.theme.list.freeTextColor)
+                        } else {
+                            strongSelf.emptyResultsTitleNode.attributedText = NSAttributedString(string: emptyResultsTitle, font: Font.semibold(17.0), textColor: strongSelf.presentationData.theme.list.freeTextColor)
+                            strongSelf.emptyResultsTextNode.attributedText = NSAttributedString(string: emptyResultsText, font: Font.regular(15.0), textColor: strongSelf.presentationData.theme.list.freeTextColor)
+                        }
+                        strongSelf.emptyResultsButtonContent = emptyResultsButtonContent
+                        strongSelf.emptyResultsButtonSubtitleText = emptyResultsButtonSubtitleText
+                    } else {
+                        strongSelf.emptyResultsButtonContent = nil
+                        strongSelf.emptyResultsButtonSubtitleText = nil
                     }
 
-                    if let (size, sideInset, bottomInset, visibleHeight, presentationData) = strongSelf.currentParams {
-                        strongSelf.update(size: size, sideInset: sideInset, bottomInset: bottomInset, visibleHeight: visibleHeight, presentationData: presentationData, synchronous: true, transition: .animated(duration: 0.4, curve: .spring))
+                    if let (size, sideInset, topInset, bottomInset, visibleHeight, presentationData) = strongSelf.currentParams {
+                        strongSelf.update(size: size, sideInset: sideInset, topInset: topInset, bottomInset: bottomInset, visibleHeight: visibleHeight, presentationData: presentationData, synchronous: true, transition: .animated(duration: 0.4, curve: .spring))
                     }
                     
                     if strongSelf.key == .downloads {
@@ -4690,11 +5536,22 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         strongSelf.emptyResultsTitleNode.isHidden = true
                         strongSelf.emptyResultsTextNode.isHidden = true
                         strongSelf.emptyResultsAnimationNode.visibility = false
+                        strongSelf.emptyResultsButton?.view?.isHidden = true
+                        strongSelf.emptyResultsButtonSubtitle?.view?.isHidden = true
+                    } else if strongSelf.key == .globalPosts {
+                        strongSelf.emptyResultsAnimationNode.isHidden = !emptyResults ||  strongSelf.emptyResultsButtonContent != nil
+                        strongSelf.emptyResultsTitleNode.isHidden = !emptyResults
+                        strongSelf.emptyResultsTextNode.isHidden = !emptyResults
+                        strongSelf.emptyResultsAnimationNode.visibility = emptyResults
+                        strongSelf.emptyResultsButton?.view?.isHidden = !emptyResults
+                        strongSelf.emptyResultsButtonSubtitle?.view?.isHidden = !emptyResults
                     } else {
                         strongSelf.emptyResultsAnimationNode.isHidden = !emptyResults
                         strongSelf.emptyResultsTitleNode.isHidden = !emptyResults
                         strongSelf.emptyResultsTextNode.isHidden = !emptyResults
                         strongSelf.emptyResultsAnimationNode.visibility = emptyResults
+                        strongSelf.emptyResultsButton?.view?.isHidden = emptyResults
+                        strongSelf.emptyResultsButtonSubtitle?.view?.isHidden = emptyResults
                     }
                                              
                     var displayPlaceholder = transition.isLoading && (![.chats, .topics, .channels, .apps].contains(strongSelf.key) || (strongSelf.currentEntries?.isEmpty ?? true))
@@ -4733,7 +5590,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             }
         } else {
             let adjustedLocation = self.convert(location, to: self.listNode)
-            self.listNode.forEachItemNode { itemNode in
+            self.listNode?.forEachItemNode { itemNode in
                 if itemNode.frame.contains(adjustedLocation) {
                     selectedItemNode = itemNode
                 }
@@ -4757,13 +5614,64 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 bounds = selectedItemNode.bounds
             }
             switch item.content {
-                case let .peer(peerData):
-                    return (selectedItemNode.view, bounds, peerData.messages.last?.id ?? peerData.peer.peerId)
-                case let .groupReference(groupReference):
-                    return (selectedItemNode.view, bounds, groupReference.groupId)
+            case .loading:
+                return nil
+            case let .peer(peerData):
+                return (selectedItemNode.view, bounds, peerData.messages.last?.id ?? peerData.peer.peerId)
+            case let .groupReference(groupReference):
+                return (selectedItemNode.view, bounds, groupReference.groupId)
             }
         }
         return nil
+    }
+    
+    func openMessagesFilter(sourceNode: ASDisplayNode) {
+        self.interaction.dismissInput()
+        let _ = (self.searchScopePromise.get()
+        |> take(1)).start(next: { [weak self] scope in
+            guard let self else {
+                return
+            }
+            var items: [ContextMenuItem] = []
+            items.append(.action(ContextMenuActionItem(text: self.presentationData.strings.ChatList_Search_Messages_Menu_AllChats, icon: { theme in
+                return scope == .everywhere ? generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Check"), color: theme.contextMenu.primaryColor) : UIImage()
+            }, action: { [weak self] _, f in
+                guard let self else {
+                    return
+                }
+                f(.default)
+                self.searchScopePromise.set(.everywhere)
+            })))
+            items.append(.action(ContextMenuActionItem(text: self.presentationData.strings.ChatList_Search_Messages_Menu_PrivateChats, icon: { theme in
+                return scope == .privateChats ? generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Check"), color: theme.contextMenu.primaryColor) : UIImage()
+            }, action: { [weak self] _, f in
+                guard let self else {
+                    return
+                }
+                f(.default)
+                self.searchScopePromise.set(.privateChats)
+            })))
+            items.append(.action(ContextMenuActionItem(text: self.presentationData.strings.ChatList_Search_Messages_Menu_GroupChats, icon: { theme in
+                return scope == .groups ? generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Check"), color: theme.contextMenu.primaryColor) : UIImage()
+            }, action: { [weak self] _, f in
+                guard let self else {
+                    return
+                }
+                f(.default)
+                self.searchScopePromise.set(.groups)
+            })))
+            items.append(.action(ContextMenuActionItem(text: self.presentationData.strings.ChatList_Search_Messages_Menu_Channels, icon: { theme in
+                return scope == .channels ? generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Check"), color: theme.contextMenu.primaryColor) : UIImage()
+            }, action: { [weak self] _, f in
+                guard let self else {
+                    return
+                }
+                f(.default)
+                self.searchScopePromise.set(.channels)
+            })))
+            let contextController = makeContextController(presentationData: self.presentationData, source: .reference(ChatListSearchReferenceContentSource(sourceNode: sourceNode)), items: .single(ContextController.Items(content: .list(items))), gesture: nil)
+            self.interaction.present(contextController, nil)
+        })
     }
 }
 
@@ -4909,7 +5817,7 @@ public final class ChatListSearchShimmerNode: ASDisplayNode {
             
             let chatListPresentationData = ChatListPresentationData(theme: presentationData.theme, fontSize: presentationData.chatFontSize, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, nameSortOrder: presentationData.nameSortOrder, nameDisplayOrder: presentationData.nameDisplayOrder, disableAnimations: true)
             
-            let peer1: EnginePeer = .user(TelegramUser(id: EnginePeer.Id(namespace: Namespaces.Peer.CloudUser, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "FirstName", lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil))
+            let peer1: EnginePeer = .user(TelegramUser(id: EnginePeer.Id(namespace: Namespaces.Peer.CloudUser, id: EnginePeer.Id.Id._internalFromInt64Value(0)), accessHash: nil, firstName: "FirstName", lastName: nil, username: nil, phone: nil, photo: [], botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: nil, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil))
             let timestamp1: Int32 = 100000
             var peers: [EnginePeer.Id: EnginePeer] = [:]
             peers[peer1.id] = peer1
@@ -4922,9 +5830,12 @@ public final class ChatListSearchShimmerNode: ASDisplayNode {
             }, openChatFolderUpdates: {}, hideChatFolderUpdates: {
             }, openStories: { _, _ in
             }, openStarsTopup: { _ in
-            }, dismissNotice: { _ in
             }, editPeer: { _ in
             }, openWebApp: { _ in
+            }, openPhotoSetup: {
+            }, openAdInfo: { _, _ in
+            }, openAccountFreezeInfo: {
+            }, openUrl: { _ in
             })
             var isInlineMode = false
             if case .topics = key {
@@ -4935,7 +5846,7 @@ public final class ChatListSearchShimmerNode: ASDisplayNode {
             
             let items = (0 ..< 2).compactMap { _ -> ListViewItem? in
                 switch key {
-                    case .chats, .topics, .channels, .apps, .downloads, .publicPosts:
+                    case .chats, .topics, .channels, .apps, .globalPosts, .downloads, .publicPosts:
                         let message = EngineMessage(
                             stableId: 0,
                             stableVersion: 0,
@@ -4972,6 +5883,7 @@ public final class ChatListSearchShimmerNode: ASDisplayNode {
                             presence: nil,
                             hasUnseenMentions: false,
                             hasUnseenReactions: false,
+                            hasUnseenPollVotes: false,
                             draftState: nil,
                             mediaDraftContentType: nil,
                             inputActivities: nil,
@@ -4986,12 +5898,12 @@ public final class ChatListSearchShimmerNode: ASDisplayNode {
                             requiresPremiumForMessaging: false,
                             displayAsTopicList: false,
                             tags: []
-                        )), editing: false, hasActiveRevealControls: false, selected: false, header: nil, enableContextActions: false, hiddenOffset: false, interaction: interaction)
+                        )), editing: false, hasActiveRevealControls: false, selected: false, header: nil, enabledContextActions: nil, hiddenOffset: false, interaction: interaction)
                     case .media:
                         return nil
                     case .links:
                         var media: [EngineMedia] = []
-                        media.append(.webpage(TelegramMediaWebpage(webpageId: EngineMedia.Id(namespace: 0, id: 0), content: .Loaded(TelegramMediaWebpageLoadedContent(url: "https://telegram.org", displayUrl: "https://telegram.org", hash: 0, type: nil, websiteName: "Telegram", title: "Telegram Telegram", text: "Telegram", embedUrl: nil, embedType: nil, embedSize: nil, duration: nil, author: nil, isMediaLargeByDefault: nil, image: nil, file: nil, story: nil, attributes: [], instantPage: nil)))))
+                        media.append(.webpage(TelegramMediaWebpage(webpageId: EngineMedia.Id(namespace: 0, id: 0), content: .Loaded(TelegramMediaWebpageLoadedContent(url: "https://telegram.org", displayUrl: "https://telegram.org", hash: 0, type: nil, websiteName: "Telegram", title: "Telegram Telegram", text: "Telegram", embedUrl: nil, embedType: nil, embedSize: nil, duration: nil, author: nil, isMediaLargeByDefault: nil, imageIsVideoCover: false, image: nil, file: nil, story: nil, attributes: [], instantPage: nil)))))
                         let message = EngineMessage(
                             stableId: 0,
                             stableVersion: 0,
@@ -5019,7 +5931,7 @@ public final class ChatListSearchShimmerNode: ASDisplayNode {
                             associatedStories: [:]
                         )
                         
-                        return ListMessageItem(presentationData: ChatPresentationData(presentationData: presentationData), context: context, chatLocation: .peer(id: peer1.id), interaction: ListMessageItemInteraction.default, message: message._asMessage(), selection: hasSelection ? .selectable(selected: false) : .none, displayHeader: false, customHeader: nil, hintIsLink: true, isGlobalSearchResult: true)
+                        return ListMessageItem(presentationData: ChatPresentationData(presentationData: presentationData), context: context, chatLocation: .peer(id: peer1.id), interaction: ListMessageItemInteraction.default, message: message._asMessage(), selection: hasSelection ? .selectable(selected: false, num: nil) : .none, displayHeader: false, customHeader: nil, hintIsLink: true, isGlobalSearchResult: true)
                     case .files:
                         var media: [EngineMedia] = []
                         media.append(.file(TelegramMediaFile(fileId: EngineMedia.Id(namespace: 0, id: 0), partialReference: nil, resource: LocalFileMediaResource(fileId: 0), previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "application/text", size: 0, attributes: [.FileName(fileName: "Text.txt")], alternativeRepresentations: [])))
@@ -5050,7 +5962,7 @@ public final class ChatListSearchShimmerNode: ASDisplayNode {
                             associatedStories: [:]
                         )
                         
-                        return ListMessageItem(presentationData: ChatPresentationData(presentationData: presentationData), context: context, chatLocation: .peer(id: peer1.id), interaction: ListMessageItemInteraction.default, message: message._asMessage(), selection: hasSelection ? .selectable(selected: false) : .none, displayHeader: false, customHeader: nil, hintIsLink: false, isGlobalSearchResult: true)
+                        return ListMessageItem(presentationData: ChatPresentationData(presentationData: presentationData), context: context, chatLocation: .peer(id: peer1.id), interaction: ListMessageItemInteraction.default, message: message._asMessage(), selection: hasSelection ? .selectable(selected: false, num: nil) : .none, displayHeader: false, customHeader: nil, hintIsLink: false, isGlobalSearchResult: true)
                     case .music:
                         var media: [EngineMedia] = []
                         media.append(.file(TelegramMediaFile(fileId: EngineMedia.Id(namespace: 0, id: 0), partialReference: nil, resource: LocalFileMediaResource(fileId: 0), previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "audio/ogg", size: 0, attributes: [.Audio(isVoice: false, duration: 0, title: nil, performer: nil, waveform: Data())], alternativeRepresentations: [])))
@@ -5081,8 +5993,8 @@ public final class ChatListSearchShimmerNode: ASDisplayNode {
                             associatedStories: [:]
                         )
                         
-                        return ListMessageItem(presentationData: ChatPresentationData(presentationData: presentationData), context: context, chatLocation: .peer(id: peer1.id), interaction: ListMessageItemInteraction.default, message: message._asMessage(), selection: hasSelection ? .selectable(selected: false) : .none, displayHeader: false, customHeader: nil, hintIsLink: false, isGlobalSearchResult: true)
-                    case .voice:
+                        return ListMessageItem(presentationData: ChatPresentationData(presentationData: presentationData), context: context, chatLocation: .peer(id: peer1.id), interaction: ListMessageItemInteraction.default, message: message._asMessage(), selection: hasSelection ? .selectable(selected: false, num: nil) : .none, displayHeader: false, customHeader: nil, hintIsLink: false, isGlobalSearchResult: true)
+                    case .voice, .instantVideo:
                         var media: [EngineMedia] = []
                         media.append(.file(TelegramMediaFile(fileId: EngineMedia.Id(namespace: 0, id: 0), partialReference: nil, resource: LocalFileMediaResource(fileId: 0), previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "audio/ogg", size: 0, attributes: [.Audio(isVoice: true, duration: 0, title: nil, performer: nil, waveform: Data())], alternativeRepresentations: [])))
                         let message = EngineMessage(
@@ -5112,7 +6024,7 @@ public final class ChatListSearchShimmerNode: ASDisplayNode {
                             associatedStories: [:]
                         )
                         
-                        return ListMessageItem(presentationData: ChatPresentationData(presentationData: presentationData), context: context, chatLocation: .peer(id: peer1.id), interaction: ListMessageItemInteraction.default, message: message._asMessage(), selection: hasSelection ? .selectable(selected: false) : .none, displayHeader: false, customHeader: nil, hintIsLink: false, isGlobalSearchResult: true)
+                        return ListMessageItem(presentationData: ChatPresentationData(presentationData: presentationData), context: context, chatLocation: .peer(id: peer1.id), interaction: ListMessageItemInteraction.default, message: message._asMessage(), selection: hasSelection ? .selectable(selected: false, num: nil) : .none, displayHeader: false, customHeader: nil, hintIsLink: false, isGlobalSearchResult: true)
                 }
             }
             
@@ -5263,5 +6175,457 @@ public final class ChatListSearchShimmerNode: ASDisplayNode {
         transition.updateFrame(node: self.backgroundColorNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: size))
         transition.updateFrame(node: self.maskNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: size))
         transition.updateFrame(node: self.effectNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: size))
+    }
+}
+
+private final class ChatListSearchReferenceContentSource: ContextReferenceContentSource {
+    private let sourceNode: ASDisplayNode
+    var keepInPlace: Bool {
+        return true
+    }
+    
+    init(sourceNode: ASDisplayNode) {
+        self.sourceNode = sourceNode
+    }
+
+    func transitionInfo() -> ContextControllerReferenceViewInfo? {
+        return ContextControllerReferenceViewInfo(referenceView: self.sourceNode.view, contentAreaInScreenSpace: UIScreen.main.bounds, actionsPosition: .bottom)
+    }
+}
+
+private final class EmptyResultsButtonSearchContent: Component {
+    let theme: PresentationTheme
+    let strings: PresentationStrings
+    let query: String
+    
+    init(
+        theme: PresentationTheme,
+        strings: PresentationStrings,
+        query: String
+    ) {
+        self.theme = theme
+        self.strings = strings
+        self.query = query
+    }
+    
+    static func ==(lhs: EmptyResultsButtonSearchContent, rhs: EmptyResultsButtonSearchContent) -> Bool {
+        if lhs.theme !== rhs.theme {
+            return false
+        }
+        if lhs.strings !== rhs.strings {
+            return false
+        }
+        if lhs.query != rhs.query {
+            return false
+        }
+        return true
+    }
+    
+    final class View: UIView {
+        private let icon = ComponentView<Empty>()
+        private let text = ComponentView<Empty>()
+        private let arrow = ComponentView<Empty>()
+        
+        private var component: EmptyResultsButtonSearchContent?
+        
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+        }
+        
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+        
+        func update(component: EmptyResultsButtonSearchContent, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
+            let sideInset: CGFloat = 8.0
+            let iconSpacing: CGFloat = 2.0
+            let arrowSpacing: CGFloat = 4.0
+            
+            self.component = component
+            
+            let iconSize = self.icon.update(
+                transition: .immediate,
+                component: AnyComponent(BundleIconComponent(
+                    name: "Chat List/SearchInlineButtonIcon",
+                    tintColor: component.theme.list.itemCheckColors.foregroundColor,
+                    scaleFactor: 1.0
+                )),
+                environment: {},
+                containerSize: CGSize(width: 100.0, height: 100.0)
+            )
+            
+            let arrowSize = self.arrow.update(
+                transition: .immediate,
+                component: AnyComponent(BundleIconComponent(
+                    name: "Chat List/ArrowInlineButtonIcon",
+                    tintColor: component.theme.list.itemCheckColors.foregroundColor,
+                    scaleFactor: 1.0
+                )),
+                environment: {},
+                containerSize: CGSize(width: 100.0, height: 100.0)
+            )
+            
+            let string = NSMutableAttributedString()
+            
+            let rawString = component.strings.ChatList_GlobalSearch_SearchButtonQuery
+            if let range = rawString.range(of: "{}") {
+                if range.lowerBound != rawString.startIndex {
+                    string.append(NSAttributedString(string: String(rawString[rawString.startIndex ..< range.lowerBound]), font: Font.semibold(17.0), textColor: component.theme.list.itemCheckColors.foregroundColor))
+                }
+                string.append(NSAttributedString(string: component.query.trimmingCharacters(in: .whitespacesAndNewlines), font: Font.semibold(17.0), textColor: component.theme.list.itemCheckColors.foregroundColor.withMultipliedAlpha(0.7)))
+                if range.upperBound != rawString.endIndex {
+                    string.append(NSAttributedString(string: String(rawString[range.upperBound...]), font: Font.semibold(17.0), textColor: component.theme.list.itemCheckColors.foregroundColor))
+                }
+            } else {
+                string.append(NSAttributedString(string: rawString, font: Font.semibold(17.0), textColor: component.theme.list.itemCheckColors.foregroundColor))
+            }
+            
+            let textSize = self.text.update(
+                transition: .immediate,
+                component: AnyComponent(MultilineTextComponent(
+                    text: .plain(string)
+                )),
+                environment: {},
+                containerSize: CGSize(width: availableSize.width - iconSize.width - iconSpacing - arrowSize.width - arrowSpacing - sideInset * 2.0, height: 100.0)
+            )
+            let textFrame = CGRect(origin: CGPoint(x: iconSize.width + iconSpacing, y: 0.0), size: textSize)
+            if let textView = self.text.view {
+                if textView.superview == nil {
+                    self.addSubview(textView)
+                }
+                textView.frame = textFrame
+            }
+            
+            if let iconView = self.icon.view {
+                if iconView.superview == nil {
+                    self.addSubview(iconView)
+                }
+                iconView.frame = CGRect(origin: CGPoint(x: 0.0, y: floorToScreenPixels((textSize.height - iconSize.height) * 0.5)), size: iconSize)
+            }
+            
+            if let arrowView = self.arrow.view {
+                if arrowView.superview == nil {
+                    self.addSubview(arrowView)
+                }
+                arrowView.frame = CGRect(origin: CGPoint(x: textFrame.maxX + arrowSpacing, y: floorToScreenPixels((textSize.height - arrowSize.height) * 0.5)), size: arrowSize)
+            }
+            
+            return CGSize(width: iconSize.width + iconSpacing + textSize.width + arrowSpacing + arrowSize.width, height: textSize.height)
+        }
+    }
+    
+    func makeView() -> View {
+        return View(frame: CGRect())
+    }
+    
+    func update(view: View, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
+        return view.update(component: self, availableSize: availableSize, state: state, environment: environment, transition: transition)
+    }
+}
+
+private final class EmptyResultsButtonPaidSearchContent: Component {
+    let theme: PresentationTheme
+    let strings: PresentationStrings
+    let price: Int
+    let unlockTimestamp: Int32?
+    
+    init(
+        theme: PresentationTheme,
+        strings: PresentationStrings,
+        price: Int,
+        unlockTimestamp: Int32?
+    ) {
+        self.theme = theme
+        self.strings = strings
+        self.price = price
+        self.unlockTimestamp = unlockTimestamp
+    }
+    
+    static func ==(lhs: EmptyResultsButtonPaidSearchContent, rhs: EmptyResultsButtonPaidSearchContent) -> Bool {
+        if lhs.theme !== rhs.theme {
+            return false
+        }
+        if lhs.strings !== rhs.strings {
+            return false
+        }
+        if lhs.price != rhs.price {
+            return false
+        }
+        if lhs.unlockTimestamp != rhs.unlockTimestamp {
+            return false
+        }
+        return true
+    }
+    
+    final class View: UIView {
+        private let title = ComponentView<Empty>()
+        private let subtitle = ComponentView<Empty>()
+        
+        private var component: EmptyResultsButtonPaidSearchContent?
+        private var timer: Foundation.Timer?
+        private weak var state: EmptyComponentState?
+        
+        private var cachedStarImage: UIImage?
+        
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+        }
+        
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+        
+        func update(component: EmptyResultsButtonPaidSearchContent, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
+            let subtitleSpacing: CGFloat = 1.0
+            
+            if self.cachedStarImage == nil || self.component?.theme !== component.theme {
+                self.cachedStarImage = generateTintedImage(image: UIImage(bundleImageName: "Item List/PremiumIcon"), color: component.theme.list.itemCheckColors.foregroundColor)
+            }
+            
+            self.component = component
+            self.state = state
+            
+            let attributedString = NSMutableAttributedString(attributedString: NSAttributedString(string: component.strings.ChatList_GlobalSearch_SearchButtonPaidTitle("\(component.price)").string, font: Font.semibold(17.0), textColor: component.theme.list.itemCheckColors.foregroundColor))
+            if let range = attributedString.string.range(of: "*"), let starImage = self.cachedStarImage {
+                attributedString.addAttribute(.attachment, value: starImage, range: NSRange(range, in: attributedString.string))
+                attributedString.addAttribute(.foregroundColor, value: component.theme.list.itemCheckColors.foregroundColor, range: NSRange(range, in: attributedString.string))
+                attributedString.addAttribute(.baselineOffset, value: 1.0, range: NSRange(range, in: attributedString.string))
+            }
+            
+            let titleSize = self.title.update(
+                transition: .immediate,
+                component: AnyComponent(MultilineTextComponent(
+                    text: .plain(attributedString)
+                )),
+                environment: {},
+                containerSize: CGSize(width: availableSize.width, height: 100.0)
+            )
+            
+            var subtitleText = ""
+            if let unlockTimestamp = component.unlockTimestamp {
+                var remainingTime: Int32 = unlockTimestamp - Int32(Date().timeIntervalSince1970)
+                remainingTime = max(0, remainingTime)
+                subtitleText = component.strings.ChatList_GlobalSearch_SearchButtonPaidSubtitle(stringForRemainingTime(remainingTime)).string
+                
+                if self.timer == nil {
+                    self.timer = Foundation.Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true, block: { [weak self] _ in
+                        guard let self else {
+                            return
+                        }
+                        self.state?.updated(transition: .immediate)
+                    })
+                }
+            } else {
+                if let timer = self.timer {
+                    self.timer = nil
+                    timer.invalidate()
+                }
+            }
+            
+            let subtitleSize = self.subtitle.update(
+                transition: .immediate,
+                component: AnyComponent(MultilineTextComponent(
+                    text: .plain(NSAttributedString(string: subtitleText, font: Font.regular(12.0), textColor: component.theme.list.itemCheckColors.foregroundColor.withMultipliedAlpha(0.7)))
+                )),
+                environment: {},
+                containerSize: CGSize(width: availableSize.width, height: 100.0)
+            )
+            
+            var contentSize = CGSize()
+            if subtitleText.isEmpty {
+                contentSize = titleSize
+            } else {
+                contentSize.width = max(titleSize.width, subtitleSize.width)
+                contentSize.height = titleSize.height + subtitleSpacing + subtitleSize.height
+            }
+            contentSize.width = max(contentSize.width, availableSize.width)
+            
+            let titleFrame = CGRect(origin: CGPoint(x: floor((contentSize.width - titleSize.width) * 0.5), y: 0.0), size: titleSize)
+            if let titleView = self.title.view {
+                if titleView.superview == nil {
+                    self.addSubview(titleView)
+                }
+                titleView.frame = titleFrame
+            }
+            
+            let subtitleFrame = CGRect(origin: CGPoint(x: floor((contentSize.width - subtitleSize.width) * 0.5), y: titleFrame.maxY + subtitleSpacing), size: subtitleSize)
+            if let subtitleView = self.subtitle.view {
+                if subtitleView.superview == nil {
+                    self.addSubview(subtitleView)
+                }
+                subtitleView.frame = subtitleFrame
+            }
+            
+            return contentSize
+        }
+    }
+    
+    func makeView() -> View {
+        return View(frame: CGRect())
+    }
+    
+    func update(view: View, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
+        return view.update(component: self, availableSize: availableSize, state: state, environment: environment, transition: transition)
+    }
+}
+
+private final class EmptyResultsButton: Component {
+    enum Content: Equatable {
+        case searchQuery(String)
+        case searchEmpty
+        case premiumRequired
+        case paidSearch(price: Int, timestamp: Int32?)
+    }
+    
+    let theme: PresentationTheme
+    let strings: PresentationStrings
+    let content: Content
+    let action: () -> Void
+    
+    init(
+        theme: PresentationTheme,
+        strings: PresentationStrings,
+        content: Content,
+        action: @escaping () -> Void
+    ) {
+        self.theme = theme
+        self.strings = strings
+        self.content = content
+        self.action = action
+    }
+    
+    static func ==(lhs: EmptyResultsButton, rhs: EmptyResultsButton) -> Bool {
+        if lhs.theme !== rhs.theme {
+            return false
+        }
+        if lhs.strings !== rhs.strings {
+            return false
+        }
+        if lhs.content != rhs.content {
+            return false
+        }
+        return true
+    }
+    
+    final class View: UIView {
+        private let button = ComponentView<Empty>()
+        
+        private var component: EmptyResultsButton?
+        
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+        }
+        
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+        
+        func update(component: EmptyResultsButton, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
+            self.component = component
+            
+            let buttonContent: AnyComponentWithIdentity<Empty>
+            var isEnabled = true
+            switch component.content {
+            case .searchEmpty:
+                isEnabled = false
+                buttonContent = AnyComponentWithIdentity(id: "empty", component: AnyComponent(MultilineTextComponent(
+                    text: .plain(NSAttributedString(
+                        string: component.strings.ChatList_GlobalSearch_SearchButton,
+                        font: Font.medium(17.0),
+                        textColor: component.theme.list.itemCheckColors.foregroundColor
+                    ))
+                )))
+            case .premiumRequired:
+                buttonContent = AnyComponentWithIdentity(id: "premium", component: AnyComponent(MultilineTextComponent(
+                    text: .plain(NSAttributedString(
+                        string: component.strings.ChatList_GlobalSearch_SearchButtonPremium,
+                        font: Font.medium(17.0),
+                        textColor: component.theme.list.itemCheckColors.foregroundColor
+                    ))
+                )))
+            case let .searchQuery(query):
+                buttonContent = AnyComponentWithIdentity(id: "query", component: AnyComponent(EmptyResultsButtonSearchContent(theme: component.theme, strings: component.strings, query: query)))
+            case let .paidSearch(price, unlockTimestamp):
+                buttonContent = AnyComponentWithIdentity(id: "paid", component: AnyComponent(EmptyResultsButtonPaidSearchContent(theme: component.theme, strings: component.strings, price: price, unlockTimestamp: unlockTimestamp)))
+            }
+            
+            let size = self.button.update(
+                transition: transition,
+                component: AnyComponent(ButtonComponent(
+                    background: ButtonComponent.Background(
+                        color: component.theme.list.itemCheckColors.fillColor,
+                        foreground: component.theme.list.itemCheckColors.foregroundColor,
+                        pressedColor: component.theme.list.itemCheckColors.fillColor.withMultipliedAlpha(0.9),
+                        cornerRadius: 10.0
+                    ),
+                    content: buttonContent,
+                    isEnabled: isEnabled,
+                    action: { [weak self] in
+                        guard let self, let component = self.component else {
+                            return
+                        }
+                        component.action()
+                    }
+                )),
+                environment: {},
+                containerSize: CGSize(width: availableSize.width, height: 50.0)
+            )
+            if let buttonView = self.button.view {
+                if buttonView.superview == nil {
+                    self.addSubview(buttonView)
+                }
+                transition.setFrame(view: buttonView, frame: CGRect(origin: CGPoint(), size: size))
+            }
+            
+            return size
+        }
+    }
+    
+    func makeView() -> View {
+        return View(frame: CGRect())
+    }
+    
+    func update(view: View, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
+        return view.update(component: self, availableSize: availableSize, state: state, environment: environment, transition: transition)
+    }
+}
+
+private func stringForRemainingTime(_ duration: Int32) -> String {
+    let hours = duration / 3600
+    let minutes = duration / 60 % 60
+    let seconds = duration % 60
+    let durationString: String
+    if hours > 0 {
+        durationString = String(format: "%d:%02d", hours, minutes)
+    } else {
+        durationString = String(format: "%02d:%02d", minutes, seconds)
+    }
+    return durationString
+}
+
+func debounceOnMainThread<T, E>(_ signal: Signal<T, E>) -> Signal<T, E> {
+    return Signal { subscriber in
+        let value = Atomic<T?>(value: nil)
+        
+        let flushValue: () -> Void = {
+            let v = value.swap(nil)
+            if let v {
+                subscriber.putNext(v)
+            }
+        }
+        
+        return signal.start(next: { v in
+            let previous = value.swap(v)
+            if previous == nil {
+                DispatchQueue.main.async {
+                    flushValue()
+                }
+            }
+        }, error: { e in
+            subscriber.putError(e)
+        }, completed: {
+            flushValue()
+            subscriber.putCompletion()
+        })
     }
 }

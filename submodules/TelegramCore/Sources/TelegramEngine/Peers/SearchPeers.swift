@@ -5,22 +5,25 @@ import TelegramApi
 import MtProtoKit
 
 public struct FoundPeer: Equatable {
-    public let peer: Peer
+    public let peer: EnginePeer
     public let subscribers: Int32?
-    
-    public init(peer: Peer, subscribers: Int32?) {
+
+    public init(peer: EnginePeer, subscribers: Int32?) {
         self.peer = peer
         self.subscribers = subscribers
     }
-    
+
     public static func ==(lhs: FoundPeer, rhs: FoundPeer) -> Bool {
-        return lhs.peer.isEqual(rhs.peer) && lhs.subscribers == rhs.subscribers
+        return lhs.peer == rhs.peer && lhs.subscribers == rhs.subscribers
     }
 }
 
-public enum TelegramSearchPeersScope {
+public enum TelegramSearchPeersScope: Equatable {
     case everywhere
     case channels
+    case groups
+    case privateChats
+    case globalPosts(allowPaidStars: Int?)
 }
 
 public func _internal_searchPeers(accountPeerId: PeerId, postbox: Postbox, network: Network, query: String, scope: TelegramSearchPeersScope) -> Signal<([FoundPeer], [FoundPeer]), NoError> {
@@ -33,7 +36,8 @@ public func _internal_searchPeers(accountPeerId: PeerId, postbox: Postbox, netwo
     |> mapToSignal { result -> Signal<([FoundPeer], [FoundPeer]), NoError> in
         if let result = result {
             switch result {
-            case let .found(myResults, results, chats, users):
+            case let .found(foundData):
+                let (myResults, results, chats, users) = (foundData.myResults, foundData.results, foundData.chats, foundData.users)
                 return postbox.transaction { transaction -> ([FoundPeer], [FoundPeer]) in
                     var subscribers: [PeerId: Int32] = [:]
                     
@@ -42,7 +46,8 @@ public func _internal_searchPeers(accountPeerId: PeerId, postbox: Postbox, netwo
                     for chat in chats {
                         if let groupOrChannel = parseTelegramGroupOrChannel(chat: chat) {
                             switch chat {
-                            case let .channel(_, _, _, _, _, _, _, _, _, _, _, _, participantsCount, _, _, _, _, _, _, _):
+                            case let .channel(channelData):
+                                let participantsCount = channelData.participantsCount
                                 if let participantsCount = participantsCount {
                                     subscribers[groupOrChannel.id] = participantsCount
                                 }
@@ -62,9 +67,9 @@ public func _internal_searchPeers(accountPeerId: PeerId, postbox: Postbox, netwo
                                 continue
                             }
                             if let user = peer as? TelegramUser {
-                                renderedMyPeers.append(FoundPeer(peer: peer, subscribers: user.subscriberCount))
+                                renderedMyPeers.append(FoundPeer(peer: EnginePeer(peer), subscribers: user.subscriberCount))
                             } else {
-                                renderedMyPeers.append(FoundPeer(peer: peer, subscribers: subscribers[peerId]))
+                                renderedMyPeers.append(FoundPeer(peer: EnginePeer(peer), subscribers: subscribers[peerId]))
                             }
                         }
                     }
@@ -77,9 +82,9 @@ public func _internal_searchPeers(accountPeerId: PeerId, postbox: Postbox, netwo
                                 continue
                             }
                             if let user = peer as? TelegramUser {
-                                renderedPeers.append(FoundPeer(peer: peer, subscribers: user.subscriberCount))
+                                renderedPeers.append(FoundPeer(peer: EnginePeer(peer), subscribers: user.subscriberCount))
                             } else {
-                                renderedPeers.append(FoundPeer(peer: peer, subscribers: subscribers[peerId]))
+                                renderedPeers.append(FoundPeer(peer: EnginePeer(peer), subscribers: subscribers[peerId]))
                             }
                         }
                     }
@@ -89,19 +94,56 @@ public func _internal_searchPeers(accountPeerId: PeerId, postbox: Postbox, netwo
                         break
                     case .channels:
                         renderedMyPeers = renderedMyPeers.filter { item in
-                            if let channel = item.peer as? TelegramChannel, case .broadcast = channel.info {
+                            if case let .channel(channel) = item.peer, case .broadcast = channel.info {
                                 return true
                             } else {
                                 return false
                             }
                         }
                         renderedPeers = renderedPeers.filter { item in
-                            if let channel = item.peer as? TelegramChannel, case .broadcast = channel.info {
+                            if case let .channel(channel) = item.peer, case .broadcast = channel.info {
                                 return true
                             } else {
                                 return false
                             }
                         }
+                    case .groups:
+                        renderedMyPeers = renderedMyPeers.filter { item in
+                            if case let .channel(channel) = item.peer, case .group = channel.info {
+                                return true
+                            } else if case .legacyGroup = item.peer {
+                                return true
+                            } else {
+                                return false
+                            }
+                        }
+                        renderedPeers = renderedPeers.filter { item in
+                            if case let .channel(channel) = item.peer, case .group = channel.info {
+                                return true
+                            } else if case .legacyGroup = item.peer {
+                                return true
+                            } else {
+                                return false
+                            }
+                        }
+                    case .privateChats:
+                        renderedMyPeers = renderedMyPeers.filter { item in
+                            if case .user = item.peer {
+                                return true
+                            } else {
+                                return false
+                            }
+                        }
+                        renderedPeers = renderedPeers.filter { item in
+                            if case .user = item.peer {
+                                return true
+                            } else {
+                                return false
+                            }
+                        }
+                    case .globalPosts:
+                        renderedMyPeers = []
+                        renderedPeers = []
                     }
                     
                     return (renderedMyPeers, renderedPeers)
@@ -118,5 +160,33 @@ public func _internal_searchPeers(accountPeerId: PeerId, postbox: Postbox, netwo
 func _internal_searchLocalSavedMessagesPeers(account: Account, query: String, indexNameMapping: [EnginePeer.Id: [PeerIndexNameRepresentation]]) -> Signal<[EnginePeer], NoError> {
     return account.postbox.transaction { transaction -> [EnginePeer] in
         return transaction.searchSubPeers(peerId: account.peerId, query: query, indexNameMapping: indexNameMapping).map(EnginePeer.init)
+    }
+}
+
+func _internal_requestMessageAuthor(account: Account, id: EngineMessage.Id) -> Signal<EnginePeer?, NoError> {
+    return account.postbox.transaction { transaction -> Api.InputChannel? in
+        return transaction.getPeer(id.peerId).flatMap(apiInputChannel)
+    }
+    |> mapToSignal { inputChannel -> Signal<EnginePeer?, NoError> in
+        guard let inputChannel else {
+            return .single(nil)
+        }
+        if id.namespace != Namespaces.Message.Cloud {
+            return .single(nil)
+        }
+        return account.network.request(Api.functions.channels.getMessageAuthor(channel: inputChannel, id: id.id))
+        |> map(Optional.init)
+        |> `catch` { _ -> Signal<Api.User?, NoError> in
+            return .single(nil)
+        }
+        |> mapToSignal { user -> Signal<EnginePeer?, NoError> in
+            guard let user else {
+                return .single(nil)
+            }
+            return account.postbox.transaction { transaction -> EnginePeer? in
+                updatePeers(transaction: transaction, accountPeerId: account.peerId, peers: AccumulatedPeers(users: [user]))
+                return transaction.getPeer(user.peerId).flatMap(EnginePeer.init)
+            }
+        }
     }
 }

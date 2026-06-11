@@ -9,7 +9,7 @@ import ChatControllerInteraction
 import ChatHistoryEntry
 import ChatMessageBubbleItemNode
 
-func preparedChatHistoryViewTransition(from fromView: ChatHistoryView?, to toView: ChatHistoryView, reason: ChatHistoryViewTransitionReason, reverse: Bool, chatLocation: ChatLocation, controllerInteraction: ChatControllerInteraction, scrollPosition: ChatHistoryViewScrollPosition?, scrollAnimationCurve: ListViewAnimationCurve?, initialData: InitialMessageHistoryData?, keyboardButtonsMessage: Message?, cachedData: CachedPeerData?, cachedDataMessages: [MessageId: Message]?, readStateData: [PeerId: ChatHistoryCombinedInitialReadStateData]?, flashIndicators: Bool, updatedMessageSelection: Bool, messageTransitionNode: ChatMessageTransitionNodeImpl?, allUpdated: Bool) -> ChatHistoryViewTransition {
+func preparedChatHistoryViewTransition(from fromView: ChatHistoryView?, to toView: ChatHistoryView, reason: ChatHistoryViewTransitionReason, reverse: Bool, chatLocation: ChatLocation, source: ChatHistoryListSource, controllerInteraction: ChatControllerInteraction, scrollPosition: ChatHistoryViewScrollPosition?, scrollAnimationCurve: ListViewAnimationCurve?, initialData: InitialMessageHistoryData?, keyboardButtonsMessage: Message?, cachedData: CachedPeerData?, cachedDataMessages: [MessageId: Message]?, readStateData: [PeerId: ChatHistoryCombinedInitialReadStateData]?, flashIndicators: Bool, updatedMessageSelection: Bool, messageTransitionNode: ChatMessageTransitionNodeImpl?, allUpdated: Bool) -> ChatHistoryViewTransition {
     var mergeResult: (deleteIndices: [Int], indicesAndItems: [(Int, ChatHistoryEntry, Int?)], updateIndices: [(Int, ChatHistoryEntry, Int)])
     let allUpdated = allUpdated || (fromView?.associatedData != toView.associatedData)
     if reverse {
@@ -141,6 +141,11 @@ func preparedChatHistoryViewTransition(from fromView: ChatHistoryView?, to toVie
     
     let curve: ListViewAnimationCurve = scrollAnimationCurve ?? .Default(duration: nil)
     
+    var isSavedMusic = false
+    if case let .custom(_, _, _, isSavedMusicValue, _, _) = source {
+        isSavedMusic = isSavedMusicValue
+    }
+    
     if let scrollPosition = scrollPosition {
         switch scrollPosition {
             case let .unread(unreadIndex):
@@ -161,6 +166,21 @@ func preparedChatHistoryViewTransition(from fromView: ChatHistoryView?, to toVie
                             break
                         }
                         index -= 1
+                    }
+                    
+                    if let currentScrollToItem = scrollToItem {
+                        index = 0
+                        for entry in toView.filteredEntries.reversed() {
+                            if index > currentScrollToItem.index {
+                                if entry.index.timestamp > 10 {
+                                    break
+                                } else if case .ChatInfoEntry = entry {
+                                    scrollToItem = ListViewScrollToItem(index: index, position: .bottom(0.0), animated: false, curve: curve,  directionHint: .Down)
+                                    break
+                                }
+                            }
+                            index += 1
+                        }
                     }
                 }
                 
@@ -200,21 +220,40 @@ func preparedChatHistoryViewTransition(from fromView: ChatHistoryView?, to toVie
                 if case .center = position, highlight {
                     scrolledToIndex = scrollSubject
                 }
-                if case .center = position, let quote = scrollSubject.quote {
-                    position = .center(.custom({ itemNode in
-                        if let itemNode = itemNode as? ChatMessageBubbleItemNode {
-                            if let quoteRect = itemNode.getQuoteRect(quote: quote.string, offset: quote.offset) {
-                                return quoteRect.midY
+                if case .center = position {
+                    if let quote = scrollSubject.quote {
+                        position = .center(.custom({ itemNode in
+                            if let itemNode = itemNode as? ChatMessageBubbleItemNode {
+                                if let quoteRect = itemNode.getQuoteRect(quote: quote.string, offset: quote.offset) {
+                                    return quoteRect.midY
+                                }
                             }
-                        }
-                        return 0.0
-                    }))
+                            return 0.0
+                        }))
+                    } else if let subject = scrollSubject.subject {
+                        position = .center(.custom({ itemNode in
+                            if let itemNode = itemNode as? ChatMessageBubbleItemNode {
+                                if let taskRect = itemNode.getInnerReplySubjectRect(innerSubject: subject) {
+                                    return taskRect.midY
+                                }
+                            }
+                            return 0.0
+                        }))
+                    }
                 }
                 var index = toView.filteredEntries.count - 1
                 for entry in toView.filteredEntries {
-                    if scrollIndex.index.isLessOrEqual(to: entry.index) {
-                        scrollToItem = ListViewScrollToItem(index: index, position: position, animated: animated, curve: curve, directionHint: directionHint, displayLink: displayLink)
-                        break
+                    if isSavedMusic {
+                        if case let .message(messageIndex) = scrollIndex.index, messageIndex.id == entry.index.id {
+                            print(messageIndex.id)
+                            scrollToItem = ListViewScrollToItem(index: index, position: position, animated: animated, curve: curve, directionHint: directionHint, displayLink: displayLink)
+                            break
+                        }
+                    } else {
+                        if scrollIndex.index.isLessOrEqual(to: entry.index) {
+                            scrollToItem = ListViewScrollToItem(index: index, position: position, animated: animated, curve: curve, directionHint: directionHint, displayLink: displayLink)
+                            break
+                        }
                     }
                     index -= 1
                 }

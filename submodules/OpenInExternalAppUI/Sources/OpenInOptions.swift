@@ -101,6 +101,10 @@ private func allOpenInOptions(context: AccountContext, item: OpenInItem) -> [Ope
             
             if !skipSafari {
                 options.append(OpenInOption(identifier: "safari", application: .safari, action: {
+                    var url = url
+                    if url.hasPrefix("https://") {
+                        url = url.replacingOccurrences(of: "https://", with: "x-safari-https://")
+                    }
                     return .openUrl(url: url)
                 }))
             }
@@ -233,6 +237,13 @@ private func allOpenInOptions(context: AccountContext, item: OpenInItem) -> [Ope
                     } else {
                         return .openUrl(url: "comgooglemaps-x-callback://?center=\(coordinates)&q=\(coordinates)&x-success=telegram://?resume=true&x-source=Telegram")
                     }
+                }
+            }))
+            options.append(OpenInOption(identifier: "yangoMaps", application: .other(title: "Yango Maps", identifier: 1665672451, scheme: "yangomaps", store: nil), action: {
+                if let _ = directions {
+                    return .openUrl(url: "yangomaps://build_route_on_map?lat_to=\(lat)&lon_to=\(lon)")
+                } else {
+                    return .openUrl(url: "yangomaps://maps.yango.com/?pt=\(lon),\(lat)&z=16")
                 }
             }))
         

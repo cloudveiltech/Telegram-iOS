@@ -14,6 +14,9 @@ import MultiAnimationRenderer
 import EditableTokenListNode
 import SolidRoundedButtonNode
 import ContextUI
+import ComponentFlow
+import MultilineTextComponent
+import CheckComponent
 
 private struct SearchResultEntry: Identifiable {
     let index: Int
@@ -53,6 +56,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
     var searchResultsNode: ContactListNode?
     
     private let context: AccountContext
+    private let mode: ContactMultiselectionControllerMode
     
     private var containerLayout: (ContainerViewLayout, CGFloat, CGFloat)?
     
@@ -81,12 +85,17 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
     private let isPeerEnabled: ((EnginePeer) -> Bool)?
     private let onlyWriteable: Bool
     private let isGroupInvitation: Bool
+
+    var isCallVideoOptionSelected: Bool {
+        return self.footerPanelNode?.isCheckOptionSelected ?? false
+    }
     
-    init(navigationBar: NavigationBar?, context: AccountContext, presentationData: PresentationData, mode: ContactMultiselectionControllerMode, isPeerEnabled: ((EnginePeer) -> Bool)?, attemptDisabledItemSelection: ((EnginePeer, ChatListDisabledPeerReason) -> Void)?, options: Signal<[ContactListAdditionalOption], NoError>, filters: [ContactListFilter], onlyWriteable: Bool, isGroupInvitation: Bool, limit: Int32?, reachedSelectionLimit: ((Int32) -> Void)?, present: @escaping (ViewController, Any?) -> Void) {
+    init(navigationBar: NavigationBar?, context: AccountContext, presentationData: PresentationData, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?, mode: ContactMultiselectionControllerMode, isPeerEnabled: ((EnginePeer) -> Bool)?, attemptDisabledItemSelection: ((EnginePeer, ChatListDisabledPeerReason) -> Void)?, options: Signal<[ContactListAdditionalOption], NoError>, filters: [ContactListFilter], onlyWriteable: Bool, isGroupInvitation: Bool, limit: Int32?, reachedSelectionLimit: ((Int32) -> Void)?, present: @escaping (ViewController, Any?) -> Void) {
         self.navigationBar = navigationBar
         
         self.context = context
         self.presentationData = presentationData
+        self.mode = mode
         
         self.animationCache = context.animationCache
         self.animationRenderer = context.animationRenderer
@@ -114,12 +123,22 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
             shortPlaceholder = self.presentationData.strings.Common_Search
             self.footerPanelNode = FooterPanelNode(theme: self.presentationData.theme, strings: self.presentationData.strings, action: {
                 proceedImpl?()
-            })
+            }, checkOptionTitle: nil)
         case .requestedUsersSelection:
             placeholder = self.presentationData.strings.RequestPeer_SelectUsers_SearchPlaceholder
             self.footerPanelNode = FooterPanelNode(theme: self.presentationData.theme, strings: self.presentationData.strings, action: {
                 proceedImpl?()
-            })
+            }, checkOptionTitle: nil)
+        case let .groupCreation(isCall):
+            if isCall {
+                placeholder = self.presentationData.strings.NewCall_SearchPlaceholder
+                self.footerPanelNode = FooterPanelNode(theme: self.presentationData.theme, strings: self.presentationData.strings, action: {
+                    proceedImpl?()
+                }, checkOptionTitle: self.presentationData.strings.NewCall_VideoOption)
+            } else {
+                placeholder = self.presentationData.strings.Compose_TokenListPlaceholder    
+                self.footerPanelNode = nil
+            }
         default:
             placeholder = self.presentationData.strings.Compose_TokenListPlaceholder
             self.footerPanelNode = nil
@@ -133,7 +152,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
             
             var chatListFilter: ChatListFilter?
             if chatSelection.onlyUsers {
-                chatListFilter = .filter(id: Int32.max, title: "", emoticon: nil, data: ChatListFilterData(
+                chatListFilter = .filter(id: Int32.max, title: ChatFolderTitle(text: "", entities: [], enableAnimations: true), emoticon: nil, data: ChatListFilterData(
                     isShared: false,
                     hasSharedLinks: false,
                     categories: [.contacts, .nonContacts],
@@ -146,6 +165,9 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
                 ))
             } else if chatSelection.disableChannels || chatSelection.disableBots {
                 var categories: ChatListFilterPeerCategories = [.contacts, .nonContacts, .groups, .bots, .channels]
+                if chatSelection.disableContacts {
+                    categories.remove(.contacts)
+                }
                 if chatSelection.disableChannels {
                     categories.remove(.channels)
                 }
@@ -153,7 +175,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
                     categories.remove(.bots)
                 }
                 
-                chatListFilter = .filter(id: Int32.max, title: "", emoticon: nil, data: ChatListFilterData(
+                chatListFilter = .filter(id: Int32.max, title: ChatFolderTitle(text: "", entities: [], enableAnimations: true), emoticon: nil, data: ChatListFilterData(
                     isShared: false,
                     hasSharedLinks: false,
                     categories: categories,
@@ -167,7 +189,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
             }
             
             placeholder = placeholderValue
-            let chatListNode = ChatListNode(context: context, location: .chatList(groupId: .root), chatListFilter: chatListFilter, previewing: false, fillPreloadItems: false, mode: .peers(filter: [.excludeSecretChats], isSelecting: true, additionalCategories: additionalCategories?.categories ?? [], chatListFilters: chatListFilters, displayAutoremoveTimeout: chatSelection.displayAutoremoveTimeout, displayPresence: chatSelection.displayPresence), isPeerEnabled: isPeerEnabled, theme: self.presentationData.theme, fontSize: self.presentationData.listsFontSize, strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, nameSortOrder: self.presentationData.nameSortOrder, nameDisplayOrder: self.presentationData.nameDisplayOrder, animationCache: self.animationCache, animationRenderer: self.animationRenderer, disableAnimations: true, isInlineMode: false, autoSetReady: true, isMainTab: false)
+            let chatListNode = ChatListNode(context: context, location: .chatList(groupId: .root), chatListFilter: chatListFilter, previewing: false, fillPreloadItems: false, mode: .peers(filter: [.excludeSecretChats], isSelecting: true, additionalCategories: additionalCategories?.categories ?? [], topPeers: [], chatListFilters: chatListFilters, displayAutoremoveTimeout: chatSelection.displayAutoremoveTimeout, displayPresence: chatSelection.displayPresence), isPeerEnabled: isPeerEnabled, theme: self.presentationData.theme, fontSize: self.presentationData.listsFontSize, strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, nameSortOrder: self.presentationData.nameSortOrder, nameDisplayOrder: self.presentationData.nameDisplayOrder, animationCache: self.animationCache, animationRenderer: self.animationRenderer, disableAnimations: true, isInlineMode: false, autoSetReady: true, isMainTab: false)
             chatListNode.passthroughPeerSelection = true
             chatListNode.disabledPeerSelected = { peer, _, reason in
                 attemptDisabledItemSelection?(peer, reason)
@@ -226,7 +248,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
                         sections.append((presentationData.strings.Premium_Gift_ContactSelection_BirthdayTomorrow, tomorrowPeers, hasActions))
                     }
                     
-                    displayTopPeers = .custom(sections)
+                    displayTopPeers = .custom(showSelf: false, selfSubtitle: nil, sections: sections)
                 } else {
                     displayTopPeers = .recent
                 }
@@ -241,7 +263,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
                 return .natural(options: options, includeChatList: includeChatList, topPeers: displayTopPeers)
             }
             
-            let contactListNode = ContactListNode(context: context, presentation: presentation, filters: filters, onlyWriteable: onlyWriteable, isGroupInvitation: isGroupInvitation, selectionState: ContactListNodeGroupSelectionState())
+            let contactListNode = ContactListNode(context: context, updatedPresentationData: updatedPresentationData, presentation: presentation, filters: filters, onlyWriteable: onlyWriteable, isGroupInvitation: isGroupInvitation, isPeerEnabled: isPeerEnabled, selectionState: ContactListNodeGroupSelectionState())
             self.contentNode = .contacts(contactListNode)
             
             if !selectedPeers.isEmpty {
@@ -255,7 +277,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
             }
         }
         
-        self.tokenListNode = EditableTokenListNode(context: self.context, presentationTheme: self.presentationData.theme, theme: EditableTokenListNodeTheme(backgroundColor: .clear, separatorColor: self.presentationData.theme.rootController.navigationBar.separatorColor, placeholderTextColor: self.presentationData.theme.list.itemPlaceholderTextColor, primaryTextColor: self.presentationData.theme.list.itemPrimaryTextColor, tokenBackgroundColor: self.presentationData.theme.list.itemCheckColors.strokeColor.withAlphaComponent(0.25), selectedTextColor: self.presentationData.theme.list.itemCheckColors.foregroundColor, selectedBackgroundColor: self.presentationData.theme.list.itemCheckColors.fillColor, accentColor: self.presentationData.theme.list.itemAccentColor, keyboardColor: self.presentationData.theme.rootController.keyboardColor), placeholder: placeholder, shortPlaceholder: shortPlaceholder)
+        self.tokenListNode = EditableTokenListNode(context: self.context, theme: self.presentationData.theme, placeholder: placeholder, shortPlaceholder: shortPlaceholder)
         
         super.init()
         
@@ -292,7 +314,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
             }
         case let .chats(chatsNode):
             chatsNode.peerSelected = { [weak self] peer, _, _, _, _ in
-                self?.openPeer?(.peer(peer: peer._asPeer(), isGlobal: false, participantCount: nil))
+                self?.openPeer?(.peer(peer: peer, isGlobal: false, participantCount: nil))
             }
             chatsNode.additionalCategorySelected = { [weak self] id in
                 guard let strongSelf = self else {
@@ -365,7 +387,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
                         case .premiumGifting, .requestedUsersSelection:
                             searchChatList = true
                         }
-                        let searchResultsNode = ContactListNode(context: context, presentation: .single(.search(ContactListPresentation.Search(
+                        let searchResultsNode = ContactListNode(context: context, updatedPresentationData: updatedPresentationData, presentation: .single(.search(ContactListPresentation.Search(
                                 signal: searchText.get(),
                                 searchChatList: searchChatList,
                                 searchDeviceContacts: false,
@@ -373,7 +395,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
                                 searchChannels: searchChannels,
                                 globalSearch: globalSearch,
                                 displaySavedMessages: displaySavedMessages
-                            ))), filters: filters, onlyWriteable: strongSelf.onlyWriteable, isGroupInvitation: strongSelf.isGroupInvitation, isPeerEnabled: strongSelf.isPeerEnabled, selectionState: selectionState, isSearch: true)
+                        ))), filters: filters, onlyWriteable: strongSelf.onlyWriteable, isGroupInvitation: strongSelf.isGroupInvitation, isPeerEnabled: strongSelf.isPeerEnabled, selectionState: selectionState, isSearch: true)
                         searchResultsNode.openPeer = { peer, _, _, _ in
                             self?.tokenListNode.setText("")
                             self?.openPeer?(peer)
@@ -391,6 +413,7 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
                             var insets = layout.insets(options: [.input])
                             insets.top += navigationBarHeight
                             insets.top += strongSelf.tokenListNode.bounds.size.height
+                            insets.top += 10.0 + 10.0
                             
                             var headerInsets = layout.insets(options: [.input])
                             headerInsets.top += actualNavigationBarHeight
@@ -443,23 +466,40 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
         
         var insets = layout.insets(options: [.input])
         insets.top += navigationBarHeight
+        insets.top += 10.0
                 
-        let tokenListHeight = self.tokenListNode.updateLayout(tokens: self.editableTokens, width: layout.size.width, leftInset: layout.safeInsets.left, rightInset: layout.safeInsets.right, transition: transition)
+        let tokenListHeight = self.tokenListNode.updateLayout(tokens: self.editableTokens, width: layout.size.width - (16.0 + layout.safeInsets.left) * 2.0, leftInset: 0.0, rightInset: 0.0, transition: transition)
         
-        transition.updateFrame(node: self.tokenListNode, frame: CGRect(origin: CGPoint(x: 0.0, y: insets.top), size: CGSize(width: layout.size.width, height: tokenListHeight)))
+        transition.updateFrame(node: self.tokenListNode, frame: CGRect(origin: CGPoint(x: 16.0 + layout.safeInsets.left, y: insets.top), size: CGSize(width: layout.size.width - (16.0 + layout.safeInsets.left) * 2.0, height: tokenListHeight)))
         
         var headerInsets = layout.insets(options: [.input])
         headerInsets.top += actualNavigationBarHeight
         
-        insets.top += tokenListHeight
-        headerInsets.top += tokenListHeight
+        headerInsets.top += 10.0 + tokenListHeight + 8.0
+        insets = headerInsets
         
         if let footerPanelNode = self.footerPanelNode {
             var count = 0
             if case let .contacts(contactListNode) = self.contentNode {
                 count = contactListNode.selectionState?.selectedPeerIndices.count ?? 0
             }
-            footerPanelNode.count = count
+            if case let .groupCreation(isCall) = self.mode, isCall {
+                if count == 0 {
+                    // Don't set anything to prevent state update
+                } else if count <= 1 {
+                    let callTitle: String
+                    if case let .contacts(contactListNode) = self.contentNode, let peer = contactListNode.selectedPeers.first, case let .peer(peer, _, _) = peer {
+                        callTitle = self.presentationData.strings.NewCall_ActionCallSingle(peer.compactDisplayTitle).string
+                    } else {
+                        callTitle = self.presentationData.strings.NewCall_ActionCallMultiple
+                    }
+                    footerPanelNode.content = FooterPanelNode.Content(title: callTitle, badge: "")
+                } else {
+                    footerPanelNode.content = FooterPanelNode.Content(title: "Call", badge: "\(count)")
+                }
+            } else {
+                footerPanelNode.content = FooterPanelNode.Content(title: self.presentationData.strings.Premium_Gift_ContactSelection_Proceed, badge: count == 0 ? "" : "\(count)")
+            }
             let panelHeight = footerPanelNode.updateLayout(width: layout.size.width, sideInset: layout.safeInsets.left, bottomInset: headerInsets.bottom, transition: transition)
             if count == 0 {
                 transition.updateFrame(node: footerPanelNode, frame: CGRect(origin: CGPoint(x: 0.0, y: layout.size.height), size: CGSize(width: layout.size.width, height: panelHeight)))
@@ -506,19 +546,36 @@ final class ContactMultiselectionControllerNode: ASDisplayNode {
 
 
 private final class FooterPanelNode: ASDisplayNode {
+    struct Content: Equatable {
+        let title: String
+        let badge: String
+
+        init(title: String, badge: String) {
+            self.title = title
+            self.badge = badge
+        }
+    }
+    
     private let theme: PresentationTheme
     private let strings: PresentationStrings
+
+    private let checkOptionTitle: String?
+    private var checkOptionButton: HighlightTrackingButton?
+    private var checkOptionText: ComponentView<Empty>?
+    private var checkOptionControl: ComponentView<Empty>?
     
     private let separatorNode: ASDisplayNode
     private let button: SolidRoundedButtonView
+
+    private(set) var isCheckOptionSelected: Bool = false
     
     private var validLayout: (CGFloat, CGFloat, CGFloat)?
     
-    var count: Int = 0 {
+    var content: Content {
         didSet {
-            if self.count != oldValue && self.count > 0 {
-                self.button.title = self.strings.Premium_Gift_ContactSelection_Proceed
-                self.button.badge = "\(self.count)"
+            if self.content != oldValue {
+                self.button.title = content.title
+                self.button.badge = content.badge.isEmpty ? nil : content.badge
                 
                 if let (width, sideInset, bottomInset) = self.validLayout {
                     let _ = self.updateLayout(width: width, sideInset: sideInset, bottomInset: bottomInset, transition: .immediate)
@@ -527,14 +584,17 @@ private final class FooterPanelNode: ASDisplayNode {
         }
     }
     
-    init(theme: PresentationTheme, strings: PresentationStrings, action: @escaping () -> Void) {
+    init(theme: PresentationTheme, strings: PresentationStrings, action: @escaping () -> Void, checkOptionTitle: String?) {
         self.theme = theme
         self.strings = strings
+        self.checkOptionTitle = checkOptionTitle
 
         self.separatorNode = ASDisplayNode()
         self.separatorNode.backgroundColor = theme.rootController.navigationBar.separatorColor
         
-        self.button = SolidRoundedButtonView(theme: SolidRoundedButtonTheme(theme: theme), height: 48.0, cornerRadius: 10.0)
+        self.button = SolidRoundedButtonView(theme: SolidRoundedButtonTheme(theme: theme), height: 50.0, cornerRadius: 10.0)
+
+        self.content = Content(title: self.strings.Premium_Gift_ContactSelection_Proceed, badge: "")
         
         super.init()
         
@@ -551,9 +611,17 @@ private final class FooterPanelNode: ASDisplayNode {
         super.didLoad()
         self.view.addSubview(self.button)
     }
+
+    @objc private func checkOptionButtonPressed() {
+        self.isCheckOptionSelected = !self.isCheckOptionSelected
+        if let validLayout = self.validLayout {
+            let _ = self.updateLayout(width: validLayout.0, sideInset: validLayout.1, bottomInset: validLayout.2, transition: .animated(duration: 0.2, curve: .easeInOut))
+        }
+    }
     
     func updateLayout(width: CGFloat, sideInset: CGFloat, bottomInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGFloat {
         self.validLayout = (width, sideInset, bottomInset)
+
         let topInset: CGFloat = 9.0
         var bottomInset = bottomInset
         bottomInset += topInset - (bottomInset.isZero ? 0.0 : 4.0)
@@ -561,10 +629,104 @@ private final class FooterPanelNode: ASDisplayNode {
         let buttonInset: CGFloat = 16.0 + sideInset
         let buttonWidth = width - buttonInset * 2.0
         let buttonHeight = self.button.updateLayout(width: buttonWidth, transition: transition)
-        transition.updateFrame(view: self.button, frame: CGRect(x: buttonInset, y: topInset, width: buttonWidth, height: buttonHeight))
         
         transition.updateFrame(node: self.separatorNode, frame: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: width, height: UIScreenPixel)))
         
-        return topInset + buttonHeight + bottomInset
+        var height = topInset + buttonHeight + bottomInset
+
+        var buttonOffset: CGFloat = 0.0
+        if let checkOptionTitle = self.checkOptionTitle {
+            let checkSpacing: CGFloat = 10.0
+
+            let checkOptionButton: HighlightTrackingButton
+            if let current = self.checkOptionButton {
+                checkOptionButton = current
+            } else {
+                checkOptionButton = HighlightTrackingButton()
+                self.checkOptionButton = checkOptionButton
+                self.view.addSubview(checkOptionButton)
+                checkOptionButton.addTarget(self, action: #selector(self.checkOptionButtonPressed), for: .touchUpInside)
+            }
+            
+            let checkOptionText: ComponentView<Empty>
+            if let current = self.checkOptionText {
+                checkOptionText = current
+            } else {
+                checkOptionText = ComponentView()
+                self.checkOptionText = checkOptionText
+            }
+
+            let checkOptionControl: ComponentView<Empty>
+            if let current = self.checkOptionControl {
+                checkOptionControl = current
+            } else {
+                checkOptionControl = ComponentView()
+                self.checkOptionControl = checkOptionControl
+            }
+
+            let checkOptionTextSize = checkOptionText.update(
+                transition: .immediate,
+                component: AnyComponent(MultilineTextComponent(
+                    text: .plain(NSAttributedString(string: checkOptionTitle, font: Font.regular(13.0), textColor: theme.rootController.navigationBar.primaryTextColor))
+                )),
+                environment: {},
+                containerSize: CGSize(width: width - sideInset * 2.0 - checkSpacing - 20.0, height: 100.0)
+            )
+
+            let checkTheme = CheckComponent.Theme(
+                backgroundColor: self.theme.list.itemCheckColors.fillColor,
+                strokeColor: self.theme.list.itemCheckColors.foregroundColor,
+                borderColor: self.theme.list.itemCheckColors.strokeColor,
+                overlayBorder: false,
+                hasInset: false,
+                hasShadow: false
+            )
+            let checkOptionControlSize = checkOptionControl.update(
+                transition: transition.isAnimated ? .easeInOut(duration: 0.2) : .immediate,
+                component: AnyComponent(CheckComponent(
+                    theme: checkTheme,
+                    size: CGSize(width: 18.0, height: 18.0),
+                    selected: self.isCheckOptionSelected
+                )),
+                environment: {},
+                containerSize: CGSize(width: 18.0, height: 18.0)
+            )
+
+            let checkContentWidth = checkOptionControlSize.width + checkSpacing + checkOptionTextSize.width
+            let checkContentHeight = 49.0
+
+            let checkOptionControlFrame = CGRect(origin: CGPoint(x: floor((width - checkContentWidth) * 0.5), y: floor(checkContentHeight - checkOptionControlSize.height) * 0.5), size: checkOptionControlSize)
+            let checkOptionTextFrame = CGRect(origin: CGPoint(x: checkOptionControlFrame.maxX + checkSpacing, y: floor((checkContentHeight - checkOptionTextSize.height) * 0.5)), size: checkOptionTextSize)
+
+            if let checkOptionControlView = checkOptionControl.view {
+                if checkOptionControlView.superview == nil {
+                    checkOptionControlView.isUserInteractionEnabled = false
+                    checkOptionButton.addSubview(checkOptionControlView)
+                }
+                checkOptionControlView.frame = checkOptionControlFrame
+            }
+
+            if let checkOptionTextView = checkOptionText.view {
+                if checkOptionTextView.superview == nil {
+                    checkOptionTextView.isUserInteractionEnabled = false
+                    checkOptionButton.addSubview(checkOptionTextView)
+                }
+                checkOptionTextView.frame = checkOptionTextFrame
+            }
+
+            checkOptionButton.frame = CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: CGSize(width: width, height: checkContentHeight))
+
+            height += checkContentHeight
+            buttonOffset += checkContentHeight
+        } else {
+            if let checkOptionButton = self.checkOptionButton {
+                self.checkOptionButton = nil
+                checkOptionButton.removeFromSuperview()
+            }
+        }
+
+        transition.updateFrame(view: self.button, frame: CGRect(x: buttonInset, y: topInset + buttonOffset, width: buttonWidth, height: buttonHeight))
+
+        return height
     }
 }

@@ -1,3 +1,4 @@
+#import <LegacyComponents/LegacyComponents.h>
 #import "TGMediaAssetsPickerController.h"
 
 #import "LegacyComponentsInternal.h"
@@ -16,7 +17,7 @@
 #import <LegacyComponents/TGMediaAssetImageSignals.h>
 #import <LegacyComponents/TGMediaAssetFetchResultChange.h>
 
-#import "TGModernBarButton.h"
+#import <LegacyComponents/TGModernBarButton.h>
 
 #import <LegacyComponents/TGMediaAsset+TGMediaEditableItem.h>
 #import <LegacyComponents/TGPhotoEditorController.h>
@@ -359,7 +360,7 @@
 
 - (TGMediaPickerModernGalleryMixin *)_galleryMixinForContext:(id<LegacyComponentsContext>)context item:(id)item thumbnailImage:(UIImage *)thumbnailImage selectionContext:(TGMediaSelectionContext *)selectionContext editingContext:(TGMediaEditingContext *)editingContext hasCaptions:(bool)hasCaptions allowCaptionEntities:(bool)allowCaptionEntities inhibitDocumentCaptions:(bool)inhibitDocumentCaptions asFile:(bool)asFile
 {
-    return [[TGMediaPickerModernGalleryMixin alloc] initWithContext:context item:item fetchResult:_fetchResult parentController:self thumbnailImage:thumbnailImage selectionContext:selectionContext editingContext:editingContext hasCaptions:hasCaptions allowCaptionEntities:allowCaptionEntities hasTimer:self.hasTimer onlyCrop:self.onlyCrop inhibitDocumentCaptions:inhibitDocumentCaptions inhibitMute:self.inhibitMute asFile:asFile itemsLimit:0 recipientName:self.recipientName hasSilentPosting:self.hasSilentPosting hasSchedule:self.hasSchedule reminder:self.reminder stickersContext:self.stickersContext];
+    return [[TGMediaPickerModernGalleryMixin alloc] initWithContext:context item:item fetchResult:_fetchResult parentController:self thumbnailImage:thumbnailImage selectionContext:selectionContext editingContext:editingContext hasCaptions:hasCaptions allowCaptionEntities:allowCaptionEntities hasTimer:self.hasTimer onlyCrop:self.onlyCrop inhibitDocumentCaptions:inhibitDocumentCaptions inhibitMute:self.inhibitMute asFile:asFile itemsLimit:0 recipientName:self.recipientName hasSilentPosting:self.hasSilentPosting hasSchedule:self.hasSchedule reminder:self.reminder hasCoverButton:self.hasCoverButton stickersContext:self.stickersContext];
 }
 
 - (TGMediaPickerModernGalleryMixin *)galleryMixinForIndexPath:(NSIndexPath *)indexPath previewMode:(bool)previewMode outAsset:(TGMediaAsset **)outAsset
@@ -553,12 +554,6 @@
     if (_intent == TGMediaAssetsControllerSetProfilePhotoIntent || _intent == TGMediaAssetsControllerSetSignupProfilePhotoIntent || _intent == TGMediaAssetsControllerSetCustomWallpaperIntent) {
         return;
     }
-    
-    if (iosMajorVersion() >= 9)
-    {
-        if (self.traitCollection.forceTouchCapability == UIForceTouchCapabilityAvailable)
-            [self registerForPreviewingWithDelegate:(id)self sourceView:self.view];
-    }
 }
 
 - (UIViewController *)previewingContext:(id<UIViewControllerPreviewing>)previewingContext viewControllerForLocation:(CGPoint)location
@@ -571,7 +566,10 @@
     [self _cancelSelectionGestureRecognizer];
     
     CGRect cellFrame = [_collectionView.collectionViewLayout layoutAttributesForItemAtIndexPath:indexPath].frame;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     previewingContext.sourceRect = [self.view convertRect:cellFrame fromView:_collectionView];
+#pragma clang diagnostic pop
     
     TGMediaAsset *asset = nil;
     _previewGalleryMixin = [self galleryMixinForIndexPath:indexPath previewMode:true outAsset:&asset];

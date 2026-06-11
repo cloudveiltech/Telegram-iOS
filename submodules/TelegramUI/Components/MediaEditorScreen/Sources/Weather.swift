@@ -57,7 +57,7 @@ func getWeather(context: AccountContext, load: Bool) -> Signal<StickerPickerScre
         switch status {
         case .notDetermined:
             return .single(.notDetermined)
-        case .denied, .restricted, .unreachable:
+        case .denied, .restricted, .unreachable, .limited:
             return .single(.notAllowed)
         case .allowed:
             if load {
@@ -73,7 +73,7 @@ func getWeather(context: AccountContext, load: Bool) -> Signal<StickerPickerScre
                                     if let match = context.animatedEmojiStickersValue[effectiveEmoji]?.first {
                                         return .single(.loaded(StickerPickerScreen.Weather.LoadedWeather(
                                             emoji: effectiveEmoji,
-                                            emojiFile: match.file,
+                                            emojiFile: match.file._parse(),
                                             temperature: weather.temperature
                                         )))
                                     } else {

@@ -1,24 +1,25 @@
+#import <LegacyComponents/LegacyComponents.h>
 #import "TGPhotoAvatarPreviewController.h"
 
 #import "LegacyComponentsInternal.h"
 
 #import <LegacyComponents/TGPhotoEditorAnimation.h>
-#import "TGPhotoEditorInterfaceAssets.h"
+#import <LegacyComponents/TGPhotoEditorInterfaceAssets.h>
 
 #import "PGPhotoEditor.h"
 #import "PGPhotoEditorView.h"
 #import <LegacyComponents/TGPhotoEditorUtils.h>
 #import <LegacyComponents/TGPaintUtils.h>
 
-#import "TGPhotoEditorController.h"
+#import <LegacyComponents/TGPhotoEditorController.h>
 #import "TGPhotoEditorPreviewView.h"
-#import "TGPhotoAvatarCropView.h"
+#import <LegacyComponents/TGPhotoAvatarCropView.h>
 
 #import "TGMediaPickerGalleryVideoScrubber.h"
-#import "TGModernGalleryVideoView.h"
+#import <LegacyComponents/TGModernGalleryVideoView.h>
 
 
-#import "TGPhotoPaintStickersContext.h"
+#import <LegacyComponents/TGPhotoPaintStickersContext.h>
 
 #import "TGPhotoDrawingController.h"
 
@@ -569,6 +570,7 @@ const CGFloat TGPhotoAvatarPreviewLandscapePanelSize = TGPhotoAvatarPreviewPanel
             break;
     }
     
+    _cancelButton.modernHighlight = false;
     [UIView animateWithDuration:0.2f animations:^
     {
         _portraitToolsWrapperView.alpha = 0.0f;
@@ -687,6 +689,9 @@ const CGFloat TGPhotoAvatarPreviewLandscapePanelSize = TGPhotoAvatarPreviewPanel
 {
     [_cropView hideImageForCustomTransition];
     [_cropView animateTransitionOutSwitching:false];
+    
+    _cancelButton.modernHighlight = false;
+    [_cancelButton.layer removeAllAnimations];
     
     _previewView.hidden = true;
     [UIView animateWithDuration:0.3f animations:^

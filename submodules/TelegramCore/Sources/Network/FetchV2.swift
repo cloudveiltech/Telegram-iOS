@@ -71,24 +71,28 @@ private final class FetchImpl {
             self.partRange = partRange
             self.fetchRange = fetchRange
         }
+        
+        deinit {
+            self.disposable?.dispose()
+        }
     }
     
     private final class PendingReadyPart {
         let partRange: Range<Int64>
         let fetchRange: Range<Int64>
         let fetchedData: Data
-        let decryptedData: Data
+        let cleanData: Data
         
         init(
             partRange: Range<Int64>,
             fetchRange: Range<Int64>,
             fetchedData: Data,
-            decryptedData: Data
+            cleanData: Data
         ) {
             self.partRange = partRange
             self.fetchRange = fetchRange
             self.fetchedData = fetchedData
-            self.decryptedData = decryptedData
+            self.cleanData = cleanData
         }
     }
     
@@ -98,6 +102,10 @@ private final class FetchImpl {
         
         init(range: Range<Int64>) {
             self.range = range
+        }
+        
+        deinit {
+            self.disposable?.dispose()
         }
     }
     
@@ -148,6 +156,48 @@ private final class FetchImpl {
         case cdn(CdnData)
     }
     
+    private final class DecryptionState {
+        let aesKey: Data
+        var aesIv: Data
+        let decryptedSize: Int64
+        var offset: Int = 0
+        
+        init(aesKey: Data, aesIv: Data, decryptedSize: Int64) {
+            self.aesKey = aesKey
+            self.aesIv = aesIv
+            self.decryptedSize = decryptedSize
+        }
+        
+        func tryDecrypt(data: Data, offset: Int, loggingIdentifier: String) -> Data? {
+            if offset == self.offset {
+                var decryptedData = data
+                if self.decryptedSize == 0 {
+                    Logger.shared.log("FetchV2", "\(loggingIdentifier): not decrypting part \(offset) ..< \(offset + data.count) (decryptedSize == 0)")
+                    return nil
+                }
+                if decryptedData.count % 16 != 0 {
+                    Logger.shared.log("FetchV2", "\(loggingIdentifier): not decrypting part \(offset) ..< \(offset + data.count) (decryptedData.count % 16 != 0)")
+                }
+                let decryptedDataCount = decryptedData.count
+                decryptedData.withUnsafeMutableBytes { rawBytes -> Void in
+                    let bytes = rawBytes.baseAddress!.assumingMemoryBound(to: UInt8.self)
+                    self.aesIv.withUnsafeMutableBytes { rawIv -> Void in
+                        let iv = rawIv.baseAddress!.assumingMemoryBound(to: UInt8.self)
+                        MTAesDecryptBytesInplaceAndModifyIv(bytes, decryptedDataCount, self.aesKey, iv)
+                    }
+                }
+                if self.offset + decryptedData.count > self.decryptedSize {
+                    decryptedData.count = Int(self.decryptedSize) - self.offset
+                }
+                self.offset += decryptedData.count
+                Logger.shared.log("FetchV2", "\(loggingIdentifier): decrypted part \(offset) ..< \(offset + data.count) (new offset is \(self.offset))")
+                return decryptedData
+            } else {
+                return nil
+            }
+        }
+    }
+    
     private final class FetchingState {
         let fetchLocation: FetchLocation
         let partSize: Int64
@@ -160,6 +210,7 @@ private final class FetchImpl {
         var pendingParts: [PendingPart] = []
         var completedRanges = RangeSet<Int64>()
         
+        var decryptionState: DecryptionState?
         var pendingReadyParts: [PendingReadyPart] = []
         var completedHashRanges = RangeSet<Int64>()
         var pendingHashRanges: [PendingHashRange] = []
@@ -174,7 +225,8 @@ private final class FetchImpl {
             maxPartSize: Int64,
             partAlignment: Int64,
             partDivision: Int64,
-            maxPendingParts: Int
+            maxPendingParts: Int,
+            decryptionState: DecryptionState?
         ) {
             self.fetchLocation = fetchLocation
             self.partSize = partSize
@@ -183,6 +235,7 @@ private final class FetchImpl {
             self.partAlignment = partAlignment
             self.partDivision = partDivision
             self.maxPendingParts = maxPendingParts
+            self.decryptionState = decryptionState
         }
         
         deinit {
@@ -354,7 +407,7 @@ private final class FetchImpl {
             self.update()
             
             self.requiredRangesDisposable = (intervals
-            |> deliverOn(self.queue)).start(next: { [weak self] intervals in
+            |> deliverOn(self.queue)).startStrict(next: { [weak self] intervals in
                 guard let `self` = self else {
                     return
                 }
@@ -367,11 +420,18 @@ private final class FetchImpl {
         }
         
         deinit {
+            self.requiredRangesDisposable?.dispose()
         }
         
         private func update() {
             if self.state == nil {
                 Logger.shared.log("FetchV2", "\(self.loggingIdentifier): initializing to .datacenter(\(self.datacenterId))")
+                
+                var decryptionState: DecryptionState?
+                if let encryptionKey = self.encryptionKey, let decryptedSize = self.decryptedSize {
+                    decryptionState = DecryptionState(aesKey: encryptionKey.aesKey, aesIv: encryptionKey.aesIv, decryptedSize: decryptedSize)
+                    self.onNext(.reset)
+                }
                 
                 self.state = .fetching(FetchingState(
                     fetchLocation: .datacenter(self.datacenterId),
@@ -380,7 +440,8 @@ private final class FetchImpl {
                     maxPartSize: 1 * 1024 * 1024,
                     partAlignment: 4 * 1024,
                     partDivision: 1 * 1024 * 1024,
-                    maxPendingParts: 6
+                    maxPendingParts: 6,
+                    decryptionState: decryptionState
                 ))
             }
             guard let state = self.state else {
@@ -396,55 +457,75 @@ private final class FetchImpl {
                 
                 do {
                     var removedPendingReadyPartIndices: [Int] = []
-                    for i in 0 ..< state.pendingReadyParts.count {
-                        let pendingReadyPart = state.pendingReadyParts[i]
-                        if state.completedHashRanges.isSuperset(of: RangeSet<Int64>(pendingReadyPart.fetchRange)) {
-                            removedPendingReadyPartIndices.append(i)
-                            
-                            var checkOffset: Int64 = 0
-                            var checkFailed = false
-                            while checkOffset < pendingReadyPart.fetchedData.count {
-                                if let hashRange = state.hashRanges[pendingReadyPart.fetchRange.lowerBound + checkOffset] {
-                                    var clippedHashRange = hashRange.range
-                                    
-                                    if pendingReadyPart.fetchRange.lowerBound + Int64(pendingReadyPart.fetchedData.count) < clippedHashRange.lowerBound {
-                                        Logger.shared.log("FetchV2", "\(self.loggingIdentifier): unable to check \(pendingReadyPart.fetchRange): data range \(clippedHashRange) out of bounds (0 ..< \(pendingReadyPart.fetchedData.count))")
-                                        checkFailed = true
-                                        break
-                                    }
-                                    clippedHashRange = clippedHashRange.lowerBound ..< min(clippedHashRange.upperBound, pendingReadyPart.fetchRange.lowerBound + Int64(pendingReadyPart.fetchedData.count))
-                                    
-                                    let partLocalHashRange = (clippedHashRange.lowerBound - pendingReadyPart.fetchRange.lowerBound) ..< (clippedHashRange.upperBound - pendingReadyPart.fetchRange.lowerBound)
-                                    
-                                    if partLocalHashRange.lowerBound < 0 || partLocalHashRange.upperBound > pendingReadyPart.fetchedData.count {
-                                        Logger.shared.log("FetchV2", "\(self.loggingIdentifier): unable to check \(pendingReadyPart.fetchRange): data range \(partLocalHashRange) out of bounds (0 ..< \(pendingReadyPart.fetchedData.count))")
-                                        checkFailed = true
-                                        break
-                                    }
-                                    
-                                    let dataToHash = pendingReadyPart.decryptedData.subdata(in: Int(partLocalHashRange.lowerBound) ..< Int(partLocalHashRange.upperBound))
-                                    let localHash = MTSha256(dataToHash)
-                                    if localHash != hashRange.data {
-                                        Logger.shared.log("FetchV2", "\(self.loggingIdentifier): failed to verify \(pendingReadyPart.fetchRange): hash mismatch")
-                                        checkFailed = true
-                                        break
-                                    }
-                                    
-                                    checkOffset += partLocalHashRange.upperBound - partLocalHashRange.lowerBound
-                                } else {
-                                    Logger.shared.log("FetchV2", "\(self.loggingIdentifier): unable to find \(pendingReadyPart.fetchRange) hash range despite it being marked as ready")
-                                    checkFailed = true
-                                    break
+                    if let decryptionState = state.decryptionState {
+                        while true {
+                            var removedSomePendingReadyPart = false
+                            for i in 0 ..< state.pendingReadyParts.count {
+                                if removedPendingReadyPartIndices.contains(i) {
+                                    continue
+                                }
+                                let pendingReadyPart = state.pendingReadyParts[i]
+                                if let resultData = decryptionState.tryDecrypt(data: pendingReadyPart.cleanData, offset: Int(pendingReadyPart.fetchRange.lowerBound), loggingIdentifier: self.loggingIdentifier) {
+                                    removedPendingReadyPartIndices.append(i)
+                                    removedSomePendingReadyPart = true
+                                    self.commitPendingReadyPart(state: state, partRange: pendingReadyPart.partRange, fetchRange: pendingReadyPart.fetchRange, data: resultData)
                                 }
                             }
-                            if !checkFailed {
-                                self.commitPendingReadyPart(state: state, partRange: pendingReadyPart.partRange, fetchRange: pendingReadyPart.fetchRange, data: pendingReadyPart.decryptedData)
-                            } else {
-                                Logger.shared.log("FetchV2", "\(self.loggingIdentifier): unable to find \(pendingReadyPart.fetchRange) hash check failed")
+                            if !removedSomePendingReadyPart {
+                                break
+                            }
+                        }
+                    } else {
+                        for i in 0 ..< state.pendingReadyParts.count {
+                            let pendingReadyPart = state.pendingReadyParts[i]
+                            if state.completedHashRanges.isSuperset(of: RangeSet<Int64>(pendingReadyPart.fetchRange)) {
+                                removedPendingReadyPartIndices.append(i)
+                                
+                                var checkOffset: Int64 = 0
+                                var checkFailed = false
+                                while checkOffset < pendingReadyPart.fetchedData.count {
+                                    if let hashRange = state.hashRanges[pendingReadyPart.fetchRange.lowerBound + checkOffset] {
+                                        var clippedHashRange = hashRange.range
+                                        
+                                        if pendingReadyPart.fetchRange.lowerBound + Int64(pendingReadyPart.fetchedData.count) < clippedHashRange.lowerBound {
+                                            Logger.shared.log("FetchV2", "\(self.loggingIdentifier): unable to check \(pendingReadyPart.fetchRange): data range \(clippedHashRange) out of bounds (0 ..< \(pendingReadyPart.fetchedData.count))")
+                                            checkFailed = true
+                                            break
+                                        }
+                                        clippedHashRange = clippedHashRange.lowerBound ..< min(clippedHashRange.upperBound, pendingReadyPart.fetchRange.lowerBound + Int64(pendingReadyPart.fetchedData.count))
+                                        
+                                        let partLocalHashRange = (clippedHashRange.lowerBound - pendingReadyPart.fetchRange.lowerBound) ..< (clippedHashRange.upperBound - pendingReadyPart.fetchRange.lowerBound)
+                                        
+                                        if partLocalHashRange.lowerBound < 0 || partLocalHashRange.upperBound > pendingReadyPart.fetchedData.count {
+                                            Logger.shared.log("FetchV2", "\(self.loggingIdentifier): unable to check \(pendingReadyPart.fetchRange): data range \(partLocalHashRange) out of bounds (0 ..< \(pendingReadyPart.fetchedData.count))")
+                                            checkFailed = true
+                                            break
+                                        }
+                                        
+                                        let dataToHash = pendingReadyPart.cleanData.subdata(in: Int(partLocalHashRange.lowerBound) ..< Int(partLocalHashRange.upperBound))
+                                        let localHash = MTSha256(dataToHash)
+                                        if localHash != hashRange.data {
+                                            Logger.shared.log("FetchV2", "\(self.loggingIdentifier): failed to verify \(pendingReadyPart.fetchRange): hash mismatch")
+                                            checkFailed = true
+                                            break
+                                        }
+                                        
+                                        checkOffset += partLocalHashRange.upperBound - partLocalHashRange.lowerBound
+                                    } else {
+                                        Logger.shared.log("FetchV2", "\(self.loggingIdentifier): unable to find \(pendingReadyPart.fetchRange) hash range despite it being marked as ready")
+                                        checkFailed = true
+                                        break
+                                    }
+                                }
+                                if !checkFailed {
+                                    self.commitPendingReadyPart(state: state, partRange: pendingReadyPart.partRange, fetchRange: pendingReadyPart.fetchRange, data: pendingReadyPart.cleanData)
+                                } else {
+                                    Logger.shared.log("FetchV2", "\(self.loggingIdentifier): unable to find \(pendingReadyPart.fetchRange) hash check failed")
+                                }
                             }
                         }
                     }
-                    for index in removedPendingReadyPartIndices.reversed() {
+                    for index in removedPendingReadyPartIndices.sorted(by: >) {
                         state.pendingReadyParts.remove(at: index)
                     }
                 }
@@ -452,7 +533,9 @@ private final class FetchImpl {
                 var requiredHashRanges = RangeSet<Int64>()
                 for pendingReadyPart in state.pendingReadyParts {
                     //TODO:check if already have hashes
-                    requiredHashRanges.formUnion(RangeSet<Int64>(pendingReadyPart.fetchRange))
+                    if state.decryptionState == nil {
+                        requiredHashRanges.formUnion(RangeSet<Int64>(pendingReadyPart.fetchRange))
+                    }
                 }
                 requiredHashRanges.subtract(state.completedHashRanges)
                 for pendingHashRange in state.pendingHashRanges {
@@ -602,7 +685,7 @@ private final class FetchImpl {
                     let cdnData = state.cdnData
                     
                     state.disposable = (reuploadSignal
-                    |> deliverOn(self.queue)).start(next: { [weak self] result in
+                    |> deliverOn(self.queue)).startStrict(next: { [weak self] result in
                         guard let `self` = self else {
                             return
                         }
@@ -613,7 +696,8 @@ private final class FetchImpl {
                             maxPartSize: self.cdnPartSize * 2,
                             partAlignment: self.cdnPartSize,
                             partDivision: 1 * 1024 * 1024,
-                            maxPendingParts: 6
+                            maxPendingParts: 6,
+                            decryptionState: nil
                         ))
                         self.update()
                     }, error: { [weak self] error in
@@ -638,7 +722,7 @@ private final class FetchImpl {
                             info: info,
                             resource: self.resource
                         )
-                        |> deliverOn(self.queue)).start(next: { [weak self] validationResult in
+                        |> deliverOn(self.queue)).startStrict(next: { [weak self] validationResult in
                             guard let `self` = self else {
                                 return
                             }
@@ -661,7 +745,8 @@ private final class FetchImpl {
                                 maxPartSize: self.defaultPartSize,
                                 partAlignment: 4 * 1024,
                                 partDivision: 1 * 1024 * 1024,
-                                maxPendingParts: 6
+                                maxPendingParts: 6,
+                                decryptionState: nil
                             ))
                             
                             self.update()
@@ -716,7 +801,8 @@ private final class FetchImpl {
                 )
                 |> map { result -> FilePartResult in
                     switch result {
-                    case let .cdnFile(bytes):
+                    case let .cdnFile(cdnFileData):
+                        let bytes = cdnFileData.bytes
                         if bytes.size == 0 {
                             return .data(data: Data(), verifyPartHashData: nil)
                         } else {
@@ -734,7 +820,8 @@ private final class FetchImpl {
                                 verifyPartHashData: VerifyPartHashData(fetchRange: fetchRange, fetchedData: fetchedData)
                             )
                         }
-                    case let .cdnFileReuploadNeeded(requestToken):
+                    case let .cdnFileReuploadNeeded(cdnFileReuploadNeededData):
+                        let requestToken = cdnFileReuploadNeededData.requestToken
                         return .cdnRefresh(cdnData: cdnData, refreshToken: requestToken.makeData())
                     }
                 }
@@ -773,9 +860,11 @@ private final class FetchImpl {
                         )
                         |> map { result -> FilePartResult in
                             switch result {
-                            case let .file(_, _, bytes):
+                            case let .file(fileData):
+                                let bytes = fileData.bytes
                                 return .data(data: bytes.makeData(), verifyPartHashData: nil)
-                            case let .fileCdnRedirect(dcId, fileToken, encryptionKey, encryptionIv, fileHashes):
+                            case let .fileCdnRedirect(fileCdnRedirectData):
+                                let (dcId, fileToken, encryptionKey, encryptionIv, fileHashes) = (fileCdnRedirectData.dcId, fileCdnRedirectData.fileToken, fileCdnRedirectData.encryptionKey, fileCdnRedirectData.encryptionIv, fileCdnRedirectData.fileHashes)
                                 let _ = fileHashes
                                 return .cdnRedirect(CdnData(
                                     id: Int(dcId),
@@ -799,7 +888,7 @@ private final class FetchImpl {
                 
             if let filePartRequest {
                 part.disposable = (filePartRequest
-                |> deliverOn(self.queue)).start(next: { [weak self, weak state, weak part] result in
+                |> deliverOn(self.queue)).startStrict(next: { [weak self, weak state, weak part] result in
                     guard let self, let state, case let .fetching(fetchingState) = self.state, fetchingState === state else {
                         return
                     }
@@ -819,7 +908,16 @@ private final class FetchImpl {
                                 partRange: partRange,
                                 fetchRange: fetchRange,
                                 fetchedData: verifyPartHashData.fetchedData,
-                                decryptedData: data
+                                cleanData: data
+                            ))
+                        } else if state.decryptionState != nil {
+                            Logger.shared.log("FetchV2", "\(self.loggingIdentifier): stashing data part \(partRange) (aligned as \(fetchRange)) for decryption")
+                            
+                            state.pendingReadyParts.append(FetchImpl.PendingReadyPart(
+                                partRange: partRange,
+                                fetchRange: fetchRange,
+                                fetchedData: data,
+                                cleanData: data
                             ))
                         } else {
                             self.commitPendingReadyPart(
@@ -837,7 +935,8 @@ private final class FetchImpl {
                             maxPartSize: self.cdnPartSize * 2,
                             partAlignment: self.cdnPartSize,
                             partDivision: 1 * 1024 * 1024,
-                            maxPendingParts: 6
+                            maxPendingParts: 6,
+                            decryptionState: nil
                         ))
                     case let .cdnRefresh(cdnData, refreshToken):
                         self.state = .reuploadingToCdn(ReuploadingToCdnState(
@@ -882,8 +981,9 @@ private final class FetchImpl {
             }
             
             let queue = self.queue
+            hashRange.disposable?.dispose()
             hashRange.disposable = (fetchRequest
-            |> deliverOn(self.queue)).start(next: { [weak self, weak state, weak hashRange] result in
+            |> deliverOn(self.queue)).startStrict(next: { [weak self, weak state, weak hashRange] result in
                 queue.async {
                     guard let self, let state, case let .fetching(fetchingState) = self.state, fetchingState === state else {
                         return
@@ -899,7 +999,8 @@ private final class FetchImpl {
                         var filledRange = RangeSet<Int64>()
                         for hashItem in result {
                             switch hashItem {
-                            case let .fileHash(offset, limit, hash):
+                            case let .fileHash(fileHashData):
+                                let (offset, limit, hash) = (fileHashData.offset, fileHashData.limit, fileHashData.hash)
                                 let rangeValue: Range<Int64> = offset ..< (offset + Int64(limit))
                                 filledRange.formUnion(RangeSet<Int64>(rangeValue))
                                 state.hashRanges[rangeValue.lowerBound] = HashRangeData(

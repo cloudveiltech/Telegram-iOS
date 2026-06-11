@@ -53,12 +53,20 @@
     return (int32_t)_impl->size;
 }
 
+- (bool)isKeyframe {
+    return (_impl->flags & AV_PKT_FLAG_KEY) != 0;
+}
+
 - (uint8_t *)data {
     return _impl->data;
 }
 
 - (int32_t)sendToDecoder:(FFMpegAVCodecContext *)codecContext {
     return avcodec_send_packet((AVCodecContext *)[codecContext impl], _impl);
+}
+
+- (void)reuse {
+    av_packet_unref(_impl);
 }
 
 @end

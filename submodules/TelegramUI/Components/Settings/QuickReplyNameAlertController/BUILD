@@ -13,7 +13,6 @@ swift_library(
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
-        "//submodules/Postbox:Postbox",
         "//submodules/TelegramCore:TelegramCore",
         "//submodules/AccountContext:AccountContext",
         "//submodules/TelegramPresentationData:TelegramPresentationData",
@@ -21,6 +20,8 @@ swift_library(
         "//submodules/Components/MultilineTextComponent",
         "//submodules/Components/BalancedTextComponent",
         "//submodules/TelegramUI/Components/EmojiStatusComponent",
+        "//submodules/TelegramUI/Components/AlertComponent",
+        "//submodules/TelegramUI/Components/AlertComponent/AlertInputFieldComponent",
     ],
     visibility = [
         "//visibility:public",

@@ -1,5 +1,5 @@
-#import "TGMediaAsset.h"
-#import "TGMediaAssetImageSignals.h"
+#import <LegacyComponents/TGMediaAsset.h>
+#import <LegacyComponents/TGMediaAssetImageSignals.h>
 
 #import "LegacyComponentsInternal.h"
 
@@ -143,7 +143,7 @@
 - (SSignal *)actualVideoDuration
 {
     if (!self.isVideo)
-        return [SSignal fail:nil];
+        return nil;
     
     if (_cachedDuration == nil)
     {

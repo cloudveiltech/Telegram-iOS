@@ -37,6 +37,13 @@ swift_library(
         "//submodules/Components/BundleIconComponent",
         "//submodules/PasswordSetupUI",
         "//submodules/TelegramUI/Components/PeerManagement/OwnershipTransferController",
+        "//submodules/TelegramUI/Components/ChatScheduleTimeController",
+        "//submodules/TelegramUI/Components/TabSelectorComponent",
+        "//submodules/TelegramUI/Components/Stars/BalanceNeededScreen",
+        "//submodules/TelegramUI/Components/GlassBarButtonComponent",
+        "//submodules/TelegramUI/Components/GlassBackgroundComponent",
+        "//submodules/TelegramUI/Components/AlertComponent",
+        "//submodules/TelegramUI/Components/AlertComponent/AlertInputFieldComponent",
     ],
     visibility = [
         "//visibility:public",

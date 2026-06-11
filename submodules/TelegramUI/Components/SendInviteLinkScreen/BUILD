@@ -12,7 +12,6 @@ swift_library(
     deps = [
         "//submodules/AsyncDisplayKit",
         "//submodules/Display",
-        "//submodules/Postbox",
         "//submodules/TelegramCore",
         "//submodules/SSignalKit/SwiftSignalKit",
         "//submodules/ComponentFlow",
@@ -31,6 +30,7 @@ swift_library(
         "//submodules/PeerPresenceStatusManager",
         "//submodules/UndoUI",
         "//submodules/AnimatedAvatarSetNode",
+        "//submodules/TelegramUI/Components/Chat/ChatMessagePaymentAlertController",
     ],
     visibility = [
         "//visibility:public",

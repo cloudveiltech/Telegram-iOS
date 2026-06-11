@@ -27,10 +27,15 @@ import ManagedFile
 import TelegramUIDeclareEncodables
 import AnimationCache
 import MultiAnimationRenderer
+import DCTAnimationCacheImpl
+import DCTMultiAnimationRendererImpl
 import TelegramUIDeclareEncodables
 import TelegramAccountAuxiliaryMethods
 import PeerSelectionController
 import ContextMenuScreen
+import NavigationBarImpl
+import ContextUI
+import ContextControllerImpl
 
 private var installedSharedLogger = false
 
@@ -104,14 +109,14 @@ private final class ShareControllerAccountContextExtension: ShareControllerAccou
         self.stateManager = stateManager
         self.engineData = TelegramEngine.EngineData(accountPeerId: stateManager.accountPeerId, postbox: stateManager.postbox)
         let cacheStorageBox = stateManager.postbox.mediaBox.cacheStorageBox
-        self.animationCache = AnimationCacheImpl(basePath: stateManager.postbox.mediaBox.basePath + "/animation-cache", allocateTempFile: {
+        self.animationCache = DCTAnimationCacheImpl(basePath: stateManager.postbox.mediaBox.basePath + "/animation-cache", allocateTempFile: {
             return TempBox.shared.tempFile(fileName: "file").path
         }, updateStorageStats: { path, size in
             if let pathData = path.data(using: .utf8) {
                 cacheStorageBox.update(id: pathData, size: size)
             }
         })
-        self.animationRenderer = MultiAnimationRendererImpl()
+        self.animationRenderer = DCTMultiAnimationRendererImpl()
         self.contentSettings = contentSettings
         self.appConfiguration = appConfiguration
     }
@@ -189,9 +194,27 @@ public class ShareRootControllerImpl {
     
     private weak var navigationController: NavigationController?
     
+    public var openUrl: (String) -> Void = { _ in }
+    
     public init(initializationData: ShareRootControllerInitializationData, getExtensionContext: @escaping () -> NSExtensionContext?) {
         self.initializationData = initializationData
         self.getExtensionContext = getExtensionContext
+        
+        defaultNavigationBarImpl = { presentationData in
+            return NavigationBarImpl(presentationData: presentationData)
+        }
+        makeContextControllerImpl = { context, presentationData, configuration, recognizer, gesture, workaroundUseLegacyImplementation, disableScreenshots, hideReactionPanelTail in
+            return ContextControllerImpl(
+                context: context,
+                presentationData: presentationData,
+                configuration: configuration,
+                recognizer: recognizer,
+                gesture: gesture,
+                workaroundUseLegacyImplementation: workaroundUseLegacyImplementation,
+                disableScreenshots: disableScreenshots,
+                hideReactionPanelTail: hideReactionPanelTail
+            )
+        }
     }
     
     deinit {
@@ -237,7 +260,8 @@ public class ShareRootControllerImpl {
             
             setupSharedLogger(rootPath: rootPath, path: logsPath)
             
-            let applicationBindings = TelegramApplicationBindings(isMainApp: false, appBundleId: self.initializationData.appBundleId, appBuildType: self.initializationData.appBuildType, containerPath: self.initializationData.appGroupPath, appSpecificScheme: "tg", openUrl: { _ in
+            let applicationBindings = TelegramApplicationBindings(isMainApp: false, appBundleId: self.initializationData.appBundleId, appBuildType: self.initializationData.appBuildType, containerPath: self.initializationData.appGroupPath, appSpecificScheme: "tg", openUrl: { [weak self] url in
+                self?.openUrl(url)
             }, openUniversalUrl: { _, completion in
                 completion.completion(false)
                 return
@@ -317,6 +341,10 @@ public class ShareRootControllerImpl {
             presentationDataPromise.set(.single(presentationData))
             
             var immediatePeerId: PeerId?
+            #if DEBUG
+            // Xcode crashes
+            immediatePeerId = nil
+            #else
             if #available(iOS 13.2, *), let sendMessageIntent = self.getExtensionContext()?.intent as? INSendMessageIntent {
                 if let contact = sendMessageIntent.recipients?.first, let handle = contact.customIdentifier, handle.hasPrefix("tg") {
                     let string = handle.suffix(from: handle.index(handle.startIndex, offsetBy: 2))
@@ -325,6 +353,7 @@ public class ShareRootControllerImpl {
                     }
                 }
             }
+            #endif
             
             /*let account: Signal<(SharedAccountContextImpl, Account, [AccountWithInfo]), ShareAuthorizationError> = internalContext.sharedContext.accountManager.transaction { transaction -> (SharedAccountContextImpl, LoggingSettings) in
                 return (internalContext.sharedContext, transaction.getSharedData(SharedDataKeys.loggingSettings)?.get(LoggingSettings.self) ?? LoggingSettings.defaultSettings)
@@ -386,6 +415,7 @@ public class ShareRootControllerImpl {
                 voipVersions: [],
                 appData: .single(nil),
                 externalRequestVerificationStream: .never(),
+                externalRecaptchaRequestVerification: { _, _ in return .never() },
                 autolockDeadine: .single(nil),
                 encryptionProvider: OpenSSLEncryptionProvider(),
                 deviceModelName: nil,
@@ -396,7 +426,7 @@ public class ShareRootControllerImpl {
             let accountData: Signal<(ShareControllerEnvironment, ShareControllerAccountContext, [ShareControllerSwitchableAccount]), NoError> = accountManager.accountRecords()
             |> take(1)
             |> mapToSignal { view -> Signal<(ShareControllerEnvironment, ShareControllerAccountContext, [ShareControllerSwitchableAccount]), NoError> in
-                var signals: [Signal<(AccountRecordId, AccountStateManager, Peer)?, NoError>] = []
+                var signals: [Signal<(AccountRecordId, AccountStateManager, EnginePeer)?, NoError>] = []
                 for record in view.records {
                     if record.attributes.contains(where: { attribute in
                         if case .loggedOut = attribute {
@@ -420,14 +450,14 @@ public class ShareRootControllerImpl {
                         rootPath: rootPath,
                         auxiliaryMethods: makeTelegramAccountAuxiliaryMethods(uploadInBackground: nil)
                     )
-                    |> mapToSignal { result -> Signal<(AccountRecordId, AccountStateManager, Peer)?, NoError> in
+                    |> mapToSignal { result -> Signal<(AccountRecordId, AccountStateManager, EnginePeer)?, NoError> in
                         if let result {
-                            return result.postbox.transaction { transaction -> (AccountRecordId, AccountStateManager, Peer)? in
+                            return result.postbox.transaction { transaction -> (AccountRecordId, AccountStateManager, EnginePeer)? in
                                 guard let peer = transaction.getPeer(result.accountPeerId) else {
                                     return nil
                                 }
-                                
-                                return (record.id, result, peer)
+
+                                return (record.id, result, EnginePeer(peer))
                             }
                         } else {
                             return .single(nil)
@@ -519,8 +549,8 @@ public class ShareRootControllerImpl {
                             } |> runOn(Queue.mainQueue())
                         }
                         
-                        let sentItems: ([PeerId], [PeerId: Int64], [PreparedShareItemContent], ShareControllerAccountContext, Bool, String) -> Signal<ShareControllerExternalStatus, NoError> = { peerIds, threadIds, contents, account, silently, additionalText in
-                            let sentItems = sentShareItems(accountPeerId: account.accountPeerId, postbox: account.stateManager.postbox, network: account.stateManager.network, stateManager: account.stateManager, auxiliaryMethods: makeTelegramAccountAuxiliaryMethods(uploadInBackground: nil), to: peerIds, threadIds: threadIds, items: contents, silently: silently, additionalText: additionalText)
+                        let sentItems: ([PeerId], [PeerId: Int64], [PeerId: StarsAmount], [PreparedShareItemContent], ShareControllerAccountContext, Bool, String) -> Signal<ShareControllerExternalStatus, NoError> = { peerIds, threadIds, requireStars, contents, account, silently, additionalText in
+                            let sentItems = sentShareItems(accountPeerId: account.accountPeerId, postbox: account.stateManager.postbox, network: account.stateManager.network, stateManager: account.stateManager, auxiliaryMethods: makeTelegramAccountAuxiliaryMethods(uploadInBackground: nil), to: peerIds, threadIds: threadIds, requireStars: requireStars, items: contents, silently: silently, additionalText: additionalText)
                             |> `catch` { _ -> Signal<
                                 Float, NoError> in
                                 return .complete()
@@ -531,8 +561,20 @@ public class ShareRootControllerImpl {
                             }
                             |> then(.single(.done))
                         }
-                                            
-                        let shareController = ShareController(environment: environment, currentContext: context, subject: .fromExternal({ peerIds, threadIds, additionalText, account, silently in
+                         
+                        var itemCount = 1
+                        
+                        if let extensionItems = self?.getExtensionContext()?.inputItems as? [NSExtensionItem] {
+                            for item in extensionItems {
+                                if let attachments = item.attachments {
+                                    itemCount = 0
+                                    for _ in attachments {
+                                        itemCount += 1
+                                    }
+                                }
+                            }
+                        }
+                        let shareController = ShareController(environment: environment, currentContext: context, subject: .fromExternal(itemCount, { peerIds, threadIds, requireStars, additionalText, account, silently in
                             if let strongSelf = self, let inputItems = strongSelf.getExtensionContext()?.inputItems, !inputItems.isEmpty, !peerIds.isEmpty {
                                 let rawSignals = TGItemProviderSignals.itemSignals(forInputItems: inputItems)!
                                 return preparedShareItems(postbox: account.stateManager.postbox, network: account.stateManager.network, to: peerIds[0], dataItems: rawSignals)
@@ -558,11 +600,11 @@ public class ShareRootControllerImpl {
                                         return requestUserInteraction(value)
                                         |> castError(ShareControllerError.self)
                                         |> mapToSignal { contents -> Signal<ShareControllerExternalStatus, ShareControllerError> in
-                                            return sentItems(peerIds, threadIds, contents, account, silently, additionalText)
+                                            return sentItems(peerIds, threadIds, requireStars, contents, account, silently, additionalText)
                                             |> castError(ShareControllerError.self)
                                         }
                                     case let .done(contents):
-                                        return sentItems(peerIds, threadIds, contents, account, silently, additionalText)
+                                        return sentItems(peerIds, threadIds, requireStars, contents, account, silently, additionalText)
                                         |> castError(ShareControllerError.self)
                                     }
                                 }
@@ -574,6 +616,77 @@ public class ShareRootControllerImpl {
                         shareController.dismissed = { _ in
                             //inForeground.set(false)
                             self?.getExtensionContext()?.completeRequest(returningItems: nil, completionHandler: nil)
+                        }
+                        
+                        var canShareToStory = true
+                        var canSendInHighQuality = false
+                        if let inputItems = self?.getExtensionContext()?.inputItems, inputItems.count == 1, let item = inputItems[0] as? NSExtensionItem, let attachments = item.attachments {
+                            for attachment in attachments {
+                                if attachment.hasItemConformingToTypeIdentifier(kUTTypeImage as String) {
+                                    canSendInHighQuality = true
+                                } else if attachment.hasItemConformingToTypeIdentifier(kUTTypeMovie as String) {
+                                } else {
+                                    canShareToStory = false
+                                }
+                            }
+                        }
+                        
+                        if canShareToStory {
+                            shareController.canSendInHighQuality = canSendInHighQuality
+                            shareController.shareStory = { [weak self] in
+                                guard let self else {
+                                    return
+                                }
+                                if let inputItems = self.getExtensionContext()?.inputItems, inputItems.count == 1, let item = inputItems[0] as? NSExtensionItem, let attachments = item.attachments {
+                                    let sessionId = Int64.random(in: 1000000 ..< .max)
+                                    
+                                    let storiesPath = rootPath + "/share/stories/\(sessionId)"
+                                    let _ = try? FileManager.default.createDirectory(atPath: storiesPath, withIntermediateDirectories: true, attributes: nil)
+                                    var index = 0
+                                    
+                                    let dispatchGroup = DispatchGroup()
+                                    
+                                    for attachment in attachments {
+                                        let fileIndex = index
+                                        if attachment.hasItemConformingToTypeIdentifier(kUTTypeImage as String) {
+                                            dispatchGroup.enter()
+                                            attachment.loadFileRepresentation(forTypeIdentifier: kUTTypeImage as String, completionHandler: { url, _ in
+                                                if let url, let imageData = try? Data(contentsOf: url) {
+                                                    let filePath = storiesPath + "/\(fileIndex).jpg"
+                                                    try? FileManager.default.removeItem(atPath: filePath)
+                                                    
+                                                    do {
+                                                        try imageData.write(to: URL(fileURLWithPath: filePath))
+                                                    } catch {
+                                                        print("Error: \(error)")
+                                                    }
+                                                }
+                                                dispatchGroup.leave()
+                                            })
+                                        } else if attachment.hasItemConformingToTypeIdentifier(kUTTypeMovie as String) {
+                                            dispatchGroup.enter()
+                                            attachment.loadFileRepresentation(forTypeIdentifier: kUTTypeMovie as String, completionHandler: { url, _ in
+                                                if let url {
+                                                    let filePath = storiesPath + "/\(fileIndex).mp4"
+                                                    try? FileManager.default.removeItem(atPath: filePath)
+                                                    
+                                                    do {
+                                                        try FileManager.default.copyItem(at: url, to: URL(fileURLWithPath: filePath))
+                                                    } catch {
+                                                        print("Error: \(error)")
+                                                    }
+                                                }
+                                                dispatchGroup.leave()
+                                            })
+                                        }
+                                        index += 1
+                                    }
+                                    
+                                    dispatchGroup.notify(queue: .main) {
+                                        self.openUrl("tg://shareStory?session=\(sessionId)")
+                                    }
+                                }
+                            }
                         }
                         /*shareController.debugAction = {
                             guard let strongSelf = self else {

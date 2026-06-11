@@ -10,7 +10,6 @@ import MediaPickerUI
 import MediaPasteboardUI
 import LegacyMediaPickerUI
 import MediaEditor
-import ChatEntityKeyboardInputNode
 
 extension ChatControllerImpl {
     func displayPasteMenu(_ subjects: [MediaPickerScreenImpl.Subject.Media]) {
@@ -20,6 +19,12 @@ extension ChatControllerImpl {
         }
         |> deliverOnMainQueue).startStandalone(next: { [weak self] settings in
             if let strongSelf = self, let peer = strongSelf.presentationInterfaceState.renderedPeer?.peer {
+                var enableMultiselection = true
+                if strongSelf.presentationInterfaceState.interfaceState.postSuggestionState != nil {
+                    enableMultiselection = false
+                }
+                let inputText = strongSelf.presentationInterfaceState.interfaceState.effectiveInputState.inputText
+                
                 strongSelf.chatDisplayNode.dismissInput()
                 let controller = mediaPasteboardScreen(
                     context: strongSelf.context,
@@ -28,18 +33,21 @@ extension ChatControllerImpl {
                     subjects: subjects,
                     presentMediaPicker: { [weak self] subject, saveEditedPhotos, bannedSendPhotos, bannedSendVideos, present in
                         if let strongSelf = self {
-                            strongSelf.presentMediaPicker(subject: subject, saveEditedPhotos: saveEditedPhotos, bannedSendPhotos: bannedSendPhotos, bannedSendVideos: bannedSendVideos, present: present, updateMediaPickerContext: { _ in }, completion: { [weak self] signals, silentPosting, scheduleTime, parameters, getAnimatedTransitionSource, completion in
-                                self?.enqueueMediaMessages(signals: signals, silentPosting: silentPosting, scheduleTime: scheduleTime, parameters: parameters, getAnimatedTransitionSource: getAnimatedTransitionSource, completion: completion)
+                            strongSelf.presentMediaPicker(subject: subject, saveEditedPhotos: saveEditedPhotos, bannedSendPhotos: bannedSendPhotos, bannedSendVideos: bannedSendVideos, enableMultiselection: enableMultiselection, present: { controller, mediaPickerContext in
+                                if !inputText.string.isEmpty {
+                                    mediaPickerContext?.setCaption(inputText)
+                                }
+                                present(controller, mediaPickerContext)
+                            }, updateMediaPickerContext: { _ in }, completion: { [weak self] fromGallery, signals, silentPosting, scheduleTime, parameters, getAnimatedTransitionSource, completion in
+                                if !inputText.string.isEmpty {
+                                    self?.clearInputText()
+                                }
+                                self?.enqueueMediaMessages(fromGallery: fromGallery, signals: signals, silentPosting: silentPosting, scheduleTime: scheduleTime, parameters: parameters, getAnimatedTransitionSource: getAnimatedTransitionSource, completion: completion)
                             })
                         }
                     },
                     getSourceRect: nil,
-                    makeEntityInputView: { [weak self] in
-                        guard let self else {
-                            return nil
-                        }
-                        return EntityInputView(context: self.context, isDark: false, areCustomEmojiEnabled: self.presentationInterfaceState.customEmojiAvailable)
-                    }
+                    customEmojiAvailable: strongSelf.presentationInterfaceState.customEmojiAvailable
                 )
                 controller.navigationPresentation = .flatModal
                 strongSelf.push(controller)
@@ -50,17 +58,22 @@ extension ChatControllerImpl {
     func enqueueGifData(_ data: Data) {
         self.enqueueMediaMessageDisposable.set((legacyEnqueueGifMessage(account: self.context.account, data: data) |> deliverOnMainQueue).startStrict(next: { [weak self] message in
             if let strongSelf = self {
-                let replyMessageSubject = strongSelf.presentationInterfaceState.interfaceState.replyMessageSubject
-                strongSelf.chatDisplayNode.setupSendActionOnViewUpdate({
-                    if let strongSelf = self {
-                        strongSelf.chatDisplayNode.collapseInput()
-                        
-                        strongSelf.updateChatPresentationInterfaceState(animated: true, interactive: false, {
-                            $0.updatedInterfaceState { $0.withUpdatedReplyMessageSubject(nil).withUpdatedSendMessageEffect(nil) }
-                        })
+                strongSelf.presentPaidMessageAlertIfNeeded(completion: { [weak self] postpone in
+                    guard let strongSelf = self else {
+                        return
                     }
-                }, nil)
-                strongSelf.sendMessages([message].map { $0.withUpdatedReplyToMessageId(replyMessageSubject?.subjectModel) })
+                    let replyMessageSubject = strongSelf.presentationInterfaceState.interfaceState.replyMessageSubject
+                    strongSelf.chatDisplayNode.setupSendActionOnViewUpdate({
+                        if let strongSelf = self {
+                            strongSelf.chatDisplayNode.collapseInput()
+                            
+                            strongSelf.updateChatPresentationInterfaceState(animated: true, interactive: false, {
+                                $0.updatedInterfaceState { $0.withUpdatedReplyMessageSubject(nil).withUpdatedSendMessageEffect(nil).withUpdatedPostSuggestionState(nil) }
+                            })
+                        }
+                    }, nil)
+                    strongSelf.sendMessages([message].map { $0.withUpdatedReplyToMessageId(replyMessageSubject?.subjectModel) })
+                })
             }
         }))
     }
@@ -68,17 +81,22 @@ extension ChatControllerImpl {
     func enqueueVideoData(_ data: Data) {
         self.enqueueMediaMessageDisposable.set((legacyEnqueueGifMessage(account: self.context.account, data: data) |> deliverOnMainQueue).startStrict(next: { [weak self] message in
             if let strongSelf = self {
-                let replyMessageSubject = strongSelf.presentationInterfaceState.interfaceState.replyMessageSubject
-                strongSelf.chatDisplayNode.setupSendActionOnViewUpdate({
-                    if let strongSelf = self {
-                        strongSelf.chatDisplayNode.collapseInput()
-                        
-                        strongSelf.updateChatPresentationInterfaceState(animated: true, interactive: false, {
-                            $0.updatedInterfaceState { $0.withUpdatedReplyMessageSubject(nil).withUpdatedSendMessageEffect(nil) }
-                        })
+                strongSelf.presentPaidMessageAlertIfNeeded(completion: { [weak self] postpone in
+                    guard let strongSelf = self else {
+                        return
                     }
-                }, nil)
-                strongSelf.sendMessages([message].map { $0.withUpdatedReplyToMessageId(replyMessageSubject?.subjectModel) })
+                    let replyMessageSubject = strongSelf.presentationInterfaceState.interfaceState.replyMessageSubject
+                    strongSelf.chatDisplayNode.setupSendActionOnViewUpdate({
+                        if let strongSelf = self {
+                            strongSelf.chatDisplayNode.collapseInput()
+                            
+                            strongSelf.updateChatPresentationInterfaceState(animated: true, interactive: false, {
+                                $0.updatedInterfaceState { $0.withUpdatedReplyMessageSubject(nil).withUpdatedSendMessageEffect(nil).withUpdatedPostSuggestionState(nil) }
+                            })
+                        }
+                    }, nil)
+                    strongSelf.sendMessages([message].map { $0.withUpdatedReplyToMessageId(replyMessageSubject?.subjectModel) })
+                })
             }
         }))
     }
@@ -88,7 +106,7 @@ extension ChatControllerImpl {
         self.enqueueMediaMessageDisposable.set((convertToWebP(image: image, targetSize: size, targetBoundingSize: size, quality: 0.9) |> deliverOnMainQueue).startStrict(next: { [weak self] data in
             if let strongSelf = self, !data.isEmpty {
                 let resource = LocalFileMediaResource(fileId: Int64.random(in: Int64.min ... Int64.max))
-                strongSelf.context.account.postbox.mediaBox.storeResourceData(resource.id, data: data)
+                strongSelf.context.engine.resources.storeResourceData(id: EngineMediaResource.Id(resource.id), data: data)
                 
                 var fileAttributes: [TelegramMediaFileAttribute] = []
                 fileAttributes.append(.FileName(fileName: "sticker.webp"))
@@ -98,17 +116,22 @@ extension ChatControllerImpl {
                 let media = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: Int64.random(in: Int64.min ... Int64.max)), partialReference: nil, resource: resource, previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "image/webp", size: Int64(data.count), attributes: fileAttributes, alternativeRepresentations: [])
                 let message = EnqueueMessage.message(text: "", attributes: [], inlineStickers: [:], mediaReference: .standalone(media: media), threadId: strongSelf.chatLocation.threadId, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])
                 
-                let replyMessageSubject = strongSelf.presentationInterfaceState.interfaceState.replyMessageSubject
-                strongSelf.chatDisplayNode.setupSendActionOnViewUpdate({
-                    if let strongSelf = self {
-                        strongSelf.chatDisplayNode.collapseInput()
-                        
-                        strongSelf.updateChatPresentationInterfaceState(animated: true, interactive: false, {
-                            $0.updatedInterfaceState { $0.withUpdatedReplyMessageSubject(nil).withUpdatedSendMessageEffect(nil) }
-                        })
+                strongSelf.presentPaidMessageAlertIfNeeded(completion: { [weak self] postpone in
+                    guard let strongSelf = self else {
+                        return
                     }
-                }, nil)
-                strongSelf.sendMessages([message].map { $0.withUpdatedReplyToMessageId(replyMessageSubject?.subjectModel) })
+                    let replyMessageSubject = strongSelf.presentationInterfaceState.interfaceState.replyMessageSubject
+                    strongSelf.chatDisplayNode.setupSendActionOnViewUpdate({
+                        if let strongSelf = self {
+                            strongSelf.chatDisplayNode.collapseInput()
+                            
+                            strongSelf.updateChatPresentationInterfaceState(animated: true, interactive: false, {
+                                $0.updatedInterfaceState { $0.withUpdatedReplyMessageSubject(nil).withUpdatedSendMessageEffect(nil).withUpdatedPostSuggestionState(nil) }
+                            })
+                        }
+                    }, nil)
+                    strongSelf.sendMessages([message].map { $0.withUpdatedReplyToMessageId(replyMessageSubject?.subjectModel) }, postpone: postpone)
+                })
             }
         }))
     }
@@ -116,23 +139,28 @@ extension ChatControllerImpl {
     func enqueueStickerFile(_ file: TelegramMediaFile) {
         let message = EnqueueMessage.message(text: "", attributes: [], inlineStickers: [:], mediaReference: .standalone(media: file), threadId: self.chatLocation.threadId, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])
         
-        let replyMessageSubject = self.presentationInterfaceState.interfaceState.replyMessageSubject
-        self.chatDisplayNode.setupSendActionOnViewUpdate({ [weak self] in
-            if let strongSelf = self {
-                strongSelf.chatDisplayNode.collapseInput()
-                
-                strongSelf.updateChatPresentationInterfaceState(animated: true, interactive: false, {
-                    $0.updatedInterfaceState { $0.withUpdatedReplyMessageSubject(nil).withUpdatedSendMessageEffect(nil) }
-                })
+        self.presentPaidMessageAlertIfNeeded(completion: { [weak self] postpone in
+            guard let self else {
+                return
             }
-        }, nil)
-        self.sendMessages([message].map { $0.withUpdatedReplyToMessageId(replyMessageSubject?.subjectModel) })
-        
-        Queue.mainQueue().after(3.0) {
-            if let message = self.chatDisplayNode.historyNode.lastVisbleMesssage(), let file = message.media.first(where: { $0 is TelegramMediaFile }) as? TelegramMediaFile, file.isSticker {
-                self.context.engine.stickers.addRecentlyUsedSticker(fileReference: .message(message: MessageReference(message), media: file))
+            let replyMessageSubject = self.presentationInterfaceState.interfaceState.replyMessageSubject
+            self.chatDisplayNode.setupSendActionOnViewUpdate({ [weak self] in
+                if let strongSelf = self {
+                    strongSelf.chatDisplayNode.collapseInput()
+                    
+                    strongSelf.updateChatPresentationInterfaceState(animated: true, interactive: false, {
+                        $0.updatedInterfaceState { $0.withUpdatedReplyMessageSubject(nil).withUpdatedSendMessageEffect(nil).withUpdatedPostSuggestionState(nil) }
+                    })
+                }
+            }, nil)
+            self.sendMessages([message].map { $0.withUpdatedReplyToMessageId(replyMessageSubject?.subjectModel) })
+            
+            Queue.mainQueue().after(3.0) {
+                if let message = self.chatDisplayNode.historyNode.lastVisbleMesssage(), let file = message.media.first(where: { $0 is TelegramMediaFile }) as? TelegramMediaFile, file.isSticker {
+                    self.context.engine.stickers.addRecentlyUsedSticker(fileReference: .message(message: MessageReference(message), media: file))
+                }
             }
-        }
+        })
     }
     
     func enqueueAnimatedStickerData(_ data: Data) {
@@ -170,6 +198,7 @@ extension ChatControllerImpl {
             cropOrientation: .up,
             gradientColors: [.clear, .clear],
             videoTrimRange: nil,
+            videoBounce: false,
             videoIsMuted: false,
             videoIsFullHd: false,
             videoIsMirrored: false,
@@ -196,6 +225,7 @@ extension ChatControllerImpl {
             audioTrackSamples: nil,
             collageTrackSamples: nil,
             coverImageTimestamp: nil,
+            coverDimensions: nil,
             qualityPreset: nil
         )
         
@@ -222,11 +252,9 @@ extension ChatControllerImpl {
                 fileAttributes.append(.Video(duration: animatedImage.duration, size: PixelDimensions(width: 512, height: 512), flags: [], preloadSize: nil, coverTime: nil, videoCodec: nil))
                 
                 let previewRepresentations: [TelegramMediaImageRepresentation] = []
-//                if let thumbnailResource {
-//                    previewRepresentations.append(TelegramMediaImageRepresentation(dimensions: dimensions, resource: thumbnailResource, progressiveSizes: [], immediateThumbnailData: nil))
-//                }
+
                 let resource = LocalFileMediaResource(fileId: Int64.random(in: Int64.min ... Int64.max))
-                self.context.account.postbox.mediaBox.copyResourceData(resource.id, fromTempPath: path)
+                self.context.engine.resources.copyResourceData(id: EngineMediaResource.Id(resource.id), fromTempPath: path)
                 
                 let file = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: Int64.random(in: Int64.min ... Int64.max)), partialReference: nil, resource: resource, previewRepresentations: previewRepresentations, videoThumbnails: [], immediateThumbnailData: nil, mimeType: "video/webm", size: 0, attributes: fileAttributes, alternativeRepresentations: [])
                 self.enqueueStickerFile(file)
@@ -234,7 +262,5 @@ extension ChatControllerImpl {
                 break
             }
         })
-        
-//        self.stickerVideoExport = videoExport
     }
 }

@@ -435,13 +435,14 @@ public struct NetworkInitializationArguments {
     public let voipVersions: [CallSessionManagerImplementationVersion]
     public let appData: Signal<Data?, NoError>
     public let externalRequestVerificationStream: Signal<[String: String], NoError>
+    public let externalRecaptchaRequestVerification: (String, String) -> Signal<String?, NoError>
     public let autolockDeadine: Signal<Int32?, NoError>
     public let encryptionProvider: EncryptionProvider
-    public let deviceModelName:String?
+    public let deviceModelName: String?
     public let useBetaFeatures: Bool
     public let isICloudEnabled: Bool
     
-    public init(apiId: Int32, apiHash: String, languagesCategory: String, appVersion: String, voipMaxLayer: Int32, voipVersions: [CallSessionManagerImplementationVersion], appData: Signal<Data?, NoError>, externalRequestVerificationStream: Signal<[String: String], NoError>, autolockDeadine: Signal<Int32?, NoError>, encryptionProvider: EncryptionProvider, deviceModelName: String?, useBetaFeatures: Bool, isICloudEnabled: Bool) {
+    public init(apiId: Int32, apiHash: String, languagesCategory: String, appVersion: String, voipMaxLayer: Int32, voipVersions: [CallSessionManagerImplementationVersion], appData: Signal<Data?, NoError>, externalRequestVerificationStream: Signal<[String: String], NoError>, externalRecaptchaRequestVerification: @escaping (String, String) -> Signal<String?, NoError>, autolockDeadine: Signal<Int32?, NoError>, encryptionProvider: EncryptionProvider, deviceModelName: String?, useBetaFeatures: Bool, isICloudEnabled: Bool) {
         self.apiId = apiId
         self.apiHash = apiHash
         self.languagesCategory = languagesCategory
@@ -450,6 +451,7 @@ public struct NetworkInitializationArguments {
         self.voipVersions = voipVersions
         self.appData = appData
         self.externalRequestVerificationStream = externalRequestVerificationStream
+        self.externalRecaptchaRequestVerification = externalRecaptchaRequestVerification
         self.autolockDeadine = autolockDeadine
         self.encryptionProvider = encryptionProvider
         self.deviceModelName = deviceModelName
@@ -586,6 +588,22 @@ func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializa
                         |> take(1)
                         |> timeout(15.0, queue: .mainQueue(), alternate: .single("APNS_PUSH_TIMEOUT"))).start(next: { secret in
                             subscriber?.putNext(secret)
+                            subscriber?.putCompletion()
+                        })
+                        
+                        return MTBlockDisposable(block: {
+                            disposable.dispose()
+                        })
+                    })
+                })
+                let externalRecaptchaRequestVerification = arguments.externalRecaptchaRequestVerification
+                context.setExternalRecaptchaRequestVerification({ method, siteKey in
+                    return MTSignal(generator: { subscriber in
+                        let disposable = (externalRecaptchaRequestVerification(method, siteKey)
+                        |> filter { $0 != nil }
+                        |> take(1)
+                        |> timeout(15.0, queue: .mainQueue(), alternate: .single("RECAPTCHA_TIMEOUT"))).start(next: { token in
+                            subscriber?.putNext(token)
                             subscriber?.putCompletion()
                         })
                         
@@ -881,10 +899,12 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
                     let array = NSMutableArray()
                     if let result = result {
                         switch result {
-                        case let .cdnConfig(publicKeys):
+                        case let .cdnConfig(cdnConfigData):
+                            let publicKeys = cdnConfigData.publicKeys
                             for key in publicKeys {
                                 switch key {
-                                case let .cdnPublicKey(dcId, publicKey):
+                                case let .cdnPublicKey(cdnPublicKeyData):
+                                    let (dcId, publicKey) = (cdnPublicKeyData.dcId, cdnPublicKeyData.publicKey)
                                     if id == Int(dcId) {
                                         let dict = NSMutableDictionary()
                                         dict["key"] = publicKey
@@ -1047,6 +1067,22 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
         }
     }
     
+    public func getAuthKeyId() -> Signal<Int64, NoError> {
+        let mtContext = self.mtProto.context
+        let datacenterId = self.datacenterId
+        return Signal { subscriber in
+            MTContext.contextQueue().dispatch(onQueue: {
+                var result: Int64 = 0
+                if let authInfo = mtContext?.authInfoForDatacenter(withId: datacenterId, selector: .persistent) {
+                    result = authInfo.authKeyId
+                }
+                subscriber.putNext(result)
+            })
+            
+            return EmptyDisposable
+        }
+    }
+    
     public func requestWithAdditionalInfo<T>(_ data: (FunctionDescription, Buffer, DeserializeFunctionResponse<T>), info: NetworkRequestAdditionalInfo, tag: NetworkRequestDependencyTag? = nil, automaticFloodWait: Bool = true, onFloodWaitError: ((String) -> Void)? = nil) -> Signal<NetworkRequestResult<T>, MTRpcError> {
         let requestService = self.requestService
         return Signal { subscriber in
@@ -1204,6 +1240,20 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
 public func retryRequest<T>(signal: Signal<T, MTRpcError>) -> Signal<T, NoError> {
     return signal
     |> retry(0.2, maxDelay: 5.0, onQueue: Queue.concurrentDefaultQueue())
+}
+
+public func retryRequestIfNotFrozen<T>(signal: Signal<T, MTRpcError>) -> Signal<T?, NoError> {
+    return signal
+    |> retry(retryOnError: { error in
+        if error.errorDescription == "FROZEN_METHOD_INVALID" {
+            return false
+        }
+        return true
+    }, delayIncrement: 0.2, maxDelay: 5.0, maxRetries: nil, onQueue: .concurrentDefaultQueue())
+    |> map(Optional.init)
+    |> `catch` { _ in
+        return .single(nil)
+    }
 }
 
 class Keychain: NSObject, MTKeychain {

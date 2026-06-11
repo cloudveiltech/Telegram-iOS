@@ -161,6 +161,8 @@ public final class LottieComponent: Component {
         
         private var currentTemplateFrameImage: UIImage?
         
+        public var onFrameUpdate: (Int) -> Void = { _ in }
+        
         public var externalShouldPlay: Bool? {
             didSet {
                 if self.externalShouldPlay != oldValue {
@@ -287,6 +289,20 @@ public final class LottieComponent: Component {
             }
         }
         
+        public func setFrameIndex(index: Int) {
+            guard let _ = self.animationInstance, let animationFrameRange = self.animationFrameRange else {
+                self.scheduledPlayOnce = true
+                return
+            }
+            
+            let currentFrame = max(animationFrameRange.lowerBound, min(animationFrameRange.upperBound, index))
+            
+            if self.currentFrame != currentFrame {
+                self.currentFrame = currentFrame
+                self.updateImage()
+            }
+        }
+        
         private func loadPlaceholder(data: Data) {
             guard let component = self.component, let placeholderColor = component.placeholderColor else {
                 return
@@ -393,6 +409,7 @@ public final class LottieComponent: Component {
             
             var effectiveFrameIndex = self.currentFrame
             effectiveFrameIndex = max(animationFrameRange.lowerBound, min(animationFrameRange.upperBound, effectiveFrameIndex))
+            self.onFrameUpdate(effectiveFrameIndex)
             
             animationInstance.renderFrame(with: Int32(effectiveFrameIndex), into: context.bytes.assumingMemoryBound(to: UInt8.self), width: Int32(currentDisplaySize.width), height: Int32(currentDisplaySize.height), bytesPerRow: Int32(context.bytesPerRow))
             

@@ -13,6 +13,7 @@ import AccountContext
 import TelegramNotices
 import AppBundle
 import TooltipUI
+import CallScreen
 
 protocol CallControllerNodeProtocol: AnyObject {
     var isMuted: Bool { get set }
@@ -26,6 +27,7 @@ protocol CallControllerNodeProtocol: AnyObject {
     var presentCallRating: ((CallId, Bool) -> Void)? { get set }
     var present: ((ViewController) -> Void)? { get set }
     var callEnded: ((Bool) -> Void)? { get set }
+    var willBeDismissedInteractively: (() -> Void)? { get set }
     var dismissedInteractively: (() -> Void)? { get set }
     var dismissAllTooltips: (() -> Void)? { get set }
     
@@ -67,7 +69,7 @@ public final class CallController: ViewController {
     private var disposable: Disposable?
     
     private var callMutedDisposable: Disposable?
-    private var isMuted = false
+    private var isMuted: Bool = false
     
     private var presentedCallRating = false
     
@@ -78,6 +80,12 @@ public final class CallController: ViewController {
     
     public var restoreUIForPictureInPicture: ((@escaping (Bool) -> Void) -> Void)?
     
+    public var onViewDidAppear: (() -> Void)?
+    public var onViewDidDisappear: (() -> Void)?
+    
+    private var isAnimatingDismiss: Bool = false
+    private var isDismissed: Bool = false
+    
     public init(sharedContext: SharedAccountContext, account: Account, call: PresentationCall, easyDebugAccess: Bool) {
         self.sharedContext = sharedContext
         self.account = account
@@ -87,6 +95,12 @@ public final class CallController: ViewController {
         self.presentationData = sharedContext.currentPresentationData.with { $0 }
         
         super.init(navigationBarPresentationData: nil)
+        
+        if let data = call.context.currentAppConfiguration.with({ $0 }).data, data["ios_killswitch_modalcalls"] != nil {
+        } else {
+            self.navigationPresentation = .flatModal
+            self.flatReceivesModalTransition = true
+        }
         
         self._ready.set(combineLatest(queue: .mainQueue(), self.isDataReady.get(), self.isContentsReady.get())
         |> map { a, b -> Bool in
@@ -148,26 +162,24 @@ public final class CallController: ViewController {
     }
     
     override public func loadDisplayNode() {
-        var useV2 = true
-        if let data = self.call.context.currentAppConfiguration.with({ $0 }).data, let _ = data["ios_killswitch_disable_callui_v2"] {
-            useV2 = false
-        }
+        let displayNode = CallControllerNodeV2(
+            sharedContext: self.sharedContext,
+            account: self.account,
+            presentationData: self.presentationData,
+            statusBar: self.statusBar,
+            debugInfo: self.call.debugInfo(),
+            easyDebugAccess: self.easyDebugAccess,
+            call: self.call
+        )
+        self.displayNode = displayNode
+        self.isContentsReady.set(displayNode.isReady.get())
         
-        if !useV2 {
-            self.displayNode = CallControllerNode(sharedContext: self.sharedContext, account: self.account, presentationData: self.presentationData, statusBar: self.statusBar, debugInfo: self.call.debugInfo(), shouldStayHiddenUntilConnection: !self.call.isOutgoing && self.call.isIntegratedWithCallKit, easyDebugAccess: self.easyDebugAccess, call: self.call)
-            self.isContentsReady.set(.single(true))
-        } else {
-            let displayNode = CallControllerNodeV2(sharedContext: self.sharedContext, account: self.account, presentationData: self.presentationData, statusBar: self.statusBar, debugInfo: self.call.debugInfo(), easyDebugAccess: self.easyDebugAccess, call: self.call)
-            self.displayNode = displayNode
-            self.isContentsReady.set(displayNode.isReady.get())
-            
-            displayNode.restoreUIForPictureInPicture = { [weak self] completion in
-                guard let self, let restoreUIForPictureInPicture = self.restoreUIForPictureInPicture else {
-                    completion(false)
-                    return
-                }
-                restoreUIForPictureInPicture(completion)
+        displayNode.restoreUIForPictureInPicture = { [weak self] completion in
+            guard let self, let restoreUIForPictureInPicture = self.restoreUIForPictureInPicture else {
+                completion(false)
+                return
             }
+            restoreUIForPictureInPicture(completion)
         }
         self.displayNodeDidLoad()
         
@@ -260,6 +272,13 @@ public final class CallController: ViewController {
             let _ = self?.dismiss()
         }
         
+        displayNode.conferenceAddParticipant = { [weak self] in
+            guard let self else {
+                return
+            }
+            self.conferenceAddParticipant()
+        }
+        
         self.controllerNode.presentCallRating = { [weak self] callId, isVideo in
             if let strongSelf = self, !strongSelf.presentedCallRating {
                 strongSelf.presentedCallRating = true
@@ -327,20 +346,37 @@ public final class CallController: ViewController {
             }
         }
         
+        self.controllerNode.willBeDismissedInteractively = { [weak self] in
+            guard let self else {
+                return
+            }
+            self.notifyDismissed()
+        }
         self.controllerNode.dismissedInteractively = { [weak self] in
             guard let self else {
                 return
             }
             self.didPlayPresentationAnimation = false
-            self.presentingViewController?.dismiss(animated: false, completion: nil)
+            self.superDismiss()
         }
         
-        self.peerDisposable = (combineLatest(self.account.postbox.peerView(id: self.account.peerId) |> take(1), self.account.postbox.peerView(id: self.call.peerId), self.sharedContext.activeAccountsWithInfo |> take(1))
+        let callPeerView: Signal<PeerView?, NoError>
+        callPeerView = self.account.postbox.peerView(id: self.call.peerId) |> map(Optional.init)
+        
+        self.peerDisposable = (combineLatest(queue: .mainQueue(),
+            self.account.postbox.peerView(id: self.account.peerId) |> take(1),
+            callPeerView,
+            self.sharedContext.activeAccountsWithInfo |> take(1)
+        )
         |> deliverOnMainQueue).start(next: { [weak self] accountView, view, activeAccountsWithInfo in
             if let strongSelf = self {
-                if let accountPeer = accountView.peers[accountView.peerId], let peer = view.peers[view.peerId] {
-                    strongSelf.peer = peer
-                    strongSelf.controllerNode.updatePeer(accountPeer: accountPeer, peer: peer, hasOther: activeAccountsWithInfo.accounts.count > 1)
+                if let view {
+                    if let accountPeer = accountView.peers[accountView.peerId], let peer = view.peers[view.peerId] {
+                        strongSelf.peer = peer
+                        strongSelf.controllerNode.updatePeer(accountPeer: accountPeer, peer: peer, hasOther: activeAccountsWithInfo.accounts.count > 1)
+                        strongSelf.isDataReady.set(.single(true))
+                    }
+                } else {
                     strongSelf.isDataReady.set(.single(true))
                 }
             }
@@ -356,6 +392,8 @@ public final class CallController: ViewController {
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
+        self.isDismissed = false
+        
         if !self.didPlayPresentationAnimation {
             self.didPlayPresentationAnimation = true
             
@@ -363,12 +401,50 @@ public final class CallController: ViewController {
         }
         
         self.idleTimerExtensionDisposable.set(self.sharedContext.applicationBindings.pushIdleTimerExtension())
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.onViewDidAppear?()
+        }
     }
     
     override public func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         
         self.idleTimerExtensionDisposable.set(nil)
+        
+        self.notifyDismissed()
+    }
+    
+    func notifyDismissed() {
+        if !self.isDismissed {
+            self.isDismissed = true
+            DispatchQueue.main.async {
+                self.onViewDidDisappear?()
+            }
+        }
+    }
+    
+    final class AnimateOutToGroupChat {
+        let containerView: UIView
+        let incomingPeerId: EnginePeer.Id
+        let incomingVideoLayer: CALayer?
+        let incomingVideoPlaceholder: VideoSource.Output?
+        
+        init(
+            containerView: UIView,
+            incomingPeerId: EnginePeer.Id,
+            incomingVideoLayer: CALayer?,
+            incomingVideoPlaceholder: VideoSource.Output?
+        ) {
+            self.containerView = containerView
+            self.incomingPeerId = incomingPeerId
+            self.incomingVideoLayer = incomingVideoLayer
+            self.incomingVideoPlaceholder = incomingVideoPlaceholder
+        }
+    }
+    
+    func animateOutToGroupChat(completion: @escaping () -> Void) -> AnimateOutToGroupChat? {
+        return (self.controllerNode as? CallControllerNodeV2)?.animateOutToGroupChat(completion: completion)
     }
     
     override public func containerLayoutUpdated(_ layout: ContainerViewLayout, transition: ContainedViewLayoutTransition) {
@@ -378,12 +454,134 @@ public final class CallController: ViewController {
     }
     
     override public func dismiss(completion: (() -> Void)? = nil) {
-        self.controllerNode.animateOut(completion: { [weak self] in
-            self?.didPlayPresentationAnimation = false
-            self?.presentingViewController?.dismiss(animated: false, completion: nil)
+        if !self.isAnimatingDismiss {
+            self.notifyDismissed()
             
-            completion?()
+            self.isAnimatingDismiss = true
+            self.controllerNode.animateOut(completion: { [weak self] in
+                guard let self else {
+                    return
+                }
+                self.isAnimatingDismiss = false
+                self.superDismiss()
+                completion?()
+            })
+        }
+    }
+    
+    public func dismissWithoutAnimation() {
+        self.superDismiss()
+    }
+    
+    private func superDismiss() {
+        self.didPlayPresentationAnimation = false
+        if self.navigationPresentation == .flatModal {
+            super.dismiss()
+        } else {
+            self.presentingViewController?.dismiss(animated: false, completion: nil)
+        }
+    }
+    
+    private func conferenceAddParticipant() {
+        var disablePeerIds: [EnginePeer.Id] = []
+        disablePeerIds.append(self.call.context.account.peerId)
+        disablePeerIds.append(self.call.peerId)
+        let controller = CallController.openConferenceAddParticipant(context: self.call.context, disablePeerIds: disablePeerIds, shareLink: nil, completion: { [weak self] peers in
+            guard let self else {
+                return
+            }
+            
+            let _ = self.call.upgradeToConference(invitePeers: peers, completion: { _ in
+            })
         })
+        self.push(controller)
+    }
+    
+    static func openConferenceAddParticipant(context: AccountContext, disablePeerIds: [EnginePeer.Id], shareLink: (() -> Void)?, completion: @escaping ([(id: EnginePeer.Id, isVideo: Bool)]) -> Void) -> ViewController {
+        let presentationData = context.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: defaultDarkColorPresentationTheme)
+        
+        var options: [ContactListAdditionalOption] = []
+        var openShareLinkImpl: (() -> Void)?
+        if shareLink != nil {
+            options.append(ContactListAdditionalOption(title: presentationData.strings.Call_ShareLink, icon: .generic(UIImage(bundleImageName: "Contact List/LinkActionIcon")!), action: {
+                openShareLinkImpl?()
+            }, clearHighlightAutomatically: false))
+        }
+        
+        let controller = context.sharedContext.makeContactSelectionController(ContactSelectionControllerParams(
+            context: context,
+            updatedPresentationData: (initial: presentationData, signal: .single(presentationData)),
+            mode: .generic,
+            title: { strings in
+                return strings.Call_AddMemberTitle
+            },
+            options: .single(options),
+            displayCallIcons: true,
+            multipleSelection: .disabled,
+            confirmation: { peer in
+                switch peer {
+                case let .peer(peer, _, _):
+                    guard case let .user(user) = peer else {
+                        return .single(false)
+                    }
+                    if disablePeerIds.contains(user.id) {
+                        return .single(false)
+                    }
+                    if user.botInfo != nil {
+                        return .single(false)
+                    }
+                    return .single(true)
+                default:
+                    return .single(false)
+                }
+            },
+            isPeerEnabled: { peer in
+                switch peer {
+                case let .peer(peer, _, _):
+                    guard case let .user(user) = peer else {
+                        return false
+                    }
+                    if disablePeerIds.contains(user.id) {
+                        return false
+                    }
+                    if user.botInfo != nil {
+                        return false
+                    }
+                    return true
+                default:
+                    return false
+                }
+            }
+        ))
+        
+        openShareLinkImpl = { [weak controller] in
+            controller?.dismiss()
+            shareLink?()
+        }
+        
+        controller.navigationPresentation = .modal
+        let _ = (controller.result |> take(1) |> deliverOnMainQueue).startStandalone(next: { [weak controller] result in
+            guard let result, let peer = result.0.first, case let .peer(peer, _, _) = peer else {
+                controller?.dismiss()
+                return
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                controller?.dismiss()
+            }
+            
+            var isVideo = false
+            switch result.1 {
+            case .videoCall:
+                isVideo = true
+            default:
+                break
+            }
+            
+            completion([(peer.id, isVideo)])
+        })
+        
+        return controller
     }
     
     @objc private func backPressed() {

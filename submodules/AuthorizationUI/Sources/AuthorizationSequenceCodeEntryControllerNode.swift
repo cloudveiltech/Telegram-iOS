@@ -131,7 +131,8 @@ final class AuthorizationSequenceCodeEntryControllerNode: ASDisplayNode, UITextF
         
         self.titleActivateAreaNode = AccessibilityAreaNode()
         self.titleActivateAreaNode.accessibilityTraits = .staticText
-        
+        self.titleActivateAreaNode.accessibilityIdentifier = "Auth.CodeEntry.Title"
+
         self.titleIconNode = ASImageNode()
         self.titleIconNode.isLayerBacked = true
         self.titleIconNode.displayWithoutProcessing = true
@@ -181,6 +182,7 @@ final class AuthorizationSequenceCodeEntryControllerNode: ASDisplayNode, UITextF
         self.codeInputView.textField.keyboardAppearance = self.theme.rootController.keyboardColor.keyboardAppearance
         self.codeInputView.textField.returnKeyType = .done
         self.codeInputView.textField.disableAutomaticKeyboardHandling = [.forward, .backward]
+        self.codeInputView.textField.accessibilityIdentifier = "Auth.CodeEntry.CodeField"
         if #available(iOSApplicationExtension 12.0, iOS 12.0, *) {
             self.codeInputView.textField.textContentType = .oneTimeCode
         }
@@ -251,7 +253,7 @@ final class AuthorizationSequenceCodeEntryControllerNode: ASDisplayNode, UITextF
             self.signInWithAppleButton?.isHidden = true
             (self.signInWithAppleButton as? ASAuthorizationAppleIDButton)?.cornerRadius = 11
         }
-        self.proceedNode = SolidRoundedButtonNode(title: self.strings.Login_Continue, theme: SolidRoundedButtonTheme(theme: self.theme), height: 50.0, cornerRadius: 11.0, gloss: false)
+        self.proceedNode = SolidRoundedButtonNode(title: self.strings.Login_Continue, theme: SolidRoundedButtonTheme(theme: self.theme), glass: true, height: 50.0, cornerRadius: 50.0 * 0.5)
         self.proceedNode.progressType = .embedded
         self.proceedNode.isHidden = true
         self.proceedNode.iconSpacing = 4.0
@@ -851,7 +853,13 @@ final class AuthorizationSequenceCodeEntryControllerNode: ASDisplayNode, UITextF
                 
                 let pasteSize = self.pasteButton.measure(layout.size)
                 let pasteButtonSize = CGSize(width: pasteSize.width + 16.0, height: 24.0)
-                transition.updateFrame(node: self.pasteButton, frame: CGRect(origin: CGPoint(x: layout.size.width - 40.0 - pasteButtonSize.width, y: self.textField.frame.midY - pasteButtonSize.height / 2.0), size: pasteButtonSize))
+                let pasteOriginX: CGFloat
+                if case .compact = layout.metrics.widthClass {
+                    pasteOriginX = layout.size.width - 40.0 - pasteButtonSize.width
+                } else {
+                    pasteOriginX = self.textField.frame.maxX + 32.0
+                }
+                transition.updateFrame(node: self.pasteButton, frame: CGRect(origin: CGPoint(x: pasteOriginX, y: self.textField.frame.midY - pasteButtonSize.height / 2.0), size: pasteButtonSize))
                 self.hintArrowNode.isHidden = true
             } else if case .word = codeType {
                 self.hintButtonNode.alpha = 0.0

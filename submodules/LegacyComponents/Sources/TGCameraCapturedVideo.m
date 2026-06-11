@@ -1,14 +1,14 @@
-#import "TGCameraCapturedVideo.h"
+#import <LegacyComponents/TGCameraCapturedVideo.h>
 #import <AVFoundation/AVFoundation.h>
 #import <LegacyComponents/TGMediaAssetImageSignals.h>
 #import <LegacyComponents/TGPhotoEditorUtils.h>
 
-#import "LegacyComponentsGlobals.h"
-#import "TGStringUtils.h"
-#import "TGMediaAsset.h"
-#import "TGMediaAsset+TGMediaEditableItem.h"
+#import <LegacyComponents/LegacyComponentsGlobals.h>
+#import <LegacyComponents/TGStringUtils.h>
+#import <LegacyComponents/TGMediaAsset.h>
+#import <LegacyComponents/TGMediaAsset+TGMediaEditableItem.h>
 
-#import "TGGifConverter.h"
+#import <LegacyComponents/TGGifConverter.h>
 
 @interface TGCameraCapturedVideo ()
 {
@@ -18,6 +18,7 @@
     SVariable *_avAssetVariable;
     AVURLAsset *_cachedAVAsset;
     bool _livePhoto;
+    bool _isAnimation;
 }
 @end
 
@@ -35,11 +36,21 @@
     }
 }
 
-- (instancetype)initWithURL:(NSURL *)url
+- (instancetype)initWithURL:(NSURL *)url {
+    self = [self initWithURL:url isAnimation:false];
+    if (self != nil)
+    {
+    }
+    return self;
+}
+
+- (instancetype)initWithURL:(NSURL *)url isAnimation:(bool)isAnimation
 {
     self = [super init];
     if (self != nil)
     {
+        _isAnimation = isAnimation;
+        
         if (![url.absoluteString.lowercaseString hasSuffix:@".mp4"]) {
             NSURL *pathUrl = [NSURL fileURLWithPath:[[[LegacyComponentsGlobals provider] dataStoragePath] stringByAppendingPathComponent:@"videos"]];
             [[NSFileManager defaultManager] createDirectoryAtPath:pathUrl.path withIntermediateDirectories:true attributes:nil error:nil];
@@ -81,7 +92,7 @@
 }
 
 - (bool)isAnimation {
-    return _originalAsset != nil;
+    return _isAnimation || _originalAsset != nil;
 }
 
 - (AVAsset *)immediateAVAsset {

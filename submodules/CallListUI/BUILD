@@ -30,6 +30,13 @@ swift_library(
         "//submodules/TelegramBaseController:TelegramBaseController",
         "//submodules/AnimatedStickerNode:AnimatedStickerNode",
         "//submodules/TelegramAnimatedStickerNode:TelegramAnimatedStickerNode",
+        "//submodules/ItemListPeerActionItem",
+        "//submodules/InviteLinksUI",
+        "//submodules/UndoUI",
+        "//submodules/TelegramCallsUI",
+        "//submodules/TelegramUI/Components/EdgeEffect",
+        "//submodules/ComponentFlow",
+        "//submodules/Components/ComponentDisplayAdapters",
     ],
     visibility = [
         "//visibility:public",

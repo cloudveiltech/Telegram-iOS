@@ -30,11 +30,15 @@ public final class Text: Component {
     public final class View: UIView {
         private var measureState: MeasureState?
 
-        public func update(component: Text, availableSize: CGSize) -> CGSize {
+        public func update(component: Text, availableSize: CGSize, transition: ComponentTransition) -> CGSize {
             let attributedText = NSAttributedString(string: component.text, attributes: [
                 NSAttributedString.Key.font: component.font,
                 NSAttributedString.Key.foregroundColor: component.color
             ])
+            
+            if let tintColor = component.tintColor {
+                transition.setTintColor(layer: self.layer, color: tintColor)
+            }
             
             if let measureState = self.measureState {
                 if measureState.attributedText.isEqual(to: attributedText) && measureState.availableSize == availableSize {
@@ -71,11 +75,25 @@ public final class Text: Component {
     public let text: String
     public let font: UIFont
     public let color: UIColor
+    public let tintColor: UIColor?
     
-    public init(text: String, font: UIFont, color: UIColor) {
+    public init(text: String, font: UIFont, color: UIColor, tintColor: UIColor? = nil) {
         self.text = text
         self.font = font
         self.color = color
+        self.tintColor = tintColor
+    }
+    
+    public convenience init(attributedString: NSAttributedString, tintColor: UIColor? = nil) {
+        let attributes = attributedString.attributes(at: 0, effectiveRange: nil)
+        let font = attributes[.font] as? UIFont ?? UIFont.systemFont(ofSize: UIFont.systemFontSize)
+        let color = attributes[.foregroundColor] as? UIColor ?? .black
+        self.init(
+            text: attributedString.string,
+            font: font,
+            color: color,
+            tintColor: tintColor
+        )
     }
 
     public static func ==(lhs: Text, rhs: Text) -> Bool {
@@ -88,6 +106,9 @@ public final class Text: Component {
         if !lhs.color.isEqual(rhs.color) {
             return false
         }
+        if lhs.tintColor != rhs.tintColor {
+            return false
+        }
         return true
     }
     
@@ -96,6 +117,6 @@ public final class Text: Component {
     }
     
     public func update(view: View, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
-        return view.update(component: self, availableSize: availableSize)
+        return view.update(component: self, availableSize: availableSize, transition: transition)
     }
 }

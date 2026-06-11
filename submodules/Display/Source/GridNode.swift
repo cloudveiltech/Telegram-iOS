@@ -68,15 +68,15 @@ public struct GridNodeLayout: Equatable {
     public let scrollIndicatorInsets: UIEdgeInsets?
     public let preloadSize: CGFloat
     public let type: GridNodeLayoutType
-    public let cutout: CGRect?
+    public let cutouts: [CGRect]
     
-    public init(size: CGSize, insets: UIEdgeInsets, scrollIndicatorInsets: UIEdgeInsets? = nil, preloadSize: CGFloat, type: GridNodeLayoutType, cutout: CGRect? = nil) {
+    public init(size: CGSize, insets: UIEdgeInsets, scrollIndicatorInsets: UIEdgeInsets? = nil, preloadSize: CGFloat, type: GridNodeLayoutType, cutouts: [CGRect] = []) {
         self.size = size
         self.insets = insets
         self.scrollIndicatorInsets = scrollIndicatorInsets
         self.preloadSize = preloadSize
         self.type = type
-        self.cutout = cutout
+        self.cutouts = cutouts
     }
 }
 
@@ -568,8 +568,12 @@ open class GridNode: GridNodeScroller, ASScrollViewDelegate {
                             }
                         }
                         
-                        if let cutout = self.gridLayout.cutout, cutout.intersects(CGRect(origin: nextItemOrigin, size: itemSize)) {
-                            nextItemOrigin.x += cutout.width + itemSpacing
+                        if !self.gridLayout.cutouts.isEmpty, nextItemOrigin.y < itemSize.height * 3.0 {
+                            for cutout in self.gridLayout.cutouts {
+                                if cutout.intersects(CGRect(origin: nextItemOrigin, size: itemSize)) {
+                                    nextItemOrigin.x += cutout.width + itemSpacing
+                                }
+                            }
                         }
                         
                         if !incrementedCurrentRow {
@@ -902,9 +906,9 @@ open class GridNode: GridNodeScroller, ASScrollViewDelegate {
         let layoutInsets = presentationLayoutTransition.layout.layout.insets
         self.scrollView.contentInset = UIEdgeInsets(top: layoutInsets.top, left: 0.0, bottom: layoutInsets.bottom, right: 0.0)
         if let scrollIndicatorInsets = presentationLayoutTransition.layout.layout.scrollIndicatorInsets {
-            self.scrollView.scrollIndicatorInsets = scrollIndicatorInsets
+            self.scrollView.verticalScrollIndicatorInsets = scrollIndicatorInsets
         } else {
-            self.scrollView.scrollIndicatorInsets = presentationLayoutTransition.layout.layout.insets
+            self.scrollView.verticalScrollIndicatorInsets = presentationLayoutTransition.layout.layout.insets
         }
         var boundsOffset: CGFloat = 0.0
         var shouldAnimateBounds = false

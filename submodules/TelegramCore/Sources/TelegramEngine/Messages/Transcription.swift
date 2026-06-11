@@ -49,7 +49,8 @@ func _internal_transcribeAudio(postbox: Postbox, network: Network, messageId: Me
                 switch result {
                 case let .success(transcribedAudio):
                     switch transcribedAudio {
-                    case let .transcribedAudio(flags, transcriptionId, text, trialRemainingCount, trialUntilDate):
+                    case let .transcribedAudio(transcribedAudioData):
+                        let (flags, transcriptionId, text, trialRemainingCount, trialUntilDate) = (transcribedAudioData.flags, transcribedAudioData.transcriptionId, transcribedAudioData.text, transcribedAudioData.trialRemainsNum, transcribedAudioData.trialRemainsUntilDate)
                         let isPending = (flags & (1 << 0)) != 0
                         updatedAttribute = AudioTranscriptionMessageAttribute(id: transcriptionId, text: text, isPending: isPending, didRate: false, error: nil)
                         
@@ -83,7 +84,7 @@ func _internal_transcribeAudio(postbox: Postbox, network: Network, messageId: Me
                     
                     attributes.append(updatedAttribute)
                     
-                    return .update(StoreMessage(id: currentMessage.id, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: attributes, media: currentMessage.media))
+                    return .update(StoreMessage(id: currentMessage.id, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: attributes, media: currentMessage.media))
                 })
                 
                 if updatedAttribute.error == nil {
@@ -111,6 +112,7 @@ func _internal_rateAudioTranscription(postbox: Postbox, network: Network, messag
             }
             return .update(StoreMessage(
                 id: currentMessage.id,
+                customStableId: nil,
                 globallyUniqueId: currentMessage.globallyUniqueId,
                 groupingKey: currentMessage.groupingKey,
                 threadId: currentMessage.threadId,

@@ -1,3 +1,5 @@
+#import <LegacyComponents/LegacyComponents.h>
+#import <LegacyComponents/TGPassportAttachMenu.h>
 #import <LegacyComponents/TGMediaAvatarMenuMixin.h>
 
 #import "LegacyComponentsInternal.h"
@@ -8,8 +10,8 @@
 #import "TGOverlayFormsheetWindow.h"
 
 #import <LegacyComponents/TGCameraPreviewView.h>
-#import "TGAttachmentCameraView.h"
-#import "TGAttachmentCarouselItemView.h"
+#import <LegacyComponents/TGAttachmentCameraView.h>
+#import <LegacyComponents/TGAttachmentCarouselItemView.h>
 
 #import <LegacyComponents/TGCameraController.h>
 #import <LegacyComponents/TGMediaAssetsController.h>
@@ -192,63 +194,64 @@
         [strongSelf _displayMediaPicker];
     }];
     [itemViews addObject:galleryItem];
+
+//CloudVeil disabled
+//TODO: fix me ? this code below also commented out on the Telegram-iOS master branch    
+//    if (!_signup) {
+//        TGMenuSheetButtonItemView *viewItem = [[TGMenuSheetButtonItemView alloc] initWithTitle:TGLocalized(@"ProfilePhoto.SetEmoji") type:TGMenuSheetButtonTypeDefault fontSize:20.0 action:^
+//                                                   {
+//            __strong TGMediaAvatarMenuMixin *strongSelf = weakSelf;
+//            if (strongSelf == nil)
+//                return;
+//            
+//            __strong TGMenuSheetController *strongController = weakController;
+//            if (strongController == nil)
+//                return;
+//            
+//            [strongController dismissAnimated:true];
+//            if (strongSelf != nil && strongSelf.requestAvatarEditor) {
+//                strongSelf.requestAvatarEditor(^(UIImage *image, void (^commit)(void)) {
+//                    __strong TGMediaAvatarMenuMixin *strongSelf = weakSelf;
+//                    if (strongSelf == nil)
+//                        return;
+//                    
+//                    if (strongSelf.willFinishWithImage != nil) {
+//                        strongSelf.willFinishWithImage(image, ^{
+//                            if (strongSelf.didFinishWithImage != nil)
+//                                strongSelf.didFinishWithImage(image);
+//                            
+//                            commit();
+//                        });
+//                    } else {
+//                        if (strongSelf.didFinishWithImage != nil)
+//                            strongSelf.didFinishWithImage(image);
+//                        
+//                        commit();
+//                    }
+//                }, ^(UIImage *image, NSURL *asset, id adjustments, id markup, void (^commit)(void)) {
+//                    __strong TGMediaAvatarMenuMixin *strongSelf = weakSelf;
+//                    if (strongSelf == nil)
+//                        return;
+//                    
+//                    if (strongSelf.willFinishWithVideo != nil) {
+//                        strongSelf.willFinishWithVideo(image, ^{
+//                            if (strongSelf.didFinishWithVideo != nil)
+//                                strongSelf.didFinishWithVideo(image, asset, adjustments);
+//                            
+//                            commit();
+//                        });
+//                    } else {
+//                        if (strongSelf.didFinishWithVideo != nil)
+//                            strongSelf.didFinishWithVideo(image, asset, adjustments);
+//                        
+//                        commit();
+//                    }
+//                });
+//            }
+//        }];
+//        [itemViews addObject:viewItem];
+//    }
     
-    if (!_signup) {
-        TGMenuSheetButtonItemView *viewItem = [[TGMenuSheetButtonItemView alloc] initWithTitle:TGLocalized(@"ProfilePhoto.SetEmoji") type:TGMenuSheetButtonTypeDefault fontSize:20.0 action:^
-                                                   {
-            __strong TGMediaAvatarMenuMixin *strongSelf = weakSelf;
-            if (strongSelf == nil)
-                return;
-            
-            __strong TGMenuSheetController *strongController = weakController;
-            if (strongController == nil)
-                return;
-            
-            [strongController dismissAnimated:true];
-            if (strongSelf != nil && strongSelf.requestAvatarEditor) {
-                strongSelf.requestAvatarEditor(^(UIImage *image, void (^commit)(void)) {
-                    __strong TGMediaAvatarMenuMixin *strongSelf = weakSelf;
-                    if (strongSelf == nil)
-                        return;
-                    
-                    if (strongSelf.willFinishWithImage != nil) {
-                        strongSelf.willFinishWithImage(image, ^{
-                            if (strongSelf.didFinishWithImage != nil)
-                                strongSelf.didFinishWithImage(image);
-                            
-                            commit();
-                        });
-                    } else {
-                        if (strongSelf.didFinishWithImage != nil)
-                            strongSelf.didFinishWithImage(image);
-                        
-                        commit();
-                    }
-                }, ^(UIImage *image, NSURL *asset, TGVideoEditAdjustments *adjustments, void (^commit)(void)) {
-                    __strong TGMediaAvatarMenuMixin *strongSelf = weakSelf;
-                    if (strongSelf == nil)
-                        return;
-                    
-                    if (strongSelf.willFinishWithVideo != nil) {
-                        strongSelf.willFinishWithVideo(image, ^{
-                            if (strongSelf.didFinishWithVideo != nil)
-                                strongSelf.didFinishWithVideo(image, asset, adjustments);
-                            
-                            commit();
-                        });
-                    } else {
-                        if (strongSelf.didFinishWithVideo != nil)
-                            strongSelf.didFinishWithVideo(image, asset, adjustments);
-                        
-                        commit();
-                    }
-                });
-            }
-        }];
-        [itemViews addObject:viewItem];
-    }
-    //CloudVeil disabled
-    //TODO: fix me ? this code below also commented out on the Telegram-iOS master branch
 //    if (_hasSearchButton)
 //    {
 //        TGMenuSheetButtonItemView *viewItem = [[TGMenuSheetButtonItemView alloc] initWithTitle:TGLocalized(@"ProfilePhoto.SearchWeb") type:TGMenuSheetButtonTypeDefault fontSize:20.0 action:^
@@ -354,7 +357,7 @@
         else
             controllerWindow.frame = [_context fullscreenBounds];
         
-        bool standalone = true;
+        __unused bool standalone = true;
         CGRect startFrame = CGRectMake(0, screenSize.height, screenSize.width, screenSize.height);
         if (cameraView != nil)
         {

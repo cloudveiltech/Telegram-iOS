@@ -8,6 +8,8 @@ private enum ApplicationSpecificPreferencesKeyValues: Int32 {
     case chatListFilterSettings = 18
     case widgetSettings = 19
     case mediaAutoSaveSettings = 20
+    case ageVerificationState = 21
+    case textProcessingEditingState = 22
 }
 
 public struct ApplicationSpecificPreferencesKeys {
@@ -16,6 +18,14 @@ public struct ApplicationSpecificPreferencesKeys {
     public static let chatListFilterSettings = applicationSpecificPreferencesKey(ApplicationSpecificPreferencesKeyValues.chatListFilterSettings.rawValue)
     public static let widgetSettings = applicationSpecificPreferencesKey(ApplicationSpecificPreferencesKeyValues.widgetSettings.rawValue)
     public static let mediaAutoSaveSettings = applicationSpecificPreferencesKey(ApplicationSpecificPreferencesKeyValues.mediaAutoSaveSettings.rawValue)
+    public static let ageVerificationState = applicationSpecificPreferencesKey(ApplicationSpecificPreferencesKeyValues.ageVerificationState.rawValue)
+    
+    public static func textProcessingEditingState(peerId: PeerId) -> ValueBoxKey {
+        let key = ValueBoxKey(length: 4 + 8)
+        key.setInt32(0, value: ApplicationSpecificPreferencesKeyValues.textProcessingEditingState.rawValue)
+        key.setInt64(4, value: peerId.toInt64())
+        return key
+    }
 }
 
 private enum ApplicationSpecificSharedDataKeyValues: Int32 {
@@ -40,6 +50,8 @@ private enum ApplicationSpecificSharedDataKeyValues: Int32 {
     case translationSettings = 18
     case drawingSettings = 19
     case mediaDisplaySettings = 20
+    case updateSettings = 21
+    case chatSettings = 22
 }
 
 public struct ApplicationSpecificSharedDataKeys {
@@ -64,6 +76,8 @@ public struct ApplicationSpecificSharedDataKeys {
     public static let translationSettings = applicationSpecificPreferencesKey(ApplicationSpecificSharedDataKeyValues.translationSettings.rawValue)
     public static let drawingSettings = applicationSpecificPreferencesKey(ApplicationSpecificSharedDataKeyValues.drawingSettings.rawValue)
     public static let mediaDisplaySettings = applicationSpecificPreferencesKey(ApplicationSpecificSharedDataKeyValues.mediaDisplaySettings.rawValue)
+    public static let updateSettings = applicationSpecificPreferencesKey(ApplicationSpecificSharedDataKeyValues.updateSettings.rawValue)
+    public static let chatSettings = applicationSpecificPreferencesKey(ApplicationSpecificSharedDataKeyValues.chatSettings.rawValue)
 }
 
 private enum ApplicationSpecificItemCacheCollectionIdValues: Int8 {
@@ -86,7 +100,6 @@ public struct ApplicationSpecificItemCacheCollectionId {
     public static let instantPageStoredState = applicationSpecificItemCacheCollectionId(ApplicationSpecificItemCacheCollectionIdValues.instantPageStoredState.rawValue)
     public static let cachedInstantPages = applicationSpecificItemCacheCollectionId(ApplicationSpecificItemCacheCollectionIdValues.cachedInstantPages.rawValue)
     public static let cachedWallpapers = applicationSpecificItemCacheCollectionId(ApplicationSpecificItemCacheCollectionIdValues.cachedWallpapers.rawValue)
-    public static let mediaPlaybackStoredState = applicationSpecificItemCacheCollectionId(ApplicationSpecificItemCacheCollectionIdValues.mediaPlaybackStoredState.rawValue)
     public static let cachedGeocodes = applicationSpecificItemCacheCollectionId(ApplicationSpecificItemCacheCollectionIdValues.cachedGeocodes.rawValue)
     public static let visualMediaStoredState = applicationSpecificItemCacheCollectionId(ApplicationSpecificItemCacheCollectionIdValues.visualMediaStoredState.rawValue)
     public static let cachedImageRecognizedContent = applicationSpecificItemCacheCollectionId(ApplicationSpecificItemCacheCollectionIdValues.cachedImageRecognizedContent.rawValue)
@@ -101,12 +114,12 @@ public struct ApplicationSpecificItemCacheCollectionId {
 private enum ApplicationSpecificOrderedItemListCollectionIdValues: Int32 {
     case webSearchRecentQueries = 0
     case wallpaperSearchRecentQueries = 1
-    case settingsSearchRecentItems = 2
     case localThemes = 3
     case storyDrafts = 4
     case storySources = 5
     case hashtagSearchRecentQueries = 6
     case browserRecentlyVisited = 7
+    case settingsSearchRecentItems = 8
 }
 
 public struct ApplicationSpecificOrderedItemListCollectionId {

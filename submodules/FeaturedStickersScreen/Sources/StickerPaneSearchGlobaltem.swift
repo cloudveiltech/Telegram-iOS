@@ -4,11 +4,10 @@ import Display
 import AsyncDisplayKit
 import TelegramCore
 import SwiftSignalKit
-import Postbox
 import TelegramPresentationData
-import StickerPackPreviewUI
 import ListSectionHeaderNode
 import AccountContext
+import StickerResources
 
 final class StickerPaneSearchGlobalSection: GridSection {
     let title: String?
@@ -84,7 +83,7 @@ public final class StickerPaneSearchGlobalItem: GridItem {
     public let strings: PresentationStrings
     public let listAppearance: Bool
     public let fillsRow: Bool
-    public let info: StickerPackCollectionInfo
+    public let info: StickerPackCollectionInfo.Accessor
     public let topItems: [StickerPackItem]
     public let topSeparator: Bool
     public let regularInsets: Bool
@@ -111,7 +110,7 @@ public final class StickerPaneSearchGlobalItem: GridItem {
         return (128.0 + additionalHeight, self.fillsRow)
     }
     
-    public init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, listAppearance: Bool, fillsRow: Bool = true, info: StickerPackCollectionInfo, topItems: [StickerPackItem], topSeparator: Bool, regularInsets: Bool, installed: Bool, installing: Bool = false, unread: Bool, open: @escaping () -> Void, install: @escaping () -> Void, getItemIsPreviewed: @escaping (StickerPackItem) -> Bool, itemContext: StickerPaneSearchGlobalItemContext, sectionTitle: String? = nil) {
+    public init(context: AccountContext, theme: PresentationTheme, strings: PresentationStrings, listAppearance: Bool, fillsRow: Bool = true, info: StickerPackCollectionInfo.Accessor, topItems: [StickerPackItem], topSeparator: Bool, regularInsets: Bool, installed: Bool, installing: Bool = false, unread: Bool, open: @escaping () -> Void, install: @escaping () -> Void, getItemIsPreviewed: @escaping (StickerPackItem) -> Bool, itemContext: StickerPaneSearchGlobalItemContext, sectionTitle: String? = nil) {
         self.context = context
         self.theme = theme
         self.strings = strings

@@ -235,7 +235,7 @@ public final class PeerListItemComponent: Component {
     let subtitleAccessory: SubtitleAccessory
     let presence: EnginePeer.Presence?
     let rightAccessory: RightAccessory
-    let rightAccessoryComponent: AnyComponent<Empty>?
+    let rightAccessoryComponent: AnyComponentWithIdentity<Empty>?
     let reaction: Reaction?
     let story: EngineStoryItem?
     let message: EngineMessage?
@@ -245,7 +245,7 @@ public final class PeerListItemComponent: Component {
     let hasNext: Bool
     let extractedTheme: ExtractedTheme?
     let insets: UIEdgeInsets?
-    let action: (EnginePeer, EngineMessage.Id?, PeerListItemComponent.View) -> Void
+    let action: ((EnginePeer, EngineMessage.Id?, PeerListItemComponent.View) -> Void)?
     let inlineActions: InlineActionsState?
     let contextAction: ((EnginePeer, ContextExtractedContentContainingView, ContextGesture) -> Void)?
     let openStories: ((EnginePeer, AvatarNode) -> Void)?
@@ -266,7 +266,7 @@ public final class PeerListItemComponent: Component {
         subtitleAccessory: SubtitleAccessory,
         presence: EnginePeer.Presence?,
         rightAccessory: RightAccessory = .none,
-        rightAccessoryComponent: AnyComponent<Empty>? = nil,
+        rightAccessoryComponent: AnyComponentWithIdentity<Empty>? = nil,
         reaction: Reaction? = nil,
         story: EngineStoryItem? = nil,
         message: EngineMessage? = nil,
@@ -276,7 +276,7 @@ public final class PeerListItemComponent: Component {
         hasNext: Bool,
         extractedTheme: ExtractedTheme? = nil,
         insets: UIEdgeInsets? = nil,
-        action: @escaping (EnginePeer, EngineMessage.Id?, PeerListItemComponent.View) -> Void,
+        action: ((EnginePeer, EngineMessage.Id?, PeerListItemComponent.View) -> Void)?,
         inlineActions: InlineActionsState? = nil,
         contextAction: ((EnginePeer, ContextExtractedContentContainingView, ContextGesture) -> Void)? = nil,
         openStories: ((EnginePeer, AvatarNode) -> Void)? = nil
@@ -391,6 +391,12 @@ public final class PeerListItemComponent: Component {
         if lhs.inlineActions != rhs.inlineActions {
             return false
         }
+        if (lhs.action == nil) != (rhs.action == nil) {
+            return false
+        }
+        if (lhs.contextAction == nil) != (rhs.contextAction == nil) {
+            return false
+        }
         return true
     }
     
@@ -458,6 +464,7 @@ public final class PeerListItemComponent: Component {
         private var isExtractedToContextMenu: Bool = false
         
         public var customUpdateIsHighlighted: ((Bool) -> Void)?
+        public var enumerateSiblings: (((UIView) -> Void) -> Void)?
         public private(set) var separatorInset: CGFloat = 0.0
         
         override init(frame: CGRect) {
@@ -568,7 +575,7 @@ public final class PeerListItemComponent: Component {
             guard let component = self.component, let peer = component.peer else {
                 return
             }
-            component.action(peer, component.message?.id, self)
+            component.action?(peer, component.message?.id, self)
         }
         
         @objc private func avatarButtonPressed() {
@@ -631,7 +638,7 @@ public final class PeerListItemComponent: Component {
             if let hint = transition.userData(TransitionHint.self) {
                 synchronousLoad = hint.synchronousLoad
             }
-                
+            
             self.isGestureEnabled = component.contextAction != nil
             
             let themeUpdated = self.component?.theme !== component.theme
@@ -673,6 +680,7 @@ public final class PeerListItemComponent: Component {
             self.state = state
             
             self.containerButton.alpha = component.isEnabled ? 1.0 : 0.3
+            self.containerButton.isEnabled = component.action != nil
             
             self.avatarButtonView.isUserInteractionEnabled = component.storyStats != nil && component.openStories != nil
             
@@ -756,9 +764,14 @@ public final class PeerListItemComponent: Component {
                     height = 40.0 + verticalInset * 2.0
                 }
             }
+
+            if let rightAccessoryComponentView = self.rightAccessoryComponentView, component.rightAccessoryComponent?.id != previousComponent?.rightAccessoryComponent?.id {
+                self.rightAccessoryComponentView = nil
+                rightAccessoryComponentView.view?.removeFromSuperview()
+            }
             
             var rightAccessoryComponentSize: CGSize?
-            if let rightAccessoryComponent = component.rightAccessoryComponent {
+            if let rightAccessoryComponent = component.rightAccessoryComponent?.component {
                 var rightAccessoryComponentTransition = transition
                 let rightAccessoryComponentView: ComponentView<Empty>
                 if let current = self.rightAccessoryComponentView {
@@ -835,13 +848,17 @@ public final class PeerListItemComponent: Component {
             let avatarFrame = CGRect(origin: CGPoint(x: avatarLeftInset, y: floorToScreenPixels((height - verticalInset * 2.0 - avatarSize) / 2.0)), size: CGSize(width: avatarSize, height: avatarSize))
             
             var statusIcon: EmojiStatusComponent.Content?
+            var particleColor: UIColor?
             if let peer = component.peer {
                 if peer.isScam {
                     statusIcon = .text(color: component.theme.chat.message.incoming.scamColor, string: component.strings.Message_ScamAccount.uppercased())
                 } else if peer.isFake {
                     statusIcon = .text(color: component.theme.chat.message.incoming.scamColor, string: component.strings.Message_FakeAccount.uppercased())
                 } else if let emojiStatus = peer.emojiStatus {
-                    statusIcon = .animation(content: .customEmoji(fileId: emojiStatus.fileId), size: CGSize(width: 20.0, height: 20.0), placeholderColor: component.theme.list.mediaPlaceholderColor, themeColor: component.theme.list.itemAccentColor, loopMode: .count(2))
+                    statusIcon = .animation(content: .customEmoji(fileId: emojiStatus.fileId), size: CGSize(width: 20.0, height: 20.0), placeholderColor: component.theme.list.mediaPlaceholderColor, themeColor: component.theme.list.itemAccentColor, loopMode: .count(0))
+                    if let color = emojiStatus.color {
+                        particleColor = UIColor(rgb: UInt32(bitPattern: color))
+                    }
                 } else if peer.isVerified {
                     statusIcon = .verified(fillColor: component.theme.list.itemCheckColors.fillColor, foregroundColor: component.theme.list.itemCheckColors.foregroundColor, sizeType: .compact)
                 } else if peer.isPremium {
@@ -897,7 +914,7 @@ public final class PeerListItemComponent: Component {
                 
                 if let peer = component.peer {
                     let clipStyle: AvatarNodeClipStyle
-                    if case let .channel(channel) = peer, channel.flags.contains(.isForum) {
+                    if case let .channel(channel) = peer, channel.isForumOrMonoForum {
                         clipStyle = .roundedRect
                     } else {
                         clipStyle = .round
@@ -924,7 +941,8 @@ public final class PeerListItemComponent: Component {
                         return AvatarNode.StoryStats(
                             totalCount: storyStats.totalCount == 0 ? 0 : 1,
                             unseenCount: storyStats.unseenCount == 0 ? 0 : 1,
-                            hasUnseenCloseFriendsItems: storyStats.hasUnseenCloseFriends
+                            hasUnseenCloseFriendsItems: storyStats.hasUnseenCloseFriends,
+                            hasLiveItems: storyStats.hasLiveItems
                         )
                     }, presentationParams: AvatarNode.StoryPresentationParams(
                         colors: AvatarNode.Colors(theme: component.theme),
@@ -1086,6 +1104,7 @@ public final class PeerListItemComponent: Component {
                     animationCache: animationCache,
                     animationRenderer: animationRenderer,
                     content: statusIcon,
+                    particleColor: particleColor,
                     isVisibleForAnimations: true,
                     action: nil,
                     emojiFileUpdated: nil
@@ -1301,7 +1320,7 @@ public final class PeerListItemComponent: Component {
             
             
             var mediaReference: AnyMediaReference?
-            if let peer = component.peer, let peerReference = PeerReference(peer._asPeer()) {
+            if let peer = component.peer, let peerReference = PeerReference(peer) {
                 if let story = component.story {
                     mediaReference = .story(peer: peerReference, id: story.id, media: story.media._asMedia())
                 } else if let message = component.message {

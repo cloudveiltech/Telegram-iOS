@@ -14,6 +14,10 @@ import ChatListSearchItemHeader
 import AnimatedStickerNode
 import TelegramAnimatedStickerNode
 import AppBundle
+import ItemListPeerActionItem
+import EdgeEffect
+import ComponentFlow
+import ComponentDisplayAdapters
 
 private struct CallListNodeListViewTransition {
     let callListView: CallListNodeView
@@ -61,19 +65,21 @@ private extension EngineCallList.Item {
 
 final class CallListNodeInteraction {
     let setMessageIdWithRevealedOptions: (EngineMessage.Id?, EngineMessage.Id?) -> Void
-    let call: (EnginePeer.Id, Bool) -> Void
+    let call: (EngineMessage) -> Void
     let openInfo: (EnginePeer.Id, [EngineMessage]) -> Void
     let delete: ([EngineMessage.Id]) -> Void
     let updateShowCallsTab: (Bool) -> Void
     let openGroupCall: (EnginePeer.Id) -> Void
+    let openNewCall: () -> Void
     
-    init(setMessageIdWithRevealedOptions: @escaping (EngineMessage.Id?, EngineMessage.Id?) -> Void, call: @escaping (EnginePeer.Id, Bool) -> Void, openInfo: @escaping (EnginePeer.Id, [EngineMessage]) -> Void, delete: @escaping ([EngineMessage.Id]) -> Void, updateShowCallsTab: @escaping (Bool) -> Void, openGroupCall: @escaping (EnginePeer.Id) -> Void) {
+    init(setMessageIdWithRevealedOptions: @escaping (EngineMessage.Id?, EngineMessage.Id?) -> Void, call: @escaping (EngineMessage) -> Void, openInfo: @escaping (EnginePeer.Id, [EngineMessage]) -> Void, delete: @escaping ([EngineMessage.Id]) -> Void, updateShowCallsTab: @escaping (Bool) -> Void, openGroupCall: @escaping (EnginePeer.Id) -> Void, openNewCall: @escaping () -> Void) {
         self.setMessageIdWithRevealedOptions = setMessageIdWithRevealedOptions
         self.call = call
         self.openInfo = openInfo
         self.delete = delete
         self.updateShowCallsTab = updateShowCallsTab
         self.openGroupCall = openGroupCall
+        self.openNewCall = openNewCall
     }
 }
 
@@ -117,15 +123,20 @@ private func mappedInsertEntries(context: AccountContext, presentationData: Item
     return entries.map { entry -> ListViewInsertItem in
         switch entry.entry {
             case let .displayTab(_, text, value):
-                return ListViewInsertItem(index: entry.index, previousIndex: entry.previousIndex, item: ItemListSwitchItem(presentationData: presentationData, title: text, value: value, enabled: true, noCorners: false, sectionId: 0, style: .blocks, updated: { value in
+                return ListViewInsertItem(index: entry.index, previousIndex: entry.previousIndex, item: ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, enabled: true, noCorners: false, sectionId: 0, style: .blocks, updated: { value in
                     nodeInteraction.updateShowCallsTab(value)
-                }), directionHint: entry.directionHint)
+                }, tag: CallListEntryTag.showTab), directionHint: entry.directionHint)
             case let .displayTabInfo(_, text):
                 return ListViewInsertItem(index: entry.index, previousIndex: entry.previousIndex, item: ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: 0), directionHint: entry.directionHint)
+            case .openNewCall:
+                let item = ItemListPeerActionItem(presentationData: presentationData, style: showSettings ? .blocks : .plain, systemStyle: .glass, icon: PresentationResourcesRootController.callListCallIcon(presentationData.theme), title: presentationData.strings.CallList_NewCall, hasSeparator: false, sectionId: 1, height: .generic, noInsets: !showSettings, editing: false, action: {
+                    nodeInteraction.openNewCall()
+                })
+                return ListViewInsertItem(index: entry.index, previousIndex: entry.previousIndex, item: item, directionHint: entry.directionHint)
             case let .groupCall(peer, _, isActive):
-                return ListViewInsertItem(index: entry.index, previousIndex: entry.previousIndex, item: CallListGroupCallItem(presentationData: presentationData, context: context, style: showSettings ? .blocks : .plain, peer: peer, isActive: isActive, editing: false, interaction: nodeInteraction), directionHint: entry.directionHint)
+                return ListViewInsertItem(index: entry.index, previousIndex: entry.previousIndex, item: CallListGroupCallItem(presentationData: presentationData, systemStyle: .glass, context: context, style: showSettings ? .blocks : .plain, peer: peer, isActive: isActive, editing: false, interaction: nodeInteraction), directionHint: entry.directionHint)
             case let .messageEntry(topMessage, messages, _, _, dateTimeFormat, editing, hasActiveRevealControls, displayHeader, _):
-                return ListViewInsertItem(index: entry.index, previousIndex: entry.previousIndex, item: CallListCallItem(presentationData: presentationData, dateTimeFormat: dateTimeFormat, context: context, style: showSettings ? .blocks : .plain, topMessage: topMessage, messages: messages, editing: editing, revealed: hasActiveRevealControls, displayHeader: displayHeader, interaction: nodeInteraction), directionHint: entry.directionHint)
+                return ListViewInsertItem(index: entry.index, previousIndex: entry.previousIndex, item: CallListCallItem(presentationData: presentationData, systemStyle: .glass, dateTimeFormat: dateTimeFormat, context: context, style: showSettings ? .blocks : .plain, topMessage: topMessage, messages: messages, editing: editing, revealed: hasActiveRevealControls, displayHeader: displayHeader, interaction: nodeInteraction), directionHint: entry.directionHint)
             case let .holeEntry(_, theme):
                 return ListViewInsertItem(index: entry.index, previousIndex: entry.previousIndex, item: CallListHoleItem(theme: theme), directionHint: entry.directionHint)
         }
@@ -136,15 +147,20 @@ private func mappedUpdateEntries(context: AccountContext, presentationData: Item
     return entries.map { entry -> ListViewUpdateItem in
         switch entry.entry {
             case let .displayTab(_, text, value):
-                return ListViewUpdateItem(index: entry.index, previousIndex: entry.previousIndex, item: ItemListSwitchItem(presentationData: presentationData, title: text, value: value, enabled: true, noCorners: false, sectionId: 0, style: .blocks, updated: { value in
+                return ListViewUpdateItem(index: entry.index, previousIndex: entry.previousIndex, item: ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, enabled: true, noCorners: false, sectionId: 0, style: .blocks, updated: { value in
                     nodeInteraction.updateShowCallsTab(value)
-                }), directionHint: entry.directionHint)
+                }, tag: CallListEntryTag.showTab), directionHint: entry.directionHint)
             case let .displayTabInfo(_, text):
                 return ListViewUpdateItem(index: entry.index, previousIndex: entry.previousIndex, item: ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: 0), directionHint: entry.directionHint)
+            case .openNewCall:
+                let item = ItemListPeerActionItem(presentationData: presentationData, style: showSettings ? .blocks : .plain, systemStyle: .glass, icon: PresentationResourcesRootController.callListCallIcon(presentationData.theme), title: presentationData.strings.CallList_NewCall, hasSeparator: false, sectionId: 1, height: .generic, noInsets: !showSettings, editing: false, action: {
+                    nodeInteraction.openNewCall()
+                })
+                return ListViewUpdateItem(index: entry.index, previousIndex: entry.previousIndex, item: item, directionHint: entry.directionHint)
             case let .groupCall(peer, _, isActive):
-                return ListViewUpdateItem(index: entry.index, previousIndex: entry.previousIndex, item: CallListGroupCallItem(presentationData: presentationData, context: context, style: showSettings ? .blocks : .plain, peer: peer, isActive: isActive, editing: false, interaction: nodeInteraction), directionHint: entry.directionHint)
+                return ListViewUpdateItem(index: entry.index, previousIndex: entry.previousIndex, item: CallListGroupCallItem(presentationData: presentationData, systemStyle: .glass, context: context, style: showSettings ? .blocks : .plain, peer: peer, isActive: isActive, editing: false, interaction: nodeInteraction), directionHint: entry.directionHint)
             case let .messageEntry(topMessage, messages, _, _, dateTimeFormat, editing, hasActiveRevealControls, displayHeader, _):
-                return ListViewUpdateItem(index: entry.index, previousIndex: entry.previousIndex, item: CallListCallItem(presentationData: presentationData, dateTimeFormat: dateTimeFormat, context: context, style: showSettings ? .blocks : .plain, topMessage: topMessage, messages: messages, editing: editing, revealed: hasActiveRevealControls, displayHeader: displayHeader, interaction: nodeInteraction), directionHint: entry.directionHint)
+                return ListViewUpdateItem(index: entry.index, previousIndex: entry.previousIndex, item: CallListCallItem(presentationData: presentationData, systemStyle: .glass, dateTimeFormat: dateTimeFormat, context: context, style: showSettings ? .blocks : .plain, topMessage: topMessage, messages: messages, editing: editing, revealed: hasActiveRevealControls, displayHeader: displayHeader, interaction: nodeInteraction), directionHint: entry.directionHint)
             case let .holeEntry(_, theme):
                 return ListViewUpdateItem(index: entry.index, previousIndex: entry.previousIndex, item: CallListHoleItem(theme: theme), directionHint: entry.directionHint)
         }
@@ -168,11 +184,12 @@ final class CallListControllerNode: ASDisplayNode {
     private let context: AccountContext
     private let mode: CallListControllerMode
     private var presentationData: PresentationData
+    private var focusOnItemTag: CallListEntryTag?
     
     private var containerLayout: (ContainerViewLayout, CGFloat)?
     
     private let _ready = ValuePromise<Bool>()
-    private var didSetReady = false
+    private(set) var didSetReady = false
     var ready: Signal<Bool, NoError> {
         return _ready.get()
     }
@@ -207,19 +224,25 @@ final class CallListControllerNode: ASDisplayNode {
     private let emptyButtonIconNode: ASImageNode
     private let emptyButtonTextNode: ImmediateTextNode
     
-    private let call: (EnginePeer.Id, Bool) -> Void
+    private let edgeEffectView: EdgeEffectView
+    
+    private let call: (EngineMessage) -> Void
     private let joinGroupCall: (EnginePeer.Id, EngineGroupCallDescription) -> Void
+    private let openNewCall: () -> Void
     private let openInfo: (EnginePeer.Id, [EngineMessage]) -> Void
     private let emptyStateUpdated: (Bool) -> Void
-    
     private let emptyStatePromise = Promise<Bool>()
     private let emptyStateDisposable = MetaDisposable()
     
     private let openGroupCallDisposable = MetaDisposable()
     
+    var navigationEdgeEffectExtension: CGFloat {
+        return max(0.0, self.listNode.edgeEffectExtension)
+    }
+    
     private var previousContentOffset: ListViewVisibleContentOffset?
     
-    init(controller: CallListController, context: AccountContext, mode: CallListControllerMode, presentationData: PresentationData, call: @escaping (EnginePeer.Id, Bool) -> Void, joinGroupCall: @escaping (EnginePeer.Id, EngineGroupCallDescription) -> Void, openInfo: @escaping (EnginePeer.Id, [EngineMessage]) -> Void, emptyStateUpdated: @escaping (Bool) -> Void) {
+    init(controller: CallListController, context: AccountContext, mode: CallListControllerMode, presentationData: PresentationData, call: @escaping (EngineMessage) -> Void, joinGroupCall: @escaping (EnginePeer.Id, EngineGroupCallDescription) -> Void, openInfo: @escaping (EnginePeer.Id, [EngineMessage]) -> Void, emptyStateUpdated: @escaping (Bool) -> Void, openNewCall: @escaping () -> Void, focusOnItemTag: CallListEntryTag?) {
         self.controller = controller
         self.context = context
         self.mode = mode
@@ -228,11 +251,12 @@ final class CallListControllerNode: ASDisplayNode {
         self.joinGroupCall = joinGroupCall
         self.openInfo = openInfo
         self.emptyStateUpdated = emptyStateUpdated
-        
+        self.openNewCall = openNewCall
         self.currentState = CallListNodeState(presentationData: ItemListPresentationData(presentationData), dateTimeFormat: presentationData.dateTimeFormat, disableAnimations: true, editing: false, messageIdWithRevealedOptions: nil)
         self.statePromise = ValuePromise(self.currentState, ignoreRepeated: true)
+        self.focusOnItemTag = focusOnItemTag
         
-        self.listNode = ListView()
+        self.listNode = ListViewImpl()
         self.listNode.verticalScrollIndicatorColor = self.presentationData.theme.list.scrollIndicatorColor
         self.listNode.accessibilityPageScrolledString = { row, count in
             return presentationData.strings.VoiceOver_ScrollStatus(row, count).string
@@ -264,6 +288,8 @@ final class CallListControllerNode: ASDisplayNode {
         self.emptyButtonIconNode.displaysAsynchronously = false
         self.emptyButtonIconNode.isUserInteractionEnabled = false
         
+        self.edgeEffectView = EdgeEffectView()
+        
         super.init()
         
         self.setViewBlock({
@@ -276,6 +302,8 @@ final class CallListControllerNode: ASDisplayNode {
         self.addSubnode(self.emptyButtonTextNode)
         self.addSubnode(self.emptyButtonIconNode)
         self.addSubnode(self.emptyButtonNode)
+        
+        self.view.addSubview(self.edgeEffectView)
                 
         switch self.mode {
             case .tab:
@@ -318,8 +346,8 @@ final class CallListControllerNode: ASDisplayNode {
                     }
                 }
             }
-        }, call: { [weak self] peerId, isVideo in
-            self?.call(peerId, isVideo)
+        }, call: { [weak self] message in
+            self?.call(message)
         }, openInfo: { [weak self] peerId, messages in
             self?.openInfo(peerId, messages)
         }, delete: { [weak self] messageIds in
@@ -336,6 +364,8 @@ final class CallListControllerNode: ASDisplayNode {
                 
                 let actionSheet = ActionSheetController(presentationData: strongSelf.presentationData)
                 var items: [ActionSheetItem] = []
+                
+                items.append(ActionSheetTextItem(title: strongSelf.presentationData.strings.CallList_DeleteConfirmation, parseMarkdown: true))
                 
                 items.append(ActionSheetButtonItem(title: strongSelf.presentationData.strings.Conversation_DeleteMessagesFor(peer.displayTitle(strings: strongSelf.presentationData.strings, displayOrder: strongSelf.presentationData.nameDisplayOrder)).string, color: .destructive, action: { [weak actionSheet] in
                     actionSheet?.dismissAnimated()
@@ -432,6 +462,11 @@ final class CallListControllerNode: ASDisplayNode {
                     strongSelf.joinGroupCall(peerId, activeCall)
                 }
             }))
+        }, openNewCall: { [weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            strongSelf.openNewCall()
         })
         
         let viewProcessingQueue = self.viewProcessingQueue
@@ -466,7 +501,10 @@ final class CallListControllerNode: ASDisplayNode {
         if let callManager = context.sharedContext.callManager {
             currentGroupCallPeerId = callManager.currentGroupCallSignal
             |> map { call -> EnginePeer.Id? in
-                call?.peerId
+                guard case let .group(call) = call else {
+                    return nil
+                }
+                return call.peerId
             }
             |> distinctUntilChanged
         } else {
@@ -504,7 +542,7 @@ final class CallListControllerNode: ASDisplayNode {
         |> mapToQueue { (updateAndType, state, groupCalls, showCallsTab, currentGroupCallPeerId) -> Signal<CallListNodeListViewTransition, NoError> in
             let (update, type) = updateAndType
             
-            let processedView = CallListNodeView(originalView: update.view, filteredEntries: callListNodeEntriesForView(view: update.view, groupCalls: groupCalls, state: state, showSettings: showSettings, showCallsTab: showCallsTab, isRecentCalls: type == .all, currentGroupCallPeerId: currentGroupCallPeerId), presentationData: state.presentationData)
+            let processedView = CallListNodeView(originalView: update.view, filteredEntries: callListNodeEntriesForView(view: update.view, displayOpenNewCall: type == .all, groupCalls: groupCalls, state: state, showSettings: showSettings, showCallsTab: showCallsTab, isRecentCalls: type == .all, currentGroupCallPeerId: currentGroupCallPeerId), presentationData: state.presentationData)
             let previous = previousView.swap(processedView)
             let previousType = previousType.swap(type)
                         
@@ -627,7 +665,7 @@ final class CallListControllerNode: ASDisplayNode {
                 }
             }
             
-            self.listNode.visibleContentOffsetChanged = { [weak self] offset in
+            self.listNode.visibleContentOffsetChanged = { [weak self] offset, _ in
                 if let strongSelf = self {
                     var previousContentOffsetValue: CGFloat?
                     if let previousContentOffset = strongSelf.previousContentOffset, case let .known(value) = previousContentOffset {
@@ -649,6 +687,13 @@ final class CallListControllerNode: ASDisplayNode {
                     strongSelf.previousContentOffset = offset
                 }
             }
+        }
+        
+        self.listNode.onEdgeEffectExtensionUpdated = { [weak self] transition in
+            guard let self else {
+                return
+            }
+            self.controller?.updateNavigationEdgeEffectExtension(transition: transition)
         }
     }
     
@@ -818,6 +863,16 @@ final class CallListControllerNode: ASDisplayNode {
                         strongSelf._ready.set(true)
                     }
                     
+                    if let focusOnItemTag = strongSelf.focusOnItemTag {
+                        strongSelf.focusOnItemTag = nil
+                        
+                        strongSelf.listNode.forEachItemNode { itemNode in
+                            if let itemNode = itemNode as? ItemListItemNode, let tag = itemNode.tag, tag.isEqual(to: focusOnItemTag) {
+                                itemNode.displayHighlight()
+                            }
+                        }
+                    }
+                    
                     completion()
                 }
             }
@@ -922,5 +977,12 @@ final class CallListControllerNode: ASDisplayNode {
             self.dequeuedInitialTransitionOnLayout = true
             self.dequeueTransition()
         }
+        
+        let edgeEffectHeight: CGFloat = layout.intrinsicInsets.bottom
+        let edgeEffectFrame = CGRect(origin: CGPoint(x: 0.0, y: layout.size.height - edgeEffectHeight), size: CGSize(width: layout.size.width, height: edgeEffectHeight))
+        transition.updateFrame(view: self.edgeEffectView, frame: edgeEffectFrame)
+        self.edgeEffectView.update(content: self.presentationData.theme.list.plainBackgroundColor, rect: edgeEffectFrame, edge: .bottom, edgeSize: edgeEffectFrame.height, transition: ComponentTransition(transition))
+        
+        self.controller?.updateNavigationEdgeEffectExtension(transition: transition)
     }
 }

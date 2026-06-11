@@ -333,6 +333,13 @@ public final class MediaBox {
         }
     }
     
+    public func moveResourceData(_ id: MediaResourceId, toTempPath: String) {
+        self.dataQueue.async {
+            let paths = self.storePathsForId(id)
+            let _ = try? FileManager.default.moveItem(at: URL(fileURLWithPath: paths.complete), to: URL(fileURLWithPath: toTempPath))
+        }
+    }
+    
     public func copyResourceData(_ id: MediaResourceId, fromTempPath: String) {
         self.dataQueue.async {
             let paths = self.storePathsForId(id)
@@ -340,17 +347,22 @@ public final class MediaBox {
         }
     }
     
-    public func moveResourceData(from: MediaResourceId, to: MediaResourceId) {
+    public func moveResourceData(from: MediaResourceId, to: MediaResourceId, synchronous: Bool = false) {
         if from == to {
             return
         }
-        self.dataQueue.async {
+        let begin = {
             let pathsFrom = self.storePathsForId(from)
             let pathsTo = self.storePathsForId(to)
             link(pathsFrom.partial, pathsTo.partial)
             link(pathsFrom.complete, pathsTo.complete)
             unlink(pathsFrom.partial)
             unlink(pathsFrom.complete)
+        }
+        if synchronous {
+            begin()
+        } else {
+            self.dataQueue.async(begin)
         }
     }
     
@@ -702,6 +714,17 @@ public final class MediaBox {
         } else {
             let tempManager = MediaBoxFileManager(queue: nil)
             return MediaBoxPartialFile.internal_extractPartialData(manager: tempManager, path: paths.partial, metaPath: paths.partial + ".meta", range: range)
+        }
+    }
+    
+    public func internal_resourceDataIsCached(id: MediaResourceId, size: Int64, in range: Range<Int64>) -> Bool {
+        let paths = self.storePathsForId(id)
+        
+        if let _ = fileSize(paths.complete) {
+            return true
+        } else {
+            let tempManager = MediaBoxFileManager(queue: nil)
+            return MediaBoxPartialFile.internal_isPartialDataCached(manager: tempManager, path: paths.partial, metaPath: paths.partial + ".meta", range: range)
         }
     }
     

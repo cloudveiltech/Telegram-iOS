@@ -25,7 +25,7 @@ public class ChatReplyCountItem: ListViewItem {
         self.isComments = isComments
         self.count = count
         self.presentationData = presentationData
-        self.header = ChatMessageDateHeader(timestamp: index.timestamp, scheduled: false, presentationData: presentationData, controllerInteraction: controllerInteraction, context: context)
+        self.header = ChatMessageDateHeader(timestamp: index.timestamp, separableThreadId: nil, scheduled: false, displayHeader: nil, presentationData: presentationData, controllerInteraction: controllerInteraction, context: context)
         self.controllerInteraction = controllerInteraction
     }
     
@@ -81,7 +81,7 @@ public class ChatReplyCountItemNode: ListViewItemNode {
 
         self.backgroundColorNode = ASDisplayNode()
         
-        super.init(layerBacked: false, dynamicBounce: true, rotated: true)
+        super.init(layerBacked: false, rotated: true)
 
         self.addSubnode(self.labelNode)
         

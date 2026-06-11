@@ -174,7 +174,7 @@ func _internal_clearHistoryInteractively(postbox: Postbox, peerId: PeerId, threa
                         }
                         
                         if addEmptyMessage {
-                            let _ = transaction.addMessages([StoreMessage(id: topIndex.id, globallyUniqueId: nil, groupingKey: nil, threadId: nil, timestamp: topIndex.timestamp, flags: StoreMessageFlags(), tags: [], globalTags: [], localTags: [], forwardInfo: nil, authorId: nil, text: "", attributes: [], media: [TelegramMediaAction(action: .historyCleared)])], location: .Random)
+                            let _ = transaction.addMessages([StoreMessage(id: topIndex.id, customStableId: nil, globallyUniqueId: nil, groupingKey: nil, threadId: nil, timestamp: topIndex.timestamp, flags: StoreMessageFlags(), tags: [], globalTags: [], localTags: [], forwardInfo: nil, authorId: nil, text: "", attributes: [], media: [TelegramMediaAction(action: .historyCleared)])], location: .Random)
                         }
                     } else {
                         updatePeerChatInclusionWithMinTimestamp(transaction: transaction, id: peerId, minTimestamp: topIndex.timestamp, forceRootGroupIfNotExists: false)
@@ -209,7 +209,7 @@ func _internal_clearHistoryInteractively(postbox: Postbox, peerId: PeerId, threa
 func _internal_clearAuthorHistory(account: Account, peerId: PeerId, memberId: PeerId) -> Signal<Void, NoError> {
     return account.postbox.transaction { transaction -> Signal<Void, NoError> in
         if let peer = transaction.getPeer(peerId), let memberPeer = transaction.getPeer(memberId), let inputChannel = apiInputChannel(peer), let inputUser = apiInputPeer(memberPeer) {
-            let signal = account.network.request(Api.functions.channels.deleteParticipantHistory(channel: inputChannel, participant: inputUser))
+            let signal = peer.isMonoForum ? .fail(true) : account.network.request(Api.functions.channels.deleteParticipantHistory(channel: inputChannel, participant: inputUser))
                 |> map { result -> Api.messages.AffectedHistory? in
                     return result
                 }
@@ -219,7 +219,8 @@ func _internal_clearAuthorHistory(account: Account, peerId: PeerId, memberId: Pe
                 |> mapToSignal { result -> Signal<Void, Bool> in
                     if let result = result {
                         switch result {
-                        case let .affectedHistory(pts, ptsCount, offset):
+                        case let .affectedHistory(affectedHistoryData):
+                            let (pts, ptsCount, offset) = (affectedHistoryData.pts, affectedHistoryData.ptsCount, affectedHistoryData.offset)
                             account.stateManager.addUpdateGroups([.updatePts(pts: pts, ptsCount: ptsCount)])
                             if offset == 0 {
                                 return .fail(true)

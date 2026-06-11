@@ -156,17 +156,17 @@ public class ChatMessageFactCheckBubbleContentNode: ChatMessageBubbleContentNode
                 let selectionColor: UIColor = item.presentationData.theme.theme.chat.message.incoming.textSelectionColor
                 let knobColor: UIColor = item.presentationData.theme.theme.chat.message.incoming.textSelectionKnobColor
                 
-                let textSelectionNode = TextSelectionNode(theme: TextSelectionTheme(selection: selectionColor, knob: knobColor, isDark: item.presentationData.theme.theme.overallDarkAppearance), strings: item.presentationData.strings, textNode: self.textNode, updateIsActive: { [weak self] value in
+                let textSelectionNode = TextSelectionNode(theme: TextSelectionTheme(selection: selectionColor, knob: knobColor, isDark: item.presentationData.theme.theme.overallDarkAppearance), strings: item.presentationData.strings, textNodeOrView: .node(self.textNode), updateIsActive: { [weak self] value in
                     self?.updateIsTextSelectionActive?(value)
                 }, present: { [weak self] c, a in
                     self?.item?.controllerInteraction.presentGlobalOverlayController(c, a)
-                }, rootNode: { [weak rootNode] in
-                    return rootNode
+                }, rootView: { [weak rootNode] in
+                    return rootNode?.view
                 }, performAction: { [weak self] text, action in
                     guard let strongSelf = self, let item = strongSelf.item else {
                         return
                     }
-                    item.controllerInteraction.performTextSelectionAction(item.message, true, text, action)
+                    item.controllerInteraction.performTextSelectionAction(item.message, true, text, nil, action)
                 })
                 textSelectionNode.enableQuote = false
                 self.textSelectionNode = textSelectionNode
@@ -233,7 +233,8 @@ public class ChatMessageFactCheckBubbleContentNode: ChatMessageBubbleContentNode
                     TelegramTextAttributes.PeerTextMention,
                     TelegramTextAttributes.BotCommand,
                     TelegramTextAttributes.Hashtag,
-                    TelegramTextAttributes.BankCard
+                    TelegramTextAttributes.BankCard,
+                    TelegramTextAttributes.Date
                 ]
                 for name in possibleNames {
                     if let _ = attributes[NSAttributedString.Key(rawValue: name)] {
@@ -295,6 +296,7 @@ public class ChatMessageFactCheckBubbleContentNode: ChatMessageBubbleContentNode
                 var rawText = ""
                 var rawEntities: [MessageTextEntity] = []
                 var dateReplies = 0
+                var starsCount: Int64?
                 var dateReactionsAndPeers = mergedMessageReactionsAndPeers(accountPeerId: item.context.account.peerId, accountPeer: item.associatedData.accountPeer, message: item.message)
                 if item.message.isRestricted(platform: "ios", contentSettings: item.context.currentContentSettings.with { $0 }) {
                     dateReactionsAndPeers = ([], [])
@@ -311,6 +313,8 @@ public class ChatMessageFactCheckBubbleContentNode: ChatMessageBubbleContentNode
                         if let channel = item.message.peers[item.message.id.peerId] as? TelegramChannel, case .group = channel.info {
                             dateReplies = Int(attribute.count)
                         }
+                    } else if let attribute = attribute as? PaidStarsMessageAttribute, item.message.id.peerId.namespace == Namespaces.Peer.CloudChannel {
+                        starsCount = attribute.stars.value
                     }
                 }
                 
@@ -445,8 +449,10 @@ public class ChatMessageFactCheckBubbleContentNode: ChatMessageBubbleContentNode
                         reactionPeers: dateReactionsAndPeers.peers,
                         displayAllReactionPeers: item.message.id.peerId.namespace == Namespaces.Peer.CloudUser,
                         areReactionsTags: item.topMessage.areReactionsTags(accountPeerId: item.context.account.peerId),
+                        areStarReactionsEnabled: item.associatedData.areStarReactionsEnabled,
                         messageEffect: item.topMessage.messageEffect(availableMessageEffects: item.associatedData.availableMessageEffects),
                         replyCount: dateReplies,
+                        starsCount: starsCount,
                         isPinned: item.message.tags.contains(.pinned) && !item.associatedData.isInPinnedListMode && isReplyThread,
                         hasAutoremove: item.message.isSelfExpiring,
                         canViewReactionList: canViewMessageReactionList(message: item.topMessage),

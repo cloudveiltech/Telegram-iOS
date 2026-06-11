@@ -2,6 +2,9 @@
 #import "GPUImageFilter.h"
 #import "LegacyComponentsInternal.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 GLfloat kColorConversion601Default[] = {
     1.164,  1.164, 1.164,
     0.0, -0.392, 2.017,
@@ -118,7 +121,12 @@ NSString *const kYUVVideoRangeConversionForLAFragmentShaderString = SHADER_STRIN
 #pragma mark Initialization and teardown
 
 - (GPUImageRotationMode)rotationForTrack:(AVAsset *)asset {
-    AVAssetTrack *videoTrack = [[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
+    NSArray *tracks = [asset tracksWithMediaType:AVMediaTypeVideo];
+    if (tracks.count == 0) {
+        return kGPUImageNoRotation;
+    }
+    
+    AVAssetTrack *videoTrack = [tracks objectAtIndex:0];
     CGAffineTransform t = [videoTrack preferredTransform];
     
     if (t.a == -1 && t.d == -1) {
@@ -517,3 +525,5 @@ NSString *const kYUVVideoRangeConversionForLAFragmentShaderString = SHADER_STRIN
 }
 
 @end
+
+#pragma clang diagnostic pop

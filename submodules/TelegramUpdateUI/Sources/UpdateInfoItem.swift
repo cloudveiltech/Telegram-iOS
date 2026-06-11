@@ -102,6 +102,7 @@ class UpdateInfoItemNode: ListViewItemNode {
     private let bottomStripeNode: ASDisplayNode
     private let highlightedBackgroundNode: ASDisplayNode
     private var linkHighlightingNode: LinkHighlightingNode?
+    private let maskNode: ASImageNode
     
     private let iconNode: ASImageNode
     private let overlayNode: ASImageNode
@@ -127,6 +128,9 @@ class UpdateInfoItemNode: ListViewItemNode {
         self.bottomStripeNode = ASDisplayNode()
         self.bottomStripeNode.isLayerBacked = true
         
+        self.maskNode = ASImageNode()
+        self.maskNode.isUserInteractionEnabled = false
+        
         self.iconNode = ASImageNode()
         self.iconNode.frame = CGRect(origin: CGPoint(), size: CGSize(width: 62.0, height: 62.0))
         self.iconNode.isLayerBacked = true
@@ -148,7 +152,7 @@ class UpdateInfoItemNode: ListViewItemNode {
         
         self.activateArea = AccessibilityAreaNode()
         
-        super.init(layerBacked: false, dynamicBounce: false)
+        super.init(layerBacked: false)
         
         self.addSubnode(self.iconNode)
         self.addSubnode(self.overlayNode)
@@ -196,18 +200,20 @@ class UpdateInfoItemNode: ListViewItemNode {
             let textColor: UIColor = item.theme.list.itemPrimaryTextColor
             
             let inset: CGFloat
+            let spacing: CGFloat = 16.0
             let itemBackgroundColor: UIColor
             let itemSeparatorColor: UIColor
+            let verticalInset: CGFloat = 16.0
             
             switch item.style {
                 case .plain:
                     itemBackgroundColor = item.theme.list.plainBackgroundColor
                     itemSeparatorColor = item.theme.list.itemPlainSeparatorColor
-                    inset = 14.0 + params.leftInset
+                    inset = spacing + params.leftInset
                 case .blocks:
                     itemBackgroundColor = item.theme.list.itemBlocksBackgroundColor
                     itemSeparatorColor = item.theme.list.itemBlocksSeparatorColor
-                    inset = 14.0 + params.rightInset
+                    inset = spacing + params.rightInset
             }
             
             let (titleLayout, titleApply) = makeTitleLayout(TextNodeLayoutArguments(attributedString: NSAttributedString(string: item.title, font: titleFont, textColor: textColor), backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: params.width - params.leftInset - params.rightInset - 88.0, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
@@ -221,10 +227,10 @@ class UpdateInfoItemNode: ListViewItemNode {
             
             switch item.style {
                 case .plain:
-                    contentSize = CGSize(width: params.width, height: 88.0 + textLayout.size.height + inset)
+                    contentSize = CGSize(width: params.width, height: 76.0 + textLayout.size.height + verticalInset * 2.0)
                     insets = itemListNeighborsPlainInsets(neighbors)
                 case .blocks:
-                    contentSize = CGSize(width: params.width, height: 88.0 + textLayout.size.height + inset)
+                    contentSize = CGSize(width: params.width, height: 76.0 + textLayout.size.height + verticalInset * 2.0)
                     insets = itemListNeighborsGroupedInsets(neighbors, params)
             }
             
@@ -289,11 +295,19 @@ class UpdateInfoItemNode: ListViewItemNode {
                             if strongSelf.bottomStripeNode.supernode == nil {
                                 strongSelf.insertSubnode(strongSelf.bottomStripeNode, at: 2)
                             }
+                            if strongSelf.maskNode.supernode == nil {
+                                strongSelf.addSubnode(strongSelf.maskNode)
+                            }
+                        
+                            let hasCorners = itemListHasRoundedBlockLayout(params)
+                            var hasTopCorners = false
+                            var hasBottomCorners = false
                             switch neighbors.top {
-                                case .sameSection(false):
-                                    strongSelf.topStripeNode.isHidden = true
-                                default:
-                                    strongSelf.topStripeNode.isHidden = false
+                            case .sameSection(false):
+                                strongSelf.topStripeNode.isHidden = true
+                            default:
+                                hasTopCorners = true
+                                strongSelf.topStripeNode.isHidden = hasCorners
                             }
                             let bottomStripeInset: CGFloat
                             let bottomStripeOffset: CGFloat
@@ -305,18 +319,24 @@ class UpdateInfoItemNode: ListViewItemNode {
                                 default:
                                     bottomStripeInset = 0.0
                                     bottomStripeOffset = 0.0
+                                    hasBottomCorners = true
+                                    strongSelf.bottomStripeNode.isHidden = hasCorners
                             }
+                        
+                        strongSelf.maskNode.image = hasCorners ? PresentationResourcesItemList.cornersImage(item.theme, top: hasTopCorners, bottom: hasBottomCorners, glass: true) : nil
+                        
                             strongSelf.backgroundNode.frame = CGRect(origin: CGPoint(x: 0.0, y: -min(insets.top, separatorHeight)), size: CGSize(width: params.width, height: contentSize.height + min(insets.top, separatorHeight) + min(insets.bottom, separatorHeight)))
+                            strongSelf.maskNode.frame = strongSelf.backgroundNode.frame.insetBy(dx: params.leftInset, dy: 0.0)
                             strongSelf.topStripeNode.frame = CGRect(origin: CGPoint(x: 0.0, y: -min(insets.top, separatorHeight)), size: CGSize(width: layoutSize.width, height: separatorHeight))
                             strongSelf.bottomStripeNode.frame = CGRect(origin: CGPoint(x: bottomStripeInset, y: contentSize.height + bottomStripeOffset), size: CGSize(width: layoutSize.width - bottomStripeInset, height: separatorHeight))
                     }
                     
-                    let iconFrame = CGRect(origin: CGPoint(x: inset, y: inset), size: CGSize(width: 62.0, height: 62.0))
+                    let iconFrame = CGRect(origin: CGPoint(x: inset, y: verticalInset), size: CGSize(width: 62.0, height: 62.0))
                     strongSelf.iconNode.frame = iconFrame
                     strongSelf.overlayNode.frame = iconFrame
                     
-                    strongSelf.titleNode.frame = CGRect(origin: CGPoint(x: iconFrame.maxX + inset, y: iconFrame.minY + ceil((iconFrame.height - titleLayout.size.height) / 2.0)), size: titleLayout.size)
-                    strongSelf.textNode.frame = CGRect(origin: CGPoint(x: inset, y: iconFrame.maxY + inset), size: textLayout.size)
+                    strongSelf.titleNode.frame = CGRect(origin: CGPoint(x: iconFrame.maxX + spacing, y: iconFrame.minY + ceil((iconFrame.height - titleLayout.size.height) / 2.0)), size: titleLayout.size)
+                    strongSelf.textNode.frame = CGRect(origin: CGPoint(x: inset, y: iconFrame.maxY + spacing), size: textLayout.size)
                     
                     strongSelf.highlightedBackgroundNode.frame = CGRect(origin: CGPoint(x: 0.0, y: -UIScreenPixel), size: CGSize(width: params.width, height: layout.contentSize.height + UIScreenPixel + UIScreenPixel))
                 }

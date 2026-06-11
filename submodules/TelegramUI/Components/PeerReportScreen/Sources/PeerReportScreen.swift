@@ -18,7 +18,7 @@ import Markdown
 public enum PeerReportSubject {
     case peer(EnginePeer.Id)
     case messages([EngineMessage.Id])
-    case profilePhoto(EnginePeer.Id, Int64)
+    case profilePhoto(EnginePeer.Id, Int64, sourceMessageId: EngineMessage.Id?)
     case story(EnginePeer.Id, Int32)
 }
 
@@ -149,8 +149,8 @@ public func presentPeerReportOptions(
                                     displaySuccess()
                                     completion(nil, false)
                                 })
-                            case let .profilePhoto(peerId, _):
-                                let _ = (context.engine.peers.reportPeerPhoto(peerId: peerId, reason: reportReason, message: "")
+                            case let .profilePhoto(peerId, _, sourceMessageId):
+                                let _ = (context.engine.peers.reportPeerPhoto(peerId: peerId, reason: reportReason, message: "", sourceMessageId: sourceMessageId)
                                 |> deliverOnMainQueue).start(completed: {
                                     displaySuccess()
                                     completion(nil, false)
@@ -176,7 +176,7 @@ public func presentPeerReportOptions(
                     var message = ""
                     var items: [ActionSheetItem] = []
                     items.append(ReportPeerHeaderActionSheetItem(context: context, text: presentationData.strings.Report_AdditionalDetailsText))
-                    items.append(ReportPeerDetailsActionSheetItem(context: context, theme: presentationData.theme, placeholderText: presentationData.strings.Report_AdditionalDetailsPlaceholder, textUpdated: { text in
+                    items.append(ReportPeerDetailsActionSheetItem(context: context, theme: presentationData.theme, strings: presentationData.strings, placeholderText: presentationData.strings.Report_AdditionalDetailsPlaceholder, textUpdated: { text in
                         message = text
                     }))
                     items.append(ActionSheetButtonItem(title: presentationData.strings.Report_Report, color: .accent, font: .bold, enabled: true, action: {
@@ -285,8 +285,8 @@ public func peerReportOptionsController(context: AccountContext, subject: PeerRe
                                 displaySuccess()
                                 completion(nil, true)
                             })
-                        case let .profilePhoto(peerId, _):
-                            let _ = (context.engine.peers.reportPeerPhoto(peerId: peerId, reason: reportReason, message: message)
+                        case let .profilePhoto(peerId, _, sourceMessageId):
+                            let _ = (context.engine.peers.reportPeerPhoto(peerId: peerId, reason: reportReason, message: message, sourceMessageId: sourceMessageId)
                             |> deliverOnMainQueue).start(completed: {
                                 displaySuccess()
                                 completion(nil, true)
@@ -309,7 +309,7 @@ public func peerReportOptionsController(context: AccountContext, subject: PeerRe
                     var message = ""
                     var items: [ActionSheetItem] = []
                     items.append(ReportPeerHeaderActionSheetItem(context: context, text: presentationData.strings.Report_AdditionalDetailsText))
-                    items.append(ReportPeerDetailsActionSheetItem(context: context, theme: presentationData.theme, placeholderText: presentationData.strings.Report_AdditionalDetailsPlaceholder, textUpdated: { text in
+                    items.append(ReportPeerDetailsActionSheetItem(context: context, theme: presentationData.theme, strings: presentationData.strings, placeholderText: presentationData.strings.Report_AdditionalDetailsPlaceholder, textUpdated: { text in
                         message = text
                     }))
                     items.append(ActionSheetButtonItem(title: presentationData.strings.Report_Report, color: .accent, font: .bold, enabled: true, action: {

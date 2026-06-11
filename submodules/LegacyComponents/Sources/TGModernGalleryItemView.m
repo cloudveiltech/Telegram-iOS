@@ -1,9 +1,9 @@
-#import "TGModernGalleryItemView.h"
+#import <LegacyComponents/TGModernGalleryItemView.h>
 
 #import "LegacyComponentsInternal.h"
 
-#import "TGModernGalleryDefaultFooterView.h"
-#import "TGModernGalleryDefaultFooterAccessoryView.h"
+#import <LegacyComponents/TGModernGalleryDefaultFooterView.h>
+#import <LegacyComponents/TGModernGalleryDefaultFooterAccessoryView.h>
 
 @implementation TGModernGalleryItemView
 
@@ -12,6 +12,7 @@
     self = [super init];
     if (self != nil)
     {
+        _gesturesEnabled = true;
     }
     return self;
 }
@@ -95,11 +96,15 @@
 
 - (bool)allowsScrollingAtPoint:(CGPoint)__unused point
 {
-    return true;
+    return _gesturesEnabled;
 }
 
 - (SSignal *)contentAvailabilityStateSignal
 {
+    return nil;
+}
+
+- (UIView *)transitionContentView {
     return nil;
 }
 

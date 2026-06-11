@@ -10,7 +10,7 @@ func _internal_togglePeerMuted(account: Account, peerId: PeerId, threadId: Int64
         }
         
         var notificationPeerId = peerId
-        if let associatedPeerId = peer.associatedPeerId {
+        if peer is TelegramSecretChat, let associatedPeerId = peer.associatedPeerId {
             notificationPeerId = associatedPeerId
         }
         
@@ -62,7 +62,7 @@ func _internal_togglePeerMuted(account: Account, peerId: PeerId, threadId: Int64
     }
 }
 
-public func resolvedAreStoriesMuted(globalSettings: GlobalNotificationSettingsSet, peer: Peer, peerSettings: TelegramPeerNotificationSettings?, topSearchPeers: [PeerId]) -> Bool {
+public func resolvedAreStoriesMuted(globalSettings: GlobalNotificationSettingsSet, peer: EnginePeer, peerSettings: TelegramPeerNotificationSettings?, topSearchPeers: [PeerId]) -> Bool {
     let defaultIsMuted: Bool
     switch globalSettings.privateChats.storySettings.mute {
     case .muted:
@@ -91,7 +91,7 @@ func _internal_togglePeerStoriesMuted(account: Account, peerId: PeerId) -> Signa
         }
         
         var notificationPeerId = peerId
-        if let associatedPeerId = peer.associatedPeerId {
+        if peer is TelegramSecretChat, let associatedPeerId = peer.associatedPeerId {
             notificationPeerId = associatedPeerId
         }
         
@@ -114,7 +114,7 @@ func _internal_togglePeerStoriesMuted(account: Account, peerId: PeerId) -> Signa
         case .default:
             let globalNotificationSettings = transaction.getPreferencesEntry(key: PreferencesKeys.globalNotifications)?.get(GlobalNotificationSettings.self) ?? GlobalNotificationSettings.defaultSettings
             
-            if resolvedAreStoriesMuted(globalSettings: globalNotificationSettings.effective, peer: peer, peerSettings: previousSettings, topSearchPeers: topSearchPeers) {
+            if resolvedAreStoriesMuted(globalSettings: globalNotificationSettings.effective, peer: EnginePeer(peer), peerSettings: previousSettings, topSearchPeers: topSearchPeers) {
                 storySettings.mute = .unmuted
             } else {
                 storySettings.mute = .muted
@@ -174,7 +174,7 @@ func _internal_updatePeerMuteSetting(account: Account, transaction: Transaction,
             }
         } else {
             var notificationPeerId = peerId
-            if let associatedPeerId = peer.associatedPeerId {
+            if peer is TelegramSecretChat, let associatedPeerId = peer.associatedPeerId {
                 notificationPeerId = associatedPeerId
             }
             
@@ -232,7 +232,7 @@ func _internal_updatePeerDisplayPreviewsSetting(account: Account, transaction: T
             }
         } else {
             var notificationPeerId = peerId
-            if let associatedPeerId = peer.associatedPeerId {
+            if peer is TelegramSecretChat, let associatedPeerId = peer.associatedPeerId {
                 notificationPeerId = associatedPeerId
             }
             
@@ -259,7 +259,7 @@ func _internal_updatePeerStoriesMutedSetting(account: Account, peerId: PeerId, m
 func _internal_updatePeerStoriesMutedSetting(account: Account, transaction: Transaction, peerId: PeerId, mute: PeerStoryNotificationSettings.Mute) {
     if let peer = transaction.getPeer(peerId) {
         var notificationPeerId = peerId
-        if let associatedPeerId = peer.associatedPeerId {
+        if peer is TelegramSecretChat, let associatedPeerId = peer.associatedPeerId {
             notificationPeerId = associatedPeerId
         }
         
@@ -281,7 +281,7 @@ func _internal_updatePeerStoriesMutedSetting(account: Account, transaction: Tran
 func _internal_updatePeerStoriesHideSenderSetting(account: Account, transaction: Transaction, peerId: PeerId, hideSender: PeerStoryNotificationSettings.HideSender) {
     if let peer = transaction.getPeer(peerId) {
         var notificationPeerId = peerId
-        if let associatedPeerId = peer.associatedPeerId {
+        if peer is TelegramSecretChat, let associatedPeerId = peer.associatedPeerId {
             notificationPeerId = associatedPeerId
         }
         
@@ -323,7 +323,7 @@ func _internal_updatePeerNotificationSoundInteractive(account: Account, transact
             }
         } else {
             var notificationPeerId = peerId
-            if let associatedPeerId = peer.associatedPeerId {
+            if peer is TelegramSecretChat, let associatedPeerId = peer.associatedPeerId {
                 notificationPeerId = associatedPeerId
             }
             
@@ -344,7 +344,7 @@ func _internal_updatePeerNotificationSoundInteractive(account: Account, transact
 func _internal_updatePeerStoryNotificationSoundInteractive(account: Account, transaction: Transaction, peerId: PeerId, sound: PeerMessageSound) {
     if let peer = transaction.getPeer(peerId) {
         var notificationPeerId = peerId
-        if let associatedPeerId = peer.associatedPeerId {
+        if peer is TelegramSecretChat, let associatedPeerId = peer.associatedPeerId {
             notificationPeerId = associatedPeerId
         }
         

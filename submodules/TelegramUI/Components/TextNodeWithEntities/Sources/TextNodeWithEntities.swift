@@ -20,11 +20,13 @@ private final class InlineStickerItem: Hashable {
     let emoji: ChatTextInputTextCustomEmojiAttribute
     let file: TelegramMediaFile?
     let fontSize: CGFloat
+    let enableAnimation: Bool
     
-    init(emoji: ChatTextInputTextCustomEmojiAttribute, file: TelegramMediaFile?, fontSize: CGFloat) {
+    init(emoji: ChatTextInputTextCustomEmojiAttribute, file: TelegramMediaFile?, fontSize: CGFloat, enableAnimation: Bool) {
         self.emoji = emoji
         self.file = file
         self.fontSize = fontSize
+        self.enableAnimation = enableAnimation
     }
     
     func hash(into hasher: inout Hasher) {
@@ -40,6 +42,9 @@ private final class InlineStickerItem: Hashable {
             return false
         }
         if lhs.fontSize != rhs.fontSize {
+            return false
+        }
+        if lhs.enableAnimation != rhs.enableAnimation {
             return false
         }
         return true
@@ -65,19 +70,25 @@ public final class TextNodeWithEntities {
         public let renderer: MultiAnimationRenderer
         public let placeholderColor: UIColor
         public let attemptSynchronous: Bool
+        public let emojiOffset: CGPoint
+        public let fontSizeNorm: CGFloat
         
         public init(
             context: AccountContext,
             cache: AnimationCache,
             renderer: MultiAnimationRenderer,
             placeholderColor: UIColor,
-            attemptSynchronous: Bool
+            attemptSynchronous: Bool,
+            emojiOffset: CGPoint = CGPoint(),
+            fontSizeNorm: CGFloat = 17.0
         ) {
             self.context = context
             self.cache = cache
             self.renderer = renderer
             self.placeholderColor = placeholderColor
             self.attemptSynchronous = attemptSynchronous
+            self.emojiOffset = emojiOffset
+            self.fontSizeNorm = fontSizeNorm
         }
         
         public func withUpdatedPlaceholderColor(_ color: UIColor) -> Arguments {
@@ -86,7 +97,8 @@ public final class TextNodeWithEntities {
                 cache: self.cache,
                 renderer: self.renderer,
                 placeholderColor: color,
-                attemptSynchronous: self.attemptSynchronous
+                attemptSynchronous: self.attemptSynchronous,
+                emojiOffset: self.emojiOffset
             )
         }
     }
@@ -94,7 +106,14 @@ public final class TextNodeWithEntities {
     public let textNode: TextNode
     private var inlineStickerItemLayers: [InlineStickerItemLayer.Key: InlineStickerItemLayer] = [:]
     
-    private var enableLooping: Bool = true
+    public var enableLooping: Bool = true
+    public var energySavingEnableLooping: Bool = true
+    
+    private var effectiveEnableLooping: Bool {
+        return self.enableLooping && self.energySavingEnableLooping
+    }
+    
+    public var resetEmojiToFirstFrameAutomatically: Bool = false
     
     public var visibilityRect: CGRect? {
         didSet {
@@ -110,9 +129,29 @@ public final class TextNodeWithEntities {
                     } else {
                         isItemVisible = false
                     }
-                    itemLayer.isVisibleForAnimations = self.enableLooping && isItemVisible
+                    let isVisibleForAnimations = self.effectiveEnableLooping && isItemVisible && itemLayer.enableAnimation
+                    if itemLayer.isVisibleForAnimations != isVisibleForAnimations {
+                        itemLayer.isVisibleForAnimations = isVisibleForAnimations
+                        if !isVisibleForAnimations && self.resetEmojiToFirstFrameAutomatically {
+                            itemLayer.reloadAnimation()
+                        }
+                    }
                 }
             }
+        }
+    }
+    
+    private var tapRecognizer: TapLongTapOrDoubleTapGestureRecognizer?
+    private var linkHighlightingNode: LinkHighlightingNode?
+    
+    public var linkHighlightColor: UIColor?
+    public var linkHighlightInset: UIEdgeInsets = .zero
+    
+    public var tapAttributeAction: (([NSAttributedString.Key: Any], Int) -> Void)?
+    public var longTapAttributeAction: (([NSAttributedString.Key: Any], Int) -> Void)?
+    public var highlightAttributeAction: (([NSAttributedString.Key: Any]) -> NSAttributedString.Key?)? {
+        didSet {
+            self.updateInteractiveActions()
         }
     }
     
@@ -141,7 +180,7 @@ public final class TextNodeWithEntities {
                             
                             let replacementRange = NSRange(location: 0, length: updatedSubstring.length)
                             updatedSubstring.addAttributes(string.attributes(at: range.location, effectiveRange: nil), range: replacementRange)
-                            updatedSubstring.addAttribute(NSAttributedString.Key("Attribute__EmbeddedItem"), value: InlineStickerItem(emoji: value, file: value.file, fontSize: font.pointSize), range: replacementRange)
+                            updatedSubstring.addAttribute(NSAttributedString.Key("Attribute__EmbeddedItem"), value: InlineStickerItem(emoji: value, file: value.file, fontSize: font.pointSize, enableAnimation: value.enableAnimation), range: replacementRange)
                             updatedSubstring.addAttribute(originalTextAttributeKey, value: OriginalTextAttribute(id: originalTextId, string: string.attributedSubstring(from: range).string), range: replacementRange)
                             originalTextId += 1
                             
@@ -197,7 +236,7 @@ public final class TextNodeWithEntities {
                 
                 if let maybeNode = maybeNode {
                     if let applyArguments = applyArguments {
-                        maybeNode.updateInlineStickers(context: applyArguments.context, cache: applyArguments.cache, renderer: applyArguments.renderer, textLayout: layout, placeholderColor: applyArguments.placeholderColor, attemptSynchronousLoad: false)
+                        maybeNode.updateInlineStickers(context: applyArguments.context, cache: applyArguments.cache, renderer: applyArguments.renderer, textLayout: layout, placeholderColor: applyArguments.placeholderColor, attemptSynchronousLoad: false, emojiOffset: applyArguments.emojiOffset, fontSizeNorm: applyArguments.fontSizeNorm)
                     }
                     
                     return maybeNode
@@ -205,7 +244,7 @@ public final class TextNodeWithEntities {
                     let resultNode = TextNodeWithEntities(textNode: result)
                     
                     if let applyArguments = applyArguments {
-                        resultNode.updateInlineStickers(context: applyArguments.context, cache: applyArguments.cache, renderer: applyArguments.renderer, textLayout: layout, placeholderColor: applyArguments.placeholderColor, attemptSynchronousLoad: false)
+                        resultNode.updateInlineStickers(context: applyArguments.context, cache: applyArguments.cache, renderer: applyArguments.renderer, textLayout: layout, placeholderColor: applyArguments.placeholderColor, attemptSynchronousLoad: false, emojiOffset: applyArguments.emojiOffset, fontSizeNorm: applyArguments.fontSizeNorm)
                     }
                     
                     return resultNode
@@ -222,8 +261,8 @@ public final class TextNodeWithEntities {
         }
     }
     
-    private func updateInlineStickers(context: AccountContext, cache: AnimationCache, renderer: MultiAnimationRenderer, textLayout: TextNodeLayout?, placeholderColor: UIColor, attemptSynchronousLoad: Bool) {
-        self.enableLooping = context.sharedContext.energyUsageSettings.loopEmoji
+    private func updateInlineStickers(context: AccountContext, cache: AnimationCache, renderer: MultiAnimationRenderer, textLayout: TextNodeLayout?, placeholderColor: UIColor, attemptSynchronousLoad: Bool, emojiOffset: CGPoint, fontSizeNorm: CGFloat) {
+        self.energySavingEnableLooping = context.sharedContext.energyUsageSettings.loopEmoji
         
         var nextIndexById: [Int64: Int] = [:]
         var validIds: [InlineStickerItemLayer.Key] = []
@@ -241,9 +280,9 @@ public final class TextNodeWithEntities {
                     let id = InlineStickerItemLayer.Key(id: stickerItem.emoji.fileId, index: index)
                     validIds.append(id)
                     
-                    let itemSize = floorToScreenPixels(stickerItem.fontSize * 24.0 / 17.0)
+                    let itemSize = floorToScreenPixels(stickerItem.fontSize * 24.0 / fontSizeNorm)
                     
-                    var itemFrame = CGRect(origin: item.rect.offsetBy(dx: textLayout.insets.left, dy: textLayout.insets.top + 1.0).center, size: CGSize()).insetBy(dx: -itemSize / 2.0, dy: -itemSize / 2.0)
+                    var itemFrame = CGRect(origin: item.rect.offsetBy(dx: textLayout.insets.left + emojiOffset.x, dy: textLayout.insets.top + 1.0 + emojiOffset.y).center, size: CGSize()).insetBy(dx: -itemSize / 2.0, dy: -itemSize / 2.0)
                     itemFrame.origin.x = floorToScreenPixels(itemFrame.origin.x)
                     itemFrame.origin.y = floorToScreenPixels(itemFrame.origin.y)
                     
@@ -256,8 +295,13 @@ public final class TextNodeWithEntities {
                         itemLayer = InlineStickerItemLayer(context: context, userLocation: .other, attemptSynchronousLoad: attemptSynchronousLoad, emoji: stickerItem.emoji, file: stickerItem.file, cache: cache, renderer: renderer, placeholderColor: placeholderColor, pointSize: CGSize(width: pointSize, height: pointSize), dynamicColor: item.textColor)
                         self.inlineStickerItemLayers[id] = itemLayer
                         self.textNode.layer.addSublayer(itemLayer)
-                        
-                        itemLayer.isVisibleForAnimations = self.enableLooping && self.isItemVisible(itemRect: itemFrame)
+                    }
+                    itemLayer.enableAnimation = stickerItem.enableAnimation
+                    let isVisibleForAnimations = self.effectiveEnableLooping && self.isItemVisible(itemRect: itemFrame) && itemLayer.enableAnimation
+                    if itemLayer.isVisibleForAnimations != isVisibleForAnimations {
+                        if !isVisibleForAnimations && self.resetEmojiToFirstFrameAutomatically {
+                            itemLayer.reloadAnimation()
+                        }
                     }
                     
                     itemLayer.frame = itemFrame
@@ -274,6 +318,83 @@ public final class TextNodeWithEntities {
         }
         for key in removeKeys {
             self.inlineStickerItemLayers.removeValue(forKey: key)
+        }
+    }
+    
+    private func updateInteractiveActions() {
+        if self.highlightAttributeAction != nil {
+            if self.tapRecognizer == nil {
+                let tapRecognizer = TapLongTapOrDoubleTapGestureRecognizer(target: self, action: #selector(self.tapAction(_:)))
+                tapRecognizer.highlight = { [weak self] point in
+                    if let strongSelf = self, let cachedLayout = strongSelf.textNode.cachedLayout {
+                        var rects: [CGRect]?
+                        if let point = point {
+                            if let (index, attributes) = strongSelf.textNode.attributesAtPoint(CGPoint(x: point.x, y: point.y)) {
+                                if let selectedAttribute = strongSelf.highlightAttributeAction?(attributes) {
+                                    let initialRects = strongSelf.textNode.lineAndAttributeRects(name: selectedAttribute.rawValue, at: index)
+                                    if let initialRects = initialRects, case .center = cachedLayout.resolvedAlignment {
+                                        var mappedRects: [CGRect] = []
+                                        for i in 0 ..< initialRects.count {
+                                            let lineRect = initialRects[i].0
+                                            var itemRect = initialRects[i].1
+                                            itemRect.origin.x = floor((strongSelf.textNode.bounds.size.width - lineRect.width) / 2.0) + itemRect.origin.x
+                                            mappedRects.append(itemRect)
+                                        }
+                                        rects = mappedRects
+                                    } else {
+                                        rects = strongSelf.textNode.attributeRects(name: selectedAttribute.rawValue, at: index)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if var rects, !rects.isEmpty {
+                            let linkHighlightingNode: LinkHighlightingNode
+                            if let current = strongSelf.linkHighlightingNode {
+                                linkHighlightingNode = current
+                            } else {
+                                linkHighlightingNode = LinkHighlightingNode(color: strongSelf.linkHighlightColor ?? .clear)
+                                strongSelf.linkHighlightingNode = linkHighlightingNode
+                                strongSelf.textNode.addSubnode(linkHighlightingNode)
+                            }
+                            linkHighlightingNode.frame = strongSelf.textNode.bounds
+                            rects[rects.count - 1] = rects[rects.count - 1].inset(by: strongSelf.linkHighlightInset)
+                            linkHighlightingNode.updateRects(rects.map { $0.offsetBy(dx: 0.0, dy: 0.0) })
+                        } else if let linkHighlightingNode = strongSelf.linkHighlightingNode {
+                            strongSelf.linkHighlightingNode = nil
+                            linkHighlightingNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.18, removeOnCompletion: false, completion: { [weak linkHighlightingNode] _ in
+                                linkHighlightingNode?.removeFromSupernode()
+                            })
+                        }
+                    }
+                }
+                self.textNode.view.addGestureRecognizer(tapRecognizer)
+            }
+        } else if let tapRecognizer = self.tapRecognizer {
+            self.tapRecognizer = nil
+            self.textNode.view.removeGestureRecognizer(tapRecognizer)
+        }
+    }
+    
+    @objc private func tapAction(_ recognizer: TapLongTapOrDoubleTapGestureRecognizer) {
+        switch recognizer.state {
+            case .ended:
+                if let (gesture, location) = recognizer.lastRecognizedGestureAndLocation {
+                    switch gesture {
+                        case .tap:
+                            if let (index, attributes) = self.textNode.attributesAtPoint(CGPoint(x: location.x, y: location.y)) {
+                                self.tapAttributeAction?(attributes, index)
+                            }
+                        case .longTap:
+                            if let (index, attributes) = self.textNode.attributesAtPoint(CGPoint(x: location.x, y: location.y)) {
+                                self.longTapAttributeAction?(attributes, index)
+                            }
+                        default:
+                            break
+                    }
+                }
+            default:
+                break
         }
     }
 }
@@ -294,19 +415,31 @@ public class ImmediateTextNodeWithEntities: TextNode {
     public var spoilerColor: UIColor = .black
     public var balancedTextLayout: Bool = false
     
-    private var enableLooping: Bool = true
+    public var enableLooping: Bool = true
+    public var energySavingEnableLooping: Bool = true
+    
+    private var effectiveEnableLooping: Bool {
+        return self.enableLooping && self.energySavingEnableLooping
+    }
     
     public var arguments: TextNodeWithEntities.Arguments?
     
     private var inlineStickerItemLayers: [InlineStickerItemLayer.Key: InlineStickerItemLayer] = [:]
     public private(set) var dustNode: InvisibleInkDustNode?
     
+    public var resetEmojiToFirstFrameAutomatically: Bool = false
+    
     public var visibility: Bool = false {
         didSet {
             if !self.inlineStickerItemLayers.isEmpty && oldValue != self.visibility {
                 for (_, itemLayer) in self.inlineStickerItemLayers {
-                    let isItemVisible: Bool = self.visibility
-                    itemLayer.isVisibleForAnimations = self.enableLooping && isItemVisible
+                    let isVisibleForAnimations = self.effectiveEnableLooping && self.visibility && itemLayer.enableAnimation
+                    if itemLayer.isVisibleForAnimations != isVisibleForAnimations {
+                        itemLayer.isVisibleForAnimations = isVisibleForAnimations
+                        if !isVisibleForAnimations && self.resetEmojiToFirstFrameAutomatically {
+                            itemLayer.reloadAnimation()
+                        }
+                    }
                 }
             }
         }
@@ -342,6 +475,7 @@ public class ImmediateTextNodeWithEntities: TextNode {
     private var linkHighlightingNode: LinkHighlightingNode?
     
     public var linkHighlightColor: UIColor?
+    public var linkHighlightInset: UIEdgeInsets = .zero
     
     public var trailingLineWidth: CGFloat?
 
@@ -375,7 +509,7 @@ public class ImmediateTextNodeWithEntities: TextNode {
                         
                         let replacementRange = NSRange(location: 0, length: updatedSubstring.length)
                         updatedSubstring.addAttributes(string.attributes(at: range.location, effectiveRange: nil), range: replacementRange)
-                        updatedSubstring.addAttribute(NSAttributedString.Key("Attribute__EmbeddedItem"), value: InlineStickerItem(emoji: value, file: value.file, fontSize: font.pointSize), range: replacementRange)
+                        updatedSubstring.addAttribute(NSAttributedString.Key("Attribute__EmbeddedItem"), value: InlineStickerItem(emoji: value, file: value.file, fontSize: font.pointSize, enableAnimation: value.enableAnimation), range: replacementRange)
                         updatedSubstring.addAttribute(originalTextAttributeKey, value: OriginalTextAttribute(id: originalTextId, string: string.attributedSubstring(from: range).string), range: replacementRange)
                         originalTextId += 1
                         
@@ -437,7 +571,7 @@ public class ImmediateTextNodeWithEntities: TextNode {
         
         var enableAnimations = true
         if let arguments = self.arguments {
-            self.updateInlineStickers(context: arguments.context, cache: arguments.cache, renderer: arguments.renderer, textLayout: layout, placeholderColor: arguments.placeholderColor)
+            self.updateInlineStickers(context: arguments.context, cache: arguments.cache, renderer: arguments.renderer, textLayout: layout, placeholderColor: arguments.placeholderColor, fontSizeNorm: arguments.fontSizeNorm)
             enableAnimations = arguments.context.sharedContext.energyUsageSettings.fullTranslucency
         }
         self.updateSpoilers(enableAnimations: enableAnimations, textLayout: layout)
@@ -450,8 +584,8 @@ public class ImmediateTextNodeWithEntities: TextNode {
         return layout.size
     }
     
-    private func updateInlineStickers(context: AccountContext, cache: AnimationCache, renderer: MultiAnimationRenderer, textLayout: TextNodeLayout?, placeholderColor: UIColor) {
-        self.enableLooping = context.sharedContext.energyUsageSettings.loopEmoji
+    private func updateInlineStickers(context: AccountContext, cache: AnimationCache, renderer: MultiAnimationRenderer, textLayout: TextNodeLayout?, placeholderColor: UIColor, fontSizeNorm: CGFloat) {
+        self.energySavingEnableLooping = context.sharedContext.energyUsageSettings.loopEmoji
         
         var nextIndexById: [Int64: Int] = [:]
         var validIds: [InlineStickerItemLayer.Key] = []
@@ -469,7 +603,7 @@ public class ImmediateTextNodeWithEntities: TextNode {
                     let id = InlineStickerItemLayer.Key(id: stickerItem.emoji.fileId, index: index)
                     validIds.append(id)
                     
-                    let itemSide = floor(stickerItem.fontSize * 24.0 / 17.0)
+                    let itemSide = floor(stickerItem.fontSize * 24.0 / fontSizeNorm)
                     var itemSize = CGSize(width: itemSide, height: itemSide)
                     if let file = stickerItem.file, let customItemLayout = self.customItemLayout {
                         itemSize = customItemLayout(itemSize, file)
@@ -486,8 +620,15 @@ public class ImmediateTextNodeWithEntities: TextNode {
                         itemLayer = InlineStickerItemLayer(context: context, userLocation: .other, attemptSynchronousLoad: false, emoji: stickerItem.emoji, file: stickerItem.file, cache: cache, renderer: renderer, placeholderColor: placeholderColor, pointSize: CGSize(width: pointSize, height: pointSize), dynamicColor: item.textColor)
                         self.inlineStickerItemLayers[id] = itemLayer
                         self.layer.addSublayer(itemLayer)
-                        
-                        itemLayer.isVisibleForAnimations = self.enableLooping && self.visibility
+                    }
+                    
+                    itemLayer.enableAnimation = stickerItem.enableAnimation
+                    let isVisibleForAnimations = self.effectiveEnableLooping && self.visibility && itemLayer.enableAnimation
+                    if itemLayer.isVisibleForAnimations != isVisibleForAnimations {
+                        itemLayer.isVisibleForAnimations = isVisibleForAnimations
+                        if !isVisibleForAnimations && self.resetEmojiToFirstFrameAutomatically {
+                            itemLayer.reloadAnimation()
+                        }
                     }
                     
                     itemLayer.frame = itemFrame
@@ -534,9 +675,12 @@ public class ImmediateTextNodeWithEntities: TextNode {
         
         let _ = apply()
         
+        var enableAnimations = true
         if let arguments = self.arguments {
-            self.updateInlineStickers(context: arguments.context, cache: arguments.cache, renderer: arguments.renderer, textLayout: layout, placeholderColor: arguments.placeholderColor)
+            self.updateInlineStickers(context: arguments.context, cache: arguments.cache, renderer: arguments.renderer, textLayout: layout, placeholderColor: arguments.placeholderColor, fontSizeNorm: arguments.fontSizeNorm)
+            enableAnimations = arguments.context.sharedContext.energyUsageSettings.fullTranslucency
         }
+        self.updateSpoilers(enableAnimations: enableAnimations, textLayout: layout)
         
         return ImmediateTextNodeLayoutInfo(size: layout.size, truncated: layout.truncated, numberOfLines: layout.numberOfLines)
     }
@@ -550,7 +694,7 @@ public class ImmediateTextNodeWithEntities: TextNode {
         let _ = apply()
         
         if let arguments = self.arguments {
-            self.updateInlineStickers(context: arguments.context, cache: arguments.cache, renderer: arguments.renderer, textLayout: layout, placeholderColor: arguments.placeholderColor)
+            self.updateInlineStickers(context: arguments.context, cache: arguments.cache, renderer: arguments.renderer, textLayout: layout, placeholderColor: arguments.placeholderColor, fontSizeNorm: arguments.fontSizeNorm)
         }
         
         return layout
@@ -595,7 +739,7 @@ public class ImmediateTextNodeWithEntities: TextNode {
                             }
                         }
                         
-                        if let rects = rects {
+                        if var rects, !rects.isEmpty {
                             let linkHighlightingNode: LinkHighlightingNode
                             if let current = strongSelf.linkHighlightingNode {
                                 linkHighlightingNode = current
@@ -605,6 +749,7 @@ public class ImmediateTextNodeWithEntities: TextNode {
                                 strongSelf.addSubnode(linkHighlightingNode)
                             }
                             linkHighlightingNode.frame = strongSelf.bounds
+                            rects[rects.count - 1] = rects[rects.count - 1].inset(by: strongSelf.linkHighlightInset)
                             linkHighlightingNode.updateRects(rects.map { $0.offsetBy(dx: 0.0, dy: 0.0) })
                         } else if let linkHighlightingNode = strongSelf.linkHighlightingNode {
                             strongSelf.linkHighlightingNode = nil

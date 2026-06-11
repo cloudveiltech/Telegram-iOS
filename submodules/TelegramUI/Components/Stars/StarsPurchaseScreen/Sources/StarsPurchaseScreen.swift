@@ -239,6 +239,22 @@ private final class StarsPurchaseScreenContentComponent: CombinedComponent {
                 textString = strings.Stars_Purchase_StarsNeededUnlockInfo
             case .starGift:
                 textString = strings.Stars_Purchase_StarGiftInfo(component.peers.first?.value.compactDisplayTitle ?? "").string
+            case .upgradeStarGift:
+                textString = strings.Stars_Purchase_UpgradeStarGiftInfo
+            case .transferStarGift:
+                textString = strings.Stars_Purchase_TransferStarGiftInfo
+            case let .sendMessage(peerId, _):
+                if peerId.namespace == Namespaces.Peer.CloudUser {
+                    textString = strings.Stars_Purchase_SendMessageInfo(component.peers.first?.value.compactDisplayTitle ?? "").string
+                } else {
+                    textString = strings.Stars_Purchase_SendGroupMessageInfo(component.peers.first?.value.compactDisplayTitle ?? "").string
+                }
+            case .buyStarGift:
+                textString = strings.Stars_Purchase_BuyStarGiftInfo
+            case .removeOriginalDetailsStarGift:
+                textString = strings.Stars_Purchase_RemoveOriginalDetailsStarGiftInfo
+            case .starGiftOffer:
+                textString = strings.Stars_Purchase_StarGiftOfferInfo
             }
             
             let markdownAttributes = MarkdownAttributes(body: MarkdownAttributeSet(font: textFont, textColor: textColor), bold: MarkdownAttributeSet(font: boldTextFont, textColor: textColor), link: MarkdownAttributeSet(font: textFont, textColor: accentColor), linkAttribute: { contents in
@@ -296,6 +312,7 @@ private final class StarsPurchaseScreenContentComponent: CombinedComponent {
             var i = 0
             var items: [AnyComponentWithIdentity<Empty>] = []
                            
+            var collapsedItems = 0
             if let products = state.products, let balance = context.component.balance {
                 var minimumCount: StarsAmount?
                 if let requiredStars = context.component.purpose.requiredStars {
@@ -314,10 +331,11 @@ private final class StarsPurchaseScreenContentComponent: CombinedComponent {
                     if let _ = minimumCount, items.isEmpty {
                         
                     } else if !context.component.expanded && product.isExtended {
+                        collapsedItems += 1
                         continue
                     }
                     
-                    let title = strings.Stars_Purchase_Stars(Int32(product.count))
+                    let title = strings.Stars_Purchase_Stars(Int32(clamping: product.count))
                     let price = product.price
                     
                     let titleComponent = AnyComponent(MultilineTextComponent(
@@ -332,7 +350,10 @@ private final class StarsPurchaseScreenContentComponent: CombinedComponent {
                     let backgroundComponent: AnyComponent<Empty>?
                     if product.storeProduct.id == context.component.selectedProductId {
                         backgroundComponent = AnyComponent(
-                            ItemShimmeringLoadingComponent(color: environment.theme.list.itemAccentColor)
+                            ItemShimmeringLoadingComponent(
+                                color: environment.theme.list.itemAccentColor,
+                                cornerRadius: 26.0
+                            )
                         )
                     } else {
                         backgroundComponent = nil
@@ -343,10 +364,12 @@ private final class StarsPurchaseScreenContentComponent: CombinedComponent {
                         id: product.id,
                         component: AnyComponent(ListSectionComponent(
                             theme: environment.theme,
+                            style: .glass,
                             header: nil,
                             footer: nil,
                             items: [AnyComponentWithIdentity(id: 0, component: AnyComponent(ListActionItemComponent(
                                 theme: environment.theme,
+                                style: .glass,
                                 background: backgroundComponent,
                                 title: titleComponent,
                                 contentInsets: UIEdgeInsets(top: 12.0, left: -6.0, bottom: 12.0, right: 0.0),
@@ -367,8 +390,8 @@ private final class StarsPurchaseScreenContentComponent: CombinedComponent {
                                 highlighting: .disabled,
                                 updateIsHighlighted: { view, isHighlighted in
                                     let transition: ComponentTransition = .easeInOut(duration: 0.25)
-                                    if let superview = view.superview {
-                                        transition.setScale(view: superview, scale: isHighlighted ? 0.9 : 1.0)
+                                    if let superview = view.superview?.superview?.superview?.superview {
+                                        transition.setScale(view: superview, scale: isHighlighted ? 1.05 : 1.0)
                                     }
                                 }
                             )))]
@@ -378,7 +401,7 @@ private final class StarsPurchaseScreenContentComponent: CombinedComponent {
                 }
             }
             
-            if !context.component.expanded && items.count > 1 {
+            if !context.component.expanded && collapsedItems > 0 {
                 let titleComponent = AnyComponent(MultilineTextComponent(
                     text: .plain(NSAttributedString(
                         string: strings.Stars_Purchase_ShowMore,
@@ -398,13 +421,15 @@ private final class StarsPurchaseScreenContentComponent: CombinedComponent {
                     id: items.count,
                     component: AnyComponent(ListSectionComponent(
                         theme: environment.theme,
+                        style: .glass,
                         header: nil,
                         footer: nil,
                         items: [AnyComponentWithIdentity(id: 0, component: AnyComponent(ListActionItemComponent(
                             theme: environment.theme,
+                            style: .glass,
                             title: titleCombinedComponent,
                             titleAlignment: .center,
-                            contentInsets: UIEdgeInsets(top: 7.0, left: 0.0, bottom: 7.0, right: 0.0),
+                            contentInsets: UIEdgeInsets(top: 11.0, left: 0.0, bottom: 11.0, right: 0.0),
                             leftIcon: nil,
                             accessory: .none,
                             action: { _ in
@@ -479,6 +504,7 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
     typealias EnvironmentType = ViewControllerComponentContainer.Environment
     
     let context: AccountContext
+    let overNavigationContainer: UIView
     let starsContext: StarsContext
     let options: [Any]
     let purpose: StarsPurchasePurpose
@@ -490,6 +516,7 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
     
     init(
         context: AccountContext,
+        overNavigationContainer: UIView,
         starsContext: StarsContext,
         options: [Any],
         purpose: StarsPurchasePurpose,
@@ -500,6 +527,7 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
         completion: @escaping (Int64) -> Void
     ) {
         self.context = context
+        self.overNavigationContainer = overNavigationContainer
         self.starsContext = starsContext
         self.options = options
         self.purpose = purpose
@@ -662,7 +690,7 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
             case let .gift(peerId):
                 purpose = .starsGift(peerId: peerId, count: product.count, currency: currency, amount: amount)
             default:
-                purpose = .stars(count: product.count, currency: currency, amount: amount)
+                purpose = .stars(count: product.count, currency: currency, amount: amount, peerId: self.purpose.commercialPeerId)
             }
             
             let _ = (self.context.engine.payments.canPurchasePremium(purpose: purpose)
@@ -734,8 +762,6 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
         let scrollContent = Child(ScrollComponent<EnvironmentType>.self)
         let star = Child(PremiumStarComponent.self)
         let avatar = Child(GiftAvatarComponent.self)
-        let topPanel = Child(BlurredBackgroundComponent.self)
-        let topSeparator = Child(Rectangle.self)
         let title = Child(MultilineTextComponent.self)
         let balanceTitle = Child(MultilineTextComponent.self)
         let balanceValue = Child(MultilineTextComponent.self)
@@ -791,28 +817,12 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
                             UIColor(rgb: 0xfdd219)
                         ],
                         particleColor: UIColor(rgb: 0xf9b004),
-                        backgroundColor: environment.theme.list.blocksBackgroundColor
+                        backgroundColor: nil
                     ),
                     availableSize: CGSize(width: min(414.0, context.availableSize.width), height: 220.0),
                     transition: context.transition
                 )
             }
-            
-            let topPanel = topPanel.update(
-                component: BlurredBackgroundComponent(
-                    color: environment.theme.rootController.navigationBar.blurredBackgroundColor
-                ),
-                availableSize: CGSize(width: context.availableSize.width, height: environment.navigationHeight),
-                transition: context.transition
-            )
-            
-            let topSeparator = topSeparator.update(
-                component: Rectangle(
-                    color: environment.theme.rootController.navigationBar.separatorColor
-                ),
-                availableSize: CGSize(width: context.availableSize.width, height: UIScreenPixel),
-                transition: context.transition
-            )
             
             let titleText: String
             switch context.component.purpose {
@@ -820,7 +830,7 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
                 titleText = strings.Stars_Purchase_GetStars
             case .gift:
                 titleText = strings.Stars_Purchase_GiftStars
-            case let .topUp(requiredStars, _), let .transfer(_, requiredStars), let .reactions(_, requiredStars), let .subscription(_, requiredStars, _), let .unlockMedia(requiredStars), let .starGift(_, requiredStars):
+            case let .topUp(requiredStars, _), let .transfer(_, requiredStars), let .reactions(_, requiredStars), let .subscription(_, requiredStars, _), let .unlockMedia(requiredStars), let .starGift(_, requiredStars), let .upgradeStarGift(requiredStars), let .transferStarGift(requiredStars), let .sendMessage(_, requiredStars), let .buyStarGift(requiredStars), let .removeOriginalDetailsStarGift(requiredStars), let .starGiftOffer(requiredStars):
                 titleText = strings.Stars_Purchase_StarsNeeded(Int32(requiredStars))
             }
             
@@ -847,14 +857,14 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
                 availableSize: context.availableSize,
                 transition: .immediate
             )
-            let starsBalance: StarsAmount = state.starsState?.balance ?? StarsAmount.zero
+            
+            let formattedBalance = formatStarsAmountText(state.starsState?.balance ?? StarsAmount.zero, dateTimeFormat: environment.dateTimeFormat)
+            let smallLabelFont = Font.regular(11.0)
+            let labelFont = Font.semibold(14.0)
+            let balanceText = tonAmountAttributedString(formattedBalance, integralFont: labelFont, fractionalFont: smallLabelFont, color: environment.theme.actionSheet.primaryTextColor, decimalSeparator: environment.dateTimeFormat.decimalSeparator)
             let balanceValue = balanceValue.update(
                 component: MultilineTextComponent(
-                    text: .plain(NSAttributedString(
-                        string: presentationStringsFormattedNumber(starsBalance, environment.dateTimeFormat.groupingSeparator),
-                        font: Font.semibold(14.0),
-                        textColor: environment.theme.actionSheet.primaryTextColor
-                    )),
+                    text: .plain(balanceText),
                     maximumNumberOfLines: 1
                 ),
                 availableSize: context.availableSize,
@@ -923,14 +933,12 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
                 .position(CGPoint(x: context.availableSize.width / 2.0, y: context.availableSize.height / 2.0))
             )
                         
-            let topPanelAlpha: CGFloat
             let titleOffset: CGFloat
             let titleScale: CGFloat
             let titleOffsetDelta = (topInset + 160.0) - (environment.statusBarHeight + (environment.navigationHeight - environment.statusBarHeight) / 2.0)
             let titleAlpha: CGFloat
             
             if let topContentOffset = state.topContentOffset {
-                topPanelAlpha = min(20.0, max(0.0, topContentOffset - 95.0)) / 20.0
                 let topContentOffset = topContentOffset + max(0.0, min(1.0, topContentOffset / titleOffsetDelta)) * 10.0
                 titleOffset = topContentOffset
                 let fraction = max(0.0, min(1.0, titleOffset / titleOffsetDelta))
@@ -938,42 +946,37 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
                 
                 titleAlpha = 1.0
             } else {
-                topPanelAlpha = 0.0
                 titleScale = 1.0
                 titleOffset = 0.0
                 titleAlpha = 1.0
             }
             
-            context.add(header
+            context.addWithExternalContainer(header
                 .position(CGPoint(x: context.availableSize.width / 2.0, y: topInset + header.size.height / 2.0 - 30.0 - titleOffset * titleScale))
-                .scale(titleScale)
+                .scale(titleScale),
+                container: context.component.overNavigationContainer
             )
             
-            context.add(topPanel
-                .position(CGPoint(x: context.availableSize.width / 2.0, y: topPanel.size.height / 2.0))
-                .opacity(topPanelAlpha)
-            )
-            context.add(topSeparator
-                .position(CGPoint(x: context.availableSize.width / 2.0, y: topPanel.size.height))
-                .opacity(topPanelAlpha)
-            )
-            
-            context.add(title
+            context.addWithExternalContainer(title
                 .position(CGPoint(x: context.availableSize.width / 2.0, y: max(topInset + 160.0 - titleOffset, environment.statusBarHeight + (environment.navigationHeight - environment.statusBarHeight) / 2.0)))
                 .scale(titleScale)
-                .opacity(titleAlpha)
+                .opacity(titleAlpha),
+                container: context.component.overNavigationContainer
             )
             
             let navigationHeight = environment.navigationHeight - environment.statusBarHeight
             let topBalanceOriginY = environment.statusBarHeight + (navigationHeight - balanceTitle.size.height - balanceValue.size.height) / 2.0
-            context.add(balanceTitle
-                .position(CGPoint(x: context.availableSize.width - 16.0 - environment.safeInsets.right - balanceTitle.size.width / 2.0, y: topBalanceOriginY + balanceTitle.size.height / 2.0))
+            context.addWithExternalContainer(balanceTitle
+                .position(CGPoint(x: context.availableSize.width - 16.0 - environment.safeInsets.right - balanceTitle.size.width / 2.0, y: topBalanceOriginY + balanceTitle.size.height / 2.0)),
+                container: context.component.overNavigationContainer
             )
-            context.add(balanceValue
-                .position(CGPoint(x: context.availableSize.width - 16.0 - environment.safeInsets.right - balanceValue.size.width / 2.0, y: topBalanceOriginY + balanceTitle.size.height + balanceValue.size.height / 2.0))
+            context.addWithExternalContainer(balanceValue
+                .position(CGPoint(x: context.availableSize.width - 16.0 - environment.safeInsets.right - balanceValue.size.width / 2.0, y: topBalanceOriginY + balanceTitle.size.height + balanceValue.size.height / 2.0)),
+                container: context.component.overNavigationContainer
             )
-            context.add(balanceIcon
-                .position(CGPoint(x: context.availableSize.width - 16.0 - environment.safeInsets.right - balanceValue.size.width - balanceIcon.size.width / 2.0 - 2.0, y: topBalanceOriginY + balanceTitle.size.height + balanceValue.size.height / 2.0 - UIScreenPixel))
+            context.addWithExternalContainer(balanceIcon
+                .position(CGPoint(x: context.availableSize.width - 16.0 - environment.safeInsets.right - balanceValue.size.width - balanceIcon.size.width / 2.0 - 2.0, y: topBalanceOriginY + balanceTitle.size.height + balanceValue.size.height / 2.0 - UIScreenPixel)),
+                container: context.component.overNavigationContainer
             )
                                     
             return context.availableSize
@@ -984,6 +987,8 @@ private final class StarsPurchaseScreenComponent: CombinedComponent {
 public final class StarsPurchaseScreen: ViewControllerComponentContainer {
     fileprivate let context: AccountContext
     fileprivate let starsContext: StarsContext
+    
+    private let overNavigationContainer: UIView
     
     private var didSetReady = false
     private let _ready = Promise<Bool>()
@@ -996,10 +1001,14 @@ public final class StarsPurchaseScreen: ViewControllerComponentContainer {
         starsContext: StarsContext,
         options: [Any] = [],
         purpose: StarsPurchasePurpose,
+        targetPeerId: EnginePeer.Id?,
+        customTheme: PresentationTheme? = nil,
         completion: @escaping (Int64) -> Void = { _ in }
     ) {
         self.context = context
         self.starsContext = starsContext
+        
+        self.overNavigationContainer = SparseContainerView()
             
         var openAppExamplesImpl: (() -> Void)?
         var updateInProgressImpl: ((Bool) -> Void)?
@@ -1007,6 +1016,7 @@ public final class StarsPurchaseScreen: ViewControllerComponentContainer {
         var completionImpl: ((Int64) -> Void)?
         super.init(context: context, component: StarsPurchaseScreenComponent(
             context: context,
+            overNavigationContainer: self.overNavigationContainer,
             starsContext: starsContext,
             options: options,
             purpose: purpose,
@@ -1023,7 +1033,7 @@ public final class StarsPurchaseScreen: ViewControllerComponentContainer {
             completion: { stars in
                 completionImpl?(stars)
             }
-        ), navigationBarAppearance: .transparent, presentationMode: .modal, theme: .default)
+        ), navigationBarAppearance: .default, presentationMode: .modal, theme: customTheme.flatMap { .custom($0) } ?? .default)
         
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
         
@@ -1062,6 +1072,10 @@ public final class StarsPurchaseScreen: ViewControllerComponentContainer {
                 
                 completion(stars)
             }
+        }
+        
+        if let navigationBar = self.navigationBar {
+            navigationBar.customOverBackgroundContentView.insertSubview(self.overNavigationContainer, at: 0)
         }
     }
     
@@ -1102,10 +1116,10 @@ public final class StarsPurchaseScreen: ViewControllerComponentContainer {
         super.containerLayoutUpdated(layout, transition: transition)
         
         if !self.didSetReady {
-            if let view = self.node.hostView.findTaggedView(tag: PremiumStarComponent.View.Tag()) as? PremiumStarComponent.View {
+            if let view = findTaggedComponentViewImpl(view: self.node.view, tag: PremiumStarComponent.View.Tag()) as? PremiumStarComponent.View {
                 self.didSetReady = true
                 self._ready.set(view.ready)
-            } else if let view = self.node.hostView.findTaggedView(tag: GiftAvatarComponent.View.Tag()) as? GiftAvatarComponent.View {
+            } else if let view = findTaggedComponentViewImpl(view: self.node.view, tag: GiftAvatarComponent.View.Tag()) as? GiftAvatarComponent.View {
                 self.didSetReady = true
                 self._ready.set(view.ready)
             }
@@ -1243,8 +1257,25 @@ private extension StarsPurchasePurpose {
             return [peerId]
         case let .starGift(peerId, _):
             return [peerId]
+        case let .sendMessage(peerId, _):
+            return [peerId]
         default:
             return []
+        }
+    }
+    
+    var commercialPeerId: EnginePeer.Id? {
+        switch self {
+        case let .transfer(peerId, _):
+            return peerId
+        case let .reactions(peerId, _):
+            return peerId
+        case let .subscription(peerId, _, _):
+            return peerId
+        case let .sendMessage(peerId, _):
+            return peerId
+        default:
+            return nil
         }
     }
     
@@ -1261,6 +1292,18 @@ private extension StarsPurchasePurpose {
         case let .unlockMedia(requiredStars):
             return requiredStars
         case let .starGift(_, requiredStars):
+            return requiredStars
+        case let .upgradeStarGift(requiredStars):
+            return requiredStars
+        case let .transferStarGift(requiredStars):
+            return requiredStars
+        case let .sendMessage(_, requiredStars):
+            return requiredStars
+        case let .buyStarGift(requiredStars):
+            return requiredStars
+        case let .removeOriginalDetailsStarGift(requiredStars):
+            return requiredStars
+        case let .starGiftOffer(requiredStars):
             return requiredStars
         default:
             return nil

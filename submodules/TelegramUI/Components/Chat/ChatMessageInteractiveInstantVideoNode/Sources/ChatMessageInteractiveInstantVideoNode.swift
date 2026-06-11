@@ -352,8 +352,8 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                 var replyMessage: Message?
                 var replyForward: QuotedReplyMessageAttribute?
                 var replyQuote: (quote: EngineMessageReplyQuote, isQuote: Bool)?
+                var replyInnerSubject: EngineMessageReplyInnerSubject?
                 var replyStory: StoryId?
-                
                 for attribute in item.message.attributes {
                     if let attribute = attribute as? InlineBotMessageAttribute {
                         var inlineBotNameString: String?
@@ -382,6 +382,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                             replyMessage = item.message.associatedMessages[replyAttribute.messageId]
                         }
                         replyQuote = replyAttribute.quote.flatMap { ($0, replyAttribute.isQuote) }
+                        replyInnerSubject = replyAttribute.innerSubject
                     } else if let attribute = attribute as? QuotedReplyMessageAttribute {
                         replyForward = attribute
                     } else if let attribute = attribute as? ReplyStoryAttribute {
@@ -400,7 +401,9 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                             message: replyMessage,
                             replyForward: replyForward,
                             quote: replyQuote,
+                            innerSubject: replyInnerSubject,
                             story: replyStory,
+                            isSummarized: false,
                             parentMessage: item.message,
                             constrainedSize: CGSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude),
                             animationCache: item.controllerInteraction.presentationContext.animationCache,
@@ -524,6 +527,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
             let sentViaBot = false
             var viewCount: Int? = nil
             var dateReplies = 0
+            var starsCount: Int64?
             var dateReactionsAndPeers = mergedMessageReactionsAndPeers(accountPeerId: item.context.account.peerId, accountPeer: item.associatedData.accountPeer, message: item.message)
             if item.message.isRestricted(platform: "ios", contentSettings: item.context.currentContentSettings.with { $0 }) {
                 dateReactionsAndPeers = ([], [])
@@ -537,6 +541,8 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                     if let channel = item.message.peers[item.message.id.peerId] as? TelegramChannel, case .group = channel.info {
                         dateReplies = Int(attribute.count)
                     }
+                } else if let attribute = attribute as? PaidStarsMessageAttribute, item.message.id.peerId.namespace == Namespaces.Peer.CloudChannel {
+                    starsCount = attribute.stars.value
                 }
             }
             
@@ -581,8 +587,10 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                 reactionPeers: dateReactionsAndPeers.peers,
                 displayAllReactionPeers: item.message.id.peerId.namespace == Namespaces.Peer.CloudUser,
                 areReactionsTags: item.topMessage.areReactionsTags(accountPeerId: item.context.account.peerId),
+                areStarReactionsEnabled: item.associatedData.areStarReactionsEnabled,
                 messageEffect: messageEffect,
                 replyCount: dateReplies,
+                starsCount: starsCount,
                 isPinned: item.message.tags.contains(.pinned) && !item.associatedData.isInPinnedListMode && !isReplyThread,
                 hasAutoremove: item.message.isSelfExpiring,
                 canViewReactionList: canViewMessageReactionList(message: item.topMessage),
@@ -695,7 +703,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                     
                     if let updatedFile = updatedFile, updatedMedia {
                         if let resource = updatedFile.previewRepresentations.first?.resource {
-                            strongSelf.fetchedThumbnailDisposable.set(fetchedMediaResource(mediaBox: item.context.account.postbox.mediaBox, userLocation: .peer(item.message.id.peerId), userContentType: .video, reference: FileMediaReference.message(message: MessageReference(item.message), media: updatedFile).resourceReference(resource)).startStrict())
+                            strongSelf.fetchedThumbnailDisposable.set(item.context.engine.resources.fetch(reference: FileMediaReference.message(message: MessageReference(item.message), media: updatedFile).resourceReference(resource), userLocation: .peer(item.message.id.peerId), userContentType: .video).startStrict())
                         } else {
                             strongSelf.fetchedThumbnailDisposable.set(nil)
                         }
@@ -763,7 +771,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                                 })
                             }
                             let mediaManager = item.context.sharedContext.mediaManager
-                            let videoNode = UniversalVideoNode(accountId: item.context.account.id, postbox: item.context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: ChatBubbleInstantVideoDecoration(inset: 2.0, backgroundImage: instantVideoBackgroundImage, tapped: {
+                            let videoNode = UniversalVideoNode(context: item.context, postbox: item.context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: ChatBubbleInstantVideoDecoration(inset: 2.0, backgroundImage: instantVideoBackgroundImage, tapped: {
                                 if let strongSelf = self {
                                     if let item = strongSelf.item {
                                         if strongSelf.infoBackgroundNode.alpha.isZero {
@@ -771,7 +779,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                                         }
                                     }
                                 }
-                            }), content: NativeVideoContent(id: .message(item.message.stableId, telegramFile.fileId), userLocation: .peer(item.message.id.peerId), fileReference: .message(message: MessageReference(item.message), media: telegramFile), streamVideo: streamVideo ? .conservative : .none, enableSound: false, fetchAutomatically: false, isAudioVideoMessage: true, captureProtected: item.message.isCopyProtected(), storeAfterDownload: nil), priority: item.associatedData.isStandalone ? .overlay : .embedded, autoplay: item.context.sharedContext.energyUsageSettings.autoplayVideo && !isViewOnceMessage)
+                            }), content: NativeVideoContent(id: .message(item.message.stableId, telegramFile.fileId), userLocation: .peer(item.message.id.peerId), fileReference: .message(message: MessageReference(item.message), media: telegramFile), streamVideo: streamVideo ? .conservative : .none, enableSound: false, fetchAutomatically: false, isAudioVideoMessage: true, captureProtected: item.associatedData.isCopyProtectionEnabled || item.message.isCopyProtected(), storeAfterDownload: nil), priority: item.associatedData.isStandalone ? .overlay : .embedded, autoplay: item.context.sharedContext.energyUsageSettings.autoplayVideo && !isViewOnceMessage)
                             if let previousVideoNode = previousVideoNode {
                                 videoNode.bounds = previousVideoNode.bounds
                                 videoNode.position = previousVideoNode.position
@@ -832,7 +840,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                     var displayTranscribe = false
                     if item.message.id.peerId.namespace != Namespaces.Peer.SecretChat && statusDisplayType == .free && !isViewOnceMessage && !item.presentationData.isPreview {
                         let premiumConfiguration = PremiumConfiguration.with(appConfiguration: item.context.currentAppConfiguration.with { $0 })
-                        if item.associatedData.isPremium {
+                        if item.associatedData.isPremium || item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
                             displayTranscribe = true
                         } else if premiumConfiguration.audioTransciptionTrialCount > 0 {
                             if incoming {
@@ -844,8 +852,6 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                             } else {
                                 displayTranscribe = false
                             }
-                        } else if item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
-                            displayTranscribe = true
                         }
                     }
                     
@@ -1319,13 +1325,13 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                     case let .Fetching(_, progress):
                         if let isBuffering = isBuffering {
                             if isBuffering {
-                                state = .progress(value: nil, cancelEnabled: true, appearance: nil)
+                                state = .progress(value: nil, cancelEnabled: true, appearance: nil, animateRotation: true)
                             } else {
                                 state = .none
                             }
                         } else {
                             let adjustedProgress = max(progress, 0.027)
-                            state = .progress(value: CGFloat(adjustedProgress), cancelEnabled: true, appearance: nil)
+                            state = .progress(value: CGFloat(adjustedProgress), cancelEnabled: true, appearance: nil, animateRotation: true)
                         }
                     case .Local:
                         if isViewOnceMessage {
@@ -1351,7 +1357,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                     isLocal = true
                 }
                 if (isBuffering ?? false) && !isLocal {
-                    state = .progress(value: nil, cancelEnabled: true, appearance: nil)
+                    state = .progress(value: nil, cancelEnabled: true, appearance: nil, animateRotation: true)
                 } else {
                     state = .none
                 }
@@ -1461,7 +1467,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                 playbackStatusNode.position = playbackStatusFrame.center
             }
             
-            let status = messageFileMediaPlaybackStatus(context: item.context, file: file, message: EngineMessage(item.message), isRecentActions: item.associatedData.isRecentActions, isGlobalSearch: false, isDownloadList: false)
+            let status = messageFileMediaPlaybackStatus(context: item.context, file: file, message: EngineMessage(item.message), isRecentActions: item.associatedData.isRecentActions, isGlobalSearch: false, isDownloadList: false, isSavedMusic: false)
             playbackStatusNode.status = status
             self.durationNode?.status = status
             |> map(Optional.init)

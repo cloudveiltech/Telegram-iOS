@@ -170,6 +170,17 @@ public final class PrincipalThemeEssentialGraphics {
     public let outgoingDateAndStatusRepliesIcon: UIImage
     public let mediaRepliesIcon: UIImage
     public let freeRepliesIcon: UIImage
+    
+    public let incomingDateAndStatusStarsIcon: UIImage
+    public let outgoingDateAndStatusStarsIcon: UIImage
+    public let mediaStarsIcon: UIImage
+    public let freeStarsIcon: UIImage
+    
+    public let incomingDateAndStatusTonIcon: UIImage
+    public let outgoingDateAndStatusTonIcon: UIImage
+    public let mediaTonIcon: UIImage
+    public let freeTonIcon: UIImage
+
     public let incomingDateAndStatusPinnedIcon: UIImage
     public let outgoingDateAndStatusPinnedIcon: UIImage
     public let mediaPinnedIcon: UIImage
@@ -358,6 +369,18 @@ public final class PrincipalThemeEssentialGraphics {
             self.mediaRepliesIcon = generateTintedImage(image: repliesImage, color: .white)!
             self.freeRepliesIcon = generateTintedImage(image: repliesImage, color: serviceColor.primaryText)!
             
+            let starsImage = UIImage(bundleImageName: "Chat/Message/StarsCount")!
+            self.incomingDateAndStatusStarsIcon = generateTintedImage(image: starsImage, color: theme.message.incoming.secondaryTextColor)!
+            self.outgoingDateAndStatusStarsIcon = generateTintedImage(image: starsImage, color: theme.message.outgoing.secondaryTextColor)!
+            self.mediaStarsIcon = generateTintedImage(image: starsImage, color: .white)!
+            self.freeStarsIcon = generateTintedImage(image: starsImage, color: serviceColor.primaryText)!
+            
+            let tonImage = generateScaledImage(image: UIImage(bundleImageName: "Ads/TonMedium"), size: CGSize(width: 12.0, height: 12.0), opaque: false)!
+            self.incomingDateAndStatusTonIcon = generateTintedImage(image: tonImage, color: theme.message.incoming.secondaryTextColor)!
+            self.outgoingDateAndStatusTonIcon = generateTintedImage(image: tonImage, color: theme.message.outgoing.secondaryTextColor)!
+            self.mediaTonIcon = generateTintedImage(image: tonImage, color: .white)!
+            self.freeTonIcon = generateTintedImage(image: tonImage, color: serviceColor.primaryText)!
+
             let pinnedImage = UIImage(bundleImageName: "Chat/Message/Pinned")!
             self.incomingDateAndStatusPinnedIcon = generateTintedImage(image: pinnedImage, color: theme.message.incoming.secondaryTextColor)!
             self.outgoingDateAndStatusPinnedIcon = generateTintedImage(image: pinnedImage, color: theme.message.outgoing.secondaryTextColor)!
@@ -478,6 +501,18 @@ public final class PrincipalThemeEssentialGraphics {
             self.outgoingDateAndStatusRepliesIcon = generateTintedImage(image: repliesImage, color: theme.message.outgoing.secondaryTextColor)!
             self.mediaRepliesIcon = generateTintedImage(image: repliesImage, color: .white)!
             self.freeRepliesIcon = generateTintedImage(image: repliesImage, color: serviceColor.primaryText)!
+            
+            let starsImage = UIImage(bundleImageName: "Chat/Message/StarsCount")!
+            self.incomingDateAndStatusStarsIcon = generateTintedImage(image: starsImage, color: theme.message.incoming.secondaryTextColor)!
+            self.outgoingDateAndStatusStarsIcon = generateTintedImage(image: starsImage, color: theme.message.outgoing.secondaryTextColor)!
+            self.mediaStarsIcon = generateTintedImage(image: starsImage, color: .white)!
+            self.freeStarsIcon = generateTintedImage(image: starsImage, color: serviceColor.primaryText)!
+
+            let tonImage = generateScaledImage(image: UIImage(bundleImageName: "Ads/TonMedium"), size: CGSize(width: 12.0, height: 12.0), opaque: false)!
+            self.incomingDateAndStatusTonIcon = generateTintedImage(image: tonImage, color: theme.message.incoming.secondaryTextColor)!
+            self.outgoingDateAndStatusTonIcon = generateTintedImage(image: tonImage, color: theme.message.outgoing.secondaryTextColor)!
+            self.mediaTonIcon = generateTintedImage(image: tonImage, color: .white)!
+            self.freeTonIcon = generateTintedImage(image: tonImage, color: serviceColor.primaryText)!
             
             let pinnedImage = UIImage(bundleImageName: "Chat/Message/Pinned")!
             self.incomingDateAndStatusPinnedIcon = generateTintedImage(image: pinnedImage, color: theme.message.incoming.secondaryTextColor)!

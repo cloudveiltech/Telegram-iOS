@@ -234,6 +234,18 @@ func locallyRenderedMessage(message: StoreMessage, peers: [PeerId: Peer], associ
                 messagePeers[channelPeer.id] = channelPeer
             }
         }
+        
+        if let channel = peer as? TelegramChannel, channel.isMonoForum, let linkedMonoforumId = channel.linkedMonoforumId {
+            if let channelPeer = peers[linkedMonoforumId] {
+                messagePeers[channelPeer.id] = channelPeer
+            }
+            
+            if let threadId = message.threadId {
+                if let threadPeer = peers[PeerId(threadId)] {
+                    messagePeers[threadPeer.id] = threadPeer
+                }
+            }
+        }
     }
     
     for media in message.media {
@@ -470,7 +482,35 @@ public extension Message {
         }
         return nil
     }
+    
+    var derivedDataAttribute: DerivedDataMessageAttribute? {
+        for attribute in self.attributes {
+            if let attribute = attribute as? DerivedDataMessageAttribute {
+                return attribute
+            }
+        }
+        return nil
+    }
+    
+    var forwardVideoTimestampAttribute: ForwardVideoTimestampAttribute? {
+        for attribute in self.attributes {
+            if let attribute = attribute as? ForwardVideoTimestampAttribute {
+                return attribute
+            }
+        }
+        return nil
+    }
+    
+    var guestChatAttribute: GuestChatMessageAttribute? {
+        for attribute in self.attributes {
+            if let attribute = attribute as? GuestChatMessageAttribute {
+                return attribute
+            }
+        }
+        return nil
+    }
 }
+
 public extension Message {
     var reactionsAttribute: ReactionsMessageAttribute? {
         for attribute in self.attributes {
@@ -550,6 +590,15 @@ public extension Message {
         }
         return nil
     }
+    
+    var paidStarsAttribute: PaidStarsMessageAttribute? {
+        for attribute in self.attributes {
+            if let attribute = attribute as? PaidStarsMessageAttribute {
+                return attribute
+            }
+        }
+        return nil
+    }
 }
 
 public extension Message {
@@ -612,6 +661,25 @@ public func _internal_parseMediaAttachment(data: Data) -> Media? {
     } else if let file = object as? Api.Document {
         return telegramMediaFileFromApiDocument(file, altDocuments: [])
     } else {
+        return nil
+    }
+}
+
+public extension Message {
+    func messageEffect(availableMessageEffects: AvailableMessageEffects?) -> AvailableMessageEffects.MessageEffect? {
+        guard let availableMessageEffects else {
+            return nil
+        }
+        for attribute in self.attributes {
+            if let attribute = attribute as? EffectMessageAttribute {
+                for effect in availableMessageEffects.messageEffects {
+                    if effect.id == attribute.id {
+                        return effect
+                    }
+                }
+                break
+            }
+        }
         return nil
     }
 }

@@ -30,7 +30,7 @@ swift_library(
     }),
     deps = [    
         "@ObjectMapper//:ObjectMapper",
-        "@Sentry//:Sentry",
+        "//third-party/Sentry:Sentry",
         "//submodules/CloudVeil:CloudVeil",
     ],
 )

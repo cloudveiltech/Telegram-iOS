@@ -4,6 +4,9 @@ import TelegramCore
 import AccountContext
 import ChatPresentationInterfaceState
 import ChatControllerInteraction
+import ComponentFlow
+import ChatSideTopicsPanel
+import LegacyChatHeaderPanelComponent
 
 func titlePanelForChatPresentationInterfaceState(_ chatPresentationInterfaceState: ChatPresentationInterfaceState, context: AccountContext, currentPanel: ChatTitleAccessoryPanelNode?, controllerInteraction: ChatControllerInteraction?, interfaceInteraction: ChatPanelInterfaceInteraction?, force: Bool) -> ChatTitleAccessoryPanelNode? {
     if !force, case .standard(.embedded) = chatPresentationInterfaceState.mode {
@@ -106,7 +109,17 @@ func titlePanelForChatPresentationInterfaceState(_ chatPresentationInterfaceStat
         }
     }
     
-    if let channel = chatPresentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.flags.contains(.isForum) {
+    if let _ = chatPresentationInterfaceState.peerVerification {
+        if let currentPanel = currentPanel as? ChatVerifiedPeerTitlePanelNode {
+            return currentPanel
+        } else if let controllerInteraction = controllerInteraction {
+            let panel = ChatVerifiedPeerTitlePanelNode(context: context, animationCache: controllerInteraction.presentationContext.animationCache, animationRenderer: controllerInteraction.presentationContext.animationRenderer)
+            panel.interfaceInteraction = interfaceInteraction
+            return panel
+        }
+    }
+    
+    if let channel = chatPresentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.isForumOrMonoForum {
         if let threadData = chatPresentationInterfaceState.threadData {
             if threadData.isClosed {
                 var canManage = false
@@ -129,6 +142,14 @@ func titlePanelForChatPresentationInterfaceState(_ chatPresentationInterfaceStat
                 }
             }
         }
+    } else if chatPresentationInterfaceState.isManagedBot, let user = chatPresentationInterfaceState.renderedPeer?.peer as? TelegramUser, user.profileImageRepresentations.isEmpty {
+        if let currentPanel = currentPanel as? ChatReportPeerTitlePanelNode {
+            return currentPanel
+        } else if let controllerInteraction = controllerInteraction {
+            let panel = ChatReportPeerTitlePanelNode(context: context, animationCache: controllerInteraction.presentationContext.animationCache, animationRenderer: controllerInteraction.presentationContext.animationRenderer)
+            panel.interfaceInteraction = interfaceInteraction
+            return panel
+        }
     }
     
     var displayActionsPanel = false
@@ -140,8 +161,6 @@ func titlePanelForChatPresentationInterfaceState(_ chatPresentationInterfaceStat
                 } else if peerStatusSettings.contains(.canReport) || peerStatusSettings.contains(.canBlock) || peerStatusSettings.contains(.autoArchived) {
                     displayActionsPanel = true
                 } else if peerStatusSettings.contains(.canShareContact) {
-                    displayActionsPanel = true
-                } else if contactStatus.canReportIrrelevantLocation && peerStatusSettings.contains(.canReportIrrelevantGeoLocation) {
                     displayActionsPanel = true
                 } else if peerStatusSettings.contains(.suggestAddMembers) {
                     displayActionsPanel = true
@@ -213,6 +232,245 @@ func titlePanelForChatPresentationInterfaceState(_ chatPresentationInterfaceStat
                         return panel
                     }
                 }
+        }
+    }
+    
+    return nil
+}
+
+func headerTopicsPanelForChatPresentationInterfaceState(_ chatPresentationInterfaceState: ChatPresentationInterfaceState, context: AccountContext, controllerInteraction: ChatControllerInteraction?, interfaceInteraction: ChatPanelInterfaceInteraction?, force: Bool) -> AnyComponent<Empty>? {
+    guard let peerId = chatPresentationInterfaceState.chatLocation.peerId else {
+        return nil
+    }
+    if chatPresentationInterfaceState.subject?.isService ?? false {
+        return nil
+    }
+    if peerId.namespace == Namespaces.Peer.CloudUser {
+        guard let chatHistoryState = chatPresentationInterfaceState.chatHistoryState else {
+            return nil
+        }
+        switch chatHistoryState {
+        case .loading:
+            return nil
+        case let .loaded(isEmpty, _):
+            if isEmpty && chatPresentationInterfaceState.chatLocation.threadId == nil {
+                return nil
+            }
+        }
+    }
+    
+    if let channel = chatPresentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.isMonoForum, let linkedMonoforumId = channel.linkedMonoforumId, let mainChannel = chatPresentationInterfaceState.renderedPeer?.peers[linkedMonoforumId] as? TelegramChannel, mainChannel.hasPermission(.manageDirect), chatPresentationInterfaceState.search == nil {
+        let topicListDisplayModeOnTheSide = chatPresentationInterfaceState.persistentData.topicListPanelLocation == .side
+        if !topicListDisplayModeOnTheSide {
+            return AnyComponent(ChatTopicsHeaderPanelComponent(
+                context: context,
+                theme: chatPresentationInterfaceState.theme,
+                strings: chatPresentationInterfaceState.strings,
+                peerId: peerId,
+                kind: .monoforum,
+                location: chatPresentationInterfaceState.persistentData.topicListPanelLocation == .top ? .top : .bottom,
+                topicId: chatPresentationInterfaceState.chatLocation.threadId,
+                controller: { [weak interfaceInteraction] in
+                    return interfaceInteraction?.chatController()
+                },
+                togglePanel: { [weak interfaceInteraction] in
+                    interfaceInteraction?.toggleChatSidebarMode()
+                },
+                updateTopicId: { [weak interfaceInteraction] topicId, direction in
+                    interfaceInteraction?.updateChatLocationThread(topicId, direction)
+                },
+                openDeletePeer: { [weak interfaceInteraction] threadId in
+                    guard let controller = interfaceInteraction?.chatController() as? ChatControllerImpl else {
+                        return
+                    }
+                    controller.openDeleteMonoforumPeer(peerId: EnginePeer.Id(threadId))
+                }
+            ))
+        }
+    } else if let channel = chatPresentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.isForum, chatPresentationInterfaceState.search == nil {
+        if !chatPresentationInterfaceState.viewForumAsMessages {
+            return nil
+        }
+        let topicListDisplayModeOnTheSide = chatPresentationInterfaceState.persistentData.topicListPanelLocation == .side
+        if !topicListDisplayModeOnTheSide {
+            return AnyComponent(ChatTopicsHeaderPanelComponent(
+                context: context,
+                theme: chatPresentationInterfaceState.theme,
+                strings: chatPresentationInterfaceState.strings,
+                peerId: peerId,
+                kind: .forum,
+                location: chatPresentationInterfaceState.persistentData.topicListPanelLocation == .top ? .top : .bottom,
+                topicId: chatPresentationInterfaceState.chatLocation.threadId,
+                controller: { [weak interfaceInteraction] in
+                    return interfaceInteraction?.chatController()
+                },
+                togglePanel: { [weak interfaceInteraction] in
+                    interfaceInteraction?.toggleChatSidebarMode()
+                },
+                updateTopicId: { [weak interfaceInteraction] topicId, direction in
+                    interfaceInteraction?.updateChatLocationThread(topicId, direction)
+                },
+                openDeletePeer: { [weak interfaceInteraction] threadId in
+                    guard let controller = interfaceInteraction?.chatController() as? ChatControllerImpl else {
+                        return
+                    }
+                    controller.openDeleteMonoforumPeer(peerId: EnginePeer.Id(threadId))
+                }
+            ))
+        }
+    } else if let user = chatPresentationInterfaceState.renderedPeer?.peer as? TelegramUser, let botInfo = user.botInfo, botInfo.flags.contains(.hasForum), chatPresentationInterfaceState.search == nil {
+        if !botInfo.flags.contains(.forumManagedByUser) {
+            if !chatPresentationInterfaceState.hasTopics {
+                return nil
+            }
+        }
+        let topicListDisplayModeOnTheSide = chatPresentationInterfaceState.persistentData.topicListPanelLocation == .side
+        if !topicListDisplayModeOnTheSide {
+            return AnyComponent(ChatTopicsHeaderPanelComponent(
+                context: context,
+                theme: chatPresentationInterfaceState.theme,
+                strings: chatPresentationInterfaceState.strings,
+                peerId: peerId,
+                kind: .botForum(forumManagedByUser: botInfo.flags.contains(.forumManagedByUser)),
+                location: chatPresentationInterfaceState.persistentData.topicListPanelLocation == .top ? .top : .bottom,
+                topicId: chatPresentationInterfaceState.chatLocation.threadId,
+                controller: { [weak interfaceInteraction] in
+                    return interfaceInteraction?.chatController()
+                },
+                togglePanel: { [weak interfaceInteraction] in
+                    interfaceInteraction?.toggleChatSidebarMode()
+                },
+                updateTopicId: { [weak interfaceInteraction] topicId, direction in
+                    interfaceInteraction?.updateChatLocationThread(topicId, direction)
+                },
+                openDeletePeer: { [weak interfaceInteraction] threadId in
+                    guard let controller = interfaceInteraction?.chatController() as? ChatControllerImpl else {
+                        return
+                    }
+                    controller.openDeleteMonoforumPeer(peerId: EnginePeer.Id(threadId))
+                }
+            ))
+        }
+    }
+    
+    return nil
+}
+
+func floatingTopicsPanelForChatPresentationInterfaceState(_ chatPresentationInterfaceState: ChatPresentationInterfaceState, context: AccountContext, controllerInteraction: ChatControllerInteraction?, interfaceInteraction: ChatPanelInterfaceInteraction?, force: Bool) -> ChatFloatingTopicsPanel? {
+    guard let peerId = chatPresentationInterfaceState.chatLocation.peerId else {
+        return nil
+    }
+    if chatPresentationInterfaceState.subject?.isService ?? false {
+        return nil
+    }
+    if peerId.namespace == Namespaces.Peer.CloudUser {
+        guard let chatHistoryState = chatPresentationInterfaceState.chatHistoryState else {
+            return nil
+        }
+        switch chatHistoryState {
+        case .loading:
+            return nil
+        case let .loaded(isEmpty, _):
+            if isEmpty && chatPresentationInterfaceState.chatLocation.threadId == nil {
+                return nil
+            }
+        }
+    }
+    
+    if let channel = chatPresentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.isMonoForum, let linkedMonoforumId = channel.linkedMonoforumId, let mainChannel = chatPresentationInterfaceState.renderedPeer?.peers[linkedMonoforumId] as? TelegramChannel, mainChannel.hasPermission(.manageDirect), chatPresentationInterfaceState.search == nil {
+        let topicListDisplayModeOnTheSide = chatPresentationInterfaceState.persistentData.topicListPanelLocation == .side
+        if topicListDisplayModeOnTheSide {
+            return ChatFloatingTopicsPanel(
+                context: context,
+                theme: chatPresentationInterfaceState.theme,
+                preferClearGlass: chatPresentationInterfaceState.preferredGlassType == .clear,
+                strings: chatPresentationInterfaceState.strings,
+                location: .side,
+                peerId: peerId,
+                kind: .monoforum,
+                topicId: chatPresentationInterfaceState.chatLocation.threadId,
+                controller: { [weak interfaceInteraction] in
+                    return interfaceInteraction?.chatController()
+                },
+                togglePanel: { [weak interfaceInteraction] in
+                    interfaceInteraction?.toggleChatSidebarMode()
+                },
+                updateTopicId: { [weak interfaceInteraction] topicId, direction in
+                    interfaceInteraction?.updateChatLocationThread(topicId, direction)
+                },
+                openDeletePeer: { [weak interfaceInteraction] threadId in
+                    guard let controller = interfaceInteraction?.chatController() as? ChatControllerImpl else {
+                        return
+                    }
+                    controller.openDeleteMonoforumPeer(peerId: EnginePeer.Id(threadId))
+                }
+            )
+        }
+    } else if let channel = chatPresentationInterfaceState.renderedPeer?.peer as? TelegramChannel, channel.isForum, chatPresentationInterfaceState.search == nil {
+        if !chatPresentationInterfaceState.viewForumAsMessages {
+            return nil
+        }
+        let topicListDisplayModeOnTheSide = chatPresentationInterfaceState.persistentData.topicListPanelLocation == .side
+        if topicListDisplayModeOnTheSide {
+            return ChatFloatingTopicsPanel(
+                context: context,
+                theme: chatPresentationInterfaceState.theme,
+                preferClearGlass: chatPresentationInterfaceState.preferredGlassType == .clear,
+                strings: chatPresentationInterfaceState.strings,
+                location: .side,
+                peerId: peerId,
+                kind: .forum,
+                topicId: chatPresentationInterfaceState.chatLocation.threadId,
+                controller: { [weak interfaceInteraction] in
+                    return interfaceInteraction?.chatController()
+                },
+                togglePanel: { [weak interfaceInteraction] in
+                    interfaceInteraction?.toggleChatSidebarMode()
+                },
+                updateTopicId: { [weak interfaceInteraction] topicId, direction in
+                    interfaceInteraction?.updateChatLocationThread(topicId, direction)
+                },
+                openDeletePeer: { [weak interfaceInteraction] threadId in
+                    guard let controller = interfaceInteraction?.chatController() as? ChatControllerImpl else {
+                        return
+                    }
+                    controller.openDeleteMonoforumPeer(peerId: EnginePeer.Id(threadId))
+                }
+            )
+        }
+    } else if let user = chatPresentationInterfaceState.renderedPeer?.peer as? TelegramUser, let botInfo = user.botInfo, botInfo.flags.contains(.hasForum), chatPresentationInterfaceState.search == nil {
+        if !botInfo.flags.contains(.forumManagedByUser) {
+            if !chatPresentationInterfaceState.hasTopics {
+                return nil
+            }
+        }
+        let topicListDisplayModeOnTheSide = chatPresentationInterfaceState.persistentData.topicListPanelLocation == .side
+        if topicListDisplayModeOnTheSide {
+            return ChatFloatingTopicsPanel(
+                context: context,
+                theme: chatPresentationInterfaceState.theme,
+                preferClearGlass: chatPresentationInterfaceState.preferredGlassType == .clear,
+                strings: chatPresentationInterfaceState.strings,
+                location: .side,
+                peerId: peerId,
+                kind: .botForum(forumManagedByUser: botInfo.flags.contains(.forumManagedByUser)),
+                topicId: chatPresentationInterfaceState.chatLocation.threadId,
+                controller: { [weak interfaceInteraction] in
+                    return interfaceInteraction?.chatController()
+                },
+                togglePanel: { [weak interfaceInteraction] in
+                    interfaceInteraction?.toggleChatSidebarMode()
+                },
+                updateTopicId: { [weak interfaceInteraction] topicId, direction in
+                    interfaceInteraction?.updateChatLocationThread(topicId, direction)
+                },
+                openDeletePeer: { [weak interfaceInteraction] threadId in
+                    guard let controller = interfaceInteraction?.chatController() as? ChatControllerImpl else {
+                        return
+                    }
+                    controller.openDeleteMonoforumPeer(peerId: EnginePeer.Id(threadId))
+                }
+            )
         }
     }
     

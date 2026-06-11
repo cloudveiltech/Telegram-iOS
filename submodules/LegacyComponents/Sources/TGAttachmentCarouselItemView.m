@@ -1,4 +1,5 @@
-#import "TGAttachmentCarouselItemView.h"
+#import <LegacyComponents/LegacyComponents.h>
+#import <LegacyComponents/TGAttachmentCarouselItemView.h>
 
 #import "LegacyComponentsInternal.h"
 
@@ -13,7 +14,7 @@
 
 #import "TGTransitionLayout.h"
 
-#import "TGAttachmentCameraView.h"
+#import <LegacyComponents/TGAttachmentCameraView.h>
 
 #import "TGAttachmentPhotoCell.h"
 #import "TGAttachmentVideoCell.h"
@@ -28,7 +29,7 @@
 #import <LegacyComponents/TGMediaPickerGalleryItem.h>
 #import <LegacyComponents/TGMediaAssetsUtils.h>
 
-#import "TGMediaAvatarEditorTransition.h"
+#import <LegacyComponents/TGMediaAvatarEditorTransition.h>
 #import <LegacyComponents/TGPhotoEditorController.h>
 #import <LegacyComponents/TGVideoEditAdjustments.h>
 #import <LegacyComponents/TGMediaAsset+TGMediaEditableItem.h>
@@ -839,7 +840,7 @@ const NSUInteger TGAttachmentDisplayedAssetLimit = 500;
     if ([cell isKindOfClass:[TGAttachmentAssetCell class]])
         thumbnailImage = cell.imageView.image;
     
-    TGMediaPickerModernGalleryMixin *mixin = [[TGMediaPickerModernGalleryMixin alloc] initWithContext:_context item:asset fetchResult:_fetchResult parentController:self.parentController thumbnailImage:thumbnailImage selectionContext:_selectionContext editingContext:_editingContext hasCaptions:(_allowCaptions && !_forProfilePhoto) allowCaptionEntities:self.allowCaptionEntities hasTimer:self.hasTimer onlyCrop:self.onlyCrop inhibitDocumentCaptions:_inhibitDocumentCaptions inhibitMute:self.inhibitMute asFile:self.asFile itemsLimit:TGAttachmentDisplayedAssetLimit recipientName:self.recipientName hasSilentPosting:self.hasSilentPosting hasSchedule:self.hasSchedule reminder:self.reminder stickersContext:self.stickersContext];
+    TGMediaPickerModernGalleryMixin *mixin = [[TGMediaPickerModernGalleryMixin alloc] initWithContext:_context item:asset fetchResult:_fetchResult parentController:self.parentController thumbnailImage:thumbnailImage selectionContext:_selectionContext editingContext:_editingContext hasCaptions:(_allowCaptions && !_forProfilePhoto) allowCaptionEntities:self.allowCaptionEntities hasTimer:self.hasTimer onlyCrop:self.onlyCrop inhibitDocumentCaptions:_inhibitDocumentCaptions inhibitMute:self.inhibitMute asFile:self.asFile itemsLimit:TGAttachmentDisplayedAssetLimit recipientName:self.recipientName hasSilentPosting:self.hasSilentPosting hasSchedule:self.hasSchedule reminder:self.reminder hasCoverButton:false stickersContext:self.stickersContext];
     mixin.presentScheduleController = self.presentScheduleController;
     mixin.presentTimerController = self.presentTimerController;
     __weak TGAttachmentCarouselItemView *weakSelf = self;
@@ -1333,7 +1334,10 @@ const NSUInteger TGAttachmentDisplayedAssetLimit = 500;
         return nil;
     
     CGRect cellFrame = [_collectionView.collectionViewLayout layoutAttributesForItemAtIndexPath:indexPath].frame;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     previewingContext.sourceRect = cellFrame;
+#pragma clang diagnostic pop
     
     TGMediaAsset *asset = nil;
     _previewGalleryMixin = [self galleryMixinForIndexPath:indexPath previewMode:true outAsset:&asset];

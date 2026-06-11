@@ -9,6 +9,7 @@ import SwiftSignalKit
 import Postbox
 import TelegramCore
 import FFMpegBinding
+import CoreMedia
 
 private func readPacketCallback(userData: UnsafeMutableRawPointer?, buffer: UnsafeMutablePointer<UInt8>?, bufferSize: Int32) -> Int32 {
     let context = Unmanaged<UniversalSoftwareVideoSourceImpl>.fromOpaque(userData!).takeUnretainedValue()
@@ -70,6 +71,9 @@ private func readPacketCallback(userData: UnsafeMutableRawPointer?, buffer: Unsa
         }
         let fetchedCount = Int32(fetchedData.count)
         context.readingOffset += Int64(fetchedCount)
+        if fetchedCount == 0 {
+            return FFMPEG_CONSTANT_AVERROR_EOF
+        }
         return fetchedCount
     } else {
         return FFMPEG_CONSTANT_AVERROR_EOF
@@ -143,7 +147,6 @@ private final class UniversalSoftwareVideoSourceImpl {
             self.size = sizeValue
         }
         
-        
         self.mediaBox = mediaBox
         self.source = source
         self.automaticallyFetchHeader = automaticallyFetchHeader
@@ -207,7 +210,7 @@ private final class UniversalSoftwareVideoSourceImpl {
             let rotationAngle: Double = metrics.rotationAngle
             let aspect = Double(metrics.width) / Double(metrics.height)
             
-            if let codec = FFMpegAVCodec.find(forId: codecId) {
+            if let codec = FFMpegAVCodec.find(forId: codecId, preferHardwareAccelerationCapable: false) {
                 let codecContext = FFMpegAVCodecContext(codec: codec)
                 if avFormatContext.codecParams(atStreamIndex: streamIndex, to: codecContext) {
                     if codecContext.open() {

@@ -30,6 +30,7 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
     public enum DisplayAlignment {
         case left
         case right
+        case center
     }
     
     private var bubbleBackgroundNode: WallpaperBubbleBackgroundNode?
@@ -77,6 +78,7 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
                 selectedBackground: themeColors.reactionActiveBackground.argb,
                 deselectedForeground: themeColors.reactionInactiveForeground.argb,
                 selectedForeground: themeColors.reactionActiveForeground.argb,
+                selectedIconTintColor: 0,
                 deselectedStarsBackground: themeColors.reactionStarsInactiveBackground.argb,
                 selectedStarsBackground: themeColors.reactionStarsActiveBackground.argb,
                 deselectedStarsForeground: themeColors.reactionStarsInactiveForeground.argb,
@@ -85,7 +87,8 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
                 extractedForeground: presentationData.theme.theme.contextMenu.primaryColor.argb,
                 extractedSelectedForeground: presentationData.theme.theme.overallDarkAppearance ? themeColors.reactionActiveForeground.argb : presentationData.theme.theme.list.itemCheckColors.foregroundColor.argb,
                 deselectedMediaPlaceholder: themeColors.reactionInactiveMediaPlaceholder.argb,
-                selectedMediaPlaceholder: themeColors.reactionActiveMediaPlaceholder.argb
+                selectedMediaPlaceholder: themeColors.reactionActiveMediaPlaceholder.argb,
+                isDark: presentationData.theme.theme.overallDarkAppearance
             )
         case .outgoing:
             themeColors = bubbleColorComponents(theme: presentationData.theme.theme, incoming: false, wallpaper: !presentationData.theme.wallpaper.isEmpty)
@@ -94,6 +97,7 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
                 selectedBackground: themeColors.reactionActiveBackground.argb,
                 deselectedForeground: themeColors.reactionInactiveForeground.argb,
                 selectedForeground: themeColors.reactionActiveForeground.argb,
+                selectedIconTintColor: 0,
                 deselectedStarsBackground: themeColors.reactionStarsInactiveBackground.argb,
                 selectedStarsBackground: themeColors.reactionStarsActiveBackground.argb,
                 deselectedStarsForeground: themeColors.reactionStarsInactiveForeground.argb,
@@ -102,7 +106,8 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
                 extractedForeground: presentationData.theme.theme.contextMenu.primaryColor.argb,
                 extractedSelectedForeground: presentationData.theme.theme.overallDarkAppearance ? themeColors.reactionActiveForeground.argb : presentationData.theme.theme.list.itemCheckColors.foregroundColor.argb,
                 deselectedMediaPlaceholder: themeColors.reactionInactiveMediaPlaceholder.argb,
-                selectedMediaPlaceholder: themeColors.reactionActiveMediaPlaceholder.argb
+                selectedMediaPlaceholder: themeColors.reactionActiveMediaPlaceholder.argb,
+                isDark: presentationData.theme.theme.overallDarkAppearance
             )
         case .freeform:
             if presentationData.theme.wallpaper.isEmpty {
@@ -116,6 +121,7 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
                 selectedBackground: themeColors.reactionActiveBackground.argb,
                 deselectedForeground: themeColors.reactionInactiveForeground.argb,
                 selectedForeground: themeColors.reactionActiveForeground.argb,
+                selectedIconTintColor: presentationData.theme.theme.overallDarkAppearance ? 0 : presentationData.theme.theme.chat.message.incoming.accentTextColor.argb,
                 deselectedStarsBackground: selectReactionFillStaticColor(theme: presentationData.theme.theme, wallpaper: presentationData.theme.wallpaper, isStars: true).argb,
                 selectedStarsBackground: themeColors.reactionStarsActiveBackground.argb,
                 deselectedStarsForeground: themeColors.reactionStarsInactiveForeground.argb,
@@ -124,7 +130,8 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
                 extractedForeground: presentationData.theme.theme.contextMenu.primaryColor.argb,
                 extractedSelectedForeground: presentationData.theme.theme.contextMenu.primaryColor.argb,
                 deselectedMediaPlaceholder: themeColors.reactionInactiveMediaPlaceholder.argb,
-                selectedMediaPlaceholder: themeColors.reactionActiveMediaPlaceholder.argb
+                selectedMediaPlaceholder: themeColors.reactionActiveMediaPlaceholder.argb,
+                isDark: presentationData.theme.theme.overallDarkAppearance
             )
         }
         
@@ -135,6 +142,110 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
         
         let isTag = message.areReactionsTags(accountPeerId: context.account.peerId)
         
+        var hadStars = false
+        var mappedReactions = reactions.reactions.map { reaction in
+            var centerAnimation: TelegramMediaFile?
+            var animationFileId: Int64?
+            
+            switch reaction.value {
+            case .builtin:
+                if let availableReactions = availableReactions {
+                    for availableReaction in availableReactions.reactions {
+                        if availableReaction.value == reaction.value {
+                            centerAnimation = availableReaction.centerAnimation?._parse()
+                            break
+                        }
+                    }
+                }
+            case let .custom(fileId):
+                animationFileId = fileId
+            case .stars:
+                hadStars = true
+                if let availableReactions = availableReactions {
+                    for availableReaction in availableReactions.reactions {
+                        if availableReaction.value == reaction.value {
+                            centerAnimation = availableReaction.centerAnimation?._parse()
+                            break
+                        }
+                    }
+                }
+            }
+            
+            var peers: [EnginePeer] = []
+            
+            if message.id.peerId.namespace == Namespaces.Peer.CloudUser {
+                if reaction.isSelected, let accountPeer = accountPeer {
+                    peers.append(accountPeer)
+                }
+                if !reaction.isSelected || reaction.count >= 2 {
+                    if let peer = message.peers[message.id.peerId] {
+                        peers.append(EnginePeer(peer))
+                    }
+                }
+            } else {
+                if let channel = message.peers[message.id.peerId] as? TelegramChannel, case .broadcast = channel.info {
+                } else {
+                    for recentPeer in reactions.recentPeers {
+                        if recentPeer.value == reaction.value {
+                            if let peer = message.peers[recentPeer.peerId] {
+                                peers.append(EnginePeer(peer))
+                            }
+                        }
+                    }
+                }
+                
+                if peers.count != Int(reaction.count) || totalReactionCount != reactions.recentPeers.count {
+                    peers.removeAll()
+                }
+            }
+            
+            var title: String?
+            if isTag, let savedMessageTags {
+                for tag in savedMessageTags.tags {
+                    if tag.reaction == reaction.value {
+                        title = tag.title
+                    }
+                }
+            }
+            
+            return ReactionButtonsAsyncLayoutContainer.Reaction(
+                reaction: ReactionButtonComponent.Reaction(
+                    value: reaction.value,
+                    centerAnimation: centerAnimation,
+                    animationFileId: animationFileId,
+                    title: title
+                ),
+                count: Int(reaction.count),
+                peers: peers,
+                chosenOrder: reaction.chosenOrder
+            )
+        }
+        if !"".isEmpty && !hadStars {
+            var centerAnimation: TelegramMediaFile?
+            let animationFileId: Int64? = nil
+            
+            if let availableReactions = availableReactions {
+                for availableReaction in availableReactions.reactions {
+                    if availableReaction.value == .stars {
+                        centerAnimation = availableReaction.centerAnimation?._parse()
+                        break
+                    }
+                }
+            }
+            
+            mappedReactions.insert(ReactionButtonsAsyncLayoutContainer.Reaction(
+                reaction: ReactionButtonComponent.Reaction(
+                    value: .stars,
+                    centerAnimation: centerAnimation,
+                    animationFileId: animationFileId,
+                    title: nil
+                ),
+                count: 0,
+                peers: [],
+                chosenOrder: nil
+            ), at: 0)
+        }
+        
         let reactionButtonsResult = self.container.update(
             context: context,
             action: { [weak self] _, value, sourceView in
@@ -143,86 +254,13 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
                 }
                 self.reactionSelected?(value, sourceView)
             },
-            reactions: reactions.reactions.map { reaction in
-                var centerAnimation: TelegramMediaFile?
-                var animationFileId: Int64?
-                
-                switch reaction.value {
-                case .builtin:
-                    if let availableReactions = availableReactions {
-                        for availableReaction in availableReactions.reactions {
-                            if availableReaction.value == reaction.value {
-                                centerAnimation = availableReaction.centerAnimation
-                                break
-                            }
-                        }
-                    }
-                case let .custom(fileId):
-                    animationFileId = fileId
-                case .stars:
-                    if let availableReactions = availableReactions {
-                        for availableReaction in availableReactions.reactions {
-                            if availableReaction.value == reaction.value {
-                                centerAnimation = availableReaction.centerAnimation
-                                break
-                            }
-                        }
-                    }
-                }
-                
-                var peers: [EnginePeer] = []
-                
-                if message.id.peerId.namespace == Namespaces.Peer.CloudUser {
-                    if reaction.isSelected, let accountPeer = accountPeer {
-                        peers.append(accountPeer)
-                    }
-                    if !reaction.isSelected || reaction.count >= 2 {
-                        if let peer = message.peers[message.id.peerId] {
-                            peers.append(EnginePeer(peer))
-                        }
-                    }
-                } else {
-                    if let channel = message.peers[message.id.peerId] as? TelegramChannel, case .broadcast = channel.info {
-                    } else {
-                        for recentPeer in reactions.recentPeers {
-                            if recentPeer.value == reaction.value {
-                                if let peer = message.peers[recentPeer.peerId] {
-                                    peers.append(EnginePeer(peer))
-                                }
-                            }
-                        }
-                    }
-                    
-                    if peers.count != Int(reaction.count) || totalReactionCount != reactions.recentPeers.count {
-                        peers.removeAll()
-                    }
-                }
-                
-                var title: String?
-                if isTag, let savedMessageTags {
-                    for tag in savedMessageTags.tags {
-                        if tag.reaction == reaction.value {
-                            title = tag.title
-                        }
-                    }
-                }
-                
-                return ReactionButtonsAsyncLayoutContainer.Reaction(
-                    reaction: ReactionButtonComponent.Reaction(
-                        value: reaction.value,
-                        centerAnimation: centerAnimation,
-                        animationFileId: animationFileId,
-                        title: title
-                    ),
-                    count: Int(reaction.count),
-                    peers: peers,
-                    chosenOrder: reaction.chosenOrder
-                )
-            },
+            reactions: mappedReactions,
             colors: reactionColors,
             isTag: isTag,
             constrainedWidth: constrainedWidth
         )
+        
+        let itemSpacing: CGFloat = 6.0
         
         var reactionButtonsSize = CGSize()
         var currentRowWidth: CGFloat = 0.0
@@ -230,21 +268,21 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
             if currentRowWidth + item.size.width > constrainedWidth {
                 reactionButtonsSize.width = max(reactionButtonsSize.width, currentRowWidth)
                 if !reactionButtonsSize.height.isZero {
-                    reactionButtonsSize.height += 6.0
+                    reactionButtonsSize.height += itemSpacing
                 }
                 reactionButtonsSize.height += item.size.height
                 currentRowWidth = 0.0
             }
             
             if !currentRowWidth.isZero {
-                currentRowWidth += 6.0
+                currentRowWidth += itemSpacing
             }
             currentRowWidth += item.size.width
         }
         if !currentRowWidth.isZero && !reactionButtonsResult.items.isEmpty {
             reactionButtonsSize.width = max(reactionButtonsSize.width, currentRowWidth)
             if !reactionButtonsSize.height.isZero {
-                reactionButtonsSize.height += 6.0
+                reactionButtonsSize.height += itemSpacing
             }
             reactionButtonsSize.height += reactionButtonsResult.items[0].size.height
         }
@@ -296,11 +334,14 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
                 }
                 
                 var reactionButtonPosition: CGPoint
+                
                 switch alignment {
                 case .left:
                     reactionButtonPosition = CGPoint(x: -1.0, y: topInset)
                 case .right:
                     reactionButtonPosition = CGPoint(x: size.width + 1.0, y: topInset)
+                case .center:
+                    reactionButtonPosition = CGPoint(x: 0.0, y: topInset)
                 }
                 
                 let reactionButtons = reactionButtonsResult.apply(
@@ -312,32 +353,8 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
                 )
                 
                 var validIds = Set<MessageReaction.Reaction>()
-                for item in reactionButtons.items {
-                    validIds.insert(item.value)
-                    
-                    switch alignment {
-                    case .left:
-                        if reactionButtonPosition.x + item.size.width > boundingWidth {
-                            reactionButtonPosition.x = -1.0
-                            reactionButtonPosition.y += item.size.height + 6.0
-                        }
-                    case .right:
-                        if reactionButtonPosition.x - item.size.width < -1.0 {
-                            reactionButtonPosition.x = size.width + 1.0
-                            reactionButtonPosition.y += item.size.height + 6.0
-                        }
-                    }
-                    
-                    let itemFrame: CGRect
-                    switch alignment {
-                    case .left:
-                        itemFrame = CGRect(origin: reactionButtonPosition, size: item.size)
-                        reactionButtonPosition.x += item.size.width + 6.0
-                    case .right:
-                        itemFrame = CGRect(origin: CGPoint(x: reactionButtonPosition.x - item.size.width, y: reactionButtonPosition.y), size: item.size)
-                        reactionButtonPosition.x -= item.size.width + 6.0
-                    }
-                    
+                
+                let layoutItem: (ReactionButtonsAsyncLayoutContainer.ApplyResult.Item, CGRect) -> Void = { item, itemFrame in
                     let itemMaskFrame = itemFrame.offsetBy(dx: backgroundInsets, dy: backgroundInsets)
                     
                     let itemMaskView: UIView
@@ -394,6 +411,77 @@ public final class MessageReactionButtonsNode: ASDisplayNode {
                         } else {
                             animation.animator.updateFrame(layer: itemMaskView.layer, frame: itemMaskFrame, completion: nil)
                         }
+                    }
+                }
+
+                if alignment == .center {
+                    var lines: [[ReactionButtonsAsyncLayoutContainer.ApplyResult.Item]] = []
+                    var currentLine: [ReactionButtonsAsyncLayoutContainer.ApplyResult.Item] = []
+                    var currentLineWidth: CGFloat = 0.0
+
+                    for item in reactionButtons.items {
+                        validIds.insert(item.value)
+                        let itemWidth = item.size.width
+
+                        if currentLineWidth + itemWidth + (currentLine.isEmpty ? 0 : itemSpacing) > boundingWidth + itemSpacing {
+                            lines.append(currentLine)
+                            currentLine = [item]
+                            currentLineWidth = itemWidth
+                        } else {
+                            currentLine.append(item)
+                            currentLineWidth += (currentLine.isEmpty ? 0 : itemSpacing) + itemWidth
+                        }
+                    }
+                    if !currentLine.isEmpty {
+                        lines.append(currentLine)
+                    }
+
+                    var yPosition = topInset
+
+                    for line in lines {
+                        let totalItemWidth = line.reduce(0.0) { $0 + $1.size.width } + CGFloat(line.count - 1) * itemSpacing
+                        let startX = (boundingWidth - totalItemWidth) / 2.0
+                        var xPosition = startX
+
+                        for item in line {
+                            let itemFrame = CGRect(origin: CGPoint(x: xPosition, y: yPosition), size: item.size)
+                            xPosition += item.size.width + itemSpacing
+                            
+                            layoutItem(item, itemFrame)
+                        }
+                        yPosition += line.first!.size.height + itemSpacing
+                    }
+                } else {
+                    for item in reactionButtons.items {
+                        validIds.insert(item.value)
+                        
+                        switch alignment {
+                        case .left:
+                            if reactionButtonPosition.x + item.size.width > boundingWidth {
+                                reactionButtonPosition.x = -1.0
+                                reactionButtonPosition.y += item.size.height + itemSpacing
+                            }
+                        case .right:
+                            if reactionButtonPosition.x - item.size.width < -1.0 {
+                                reactionButtonPosition.x = size.width + 1.0
+                                reactionButtonPosition.y += item.size.height + itemSpacing
+                            }
+                        default:
+                            break
+                        }
+                        
+                        let itemFrame: CGRect
+                        switch alignment {
+                        case .left, .center:
+                            itemFrame = CGRect(origin: reactionButtonPosition, size: item.size)
+                            reactionButtonPosition.x += item.size.width + itemSpacing
+                        case .right:
+                            itemFrame = CGRect(origin: CGPoint(x: reactionButtonPosition.x - item.size.width, y: reactionButtonPosition.y), size: item.size)
+                            reactionButtonPosition.x -= item.size.width + itemSpacing
+                        }
+                        
+                        
+                        layoutItem(item, itemFrame)
                     }
                 }
                 
@@ -629,6 +717,7 @@ public final class ChatMessageReactionButtonsNode: ASDisplayNode {
         public let accountPeer: EnginePeer?
         public let isIncoming: Bool
         public let constrainedWidth: CGFloat
+        public let centerAligned: Bool
         
         public init(
             context: AccountContext,
@@ -641,7 +730,8 @@ public final class ChatMessageReactionButtonsNode: ASDisplayNode {
             associatedData: ChatMessageItemAssociatedData,
             accountPeer: EnginePeer?,
             isIncoming: Bool,
-            constrainedWidth: CGFloat
+            constrainedWidth: CGFloat,
+            centerAligned: Bool
         ) {
             self.context = context
             self.presentationData = presentationData
@@ -654,6 +744,7 @@ public final class ChatMessageReactionButtonsNode: ASDisplayNode {
             self.accountPeer = accountPeer
             self.isIncoming = isIncoming
             self.constrainedWidth = constrainedWidth
+            self.centerAligned = centerAligned
         }
     }
     
@@ -682,6 +773,13 @@ public final class ChatMessageReactionButtonsNode: ASDisplayNode {
         return { arguments in
             let node = maybeNode ?? ChatMessageReactionButtonsNode()
             
+            let alignment: MessageReactionButtonsNode.DisplayAlignment
+            if arguments.centerAligned {
+                alignment = .center
+            } else {
+                alignment = arguments.isIncoming ? .left : .right
+            }
+            
             let buttonsUpdate = node.buttonsNode.prepareUpdate(
                 context: arguments.context,
                 presentationData: arguments.presentationData,
@@ -692,7 +790,7 @@ public final class ChatMessageReactionButtonsNode: ASDisplayNode {
                 accountPeer: arguments.accountPeer,
                 message: arguments.message,
                 associatedData: arguments.associatedData,
-                alignment: arguments.isIncoming ? .left : .right,
+                alignment: alignment,
                 constrainedWidth: arguments.constrainedWidth,
                 type: .freeform
             )

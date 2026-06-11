@@ -7,10 +7,14 @@ import TelegramApi
 public func telegramWallpapers(postbox: Postbox, network: Network, forceUpdate: Bool = false) -> Signal<[TelegramWallpaper], NoError> {
     let fetch: ([TelegramWallpaper]?, Int64?) -> Signal<[TelegramWallpaper], NoError> = { current, hash in
         network.request(Api.functions.account.getWallPapers(hash: hash ?? 0))
-        |> retryRequest
+        |> retryRequestIfNotFrozen
         |> mapToSignal { result -> Signal<([TelegramWallpaper], Int64), NoError> in
+            guard let result else {
+                return .single(([], -1))
+            }
             switch result {
-                case let .wallPapers(hash, wallpapers):
+                case let .wallPapers(wallPapersData):
+                    let (hash, wallpapers) = (wallPapersData.hash, wallPapersData.wallpapers)
                     var items: [TelegramWallpaper] = []
                     var addedBuiltin = false
                     for apiWallpaper in wallpapers {
@@ -158,7 +162,7 @@ public enum GetWallpaperError {
 }
 
 public func getWallpaper(network: Network, slug: String) -> Signal<TelegramWallpaper, GetWallpaperError> {
-    return network.request(Api.functions.account.getWallPaper(wallpaper: .inputWallPaperSlug(slug: slug)))
+    return network.request(Api.functions.account.getWallPaper(wallpaper: .inputWallPaperSlug(.init(slug: slug))))
     |> mapError { _ -> GetWallpaperError in return .generic }
     |> map { wallpaper -> TelegramWallpaper in
         return TelegramWallpaper(apiWallpaper: wallpaper)
@@ -177,7 +181,7 @@ private func saveUnsaveWallpaper(account: Account, wallpaper: TelegramWallpaper,
     guard case let .file(file) = wallpaper else {
         return .complete()
     }
-    return account.network.request(Api.functions.account.saveWallPaper(wallpaper: Api.InputWallPaper.inputWallPaperSlug(slug: file.slug), unsave: unsave ? Api.Bool.boolTrue : Api.Bool.boolFalse, settings: apiWallpaperSettings(file.settings)))
+    return account.network.request(Api.functions.account.saveWallPaper(wallpaper: Api.InputWallPaper.inputWallPaperSlug(.init(slug: file.slug)), unsave: unsave ? Api.Bool.boolTrue : Api.Bool.boolFalse, settings: apiWallpaperSettings(file.settings)))
     |> `catch` { _ -> Signal<Api.Bool, NoError> in
         return .complete()
     }
@@ -192,9 +196,9 @@ public func installWallpaper(account: Account, wallpaper: TelegramWallpaper) -> 
     }
     let inputWallpaper: Api.InputWallPaper
     if file.id != 0 && file.accessHash != 0 {
-        inputWallpaper = .inputWallPaper(id: file.id, accessHash: file.accessHash)
+        inputWallpaper = .inputWallPaper(.init(id: file.id, accessHash: file.accessHash))
     } else {
-        inputWallpaper = .inputWallPaperSlug(slug: file.slug)
+        inputWallpaper = .inputWallPaperSlug(.init(slug: file.slug))
     }
     return account.network.request(Api.functions.account.installWallPaper(wallpaper: inputWallpaper, settings: apiWallpaperSettings(file.settings)))
     |> `catch` { _ -> Signal<Api.Bool, NoError> in

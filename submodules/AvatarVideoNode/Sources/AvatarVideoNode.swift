@@ -25,6 +25,7 @@ public final class AvatarVideoNode: ASDisplayNode {
     
     private var emojiMarkup: TelegramMediaImage.EmojiMarkup?
     
+    private var videoFileDisposable: Disposable?
     private var fileDisposable = MetaDisposable()
     private var animationFile: TelegramMediaFile?
     private var itemLayer: EmojiKeyboardItemLayer?
@@ -32,6 +33,7 @@ public final class AvatarVideoNode: ASDisplayNode {
     private var animationNode: AnimatedStickerNode?
     private let stickerFetchedDisposable = MetaDisposable()
     
+    private var videoItemLayer: EmojiKeyboardItemLayer?
     private var videoNode: UniversalVideoNode?
     private var videoContent: NativeVideoContent?
     private let playbackStartDisposable = MetaDisposable()
@@ -55,6 +57,7 @@ public final class AvatarVideoNode: ASDisplayNode {
     }
     
     deinit {
+        self.videoFileDisposable?.dispose()
         self.fileDisposable.dispose()
         self.stickerFetchedDisposable.dispose()
         self.playbackStartDisposable.dispose()
@@ -100,12 +103,12 @@ public final class AvatarVideoNode: ASDisplayNode {
         } else {
             let itemNativeFitSize = self.internalSize.width > 100.0 ? CGSize(width: 192.0, height: 192.0) : CGSize(width: 64.0, height: 64.0)
             
-            let animationData = EntityKeyboardAnimationData(file: animationFile)
+            let animationData = EntityKeyboardAnimationData(file: TelegramMediaFile.Accessor(animationFile))
             let itemLayer = EmojiKeyboardItemLayer(
                 item: EmojiPagerContentComponent.Item(
                     animationData: animationData,
                     content: .animation(animationData),
-                    itemFile: animationFile,
+                    itemFile: TelegramMediaFile.Accessor(animationFile),
                     subgroupId: nil,
                     icon: .none,
                     tintMode: animationData.isTemplate ? .primary : .none
@@ -137,6 +140,7 @@ public final class AvatarVideoNode: ASDisplayNode {
                     self.videoLoopCount += 1
                     if self.videoLoopCount >= maxVideoLoopCount {
                         self.itemLayer?.isVisibleForAnimations = false
+                        self.videoItemLayer?.isVisibleForAnimations = false
                     }
                 }
             }
@@ -185,7 +189,7 @@ public final class AvatarVideoNode: ASDisplayNode {
             self.fileDisposable.set((self.context.engine.stickers.loadedStickerPack(reference: packReference, forceActualized: false)
             |> map { pack -> TelegramMediaFile? in
                 if case let .result(_, items, _) = pack, let item = items.first(where: { $0.file.fileId.id == fileId }) {
-                    return item.file
+                    return item.file._parse()
                 }
                 return nil
             }
@@ -202,7 +206,7 @@ public final class AvatarVideoNode: ASDisplayNode {
         self.internalSize = size
         if let markup = photo.emojiMarkup {
             self.update(markup: markup, size: size, useAnimationNode: false)
-        } else if let video = smallestVideoRepresentation(photo.videoRepresentations), let peerReference = PeerReference(peer._asPeer()) {
+        } else if let video = smallestVideoRepresentation(photo.videoRepresentations), let peerReference = PeerReference(peer) {
             self.backgroundNode.image = nil
             
             let videoId = photo.id?.id ?? peer.id.id._internalGetInt64Value()
@@ -211,6 +215,9 @@ public final class AvatarVideoNode: ASDisplayNode {
             if videoContent.id != self.videoContent?.id {
                 self.videoNode?.removeFromSupernode()
                 self.videoContent = videoContent
+                
+                self.videoFileDisposable?.dispose()
+                self.videoFileDisposable = self.context.engine.resources.fetch(reference: videoFileReference.resourceReference(videoFileReference.media.resource), userLocation: .peer(peer.id), userContentType: .avatar).startStrict()
             }
         }
     }
@@ -222,7 +229,7 @@ public final class AvatarVideoNode: ASDisplayNode {
         if isVisible, let animationNode = self.animationNode, let file = self.animationFile {
             if !self.didSetupAnimation {
                 self.didSetupAnimation = true
-                let pathPrefix = self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(file.resource.id)
+                let pathPrefix = self.context.engine.resources.shortLivedResourceCachePathPrefix(id: EngineMediaResource.Id(file.resource.id))
                 let dimensions = file.dimensions ?? PixelDimensions(width: 512, height: 512)
                 let fittedDimensions = dimensions.cgSize.aspectFitted(CGSize(width: 384.0, height: 384.0))
                 let source = AnimatedStickerResourceSource(account: self.context.account, resource: file.resource, isVideo: file.isVideoSticker || file.mimeType == "video/webm")
@@ -231,56 +238,111 @@ public final class AvatarVideoNode: ASDisplayNode {
         }
         self.animationNode?.visibility = isVisible
         if isVisible, let videoContent = self.videoContent, self.videoLoopCount < maxVideoLoopCount {
-            if self.videoNode == nil {
-                let context = self.context
-                let mediaManager = context.sharedContext.mediaManager
-                let videoNode = UniversalVideoNode(accountId: context.account.id, postbox: context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: VideoDecoration(), content: videoContent, priority: .embedded)
-                videoNode.clipsToBounds = true
-                videoNode.isUserInteractionEnabled = false
-                videoNode.isHidden = true
-                videoNode.playbackCompleted = { [weak self] in
-                    if let strongSelf = self {
-                        strongSelf.videoLoopCount += 1
-                        if strongSelf.videoLoopCount >= maxVideoLoopCount {
-                            if let videoNode = strongSelf.videoNode {
-                                strongSelf.videoNode = nil
-                                videoNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, removeOnCompletion: false, completion: { [weak videoNode] _ in
-                                    videoNode?.removeFromSupernode()
-                                })
+            var useDirectCache = false
+            if self.internalSize.width <= 200.0 {
+                useDirectCache = true
+            }
+            
+            if useDirectCache {
+                if self.videoItemLayer == nil {
+                    let animationData = EntityKeyboardAnimationData(file: TelegramMediaFile.Accessor(videoContent.fileReference.media))
+                    let videoItemLayer = EmojiKeyboardItemLayer(
+                        item: EmojiPagerContentComponent.Item(
+                            animationData: animationData,
+                            content: .animation(animationData),
+                            itemFile: TelegramMediaFile.Accessor(videoContent.fileReference.media),
+                            subgroupId: nil,
+                            icon: .none,
+                            tintMode: .none
+                        ),
+                        context: self.context,
+                        attemptSynchronousLoad: false,
+                        content: .animation(animationData),
+                        cache: self.context.animationCache,
+                        renderer: self.context.animationRenderer,
+                        placeholderColor: .clear,
+                        blurredBadgeColor: .clear,
+                        accentIconColor: .white,
+                        pointSize: self.internalSize,
+                        onUpdateDisplayPlaceholder: { _, _ in
+                        }
+                    )
+                    videoItemLayer.onLoop = { [weak self] in
+                        if let self {
+                            self.videoLoopCount += 1
+                            if self.videoLoopCount >= maxVideoLoopCount {
+                                self.itemLayer?.isVisibleForAnimations = false
                             }
                         }
                     }
+                    
+                    self.videoItemLayer = videoItemLayer
+                    self.layer.addSublayer(videoItemLayer)
                 }
-                
-                if let _ = videoContent.startTimestamp {
-                    self.playbackStartDisposable.set((videoNode.status
-                    |> map { status -> Bool in
-                        if let status = status, case .playing = status.status {
-                            return true
-                        } else {
-                            return false
-                        }
-                    }
-                    |> filter { playing in
-                        return playing
-                    }
-                    |> take(1)
-                    |> deliverOnMainQueue).startStrict(completed: { [weak self] in
+            } else {
+                if let videoItemLayer = self.videoItemLayer {
+                    self.videoItemLayer = nil
+                    videoItemLayer.removeFromSuperlayer()
+                }
+            }
+            
+            if useDirectCache {
+                if let videoNode = self.videoNode {
+                    self.videoNode = nil
+                    videoNode.removeFromSupernode()
+                }
+            } else {
+                if self.videoNode == nil {
+                    let context = self.context
+                    let mediaManager = context.sharedContext.mediaManager
+                    let videoNode = UniversalVideoNode(context: context, postbox: context.account.postbox, audioSession: mediaManager.audioSession, manager: mediaManager.universalVideoManager, decoration: VideoDecoration(), content: videoContent, priority: .embedded)
+                    videoNode.clipsToBounds = true
+                    videoNode.isUserInteractionEnabled = false
+                    videoNode.isHidden = true
+                    videoNode.playbackCompleted = { [weak self] in
                         if let strongSelf = self {
-                            Queue.mainQueue().after(0.15) {
-                                strongSelf.videoNode?.isHidden = false
+                            strongSelf.videoLoopCount += 1
+                            if strongSelf.videoLoopCount >= maxVideoLoopCount {
+                                if let videoNode = strongSelf.videoNode {
+                                    strongSelf.videoNode = nil
+                                    videoNode.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, removeOnCompletion: false, completion: { [weak videoNode] _ in
+                                        videoNode?.removeFromSupernode()
+                                    })
+                                }
                             }
                         }
-                    }))
-                } else {
-                    self.playbackStartDisposable.set(nil)
-                    videoNode.isHidden = false
+                    }
+                    
+                    if let _ = videoContent.startTimestamp {
+                        self.playbackStartDisposable.set((videoNode.status
+                        |> map { status -> Bool in
+                            if let status = status, case .playing = status.status {
+                                return true
+                            } else {
+                                return false
+                            }
+                        }
+                        |> filter { playing in
+                            return playing
+                        }
+                        |> take(1)
+                        |> deliverOnMainQueue).startStrict(completed: { [weak self] in
+                            if let strongSelf = self {
+                                Queue.mainQueue().after(0.15) {
+                                    strongSelf.videoNode?.isHidden = false
+                                }
+                            }
+                        }))
+                    } else {
+                        self.playbackStartDisposable.set(nil)
+                        videoNode.isHidden = false
+                    }
+                    videoNode.canAttachContent = true
+                    videoNode.play()
+                    
+                    self.addSubnode(videoNode)
+                    self.videoNode = videoNode
                 }
-                videoNode.canAttachContent = true
-                videoNode.play()
-                
-                self.addSubnode(videoNode)
-                self.videoNode = videoNode
             }
         } else if let videoNode = self.videoNode {
             self.videoNode = nil
@@ -289,6 +351,7 @@ public final class AvatarVideoNode: ASDisplayNode {
         if self.videoLoopCount < maxVideoLoopCount {
             self.itemLayer?.isVisibleForAnimations = isVisible
         }
+        self.videoItemLayer?.isVisibleForAnimations = isVisible
     }
     
     public func updateLayout(size: CGSize, cornerRadius: CGFloat, transition: ContainedViewLayoutTransition) {
@@ -300,6 +363,9 @@ public final class AvatarVideoNode: ASDisplayNode {
         if let videoNode = self.videoNode {
             videoNode.frame = CGRect(origin: .zero, size: size)
             videoNode.updateLayout(size: size, transition: transition)
+        }
+        if let videoItemLayer = self.videoItemLayer {
+            videoItemLayer.frame = CGRect(origin: .zero, size: size)
         }
         
         let itemSize = CGSize(width: size.width * 0.67, height: size.height * 0.67)

@@ -15,32 +15,14 @@ import ChatControllerInteraction
 
 extension ChatControllerImpl {
     func openMentionContextMenu(username: String, peerId: EnginePeer.Id?, params: ChatControllerInteraction.LongTapParams) -> Void {
-        guard let message = params.message, let contentNode = params.contentNode else {
+        guard let _ = params.message, let contentNode = params.contentNode else {
             return
         }
+    
+        let recognizer: TapLongTapOrDoubleTapGestureRecognizer? = params.gesture
+        let gesture: ContextGesture? = nil
         
-        guard let messages = self.chatDisplayNode.historyNode.messageGroupInCurrentHistoryView(message.id) else {
-            return
-        }
-        
-        var updatedMessages = messages
-        for i in 0 ..< updatedMessages.count {
-            if updatedMessages[i].id == message.id {
-                let message = updatedMessages.remove(at: i)
-                updatedMessages.insert(message, at: 0)
-                break
-            }
-        }
-        
-        let recognizer: TapLongTapOrDoubleTapGestureRecognizer? = nil// anyRecognizer as? TapLongTapOrDoubleTapGestureRecognizer
-        let gesture: ContextGesture? = nil // anyRecognizer as? ContextGesture
-        
-        let source: ContextContentSource
-//                if let location = location {
-//                    source = .location(ChatMessageContextLocationContentSource(controller: self, location: messageNode.view.convert(messageNode.bounds, to: nil).origin.offsetBy(dx: location.x, dy: location.y)))
-//                } else {
-            source = .extracted(ChatMessageLinkContextExtractedContentSource(chatNode: self.chatDisplayNode, contentNode: contentNode))
-//                }
+        let source: ContextContentSource = .extracted(ChatMessageLinkContextExtractedContentSource(chatNode: self.chatDisplayNode, contentNode: contentNode))
         
         params.progress?.set(.single(true))
                 
@@ -150,7 +132,7 @@ extension ChatControllerImpl {
             
             self.canReadHistory.set(false)
             
-            let controller = ContextController(presentationData: self.presentationData, source: source, items: .single(ContextController.Items(content: .list(items))), recognizer: recognizer, gesture: gesture, disableScreenshots: false)
+            let controller = makeContextController(presentationData: self.presentationData, source: source, items: .single(ContextController.Items(content: .list(items))), recognizer: recognizer, gesture: gesture, disableScreenshots: false)
             controller.dismissed = { [weak self] in
                 self?.canReadHistory.set(true)
             }

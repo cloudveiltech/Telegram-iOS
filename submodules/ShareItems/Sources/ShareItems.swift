@@ -10,6 +10,8 @@ import LocalMediaResources
 import AVFoundation
 import LegacyComponents
 import ShareItemsImpl
+import UIKit
+import SSignalKit
 
 public enum UnpreparedShareItemContent {
     case contact(DeviceContactExtendedData)
@@ -53,7 +55,7 @@ private func preparedShareItem(postbox: Postbox, network: Network, to peerId: Pe
         let diminsionsSize = dimensions.cgSizeValue
         return .single(.preparing(false))
         |> then(
-            standaloneUploadedImage(postbox: postbox, network: network, peerId: peerId, text: "", data: imageData, dimensions: PixelDimensions(width: Int32(diminsionsSize.width), height: Int32(diminsionsSize.height)))
+            standaloneUploadedImage(postbox: postbox, network: network, peerId: peerId, text: "", source: .data(imageData), dimensions: PixelDimensions(width: Int32(diminsionsSize.width), height: Int32(diminsionsSize.height)))
             |> mapError { _ -> PreparedShareItemError in
                 return .generic
             }
@@ -72,7 +74,7 @@ private func preparedShareItem(postbox: Postbox, network: Network, to peerId: Pe
         if let scaledImage = scalePhotoImage(image, dimensions: dimensions), let imageData = scaledImage.jpegData(compressionQuality: 0.52) {
             return .single(.preparing(false))
             |> then(
-                standaloneUploadedImage(postbox: postbox, network: network, peerId: peerId, text: "", data: imageData, dimensions: PixelDimensions(width: Int32(dimensions.width), height: Int32(dimensions.height)))
+                standaloneUploadedImage(postbox: postbox, network: network, peerId: peerId, text: "", source: .data(imageData), dimensions: PixelDimensions(width: Int32(dimensions.width), height: Int32(dimensions.height)))
                 |> mapError { _ -> PreparedShareItemError in
                     return .generic
                 }
@@ -121,39 +123,61 @@ private func preparedShareItem(postbox: Postbox, network: Network, to peerId: Pe
             }
         }
         
+        func getThumbnail(_ avAsset: AVURLAsset) -> Signal<UIImage?, NoError> {
+            return Signal { subscriber in
+                let imageGenerator = AVAssetImageGenerator(asset: asset)
+                imageGenerator.appliesPreferredTrackTransform = true
+                imageGenerator.maximumSize = CGSize(width: 640, height: 640)
+                imageGenerator.generateCGImagesAsynchronously(forTimes: [NSValue(time: CMTime(seconds: 0, preferredTimescale: CMTimeScale(30.0)))]) { _, image, _, _, _ in
+                    subscriber.putNext(image.flatMap { UIImage(cgImage: $0) })
+                    subscriber.putCompletion()
+                }
+                return ActionDisposable {
+                    imageGenerator.cancelAllCGImageGeneration()
+                }
+            }
+            
+        }
+        
         return .single(.preparing(true))
         |> then(
             loadValues(asset)
             |> mapToSignal { asset -> Signal<PreparedShareItem, PreparedShareItemError> in
-                let preset = adjustments?.preset ?? TGMediaVideoConversionPresetCompressedMedium
-                let finalDimensions = TGMediaVideoConverter.dimensions(for: asset.originalSize, adjustments: adjustments, preset: preset)
-                
-                var resourceAdjustments: VideoMediaResourceAdjustments?
-                if let adjustments = adjustments {
-                    if adjustments.trimApplied() {
-                        finalDuration = adjustments.trimEndValue - adjustments.trimStartValue
+                return getThumbnail(asset)
+                |> castError(PreparedShareItemError.self)
+                |> mapToSignal { thumbnail -> Signal<PreparedShareItem, PreparedShareItemError> in
+                    let preset = adjustments?.preset ?? TGMediaVideoConversionPresetCompressedMedium
+                    let finalDimensions = TGMediaVideoConverter.dimensions(for: asset.originalSize, adjustments: adjustments, preset: preset)
+                    
+                    var resourceAdjustments: VideoMediaResourceAdjustments?
+                    if let adjustments = adjustments {
+                        if adjustments.trimApplied() {
+                            finalDuration = adjustments.trimEndValue - adjustments.trimStartValue
+                        }
+                        
+                        if let dict = adjustments.dictionary(), let data = try? NSKeyedArchiver.archivedData(withRootObject: dict, requiringSecureCoding: false) {
+                            let adjustmentsData = MemoryBuffer(data: data)
+                            let digest = MemoryBuffer(data: adjustmentsData.md5Digest())
+                            resourceAdjustments = VideoMediaResourceAdjustments(data: adjustmentsData, digest: digest, isStory: false)
+                        }
                     }
                     
-                    if let dict = adjustments.dictionary(), let data = try? NSKeyedArchiver.archivedData(withRootObject: dict, requiringSecureCoding: false) {
-                        let adjustmentsData = MemoryBuffer(data: data)
-                        let digest = MemoryBuffer(data: adjustmentsData.md5Digest())
-                        resourceAdjustments = VideoMediaResourceAdjustments(data: adjustmentsData, digest: digest, isStory: false)
+                    let estimatedSize = TGMediaVideoConverter.estimatedSize(for: preset, duration: finalDuration, hasAudio: true)
+                    
+                    let thumbnailData = thumbnail?.jpegData(compressionQuality: 0.6)
+                    
+                    let resource = LocalFileVideoMediaResource(randomId: Int64.random(in: Int64.min ... Int64.max), path: asset.url.path, adjustments: resourceAdjustments)
+                    return standaloneUploadedFile(postbox: postbox, network: network, peerId: peerId, text: "", source: .resource(.standalone(resource: resource)), thumbnailData: thumbnailData, mimeType: "video/mp4", attributes: [.Video(duration: finalDuration, size: PixelDimensions(width: Int32(finalDimensions.width), height: Int32(finalDimensions.height)), flags: flags, preloadSize: nil, coverTime: 0.0, videoCodec: nil)], hintFileIsLarge: estimatedSize > 10 * 1024 * 1024)
+                    |> mapError { _ -> PreparedShareItemError in
+                        return .generic
                     }
-                }
-                
-                let estimatedSize = TGMediaVideoConverter.estimatedSize(for: preset, duration: finalDuration, hasAudio: true)
-                
-                let resource = LocalFileVideoMediaResource(randomId: Int64.random(in: Int64.min ... Int64.max), path: asset.url.path, adjustments: resourceAdjustments)
-                return standaloneUploadedFile(postbox: postbox, network: network, peerId: peerId, text: "", source: .resource(.standalone(resource: resource)), mimeType: "video/mp4", attributes: [.Video(duration: finalDuration, size: PixelDimensions(width: Int32(finalDimensions.width), height: Int32(finalDimensions.height)), flags: flags, preloadSize: nil, coverTime: nil, videoCodec: nil)], hintFileIsLarge: estimatedSize > 10 * 1024 * 1024)
-                |> mapError { _ -> PreparedShareItemError in
-                    return .generic
-                }
-                |> mapToSignal { event -> Signal<PreparedShareItem, PreparedShareItemError> in
-                    switch event {
-                        case let .progress(value):
-                            return .single(.progress(value))
-                        case let .result(media):
-                            return .single(.done(.media(media)))
+                    |> mapToSignal { event -> Signal<PreparedShareItem, PreparedShareItemError> in
+                        switch event {
+                            case let .progress(value):
+                                return .single(.progress(value))
+                            case let .result(media):
+                                return .single(.done(.media(media)))
+                        }
                     }
                 }
             }
@@ -184,6 +208,13 @@ private func preparedShareItem(postbox: Postbox, network: Network, to peerId: Pe
                 }
             }
             if isGif {
+                #if DEBUG
+                let signal = SSignal(generator: { _ in
+                    return SBlockDisposable(block: {})
+                })
+                let _ = signal.start(next: nil, error: nil, completed: nil)
+                #endif
+                
                 let convertedData = Signal<(Data, CGSize, Double, Bool), NoError> { subscriber in
                     let disposable = MetaDisposable()
                     let signalDisposable = TGGifConverter.convertGif(toMp4: data).start(next: { next in
@@ -234,7 +265,7 @@ private func preparedShareItem(postbox: Postbox, network: Network, to peerId: Pe
                 let imageData = scaledImage.jpegData(compressionQuality: 0.54)!
                 return .single(.preparing(false))
                 |> then(
-                    standaloneUploadedImage(postbox: postbox, network: network, peerId: peerId, text: "", data: imageData, dimensions: PixelDimensions(width: Int32(scaledImage.size.width), height: Int32(scaledImage.size.height)))
+                    standaloneUploadedImage(postbox: postbox, network: network, peerId: peerId, text: "", source: .data(imageData), dimensions: PixelDimensions(width: Int32(scaledImage.size.width), height: Int32(scaledImage.size.height)))
                     |> mapError { _ -> PreparedShareItemError in
                         return .generic
                     }
@@ -409,7 +440,7 @@ public func preparedShareItems(postbox: Postbox, network: Network, to peerId: Pe
     })
 }
 
-public func sentShareItems(accountPeerId: PeerId, postbox: Postbox, network: Network, stateManager: AccountStateManager, auxiliaryMethods: AccountAuxiliaryMethods, to peerIds: [PeerId], threadIds: [PeerId: Int64], items: [PreparedShareItemContent], silently: Bool, additionalText: String) -> Signal<Float, Void> {
+public func sentShareItems(accountPeerId: PeerId, postbox: Postbox, network: Network, stateManager: AccountStateManager, auxiliaryMethods: AccountAuxiliaryMethods, to peerIds: [PeerId], threadIds: [PeerId: Int64], requireStars: [PeerId: StarsAmount], items: [PreparedShareItemContent], silently: Bool, additionalText: String) -> Signal<Float, Void> {
     var messages: [StandaloneSendEnqueueMessage] = []
     var groupingKey: Int64?
     var mediaTypes: (photo: Int, video: Int, music: Int, other: Int) = (0, 0, 0, 0)
@@ -447,6 +478,7 @@ public func sentShareItems(accountPeerId: PeerId, postbox: Postbox, network: Net
     
     var mediaMessageCount = 0
     var consumedText = false
+    var captionAssigned = false
     for item in items {
         switch item {
         case let .text(text):
@@ -462,11 +494,22 @@ public func sentShareItems(accountPeerId: PeerId, postbox: Postbox, network: Net
         case let .media(media):
             switch media {
             case let .media(reference):
+                let captionText: String
+                if !captionAssigned {
+                    if let file = reference.media as? TelegramMediaFile, file.isInstantVideo {
+                        captionText = ""
+                    } else {
+                        captionText = additionalText
+                        captionAssigned = true
+                    }
+                } else {
+                    captionText = ""
+                }
                 var message = StandaloneSendEnqueueMessage(
                     content: .arbitraryMedia(
                         media: reference,
                         text: StandaloneSendEnqueueMessage.Text(
-                            string: additionalText,
+                            string: captionText,
                             entities: []
                         )
                     ),
@@ -498,6 +541,16 @@ public func sentShareItems(accountPeerId: PeerId, postbox: Postbox, network: Net
     
     var peerSignals: Signal<Float, StandaloneSendMessagesError> = .single(0.0)
     for peerId in peerIds {
+        var peerMessages = messages
+        if let amount = requireStars[peerId] {
+            var updatedMessages: [StandaloneSendEnqueueMessage] = []
+            for message in peerMessages {
+                var message = message
+                message.sendPaidMessageStars = amount
+                updatedMessages.append(message)
+            }
+            peerMessages = updatedMessages
+        }
         peerSignals = peerSignals |> then(standaloneSendEnqueueMessages(
             accountPeerId: accountPeerId,
             postbox: postbox,
@@ -506,7 +559,7 @@ public func sentShareItems(accountPeerId: PeerId, postbox: Postbox, network: Net
             auxiliaryMethods: auxiliaryMethods,
             peerId: peerId,
             threadId: threadIds[peerId],
-            messages: messages
+            messages: peerMessages
         )
         |> mapToSignal { status -> Signal<Float, StandaloneSendMessagesError> in
             switch status {

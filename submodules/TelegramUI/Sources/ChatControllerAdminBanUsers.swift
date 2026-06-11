@@ -21,12 +21,21 @@ fileprivate struct InitialBannedRights {
 }
 
 extension ChatControllerImpl {
-    fileprivate func applyAdminUserActionsResult(messageIds: Set<MessageId>, result: AdminUserActionsSheet.Result, initialUserBannedRights: [EnginePeer.Id: InitialBannedRights]) {
-        guard let peerId = self.chatLocation.peerId else {
+    fileprivate func applyAdminUserActionsResult(messageIds: Set<MessageId>, reactionPeerId: EnginePeer.Id? = nil, result: AdminUserActionsSheet.ChatResult, initialUserBannedRights: [EnginePeer.Id: InitialBannedRights]) {
+        guard let messagesPeerId = self.chatLocation.peerId else {
+            return
+        }
+        guard let banLocationPeerId = self.presentationInterfaceState.renderedPeer?.chatOrMonoforumMainPeer?.id else {
             return
         }
         
-        var title: String? = messageIds.count == 1 ? self.presentationData.strings.Chat_AdminAction_ToastMessagesDeletedTitleSingle : self.presentationData.strings.Chat_AdminAction_ToastMessagesDeletedTitleMultiple
+        
+        var title: String?
+        if let _ = reactionPeerId {
+            title = self.presentationData.strings.Chat_AdminAction_ToastReactionsDeletedTitleSingle
+        } else {
+            title = messageIds.count == 1 ? self.presentationData.strings.Chat_AdminAction_ToastMessagesDeletedTitleSingle : self.presentationData.strings.Chat_AdminAction_ToastMessagesDeletedTitleMultiple
+        }
         if !result.deleteAllFromPeers.isEmpty {
             title = self.presentationData.strings.Chat_AdminAction_ToastMessagesDeletedTitleMultiple
         }
@@ -63,11 +72,22 @@ extension ChatControllerImpl {
         }
         
         do {
-            let _ = self.context.engine.messages.deleteMessagesInteractively(messageIds: Array(messageIds), type: .forEveryone).startStandalone()
+            if let reactionPeerId {
+                if let messageId = messageIds.first {
+                    let _ = self.context.engine.messages.deleteReaction(messageId: messageId, authorId: reactionPeerId).startStandalone()
+                }
+            } else {
+                let _ = self.context.engine.messages.deleteMessagesInteractively(messageIds: Array(messageIds), type: .forEveryone).startStandalone()
+            }
             
             for authorId in result.deleteAllFromPeers {
-                let _ = self.context.engine.messages.deleteAllMessagesWithAuthor(peerId: peerId, authorId: authorId, namespace: Namespaces.Message.Cloud).startStandalone()
-                let _ = self.context.engine.messages.clearAuthorHistory(peerId: peerId, memberId: authorId).startStandalone()
+                let _ = self.context.engine.messages.deleteAllMessagesWithAuthor(peerId: messagesPeerId, authorId: authorId, namespace: Namespaces.Message.Cloud).startStandalone()
+                let _ = self.context.engine.messages.clearAuthorHistory(peerId: messagesPeerId, memberId: authorId).startStandalone()
+            }
+            
+            let aroundMessageId = messageIds.count == 1 ? messageIds.first : nil
+            for authorId in result.deleteAllReactionsFromPeers {
+                let _ = self.context.engine.messages.deleteAllReactionsWithAuthor(peerId: messagesPeerId, authorId: authorId, aroundMessageId: aroundMessageId).startStandalone()
             }
             
             for authorId in result.reportSpamPeers {
@@ -75,18 +95,26 @@ extension ChatControllerImpl {
             }
             
             for authorId in result.banPeers {
-                let _ = self.context.engine.peers.removePeerMember(peerId: peerId, memberId: authorId).startStandalone()
+                let _ = self.context.engine.peers.removePeerMember(peerId: banLocationPeerId, memberId: authorId).startStandalone()
             }
             
             for (authorId, rights) in result.updateBannedRights {
-                let _ = self.context.engine.peers.updateChannelMemberBannedRights(peerId: peerId, memberId: authorId, rights: rights).startStandalone()
+                let _ = self.context.engine.peers.updateChannelMemberBannedRights(peerId: banLocationPeerId, memberId: authorId, rights: rights).startStandalone()
             }
         }
         
         if text.isEmpty {
-            text = messageIds.count == 1 ? self.presentationData.strings.Chat_AdminAction_ToastMessagesDeletedTextSingle : self.presentationData.strings.Chat_AdminAction_ToastMessagesDeletedTextMultiple
-            if !result.deleteAllFromPeers.isEmpty {
+            if let _ = reactionPeerId {
+                text = self.presentationData.strings.Chat_AdminAction_ToastReactionsDeletedTextSingle
+            } else {
+                text = messageIds.count == 1 ? self.presentationData.strings.Chat_AdminAction_ToastMessagesDeletedTextSingle : self.presentationData.strings.Chat_AdminAction_ToastMessagesDeletedTextMultiple
+            }
+            if !result.deleteAllFromPeers.isEmpty && !result.deleteAllReactionsFromPeers.isEmpty {
+                text = self.presentationData.strings.Chat_AdminAction_ToastMessagesAndReactionsDeletedText
+            } else if !result.deleteAllFromPeers.isEmpty {
                 text = self.presentationData.strings.Chat_AdminAction_ToastMessagesDeletedTextMultiple
+            } else if !result.deleteAllReactionsFromPeers.isEmpty {
+                text = self.presentationData.strings.Chat_AdminAction_ToastReactionsDeletedTextMultiple
             }
             title = nil
         }
@@ -94,7 +122,7 @@ extension ChatControllerImpl {
         self.present(
             UndoOverlayController(
                 presentationData: self.presentationData,
-                content: undoRights.isEmpty ? .actionSucceeded(title: title, text: text, cancel: nil, destructive: false) : .removedChat(title: title ?? text, text: title == nil ? nil : text),
+                content: undoRights.isEmpty ? .actionSucceeded(title: title, text: text, cancel: nil, destructive: false) : .removedChat(context: self.context, title: NSAttributedString(string: title ?? text), text: title == nil ? nil : text),
                 elevatedLayout: false,
                 action: { [weak self] action in
                     guard let self else {
@@ -106,7 +134,7 @@ extension ChatControllerImpl {
                         break
                     case .undo:
                         for (authorId, rights) in initialUserBannedRights {
-                            let _ = self.context.engine.peers.updateChannelMemberBannedRights(peerId: peerId, memberId: authorId, rights: rights.value).startStandalone()
+                            let _ = self.context.engine.peers.updateChannelMemberBannedRights(peerId: banLocationPeerId, memberId: authorId, rights: rights.value).startStandalone()
                         }
                     default:
                         break
@@ -202,7 +230,7 @@ extension ChatControllerImpl {
                     let peer = author
                     renderedParticipants.append(RenderedChannelParticipant(
                         participant: participant,
-                        peer: peer
+                        peer: EnginePeer(peer)
                     ))
                     switch participant {
                     case .creator:
@@ -219,20 +247,46 @@ extension ChatControllerImpl {
                     context: self.context,
                     chatPeer: chatPeer,
                     peers: renderedParticipants,
-                    messageCount: messageIds.count,
-                    deleteAllMessageCount: deleteAllMessageCount,
-                    completion: { [weak self] result in
-                        guard let self else {
-                            return
+                    mode: .chat(
+                        messageCount: messageIds.count,
+                        deleteAllMessageCount: deleteAllMessageCount,
+                        completion: { [weak self] result in
+                            guard let self else {
+                                return
+                            }
+                            self.applyAdminUserActionsResult(messageIds: messageIds, result: result, initialUserBannedRights: initialUserBannedRights)
                         }
-                        self.applyAdminUserActionsResult(messageIds: messageIds, result: result, initialUserBannedRights: initialUserBannedRights)
-                    }
+                    )
                 ))
             })
         }))
     }
     
-    func presentBanMessageOptions(accountPeerId: PeerId, author: Peer, messageIds: Set<MessageId>, options: ChatAvailableMessageActionOptions) {
+    public func presentReactionDeletionOptions(author: Peer, messageId: MessageId) {
+        guard self.chatLocation.peerId?.namespace == Namespaces.Peer.CloudChannel, author.id != self.context.account.peerId  else {
+            return
+        }
+        let _ = (self.context.sharedContext.chatAvailableMessageActions(
+            engine: self.context.engine,
+            accountPeerId: self.context.account.peerId,
+            messageIds: Set([messageId]),
+            keepUpdated: false
+        )
+        |> deliverOnMainQueue).startStandalone(next: { [weak self] actions in
+            guard let self, !actions.options.isEmpty else {
+                return
+            }
+            self.presentBanMessageOptions(
+                accountPeerId: self.context.account.peerId,
+                author: author,
+                messageIds: Set([messageId]),
+                options: actions.options,
+                reaction: true
+            )
+        })
+    }
+
+    func presentBanMessageOptions(accountPeerId: PeerId, author: Peer, messageIds: Set<MessageId>, options: ChatAvailableMessageActionOptions, reaction: Bool = false) {
         guard let peerId = self.chatLocation.peerId else {
             return
         }
@@ -319,26 +373,41 @@ extension ChatControllerImpl {
                         initialUserBannedRights[participant.peerId] = InitialBannedRights(value: nil)
                     }
                 }
+                
+                let mode: AdminUserActionsSheet.Mode
+                if reaction {
+                    mode = .chatReaction(completion: { [weak self] result in
+                        guard let self else {
+                            return
+                        }
+                        self.applyAdminUserActionsResult(messageIds: messageIds, reactionPeerId: authorPeer.id, result: result, initialUserBannedRights: initialUserBannedRights)
+                    })
+                } else {
+                    mode = .chat(
+                        messageCount: messageIds.count,
+                        deleteAllMessageCount: deleteAllMessageCount,
+                        completion: { [weak self] result in
+                            guard let self else {
+                                return
+                            }
+                            self.applyAdminUserActionsResult(messageIds: messageIds, result: result, initialUserBannedRights: initialUserBannedRights)
+                        }
+                    )
+                }
+                
                 self.push(AdminUserActionsSheet(
                     context: self.context,
                     chatPeer: chatPeer,
                     peers: [RenderedChannelParticipant(
                         participant: participant,
-                        peer: authorPeer._asPeer()
+                        peer: authorPeer
                     )],
-                    messageCount: messageIds.count,
-                    deleteAllMessageCount: deleteAllMessageCount,
-                    completion: { [weak self] result in
-                        guard let self else {
-                            return
-                        }
-                        self.applyAdminUserActionsResult(messageIds: messageIds, result: result, initialUserBannedRights: initialUserBannedRights)
-                    }
+                    mode: mode
                 ))
             })
         }))
     }
-    
+        
     func beginDeleteMessagesWithUndo(messageIds: Set<MessageId>, type: InteractiveMessagesDeletionType) {
         var deleteImmediately = false
         if case .forEveryone = type {
@@ -357,7 +426,7 @@ extension ChatControllerImpl {
         self.chatDisplayNode.historyNode.ignoreMessageIds = Set(messageIds)
         
         let undoTitle = self.presentationData.strings.Chat_MessagesDeletedToast_Text(Int32(messageIds.count))
-        self.present(UndoOverlayController(presentationData: self.context.sharedContext.currentPresentationData.with { $0 }, content: .removedChat(title: undoTitle, text: nil), elevatedLayout: false, position: .top, action: { [weak self] value in
+        self.present(UndoOverlayController(presentationData: self.context.sharedContext.currentPresentationData.with { $0 }, content: .removedChat(context: self.context, title: NSAttributedString(string: undoTitle), text: nil), elevatedLayout: false, position: .top, action: { [weak self] value in
             guard let self else {
                 return false
             }
@@ -378,6 +447,108 @@ extension ChatControllerImpl {
         )
         |> deliverOnMainQueue).start(next: { [weak self] messages in
             guard let self else {
+                return
+            }
+            
+            if let message = messages.values.compactMap({ $0 }).first(where: { message in message.attributes.contains(where: { $0 is PublishedSuggestedPostMessageAttribute }) }), let attribute = message.attributes.first(where: { $0 is PublishedSuggestedPostMessageAttribute }) as? PublishedSuggestedPostMessageAttribute, message.timestamp > Int32(Date().timeIntervalSince1970) - 60 * 60 * 24 {
+                let commit = { [weak self] in
+                    guard let self else {
+                        return
+                    }
+                    let titleString: String
+                    let textString: String
+                    switch attribute.currency {
+                    case .stars:
+                        titleString = self.presentationData.strings.Chat_DeletePaidMessageStars_Title
+                        textString = self.presentationData.strings.Chat_DeletePaidMessageStars_Text
+                    case .ton:
+                        titleString = self.presentationData.strings.Chat_DeletePaidMessageTon_Title
+                        textString = self.presentationData.strings.Chat_DeletePaidMessageTon_Text
+                    }
+                    self.present(textAlertController(
+                        context: self.context,
+                        title: titleString,
+                        text: textString,
+                        actions: [
+                            TextAlertAction(type: .destructiveAction, title: self.presentationData.strings.Chat_DeletePaidMessage_Action, action: { [weak self] in
+                                guard let self else {
+                                    return
+                                }
+                                self.beginDeleteMessagesWithUndo(messageIds: messageIds, type: .forEveryone)
+                            }),
+                            TextAlertAction(type: .genericAction, title: self.presentationData.strings.Common_Cancel, action: {})
+                        ],
+                        actionLayout: .vertical,
+                        parseMarkdown: true
+                    ), in: .window(.root))
+                }
+                if let contextController {
+                    contextController.dismiss(completion: commit)
+                } else {
+                    commit()
+                }
+                return
+            }
+            
+            
+            if messageIds.count == 1, let message = messages.values.compactMap({ $0 }).first, let repeatAttribute = message.attributes.first(where: { $0 is ScheduledRepeatAttribute }) as? ScheduledRepeatAttribute {
+                let commit = { [weak self] in
+                    guard let self else {
+                        return
+                    }
+                    let title: String
+                    let text: String
+                    let deleteOneAction: String
+                    let deleteAllAction: String
+                    if message.id.peerId == self.context.account.peerId {
+                        title = self.presentationData.strings.Reminders_DeleteRepeatingTitle
+                        text = self.presentationData.strings.Reminders_DeleteRepeatingText
+                        deleteOneAction = self.presentationData.strings.Reminders_DeleteRepeatingActionSingle
+                        deleteAllAction = self.presentationData.strings.Reminders_DeleteRepeatingActionMultiple
+                    } else {
+                        title = self.presentationData.strings.ScheduledMessages_DeleteRepeatingTitle
+                        text = self.presentationData.strings.ScheduledMessages_DeleteRepeatingText
+                        deleteOneAction = self.presentationData.strings.ScheduledMessages_DeleteRepeatingActionSingle
+                        deleteAllAction = self.presentationData.strings.ScheduledMessages_DeleteRepeatingActionMultiple
+                    }
+                    self.present(textAlertController(
+                        context: self.context,
+                        title: title,
+                        text: text,
+                        actions: [
+                            TextAlertAction(type: .destructiveAction, title: deleteOneAction, action: { [weak self] in
+                                guard let self else {
+                                    return
+                                }
+                                var entities: TextEntitiesMessageAttribute?
+                                for attribute in message.attributes {
+                                    if let attribute = attribute as? TextEntitiesMessageAttribute {
+                                        entities = attribute
+                                        break
+                                    }
+                                }
+                                let scheduleTime = message.timestamp + repeatAttribute.repeatPeriod
+                                self.editMessageDisposable.set((self.context.engine.messages.requestEditMessage(messageId: message.id, text: message.text, media: .keep, entities: entities, inlineStickers: [:], webpagePreviewAttribute: nil, disableUrlPreview: false, scheduleInfoAttribute: OutgoingScheduleInfoMessageAttribute(scheduleTime: scheduleTime, repeatPeriod: repeatAttribute.repeatPeriod)) |> deliverOnMainQueue).startStrict(next: { result in
+                                }, error: { error in
+                                }))
+                            }),
+                            TextAlertAction(type: .destructiveAction, title: deleteAllAction, action: { [weak self] in
+                                guard let self else {
+                                    return
+                                }
+                                self.beginDeleteMessagesWithUndo(messageIds: messageIds, type: .forEveryone)
+                            }),
+                            TextAlertAction(type: .genericAction, title: self.presentationData.strings.Common_Cancel, action: {})
+                        ],
+                        actionLayout: .vertical,
+                        parseMarkdown: true
+                    ), in: .window(.root))
+                }
+                if let contextController {
+                    contextController.dismiss(completion: commit)
+                } else {
+                    commit()
+                }
                 return
             }
             
@@ -445,7 +616,7 @@ extension ChatControllerImpl {
                                     let dateString = stringForDate(timestamp: giveaway.untilDate, timeZone: .current, strings: strongSelf.presentationData.strings)
                                     strongSelf.present(textAlertController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, title: strongSelf.presentationData.strings.Chat_Giveaway_DeleteConfirmation_Title, text: strongSelf.presentationData.strings.Chat_Giveaway_DeleteConfirmation_Text(dateString).string, actions: [TextAlertAction(type: .destructiveAction, title: strongSelf.presentationData.strings.Common_Delete, action: {
                                         commit()
-                                    }), TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Common_Cancel, action: {
+                                    }), TextAlertAction(type: .genericAction, title: strongSelf.presentationData.strings.Common_Cancel, action: {
                                     })], parseMarkdown: true), in: .window(.root))
                                 }
                                 f(.default)
@@ -479,7 +650,9 @@ extension ChatControllerImpl {
             if options.contains(.deleteLocally) {
                 var localOptionText = self.presentationData.strings.Conversation_DeleteMessagesForMe
                 if self.chatLocation.peerId == self.context.account.peerId {
-                    if case .peer(self.context.account.peerId) = self.chatLocation, messages.values.allSatisfy({ message in message?._asMessage().effectivelyIncoming(self.context.account.peerId) ?? false }) {
+                    if case .scheduledMessages = self.presentationInterfaceState.subject {
+                        localOptionText = messageIds.count > 1 ? self.presentationData.strings.ScheduledMessages_Reminder_DeleteMany : self.presentationData.strings.ScheduledMessages_Reminder_Delete
+                    } else if case .peer(self.context.account.peerId) = self.chatLocation, messages.values.allSatisfy({ message in message?._asMessage().effectivelyIncoming(self.context.account.peerId) ?? false }) {
                         localOptionText = self.presentationData.strings.Chat_ConfirmationRemoveFromSavedMessages
                     } else {
                         localOptionText = self.presentationData.strings.Chat_ConfirmationDeleteFromSavedMessages
@@ -582,5 +755,60 @@ extension ChatControllerImpl {
         ])])
         self.chatDisplayNode.dismissInput()
         self.presentInGlobalOverlay(actionSheet)
+    }
+    
+    func openDeleteMonoforumPeer(peerId: EnginePeer.Id) {
+        guard let chatPeerId = self.chatLocation.peerId else {
+            return
+        }
+        guard let mainChannel = self.presentationInterfaceState.renderedPeer?.chatOrMonoforumMainPeer as? TelegramChannel else {
+            return
+        }
+        let _ = (self.context.engine.data.get(
+            TelegramEngine.EngineData.Item.Peer.Peer(id: chatPeerId),
+            TelegramEngine.EngineData.Item.Peer.Peer(id: peerId)
+        )
+        |> deliverOnMainQueue).startStandalone(next: { [weak self] chatPeer, authorPeer in
+            guard let self, let chatPeer, let authorPeer else {
+                return
+            }
+            var initialUserBannedRights: [EnginePeer.Id: InitialBannedRights] = [:]
+                initialUserBannedRights[authorPeer.id] = InitialBannedRights(value: nil)
+            let participant: ChannelParticipant = .member(id: authorPeer.id, invitedAt: 0, adminInfo: nil, banInfo: ChannelParticipantBannedInfo(
+                rights: TelegramChatBannedRights(flags: [], untilDate: 0),
+                restrictedBy: self.context.account.peerId,
+                timestamp: 0,
+                isMember: false
+            ), rank: nil, subscriptionUntilDate: nil)
+            self.push(AdminUserActionsSheet(
+                context: self.context,
+                chatPeer: chatPeer,
+                peers: [RenderedChannelParticipant(
+                    participant: participant,
+                    peer: authorPeer
+                )],
+                mode: .monoforum(completion: { [weak self] result in
+                    guard let self else {
+                        return
+                    }
+                    
+                    if self.chatLocation.threadId == peerId.toInt64() {
+                        self.updateChatLocationThread(threadId: nil)
+                    }
+                    
+                    let _ = self.context.engine.peers.removeForumChannelThread(id: chatPeerId, threadId: peerId.toInt64()).startStandalone(completed: {
+                    })
+                    if result.ban {
+                        let _ = self.context.engine.peers.updateChannelMemberBannedRights(peerId: mainChannel.id,
+                            memberId: peerId,
+                            rights: TelegramChatBannedRights(flags: [.banReadMessages], untilDate: Int32.max)
+                        ).startStandalone()
+                    }
+                    if result.reportSpam {
+                        let _ = self.context.engine.peers.reportPeer(peerId: peerId, reason: .spam, message: "").startStandalone()
+                    }
+                })
+            ))
+        })
     }
 }

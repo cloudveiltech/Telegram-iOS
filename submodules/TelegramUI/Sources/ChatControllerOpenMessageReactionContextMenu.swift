@@ -20,6 +20,7 @@ import ChatMessageItemCommon
 import ChatMessageItemView
 import ReactionSelectionNode
 import AnimatedTextComponent
+import PresentationDataUtils
 
 extension ChatControllerImpl {
     func presentTagPremiumPaywall() {
@@ -48,7 +49,7 @@ extension ChatControllerImpl {
                 reactionFile = self.context.engine.stickers.availableReactions()
                 |> take(1)
                 |> map { availableReactions -> TelegramMediaFile? in
-                    return availableReactions?.reactions.first(where: { $0.value == value })?.selectAnimation
+                    return availableReactions?.reactions.first(where: { $0.value == value })?.selectAnimation._parse()
                 }
             case let .custom(fileId):
                 reactionFile = self.context.engine.stickers.resolveInlineStickers(fileIds: [fileId])
@@ -150,7 +151,7 @@ extension ChatControllerImpl {
                 
                 self.canReadHistory.set(false)
                 
-                let controller = ContextController(presentationData: self.presentationData, source: .extracted(ChatMessageReactionContextExtractedContentSource(chatNode: self.chatDisplayNode, engine: self.context.engine, message: message, contentView: sourceView)), items: .single(ContextController.Items(content: .list(items))), recognizer: nil, gesture: gesture)
+                let controller = makeContextController(presentationData: self.presentationData, source: .extracted(ChatMessageReactionContextExtractedContentSource(chatNode: self.chatDisplayNode, engine: self.context.engine, message: message, contentView: sourceView)), items: .single(ContextController.Items(content: .list(items))), recognizer: nil, gesture: gesture)
                 controller.dismissed = { [weak self] in
                     self?.canReadHistory.set(true)
                 }
@@ -187,9 +188,29 @@ extension ChatControllerImpl {
                 }
                 
                 var dismissController: ((@escaping () -> Void) -> Void)?
+                let canDeleteReactions: Bool
+                if let channel = message.peers[message.id.peerId] as? TelegramChannel {
+                    canDeleteReactions = channel.hasPermission(.deleteAllMessages)
+                } else {
+                    canDeleteReactions = false
+                }
+                let canViewReactions = canViewMessageReactionList(message: message)
+                let deleteReaction: ((EnginePeer, MessageReaction.Reaction) -> Void)?
+                if canDeleteReactions && canViewReactions {
+                    deleteReaction = { [weak self] peer, _ in
+                        dismissController?({ [weak self] in
+                            guard let self else {
+                                return
+                            }
+                            self.presentReactionDeletionOptions(author: peer._asPeer(), messageId: message.id)
+                        })
+                    }
+                } else {
+                    deleteReaction = nil
+                }
                 
                 var items: ContextController.Items
-                if canViewMessageReactionList(message: message) {
+                if canViewReactions {
                     items = ContextController.Items(content: .custom(ReactionListContextMenuContent(
                         context: self.context,
                         displayReadTimestamps: true,
@@ -197,7 +218,10 @@ extension ChatControllerImpl {
                         animationCache: self.controllerInteraction!.presentationContext.animationCache,
                         animationRenderer: self.controllerInteraction!.presentationContext.animationRenderer,
                         message: EngineMessage(message),
-                        reaction: value, readStats: nil, back: nil, openPeer: { peer, hasReaction in
+                        reaction: value,
+                        readStats: nil,
+                        back: nil,
+                        openPeer: { peer, hasReaction in
                             dismissController?({ [weak self] in
                                 guard let self else {
                                     return
@@ -205,7 +229,8 @@ extension ChatControllerImpl {
                                 
                                 self.openPeer(peer: peer, navigation: .default, fromMessage: MessageReference(message), fromReactionMessageId: hasReaction ? message.id : nil)
                             })
-                        }
+                        },
+                        deleteReaction: deleteReaction
                     )))
                 } else {
                     items = ContextController.Items(content: .list([]))
@@ -325,7 +350,7 @@ extension ChatControllerImpl {
                                         placeholderColor: .clear,
                                         attemptSynchronous: true
                                     ),
-                                    file: items.first?.file,
+                                    file: items.first?.file._parse(),
                                     action: action)
                                 return .single(tip)
                             } else {
@@ -338,7 +363,7 @@ extension ChatControllerImpl {
                 let reactionFile: TelegramMediaFile?
                 switch value {
                 case .builtin, .stars:
-                    reactionFile = availableReactions?.reactions.first(where: { $0.value == value })?.selectAnimation
+                    reactionFile = availableReactions?.reactions.first(where: { $0.value == value })?.selectAnimation._parse()
                 case let .custom(fileId):
                     reactionFile = customEmoji[fileId]
                 }
@@ -347,7 +372,7 @@ extension ChatControllerImpl {
                 
                 self.canReadHistory.set(false)
                 
-                let controller = ContextController(presentationData: self.presentationData, source: .extracted(ChatMessageReactionContextExtractedContentSource(chatNode: self.chatDisplayNode, engine: self.context.engine, message: message, contentView: sourceView)), items: .single(items), recognizer: nil, gesture: gesture)
+                let controller = makeContextController(presentationData: self.presentationData, source: .extracted(ChatMessageReactionContextExtractedContentSource(chatNode: self.chatDisplayNode, engine: self.context.engine, message: message, contentView: sourceView)), items: .single(items), recognizer: nil, gesture: gesture)
                 controller.dismissed = { [weak self] in
                     self?.canReadHistory.set(true)
                 }
@@ -369,6 +394,10 @@ extension ChatControllerImpl {
     }
     
     func openMessageSendStarsScreen(message: Message) {
+        guard canSendReactionsToChat(self.presentationInterfaceState) else {
+            return
+        }
+
         if let current = self.currentSendStarsUndoController {
             self.currentSendStarsUndoController = nil
             current.dismiss()
@@ -385,154 +414,170 @@ extension ChatControllerImpl {
             }
         
             let reactionsAttribute = mergedMessageReactions(attributes: message.attributes, isTags: false)
-            let _ = (ChatSendStarsScreen.initialData(context: self.context, peerId: message.id.peerId, messageId: message.id, topPeers: reactionsAttribute?.topPeers ?? [])
+            let _ = (ChatSendStarsScreen.initialData(context: self.context, peerId: message.id.peerId, reactSubject: .message(message.id), topPeers: reactionsAttribute?.topPeers ?? [], completion: { [weak self] amount, privacy, isBecomingTop, transitionOut in
+                guard let self, amount > 0 else {
+                    return
+                }
+                
+                if case let .known(reactionSettings) = reactionSettings, let starsAllowed = reactionSettings.starsAllowed, !starsAllowed {
+                    if let peer = self.presentationInterfaceState.renderedPeer?.chatMainPeer {
+                        self.present(textAlertController(context: self.context, updatedPresentationData: self.updatedPresentationData, title: nil, text: self.presentationData.strings.Chat_ToastStarsReactionsDisabled(peer.debugDisplayTitle).string, actions: [
+                            TextAlertAction(type: .genericAction, title: self.presentationData.strings.Common_OK, action: {})
+                        ]), in: .window(.root))
+                    }
+                    return
+                }
+                
+                var sourceItemNode: ChatMessageItemView?
+                self.chatDisplayNode.historyNode.forEachItemNode { itemNode in
+                    if let itemNode = itemNode as? ChatMessageItemView {
+                        if itemNode.item?.message.id == message.id {
+                            sourceItemNode = itemNode
+                            return
+                        }
+                    }
+                }
+                
+                if let itemNode = sourceItemNode, let item = itemNode.item, let availableReactions = item.associatedData.availableReactions, let targetView = itemNode.targetReactionView(value: .stars) {
+                    var reactionItem: ReactionItem?
+                    
+                    for reaction in availableReactions.reactions {
+                        guard let centerAnimation = reaction.centerAnimation else {
+                            continue
+                        }
+                        guard let aroundAnimation = reaction.aroundAnimation else {
+                            continue
+                        }
+                        if reaction.value == .stars {
+                            reactionItem = ReactionItem(
+                                reaction: ReactionItem.Reaction(rawValue: reaction.value),
+                                appearAnimation: reaction.appearAnimation,
+                                stillAnimation: reaction.selectAnimation,
+                                listAnimation: centerAnimation,
+                                largeListAnimation: reaction.activateAnimation,
+                                applicationAnimation: aroundAnimation,
+                                largeApplicationAnimation: reaction.effectAnimation,
+                                isCustom: false
+                            )
+                            break
+                        }
+                    }
+                    
+                    if let reactionItem {
+                        let standaloneReactionAnimation = StandaloneReactionAnimation(genericReactionEffect: self.chatDisplayNode.historyNode.takeGenericReactionEffect())
+                        
+                        self.chatDisplayNode.messageTransitionNode.addMessageStandaloneReactionAnimation(messageId: item.message.id, standaloneReactionAnimation: standaloneReactionAnimation)
+                        
+                        self.view.window?.addSubview(standaloneReactionAnimation.view)
+                        standaloneReactionAnimation.frame = self.chatDisplayNode.bounds
+                        standaloneReactionAnimation.animateOutToReaction(
+                            context: self.context,
+                            theme: self.presentationData.theme,
+                            item: reactionItem,
+                            value: .stars,
+                            sourceView: transitionOut.sourceView,
+                            targetView: targetView,
+                            hideNode: false,
+                            forceSwitchToInlineImmediately: false,
+                            animateTargetContainer: nil,
+                            addStandaloneReactionAnimation: { [weak self] standaloneReactionAnimation in
+                                guard let self else {
+                                    return
+                                }
+                                self.chatDisplayNode.messageTransitionNode.addMessageStandaloneReactionAnimation(messageId: item.message.id, standaloneReactionAnimation: standaloneReactionAnimation)
+                                standaloneReactionAnimation.frame = self.chatDisplayNode.bounds
+                                self.chatDisplayNode.addSubnode(standaloneReactionAnimation)
+                            },
+                            onHit: { [weak self, weak itemNode] in
+                                guard let self else {
+                                    return
+                                }
+                                
+                                if isBecomingTop {
+                                    self.chatDisplayNode.playConfettiAnimation()
+                                }
+                                
+                                if let itemNode, let targetView = itemNode.targetReactionView(value: .stars), self.context.sharedContext.energyUsageSettings.fullTranslucency {
+                                    self.chatDisplayNode.wrappingNode.triggerRipple(at: targetView.convert(targetView.bounds.center, to: self.chatDisplayNode.view))
+                                }
+                            },
+                            completion: { [weak standaloneReactionAnimation] in
+                                standaloneReactionAnimation?.view.removeFromSuperview()
+                            }
+                        )
+                    }
+                }
+                
+                let _ = self.context.engine.messages.sendStarsReaction(id: message.id, count: Int(amount), privacy: privacy).startStandalone()
+                self.displayOrUpdateSendStarsUndo(messageId: message.id, count: Int(amount), privacy: privacy)
+            })
             |> deliverOnMainQueue).start(next: { [weak self] initialData in
                 guard let self, let initialData else {
                     return
                 }
                 HapticFeedback().tap()
-                self.push(ChatSendStarsScreen(context: self.context, initialData: initialData, completion: { [weak self] amount, isAnonymous, isBecomingTop, transitionOut in
-                    guard let self, amount > 0 else {
-                        return
-                    }
-                    
-                    if case let .known(reactionSettings) = reactionSettings, let starsAllowed = reactionSettings.starsAllowed, !starsAllowed {
-                        if let peer = self.presentationInterfaceState.renderedPeer?.chatMainPeer {
-                            self.present(standardTextAlertController(theme: AlertControllerTheme(presentationData: self.presentationData), title: nil, text: self.presentationData.strings.Chat_ToastStarsReactionsDisabled(peer.debugDisplayTitle).string, actions: [
-                                TextAlertAction(type: .genericAction, title: self.presentationData.strings.Common_OK, action: {})
-                            ]), in: .window(.root))
-                        }
-                        return
-                    }
-                    
-                    var sourceItemNode: ChatMessageItemView?
-                    self.chatDisplayNode.historyNode.forEachItemNode { itemNode in
-                        if let itemNode = itemNode as? ChatMessageItemView {
-                            if itemNode.item?.message.id == message.id {
-                                sourceItemNode = itemNode
-                                return
-                            }
-                        }
-                    }
-                    
-                    if let itemNode = sourceItemNode, let item = itemNode.item, let availableReactions = item.associatedData.availableReactions, let targetView = itemNode.targetReactionView(value: .stars) {
-                        var reactionItem: ReactionItem?
-                        
-                        for reaction in availableReactions.reactions {
-                            guard let centerAnimation = reaction.centerAnimation else {
-                                continue
-                            }
-                            guard let aroundAnimation = reaction.aroundAnimation else {
-                                continue
-                            }
-                            if reaction.value == .stars {
-                                reactionItem = ReactionItem(
-                                    reaction: ReactionItem.Reaction(rawValue: reaction.value),
-                                    appearAnimation: reaction.appearAnimation,
-                                    stillAnimation: reaction.selectAnimation,
-                                    listAnimation: centerAnimation,
-                                    largeListAnimation: reaction.activateAnimation,
-                                    applicationAnimation: aroundAnimation,
-                                    largeApplicationAnimation: reaction.effectAnimation,
-                                    isCustom: false
-                                )
-                                break
-                            }
-                        }
-                        
-                        if let reactionItem {
-                            let standaloneReactionAnimation = StandaloneReactionAnimation(genericReactionEffect: self.chatDisplayNode.historyNode.takeGenericReactionEffect())
-                            
-                            self.chatDisplayNode.messageTransitionNode.addMessageStandaloneReactionAnimation(messageId: item.message.id, standaloneReactionAnimation: standaloneReactionAnimation)
-                            
-                            self.view.window?.addSubview(standaloneReactionAnimation.view)
-                            standaloneReactionAnimation.frame = self.chatDisplayNode.bounds
-                            standaloneReactionAnimation.animateOutToReaction(
-                                context: self.context,
-                                theme: self.presentationData.theme,
-                                item: reactionItem,
-                                value: .stars,
-                                sourceView: transitionOut.sourceView,
-                                targetView: targetView,
-                                hideNode: false,
-                                forceSwitchToInlineImmediately: false,
-                                animateTargetContainer: nil,
-                                addStandaloneReactionAnimation: { [weak self] standaloneReactionAnimation in
-                                    guard let self else {
-                                        return
-                                    }
-                                    self.chatDisplayNode.messageTransitionNode.addMessageStandaloneReactionAnimation(messageId: item.message.id, standaloneReactionAnimation: standaloneReactionAnimation)
-                                    standaloneReactionAnimation.frame = self.chatDisplayNode.bounds
-                                    self.chatDisplayNode.addSubnode(standaloneReactionAnimation)
-                                },
-                                onHit: { [weak self, weak itemNode] in
-                                    guard let self else {
-                                        return
-                                    }
-                                    
-                                    if isBecomingTop {
-                                        self.chatDisplayNode.animateQuizCorrectOptionSelected()
-                                    }
-                                    
-                                    if let itemNode, let targetView = itemNode.targetReactionView(value: .stars), self.context.sharedContext.energyUsageSettings.fullTranslucency {
-                                        self.chatDisplayNode.wrappingNode.triggerRipple(at: targetView.convert(targetView.bounds.center, to: self.chatDisplayNode.view))
-                                    }
-                                },
-                                completion: { [weak standaloneReactionAnimation] in
-                                    standaloneReactionAnimation?.view.removeFromSuperview()
-                                }
-                            )
-                        }
-                    }
-                    
-                    let _ = self.context.engine.messages.sendStarsReaction(id: message.id, count: Int(amount), isAnonymous: isAnonymous).startStandalone()
-                    self.displayOrUpdateSendStarsUndo(messageId: message.id, count: Int(amount), isAnonymous: isAnonymous)
-                }))
+                self.push(ChatSendStarsScreen(context: self.context, initialData: initialData))
             })
         })
     }
     
-    func displayOrUpdateSendStarsUndo(messageId: EngineMessage.Id, count: Int, isAnonymous: Bool) {
-        if self.currentSendStarsUndoMessageId != messageId {
-            if let current = self.currentSendStarsUndoController {
-                self.currentSendStarsUndoController = nil
-                current.dismiss()
+    func displayOrUpdateSendStarsUndo(messageId: EngineMessage.Id, count: Int, privacy: TelegramPaidReactionPrivacy) {
+        var privacyPeer: Signal<EnginePeer?, NoError> = .single(nil)
+        if case let .peer(id) = privacy {
+            privacyPeer = self.context.engine.data.get(
+                TelegramEngine.EngineData.Item.Peer.Peer(id: id)
+            )
+        }
+        let _ = (privacyPeer
+        |> deliverOnMainQueue).startStandalone(next: { [weak self] privacyPeer in
+            guard let self else {
+                return
             }
-        }
-        
-        if let _ = self.currentSendStarsUndoController {
-            self.currentSendStarsUndoCount += count
-        } else {
-            self.currentSendStarsUndoCount = count
-        }
-        
-        let title: String
-        if isAnonymous {
-            title = self.presentationData.strings.Chat_ToastStarsSent_AnonymousTitle(Int32(self.currentSendStarsUndoCount))
-        } else {
-            title = self.presentationData.strings.Chat_ToastStarsSent_Title(Int32(self.currentSendStarsUndoCount))
-        }
-        
-        let textItems = AnimatedTextComponent.extractAnimatedTextString(string: self.presentationData.strings.Chat_ToastStarsSent_Text("", ""), id: "text", mapping: [
-            0: .number(self.currentSendStarsUndoCount, minDigits: 1),
-            1: .text(self.presentationData.strings.Chat_ToastStarsSent_TextStarAmount(Int32(self.currentSendStarsUndoCount)))
-        ])
-        
-        self.currentSendStarsUndoMessageId = messageId
-        if let current = self.currentSendStarsUndoController {
-            current.content = .starsSent(context: self.context, title: title, text: textItems)
-        } else {
-            let controller = UndoOverlayController(presentationData: self.presentationData, content: .starsSent(context: self.context, title: title, text: textItems), elevatedLayout: false, position: .top, action: { [weak self] action in
-                guard let self else {
+            
+            if self.currentSendStarsUndoMessageId != messageId {
+                if let current = self.currentSendStarsUndoController {
+                    self.currentSendStarsUndoController = nil
+                    current.dismiss()
+                }
+            }
+            
+            if let _ = self.currentSendStarsUndoController {
+                self.currentSendStarsUndoCount += count
+            } else {
+                self.currentSendStarsUndoCount = count
+            }
+            
+            let title: String
+            if case .anonymous = privacy {
+                title = self.presentationData.strings.Chat_ToastStarsSent_AnonymousTitle(Int32(self.currentSendStarsUndoCount))
+            } else if case .peer = privacy, let privacyPeer {
+                let rawTitle = self.presentationData.strings.Chat_ToastStarsSent_TitleChannel(Int32(self.currentSendStarsUndoCount))
+                title = rawTitle.replacingOccurrences(of: "{name}", with: privacyPeer.compactDisplayTitle)
+            } else {
+                title = self.presentationData.strings.Chat_ToastStarsSent_Title(Int32(self.currentSendStarsUndoCount))
+            }
+            
+            let textItems = AnimatedTextComponent.extractAnimatedTextString(string: self.presentationData.strings.Chat_ToastStarsSent_Text("", ""), id: "text", mapping: [
+                0: .number(self.currentSendStarsUndoCount, minDigits: 1),
+                1: .text(self.presentationData.strings.Chat_ToastStarsSent_TextStarAmount(Int32(self.currentSendStarsUndoCount)))
+            ])
+            
+            self.currentSendStarsUndoMessageId = messageId
+            if let current = self.currentSendStarsUndoController {
+                current.content = .starsSent(context: self.context, title: title, text: textItems, hasUndo: true)
+            } else {
+                let controller = UndoOverlayController(presentationData: self.presentationData, content: .starsSent(context: self.context, title: title, text: textItems, hasUndo: true), elevatedLayout: false, position: .top, action: { [weak self] action in
+                    guard let self else {
+                        return false
+                    }
+                    if case .undo = action {
+                        self.context.engine.messages.cancelPendingSendStarsReaction(id: messageId)
+                    }
                     return false
-                }
-                if case .undo = action {
-                    self.context.engine.messages.cancelPendingSendStarsReaction(id: messageId)
-                }
-                return false
-            })
-            self.currentSendStarsUndoController = controller
-            self.present(controller, in: .current)
-        }
+                })
+                self.currentSendStarsUndoController = controller
+                self.present(controller, in: .current)
+            }
+        })
     }
 }

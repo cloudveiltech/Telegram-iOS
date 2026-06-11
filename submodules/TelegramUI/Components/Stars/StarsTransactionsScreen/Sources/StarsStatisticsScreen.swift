@@ -26,26 +26,32 @@ final class StarsStatisticsScreenComponent: Component {
     typealias EnvironmentType = ViewControllerComponentContainer.Environment
     
     let context: AccountContext
+    let overNavigationContainer: UIView
     let peerId: EnginePeer.Id
     let revenueContext: StarsRevenueStatsContext
     let openTransaction: (StarsContext.State.Transaction) -> Void
+    let buy: () -> Void
     let withdraw: () -> Void
     let showTimeoutTooltip: (Int32) -> Void
     let buyAds: () -> Void
     
     init(
         context: AccountContext,
+        overNavigationContainer: UIView,
         peerId: EnginePeer.Id,
         revenueContext: StarsRevenueStatsContext,
         openTransaction: @escaping (StarsContext.State.Transaction) -> Void,
+        buy: @escaping () -> Void,
         withdraw: @escaping () -> Void,
         showTimeoutTooltip: @escaping (Int32) -> Void,
         buyAds: @escaping () -> Void
     ) {
         self.context = context
+        self.overNavigationContainer = overNavigationContainer
         self.peerId = peerId
         self.revenueContext = revenueContext
         self.openTransaction = openTransaction
+        self.buy = buy
         self.withdraw = withdraw
         self.showTimeoutTooltip = showTimeoutTooltip
         self.buyAds = buyAds
@@ -122,10 +128,6 @@ final class StarsStatisticsScreenComponent: Component {
         private let scrollView: ScrollViewImpl
         
         private var currentSelectedPanelId: AnyHashable?
-       
-        private let navigationBackgroundView: BlurredBackgroundView
-        private let navigationSeparatorLayer: SimpleLayer
-        private let navigationSeparatorLayerContainer: SimpleLayer
         
         private let headerView = ComponentView<Empty>()
         private let headerOffsetContainer: UIView
@@ -172,14 +174,6 @@ final class StarsStatisticsScreenComponent: Component {
             self.headerOffsetContainer = UIView()
             self.headerOffsetContainer.isUserInteractionEnabled = false
             
-            self.navigationBackgroundView = BlurredBackgroundView(color: nil, enableBlur: true)
-            self.navigationBackgroundView.alpha = 0.0
-            
-            self.navigationSeparatorLayer = SimpleLayer()
-            self.navigationSeparatorLayer.opacity = 0.0
-            self.navigationSeparatorLayerContainer = SimpleLayer()
-            self.navigationSeparatorLayerContainer.opacity = 0.0
-            
             self.scrollContainerView = UIView()
             self.scrollView = ScrollViewImpl()
                                     
@@ -204,11 +198,6 @@ final class StarsStatisticsScreenComponent: Component {
             
             self.scrollView.addSubview(self.scrollContainerView)
             self.scrollContainerView.addSubview(self.transactionsBackground)
-            
-            self.addSubview(self.navigationBackgroundView)
-            
-            self.navigationSeparatorLayerContainer.addSublayer(self.navigationSeparatorLayer)
-            self.layer.addSublayer(self.navigationSeparatorLayerContainer)
             
             self.addSubview(self.headerOffsetContainer)
         }
@@ -304,18 +293,10 @@ final class StarsStatisticsScreenComponent: Component {
             let isLockedAtPanels = scrollBounds.maxY == self.scrollView.contentSize.height
             
             if let _ = self.navigationMetrics {
-                let topContentOffset = self.scrollView.contentOffset.y
-                let navigationBackgroundAlpha = min(20.0, max(0.0, topContentOffset)) / 20.0
-                                
-                let animatedTransition = ComponentTransition(animation: .curve(duration: 0.18, curve: .easeInOut))
-                animatedTransition.setAlpha(view: self.navigationBackgroundView, alpha: navigationBackgroundAlpha)
-                animatedTransition.setAlpha(layer: self.navigationSeparatorLayerContainer, alpha: navigationBackgroundAlpha)
-                
                 let expansionDistance: CGFloat = 32.0
                 var expansionDistanceFactor: CGFloat = abs(scrollBounds.maxY - self.scrollView.contentSize.height) / expansionDistance
                 expansionDistanceFactor = max(0.0, min(1.0, expansionDistanceFactor))
                 
-                transition.setAlpha(layer: self.navigationSeparatorLayer, alpha: expansionDistanceFactor)
                 if let panelContainerView = self.panelContainer.view as? StarsTransactionsPanelContainerComponent.View {
                     panelContainerView.updateNavigationMergeFactor(value: 1.0 - expansionDistanceFactor, transition: transition)
                 }
@@ -414,19 +395,7 @@ final class StarsStatisticsScreenComponent: Component {
             self.controller = environment.controller
             
             self.navigationMetrics = (environment.navigationHeight, environment.statusBarHeight)
-            
-            self.navigationSeparatorLayer.backgroundColor = environment.theme.rootController.navigationBar.separatorColor.cgColor
-            
-            let navigationFrame = CGRect(origin: CGPoint(), size: CGSize(width: availableSize.width, height: environment.navigationHeight))
-            self.navigationBackgroundView.updateColor(color: environment.theme.rootController.navigationBar.blurredBackgroundColor, transition: .immediate)
-            self.navigationBackgroundView.update(size: navigationFrame.size, transition: transition.containedViewLayoutTransition)
-            transition.setFrame(view: self.navigationBackgroundView, frame: navigationFrame)
-            
-            let navigationSeparatorFrame = CGRect(origin: CGPoint(x: 0.0, y: navigationFrame.maxY), size: CGSize(width: availableSize.width, height: UIScreenPixel))
-            
-            transition.setFrame(layer: self.navigationSeparatorLayerContainer, frame: navigationSeparatorFrame)
-            transition.setFrame(layer: self.navigationSeparatorLayer, frame: CGRect(origin: CGPoint(), size: navigationSeparatorFrame.size))
-            
+
             self.backgroundColor = environment.theme.list.blocksBackgroundColor
             
             var contentHeight: CGFloat = 0.0
@@ -451,7 +420,7 @@ final class StarsStatisticsScreenComponent: Component {
             )
             if let titleView = self.titleView.view {
                 if titleView.superview == nil {
-                    self.addSubview(titleView)
+                    component.overNavigationContainer.addSubview(titleView)
                 }
                 let titlePosition = CGPoint(x: availableSize.width / 2.0, y: environment.statusBarHeight + (environment.navigationHeight - environment.statusBarHeight) / 2.0)
                 transition.setPosition(view: titleView, position: titlePosition)
@@ -463,6 +432,7 @@ final class StarsStatisticsScreenComponent: Component {
                     transition: .immediate,
                     component: AnyComponent(ListSectionComponent(
                         theme: environment.theme,
+                        style: .glass,
                         header: AnyComponent(MultilineTextComponent(
                             text: .plain(NSAttributedString(
                                 string: strings.Stars_BotRevenue_Revenue_Title.uppercased(),
@@ -498,6 +468,7 @@ final class StarsStatisticsScreenComponent: Component {
                 transition: .immediate,
                 component: AnyComponent(ListSectionComponent(
                     theme: environment.theme,
+                    style: .glass,
                     header: AnyComponent(MultilineTextComponent(
                         text: .plain(NSAttributedString(
                             string: strings.Stars_BotRevenue_Proceeds_Title.uppercased(),
@@ -508,7 +479,7 @@ final class StarsStatisticsScreenComponent: Component {
                     )),
                     footer: AnyComponent(MultilineTextComponent(
                         text: .plain(NSAttributedString(
-                            string: strings.Stars_BotRevenue_Proceeds_Info,
+                            string: component.peerId == component.context.account.peerId ? strings.Stars_AccountRevenue_Proceeds_Info : strings.Stars_BotRevenue_Proceeds_Info,
                             font: Font.regular(13.0),
                             textColor: environment.theme.list.freeTextColor
                         )),
@@ -519,21 +490,21 @@ final class StarsStatisticsScreenComponent: Component {
                             theme: environment.theme,
                             dateTimeFormat: environment.dateTimeFormat,
                             title: strings.Stars_BotRevenue_Proceeds_Available,
-                            value: starsState?.balances.availableBalance ?? StarsAmount.zero,
+                            value: starsState?.balances.availableBalance ?? CurrencyAmount(amount: .zero, currency: .stars),
                             rate: starsState?.usdRate ?? 0.0
                         ))),
                         AnyComponentWithIdentity(id: 1, component: AnyComponent(StarsOverviewItemComponent(
                             theme: environment.theme,
                             dateTimeFormat: environment.dateTimeFormat,
                             title: strings.Stars_BotRevenue_Proceeds_Current,
-                            value: starsState?.balances.currentBalance ?? StarsAmount.zero,
+                            value: starsState?.balances.currentBalance ?? CurrencyAmount(amount: .zero, currency: .stars),
                             rate: starsState?.usdRate ?? 0.0
                         ))),
                         AnyComponentWithIdentity(id: 2, component: AnyComponent(StarsOverviewItemComponent(
                             theme: environment.theme,
                             dateTimeFormat: environment.dateTimeFormat,
                             title: strings.Stars_BotRevenue_Proceeds_Total,
-                            value: starsState?.balances.overallRevenue ?? StarsAmount.zero,
+                            value: starsState?.balances.overallRevenue ?? CurrencyAmount(amount: .zero, currency: .stars),
                             rate: starsState?.usdRate ?? 0.0
                         )))
                     ],
@@ -558,8 +529,8 @@ final class StarsStatisticsScreenComponent: Component {
                 return (TelegramTextAttributes.URL, contents)
             })
             
-            let balanceInfoString = NSMutableAttributedString(attributedString: parseMarkdownIntoAttributedString(strings.Stars_BotRevenue_Withdraw_Info, attributes: termsMarkdownAttributes, textAlignment: .natural
-            ))
+            let balanceRawString = component.peerId == component.context.account.peerId ? strings.Stars_AccountRevenue_Withdraw_Info : strings.Stars_BotRevenue_Withdraw_Info
+            let balanceInfoString = NSMutableAttributedString(attributedString: parseMarkdownIntoAttributedString(balanceRawString, attributes: termsMarkdownAttributes, textAlignment: .natural))
             if self.cachedChevronImage == nil || self.cachedChevronImage?.1 !== environment.theme {
                 self.cachedChevronImage = (generateTintedImage(image: UIImage(bundleImageName: "Contact List/SubtitleArrow"), color: environment.theme.list.itemAccentColor)!, environment.theme)
             }
@@ -567,10 +538,93 @@ final class StarsStatisticsScreenComponent: Component {
                 balanceInfoString.addAttribute(.attachment, value: chevronImage, range: NSRange(range, in: balanceInfoString.string))
             }
                         
+            var balanceItems: [AnyComponentWithIdentity<Empty>] = []
+            if component.peerId == component.context.account.peerId {
+                let withdrawEnabled = self.starsState?.balances.withdrawEnabled ?? false
+                balanceItems = [
+                    AnyComponentWithIdentity(id: 0, component: AnyComponent(
+                        StarsBalanceComponent(
+                            theme: environment.theme,
+                            strings: strings,
+                            dateTimeFormat: environment.dateTimeFormat,
+                            count: self.starsState?.balances.availableBalance.amount ?? StarsAmount.zero,
+                            currency: .stars,
+                            rate: self.starsState?.usdRate ?? 0,
+                            actionTitle: strings.Stars_Intro_Withdraw,
+                            actionAvailable: withdrawEnabled,
+                            actionIsEnabled: true,
+                            actionCooldownUntilTimestamp: self.starsState?.balances.nextWithdrawalTimestamp,
+                            actionIcon: PresentationResourcesItemList.itemListRoundWithdrawIcon(environment.theme),
+                            action: { [weak self] in
+                                guard let self, let component = self.component else {
+                                    return
+                                }
+                                var remainingCooldownSeconds: Int32 = 0
+                                if let cooldownUntilTimestamp = self.starsState?.balances.nextWithdrawalTimestamp {
+                                    remainingCooldownSeconds = cooldownUntilTimestamp - Int32(Date().timeIntervalSince1970)
+                                    remainingCooldownSeconds = max(0, remainingCooldownSeconds)
+                                    
+                                    if remainingCooldownSeconds > 0 {
+                                        component.showTimeoutTooltip(cooldownUntilTimestamp)
+                                    } else {
+                                        component.withdraw()
+                                    }
+                                } else {
+                                    component.withdraw()
+                                }
+                            }
+                        )
+                    ))
+                ]
+            } else {
+                balanceItems = [
+                    AnyComponentWithIdentity(id: 0, component: AnyComponent(
+                        StarsBalanceComponent(
+                            theme: environment.theme,
+                            strings: strings,
+                            dateTimeFormat: environment.dateTimeFormat,
+                            count: self.starsState?.balances.availableBalance.amount ?? StarsAmount.zero,
+                            currency: .stars,
+                            rate: self.starsState?.usdRate ?? 0,
+                            actionTitle: strings.Stars_BotRevenue_Withdraw_WithdrawShort,
+                            actionAvailable: true,
+                            actionIsEnabled: self.starsState?.balances.withdrawEnabled ?? true,
+                            actionCooldownUntilTimestamp: self.starsState?.balances.nextWithdrawalTimestamp,
+                            action: { [weak self] in
+                                guard let self, let component = self.component else {
+                                    return
+                                }
+                                var remainingCooldownSeconds: Int32 = 0
+                                if let cooldownUntilTimestamp = self.starsState?.balances.nextWithdrawalTimestamp {
+                                    remainingCooldownSeconds = cooldownUntilTimestamp - Int32(Date().timeIntervalSince1970)
+                                    remainingCooldownSeconds = max(0, remainingCooldownSeconds)
+                                    
+                                    if remainingCooldownSeconds > 0 {
+                                        component.showTimeoutTooltip(cooldownUntilTimestamp)
+                                    } else {
+                                        component.withdraw()
+                                    }
+                                } else {
+                                    component.withdraw()
+                                }
+                            },
+                            secondaryActionTitle: strings.Stars_BotRevenue_Withdraw_BuyAds,
+                            secondaryAction: { [weak self] in
+                                guard let self, let component = self.component else {
+                                    return
+                                }
+                                component.buyAds()
+                            }
+                        )
+                    ))
+                ]
+            }
+            
             let balanceSize = self.balanceView.update(
                 transition: .immediate,
                 component: AnyComponent(ListSectionComponent(
                     theme: environment.theme,
+                    style: .glass,
                     header: AnyComponent(MultilineTextComponent(
                         text: .plain(NSAttributedString(
                             string: strings.Stars_BotRevenue_Withdraw_Balance.uppercased(),
@@ -597,43 +651,7 @@ final class StarsStatisticsScreenComponent: Component {
                             }
                         }
                     )),
-                    items: [AnyComponentWithIdentity(id: 0, component: AnyComponent(
-                        StarsBalanceComponent(
-                            theme: environment.theme,
-                            strings: strings,
-                            dateTimeFormat: environment.dateTimeFormat,
-                            count: self.starsState?.balances.availableBalance ?? StarsAmount.zero,
-                            rate: self.starsState?.usdRate ?? 0,
-                            actionTitle: strings.Stars_BotRevenue_Withdraw_Withdraw,
-                            actionAvailable: true,
-                            actionIsEnabled: self.starsState?.balances.withdrawEnabled ?? true,
-                            actionCooldownUntilTimestamp: self.starsState?.balances.nextWithdrawalTimestamp,
-                            action: { [weak self] in
-                                guard let self, let component = self.component else {
-                                    return
-                                }
-                                var remainingCooldownSeconds: Int32 = 0
-                                if let cooldownUntilTimestamp = self.starsState?.balances.nextWithdrawalTimestamp {
-                                    remainingCooldownSeconds = cooldownUntilTimestamp - Int32(Date().timeIntervalSince1970)
-                                    remainingCooldownSeconds = max(0, remainingCooldownSeconds)
-                                    
-                                    if remainingCooldownSeconds > 0 {
-                                        component.showTimeoutTooltip(cooldownUntilTimestamp)
-                                    } else {
-                                        component.withdraw()
-                                    }
-                                } else {
-                                    component.withdraw()
-                                }
-                            },
-                            buyAds: { [weak self] in
-                                guard let self, let component = self.component else {
-                                    return
-                                }
-                                component.buyAds()
-                            }
-                        )
-                    ))]
+                    items: balanceItems
                 )),
                 environment: {},
                 containerSize: CGSize(width: availableSize.width - sideInsets, height: availableSize.height)
@@ -655,7 +673,7 @@ final class StarsStatisticsScreenComponent: Component {
                 if let current = self.allTransactionsContext {
                     allTransactionsContext = current
                 } else {
-                    allTransactionsContext = component.context.engine.payments.peerStarsTransactionsContext(subject: .peer(component.peerId), mode: .all)
+                    allTransactionsContext = component.context.engine.payments.peerStarsTransactionsContext(subject: .peer(peerId: component.peerId, ton: false), mode: .all)
                     self.allTransactionsContext = allTransactionsContext
                 }
                 
@@ -725,7 +743,7 @@ final class StarsStatisticsScreenComponent: Component {
             let panelTransition = transition
             if !panelItems.isEmpty {
                 let panelContainerInset: CGFloat = self.listIsExpanded ? 0.0 : 16.0
-                let panelContainerCornerRadius: CGFloat = self.listIsExpanded ? 0.0 : 11.0
+                let panelContainerCornerRadius: CGFloat = self.listIsExpanded ? 0.0 : 26.0
                 
                 let panelContainerSize = self.panelContainer.update(
                     transition: panelTransition,
@@ -795,24 +813,35 @@ public final class StarsStatisticsScreen: ViewControllerComponentContainer {
     private let peerId: EnginePeer.Id
     private let revenueContext: StarsRevenueStatsContext
     
+    private let overNavigationContainer: UIView
+    
     private weak var tooltipScreen: UndoOverlayController?
     private var timer: Foundation.Timer?
+    
+    private let options = Promise<[StarsTopUpOption]>()
     
     public init(context: AccountContext, peerId: EnginePeer.Id, revenueContext: StarsRevenueStatsContext) {
         self.context = context
         self.peerId = peerId
         self.revenueContext = revenueContext
         
+        self.overNavigationContainer = SparseContainerView()
+        
+        var buyImpl: (() -> Void)?
         var withdrawImpl: (() -> Void)?
         var buyAdsImpl: (() -> Void)?
         var showTimeoutTooltipImpl: ((Int32) -> Void)?
         var openTransactionImpl: ((StarsContext.State.Transaction) -> Void)?
         super.init(context: context, component: StarsStatisticsScreenComponent(
             context: context,
+            overNavigationContainer: self.overNavigationContainer,
             peerId: peerId,
             revenueContext: revenueContext,
             openTransaction: { transaction in
                 openTransactionImpl?(transaction)
+            },
+            buy: {
+                buyImpl?()
             },
             withdraw: {
                 withdrawImpl?()
@@ -823,7 +852,7 @@ public final class StarsStatisticsScreen: ViewControllerComponentContainer {
             buyAds: {
                 buyAdsImpl?()
             }
-        ), navigationBarAppearance: .transparent)
+        ), navigationBarAppearance: .default)
         
         self.navigationPresentation = .modalInLargeLayout
                 
@@ -837,6 +866,46 @@ public final class StarsStatisticsScreen: ViewControllerComponentContainer {
                     return
                 }
                 let controller = context.sharedContext.makeStarsTransactionScreen(context: context, transaction: transaction, peer: peer)
+                self.push(controller)
+            })
+        }
+        
+        if peerId == context.account.peerId {
+            self.options.set(.single([]) |> then(context.engine.payments.starsTopUpOptions()))
+        }
+        
+        buyImpl = { [weak self] in
+            guard let self else {
+                return
+            }
+            let _ = (self.options.get()
+            |> take(1)
+            |> deliverOnMainQueue).start(next: { [weak self] options in
+                guard let self, let starsContext = context.starsContext else {
+                    return
+                }
+                let controller = context.sharedContext.makeStarsPurchaseScreen(context: context, starsContext: starsContext, options: options, purpose: .generic, targetPeerId: nil, customTheme: nil, completion: { [weak self] stars in
+                    guard let self else {
+                        return
+                    }
+                    starsContext.add(balance: StarsAmount(value: stars, nanos: 0))
+                    
+                    let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                    let resultController = UndoOverlayController(
+                        presentationData: presentationData,
+                        content: .universal(
+                            animation: "StarsBuy",
+                            scale: 0.066,
+                            colors: [:],
+                            title: presentationData.strings.Stars_Intro_PurchasedTitle,
+                            text: presentationData.strings.Stars_Intro_PurchasedText(presentationData.strings.Stars_Intro_PurchasedText_Stars(Int32(clamping: stars))).string,
+                            customUndoText: nil,
+                            timeout: nil
+                        ),
+                        elevatedLayout: false,
+                        action: { _ in return true})
+                    self.present(resultController, in: .window(.root))
+                })
                 self.push(controller)
             })
         }
@@ -961,6 +1030,10 @@ public final class StarsStatisticsScreen: ViewControllerComponentContainer {
                 return
             }
             componentView.scrollToTop()
+        }
+        
+        if let navigationBar = self.navigationBar {
+            navigationBar.customOverBackgroundContentView.insertSubview(self.overNavigationContainer, at: 0)
         }
     }
     

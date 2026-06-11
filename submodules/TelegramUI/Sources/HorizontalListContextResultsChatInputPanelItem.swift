@@ -15,20 +15,23 @@ import TelegramPresentationData
 import AccountContext
 import ShimmerEffect
 import SoftwareVideo
-import MultiplexedVideoNode
+import BatchVideoRendering
+import GifVideoLayer
 
 final class HorizontalListContextResultsChatInputPanelItem: ListViewItem {
     let context: AccountContext
     let theme: PresentationTheme
     let result: ChatContextResult
+    let batchVideoContext: QueueLocalObject<BatchVideoRenderingContext>
     let resultSelected: (ChatContextResult, ASDisplayNode, CGRect) -> Bool
     
     let selectable: Bool = true
     
-    public init(context: AccountContext, theme: PresentationTheme,  result: ChatContextResult, resultSelected: @escaping (ChatContextResult, ASDisplayNode, CGRect) -> Bool) {
+    public init(context: AccountContext, theme: PresentationTheme, result: ChatContextResult, batchVideoContext: QueueLocalObject<BatchVideoRenderingContext>, resultSelected: @escaping (ChatContextResult, ASDisplayNode, CGRect) -> Bool) {
         self.context = context
         self.theme = theme
         self.result = result
+        self.batchVideoContext = batchVideoContext
         self.resultSelected = resultSelected
     }
     
@@ -90,11 +93,11 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
     private let imageNode: TransformImageNode
     private var animationNode: AnimatedStickerNode?
     private var placeholderNode: StickerShimmerEffectNode?
-    private var videoLayer: (SoftwareVideoThumbnailNode, SoftwareVideoLayerFrameManager, SampleBufferLayer)?
+    private var videoLayer: GifVideoLayer?
     private var currentImageResource: TelegramMediaResource?
     private var currentVideoFile: TelegramMediaFile?
     private var currentAnimatedStickerFile: TelegramMediaFile?
-    private var resourceStatus: MediaResourceStatus?
+    private var resourceStatus: EngineMediaResource.FetchStatus?
     private(set) var item: HorizontalListContextResultsChatInputPanelItem?
     private var statusDisposable = MetaDisposable()
     private let statusNode: RadialStatusNode = RadialStatusNode(backgroundNodeColor: UIColor(white: 0.0, alpha: 0.5))
@@ -103,57 +106,16 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
 
     override var visibility: ListViewItemNodeVisibility {
         didSet {
-            switch visibility {
-                case .visible:
-                    self.ticking = true
-                default:
-                    self.ticking = false
+            switch self.visibility {
+            case .visible:
+                self.videoLayer?.shouldBeAnimating = true
+            case .none:
+                self.videoLayer?.shouldBeAnimating = false
             }
         }
     }
     
     private let timebase: CMTimebase
-    
-    private var displayLink: CADisplayLink?
-    private var ticking: Bool = false {
-        didSet {
-            if self.ticking != oldValue {
-                if self.ticking {
-                    class DisplayLinkProxy: NSObject {
-                        weak var target: HorizontalListContextResultsChatInputPanelItemNode?
-                        init(target: HorizontalListContextResultsChatInputPanelItemNode) {
-                            self.target = target
-                        }
-                        
-                        @objc func displayLinkEvent() {
-                            self.target?.displayLinkEvent()
-                        }
-                    }
-                    
-                    let displayLink = CADisplayLink(target: DisplayLinkProxy(target: self), selector: #selector(DisplayLinkProxy.displayLinkEvent))
-                    self.displayLink = displayLink
-                    displayLink.add(to: RunLoop.main, forMode: .common)
-                    if #available(iOS 10.0, *) {
-                        displayLink.preferredFramesPerSecond = 25
-                    } else {
-                        displayLink.frameInterval = 2
-                    }
-                    displayLink.isPaused = false
-                    CMTimebaseSetRate(self.timebase, rate: 1.0)
-                } else if let displayLink = self.displayLink {
-                    self.displayLink = nil
-                    displayLink.isPaused = true
-                    displayLink.invalidate()
-                    CMTimebaseSetRate(self.timebase, rate: 0.0)
-                }
-            }
-        }
-    }
-    
-    private func displayLinkEvent() {
-        let timestamp = CMTimebaseGetTime(self.timebase).seconds
-        self.videoLayer?.1.tick(timestamp: timestamp)
-    }
     
     init() {
         self.imageNodeBackground = ASDisplayNode()
@@ -171,7 +133,7 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
         CMTimebaseSetRate(timebase!, rate: 0.0)
         self.timebase = timebase!
         
-        super.init(layerBacked: false, dynamicBounce: false)
+        super.init(layerBacked: false)
         
         self.addSubnode(self.imageNodeBackground)
         
@@ -197,10 +159,6 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
     }
     
     deinit {
-        if let displayLink = self.displayLink {
-            displayLink.isPaused = true
-            displayLink.invalidate()
-        }
         self.statusDisposable.dispose()
         self.fetchDisposable.dispose()
     }
@@ -244,7 +202,7 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
             let sideInset: CGFloat = 4.0
             
             var updateImageSignal: Signal<(TransformImageArguments) -> DrawingContext?, NoError>?
-            var updatedStatusSignal: Signal<MediaResourceStatus, NoError>?
+            var updatedStatusSignal: Signal<EngineMediaResource.FetchStatus, NoError>?
 
             var imageResource: TelegramMediaResource?
             var stickerFile: TelegramMediaFile?
@@ -265,9 +223,9 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
                     }
                 
                     if let file = videoFile {
-                        updatedStatusSignal = item.context.account.postbox.mediaBox.resourceStatus(file.resource)
+                        updatedStatusSignal = item.context.engine.resources.status(resource: EngineMediaResource(file.resource))
                     } else if let imageResource = imageResource {
-                        updatedStatusSignal = item.context.account.postbox.mediaBox.resourceStatus(imageResource)
+                        updatedStatusSignal = item.context.engine.resources.status(resource: EngineMediaResource(imageResource))
                     }
                 case let .internalReference(internalReference):
                     if let image = internalReference.image {
@@ -296,12 +254,12 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
                         if file.isVideo && file.isAnimated {
                             videoFile = file
                             imageResource = nil
-                            updatedStatusSignal = item.context.account.postbox.mediaBox.resourceStatus(file.resource)
+                            updatedStatusSignal = item.context.engine.resources.status(resource: EngineMediaResource(file.resource))
                         } else if let imageResource = imageResource {
-                            updatedStatusSignal = item.context.account.postbox.mediaBox.resourceStatus(imageResource)
+                            updatedStatusSignal = item.context.engine.resources.status(resource: EngineMediaResource(imageResource))
                         }
                     } else if let imageResource = imageResource {
-                        updatedStatusSignal = item.context.account.postbox.mediaBox.resourceStatus(imageResource)
+                        updatedStatusSignal = item.context.engine.resources.status(resource: EngineMediaResource(imageResource))
                     }
             }
             
@@ -384,30 +342,25 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
                     }
                         
                     if updatedVideoFile {
-                        if let (thumbnailLayer, _, layer) = strongSelf.videoLayer {
+                        if let videoLayer = strongSelf.videoLayer {
                             strongSelf.videoLayer = nil
-                            thumbnailLayer.removeFromSupernode()
-                            layer.layer.removeFromSuperlayer()
+                            videoLayer.removeFromSuperlayer()
                         }
                         
-                        if let videoFile = videoFile {
-                            let thumbnailLayer = SoftwareVideoThumbnailNode(account: item.context.account, fileReference: .standalone(media: videoFile), synchronousLoad: synchronousLoads)
-                            thumbnailLayer.transform = CATransform3DMakeRotation(CGFloat.pi / 2.0, 0.0, 0.0, 1.0)
-                            strongSelf.addSubnode(thumbnailLayer)
-                            let layerHolder = takeSampleBufferLayer()
-                            layerHolder.layer.videoGravity = AVLayerVideoGravity.resizeAspectFill
-                            layerHolder.layer.transform = CATransform3DMakeRotation(CGFloat.pi / 2.0, 0.0, 0.0, 1.0)
-                            strongSelf.layer.addSublayer(layerHolder.layer)
+                        if let videoFile, let batchVideoContext = item.batchVideoContext.unsafeGet() {
+                            let videoLayer = GifVideoLayer(
+                                context: item.context,
+                                batchVideoContext: batchVideoContext,
+                                userLocation: .other,
+                                file: .standalone(media: videoFile),
+                                synchronousLoad: synchronousLoads
+                            )
+                            videoLayer.videoGravity = AVLayerVideoGravity.resizeAspectFill
+                            videoLayer.transform = CATransform3DMakeRotation(CGFloat.pi / 2.0, 0.0, 0.0, 1.0)
+                            strongSelf.layer.addSublayer(videoLayer)
                             
-                            let manager = SoftwareVideoLayerFrameManager(account: item.context.account, userLocation: .other, userContentType: .other, fileReference: .standalone(media: videoFile), layerHolder: layerHolder)
-                            strongSelf.videoLayer = (thumbnailLayer, manager, layerHolder)
-                            thumbnailLayer.ready = { [weak thumbnailLayer, weak manager] in
-                                if let strongSelf = self, let thumbnailLayer = thumbnailLayer, let manager = manager {
-                                    if strongSelf.videoLayer?.0 === thumbnailLayer && strongSelf.videoLayer?.1 === manager {
-                                        manager.start()
-                                    }
-                                }
-                            }
+                            strongSelf.videoLayer = videoLayer
+                            videoLayer.shouldBeAnimating = strongSelf.visibility != .none
                         }
                     }
                     
@@ -477,11 +430,9 @@ final class HorizontalListContextResultsChatInputPanelItemNode: ListViewItemNode
                         strongSelf.statusNode.transitionToState(.none, completion: { })
                     }
                     
-                    if let (thumbnailLayer, _, layer) = strongSelf.videoLayer {
-                        thumbnailLayer.bounds = CGRect(origin: CGPoint(), size: CGSize(width: croppedImageDimensions.width, height: croppedImageDimensions.height))
-                        thumbnailLayer.position = CGPoint(x: height / 2.0, y: (nodeLayout.contentSize.height - sideInset) / 2.0 + sideInset)
-                        layer.layer.bounds = CGRect(origin: CGPoint(), size: CGSize(width: croppedImageDimensions.width, height: croppedImageDimensions.height))
-                        layer.layer.position = CGPoint(x: height / 2.0, y: (nodeLayout.contentSize.height - sideInset) / 2.0 + sideInset)
+                    if let videoLayer = strongSelf.videoLayer {
+                        videoLayer.bounds = CGRect(origin: CGPoint(), size: CGSize(width: croppedImageDimensions.width, height: croppedImageDimensions.height))
+                        videoLayer.position = CGPoint(x: height / 2.0, y: (nodeLayout.contentSize.height - sideInset) / 2.0 + sideInset)
                     }
                     
                     if let animationNode = strongSelf.animationNode {

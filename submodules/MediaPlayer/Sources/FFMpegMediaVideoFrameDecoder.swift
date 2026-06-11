@@ -47,7 +47,7 @@ public final class FFMpegMediaVideoFrameDecoder: MediaTrackFrameDecoder {
     
     private let codecContext: FFMpegAVCodecContext
     
-    private let videoFrame: FFMpegAVFrame
+    private let videoFrame: FFMpegAVFrame?
     private var resetDecoderOnNextFrame = true
     private var isError = false
     
@@ -91,27 +91,29 @@ public final class FFMpegMediaVideoFrameDecoder: MediaTrackFrameDecoder {
     }
     
     public func receiveFromDecoder(ptsOffset: CMTime?, displayImmediately: Bool = true) -> ReceiveResult {
+        guard let videoFrame = self.videoFrame else {
+            return .error
+        }
         if self.isError {
             return .error
         }
-        
         guard let defaultTimescale = self.defaultTimescale, let defaultDuration = self.defaultDuration else {
             return .error
         }
         
-        let receiveResult = self.codecContext.receive(into: self.videoFrame)
+        let receiveResult = self.codecContext.receive(into: videoFrame)
         switch receiveResult {
         case .success:
-            if self.videoFrame.width * self.videoFrame.height > 4 * 1024 * 4 * 1024 {
+            if videoFrame.width * videoFrame.height > 4 * 1024 * 4 * 1024 {
                 self.isError = true
                 return .error
             }
             
-            var pts = CMTimeMake(value: self.videoFrame.pts, timescale: defaultTimescale)
+            var pts = CMTimeMake(value: videoFrame.pts, timescale: defaultTimescale)
             if let ptsOffset = ptsOffset {
                 pts = CMTimeAdd(pts, ptsOffset)
             }
-            if let convertedFrame = convertVideoFrame(self.videoFrame, pts: pts, dts: pts, duration: self.videoFrame.duration > 0 ? CMTimeMake(value: self.videoFrame.duration, timescale: defaultTimescale) : defaultDuration, displayImmediately: displayImmediately) {
+            if let convertedFrame = convertVideoFrame(videoFrame, pts: pts, dts: pts, duration: videoFrame.duration > 0 ? CMTimeMake(value: videoFrame.duration, timescale: defaultTimescale) : defaultDuration, displayImmediately: displayImmediately) {
                 return .result(convertedFrame)
             } else {
                 return .error
@@ -137,6 +139,9 @@ public final class FFMpegMediaVideoFrameDecoder: MediaTrackFrameDecoder {
     }
     
     public func decode(ptsOffset: CMTime?, forceARGB: Bool = false, unpremultiplyAlpha: Bool = true, displayImmediately: Bool = true) -> MediaTrackFrame? {
+        guard let videoFrame = self.videoFrame else {
+            return nil
+        }
         if self.isError {
             return nil
         }
@@ -144,23 +149,26 @@ public final class FFMpegMediaVideoFrameDecoder: MediaTrackFrameDecoder {
             return nil
         }
         
-        if self.codecContext.receive(into: self.videoFrame) == .success {
-            if self.videoFrame.width * self.videoFrame.height > 4 * 1024 * 4 * 1024 {
+        if self.codecContext.receive(into: videoFrame) == .success {
+            if videoFrame.width * videoFrame.height > 4 * 1024 * 4 * 1024 {
                 self.isError = true
                 return nil
             }
             
-            var pts = CMTimeMake(value: self.videoFrame.pts, timescale: defaultTimescale)
+            var pts = CMTimeMake(value: videoFrame.pts, timescale: defaultTimescale)
             if let ptsOffset = ptsOffset {
                 pts = CMTimeAdd(pts, ptsOffset)
             }
-            return convertVideoFrame(self.videoFrame, pts: pts, dts: pts, duration: defaultDuration, forceARGB: forceARGB, unpremultiplyAlpha: unpremultiplyAlpha, displayImmediately: displayImmediately)
+            return convertVideoFrame(videoFrame, pts: pts, dts: pts, duration: defaultDuration, forceARGB: forceARGB, unpremultiplyAlpha: unpremultiplyAlpha, displayImmediately: displayImmediately)
         }
         
         return nil
     }
     
     public func receiveRemainingFrames(ptsOffset: CMTime?) -> [MediaTrackFrame] {
+        guard let videoFrame = self.videoFrame else {
+            return []
+        }
         guard let defaultTimescale = self.defaultTimescale, let defaultDuration = self.defaultDuration else {
             return []
         }
@@ -173,17 +181,17 @@ public final class FFMpegMediaVideoFrameDecoder: MediaTrackFrameDecoder {
         self.delayedFrames.removeAll()
         
         while true {
-            if case .success = self.codecContext.receive(into: self.videoFrame) {
-                if self.videoFrame.width * self.videoFrame.height > 4 * 1024 * 4 * 1024 {
+            if case .success = self.codecContext.receive(into: videoFrame) {
+                if videoFrame.width * videoFrame.height > 4 * 1024 * 4 * 1024 {
                     self.isError = true
                     return []
                 }
                 
-                var pts = CMTimeMake(value: self.videoFrame.pts, timescale: defaultTimescale)
+                var pts = CMTimeMake(value: videoFrame.pts, timescale: defaultTimescale)
                 if let ptsOffset = ptsOffset {
                     pts = CMTimeAdd(pts, ptsOffset)
                 }
-                if let convertedFrame = convertVideoFrame(self.videoFrame, pts: pts, dts: pts, duration: self.videoFrame.duration > 0 ? CMTimeMake(value: self.videoFrame.duration, timescale: defaultTimescale) : defaultDuration) {
+                if let convertedFrame = convertVideoFrame(videoFrame, pts: pts, dts: pts, duration: videoFrame.duration > 0 ? CMTimeMake(value: videoFrame.duration, timescale: defaultTimescale) : defaultDuration) {
                     result.append(convertedFrame)
                 }
             } else {
@@ -194,15 +202,18 @@ public final class FFMpegMediaVideoFrameDecoder: MediaTrackFrameDecoder {
     }
     
     public func render(frame: MediaTrackDecodableFrame) -> UIImage? {
+        guard let videoFrame = self.videoFrame else {
+            return nil
+        }
         let status = frame.packet.send(toDecoder: self.codecContext)
         if status == 0 {
-            if case .success = self.codecContext.receive(into: self.videoFrame) {
-                if self.videoFrame.width * self.videoFrame.height > 4 * 1024 * 4 * 1024 {
+            if case .success = self.codecContext.receive(into: videoFrame) {
+                if videoFrame.width * videoFrame.height > 4 * 1024 * 4 * 1024 {
                     self.isError = true
                     return nil
                 }
                 
-                return convertVideoFrameToImage(self.videoFrame)
+                return convertVideoFrameToImage(videoFrame)
             }
         }
         
@@ -229,7 +240,39 @@ public final class FFMpegMediaVideoFrameDecoder: MediaTrackFrameDecoder {
         }
     }
     
+    private static func isPlanarYUV420Safe(_ frame: FFMpegAVFrame) -> Bool {
+        // Layout must be a planar YUV/YUVA 420 variant. Anything else (BGRA, NV12, gray8,
+        // YUV422P, …) must not reach the planar 420 vImage conversion or the planar copy
+        // path that force-unwraps data[1]/data[2].
+        let format = frame.pixelFormat
+        guard format == .YUV || format == .YUVA else {
+            return false
+        }
+        // Reject bottom-up / negative-stride frames before any row-copy loop — ffmpeg
+        // rawdec flips linesize[0] for codec_tag WRAW/cyuv/BottomUp, and other decoders
+        // (dxtory, mimic, mjpegdec, scpr) flip the chroma planes too.
+        if frame.lineSize[0] < 0 || frame.lineSize[1] < 0 || frame.lineSize[2] < 0 {
+            return false
+        }
+        if format == .YUVA && frame.lineSize[3] < 0 {
+            return false
+        }
+        if frame.data[0] == nil || frame.data[1] == nil || frame.data[2] == nil {
+            return false
+        }
+        if format == .YUVA && frame.data[3] == nil {
+            return false
+        }
+        if frame.width <= 0 || frame.height <= 0 {
+            return false
+        }
+        return true
+    }
+
     private func convertVideoFrameToImage(_ frame: FFMpegAVFrame) -> UIImage? {
+        guard FFMpegMediaVideoFrameDecoder.isPlanarYUV420Safe(frame) else {
+            return nil
+        }
         var info = vImage_YpCbCrToARGB()
         
         var pixelRange: vImage_YpCbCrPixelRange
@@ -277,7 +320,44 @@ public final class FFMpegMediaVideoFrameDecoder: MediaTrackFrameDecoder {
     }
     
     private func convertVideoFrame(_ frame: FFMpegAVFrame, pts: CMTime, dts: CMTime, duration: CMTime, forceARGB: Bool = false, unpremultiplyAlpha: Bool = true, displayImmediately: Bool = true) -> MediaTrackFrame? {
-        if frame.data[0] == nil {
+        if frame.nativePixelFormat() == FFMpegAVFrameNativePixelFormat.videoToolbox {
+            guard let pixelBufferRef = frame.data[3] else {
+                return nil
+            }
+            let unmanagedPixelBuffer = Unmanaged<CVPixelBuffer>.fromOpaque(UnsafeRawPointer(pixelBufferRef))
+            let pixelBuffer = unmanagedPixelBuffer.takeUnretainedValue()
+            
+            var formatRef: CMVideoFormatDescription?
+            let formatStatus = CMVideoFormatDescriptionCreateForImageBuffer(allocator: kCFAllocatorDefault, imageBuffer: pixelBuffer, formatDescriptionOut: &formatRef)
+            
+            guard let format = formatRef, formatStatus == 0 else {
+                return nil
+            }
+            
+            var timingInfo = CMSampleTimingInfo(duration: duration, presentationTimeStamp: pts, decodeTimeStamp: pts)
+            var sampleBuffer: CMSampleBuffer?
+            
+            guard CMSampleBufferCreateReadyWithImageBuffer(allocator: kCFAllocatorDefault, imageBuffer: pixelBuffer, formatDescription: format, sampleTiming: &timingInfo, sampleBufferOut: &sampleBuffer) == noErr else {
+                return nil
+            }
+            
+            let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer!, createIfNecessary: true)! as NSArray
+            let dict = attachments[0] as! NSMutableDictionary
+            
+            let resetDecoder = self.resetDecoderOnNextFrame
+            if self.resetDecoderOnNextFrame {
+                self.resetDecoderOnNextFrame = false
+                //dict.setValue(kCFBooleanTrue as AnyObject, forKey: kCMSampleBufferAttachmentKey_ResetDecoderBeforeDecoding as NSString as String)
+            }
+            
+            if displayImmediately {
+                dict.setValue(kCFBooleanTrue as AnyObject, forKey: kCMSampleAttachmentKey_DisplayImmediately as NSString as String)
+            }
+            
+            return MediaTrackFrame(type: .video, sampleBuffer: sampleBuffer!, resetDecoder: resetDecoder, decoded: true)
+        }
+        
+        guard FFMpegMediaVideoFrameDecoder.isPlanarYUV420Safe(frame) else {
             return nil
         }
         if frame.lineSize[1] != frame.lineSize[2] {

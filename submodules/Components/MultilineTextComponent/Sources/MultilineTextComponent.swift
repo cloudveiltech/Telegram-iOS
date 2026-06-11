@@ -5,6 +5,11 @@ import Display
 import Markdown
 
 public final class MultilineTextComponent: Component {
+    public final class CrossfadeTransition {
+        public init() {
+        }
+    }
+    
     public enum TextContent: Equatable {
         case plain(NSAttributedString)
         case markdown(text: String, attributes: MarkdownAttributes)
@@ -18,6 +23,7 @@ public final class MultilineTextComponent: Component {
     public let lineSpacing: CGFloat
     public let cutout: TextNodeCutout?
     public let insets: UIEdgeInsets
+    public let tintColor: UIColor?
     public let textShadowColor: UIColor?
     public let textShadowBlur: CGFloat?
     public let textStroke: (UIColor, CGFloat)?
@@ -36,6 +42,7 @@ public final class MultilineTextComponent: Component {
         lineSpacing: CGFloat = 0.0,
         cutout: TextNodeCutout? = nil,
         insets: UIEdgeInsets = UIEdgeInsets(),
+        tintColor: UIColor? = nil,
         textShadowColor: UIColor? = nil,
         textShadowBlur: CGFloat? = nil,
         textStroke: (UIColor, CGFloat)? = nil,
@@ -53,6 +60,7 @@ public final class MultilineTextComponent: Component {
         self.lineSpacing = lineSpacing
         self.cutout = cutout
         self.insets = insets
+        self.tintColor = tintColor
         self.textShadowColor = textShadowColor
         self.textShadowBlur = textShadowBlur
         self.textStroke = textStroke
@@ -88,7 +96,9 @@ public final class MultilineTextComponent: Component {
         if lhs.insets != rhs.insets {
             return false
         }
-        
+        if lhs.tintColor != rhs.tintColor {
+            return false
+        }
         if let lhsTextShadowColor = lhs.textShadowColor, let rhsTextShadowColor = rhs.textShadowColor {
             if !lhsTextShadowColor.isEqual(rhsTextShadowColor) {
                 return false
@@ -136,7 +146,7 @@ public final class MultilineTextComponent: Component {
                 attributedString = parseMarkdownIntoAttributedString(text, attributes: attributes)
             }
             
-            //let previousText = self.attributedText?.string
+            let previousText = self.attributedText?.string
                                         
             self.attributedText = attributedString
             self.maximumNumberOfLines = component.maximumNumberOfLines
@@ -155,7 +165,7 @@ public final class MultilineTextComponent: Component {
             self.tapAttributeAction = component.tapAction
             self.longTapAttributeAction = component.longTapAction
                         
-            /*if case let .curve(duration, _) = transition.animation, let previousText = previousText, previousText != attributedString.string {
+            if case let .curve(duration, _) = transition.animation, let _ = transition.userData(CrossfadeTransition.self), let previousText = previousText, previousText != attributedString.string {
                 if let snapshotView = self.snapshotView(afterScreenUpdates: false) {
                     snapshotView.center = self.center
                     self.superview?.addSubview(snapshotView)
@@ -165,10 +175,16 @@ public final class MultilineTextComponent: Component {
                     })
                     self.layer.animateAlpha(from: 0.0, to: 1.0, duration: duration)
                 }
-            }*/
+            }
             
             let size = self.updateLayout(availableSize)
                  
+            if let tintColor = component.tintColor {
+                transition.setTintColor(layer: self.layer, color: tintColor)
+            } else {
+                self.layer.layerTintColor = nil
+            }
+            
             return size
         }
     }

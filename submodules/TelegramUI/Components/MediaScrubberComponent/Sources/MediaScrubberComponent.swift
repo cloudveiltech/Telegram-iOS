@@ -72,6 +72,7 @@ public final class MediaScrubberComponent: Component {
     public enum Style {
         case editor
         case videoMessage
+        case voiceMessage
         case cover
     }
     
@@ -84,12 +85,16 @@ public final class MediaScrubberComponent: Component {
     let position: Double
     let minDuration: Double
     let maxDuration: Double
+    let segmentDuration: Double?
     let isPlaying: Bool
     
     let tracks: [Track]
     let isCollage: Bool
     let isCollageSelected: Bool
     let collageSamples: (samples: Data, peak: Int32)?
+    
+    let cover: (position: Double, image: UIImage)?
+    let getCoverSourceView: () -> UIView?
     
     let portalView: PortalView?
     
@@ -109,11 +114,14 @@ public final class MediaScrubberComponent: Component {
         position: Double,
         minDuration: Double,
         maxDuration: Double,
+        segmentDuration: Double? = nil,
         isPlaying: Bool,
         tracks: [Track],
         isCollage: Bool,
         isCollageSelected: Bool = false,
         collageSamples: (samples: Data, peak: Int32)? = nil,
+        cover: (position: Double, image: UIImage)? = nil,
+        getCoverSourceView: @escaping () -> UIView? = { return nil },
         portalView: PortalView? = nil,
         positionUpdated: @escaping (Double, Bool) -> Void,
         coverPositionUpdated: @escaping (Double, Bool, @escaping () -> Void) -> Void = { _, _, _ in },
@@ -130,11 +138,14 @@ public final class MediaScrubberComponent: Component {
         self.position = position
         self.minDuration = minDuration
         self.maxDuration = maxDuration
+        self.segmentDuration = segmentDuration
         self.isPlaying = isPlaying
         self.tracks = tracks
         self.isCollage = isCollage
         self.isCollageSelected = isCollageSelected
         self.collageSamples = collageSamples
+        self.cover = cover
+        self.getCoverSourceView = getCoverSourceView
         self.portalView = portalView
         self.positionUpdated = positionUpdated
         self.coverPositionUpdated = coverPositionUpdated
@@ -164,6 +175,9 @@ public final class MediaScrubberComponent: Component {
         if lhs.maxDuration != rhs.maxDuration {
             return false
         }
+        if lhs.segmentDuration != rhs.segmentDuration {
+            return false
+        }
         if lhs.isPlaying != rhs.isPlaying {
             return false
         }
@@ -179,6 +193,9 @@ public final class MediaScrubberComponent: Component {
         if lhs.collageSamples?.samples != rhs.collageSamples?.samples || lhs.collageSamples?.peak != rhs.collageSamples?.peak {
             return false
         }
+        if lhs.cover?.position != rhs.cover?.position {
+            return false
+        }
         return true
     }
     
@@ -191,6 +208,10 @@ public final class MediaScrubberComponent: Component {
         private let cursorContentView: UIView
         private let cursorView: HandleView
         private let cursorImageView: UIImageView
+        
+        private let coverDotWrapper: UIView
+        private let coverDotView: UIImageView
+        private let coverImageView: UIImageView
         
         private var cursorDisplayLink: SharedDisplayLinkDriver.Link?
         private var cursorPositionAnimation: (start: Double, from: Double, to: Double, ended: Bool)?
@@ -212,6 +233,16 @@ public final class MediaScrubberComponent: Component {
             self.cursorContentView = UIView()
             self.cursorView = HandleView()
             self.cursorImageView = UIImageView()
+            
+            self.coverDotWrapper = UIView()
+            self.coverDotWrapper.isUserInteractionEnabled = false
+            self.coverDotWrapper.isHidden = true
+            
+            self.coverDotView = UIImageView(image: generateFilledCircleImage(diameter: 7.0, color: UIColor(rgb: 0x0088ff)))
+            
+            self.coverImageView = UIImageView()
+            self.coverImageView.clipsToBounds = true
+            self.coverImageView.contentMode = .scaleAspectFill
             
             super.init(frame: frame)
                                                  
@@ -245,6 +276,10 @@ public final class MediaScrubberComponent: Component {
             self.addSubview(self.cursorContentView)
             self.addSubview(self.cursorView)
             self.cursorView.addSubview(self.cursorImageView)
+            
+            self.addSubview(self.coverDotWrapper)
+            self.coverDotWrapper.addSubview(self.coverDotView)
+            self.coverDotWrapper.addSubview(self.coverImageView)
             
             self.cursorView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.handleCursorPan(_:))))
             
@@ -485,7 +520,7 @@ public final class MediaScrubberComponent: Component {
             switch component.style {
             case .editor:
                 self.cursorView.isHidden = false
-            case .videoMessage:
+            case .videoMessage, .voiceMessage:
                 self.cursorView.isHidden = true
             case .cover:
                 self.cursorView.isHidden = false
@@ -596,6 +631,7 @@ public final class MediaScrubberComponent: Component {
                     isSelected: isSelected,
                     availableSize: availableSize,
                     duration: self.duration,
+                    segmentDuration: lowestVideoId == track.id ? component.segmentDuration : nil,
                     transition: trackTransition
                 )
                 trackLayout[id] = (CGRect(origin: CGPoint(x: 0.0, y: totalHeight), size: trackSize), trackTransition, animateTrackIn)
@@ -632,12 +668,13 @@ public final class MediaScrubberComponent: Component {
                     self.collageTrackView = trackView
                 }
                 
+                let strings = component.context.sharedContext.currentPresentationData.with { $0 }.strings
                 let trackSize = trackView.update(
                     context: component.context,
                     style: component.style,
                     track: MediaScrubberComponent.Track(
                         id: 1024,
-                        content: .audio(artist: nil, title: "Timeline", samples: component.collageSamples?.samples, peak: component.collageSamples?.peak ?? 0, isTimeline: true),
+                        content: .audio(artist: nil, title: strings.MediaEditor_Timeline, samples: component.collageSamples?.samples, peak: component.collageSamples?.peak ?? 0, isTimeline: true),
                         duration: component.maxDuration,
                         trimRange: nil,
                         offset: nil,
@@ -646,6 +683,7 @@ public final class MediaScrubberComponent: Component {
                     isSelected: false,
                     availableSize: availableSize,
                     duration: self.duration,
+                    segmentDuration: nil,
                     transition: trackTransition
                 )
                 trackTransition.setFrame(view: trackView, frame: CGRect(origin: .zero, size: trackSize))
@@ -711,8 +749,8 @@ public final class MediaScrubberComponent: Component {
             switch component.style {
             case .editor, .cover:
                 fullTrackHeight = trackHeight
-            case .videoMessage:
-                fullTrackHeight = 33.0
+            case .videoMessage, .voiceMessage:
+                fullTrackHeight = 34.0
             }
             let scrubberSize = CGSize(width: availableSize.width, height: fullTrackHeight)
             
@@ -788,6 +826,14 @@ public final class MediaScrubberComponent: Component {
                         transition: transition
                     )
                 }
+            } else {
+                for (_ , trackView) in self.trackViews {
+                    trackView.updateTrimEdges(
+                        left: leftHandleFrame.minX,
+                        right: rightHandleFrame.maxX,
+                        transition: transition
+                    )
+                }
             }
             
             let isDraggingTracks = self.trackViews.values.contains(where: { $0.isDragging })
@@ -808,7 +854,7 @@ public final class MediaScrubberComponent: Component {
                     if let offset = self.mainAudioTrackOffset {
                         cursorPosition -= offset
                     }
-                    let cursorFrame = cursorFrame(size: scrubberSize, height: self.effectiveCursorHeight, position: cursorPosition, duration: trimDuration)
+                    let cursorFrame = cursorFrame(size: scrubberSize, height: self.effectiveCursorHeight, position: cursorPosition, duration: self.trimDuration)
                     transition.setFrame(view: self.cursorView, frame: cursorFrame)
                     transition.setFrame(view: self.cursorContentView, frame: cursorFrame.insetBy(dx: 6.0, dy: 2.0).offsetBy(dx: -1.0  - UIScreenPixel, dy: 0.0))
                 }
@@ -825,6 +871,41 @@ public final class MediaScrubberComponent: Component {
             }
             
             transition.setFrame(view: self.cursorImageView, frame: CGRect(origin: .zero, size: self.cursorView.frame.size))
+            
+            if let (coverPosition, coverImage) = component.cover {
+                let imageSize = CGSize(width: 34.0, height: 34.0)
+                var animateFrame = false
+                if previousComponent?.cover?.position != coverPosition {
+                    self.coverDotWrapper.isHidden = false
+                    if let _ = previousComponent?.cover {
+                        if let snapshotView = self.coverDotWrapper.layer.snapshotContentTreeAsView() {
+                            snapshotView.frame = self.coverDotWrapper.frame
+                            self.addSubview(snapshotView)
+                            snapshotView.layer.animateScale(from: 1.0, to: 0.01, duration: 0.2, removeOnCompletion: false)
+                            snapshotView.layer.animateAlpha(from: 1.0, to: 0.0, duration: 0.2, removeOnCompletion: false, completion: { _ in
+                                snapshotView.removeFromSuperview()
+                            })
+                        }
+                    }
+                    self.coverDotView.layer.animateScale(from: 0.01, to: 1.0, duration: 0.2)
+                    self.coverImageView.image = coverImage
+                    self.coverImageView.layer.cornerRadius = imageSize.width / 2.0
+                    
+                    animateFrame = true
+                }
+                
+                let dotSize = self.coverDotView.bounds.size
+                let dotFrame = cursorFrame(size: scrubberSize, height: dotSize.height, position: coverPosition, duration: self.trimDuration)
+                self.coverDotWrapper.frame = CGRect(origin: CGPoint(x: floor(dotFrame.center.x - dotSize.width / 2.0), y: -18.0), size: dotSize)
+                self.coverDotView.frame = CGRect(origin: .zero, size: dotSize)
+                self.coverImageView.frame = CGRect(origin: CGPoint(x: floorToScreenPixels((dotSize.width - imageSize.width) / 2.0), y: -42.0), size: imageSize)
+                
+                if animateFrame, let sourceView = component.getCoverSourceView() {
+                    let sourceFrame = sourceView.convert(sourceView.bounds, to: self.coverDotWrapper)
+                    self.coverImageView.layer.animate(from: sourceFrame.width as NSNumber, to: self.coverImageView.layer.cornerRadius as NSNumber, keyPath: "cornerRadius", timingFunction: kCAMediaTimingFunctionSpring, duration: 0.4)
+                    self.coverImageView.layer.animateFrame(from: sourceFrame, to: self.coverImageView.frame, duration: 0.4, timingFunction: kCAMediaTimingFunctionSpring)
+                }
+            }
             
             if component.isCollage {
                 transition.setAlpha(view: self.trackContainerView, alpha: component.isCollageSelected ? 1.0 : 0.0)
@@ -890,6 +971,10 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
     fileprivate let audioContentMaskView: UIImageView
     fileprivate let audioIconView: UIImageView
     fileprivate let audioTitle = ComponentView<Empty>()
+    
+    fileprivate let segmentsContainerView = UIView()
+    fileprivate var segmentTitles: [Int32: ComponentView<Empty>] = [:]
+    fileprivate var segmentLayers: [Int32: SimpleLayer] = [:]
 
     fileprivate let videoTransparentFramesContainer = UIView()
     fileprivate var videoTransparentFrameLayers: [VideoFrameLayer] = []
@@ -961,7 +1046,10 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
         self.clippingView.addSubview(self.scrollView)
         self.scrollView.addSubview(self.containerView)
         self.backgroundView.addSubview(self.vibrancyView)
-                                
+        
+        self.segmentsContainerView.clipsToBounds = true
+        self.segmentsContainerView.isUserInteractionEnabled = false
+        
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(self.handleTap(_:)))
         self.addGestureRecognizer(tapGesture)
         
@@ -1043,8 +1131,37 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
         self.rightOpaqueEdge = right
         
         if let params = self.params {
+            let fullTrackHeight: CGFloat
+            if case .cover = params.style {
+                fullTrackHeight = trackHeight
+            } else if case .voiceMessage = params.style {
+                fullTrackHeight = 34.0
+            } else if case .videoMessage = params.style {
+                fullTrackHeight = 34.0
+            } else {
+                fullTrackHeight = 33.0
+            }
             self.updateThumbnailContainers(
-                scrubberSize: CGSize(width: params.availableSize.width, height: 33.0),
+                scrubberSize: CGSize(width: params.availableSize.width, height: fullTrackHeight),
+                availableSize: params.availableSize,
+                transition: transition
+            )
+        }
+    }
+    
+    private var leftTrimEdge: CGFloat?
+    private var rightTrimEdge: CGFloat?
+    func updateTrimEdges(
+        left: CGFloat,
+        right: CGFloat,
+        transition: ComponentTransition
+    ) {
+        self.leftTrimEdge = left
+        self.rightTrimEdge = right
+        
+        if let params = self.params {
+            self.updateSegmentContainer(
+                scrubberSize: CGSize(width: params.availableSize.width, height: trackHeight),
                 availableSize: params.availableSize,
                 transition: transition
             )
@@ -1064,6 +1181,17 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
         transition.setBounds(view: self.videoOpaqueFramesContainer, bounds: CGRect(origin: CGPoint(x: containerLeftEdge, y: 0.0), size: CGSize(width: containerRightEdge - containerLeftEdge, height: scrubberSize.height)))
     }
     
+    private func updateSegmentContainer(
+        scrubberSize: CGSize,
+        availableSize: CGSize,
+        transition: ComponentTransition
+    ) {
+        let containerLeftEdge: CGFloat = self.leftTrimEdge ?? 0.0
+        let containerRightEdge: CGFloat = self.rightTrimEdge ?? availableSize.width
+        
+        transition.setFrame(view: self.segmentsContainerView, frame: CGRect(origin: CGPoint(x: containerLeftEdge, y: 0.0), size: CGSize(width: containerRightEdge - containerLeftEdge - 2.0, height: scrubberSize.height)))
+    }
+    
     func update(
         context: AccountContext,
         style: MediaScrubberComponent.Style,
@@ -1071,6 +1199,7 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
         isSelected: Bool,
         availableSize: CGSize,
         duration: Double,
+        segmentDuration: Double?,
         transition: ComponentTransition
     ) -> CGSize {
         let previousParams = self.params
@@ -1083,8 +1212,8 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
             fullTrackHeight = trackHeight
             framesCornerRadius = 9.0
             self.videoTransparentFramesContainer.alpha = 0.35
-        case .videoMessage:
-            fullTrackHeight = 33.0
+        case .videoMessage, .voiceMessage:
+            fullTrackHeight = 34.0
             framesCornerRadius = fullTrackHeight / 2.0
             self.videoTransparentFramesContainer.alpha = 0.5
         }
@@ -1114,7 +1243,10 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
         var deselectedClipWidth: CGFloat = 0.0
         var deselectedClipOrigin: CGFloat = 0.0
         
-        if !track.isMain, duration > 0.0 {
+        if track.isTimeline {
+            deselectedClipWidth = clipWidth
+            deselectedClipOrigin = clipOrigin
+        } else if !track.isMain, duration > 0.0 {
             let trackDuration: Double
             if let trimRange = track.trimRange {
                 trackDuration = trimRange.upperBound - trimRange.lowerBound
@@ -1184,12 +1316,7 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
         
         let containerFrame = CGRect(origin: .zero, size: CGSize(width: containerTotalWidth, height: scrubberSize.height))
         transition.setFrame(view: self.containerView, frame: containerFrame)
-        
-        transition.setFrame(view: self.backgroundView, frame: CGRect(origin: .zero, size: containerFrame.size))
-        self.backgroundView.update(size: containerFrame.size, transition: transition.containedViewLayoutTransition)
-        transition.setFrame(view: self.vibrancyView, frame: CGRect(origin: .zero, size: containerFrame.size))
-        transition.setFrame(view: self.vibrancyContainer, frame: CGRect(origin: .zero, size: containerFrame.size))
-                    
+                            
         let contentContainerFrame = CGRect(origin: .zero, size: CGSize(width: clipWidth, height: containerFrame.height))
         let contentContainerOrigin = deselectedClipOrigin + self.scrollView.contentOffset.x
         transition.setFrame(view: self.audioContentContainerView, frame: contentContainerFrame.offsetBy(dx: contentContainerOrigin, dy: 0.0))
@@ -1200,6 +1327,7 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
             if self.videoTransparentFramesContainer.superview == nil {
                 self.containerView.addSubview(self.videoTransparentFramesContainer)
                 self.containerView.addSubview(self.videoOpaqueFramesContainer)
+                self.containerView.addSubview(self.segmentsContainerView)
             }
             var previousFramesUpdateTimestamp: Double?
             if let previousParams, case let .video(_, previousFramesUpdateTimestampValue) = previousParams.track.content {
@@ -1247,6 +1375,12 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
             }
                         
             self.updateThumbnailContainers(
+                scrubberSize: scrubberSize,
+                availableSize: availableSize,
+                transition: transition
+            )
+            
+            self.updateSegmentContainer(
                 scrubberSize: scrubberSize,
                 availableSize: availableSize,
                 transition: transition
@@ -1402,13 +1536,96 @@ private class TrackView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelega
                 transition.setFrame(layer: self.waveformCloneLayer, frame: audioWaveformFrame)
             }
         }
+                
+        transition.setFrame(view: self.backgroundView, frame: CGRect(origin: .zero, size: containerFrame.size))
+        self.backgroundView.update(size: containerFrame.size, transition: transition.containedViewLayoutTransition)
+        transition.setFrame(view: self.vibrancyView, frame: CGRect(origin: .zero, size: containerFrame.size))
+        transition.setFrame(view: self.vibrancyContainer, frame: CGRect(origin: .zero, size: containerFrame.size))
+                
+        var segmentCount = 0
+        var segmentWidth: CGFloat = 0.0
+        if let segmentDuration {
+            if duration > segmentDuration {
+                let fraction = segmentDuration / duration
+                segmentCount = Int(ceil(duration / segmentDuration)) - 1
+                segmentWidth = floorToScreenPixels(containerFrame.width * fraction)
+            }
+            if let trimRange = track.trimRange {
+                let actualSegmentCount = Int(ceil((trimRange.upperBound - trimRange.lowerBound) / segmentDuration)) - 1
+                segmentCount = min(actualSegmentCount, segmentCount)
+            }
+        }
+        
+        let displaySegmentLabels = segmentWidth >= 30.0
+
+        var validIds = Set<Int32>()
+        var segmentFrame = CGRect(x: segmentWidth, y: 0.0, width: 1.0, height: containerFrame.size.height)
+        for i in 0 ..< min(segmentCount, 2) {
+            let id = Int32(i)
+            validIds.insert(id)
+            
+            let segmentLayer: SimpleLayer
+            let segmentTitle: ComponentView<Empty>
+            
+            var segmentTransition = transition
+            if let currentLayer = self.segmentLayers[id], let currentTitle = self.segmentTitles[id] {
+                segmentLayer = currentLayer
+                segmentTitle = currentTitle
+            } else {
+                segmentTransition = .immediate
+                segmentLayer = SimpleLayer()
+                segmentLayer.backgroundColor = UIColor.white.cgColor
+                segmentTitle = ComponentView<Empty>()
+                
+                self.segmentLayers[id] = segmentLayer
+                self.segmentTitles[id] = segmentTitle
+                
+                self.segmentsContainerView.layer.addSublayer(segmentLayer)
+            }
+            
+            transition.setFrame(layer: segmentLayer, frame: segmentFrame)
+            
+            let segmentTitleSize = segmentTitle.update(
+                transition: .immediate,
+                component: AnyComponent(MultilineTextComponent(
+                    text: .plain(NSAttributedString(string: "#\(i + 2)", font: Font.semibold(11.0), textColor: .white)),
+                    textShadowColor: UIColor(rgb: 0x000000, alpha: 0.4),
+                    textShadowBlur: 1.0
+                )),
+                environment: {},
+                containerSize: containerFrame.size
+            )
+            if let view = segmentTitle.view {
+                view.alpha = displaySegmentLabels ? 1.0 : 0.0
+                if view.superview == nil {
+                    self.segmentsContainerView.addSubview(view)
+                }
+                segmentTransition.setFrame(view: view, frame: CGRect(origin: CGPoint(x: segmentFrame.maxX + 2.0, y: 2.0), size: segmentTitleSize))
+            }
+            segmentFrame.origin.x += segmentWidth
+        }
+
+        var removeIds: [Int32] = []
+        for (id, segmentLayer) in self.segmentLayers {
+            if !validIds.contains(id) {
+                removeIds.append(id)
+                segmentLayer.removeFromSuperlayer()
+                if let segmentTitle = self.segmentTitles[id] {
+                    segmentTitle.view?.removeFromSuperview()
+                }
+            }
+        }
+        for id in removeIds {
+            self.segmentLayers.removeValue(forKey: id)
+            self.segmentTitles.removeValue(forKey: id)
+        }
         
         return scrubberSize
     }
 }
 
 
-private class TrimView: UIView {
+public class TrimView: UIView {
     fileprivate let leftHandleView = HandleView()
     fileprivate let rightHandleView = HandleView()
     private let borderView = UIImageView()
@@ -1419,12 +1636,12 @@ private class TrimView: UIView {
     
     fileprivate var isPanningTrimHandle = false
     
-    var isHollow = false
+    public var isHollow = false
     
-    var trimUpdated: (Double, Double, Bool, Bool) -> Void = { _, _, _, _ in }
+    public var trimUpdated: (Double, Double, Bool, Bool) -> Void = { _, _, _, _ in }
     var updated: (ComponentTransition) -> Void = { _ in }
     
-    override init(frame: CGRect) {
+    public override init(frame: CGRect) {
         super.init(frame: .zero)
         
         self.zoneView.image = UIImage()
@@ -1459,20 +1676,43 @@ private class TrimView: UIView {
         self.rightHandleView.addSubview(self.rightCapsuleView)
         self.addSubview(self.borderView)
         
-        self.zoneView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.handleZoneHandlePan(_:))))
-        self.leftHandleView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.handleLeftHandlePan(_:))))
-        self.rightHandleView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.handleRightHandlePan(_:))))
+        let zoneHandlePanGesture = UILongPressGestureRecognizer(target: self, action: #selector(self.handleZoneHandlePan(_:)))
+        zoneHandlePanGesture.minimumPressDuration = 0.0
+        zoneHandlePanGesture.allowableMovement = .infinity
+        
+        let leftHandlePanGesture = UILongPressGestureRecognizer(target: self, action: #selector(self.handleLeftHandlePan(_:)))
+        leftHandlePanGesture.minimumPressDuration = 0.0
+        leftHandlePanGesture.allowableMovement = .infinity
+        
+        let rightHandlePanGesture = UILongPressGestureRecognizer(target: self, action: #selector(self.handleRightHandlePan(_:)))
+        rightHandlePanGesture.minimumPressDuration = 0.0
+        rightHandlePanGesture.allowableMovement = .infinity
+        
+        self.zoneView.addGestureRecognizer(zoneHandlePanGesture)
+        self.leftHandleView.addGestureRecognizer(leftHandlePanGesture)
+        self.rightHandleView.addGestureRecognizer(rightHandlePanGesture)
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
-    @objc private func handleZoneHandlePan(_ gestureRecognizer: UIPanGestureRecognizer) {
+    private var panStartLocation: CGPoint?
+    
+    @objc private func handleZoneHandlePan(_ gestureRecognizer: UILongPressGestureRecognizer) {
         guard let params = self.params else {
             return
         }
-        let translation = gestureRecognizer.translation(in: self)
+        
+        let location = gestureRecognizer.location(in: self)
+        if case .began = gestureRecognizer.state {
+            self.panStartLocation = location
+        }
+        
+        let translation = CGPoint(
+            x: location.x - (self.panStartLocation?.x ?? 0.0),
+            y: location.y - (self.panStartLocation?.y ?? 0.0)
+        )
         
         let start = handleWidth / 2.0
         let end = self.frame.width - handleWidth / 2.0
@@ -1493,6 +1733,7 @@ private class TrimView: UIView {
                 transition = .easeInOut(duration: 0.25)
             }
         case .ended, .cancelled:
+            self.panStartLocation = nil
             self.isPanningTrimHandle = false
             self.trimUpdated(startValue, endValue, false, true)
             transition = .easeInOut(duration: 0.25)
@@ -1500,15 +1741,15 @@ private class TrimView: UIView {
             break
         }
         
-        gestureRecognizer.setTranslation(.zero, in: self)
         self.updated(transition)
     }
     
-    @objc private func handleLeftHandlePan(_ gestureRecognizer: UIPanGestureRecognizer) {
+    @objc private func handleLeftHandlePan(_ gestureRecognizer: UILongPressGestureRecognizer) {
         guard let params = self.params else {
             return
         }
         let location = gestureRecognizer.location(in: self)
+        
         let start = handleWidth / 2.0
         let end = params.scrubberSize.width - handleWidth / 2.0
         let length = end - start
@@ -1533,6 +1774,7 @@ private class TrimView: UIView {
                 transition = .easeInOut(duration: 0.25)
             }
         case .ended, .cancelled:
+            self.panStartLocation = nil
             self.isPanningTrimHandle = false
             self.trimUpdated(startValue, endValue, false, true)
             transition = .easeInOut(duration: 0.25)
@@ -1542,7 +1784,7 @@ private class TrimView: UIView {
         self.updated(transition)
     }
     
-    @objc private func handleRightHandlePan(_ gestureRecognizer: UIPanGestureRecognizer) {
+    @objc private func handleRightHandlePan(_ gestureRecognizer: UILongPressGestureRecognizer) {
         guard let params = self.params else {
             return
         }
@@ -1571,6 +1813,7 @@ private class TrimView: UIView {
                 transition = .easeInOut(duration: 0.25)
             }
         case .ended, .cancelled:
+            self.panStartLocation = nil
             self.isPanningTrimHandle = false
             self.trimUpdated(startValue, endValue, true, true)
             transition = .easeInOut(duration: 0.25)
@@ -1580,17 +1823,18 @@ private class TrimView: UIView {
         self.updated(transition)
     }
     
-    var params: (
+    private var params: (
         scrubberSize: CGSize,
         duration: Double,
         startPosition: Double,
         endPosition: Double,
         position: Double,
         minDuration: Double,
-        maxDuration: Double
+        maxDuration: Double,
+        isBorderless: Bool
     )?
     
-    func update(
+    public func update(
         style: MediaScrubberComponent.Style,
         theme: PresentationTheme,
         visualInsets: UIEdgeInsets,
@@ -1601,16 +1845,20 @@ private class TrimView: UIView {
         position: Double,
         minDuration: Double,
         maxDuration: Double,
+        isBorderless: Bool = false,
         transition: ComponentTransition
     ) -> (leftHandleFrame: CGRect, rightHandleFrame: CGRect) {
         let isFirstTime = self.params == nil
-        self.params = (scrubberSize, duration, startPosition, endPosition, position, minDuration, maxDuration)
+        self.params = (scrubberSize, duration, startPosition, endPosition, position, minDuration, maxDuration, isBorderless)
+        
+        self.borderView.isHidden = isBorderless
         
         let effectiveHandleWidth: CGFloat
         let fullTrackHeight: CGFloat
         let capsuleOffset: CGFloat
         let color: UIColor
         let highlightColor: UIColor
+        var borderColor: UIColor
         
         switch style {
         case .editor, .cover:
@@ -1618,7 +1866,7 @@ private class TrimView: UIView {
             fullTrackHeight = trackHeight
             capsuleOffset = 5.0 - UIScreenPixel
             color = .white
-            highlightColor = UIColor(rgb: 0xf8d74a)
+            highlightColor = UIColor(rgb: 0xffd300)
             
             if isFirstTime {
                 self.borderView.image = generateImage(CGSize(width: 1.0, height: fullTrackHeight), rotatedContext: { size, context in
@@ -1651,7 +1899,7 @@ private class TrimView: UIView {
         case .videoMessage:
             effectiveHandleWidth = 16.0
             fullTrackHeight = 33.0
-            capsuleOffset = 8.0
+            capsuleOffset = 10.0
             color = theme.chat.inputPanel.panelControlAccentColor
             highlightColor = theme.chat.inputPanel.panelControlAccentColor
             
@@ -1671,12 +1919,54 @@ private class TrimView: UIView {
                 self.leftCapsuleView.backgroundColor = .white
                 self.rightCapsuleView.backgroundColor = .white
             }
+            
+        case .voiceMessage:
+            effectiveHandleWidth = 16.0
+            fullTrackHeight = 33.0
+            capsuleOffset = 8.0
+            color = theme.chat.inputPanel.panelControlAccentColor
+            highlightColor = theme.chat.inputPanel.panelControlAccentColor
+            self.borderView.isHidden = true
+        
+            self.zoneView.backgroundColor = .clear
+            
+            if isFirstTime {
+                self.borderView.image = generateImage(CGSize(width: 3.0, height: fullTrackHeight), rotatedContext: { size, context in
+                    context.clear(CGRect(origin: .zero, size: size))
+                    context.setFillColor(UIColor.white.cgColor)
+                    context.fill(CGRect(origin: .zero, size: CGSize(width: 1.0, height: size.height)))
+                    context.fill(CGRect(origin: CGPoint(x: size.width - 1.0, y: 0.0), size: CGSize(width: 1.0, height: size.height)))
+                })?.withRenderingMode(.alwaysTemplate).resizableImage(withCapInsets: UIEdgeInsets(top: 0.0, left: 1.0, bottom: 0.0, right: 1.0))
+                              
+                let handleImage = generateImage(CGSize(width: effectiveHandleWidth, height: fullTrackHeight), rotatedContext: { size, context in
+                    context.clear(CGRect(origin: .zero, size: size))
+                    context.setFillColor(UIColor.white.cgColor)
+                    
+                    let path = UIBezierPath(roundedRect: CGRect(origin: .zero, size: CGSize(width: size.width * 2.0, height: size.height)), cornerRadius: 16.5)
+                    context.addPath(path.cgPath)
+                    context.fillPath()
+                })?.withRenderingMode(.alwaysTemplate)
+                
+                self.leftHandleView.image = handleImage
+                self.rightHandleView.image = handleImage
+                
+                self.leftHandleView.image = nil
+                self.rightHandleView.image = nil
+                
+                self.leftCapsuleView.backgroundColor = .white
+                self.rightCapsuleView.backgroundColor = .white
+            }
         }
         
         let trimColor = self.isPanningTrimHandle ? highlightColor : color
+        borderColor = trimColor
+        if case .voiceMessage = style {
+            borderColor = theme.chat.inputPanel.panelBackgroundColor
+        }
+        
         transition.setTintColor(view: self.leftHandleView, color: trimColor)
         transition.setTintColor(view: self.rightHandleView, color: trimColor)
-        transition.setTintColor(view: self.borderView, color: trimColor)
+        transition.setTintColor(view: self.borderView, color: borderColor)
         
         let totalWidth = scrubberSize.width
         let totalRange = totalWidth - effectiveHandleWidth
@@ -1694,7 +1984,7 @@ private class TrimView: UIView {
         rightHandleFrame.origin.x = min(rightHandleFrame.origin.x, totalWidth - visualInsets.right - effectiveHandleWidth)
         transition.setFrame(view: self.rightHandleView, frame: rightHandleFrame)
         
-        let capsuleSize = CGSize(width: 2.0, height: 11.0)
+        let capsuleSize = CGSize(width: 3.0, height: 12.0)
         transition.setFrame(view: self.leftCapsuleView, frame: CGRect(origin: CGPoint(x: capsuleOffset, y: floorToScreenPixels((leftHandleFrame.height - capsuleSize.height) / 2.0)), size: capsuleSize))
         transition.setFrame(view: self.rightCapsuleView, frame: CGRect(origin: CGPoint(x: capsuleOffset, y: floorToScreenPixels((leftHandleFrame.height - capsuleSize.height) / 2.0)), size: capsuleSize))
         
@@ -1707,7 +1997,7 @@ private class TrimView: UIView {
         return (leftHandleFrame, rightHandleFrame)
     }
     
-    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+    public override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         let leftHandleFrame = self.leftHandleView.frame.insetBy(dx: -8.0, dy: -9.0)
         let rightHandleFrame = self.rightHandleView.frame.insetBy(dx: -8.0, dy: -9.0)
         let areaFrame = CGRect(x: leftHandleFrame.minX, y: leftHandleFrame.minY, width: rightHandleFrame.maxX - leftHandleFrame.minX, height: rightHandleFrame.maxY - rightHandleFrame.minY)

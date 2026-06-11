@@ -3,14 +3,15 @@ import Foundation
 public func `catch`<T, E, R>(_ f: @escaping(E) -> Signal<T, R>) -> (Signal<T, E>) -> Signal<T, R> {
     return { signal in
         return Signal<T, R> { subscriber in
-            let disposable = DisposableSet()
+            let mainDisposable = MetaDisposable()
+            let alternativeDisposable = MetaDisposable()
             
-            disposable.add(signal.start(next: { next in
+            mainDisposable.set(signal.start(next: { next in
                 subscriber.putNext(next)
             }, error: { error in
                 let anotherSignal = f(error)
                 
-                disposable.add(anotherSignal.start(next: { next in
+                alternativeDisposable.set(anotherSignal.start(next: { next in
                     subscriber.putNext(next)
                 }, error: { error in
                    subscriber.putError(error)
@@ -21,7 +22,10 @@ public func `catch`<T, E, R>(_ f: @escaping(E) -> Signal<T, R>) -> (Signal<T, E>
                 subscriber.putCompletion()
             }))
             
-            return disposable
+            return ActionDisposable {
+                mainDisposable.dispose()
+                alternativeDisposable.dispose()
+            }
         }
     }
 }
@@ -135,7 +139,7 @@ public func retry<T, E>(_ delayIncrement: Double, maxDelay: Double, onQueue queu
     }
 }
 
-public func retry<T, E>(retryOnError: @escaping (E) -> Bool, delayIncrement: Double, maxDelay: Double, maxRetries: Int, onQueue queue: Queue) -> (_ signal: Signal<T, E>) -> Signal<T, E> {
+public func retry<T, E>(retryOnError: @escaping (E) -> Bool, delayIncrement: Double, maxDelay: Double, maxRetries: Int?, onQueue queue: Queue) -> (_ signal: Signal<T, E>) -> Signal<T, E> {
     return { signal in
         return Signal { subscriber in
             let shouldRetry = Atomic(value: true)
@@ -157,7 +161,7 @@ public func retry<T, E>(retryOnError: @escaping (E) -> Bool, delayIncrement: Dou
                                 return (min(maxDelay, value + delayIncrement), count + 1)
                             }
                             
-                            if count >= maxRetries {
+                            if let maxRetries, count >= maxRetries {
                                 subscriber.putError(error)
                             } else {
                                 let time: DispatchTime = DispatchTime.now() + Double(delay)
@@ -215,3 +219,45 @@ public func restartIfError<T, E>(_ signal: Signal<T, E>) -> Signal<T, NoError> {
     }
 }
 
+public enum RestartOrMapErrorCondition<E> {
+    case restart
+    case error(E)
+}
+
+public func restartOrMapError<T, E, E2>(condition: @escaping (E) -> RestartOrMapErrorCondition<E2>) -> (Signal<T, E>) -> Signal<T, E2> {
+    return { signal in
+        return Signal<T, E2> { subscriber in
+            let shouldRetry = Atomic(value: true)
+            let currentDisposable = MetaDisposable()
+            
+            let start = recursiveFunction { recurse in
+                let currentShouldRetry = shouldRetry.with { value in
+                    return value
+                }
+                if currentShouldRetry {
+                    let disposable = signal.start(next: { next in
+                        subscriber.putNext(next)
+                    }, error: { error in
+                        switch condition(error) {
+                        case .restart:
+                            recurse()
+                        case let .error(e2):
+                            subscriber.putError(e2)
+                        }
+                    }, completed: {
+                        let _ = shouldRetry.swap(false)
+                        subscriber.putCompletion()
+                    })
+                    currentDisposable.set(disposable)
+                }
+            }
+            
+            start()
+            
+            return ActionDisposable {
+                currentDisposable.dispose()
+                let _ = shouldRetry.swap(false)
+            }
+        }
+    }
+}

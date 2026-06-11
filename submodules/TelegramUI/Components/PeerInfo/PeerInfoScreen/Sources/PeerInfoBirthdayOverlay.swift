@@ -45,11 +45,11 @@ final class PeerInfoBirthdayOverlay: ASDisplayNode {
             var effectFile: FileMediaReference?
             if case let .result(_, items, _) = animatedEmoji {
                 let randomKey = ["🎉", "🎈", "🎆"].randomElement()!
-        outer:  for item in items {
+                outer: for item in items {
                     let indexKeys = item.getStringRepresentationsOfIndexKeys()
                     for key in indexKeys {
                         if key == randomKey {
-                            effectFile = .stickerPack(stickerPack: .animatedEmojiAnimations, media: item.file)
+                            effectFile = .stickerPack(stickerPack: .animatedEmojiAnimations, media: item.file._parse())
                             break outer
                         }
                     }
@@ -63,7 +63,7 @@ final class PeerInfoBirthdayOverlay: ASDisplayNode {
                         let indexKeys = item.getStringRepresentationsOfIndexKeys()
                         for key in indexKeys {
                             if key == ageKey {
-                                numberFiles.append(.stickerPack(stickerPack: .id(id: info.id.id, accessHash: info.accessHash), media: item.file))
+                                numberFiles.append(.stickerPack(stickerPack: .id(id: info.id.id, accessHash: info.accessHash), media: item.file._parse()))
                             }
                         }
                     }
@@ -98,7 +98,7 @@ final class PeerInfoBirthdayOverlay: ASDisplayNode {
         
         let animationNode = DefaultAnimatedStickerNodeImpl()
         let source = AnimatedStickerResourceSource(account: self.context.account, resource: file.media.resource, fitzModifier: nil)
-        let pathPrefix = self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(file.media.resource.id)
+        let pathPrefix = self.context.engine.resources.shortLivedResourceCachePathPrefix(id: EngineMediaResource.Id(file.media.resource.id))
         animationNode.setup(source: source, width: Int(pixelSize.width), height: Int(pixelSize.height), playbackMode: .once, mode: .direct(cachePathPrefix: pathPrefix))
         self.addSubnode(animationNode)
         
@@ -132,7 +132,7 @@ final class PeerInfoBirthdayOverlay: ASDisplayNode {
             
             let animationNode = DefaultAnimatedStickerNodeImpl()
             let source = AnimatedStickerResourceSource(account: self.context.account, resource: file.media.resource, fitzModifier: nil)
-            let pathPrefix: String? = self.context.account.postbox.mediaBox.shortLivedResourceCachePathPrefix(file.media.resource.id)
+            let pathPrefix: String? = self.context.engine.resources.shortLivedResourceCachePathPrefix(id: EngineMediaResource.Id(file.media.resource.id))
             animationNode.setup(source: source, width: Int(pixelSize.width), height: Int(pixelSize.height), playbackMode: .loop, mode: .direct(cachePathPrefix: pathPrefix))
             self.addSubnode(animationNode)
             
@@ -185,7 +185,7 @@ final class PeerInfoBirthdayOverlay: ASDisplayNode {
                     let indexKeys = item.getStringRepresentationsOfIndexKeys()
                     for key in indexKeys {
                         if ["🎉", "🎈", "🎆"].contains(key) {
-                            signals.append(freeMediaFileInteractiveFetched(account: context.account, userLocation: .peer(context.account.peerId), fileReference: .stickerPack(stickerPack: .animatedEmojiAnimations, media: item.file)))
+                            signals.append(freeMediaFileInteractiveFetched(account: context.account, userLocation: .peer(context.account.peerId), fileReference: .stickerPack(stickerPack: .animatedEmojiAnimations, media: item.file._parse())))
                         }
                     }
                 }
@@ -196,7 +196,7 @@ final class PeerInfoBirthdayOverlay: ASDisplayNode {
                     let indexKeys = item.getStringRepresentationsOfIndexKeys()
                     for key in indexKeys {
                         if ageKeys.contains(key) {
-                            signals.append(freeMediaFileInteractiveFetched(account: context.account, userLocation: .peer(context.account.peerId), fileReference: .stickerPack(stickerPack: .id(id: info.id.id, accessHash: info.accessHash), media: item.file)))
+                            signals.append(freeMediaFileInteractiveFetched(account: context.account, userLocation: .peer(context.account.peerId), fileReference: .stickerPack(stickerPack: .id(id: info.id.id, accessHash: info.accessHash), media: item.file._parse())))
                         }
                     }
                 }

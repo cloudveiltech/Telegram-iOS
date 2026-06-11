@@ -112,17 +112,18 @@ private enum InviteLinksListEntry: ItemListNodeEntry {
         let arguments = arguments as! PaymentMethodListScreenArguments
         switch self {
         case let .header(text):
-            return InviteLinkHeaderItem(context: arguments.context, theme: presentationData.theme, text: text, animationName: "Invite", sectionId: self.section)
+            return InviteLinkHeaderItem(context: arguments.context, theme: presentationData.theme, text: NSAttributedString(string: text), animationName: "Invite", sectionId: self.section)
         case let .methodsHeader(text):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
         case let .addMethod(text):
             let icon = PresentationResourcesItemList.plusIconImage(presentationData.theme)
-            return ItemListCheckboxItem(presentationData: presentationData, icon: icon, iconSize: nil, iconPlacement: .check, title: text, style: .left, textColor: .accent, checked: false, zeroSeparatorInsets: false, sectionId: self.section, action: {
+            return ItemListCheckboxItem(presentationData: presentationData, systemStyle: .glass, icon: icon, iconSize: nil, iconPlacement: .check, title: text, style: .left, textColor: .accent, checked: false, zeroSeparatorInsets: false, sectionId: self.section, action: {
                 arguments.addMethod()
             })
         case let .item(_, info, isSelected):
             return ItemListCheckboxItem(
                 presentationData: presentationData,
+                systemStyle: .glass,
                 icon: STPPaymentCardTextField.brandImage(for: .masterCard), iconSize: nil,
                 iconPlacement: .default,
                 title: "•••• " + info.number.suffix(4),

@@ -1,11 +1,11 @@
-#import "TGMessageEntitiesAttachment.h"
+#import <LegacyComponents/TGMessageEntitiesAttachment.h>
 
 #import "LegacyComponentsInternal.h"
 
-#import "PSKeyValueEncoder.h"
-#import "PSKeyValueDecoder.h"
+#import <LegacyComponents/PSKeyValueEncoder.h>
+#import <LegacyComponents/PSKeyValueDecoder.h>
 
-#import "NSInputStream+TL.h"
+#import <LegacyComponents/NSInputStream+TL.h>
 
 @implementation TGMessageEntitiesAttachment
 
@@ -46,7 +46,7 @@
 
 - (void)serialize:(NSMutableData *)data
 {
-    NSData *serializedData = [NSKeyedArchiver archivedDataWithRootObject:self];
+    NSData *serializedData = [NSKeyedArchiver archivedDataWithRootObject:self requiringSecureCoding:false error:nil];
     int32_t length = (int32_t)serializedData.length;
     [data appendBytes:&length length:4];
     [data appendData:serializedData];
@@ -54,9 +54,19 @@
 
 - (TGMediaAttachment *)parseMediaAttachment:(NSInputStream *)is
 {
-    int32_t length = [is readInt32];
-    NSData *data = [is readData:length];
+    bool readingError = false;
+    int32_t length = [is readInt32:&readingError];
+    if (readingError) {
+        return nil;
+    }
+    NSData *data = [is readData:length failed:&readingError];
+    if (readingError) {
+        return nil;
+    }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     return [NSKeyedUnarchiver unarchiveObjectWithData:data];
+#pragma clang diagnostic pop
 }
 
 @end

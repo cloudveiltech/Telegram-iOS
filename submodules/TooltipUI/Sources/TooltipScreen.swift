@@ -17,7 +17,10 @@ import AvatarStoryIndicatorComponent
 import AccountContext
 import Markdown
 import BalancedTextComponent
+import MultilineTextComponent
 import MultilineTextWithEntitiesComponent
+import ShimmerEffect
+import UIKitRuntimeUtils
 
 public enum TooltipActiveTextItem {
     case url(String, Bool)
@@ -112,6 +115,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
     private let context: AccountContext?
     
     private let text: TooltipScreen.Text
+    private let textBadge: String?
     private let textAlignment: TooltipScreen.Alignment
     private let balancedTextLayout: Bool
     private let constrainWidth: CGFloat?
@@ -126,6 +130,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
             }
         }
     }
+    private let isShimmering: Bool
     private let displayDuration: TooltipScreen.DisplayDuration
     private let shouldDismissOnTouch: (CGPoint, CGRect) -> TooltipScreen.DismissOnTouch
     private let requestDismiss: () -> Void
@@ -143,11 +148,17 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
     private let arrowContainer: ASDisplayNode
     private let animatedStickerNode: DefaultAnimatedStickerNodeImpl
     private var downArrowsNode: DownArrowsIconNode?
+    private var iconNode: ASImageNode?
     private var avatarNode: AvatarNode?
     private var avatarStoryIndicator: ComponentView<Empty>?
     private let textView = ComponentView<Empty>()
+    private var textBadgeView: ComponentView<Empty>?
+    private var textBadgeBackgroundView: ComponentView<Empty>?
     private var closeButtonNode: HighlightableButtonNode?
     private var actionButtonNode: HighlightableButtonNode?
+    
+    private var shimmerContainerView: UIView?
+    private var shimmerView: ShimmerEffectForegroundView?
     
     private var isArrowInverted: Bool = false
     
@@ -161,6 +172,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
         account: Account,
         sharedContext: SharedAccountContext,
         text: TooltipScreen.Text,
+        textBadge: String?,
         textAlignment: TooltipScreen.Alignment,
         balancedTextLayout: Bool,
         constrainWidth: CGFloat?,
@@ -172,6 +184,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
         displayDuration: TooltipScreen.DisplayDuration,
         inset: CGFloat = 12.0,
         cornerRadius: CGFloat? = nil,
+        isShimmering: Bool = false,
         shouldDismissOnTouch: @escaping (CGPoint, CGRect) -> TooltipScreen.DismissOnTouch, requestDismiss: @escaping () -> Void, openActiveTextItem: ((TooltipActiveTextItem, TooltipActiveTextAction) -> Void)?)
     {
         self.context = context
@@ -181,6 +194,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
         self.action = action
         self.location = location
         self.displayDuration = displayDuration
+        self.isShimmering = isShimmering
         self.inset = inset
         self.shouldDismissOnTouch = shouldDismissOnTouch
         self.requestDismiss = requestDismiss
@@ -383,6 +397,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
         
         self.fontSize = fontSize
         self.text = text
+        self.textBadge = textBadge
         self.textAlignment = textAlignment
         self.balancedTextLayout = balancedTextLayout
         self.constrainWidth = constrainWidth
@@ -395,6 +410,11 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
             self.animatedStickerNode.setup(source: AnimatedStickerNodeLocalFileSource(name: animationName), width: Int(70 * UIScreenScale), height: Int(70 * UIScreenScale), playbackMode: .once, mode: .direct(cachePathPrefix: nil))
             self.animatedStickerNode.automaticallyLoadFirstFrame = true
             self.animatedStickerNode.dynamicColor = animationTintColor
+        case let .image(image):
+            self.iconNode = ASImageNode()
+            self.iconNode?.image = image
+            self.iconNode?.contentMode = .center
+            self.iconNode?.displaysAsynchronously = false
         case .downArrows:
             self.downArrowsNode = DownArrowsIconNode()
         case let .peer(peer, _):
@@ -424,7 +444,9 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
         if let closeButtonNode = self.closeButtonNode {
             self.containerNode.addSubnode(closeButtonNode)
         }
-        
+        if let iconNode = self.iconNode {
+            self.containerNode.addSubnode(iconNode)
+        }
         if let downArrowsNode = self.downArrowsNode {
             self.containerNode.addSubnode(downArrowsNode)
         }
@@ -446,7 +468,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
         self.actionButtonNode?.addTarget(self, action: #selector(self.actionPressed), forControlEvents: .touchUpInside)
         self.closeButtonNode?.addTarget(self, action: #selector(self.closePressed), forControlEvents: .touchUpInside)
     }
-    
+        
     @objc private func actionPressed() {
         if let action = self.action {
             action.action()
@@ -491,6 +513,10 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
             } else {
                 animationInset = 0.0
             }
+            animationSpacing = 8.0
+        case .image:
+            animationSize = CGSize(width: 32.0, height: 32.0)
+            animationInset = 0.0
             animationSpacing = 8.0
         case .peer:
             animationSize = CGSize(width: 32.0, height: 32.0)
@@ -600,7 +626,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
             }
         }
         
-        let textSize: CGSize
+        var textSize: CGSize
         
         var isTextWithEntities = false
         switch self.text {
@@ -630,6 +656,9 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
                 environment: {},
                 containerSize: CGSize(width: containerWidth - contentInset * 2.0 - animationSize.width - animationSpacing - buttonInset, height: 1000000.0)
             )
+            if case let .customBlur(_, inset) = self.tooltipStyle, inset < 0.0 {
+                textSize.height -= 3.0
+            }
         } else {
             textSize = self.textView.update(
                 transition: .immediate,
@@ -648,18 +677,48 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
             )
         }
         
+        let textBadgeSpacing: CGFloat = 9.0
+        let textBadgeRightInset: CGFloat = 5.0
+        
+        var textContentSize = textSize
+        var textBadgeSize: CGSize?
+        if let textBadge = self.textBadge {
+            let textBadgeView: ComponentView<Empty>
+            if let current = self.textBadgeView {
+                textBadgeView = current
+            } else {
+                textBadgeView = ComponentView()
+                self.textBadgeView = textBadgeView
+            }
+            let textBadgeSizeValue = textBadgeView.update(
+                transition: .immediate,
+                component: AnyComponent(MultilineTextComponent(
+                    text: .plain(NSAttributedString(string: textBadge, font: Font.semibold(floor(self.fontSize * 0.8)), textColor: textColor))
+                )),
+                environment: {},
+                containerSize: CGSize(width: 100.0, height: 100.0)
+            )
+            textBadgeSize = textBadgeSizeValue
+            textContentSize.width += textBadgeSpacing + textBadgeSizeValue.width + textBadgeRightInset
+        } else {
+            if let textBadgeView = self.textBadgeView {
+                self.textBadgeView = nil
+                textBadgeView.view?.removeFromSuperview()
+            }
+        }
+        
         var backgroundFrame: CGRect
         
         var backgroundHeight: CGFloat
         switch self.tooltipStyle {
         case .default, .gradient:
-            backgroundHeight = max(animationSize.height, textSize.height) + contentVerticalInset * 2.0
+            backgroundHeight = max(animationSize.height, textContentSize.height) + contentVerticalInset * 2.0
         case .wide:
-            backgroundHeight = max(animationSize.height, textSize.height) + contentVerticalInset * 2.0 + 4.0
+            backgroundHeight = max(animationSize.height, textContentSize.height) + contentVerticalInset * 2.0 + 4.0
         case let .customBlur(_, inset):
-            backgroundHeight = max(animationSize.height, textSize.height) + contentVerticalInset * 2.0 + inset * 2.0
+            backgroundHeight = max(animationSize.height, textContentSize.height) + contentVerticalInset * 2.0 + inset * 2.0
         case .light:
-            backgroundHeight = max(28.0, max(animationSize.height, textSize.height) + 4.0 * 2.0)
+            backgroundHeight = max(28.0, max(animationSize.height, textContentSize.height) + 4.0 * 2.0)
         }
         if self.actionButtonNode != nil {
             backgroundHeight += 4.0
@@ -668,7 +727,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
         var invertArrow = false
         switch self.location {
         case let .point(rect, arrowPosition):
-            var backgroundWidth = textSize.width + contentInset * 2.0 + animationSize.width + animationSpacing
+            var backgroundWidth = textContentSize.width + contentInset * 2.0 + animationSize.width + animationSpacing
             if self.closeButtonNode != nil || self.actionButtonNode != nil {
                 backgroundWidth += buttonInset
             }
@@ -680,6 +739,9 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
                     backgroundFrame = CGRect(origin: CGPoint(x: rect.midX - backgroundWidth / 2.0, y: rect.minY - bottomInset - backgroundHeight), size: CGSize(width: backgroundWidth, height: backgroundHeight))
                 case .right:
                     backgroundFrame = CGRect(origin: CGPoint(x: rect.minX - backgroundWidth - bottomInset, y: rect.midY - backgroundHeight / 2.0), size: CGSize(width: backgroundWidth, height: backgroundHeight))
+                case .left:
+                    backgroundFrame = CGRect(origin: CGPoint(x: rect.maxX + bottomInset, y: rect.midY - backgroundHeight / 2.0), size: CGSize(width: backgroundWidth, height: backgroundHeight))
+
             }
             
             if backgroundFrame.minX < sideInset {
@@ -710,8 +772,8 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
         transition.updateFrame(node: self.backgroundMaskNode, frame: CGRect(origin: CGPoint(), size: backgroundFrame.size).insetBy(dx: -10.0, dy: -10.0))
         transition.updateFrame(node: self.backgroundClipNode, frame: CGRect(origin: CGPoint(x: 10.0, y: 10.0), size: backgroundFrame.size))
 
+        let effectFrame = CGRect(origin: CGPoint(), size: backgroundFrame.size).insetBy(dx: -10.0, dy: -10.0)
         if let effectNode = self.effectNode {
-            let effectFrame = CGRect(origin: CGPoint(), size: backgroundFrame.size).insetBy(dx: -10.0, dy: -10.0)
             transition.updateFrame(node: effectNode, frame: effectFrame)
             effectNode.update(size: effectFrame.size, transition: transition)
         }
@@ -753,13 +815,23 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
                 let arrowBounds = CGRect(origin: .zero, size: arrowSize)
                 self.arrowNode.frame = arrowBounds
                 self.arrowGradientNode?.frame = arrowBounds
+            case .left:
+                let arrowCenterY = floorToScreenPixels(rect.midY - arrowSize.height / 2.0)
+                arrowFrame = CGRect(origin: CGPoint(x: -arrowSize.height, y: self.view.convert(CGPoint(x: 0.0, y: arrowCenterY), to: self.arrowContainer.supernode?.view).y), size: CGSize(width: arrowSize.height, height: arrowSize.width))
+                
+                ContainedViewLayoutTransition.immediate.updateTransformRotation(node: self.arrowContainer, angle: CGFloat.pi / 2.0)
+                
+                transition.updateFrame(node: self.arrowContainer, frame: arrowFrame.offsetBy(dx: 3.0 - UIScreenPixel, dy: -19.0))
+                
+                let arrowBounds = CGRect(origin: .zero, size: arrowSize)
+                self.arrowNode.frame = arrowBounds
+                self.arrowGradientNode?.frame = arrowBounds
             }
         } else {
             self.arrowNode.isHidden = true
         }
         
         let textFrame = CGRect(origin: CGPoint(x: contentInset + animationSize.width + animationSpacing, y: floor((backgroundHeight - textSize.height) / 2.0)), size: textSize)
-        
         if let textComponentView = self.textView.view {
             if textComponentView.superview == nil {
                 textComponentView.layer.anchorPoint = CGPoint()
@@ -767,6 +839,49 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
             }
             transition.updatePosition(layer: textComponentView.layer, position: textFrame.origin)
             transition.updateBounds(layer: textComponentView.layer, bounds: CGRect(origin: CGPoint(), size: textFrame.size))
+        }
+        
+        if let textBadgeView = self.textBadgeView, let textBadgeSize {
+            let textBadgeFrame = CGRect(origin: CGPoint(x: textFrame.maxX + textBadgeSpacing, y: textFrame.minY + 2.0), size: textBadgeSize)
+            if let textBadgeComponentView = textBadgeView.view {
+                if textBadgeComponentView.superview == nil {
+                    textBadgeComponentView.layer.anchorPoint = CGPoint()
+                    self.containerNode.view.addSubview(textBadgeComponentView)
+                }
+                transition.updatePosition(layer: textBadgeComponentView.layer, position: textBadgeFrame.origin)
+                transition.updateBounds(layer: textBadgeComponentView.layer, bounds: CGRect(origin: CGPoint(), size: textBadgeFrame.size))
+            }
+            
+            var textBadgeBackgroundFrame = textBadgeFrame.insetBy(dx: -4.0, dy: -3.0)
+            textBadgeBackgroundFrame.size.height -= UIScreenPixel
+            textBadgeBackgroundFrame.size.width -= UIScreenPixel
+            
+            let textBadgeBackgroundView: ComponentView<Empty>
+            if let current = self.textBadgeBackgroundView {
+                textBadgeBackgroundView = current
+            } else {
+                textBadgeBackgroundView = ComponentView()
+                self.textBadgeBackgroundView = textBadgeBackgroundView
+            }
+            let _ = textBadgeBackgroundView.update(
+                transition: .immediate,
+                component: AnyComponent(FilledRoundedRectangleComponent(
+                    color: UIColor(white: 1.0, alpha: 0.1),
+                    cornerRadius: .value(5.0),
+                    smoothCorners: true
+                )),
+                environment: {},
+                containerSize: textBadgeBackgroundFrame.size
+            )
+            if let textBadgeBackgroundComponentView = textBadgeBackgroundView.view {
+                if textBadgeBackgroundComponentView.superview == nil, let textBadgeComponentView = textBadgeView.view {
+                    self.containerNode.view.insertSubview(textBadgeBackgroundComponentView, belowSubview: textBadgeComponentView)
+                }
+                textBadgeBackgroundComponentView.frame = textBadgeBackgroundFrame
+            }
+        } else if let textBadgeBackgroundView = self.textBadgeBackgroundView {
+            self.textBadgeBackgroundView = nil
+            textBadgeBackgroundView.view?.removeFromSuperview()
         }
         
         if let closeButtonNode = self.closeButtonNode {
@@ -781,6 +896,11 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
         let animationFrame = CGRect(origin: CGPoint(x: contentInset - animationInset, y: floorToScreenPixels((backgroundHeight - animationSize.height - animationInset * 2.0) / 2.0) + animationOffset), size: CGSize(width: animationSize.width + animationInset * 2.0, height: animationSize.height + animationInset * 2.0))
         transition.updateFrame(node: self.animatedStickerNode, frame: animationFrame)
         self.animatedStickerNode.updateLayout(size: CGSize(width: animationSize.width + animationInset * 2.0, height: animationSize.height + animationInset * 2.0))
+
+        if let iconNode = self.iconNode {
+            let iconSize = CGSize(width: 32.0, height: 32.0)
+            transition.updateFrame(node: iconNode, frame: CGRect(origin: CGPoint(x: animationFrame.midX - iconSize.width / 2.0, y: animationFrame.midY - iconSize.height / 2.0), size: iconSize))
+        }
         
         if let downArrowsNode = self.downArrowsNode {
             let arrowsSize = CGSize(width: 16.0, height: 16.0)
@@ -810,6 +930,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
                     component: AnyComponent(AvatarStoryIndicatorComponent(
                         hasUnseen: true,
                         hasUnseenCloseFriendsItems: false,
+                        hasLiveItems: false,
                         colors: AvatarStoryIndicatorComponent.Colors(theme: defaultDarkPresentationTheme),
                         activeLineWidth: 1.0 + UIScreenPixel,
                         inactiveLineWidth: 1.0 + UIScreenPixel,
@@ -839,6 +960,69 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
             
             transition.updateFrame(node: avatarNode, frame: avatarFrame)
             avatarNode.updateSize(size: avatarFrame.size)
+        }
+        
+        if self.isShimmering {
+            let shimmerContainerView: UIView
+            let shimmerView: ShimmerEffectForegroundView
+            if let currentContainer = self.shimmerContainerView, let current = self.shimmerView {
+                shimmerContainerView = currentContainer
+                shimmerView = current
+            } else {
+                shimmerContainerView = UIView()
+                shimmerView = ShimmerEffectForegroundView()
+                
+                if let outerSnapshot = self.backgroundMaskNode.layer.snapshotContentTree(), let innerSnapshot = self.backgroundMaskNode.layer.snapshotContentTree() {
+                    outerSnapshot.backgroundColor = UIColor.black.cgColor
+                    
+                    func tintLayers(_ layer: CALayer, color: UIColor, scale: CGFloat) {
+                        if let sublayers = layer.sublayers {
+                            for layer in sublayers {
+                                if let shapeLayer = layer as? CAShapeLayer {
+                                    shapeLayer.fillColor = color.cgColor
+                                } else {
+                                    if layer.cornerRadius > 0.0 {
+                                        layer.backgroundColor = color.cgColor
+                                        layer.bounds = CGRect(origin: .zero, size: CGSize(width: layer.bounds.width * scale, height: layer.bounds.height))
+                                    }
+                                    tintLayers(layer, color: color, scale: scale)
+                                }
+                            }
+                        }
+                    }
+                    
+                    tintLayers(outerSnapshot, color: .white, scale: 1.0)
+                    tintLayers(innerSnapshot, color: .black, scale: 1.085)
+                    
+                    outerSnapshot.addSublayer(innerSnapshot)
+                    
+                    innerSnapshot.transform = CATransform3DMakeScale(0.9, 0.9, 1.0)
+                    innerSnapshot.position = innerSnapshot.position.offsetBy(dx: 10.0, dy: 10.0)
+                    
+                    if let filter = CALayer.luminanceToAlpha() {
+                        outerSnapshot.filters = [filter]
+                    }
+                    
+                    shimmerContainerView.layer.mask = outerSnapshot
+                }
+                
+                self.shimmerContainerView = shimmerContainerView
+                self.backgroundContainerNode.view.addSubview(shimmerContainerView)
+                
+                let shimmerFrame = effectFrame.insetBy(dx: -60.0, dy: 0.0)
+                shimmerView.frame = shimmerFrame
+                shimmerView.update(backgroundColor: .clear, foregroundColor: UIColor.white.withAlphaComponent(0.4), gradientSize: 60.0, globalTimeOffset: false, duration: 2.2, horizontal: true)
+                shimmerView.updateAbsoluteRect(shimmerFrame, within: shimmerFrame.size)
+                
+                shimmerContainerView.addSubview(shimmerView)
+            }
+            shimmerContainerView.frame = effectFrame.offsetBy(dx: 10.0, dy: 10.0)
+        } else if let shimmerContainerView = self.shimmerContainerView, let shimmerView = self.shimmerView {
+            self.shimmerContainerView = nil
+            self.shimmerView = nil
+            
+            shimmerContainerView.removeFromSuperview()
+            shimmerView.removeFromSuperview()
         }
     }
     
@@ -905,6 +1089,8 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
                     startPoint = CGPoint(x: self.arrowContainer.frame.midX - self.containerNode.bounds.width / 2.0, y: arrowY - self.containerNode.bounds.height / 2.0)
                 case .right:
                     startPoint = CGPoint(x: self.arrowContainer.frame.maxX - self.containerNode.bounds.width / 2.0, y: self.arrowContainer.frame.minY - self.containerNode.bounds.height / 2.0)
+                case .left:
+                    startPoint = CGPoint(x: self.arrowContainer.frame.minX - self.containerNode.bounds.width / 2.0, y: self.arrowContainer.frame.minY - self.containerNode.bounds.height / 2.0)
             }
             
             self.containerNode.layer.animateSpring(from: NSValue(cgPoint: startPoint), to: NSValue(cgPoint: CGPoint()), keyPath: "position", duration: 0.4, damping: 105.0, additive: true)
@@ -917,7 +1103,7 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
             animationDelay = delay
         case .none, .downArrows:
             animationDelay = 0.0
-        case .peer:
+        case .peer, .image:
             animationDelay = 0.0
         }
         
@@ -955,6 +1141,8 @@ private final class TooltipScreenNode: ViewControllerTracingNode {
                     targetPoint = CGPoint(x: self.arrowContainer.frame.midX - self.containerNode.bounds.width / 2.0, y: arrowY - self.containerNode.bounds.height / 2.0)
                 case .right:
                     targetPoint = CGPoint(x: self.arrowContainer.frame.maxX - self.containerNode.bounds.width / 2.0, y: self.arrowContainer.frame.minY - self.containerNode.bounds.height / 2.0)
+                case .left:
+                    targetPoint = CGPoint(x: self.arrowContainer.frame.minX - self.containerNode.bounds.width / 2.0, y: self.arrowContainer.frame.minY - self.containerNode.bounds.height / 2.0)
             }
             
             self.containerNode.layer.animatePosition(from: CGPoint(), to: targetPoint, duration: 0.2, removeOnCompletion: false, additive: true)
@@ -997,6 +1185,7 @@ public final class TooltipScreen: ViewController {
     
     public enum Icon {
         case animation(name: String, delay: Double, tintColor: UIColor?)
+        case image(UIImage)
         case peer(peer: EnginePeer, isStory: Bool)
         case downArrows
     }
@@ -1010,6 +1199,7 @@ public final class TooltipScreen: ViewController {
         case top
         case right
         case bottom
+        case left
     }
     
     public enum ArrowStyle {
@@ -1047,6 +1237,7 @@ public final class TooltipScreen: ViewController {
     private let account: Account
     private let sharedContext: SharedAccountContext
     public let text: TooltipScreen.Text
+    private let textBadge: String?
     public let textAlignment: TooltipScreen.Alignment
     private let balancedTextLayout: Bool
     private let constrainWidth: CGFloat?
@@ -1061,6 +1252,7 @@ public final class TooltipScreen: ViewController {
             }
         }
     }
+    private let isShimmering: Bool
     private let displayDuration: DisplayDuration
     private let inset: CGFloat
     private let cornerRadius: CGFloat?
@@ -1086,6 +1278,7 @@ public final class TooltipScreen: ViewController {
         account: Account,
         sharedContext: SharedAccountContext,
         text: TooltipScreen.Text,
+        textBadge: String? = nil,
         textAlignment: TooltipScreen.Alignment = .natural,
         balancedTextLayout: Bool = false,
         constrainWidth: CGFloat? = nil,
@@ -1095,6 +1288,7 @@ public final class TooltipScreen: ViewController {
         action: TooltipScreen.Action? = nil,
         location: TooltipScreen.Location,
         displayDuration: DisplayDuration = .default,
+        isShimmering: Bool = false,
         inset: CGFloat = 12.0,
         cornerRadius: CGFloat? = nil,
         shouldDismissOnTouch: @escaping (CGPoint, CGRect) -> TooltipScreen.DismissOnTouch,
@@ -1104,6 +1298,7 @@ public final class TooltipScreen: ViewController {
         self.account = account
         self.sharedContext = sharedContext
         self.text = text
+        self.textBadge = textBadge
         self.textAlignment = textAlignment
         self.balancedTextLayout = balancedTextLayout
         self.constrainWidth = constrainWidth
@@ -1113,6 +1308,7 @@ public final class TooltipScreen: ViewController {
         self.action = action
         self.location = location
         self.displayDuration = displayDuration
+        self.isShimmering = isShimmering
         self.inset = inset
         self.cornerRadius = cornerRadius
         self.shouldDismissOnTouch = shouldDismissOnTouch
@@ -1133,6 +1329,10 @@ public final class TooltipScreen: ViewController {
     
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        
+        if self.ignoreAppearanceMethodInvocations() {
+            return
+        }
         
         self.controllerNode.animateIn()
         self.resetDismissTimeout(duration: self.displayDuration)
@@ -1174,7 +1374,7 @@ public final class TooltipScreen: ViewController {
     }
     
     override public func loadDisplayNode() {
-        self.displayNode = TooltipScreenNode(context: self.context, account: self.account, sharedContext: self.sharedContext, text: self.text, textAlignment: self.textAlignment, balancedTextLayout: self.balancedTextLayout, constrainWidth: self.constrainWidth, style: self.style, arrowStyle: self.arrowStyle, icon: self.icon, action: self.action, location: self.location, displayDuration: self.displayDuration, inset: self.inset, cornerRadius: self.cornerRadius, shouldDismissOnTouch: self.shouldDismissOnTouch, requestDismiss: { [weak self] in
+        self.displayNode = TooltipScreenNode(context: self.context, account: self.account, sharedContext: self.sharedContext, text: self.text, textBadge: self.textBadge, textAlignment: self.textAlignment, balancedTextLayout: self.balancedTextLayout, constrainWidth: self.constrainWidth, style: self.style, arrowStyle: self.arrowStyle, icon: self.icon, action: self.action, location: self.location, displayDuration: self.displayDuration, inset: self.inset, cornerRadius: self.cornerRadius, isShimmering: self.isShimmering, shouldDismissOnTouch: self.shouldDismissOnTouch, requestDismiss: { [weak self] in
             guard let strongSelf = self else {
                 return
             }

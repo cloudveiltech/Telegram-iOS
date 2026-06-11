@@ -44,16 +44,20 @@ private final class UpdatedPeersNearbySubscriberContext {
     let subscribers = Bag<([PeerNearby]) -> Void>()
 }
 
-private final class UpdatedRevenueBalancesSubscriberContext {
-    let subscribers = Bag<([PeerId: RevenueStats.Balances]) -> Void>()
-}
-
 private final class UpdatedStarsBalanceSubscriberContext {
     let subscribers = Bag<([PeerId: StarsAmount]) -> Void>()
 }
 
 private final class UpdatedStarsRevenueStatusSubscriberContext {
     let subscribers = Bag<([PeerId: StarsRevenueStats.Balances]) -> Void>()
+}
+
+private final class UpdatedStarGiftAuctionStateSubscriberContext {
+    let subscribers = Bag<([Int64: GiftAuctionContext.State.AuctionState]) -> Void>()
+}
+
+private final class UpdatedStarGiftAuctionMyStateSubscriberContext {
+    let subscribers = Bag<([Int64: GiftAuctionContext.State.MyState]) -> Void>()
 }
 
 public enum DeletedMessageId: Hashable {
@@ -134,19 +138,22 @@ public final class AccountStateManager {
         public let timestamp: Int32
         public let peer: EnginePeer
         public let isVideo: Bool
+        public let isConference: Bool
         
         init(
             callId: Int64,
             callAccessHash: Int64,
             timestamp: Int32,
             peer: EnginePeer,
-            isVideo: Bool
+            isVideo: Bool,
+            isConference: Bool
         ) {
             self.callId = callId
             self.callAccessHash = callAccessHash
             self.timestamp = timestamp
             self.peer = peer
             self.isVideo = isVideo
+            self.isConference = isConference
         }
     }
     
@@ -296,14 +303,19 @@ public final class AccountStateManager {
             return self.authorizationListUpdatesPipe.signal()
         }
         
-        private let threadReadStateUpdatesPipe = ValuePipe<(incoming: [MessageId: MessageId.Id], outgoing: [MessageId: MessageId.Id])>()
-        var threadReadStateUpdates: Signal<(incoming: [MessageId: MessageId.Id], outgoing: [MessageId: MessageId.Id]), NoError> {
+        private let threadReadStateUpdatesPipe = ValuePipe<(incoming: [PeerAndBoundThreadId: MessageId.Id], outgoing: [PeerAndBoundThreadId: MessageId.Id])>()
+        var threadReadStateUpdates: Signal<(incoming: [PeerAndBoundThreadId: MessageId.Id], outgoing: [PeerAndBoundThreadId: MessageId.Id]), NoError> {
             return self.threadReadStateUpdatesPipe.signal()
         }
         
         private let groupCallParticipantUpdatesPipe = ValuePipe<[(Int64, GroupCallParticipantsContext.Update)]>()
         public var groupCallParticipantUpdates: Signal<[(Int64, GroupCallParticipantsContext.Update)], NoError> {
             return self.groupCallParticipantUpdatesPipe.signal()
+        }
+        
+        private let groupCallMessageUpdatesPipe = ValuePipe<[GroupCallMessageUpdate]>()
+        public var groupCallMessageUpdates: Signal<[GroupCallMessageUpdate], NoError> {
+            return self.groupCallMessageUpdatesPipe.signal()
         }
         
         private let deletedMessagesPipe = ValuePipe<[DeletedMessageId]>()
@@ -328,6 +340,16 @@ public final class AccountStateManager {
             return self.forceSendPendingStarsReactionPipe.signal()
         }
         
+        fileprivate let forceSendPendingPaidMessagePipe = ValuePipe<PeerId>()
+        public var forceSendPendingPaidMessage: Signal<PeerId, NoError> {
+            return self.forceSendPendingPaidMessagePipe.signal()
+        }
+        
+        fileprivate let commitSendPendingPaidMessagePipe = ValuePipe<MessageId>()
+        public var commitSendPendingPaidMessage: Signal<MessageId, NoError> {
+            return self.commitSendPendingPaidMessagePipe.signal()
+        }
+        
         fileprivate let sentScheduledMessageIdsPipe = ValuePipe<Set<MessageId>>()
         public var sentScheduledMessageIds: Signal<Set<MessageId>, NoError> {
             return self.sentScheduledMessageIdsPipe.signal()
@@ -338,17 +360,26 @@ public final class AccountStateManager {
             return self.starRefBotConnectionEventsPipe.signal()
         }
         
+        fileprivate let installedStickerPacksArchivedEventsPipe = ValuePipe<Int>()
+        var installedStickerPacksArchivedEvents: Signal<Int, NoError> {
+            return self.installedStickerPacksArchivedEventsPipe.signal()
+        }
+        
         private var updatedWebpageContexts: [MediaId: UpdatedWebpageSubscriberContext] = [:]
         private var updatedPeersNearbyContext = UpdatedPeersNearbySubscriberContext()
-        private var updatedRevenueBalancesContext = UpdatedRevenueBalancesSubscriberContext()
         private var updatedStarsBalanceContext = UpdatedStarsBalanceSubscriberContext()
+        private var updatedTonBalanceContext = UpdatedStarsBalanceSubscriberContext()
         private var updatedStarsRevenueStatusContext = UpdatedStarsRevenueStatusSubscriberContext()
+        private var updatedStarGiftAuctionStateContext = UpdatedStarGiftAuctionStateSubscriberContext()
+        private var updatedStarGiftAuctionMyStateContext = UpdatedStarGiftAuctionMyStateSubscriberContext()
         
         private let delayNotificatonsUntil = Atomic<Int32?>(value: nil)
         private let appliedMaxMessageIdPromise = Promise<Int32?>(nil)
         private let appliedMaxMessageIdDisposable = MetaDisposable()
         private let appliedQtsPromise = Promise<Int32?>(nil)
         private let appliedQtsDisposable = MetaDisposable()
+        private let reportMessageDeliveryDisposable = DisposableSet()
+        private let updateEmojiGameInfoDisposable = MetaDisposable()
         
         let updateConfigRequested: (() -> Void)?
         let isPremiumUpdated: (() -> Void)?
@@ -388,6 +419,8 @@ public final class AccountStateManager {
             self.operationDisposable.dispose()
             self.appliedMaxMessageIdDisposable.dispose()
             self.appliedQtsDisposable.dispose()
+            self.reportMessageDeliveryDisposable.dispose()
+            self.updateEmojiGameInfoDisposable.dispose()
         }
         
         public func reset() {
@@ -897,7 +930,8 @@ public final class AccountStateManager {
                             return postbox.transaction { transaction -> (difference: Api.updates.Difference?, finalStatte: AccountReplayedFinalState?, skipBecauseOfError: Bool, resetState: Bool) in
                                 if let currentState = transaction.getState() as? AuthorizedAccountState {
                                     switch state {
-                                    case let .state(pts, qts, date, seq, _):
+                                    case let .state(stateData):
+                                        let (pts, qts, date, seq) = (stateData.pts, stateData.qts, stateData.date, stateData.seq)
                                         transaction.setState(currentState.changedState(AuthorizedAccountState.State(pts: pts, qts: qts, date: date, seq: seq)))
                                     }
                                 }
@@ -1096,14 +1130,25 @@ public final class AccountStateManager {
                             if let updatedPeersNearby = events.updatedPeersNearby {
                                 strongSelf.notifyUpdatedPeersNearby(updatedPeersNearby)
                             }
-                            if !events.updatedRevenueBalances.isEmpty {
-                                strongSelf.notifyUpdatedRevenueBalances(events.updatedRevenueBalances)
-                            }
                             if !events.updatedStarsBalance.isEmpty {
                                 strongSelf.notifyUpdatedStarsBalance(events.updatedStarsBalance)
                             }
+                            if !events.updatedTonBalance.isEmpty {
+                                strongSelf.notifyUpdatedTonBalance(events.updatedTonBalance)
+                            }
                             if !events.updatedStarsRevenueStatus.isEmpty {
                                 strongSelf.notifyUpdatedStarsRevenueStatus(events.updatedStarsRevenueStatus)
+                            }
+                            if !events.updatedStarGiftAuctionState.isEmpty {
+                                strongSelf.notifyUpdatedStarGiftAuctionState(events.updatedStarGiftAuctionState)
+                            }
+                            if !events.updatedStarGiftAuctionMyState.isEmpty {
+                                strongSelf.notifyUpdatedStarGiftAuctionMyState(events.updatedStarGiftAuctionMyState)
+                            }
+                            if let updatedEmojiGameInfo = events.updatedEmojiGameInfo {
+                                strongSelf.updateEmojiGameInfoDisposable.set(strongSelf.postbox.transaction({ transaction in
+                                    updateEmojiGameInfo(transaction: transaction, { _ in return updatedEmojiGameInfo })
+                                }).start())
                             }
                             if !events.updatedCalls.isEmpty {
                                 for call in events.updatedCalls {
@@ -1118,6 +1163,9 @@ public final class AccountStateManager {
                             if !events.updatedGroupCallParticipants.isEmpty {
                                 strongSelf.groupCallParticipantUpdatesPipe.putNext(events.updatedGroupCallParticipants)
                             }
+                            if !events.groupCallMessageUpdates.isEmpty {
+                                strongSelf.groupCallMessageUpdatesPipe.putNext(events.groupCallMessageUpdates)
+                            }
                             if !events.storyUpdates.isEmpty {
                                 strongSelf.storyUpdatesPipe.putNext(events.storyUpdates)
                             }
@@ -1126,6 +1174,12 @@ public final class AccountStateManager {
                             }
                             if !events.sentScheduledMessageIds.isEmpty {
                                 strongSelf.sentScheduledMessageIdsPipe.putNext(events.sentScheduledMessageIds)
+                            }
+                            if !events.reportMessageDelivery.isEmpty {
+                                strongSelf.reportMessageDeliveryDisposable.add(_internal_reportMessageDelivery(postbox: strongSelf.postbox, network: strongSelf.network, messageIds: Array(events.reportMessageDelivery), fromPushNotification: false).start())
+                            }
+                            if !events.addedConferenceInvitationMessagesIds.isEmpty {
+                                strongSelf.callSessionManager?.addConferenceInvitationMessages(ids: events.addedConferenceInvitationMessagesIds.map { ($0, nil) })
                             }
                             if !events.isContactUpdates.isEmpty {
                                 strongSelf.addIsContactUpdates(events.isContactUpdates)
@@ -1683,33 +1737,6 @@ public final class AccountStateManager {
             }
         }
         
-        public func updatedRevenueBalances() -> Signal<[PeerId: RevenueStats.Balances], NoError> {
-            let queue = self.queue
-            return Signal { [weak self] subscriber in
-                let disposable = MetaDisposable()
-                queue.async {
-                    if let strongSelf = self {
-                        let index = strongSelf.updatedRevenueBalancesContext.subscribers.add({ revenueBalances in
-                            subscriber.putNext(revenueBalances)
-                        })
-                        
-                        disposable.set(ActionDisposable {
-                            if let strongSelf = self {
-                                strongSelf.updatedRevenueBalancesContext.subscribers.remove(index)
-                            }
-                        })
-                    }
-                }
-                return disposable
-            }
-        }
-        
-        private func notifyUpdatedRevenueBalances(_ updatedRevenueBalances: [PeerId: RevenueStats.Balances]) {
-            for subscriber in self.updatedRevenueBalancesContext.subscribers.copyItems() {
-                subscriber(updatedRevenueBalances)
-            }
-        }
-        
         public func updatedStarsBalance() -> Signal<[PeerId: StarsAmount], NoError> {
             let queue = self.queue
             return Signal { [weak self] subscriber in
@@ -1730,10 +1757,37 @@ public final class AccountStateManager {
                 return disposable
             }
         }
-        
+                
         private func notifyUpdatedStarsBalance(_ updatedStarsBalance: [PeerId: StarsAmount]) {
             for subscriber in self.updatedStarsBalanceContext.subscribers.copyItems() {
                 subscriber(updatedStarsBalance)
+            }
+        }
+                
+        public func updatedTonBalance() -> Signal<[PeerId: StarsAmount], NoError> {
+            let queue = self.queue
+            return Signal { [weak self] subscriber in
+                let disposable = MetaDisposable()
+                queue.async {
+                    if let strongSelf = self {
+                        let index = strongSelf.updatedTonBalanceContext.subscribers.add({ starsBalance in
+                            subscriber.putNext(starsBalance)
+                        })
+                        
+                        disposable.set(ActionDisposable {
+                            if let strongSelf = self {
+                                strongSelf.updatedTonBalanceContext.subscribers.remove(index)
+                            }
+                        })
+                    }
+                }
+                return disposable
+            }
+        }
+        
+        private func notifyUpdatedTonBalance(_ updatedTonBalance: [PeerId: StarsAmount]) {
+            for subscriber in self.updatedTonBalanceContext.subscribers.copyItems() {
+                subscriber(updatedTonBalance)
             }
         }
         
@@ -1764,6 +1818,60 @@ public final class AccountStateManager {
             }
         }
         
+        public func updatedStarGiftAuctionState() -> Signal<[Int64: GiftAuctionContext.State.AuctionState], NoError> {
+            let queue = self.queue
+            return Signal { [weak self] subscriber in
+                let disposable = MetaDisposable()
+                queue.async {
+                    if let strongSelf = self {
+                        let index = strongSelf.updatedStarGiftAuctionStateContext.subscribers.add({ starsBalance in
+                            subscriber.putNext(starsBalance)
+                        })
+                        
+                        disposable.set(ActionDisposable {
+                            if let strongSelf = self {
+                                strongSelf.updatedStarGiftAuctionStateContext.subscribers.remove(index)
+                            }
+                        })
+                    }
+                }
+                return disposable
+            }
+        }
+                
+        private func notifyUpdatedStarGiftAuctionState(_ updatedStarGiftAuctionState: [Int64: GiftAuctionContext.State.AuctionState]) {
+            for subscriber in self.updatedStarGiftAuctionStateContext.subscribers.copyItems() {
+                subscriber(updatedStarGiftAuctionState)
+            }
+        }
+        
+        public func updatedStarGiftAuctionMyState() -> Signal<[Int64: GiftAuctionContext.State.MyState], NoError> {
+            let queue = self.queue
+            return Signal { [weak self] subscriber in
+                let disposable = MetaDisposable()
+                queue.async {
+                    if let strongSelf = self {
+                        let index = strongSelf.updatedStarGiftAuctionMyStateContext.subscribers.add({ starsBalance in
+                            subscriber.putNext(starsBalance)
+                        })
+                        
+                        disposable.set(ActionDisposable {
+                            if let strongSelf = self {
+                                strongSelf.updatedStarGiftAuctionMyStateContext.subscribers.remove(index)
+                            }
+                        })
+                    }
+                }
+                return disposable
+            }
+        }
+                
+        private func notifyUpdatedStarGiftAuctionMyState(_ updatedStarGiftAuctionMyState: [Int64: GiftAuctionContext.State.MyState]) {
+            for subscriber in self.updatedStarGiftAuctionMyStateContext.subscribers.copyItems() {
+                subscriber(updatedStarGiftAuctionMyState)
+            }
+        }
+                
         func notifyDeletedMessages(messageIds: [MessageId]) {
             self.deletedMessagesPipe.putNext(messageIds.map { .messageId($0) })
         }
@@ -1781,10 +1889,12 @@ public final class AccountStateManager {
             
             if let updates = Api.parse(Buffer(data: rawData)) as? Api.Updates {
                 switch updates {
-                case let .updates(updates, _, _, _, _):
+                case let .updates(updatesData):
+                    let updates = updatesData.updates
                     for update in updates {
                         switch update {
-                        case let .updatePhoneCall(phoneCall):
+                        case let .updatePhoneCall(updatePhoneCallData):
+                            let phoneCall = updatePhoneCallData.phoneCall
                             if let callSessionManager = self.callSessionManager {
                                 callSessionManager.updateSession(phoneCall, completion: { result in
                                     completion(result)
@@ -1895,7 +2005,7 @@ public final class AccountStateManager {
         }
     }
     
-    var threadReadStateUpdates: Signal<(incoming: [MessageId: MessageId.Id], outgoing: [MessageId: MessageId.Id]), NoError> {
+    var threadReadStateUpdates: Signal<(incoming: [PeerAndBoundThreadId: MessageId.Id], outgoing: [PeerAndBoundThreadId: MessageId.Id]), NoError> {
         return self.impl.signalWith { impl, subscriber in
             return impl.threadReadStateUpdates.start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
         }
@@ -1904,6 +2014,12 @@ public final class AccountStateManager {
     public var groupCallParticipantUpdates: Signal<[(Int64, GroupCallParticipantsContext.Update)], NoError> {
         return self.impl.signalWith { impl, subscriber in
             return impl.groupCallParticipantUpdates.start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
+        }
+    }
+    
+    var groupCallMessageUpdates: Signal<[GroupCallMessageUpdate], NoError> {
+        return self.impl.signalWith { impl, subscriber in
+            return impl.groupCallMessageUpdates.start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
         }
     }
     
@@ -1925,6 +2041,18 @@ public final class AccountStateManager {
         }
     }
     
+    public var installedStickerPacksArchivedEvents: Signal<Int, NoError> {
+        return self.impl.signalWith { impl, subscriber in
+            return impl.installedStickerPacksArchivedEvents.start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
+        }
+    }
+    
+    func installedStickerPacksArchived(count: Int) {
+        self.impl.with { impl in
+            impl.installedStickerPacksArchivedEventsPipe.putNext(count)
+        }
+    }
+    
     var botPreviewUpdates: Signal<[InternalBotPreviewUpdate], NoError> {
         return self.impl.signalWith { impl, subscriber in
             return impl.botPreviewUpdates.start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
@@ -1943,6 +2071,18 @@ public final class AccountStateManager {
         }
     }
     
+    var forceSendPendingPaidMessage: Signal<PeerId, NoError> {
+        return self.impl.signalWith { impl, subscriber in
+            return impl.forceSendPendingPaidMessage.start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
+        }
+    }
+    
+    var commitSendPendingPaidMessage: Signal<MessageId, NoError> {
+        return self.impl.signalWith { impl, subscriber in
+            return impl.commitSendPendingPaidMessage.start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
+        }
+    }
+    
     public var sentScheduledMessageIds: Signal<Set<MessageId>, NoError> {
         return self.impl.signalWith { impl, subscriber in
             return impl.sentScheduledMessageIds.start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
@@ -1955,12 +2095,26 @@ public final class AccountStateManager {
         }
     }
     
+    
+    func forceSendPendingPaidMessage(peerId: PeerId) {
+        self.impl.with { impl in
+            impl.forceSendPendingPaidMessagePipe.putNext(peerId)
+        }
+    }
+    
+    func commitSendPendingPaidMessage(messageId: MessageId) {
+        self.impl.with { impl in
+            impl.commitSendPendingPaidMessagePipe.putNext(messageId)
+        }
+    }
+    
     var updateConfigRequested: (() -> Void)?
     var isPremiumUpdated: (() -> Void)?
     
     let messagesRemovedContext = MessagesRemovedContext()
     
     public weak var starsContext: StarsContext?
+    public weak var tonContext: StarsContext?
     
     init(
         accountPeerId: PeerId,
@@ -2087,21 +2241,34 @@ public final class AccountStateManager {
         }
     }
     
-    public func updatedRevenueBalances() -> Signal<[PeerId: RevenueStats.Balances], NoError> {
-        return self.impl.signalWith { impl, subscriber in
-            return impl.updatedRevenueBalances().start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
-        }
-    }
-
     public func updatedStarsBalance() -> Signal<[PeerId: StarsAmount], NoError> {
         return self.impl.signalWith { impl, subscriber in
             return impl.updatedStarsBalance().start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
         }
     }
     
+    public func updatedTonBalance() -> Signal<[PeerId: StarsAmount], NoError> {
+        return self.impl.signalWith { impl, subscriber in
+            return impl.updatedTonBalance().start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
+        }
+    }
+    
     public func updatedStarsRevenueStatus() -> Signal<[PeerId: StarsRevenueStats.Balances], NoError> {
         return self.impl.signalWith { impl, subscriber in
             return impl.updatedStarsRevenueStatus().start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
+        }
+    }
+    
+    
+    public func updatedStarGiftAuctionState() -> Signal<[Int64: GiftAuctionContext.State.AuctionState], NoError> {
+        return self.impl.signalWith { impl, subscriber in
+            return impl.updatedStarGiftAuctionState().start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
+        }
+    }
+    
+    public func updatedStarGiftAuctionMyState() -> Signal<[Int64: GiftAuctionContext.State.MyState], NoError> {
+        return self.impl.signalWith { impl, subscriber in
+            return impl.updatedStarGiftAuctionMyState().start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
         }
     }
     
@@ -2150,17 +2317,20 @@ public final class AccountStateManager {
             return nil
         }
         switch updates {
-        case let .updates(updates, users, _, _, _):
+        case let .updates(updatesData):
+            let (updates, users) = (updatesData.updates, updatesData.users)
             var peers: [Peer] = []
             for user in users {
                 peers.append(TelegramUser(user: user))
             }
-            
+
             for update in updates {
                 switch update {
-                case let .updatePhoneCall(phoneCall):
+                case let .updatePhoneCall(updatePhoneCallData):
+                    let phoneCall = updatePhoneCallData.phoneCall
                     switch phoneCall {
-                    case let .phoneCallRequested(flags, id, accessHash, date, adminId, _, _, _):
+                    case let .phoneCallRequested(phoneCallRequestedData):
+                        let (flags, id, accessHash, date, adminId) = (phoneCallRequestedData.flags, phoneCallRequestedData.id, phoneCallRequestedData.accessHash, phoneCallRequestedData.date, phoneCallRequestedData.adminId)
                         guard let peer = peers.first(where: { $0.id == PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(adminId)) }) else {
                             return nil
                         }
@@ -2169,7 +2339,8 @@ public final class AccountStateManager {
                             callAccessHash: accessHash,
                             timestamp: date,
                             peer: EnginePeer(peer),
-                            isVideo: (flags & (1 << 6)) != 0
+                            isVideo: (flags & (1 << 6)) != 0,
+                            isConference: false
                         )
                     default:
                         break
@@ -2289,7 +2460,7 @@ public func messagesForNotification(transaction: Transaction, id: MessageId, alw
     
     var notificationPeerId = id.peerId
     let peer = transaction.getPeer(id.peerId)
-    if let peer = peer, let associatedPeerId = peer.associatedPeerId {
+    if let peer, peer is TelegramSecretChat, let associatedPeerId = peer.associatedPeerId {
         notificationPeerId = associatedPeerId
     }
     if message.personal, let author = message.author {
@@ -2298,7 +2469,8 @@ public func messagesForNotification(transaction: Transaction, id: MessageId, alw
     
     var notificationSettingsStack: [TelegramPeerNotificationSettings] = []
     
-    if let threadId = message.threadId, let threadData = transaction.getMessageHistoryThreadInfo(peerId: message.id.peerId, threadId: threadId)?.data.get(MessageHistoryThreadData.self) {
+    if let peer = peer as? TelegramChannel, peer.isMonoForum {
+    } else if let threadId = message.threadId, let threadData = transaction.getMessageHistoryThreadInfo(peerId: message.id.peerId, threadId: threadId)?.data.get(MessageHistoryThreadData.self) {
         notificationSettingsStack.append(threadData.notificationSettings)
     }
     

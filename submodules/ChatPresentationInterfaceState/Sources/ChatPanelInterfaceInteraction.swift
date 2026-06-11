@@ -8,6 +8,8 @@ import Display
 import AccountContext
 import ContextUI
 import TooltipUI
+import UndoUI
+import TextFormat
 
 public enum ChatLoadingMessageSubject {
     case generic
@@ -62,7 +64,14 @@ public enum ChatTranslationDisplayType {
 }
 
 public final class ChatPanelInterfaceInteraction {
-    public let setupReplyMessage: (MessageId?, @escaping (ContainedViewLayoutTransition, @escaping () -> Void) -> Void) -> Void
+    public enum OpenSuggestPostMode {
+        case `default`
+        case editMessage
+        case editTime
+        case editPrice
+    }
+    
+    public let setupReplyMessage: (MessageId?, EngineMessageReplyInnerSubject?, @escaping (ContainedViewLayoutTransition, @escaping () -> Void) -> Void) -> Void
     public let setupEditMessage: (MessageId?, @escaping (ContainedViewLayoutTransition) -> Void) -> Void
     public let beginMessageSelection: ([MessageId], @escaping (ContainedViewLayoutTransition) -> Void) -> Void
     public let cancelMessageSelection: (ContainedViewLayoutTransition) -> Void
@@ -75,9 +84,10 @@ public final class ChatPanelInterfaceInteraction {
     public let forwardCurrentForwardMessages: () -> Void
     public let forwardMessages: ([Message]) -> Void
     public let updateForwardOptionsState: ((ChatInterfaceForwardOptionsState) -> ChatInterfaceForwardOptionsState) -> Void
-    public let presentForwardOptions: (ASDisplayNode) -> Void
-    public let presentReplyOptions: (ASDisplayNode) -> Void
-    public let presentLinkOptions: (ASDisplayNode) -> Void
+    public let presentForwardOptions: (UIView) -> Void
+    public let presentReplyOptions: (UIView) -> Void
+    public let presentLinkOptions: (UIView) -> Void
+    public let presentSuggestPostOptions: () -> Void
     public let shareSelectedMessages: () -> Void
     public let updateTextInputStateAndMode: (@escaping (ChatTextInputState, ChatInputMode) -> (ChatTextInputState, ChatInputMode)) -> Void
     public let updateInputModeAndDismissedButtonKeyboardMessageId: ((ChatPresentationInterfaceState) -> (ChatInputMode, MessageId?)) -> Void
@@ -112,7 +122,8 @@ public final class ChatPanelInterfaceInteraction {
     public let displayVideoUnmuteTip: (CGPoint?) -> Void
     public let switchMediaRecordingMode: () -> Void
     public let setupMessageAutoremoveTimeout: () -> Void
-    public let sendSticker: (FileMediaReference, Bool, UIView, CGRect, CALayer?, [ItemCollectionId]) -> Bool
+    public let sendSticker: (FileMediaReference, Bool, UIView?, CGRect?, CALayer?, [ItemCollectionId]) -> Bool
+    public let editSticker: (TelegramMediaFile) -> Void
     public let unblockPeer: () -> Void
     public let pinMessage: (MessageId, ContextControllerProtocol?) -> Void
     public let unpinMessage: (MessageId, Bool, ContextControllerProtocol?) -> Void
@@ -137,7 +148,7 @@ public final class ChatPanelInterfaceInteraction {
     public let updateInputLanguage: (@escaping (String?) -> String?) -> Void
     public let unarchiveChat: () -> Void
     public let openLinkEditing: () -> Void
-    public let reportPeerIrrelevantGeoLocation: () -> Void
+    public let openDateEditing: () -> Void
     public let displaySlowmodeTooltip: (UIView, CGRect) -> Void
     public let displaySendMessageOptions: (ASDisplayNode, ContextGesture) -> Void
     public let openScheduledMessages: () -> Void
@@ -151,12 +162,13 @@ public final class ChatPanelInterfaceInteraction {
     public let joinGroupCall: (CachedChannelData.ActiveCall) -> Void
     public let presentInviteMembers: () -> Void
     public let presentGigagroupHelp: () -> Void
+    public let openMonoforum: () -> Void
     public let updateShowCommands: ((Bool) -> Bool) -> Void
     public let updateShowSendAsPeers: ((Bool) -> Bool) -> Void
     public let openInviteRequests: () -> Void
     public let openSendAsPeer: (ASDisplayNode, ContextGesture?) -> Void
     public let presentChatRequestAdminInfo: () -> Void
-    public let displayCopyProtectionTip: (ASDisplayNode, Bool) -> Void
+    public let displayCopyProtectionTip: (UIView, Bool) -> Void
     public let openWebView: (String, String, Bool, ChatOpenWebViewSource) -> Void
     public let updateShowWebView: ((Bool) -> Bool) -> Void
     public let insertText: (NSAttributedString) -> Void
@@ -167,17 +179,32 @@ public final class ChatPanelInterfaceInteraction {
     public let addDoNotTranslateLanguage: (String) -> Void
     public let hideTranslationPanel: () -> Void
     public let openPremiumGift: () -> Void
+    public let openSuggestPost: (Message?, OpenSuggestPostMode) -> Void
     public let openPremiumRequiredForMessaging: () -> Void
+    public let openStarsPurchase: (Int64?) -> Void
+    public let openMessagePayment: () -> Void
     public let updateHistoryFilter: ((ChatPresentationInterfaceState.HistoryFilter?) -> ChatPresentationInterfaceState.HistoryFilter?) -> Void
+    public let updateChatLocationThread: (Int64?, ChatControllerAnimateInnerChatSwitchDirection?) -> Void
+    public let toggleChatSidebarMode: () -> Void
     public let updateDisplayHistoryFilterAsList: (Bool) -> Void
     public let openBoostToUnrestrict: () -> Void
-    public let updateVideoTrimRange: (Double, Double, Bool, Bool) -> Void
+    public let updateRecordingTrimRange: (Double, Double, Bool, Bool) -> Void
+    public let dismissAllTooltips: () -> Void
+    public let editTodoMessage: (MessageId, Int32?, Bool) -> Void
+    public let dismissUrlPreview: () -> Void
+    public let dismissForwardMessages: () -> Void
+    public let dismissSuggestPost: () -> Void
+    public let displayUndo: (UndoOverlayContent) -> Void
+    public let presentInputTextTranslation: (NSAttributedString, @escaping (NSAttributedString) -> Void) -> Void
+    public let sendEmoji: (String, ChatTextInputTextCustomEmojiAttribute, Bool) -> Void
+    public let openAICompose: () -> Void
+    public let openSetPeerAvatar: () -> Void
     public let requestLayout: (ContainedViewLayoutTransition) -> Void
     public let chatController: () -> ViewController?
     public let statuses: ChatPanelInterfaceInteractionStatuses?
-    
+        
     public init(
-        setupReplyMessage: @escaping (MessageId?, @escaping (ContainedViewLayoutTransition, @escaping () -> Void) -> Void) -> Void,
+        setupReplyMessage: @escaping (MessageId?, EngineMessageReplyInnerSubject?, @escaping (ContainedViewLayoutTransition, @escaping () -> Void) -> Void) -> Void,
         setupEditMessage: @escaping (MessageId?, @escaping (ContainedViewLayoutTransition) -> Void) -> Void,
         beginMessageSelection: @escaping ([MessageId], @escaping (ContainedViewLayoutTransition) -> Void) -> Void,
         cancelMessageSelection: @escaping (ContainedViewLayoutTransition) -> Void,
@@ -190,9 +217,10 @@ public final class ChatPanelInterfaceInteraction {
         forwardCurrentForwardMessages: @escaping () -> Void,
         forwardMessages: @escaping ([Message]) -> Void,
         updateForwardOptionsState: @escaping ((ChatInterfaceForwardOptionsState) -> ChatInterfaceForwardOptionsState) -> Void,
-        presentForwardOptions: @escaping (ASDisplayNode) -> Void,
-        presentReplyOptions: @escaping (ASDisplayNode) -> Void,
-        presentLinkOptions: @escaping (ASDisplayNode) -> Void,
+        presentForwardOptions: @escaping (UIView) -> Void,
+        presentReplyOptions: @escaping (UIView) -> Void,
+        presentLinkOptions: @escaping (UIView) -> Void,
+        presentSuggestPostOptions: @escaping () -> Void,
         shareSelectedMessages: @escaping () -> Void,
         updateTextInputStateAndMode: @escaping ((ChatTextInputState, ChatInputMode) -> (ChatTextInputState, ChatInputMode)) -> Void,
         updateInputModeAndDismissedButtonKeyboardMessageId: @escaping ((ChatPresentationInterfaceState) -> (ChatInputMode, MessageId?)) -> Void,
@@ -227,7 +255,8 @@ public final class ChatPanelInterfaceInteraction {
         displayVideoUnmuteTip: @escaping (CGPoint?) -> Void,
         switchMediaRecordingMode: @escaping () -> Void,
         setupMessageAutoremoveTimeout: @escaping () -> Void,
-        sendSticker: @escaping (FileMediaReference, Bool, UIView, CGRect, CALayer?, [ItemCollectionId]) -> Bool,
+        sendSticker: @escaping (FileMediaReference, Bool, UIView?, CGRect?, CALayer?, [ItemCollectionId]) -> Bool,
+        editSticker: @escaping (TelegramMediaFile) -> Void,
         unblockPeer: @escaping () -> Void,
         pinMessage: @escaping (MessageId, ContextControllerProtocol?) -> Void,
         unpinMessage: @escaping (MessageId, Bool, ContextControllerProtocol?) -> Void,
@@ -252,7 +281,7 @@ public final class ChatPanelInterfaceInteraction {
         updateInputLanguage: @escaping ((String?) -> String?) -> Void,
         unarchiveChat: @escaping () -> Void,
         openLinkEditing: @escaping () -> Void,
-        reportPeerIrrelevantGeoLocation: @escaping () -> Void,
+        openDateEditing: @escaping () -> Void,
         displaySlowmodeTooltip: @escaping (UIView, CGRect) -> Void,
         displaySendMessageOptions: @escaping (ASDisplayNode, ContextGesture) -> Void,
         openScheduledMessages: @escaping () -> Void,
@@ -265,13 +294,14 @@ public final class ChatPanelInterfaceInteraction {
         joinGroupCall: @escaping (CachedChannelData.ActiveCall) -> Void,
         presentInviteMembers: @escaping () -> Void,
         presentGigagroupHelp: @escaping () -> Void,
+        openMonoforum: @escaping () -> Void,
         editMessageMedia: @escaping (MessageId, Bool) -> Void,
         updateShowCommands: @escaping ((Bool) -> Bool) -> Void,
         updateShowSendAsPeers: @escaping ((Bool) -> Bool) -> Void,
         openInviteRequests: @escaping () -> Void,
         openSendAsPeer: @escaping (ASDisplayNode, ContextGesture?) -> Void,
         presentChatRequestAdminInfo: @escaping () -> Void,
-        displayCopyProtectionTip: @escaping (ASDisplayNode, Bool) -> Void,
+        displayCopyProtectionTip: @escaping (UIView, Bool) -> Void,
         openWebView: @escaping (String, String, Bool, ChatOpenWebViewSource) -> Void,
         updateShowWebView: @escaping ((Bool) -> Bool) -> Void,
         insertText: @escaping (NSAttributedString) -> Void,
@@ -282,10 +312,25 @@ public final class ChatPanelInterfaceInteraction {
         addDoNotTranslateLanguage:  @escaping (String) -> Void,
         hideTranslationPanel:  @escaping () -> Void,
         openPremiumGift: @escaping () -> Void,
+        openSuggestPost: @escaping (Message?, OpenSuggestPostMode) -> Void,
         openPremiumRequiredForMessaging: @escaping () -> Void,
+        openStarsPurchase: @escaping (Int64?) -> Void,
+        openMessagePayment: @escaping () -> Void,
         openBoostToUnrestrict: @escaping () -> Void,
-        updateVideoTrimRange: @escaping (Double, Double, Bool, Bool) -> Void,
+        updateRecordingTrimRange: @escaping (Double, Double, Bool, Bool) -> Void,
+        dismissAllTooltips: @escaping () -> Void,
+        editTodoMessage: @escaping (MessageId, Int32?, Bool) -> Void,
+        dismissUrlPreview: @escaping () -> Void,
+        dismissForwardMessages: @escaping () -> Void,
+        dismissSuggestPost: @escaping () -> Void,
+        displayUndo: @escaping (UndoOverlayContent) -> Void,
+        presentInputTextTranslation: @escaping (NSAttributedString, @escaping (NSAttributedString) -> Void) -> Void,
+        sendEmoji: @escaping (String, ChatTextInputTextCustomEmojiAttribute, Bool) -> Void,
+        openAICompose: @escaping () -> Void,
+        openSetPeerAvatar: @escaping () -> Void,
         updateHistoryFilter: @escaping ((ChatPresentationInterfaceState.HistoryFilter?) -> ChatPresentationInterfaceState.HistoryFilter?) -> Void,
+        updateChatLocationThread: @escaping (Int64?, ChatControllerAnimateInnerChatSwitchDirection?) -> Void,
+        toggleChatSidebarMode: @escaping () -> Void,
         updateDisplayHistoryFilterAsList: @escaping (Bool) -> Void,
         requestLayout: @escaping (ContainedViewLayoutTransition) -> Void,
         chatController: @escaping () -> ViewController?,
@@ -307,6 +352,7 @@ public final class ChatPanelInterfaceInteraction {
         self.presentForwardOptions = presentForwardOptions
         self.presentReplyOptions = presentReplyOptions
         self.presentLinkOptions = presentLinkOptions
+        self.presentSuggestPostOptions = presentSuggestPostOptions
         self.shareSelectedMessages = shareSelectedMessages
         self.updateTextInputStateAndMode = updateTextInputStateAndMode
         self.updateInputModeAndDismissedButtonKeyboardMessageId = updateInputModeAndDismissedButtonKeyboardMessageId
@@ -342,6 +388,7 @@ public final class ChatPanelInterfaceInteraction {
         self.switchMediaRecordingMode = switchMediaRecordingMode
         self.setupMessageAutoremoveTimeout = setupMessageAutoremoveTimeout
         self.sendSticker = sendSticker
+        self.editSticker = editSticker
         self.unblockPeer = unblockPeer
         self.pinMessage = pinMessage
         self.unpinMessage = unpinMessage
@@ -366,7 +413,7 @@ public final class ChatPanelInterfaceInteraction {
         self.updateInputLanguage = updateInputLanguage
         self.unarchiveChat = unarchiveChat
         self.openLinkEditing = openLinkEditing
-        self.reportPeerIrrelevantGeoLocation = reportPeerIrrelevantGeoLocation
+        self.openDateEditing = openDateEditing
         self.displaySlowmodeTooltip = displaySlowmodeTooltip
         self.displaySendMessageOptions = displaySendMessageOptions
         self.openScheduledMessages = openScheduledMessages
@@ -380,6 +427,7 @@ public final class ChatPanelInterfaceInteraction {
         self.joinGroupCall = joinGroupCall
         self.presentInviteMembers = presentInviteMembers
         self.presentGigagroupHelp = presentGigagroupHelp
+        self.openMonoforum = openMonoforum
         self.updateShowCommands = updateShowCommands
         self.updateShowSendAsPeers = updateShowSendAsPeers
         self.openInviteRequests = openInviteRequests
@@ -396,10 +444,25 @@ public final class ChatPanelInterfaceInteraction {
         self.addDoNotTranslateLanguage = addDoNotTranslateLanguage
         self.hideTranslationPanel = hideTranslationPanel
         self.openPremiumGift = openPremiumGift
+        self.openSuggestPost = openSuggestPost
         self.openPremiumRequiredForMessaging = openPremiumRequiredForMessaging
+        self.openStarsPurchase = openStarsPurchase
+        self.openMessagePayment = openMessagePayment
         self.openBoostToUnrestrict = openBoostToUnrestrict
-        self.updateVideoTrimRange = updateVideoTrimRange
+        self.updateRecordingTrimRange = updateRecordingTrimRange
+        self.dismissAllTooltips = dismissAllTooltips
+        self.editTodoMessage = editTodoMessage
+        self.dismissUrlPreview = dismissUrlPreview
+        self.dismissForwardMessages = dismissForwardMessages
+        self.dismissSuggestPost = dismissSuggestPost
+        self.displayUndo = displayUndo
+        self.presentInputTextTranslation = presentInputTextTranslation
+        self.sendEmoji = sendEmoji
+        self.openAICompose = openAICompose
+        self.openSetPeerAvatar = openSetPeerAvatar
         self.updateHistoryFilter = updateHistoryFilter
+        self.updateChatLocationThread = updateChatLocationThread
+        self.toggleChatSidebarMode = toggleChatSidebarMode
         self.updateDisplayHistoryFilterAsList = updateDisplayHistoryFilterAsList
         self.requestLayout = requestLayout
 
@@ -412,7 +475,7 @@ public final class ChatPanelInterfaceInteraction {
         updateInputModeAndDismissedButtonKeyboardMessageId: @escaping ((ChatPresentationInterfaceState) -> (ChatInputMode, MessageId?)) -> Void,
         openLinkEditing: @escaping () -> Void
     ) {
-        self.init(setupReplyMessage: { _, _ in
+        self.init(setupReplyMessage: { _, _, _ in
         }, setupEditMessage: { _, _ in
         }, beginMessageSelection: { _, _ in
         }, cancelMessageSelection: { _ in
@@ -429,6 +492,7 @@ public final class ChatPanelInterfaceInteraction {
         }, presentForwardOptions: { _ in
         }, presentReplyOptions: { _ in
         }, presentLinkOptions: { _ in
+        }, presentSuggestPostOptions: {
         }, shareSelectedMessages: {
         }, updateTextInputStateAndMode: updateTextInputStateAndMode, updateInputModeAndDismissedButtonKeyboardMessageId: updateInputModeAndDismissedButtonKeyboardMessageId, openStickers: {
         }, editMessage: {
@@ -464,6 +528,7 @@ public final class ChatPanelInterfaceInteraction {
         }, setupMessageAutoremoveTimeout: {
         }, sendSticker: { _, _, _, _, _, _ in
             return false
+        }, editSticker: { _ in
         }, unblockPeer: {
         }, pinMessage: { _, _ in
         }, unpinMessage: { _, _, _ in
@@ -488,7 +553,7 @@ public final class ChatPanelInterfaceInteraction {
         }, requestStopPollInMessage: { _ in
         }, updateInputLanguage: { _ in
         }, unarchiveChat: {
-        }, openLinkEditing: openLinkEditing, reportPeerIrrelevantGeoLocation: {
+        }, openLinkEditing: openLinkEditing, openDateEditing: {
         }, displaySlowmodeTooltip: { _, _ in
         }, displaySendMessageOptions: { _, _ in
         }, openScheduledMessages: {
@@ -501,6 +566,7 @@ public final class ChatPanelInterfaceInteraction {
         }, joinGroupCall: { _ in
         }, presentInviteMembers: {
         }, presentGigagroupHelp: {
+        }, openMonoforum: {
         }, editMessageMedia: { _, _ in
         }, updateShowCommands: { _ in
         }, updateShowSendAsPeers: { _ in
@@ -518,10 +584,25 @@ public final class ChatPanelInterfaceInteraction {
         }, addDoNotTranslateLanguage: { _ in
         }, hideTranslationPanel: {
         }, openPremiumGift: {
+        }, openSuggestPost: { _, _ in
         }, openPremiumRequiredForMessaging: {
+        }, openStarsPurchase: { _ in
+        }, openMessagePayment: {
         }, openBoostToUnrestrict: {
-        }, updateVideoTrimRange: { _, _, _, _ in
+        }, updateRecordingTrimRange: { _, _, _, _ in
+        }, dismissAllTooltips: {
+        }, editTodoMessage: { _, _, _ in
+        }, dismissUrlPreview: {
+        }, dismissForwardMessages: {
+        }, dismissSuggestPost: {
+        }, displayUndo: { _ in
+        }, presentInputTextTranslation: { _, _ in
+        }, sendEmoji: { _, _, _ in
+        }, openAICompose: {
+        }, openSetPeerAvatar: {
         }, updateHistoryFilter: { _ in
+        }, updateChatLocationThread: { _, _ in
+        }, toggleChatSidebarMode: {
         }, updateDisplayHistoryFilterAsList: { _ in
         }, requestLayout: { _ in
         }, chatController: {

@@ -10,6 +10,7 @@ swift_library(
         "-warnings-as-errors",
     ],
     deps = [
+        "//submodules/SSignalKit/SSignalKit",
     	"//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
         "//submodules/Display:Display",
@@ -30,6 +31,7 @@ swift_library(
         "//submodules/DrawingUI:DrawingUI",
         "//submodules/SolidRoundedButtonNode:SolidRoundedButtonNode",
         "//submodules/TelegramUI/Components/MediaEditor",
+        "//submodules/AnimatedCountLabelNode",
     ],
     visibility = [
         "//visibility:public",

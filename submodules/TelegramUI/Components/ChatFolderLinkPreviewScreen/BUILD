@@ -12,7 +12,6 @@ swift_library(
     deps = [
         "//submodules/AsyncDisplayKit",
         "//submodules/Display",
-        "//submodules/Postbox",
         "//submodules/TelegramCore",
         "//submodules/SSignalKit/SwiftSignalKit",
         "//submodules/ComponentFlow",
@@ -35,6 +34,7 @@ swift_library(
         "//submodules/PremiumUI",
         "//submodules/QrCodeUI",
         "//submodules/InviteLinksUI",
+        "//submodules/Components/MultilineTextWithEntitiesComponent",
     ],
     visibility = [
         "//visibility:public",
