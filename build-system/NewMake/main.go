@@ -143,7 +143,7 @@ func usage(w io.Writer) {
 	tw.Flush()
 }
 
-const BAZEL_VERSION_ENV = "USE_BAZEL_VERSION=7.3.1"
+const BAZEL_VERSION_ENV = "USE_BAZEL_VERSION=8.4.2"
 
 // runCmd runs an arbitrary command, passing through its stdout and stderr to ours
 func runCmd(cmd string, args ...string) error {
