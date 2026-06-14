@@ -314,7 +314,7 @@ alternate_icon_folders = [
     "PremiumTurbo",
 ]
 
-composer_icon_folders = ["Telegram"]
+composer_icon_folders = ["CloudVeil"]
 
 [
     filegroup(
