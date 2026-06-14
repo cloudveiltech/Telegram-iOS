@@ -54,7 +54,7 @@ Telegram has some fake codesigning files that we can use. (see build-system/fake
 
 * Install bazel using balzelish https://bazel.build/install/bazelisk
   
-* Update bazel version in `.bazelversion` if needed. More details https://github.com/bazelbuild/bazelisk (Current version is 7.3.1)
+* Update bazel version in `.bazelversion` if needed. More details https://github.com/bazelbuild/bazelisk (Current version is 8.4.2)
 
 * Install go `brew install go`
 
