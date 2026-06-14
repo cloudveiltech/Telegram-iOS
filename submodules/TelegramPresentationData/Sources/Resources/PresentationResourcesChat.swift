@@ -395,8 +395,9 @@ public struct PresentationResourcesChat {
                 } else {
                     color = theme.chat.inputPanel.actionControlForegroundColor
                 }
-                
-                if let image = generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Text/SendIcon"), color: color) {
+                // CloudVeil start - use Chat/Input/Text/SendIconAlter for replacing Telegram icon (Chat/Input/Text/SendIcon) as send icon
+                if let image = generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Text/SendIconAlter"), color: color) {
+                    // CloudVeil end
                     image.draw(in: CGRect(origin: CGPoint(x: floorToScreenPixels((size.width - image.size.width) * 0.5), y: floorToScreenPixels((size.height - image.size.height) * 0.5)), size: image.size))
                 }
             })
