@@ -85,3 +85,4 @@ xcode-files
 build.log
 /provisioning
 third-party/Sentry/Sentry.xcframework
+/build-output
