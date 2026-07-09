@@ -42,6 +42,11 @@ public extension PeerInfoScreenImpl {
         completion: @escaping (UIImage?) -> Void = { _ in },
         completedWithUploadingImage: @escaping (UIImage, Signal<PeerInfoAvatarUploadStatus, NoError>) -> UIView? = { _, _ in nil }
     ) {
+        // CloudVeil start
+        if CloudVeilSecurityController.shared.disableProfilePhotoChange {
+            return
+        }
+        // CloudVeil end
         var isForum = false
         if case let .channel(channel) = peer, channel.isForumOrMonoForum {
             isForum = true
