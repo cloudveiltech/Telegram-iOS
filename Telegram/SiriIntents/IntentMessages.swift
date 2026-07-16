@@ -209,9 +209,11 @@ private func messageWithTelegramMessage(_ telegramMessage: Message) -> INMessage
                 } else if file.isVoice {
                     messageType = .mediaAudio
                     break loop
-                } else if file.isSticker || file.isAnimatedSticker {
+                //CloudVeil start: don't classify a non-whitelisted sticker distinctly as a sticker
+                } else if (file.isSticker || file.isAnimatedSticker) && isStickerMediaAllowed(file) {
                     messageType = .sticker
                     break loop
+                //CloudVeil end
                 } else if file.isAnimated {
                     messageType = .mediaVideo
                     break loop

@@ -466,6 +466,29 @@ public extension TelegramEngine {
 
         public func requestChatContextResults(botId: PeerId, peerId: PeerId, query: String, location: Signal<(Double, Double)?, NoError> = .single(nil), offset: String, incompleteResults: Bool = false, staleCachedResults: Bool = false) -> Signal<RequestChatContextResultsResult?, RequestChatContextResultsError> {
             return _internal_requestChatContextResults(account: self.account, botId: botId, peerId: peerId, query: query, location: location, offset: offset, incompleteResults: incompleteResults, staleCachedResults: staleCachedResults)
+            //CloudVeil start: drop inline-bot sticker results whose pack is not whitelisted.
+            // Filtered here (not before caching) so the on-disk cache stays raw and a
+            // later whitelist change takes effect without needing cache invalidation.
+            |> map { result -> RequestChatContextResultsResult? in
+                guard let result = result else {
+                    return nil
+                }
+                let collection = result.results
+                var didFilter = false
+                let filteredResults = collection.results.filter { item in
+                    if case let .internalReference(internalReference) = item, let file = internalReference.file, !isStickerMediaAllowed(file) {
+                        didFilter = true
+                        return false
+                    }
+                    return true
+                }
+                if !didFilter {
+                    return result
+                }
+                let filteredCollection = ChatContextResultCollection(botId: collection.botId, peerId: collection.peerId, query: collection.query, geoPoint: collection.geoPoint, queryId: collection.queryId, nextOffset: collection.nextOffset, presentation: collection.presentation, switchPeer: collection.switchPeer, webView: collection.webView, results: filteredResults, cacheTimeout: collection.cacheTimeout)
+                return RequestChatContextResultsResult(results: filteredCollection, isStale: result.isStale)
+            }
+            //CloudVeil end
         }
 
         public func removeRecentlyUsedHashtag(string: String) -> Signal<Void, NoError> {

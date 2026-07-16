@@ -727,7 +727,9 @@ final class StickerPaneSearchContentNode: ASDisplayNode, PaneSearchContentNode {
         var index = 0
         var existingStickerIds = Set<MediaId>()
         for sticker in stickers {
-            if let id = sticker.file.id, !existingStickerIds.contains(id) {
+            //CloudVeil start: filter individual sticker tiles by the pack whitelist (mirrors packs(from:) above)
+            if let id = sticker.file.id, !existingStickerIds.contains(id), isStickerMediaAllowed(sticker.file) {
+            //CloudVeil end
                 entries.append(.sticker(index: index, code: nil, stickerItem: sticker, theme: self.theme))
                 index += 1
                 existingStickerIds.insert(id)

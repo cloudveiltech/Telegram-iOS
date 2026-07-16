@@ -1470,7 +1470,11 @@ private final class NotificationServiceHandler {
                                                 contentType = .image
                                             } else if let file = mediaAttachment as? TelegramMediaFile {
                                                 if file.isSticker {
-                                                    fetchResource = file.resource as? TelegramMultipartFetchableResource
+                                                    //CloudVeil start: only download the sticker image when the pack is whitelisted
+                                                    if isStickerMediaAllowed(file) {
+                                                        fetchResource = file.resource as? TelegramMultipartFetchableResource
+                                                    }
+                                                    //CloudVeil end
                                                     contentType = .other
                                                 } else if file.isVideo {
                                                     fetchResource = file.previewRepresentations.first?.resource as? TelegramMultipartFetchableResource
