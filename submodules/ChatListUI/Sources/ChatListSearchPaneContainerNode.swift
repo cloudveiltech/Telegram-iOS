@@ -10,6 +10,7 @@ import ContextUI
 import AnimationCache
 import MultiAnimationRenderer
 import TelegramNotices
+import CloudVeilSecurityManager
 
 protocol ChatListSearchPaneNode: ASDisplayNode {
     var isReady: Signal<Bool, NoError> { get }
@@ -110,10 +111,12 @@ func defaultAvailableSearchPanes(isForum: Bool, hasDownloads: Bool, hasPublicPos
         result.append(.publicPosts)
     }
     result.append(.channels)
-    result.append(.apps)
-    if !isForum {
+    // CloudVeil start - disable the "Apps" tab and hide the "Posts" (paid global posts search) tab
+    // result.append(.apps)
+    if !isForum && !CloudVeilSecurityController.SecurityStaticSettings.disableGlobalSearch {
         result.append(.globalPosts)
     }
+    // CloudVeil end
     result.append(contentsOf: [.media, .downloads, .links, .files, .music, .voice])
         
     if !hasDownloads {
