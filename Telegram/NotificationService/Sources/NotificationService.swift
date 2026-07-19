@@ -1888,6 +1888,23 @@ private final class NotificationServiceHandler {
                                                             }
                                                         }
                                                         //CloudVeil end
+                                                    } else if file.isVideoSticker {
+                                                        //CloudVeil start: fail closed — same gate as the other sticker branches above.
+                                                        // Must come before the generic isVideo branch below, or webm stickers fall
+                                                        // through to it ungated (video stickers carry a .Video attribute too).
+                                                        if cloudVeilCanEnforceStickerWhitelist, let representation = file.previewRepresentations.first {
+                                                            let resource = representation.resource
+
+                                                            if let mediaData = mediaData {
+                                                                stateManager.postbox.mediaBox.storeResourceData(resource.id, data: mediaData, synchronous: true)
+                                                            }
+                                                            if let storedPath = stateManager.postbox.mediaBox.completedResourcePath(resource, pathExtension: "jpg") {
+                                                                if let attachment = try? UNNotificationAttachment(identifier: "image", url: URL(fileURLWithPath: storedPath), options: nil) {
+                                                                    content.attachments.append(attachment)
+                                                                }
+                                                            }
+                                                        }
+                                                        //CloudVeil end
                                                     } else if file.isVideo, let representation = file.previewRepresentations.first {
                                                         let resource = representation.resource
 
