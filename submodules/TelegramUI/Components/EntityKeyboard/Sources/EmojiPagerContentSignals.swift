@@ -9,7 +9,6 @@ import MultiAnimationRenderer
 import TelegramNotices
 import FlatBuffers
 import FlatSerialization
-import CloudVeilSecurityManager
 
 public extension EmojiPagerContentComponent {    
     private static func hasPremium(context: AccountContext, chatPeerId: EnginePeer.Id?, premiumIfSavedMessages: Bool) -> Signal<Bool, NoError> {
@@ -2137,19 +2136,13 @@ public extension EmojiPagerContentComponent {
             for group in itemGroups {
                 var items: [EmojiPagerContentComponent.Item] = []
                 for item in group.items {
-                    // itemAllowed is per-item: Recent/Favorite rows mix packs, so
-                    // each sticker must be evaluated on its own pack id.
-                    var itemAllowed = false
+                    // Per-item: Recent/Favorite rows mix packs, so each sticker is evaluated
+                    // on its own pack id. Route through the shared whitelist helper so this
+                    // surface matches every other one — it also allows non-stickers and
+                    // animoji (empty-text stickers), which the old inline walk wrongly dropped.
+                    var itemAllowed = true
                     if let file = item.itemFile {
-                        for attribute in file._parse().attributes {
-                            if case let .Sticker(_, pack, _) = attribute {
-                                if case let .id(id, _) = pack {
-                                    if CloudVeilSecurityController.shared.isStickerAvailable(stickerId: NSInteger(id)) {
-                                        itemAllowed = true
-                                    }
-                                }
-                            }
-                        }
+                        itemAllowed = isStickerMediaAllowed(file._parse())
                     }
                     if itemAllowed {
                         items.append(item)
