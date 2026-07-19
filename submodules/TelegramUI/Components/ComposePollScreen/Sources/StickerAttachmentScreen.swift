@@ -765,6 +765,10 @@ final class StickerAttachmentScreenComponent: Component {
                             }
                             var stickerPackIds: [Int64] = []
                             for featuredStickerPack in view.items.lazy.map({ $0.contents.get(FeaturedStickerPackItem.self)! }) {
+                                //CloudVeil start: only record whitelisted packs, so the dismissed set matches the
+                                //filtered featuredStickerPacks() the keyboard compares against — otherwise dismiss never sticks.
+                                guard isStickerPackAllowed(packId: featuredStickerPack.info.id.id) else { continue }
+                                //CloudVeil end
                                 stickerPackIds.append(featuredStickerPack.info.id.id)
                             }
                             let _ = ApplicationSpecificNotice.setDismissedTrendingStickerPacks(accountManager: context.sharedContext.accountManager, values: stickerPackIds).start()
