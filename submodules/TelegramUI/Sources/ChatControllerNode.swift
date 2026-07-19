@@ -3998,7 +3998,12 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
                     context: self.context,
                     chatPeerId: self.chatLocation.peerId,
                     areCustomEmojiEnabled: self.chatPresentationInterfaceState.customEmojiAvailable,
-                    hasEdit: true,
+                    //CloudVeil start: creator-pack quick-add/edit ("+" tile and "Edit" label on your
+                    //own sticker pack) isn't a supported flow in this build. Keeping it off avoids
+                    //the inconsistent state where a pack's real stickers are all whitelist-filtered
+                    //but its add/edit affordance would still render.
+                    hasEdit: false,
+                    //CloudVeil end
                     hideBackground: true,
                     maskEdge: .clip,
                     sendGif: { [weak self] fileReference, sourceView, sourceRect, silentPosting, schedule in
