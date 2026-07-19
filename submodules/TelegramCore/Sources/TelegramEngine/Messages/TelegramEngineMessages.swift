@@ -465,8 +465,41 @@ public extension TelegramEngine {
         }
 
         public func requestChatContextResults(botId: PeerId, peerId: PeerId, query: String, location: Signal<(Double, Double)?, NoError> = .single(nil), offset: String, incompleteResults: Bool = false, staleCachedResults: Bool = false) -> Signal<RequestChatContextResultsResult?, RequestChatContextResultsError> {
-            return _internal_requestChatContextResults(account: self.account, botId: botId, peerId: peerId, query: query, location: location, offset: offset, incompleteResults: incompleteResults, staleCachedResults: staleCachedResults)
+            return self.requestChatContextResultsFiltered(botId: botId, peerId: peerId, query: query, location: location, offset: offset, incompleteResults: incompleteResults, staleCachedResults: staleCachedResults, depth: 0)
         }
+
+        //CloudVeil start: drop inline-bot sticker results whose pack is not whitelisted. If a page comes
+        // back fully filtered but the bot still reports more (nextOffset != nil), chain into the next
+        // page automatically here, since the UI's pagination is scroll-triggered and can't recover from
+        // a page that renders zero items. Capped so a bot paging through many all-filtered results can't
+        // chain indefinitely.
+        private func requestChatContextResultsFiltered(botId: PeerId, peerId: PeerId, query: String, location: Signal<(Double, Double)?, NoError>, offset: String, incompleteResults: Bool, staleCachedResults: Bool, depth: Int) -> Signal<RequestChatContextResultsResult?, RequestChatContextResultsError> {
+            return _internal_requestChatContextResults(account: self.account, botId: botId, peerId: peerId, query: query, location: location, offset: offset, incompleteResults: incompleteResults, staleCachedResults: staleCachedResults)
+            |> mapToSignal { [weak self] result -> Signal<RequestChatContextResultsResult?, RequestChatContextResultsError> in
+                guard let result = result else {
+                    return .single(nil)
+                }
+                let collection = result.results
+                let filteredResults = collection.results.filter { item in
+                    if case let .internalReference(internalReference) = item, let file = internalReference.file, !isStickerMediaAllowed(file) {
+                        return false
+                    }
+                    return true
+                }
+                if filteredResults.count == collection.results.count {
+                    return .single(result)
+                }
+                if !filteredResults.isEmpty || collection.nextOffset == nil || depth >= 5 {
+                    let filteredCollection = ChatContextResultCollection(botId: collection.botId, peerId: collection.peerId, query: collection.query, geoPoint: collection.geoPoint, queryId: collection.queryId, nextOffset: collection.nextOffset, presentation: collection.presentation, switchPeer: collection.switchPeer, webView: collection.webView, results: filteredResults, cacheTimeout: collection.cacheTimeout)
+                    return .single(RequestChatContextResultsResult(results: filteredCollection, isStale: result.isStale))
+                }
+                guard let strongSelf = self else {
+                    return .single(nil)
+                }
+                return strongSelf.requestChatContextResultsFiltered(botId: botId, peerId: peerId, query: query, location: location, offset: collection.nextOffset!, incompleteResults: incompleteResults, staleCachedResults: staleCachedResults, depth: depth + 1)
+            }
+        }
+        //CloudVeil end
 
         public func removeRecentlyUsedHashtag(string: String) -> Signal<Void, NoError> {
             return _internal_removeRecentlyUsedHashtag(postbox: self.account.postbox, string: string)
