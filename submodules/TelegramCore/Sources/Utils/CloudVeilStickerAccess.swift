@@ -1,8 +1,8 @@
 import Foundation
-import Postbox
 import CloudVeilSecurityManager
 
-// Incuding at least one Objective-C class in a swift file ensures that it doesn't get stripped by the linker
+// Not dead code — keeps this file from being dead-code-stripped by the linker,
+// since it otherwise only exports free functions. Repo-wide pattern, see MD5.swift.
 private final class LinkHelperClass: NSObject {
 }
 
