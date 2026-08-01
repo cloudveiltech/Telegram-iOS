@@ -367,6 +367,31 @@ private func stickerSearchContextPage(account: Account, query: String, emoticon:
     }
 }
 
+//CloudVeil start: drop sticker search results whose pack is not whitelisted. Filtering lives here
+// rather than in each UI consumer so every screen backed by StickerSearchContext (chat sticker
+// panel, featured stickers, business intro setup, avatar editor) enforces the same whitelist, and
+// so the item counts consumers page against are already filtered.
+//
+// If a page comes back fully filtered but the server still reports more (nextOffset != nil), chain
+// into the next page automatically — the UI's pagination is scroll-triggered and can't recover from
+// a page that renders zero items. Capped so an all-filtered query can't chain indefinitely; this
+// mirrors requestChatContextResultsFiltered in TelegramEngineMessages.swift.
+//
+// Note this wraps stickerSearchContextPage rather than filtering inside it, which deliberately
+// leaves the CachedStickerQueryResult postbox cache whitelist-agnostic — filtering is re-applied on
+// every read, so a whitelist change needs no cache invalidation.
+private func stickerSearchContextPageFiltered(account: Account, query: String, emoticon: [String], inputLanguageCode: String, scope: SearchStickersScope = [.installed, .remote], offset: Int32, depth: Int = 0) -> Signal<(items: [FoundStickerItem], isFinalResult: Bool, nextOffset: Int32?), NoError> {
+    return stickerSearchContextPage(account: account, query: query, emoticon: emoticon, inputLanguageCode: inputLanguageCode, scope: scope, offset: offset)
+    |> mapToSignal { result -> Signal<(items: [FoundStickerItem], isFinalResult: Bool, nextOffset: Int32?), NoError> in
+        let filteredItems = result.items.filter { isStickerMediaAllowed($0.file) }
+        guard filteredItems.isEmpty, let nextOffset = result.nextOffset, depth < 5 else {
+            return .single((filteredItems, result.isFinalResult, result.nextOffset))
+        }
+        return stickerSearchContextPageFiltered(account: account, query: query, emoticon: emoticon, inputLanguageCode: inputLanguageCode, scope: scope, offset: nextOffset, depth: depth + 1)
+    }
+}
+//CloudVeil end
+
 public final class StickerSearchContext {
     public struct State: Equatable {
         public let items: [FoundStickerItem]
@@ -424,7 +449,9 @@ public final class StickerSearchContext {
         self.isLoadingMore = true
         self.pushState()
         
-        self.disposable.set((stickerSearchContextPage(account: self.account, query: query, emoticon: self.emoticon, inputLanguageCode: self.inputLanguageCode, scope: self.scope, offset: nextOffset)
+        //CloudVeil start: filtered variant — see stickerSearchContextPageFiltered
+        self.disposable.set((stickerSearchContextPageFiltered(account: self.account, query: query, emoticon: self.emoticon, inputLanguageCode: self.inputLanguageCode, scope: self.scope, offset: nextOffset)
+        //CloudVeil end
         |> deliverOn(self.queue)).start(next: { [weak self] result in
             guard let self else {
                 return
@@ -453,11 +480,16 @@ public final class StickerSearchContext {
         
         let signal: Signal<(items: [FoundStickerItem], isFinalResult: Bool, nextOffset: Int32?), NoError>
         if let query = self.query, !query.isEmpty {
-            signal = stickerSearchContextPage(account: self.account, query: query, emoticon: self.emoticon, inputLanguageCode: self.inputLanguageCode, scope: self.scope, offset: 0)
+            //CloudVeil start: filtered variant — see stickerSearchContextPageFiltered
+            signal = stickerSearchContextPageFiltered(account: self.account, query: query, emoticon: self.emoticon, inputLanguageCode: self.inputLanguageCode, scope: self.scope, offset: 0)
+            //CloudVeil end
         } else {
             signal = _internal_searchStickers(account: self.account, query: self.query, emoticon: self.emoticon, inputLanguageCode: self.inputLanguageCode, scope: self.scope)
             |> map { result -> (items: [FoundStickerItem], isFinalResult: Bool, nextOffset: Int32?) in
-                return (result.items, result.isFinalResult, nil)
+                //CloudVeil start: apply the same whitelist as stickerSearchContextPageFiltered. This
+                // path is unpaginated (nextOffset is always nil), so no auto-chaining is needed.
+                return (result.items.filter { isStickerMediaAllowed($0.file) }, result.isFinalResult, nil)
+                //CloudVeil end
             }
         }
         
