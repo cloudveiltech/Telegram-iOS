@@ -32,6 +32,14 @@ public extension TelegramEngine {
 
         public func searchStickers(query: String?, emoticon: [String], inputLanguageCode: String = "", scope: SearchStickersScope = [.installed, .remote]) -> Signal<(items: [FoundStickerItem], isFinalResult: Bool), NoError> {
             return _internal_searchStickers(account: self.account, query: query, emoticon: emoticon, inputLanguageCode: inputLanguageCode, scope: scope)
+            //CloudVeil start: drop results whose pack is not whitelisted, matching
+            // stickerSearchContextPageFiltered in SearchStickers.swift. This entry point bypasses
+            // StickerSearchContext (it feeds the emoji-typed sticker suggestions in the chat input),
+            // so it needs the filter applied independently. Unpaginated — no auto-chaining needed.
+            |> map { result -> (items: [FoundStickerItem], isFinalResult: Bool) in
+                return (result.items.filter { isStickerMediaAllowed($0.file) }, result.isFinalResult)
+            }
+            //CloudVeil end
         }
         
         public func stickerSearchContext(query: String?, emoticon: [String], inputLanguageCode: String = "", scope: SearchStickersScope = [.installed, .remote]) -> StickerSearchContext {
@@ -40,6 +48,12 @@ public extension TelegramEngine {
         
         public func searchStickers(category: EmojiSearchCategories.Group, scope: SearchStickersScope = [.installed, .remote]) -> Signal<(items: [FoundStickerItem], isFinalResult: Bool), NoError> {
             return _internal_searchStickers(account: self.account, category: category, scope: scope)
+            //CloudVeil start: same whitelist as the query-based searchStickers above — this feeds the
+            // sticker category rows in the pickers, another path that bypasses StickerSearchContext.
+            |> map { result -> (items: [FoundStickerItem], isFinalResult: Bool) in
+                return (result.items.filter { isStickerMediaAllowed($0.file) }, result.isFinalResult)
+            }
+            //CloudVeil end
         }
 
         public func searchStickerSetsRemotely(query: String) -> Signal<FoundStickerSets, NoError> {
