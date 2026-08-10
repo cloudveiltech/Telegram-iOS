@@ -38,6 +38,9 @@ import ComposePollScreen
 import Photos
 import AttachmentFileController
 import CloudVeilSecurityManager
+//CloudVeil start
+import TelegramBaseController
+//CloudVeil end
 
 extension ChatControllerImpl {
     enum AttachMenuSubject {
@@ -767,6 +770,14 @@ extension ChatControllerImpl {
                     }
                     return true
                 case let .app(bot):
+                    //CloudVeil start
+                    // Attach-menu apps build a WebAppController directly and never funnel through
+                    // SharedAccountContextImpl.openWebApp, so this entry point needs its own gate.
+                    TelegramBaseController.checkPeerIsAllowed(peerId: bot.peer.id, controller: strongSelf, context: strongSelf.context, presentationData: strongSelf.presentationData) { isAllowed in
+                        guard isAllowed else {
+                            return
+                        }
+                    //CloudVeil end
                     if let peer = strongSelf.presentationInterfaceState.renderedPeer?.peer {
                         var payload: String?
                         var fromAttachMenu = true
@@ -814,6 +825,9 @@ extension ChatControllerImpl {
                             strongSelf.present(alertController, in: .window(.root))
                         }
                     }
+                    //CloudVeil start
+                    }
+                    //CloudVeil end
                     return true
                 case .quickReply:
                     let _ = (strongSelf.context.sharedContext.makeQuickReplySetupScreenInitialData(context: strongSelf.context)

@@ -14,6 +14,9 @@ import UndoUI
 import UrlHandling
 import TelegramPresentationData
 import ChatInterfaceState
+//CloudVeil start
+import TelegramBaseController
+//CloudVeil end
 
 func openWebAppImpl(
     context: AccountContext,
@@ -554,7 +557,16 @@ public extension ChatControllerImpl {
         
         let updatedPresentationData = chatController?.updatedPresentationData
         let presentationData = updatedPresentationData?.0 ?? context.sharedContext.currentPresentationData.with { $0 }
-        
+
+        //CloudVeil start
+        // presentBotApp is the funnel for t.me/<bot>?startapp=... deep links and other direct
+        // mini-app launches that don't go through SharedAccountContextImpl.openWebApp, so it needs
+        // its own gate here rather than relying on it.
+        TelegramBaseController.checkPeerIsAllowed(peerId: botPeer.id, controller: parentController, context: context, presentationData: presentationData) { isAllowed in
+            guard isAllowed else {
+                return
+            }
+        //CloudVeil end
         if let botApp {
             let openBotApp: (Bool, Bool, BotAppSettings?) -> Void = { [weak parentController, weak chatController] allowWrite, justInstalled, appSettings in
                 commit()
@@ -716,5 +728,8 @@ public extension ChatControllerImpl {
                 verifyAgeCompletion: nil
             )
         }
+        //CloudVeil start
+        }
+        //CloudVeil end
     }
 }
