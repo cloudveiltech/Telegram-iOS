@@ -4274,7 +4274,12 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         //CloudVeil start
         // Every mini app launch funnels through this method, so gating here covers the chat list
         // "OPEN" button, the search "Apps" results, the attach menu and the in-chat bot buttons.
-        let presentationData = updatedPresentationData?.initial ?? self.currentPresentationData.with({ $0 })
+        let presentationData: PresentationData
+        if let parentController = parentController as? ChatControllerImpl {
+            presentationData = parentController.presentationData
+        } else {
+            presentationData = updatedPresentationData?.initial ?? self.currentPresentationData.with({ $0 })
+        }
         TelegramBaseController.checkPeerIsAllowed(peerId: botPeer.id, controller: parentController, context: context, presentationData: presentationData) { isAllowed in
             guard isAllowed else {
                 return
