@@ -2991,7 +2991,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                                         if file.isVideo, !file.isVideoSticker, let _ = file.dimensions {
                                             let fitSize = contentImageSize
                                             contentImageSpecs.append(ContentImageSpec(message: message,  media: .file(file), size: fitSize))
-                                        } else if contentImageIsDisplayedAsAvatar && (file.isSticker || file.isVideoSticker) {
+                                        //CloudVeil start: hide the last-message sticker thumbnail when the pack is not whitelisted
+                                        } else if contentImageIsDisplayedAsAvatar && (file.isSticker || file.isVideoSticker) && isStickerMediaAllowed(file) {
+                                        //CloudVeil end
                                             let fitSize = contentImageSize
                                             contentImageSpecs.append(ContentImageSpec(message: message,  media: .file(file), size: fitSize))
                                         } else if !file.previewRepresentations.isEmpty, let _ = file.dimensions, !file.isSticker && !file.isAnimatedSticker && !file.isVideoSticker {

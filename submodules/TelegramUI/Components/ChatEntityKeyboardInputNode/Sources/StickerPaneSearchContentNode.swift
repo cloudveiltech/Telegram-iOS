@@ -727,7 +727,12 @@ final class StickerPaneSearchContentNode: ASDisplayNode, PaneSearchContentNode {
         var index = 0
         var existingStickerIds = Set<MediaId>()
         for sticker in stickers {
+            //CloudVeil start: no per-tile whitelist check here — StickerSearchContext already filters
+            // its results upstream (see stickerSearchContextPageFiltered in SearchStickers.swift), so
+            // stickers.items is whitelisted by the time it reaches this grid. That also keeps the
+            // pagination counts below honest: they count what's actually rendered.
             if let id = sticker.file.id, !existingStickerIds.contains(id) {
+            //CloudVeil end
                 entries.append(.sticker(index: index, code: nil, stickerItem: sticker, theme: self.theme))
                 index += 1
                 existingStickerIds.insert(id)

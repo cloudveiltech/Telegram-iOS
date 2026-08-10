@@ -5,6 +5,16 @@ import TelegramCore
 import Contacts
 import Intents
 
+//CloudVeil: the sticker whitelist is NOT enforceable inside the Siri intents extension.
+//  Why:   isStickerMediaAllowed keys on the current user/org id (UserDefaults.standard), a
+//         domain app extensions don't share with the host app. Here those ids are always
+//         0/0, so the lookup silently returns "not allowed" for every sticker.
+//  Today: fail closed — a sticker is never classified as .sticker here (it falls through to
+//         the next media-type check below); the original code is kept, gated on this flag.
+//  Later: to re-enable, make identity readable cross-process (App Group suite), flip this
+//         to true, and isStickerMediaAllowed will start reflecting the real whitelist.
+private let cloudVeilCanEnforceStickerWhitelist = false
+
 extension MessageId {
     init?(string: String) {
         let components = string.components(separatedBy: "_")
@@ -209,9 +219,13 @@ private func messageWithTelegramMessage(_ telegramMessage: Message) -> INMessage
                 } else if file.isVoice {
                     messageType = .mediaAudio
                     break loop
-                } else if file.isSticker || file.isAnimatedSticker {
+                //CloudVeil start: don't classify a non-whitelisted sticker distinctly as a sticker.
+                //Gated on cloudVeilCanEnforceStickerWhitelist — see the file-top comment for why the
+                //whitelist can't be evaluated in this extension today (and how to re-enable it).
+                } else if (file.isSticker || file.isAnimatedSticker) && cloudVeilCanEnforceStickerWhitelist {
                     messageType = .sticker
                     break loop
+                //CloudVeil end
                 } else if file.isAnimated {
                     messageType = .mediaVideo
                     break loop

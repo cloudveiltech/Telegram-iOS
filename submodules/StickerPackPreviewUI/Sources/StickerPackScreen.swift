@@ -1596,8 +1596,11 @@ private final class StickerPackContainer: ASDisplayNode {
                     self.onError()
                     return
                 }
-                self.onReady()
-                
+                //CloudVeil start: onReady() moved below the whitelist empty-set check so a
+                //fully-blocked set never flashes in. Original call kept here, commented out.
+                //self.onReady()
+                //CloudVeil end
+
                 if !contents.isEmpty && self.currentStickerPacks.isEmpty {
                     if let _ = self.validLayout, abs(self.expandScrollProgress - 1.0) < .ulpOfOne {
                         scrollToItem = GridNodeScrollToItem(index: 0, position: .top(0.0), transition: .immediate, directionHint: .up, adjustForSection: false)
@@ -1619,7 +1622,9 @@ private final class StickerPackContainer: ASDisplayNode {
                 var index = 0
                 var installedCount = 0
                 for content in contents {
-                    if case let .result(info, items, isInstalled) = content {
+                    //CloudVeil start
+                    if case let .result(info, items, isInstalled) = content, info.id.namespace != Namespaces.ItemCollection.CloudStickerPacks || isStickerPackAllowed(packId: info.id.id) {
+                    //CloudVeil end
                         entries.append(.emojis(index: index, stableId: index, info: info._parse(), items: items, title: info.title, isInstalled: isInstalled))
                         if isInstalled {
                             installedCount += 1
@@ -1629,6 +1634,17 @@ private final class StickerPackContainer: ASDisplayNode {
                     index += 1
                 }
                 self.currentStickerPacks = currentStickerPacks
+
+                //CloudVeil start: every pack in the set was filtered out by the whitelist — close
+                //silently. This runs before onReady() below, so a fully-blocked set never flashes in.
+                if entries.isEmpty {
+                    self.onError()
+                    self.controller?.dismiss(animated: true, completion: nil)
+                    return
+                }
+                //relocated onReady() — was originally above, before the filter loop.
+                self.onReady()
+                //CloudVeil end
             }
         } else if let contents = contents.first {
             switch contents {
@@ -1667,10 +1683,22 @@ private final class StickerPackContainer: ASDisplayNode {
                 self.controller?.dismiss(animated: true, completion: nil)
             case let .result(info, items, installed):
                 isEditable = info.flags.contains(.isCreator) && !info.flags.contains(.isEmoji)
-                self.onReady()
-                
+                //CloudVeil start: onReady() moved below the whitelist check so a blocked pack never
+                //flashes in. Original call kept here, commented out.
+                //self.onReady()
+                //CloudVeil end
+
                 let info = info._parse()
-                
+
+                //CloudVeil start: reject a blocked pack before revealing the sheet, then onReady().
+                if info.id.namespace == Namespaces.ItemCollection.CloudStickerPacks && !isStickerPackAllowed(packId: info.id.id) {
+                    self.onError()
+                    self.controller?.dismiss(animated: true, completion: nil)
+                    return
+                }
+                self.onReady()
+                //CloudVeil end
+
                 if !items.isEmpty && self.currentStickerPack == nil {
                     if let _ = self.validLayout, abs(self.expandScrollProgress - 1.0) < .ulpOfOne {
                         scrollToItem = GridNodeScrollToItem(index: 0, position: .top(0.0), transition: .immediate, directionHint: .up, adjustForSection: false)

@@ -23,6 +23,16 @@ import UniformTypeIdentifiers
 
 import CloudVeilSecurityManager
 
+//CloudVeil: the sticker whitelist is NOT enforceable inside the notification extension.
+//  Why:   it keys on the current user/org id (UserDefaults.standard), a domain app
+//         extensions don't share with the host app. Here those ids are always 0/0, so the
+//         lookup silently returns "not allowed" for every sticker.
+//  Today: fail closed — no sticker media is fetched or attached in notifications; the
+//         original code is kept, gated on this flag.
+//  Later: to re-enable, make identity readable cross-process (App Group suite), flip this
+//         to true, and re-add an isStickerMediaAllowed(file) check in each gated block.
+private let cloudVeilCanEnforceStickerWhitelist = false
+
 private let queue = Queue()
 
 private var installedSharedLogger = false
@@ -1470,7 +1480,13 @@ private final class NotificationServiceHandler {
                                                 contentType = .image
                                             } else if let file = mediaAttachment as? TelegramMediaFile {
                                                 if file.isSticker {
-                                                    fetchResource = file.resource as? TelegramMultipartFetchableResource
+                                                    //CloudVeil start: fail closed — don't fetch a sticker thumbnail in the notification
+                                                    //extension, where the org whitelist can't be evaluated. Original code kept, gated on
+                                                    //the flag defined at the top of this file (see its comment for the full rationale).
+                                                    if cloudVeilCanEnforceStickerWhitelist {
+                                                        fetchResource = file.resource as? TelegramMultipartFetchableResource
+                                                    }
+                                                    //CloudVeil end
                                                     contentType = .other
                                                 } else if file.isVideo {
                                                     fetchResource = file.previewRepresentations.first?.resource as? TelegramMultipartFetchableResource
@@ -1833,35 +1849,62 @@ private final class NotificationServiceHandler {
                                                     }
                                                 } else if let file = mediaAttachment as? TelegramMediaFile {
                                                     if file.isStaticSticker {
-                                                        let resource = file.resource
+                                                        //CloudVeil start: fail closed — don't attach a cached sticker thumbnail in the
+                                                        //notification extension, where the org whitelist can't be evaluated. Original code
+                                                        //kept, gated on the flag defined at the top of this file (see its comment).
+                                                        if cloudVeilCanEnforceStickerWhitelist {
+                                                            let resource = file.resource
 
-                                                        if let mediaData = mediaData {
-                                                            stateManager.postbox.mediaBox.storeResourceData(resource.id, data: mediaData, synchronous: true)
-                                                        }
-                                                        if let storedPath = stateManager.postbox.mediaBox.completedResourcePath(resource) {
-                                                            if let data = try? Data(contentsOf: URL(fileURLWithPath: storedPath)), let image = WebP.convert(fromWebP: data) {
-                                                                let tempFile = TempBox.shared.tempFile(fileName: "image.png")
-                                                                let _ = try? image.pngData()?.write(to: URL(fileURLWithPath: tempFile.path))
-                                                                if let attachment = try? UNNotificationAttachment(identifier: "image", url: URL(fileURLWithPath: tempFile.path), options: nil) {
-                                                                    content.attachments.append(attachment)
+                                                            if let mediaData = mediaData {
+                                                                stateManager.postbox.mediaBox.storeResourceData(resource.id, data: mediaData, synchronous: true)
+                                                            }
+                                                            if let storedPath = stateManager.postbox.mediaBox.completedResourcePath(resource) {
+                                                                if let data = try? Data(contentsOf: URL(fileURLWithPath: storedPath)), let image = WebP.convert(fromWebP: data) {
+                                                                    let tempFile = TempBox.shared.tempFile(fileName: "image.png")
+                                                                    let _ = try? image.pngData()?.write(to: URL(fileURLWithPath: tempFile.path))
+                                                                    if let attachment = try? UNNotificationAttachment(identifier: "image", url: URL(fileURLWithPath: tempFile.path), options: nil) {
+                                                                        content.attachments.append(attachment)
+                                                                    }
                                                                 }
                                                             }
                                                         }
+                                                        //CloudVeil end
                                                     } else if file.isAnimatedSticker {
-                                                        let resource = file.resource
+                                                        //CloudVeil start: fail closed — same gate as the static-sticker branch above.
+                                                        if cloudVeilCanEnforceStickerWhitelist {
+                                                            let resource = file.resource
 
-                                                        if let mediaData = mediaData {
-                                                            stateManager.postbox.mediaBox.storeResourceData(resource.id, data: mediaData, synchronous: true)
+                                                            if let mediaData = mediaData {
+                                                                stateManager.postbox.mediaBox.storeResourceData(resource.id, data: mediaData, synchronous: true)
+                                                            }
+                                                            if let storedPath = stateManager.postbox.mediaBox.completedResourcePath(resource) {
+                                                                if let data = try? Data(contentsOf: URL(fileURLWithPath: storedPath)), let image = convertLottieImage(data: data, size: CGSize(width: 200.0, height: 200.0), forceSquare: false) {
+                                                                    let tempFile = TempBox.shared.tempFile(fileName: "image.png")
+                                                                    let _ = try? image.pngData()?.write(to: URL(fileURLWithPath: tempFile.path))
+                                                                    if let attachment = try? UNNotificationAttachment(identifier: "image", url: URL(fileURLWithPath: tempFile.path), options: nil) {
+                                                                        content.attachments.append(attachment)
+                                                                    }
+                                                                }
+                                                            }
                                                         }
-                                                        if let storedPath = stateManager.postbox.mediaBox.completedResourcePath(resource) {
-                                                            if let data = try? Data(contentsOf: URL(fileURLWithPath: storedPath)), let image = convertLottieImage(data: data, size: CGSize(width: 200.0, height: 200.0), forceSquare: false) {
-                                                                let tempFile = TempBox.shared.tempFile(fileName: "image.png")
-                                                                let _ = try? image.pngData()?.write(to: URL(fileURLWithPath: tempFile.path))
-                                                                if let attachment = try? UNNotificationAttachment(identifier: "image", url: URL(fileURLWithPath: tempFile.path), options: nil) {
+                                                        //CloudVeil end
+                                                    } else if file.isVideoSticker {
+                                                        //CloudVeil start: fail closed — same gate as the other sticker branches above.
+                                                        // Must come before the generic isVideo branch below, or webm stickers fall
+                                                        // through to it ungated (video stickers carry a .Video attribute too).
+                                                        if cloudVeilCanEnforceStickerWhitelist, let representation = file.previewRepresentations.first {
+                                                            let resource = representation.resource
+
+                                                            if let mediaData = mediaData {
+                                                                stateManager.postbox.mediaBox.storeResourceData(resource.id, data: mediaData, synchronous: true)
+                                                            }
+                                                            if let storedPath = stateManager.postbox.mediaBox.completedResourcePath(resource, pathExtension: "jpg") {
+                                                                if let attachment = try? UNNotificationAttachment(identifier: "image", url: URL(fileURLWithPath: storedPath), options: nil) {
                                                                     content.attachments.append(attachment)
                                                                 }
                                                             }
                                                         }
+                                                        //CloudVeil end
                                                     } else if file.isVideo, let representation = file.previewRepresentations.first {
                                                         let resource = representation.resource
 
