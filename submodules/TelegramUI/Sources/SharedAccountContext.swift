@@ -105,7 +105,10 @@ import TextProcessingScreen
 import CreateBotScreen
 import EmojiStatusSelectionComponent
 import EntityKeyboard
+//CloudVeil start
 import CloudVeilSecurityManager
+import TelegramBaseController
+//CloudVeil end
 
 private final class AccountUserInterfaceInUseContext {
     let subscribers = Bag<(Bool) -> Void>()
@@ -4268,7 +4271,22 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     }
     
     public func openWebApp(context: AccountContext, parentController: ViewController, updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?, botPeer: EnginePeer, chatPeer: EnginePeer?, threadId: Int64?, buttonText: String, url: String, simple: Bool, source: ChatOpenWebViewSource, skipTermsOfService: Bool, payload: String?, verifyAgeCompletion: ((Int) -> Void)?) {
-        openWebAppImpl(context: context, parentController: parentController, updatedPresentationData: updatedPresentationData, botPeer: botPeer, chatPeer: chatPeer, threadId: threadId, buttonText: buttonText, url: url, simple: simple, source: source, skipTermsOfService: skipTermsOfService, payload: payload, verifyAgeCompletion: verifyAgeCompletion)
+        //CloudVeil start
+        // Every mini app launch funnels through this method, so gating here covers the chat list
+        // "OPEN" button, the search "Apps" results, the attach menu and the in-chat bot buttons.
+        let presentationData: PresentationData
+        if let parentController = parentController as? ChatControllerImpl {
+            presentationData = parentController.presentationData
+        } else {
+            presentationData = updatedPresentationData?.initial ?? self.currentPresentationData.with({ $0 })
+        }
+        TelegramBaseController.checkPeerIsAllowed(peerId: botPeer.id, controller: parentController, context: context, presentationData: presentationData) { isAllowed in
+            guard isAllowed else {
+                return
+            }
+            openWebAppImpl(context: context, parentController: parentController, updatedPresentationData: updatedPresentationData, botPeer: botPeer, chatPeer: chatPeer, threadId: threadId, buttonText: buttonText, url: url, simple: simple, source: source, skipTermsOfService: skipTermsOfService, payload: payload, verifyAgeCompletion: verifyAgeCompletion)
+        }
+        //CloudVeil end
     }
     
     public func makeAffiliateProgramSetupScreenInitialData(context: AccountContext, peerId: EnginePeer.Id, mode: AffiliateProgramSetupScreenMode) -> Signal<AffiliateProgramSetupScreenInitialData, NoError> {
