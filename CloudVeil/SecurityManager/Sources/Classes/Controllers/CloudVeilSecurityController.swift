@@ -121,7 +121,7 @@ open class CloudVeilSecurityController: NSObject {
     }
     
     public var disableStickers: Bool {
-        return withSettings { $0?.disableSticker ?? false }
+        return withSettings { $0?.disableStickers ?? false }
     }
 
     public var disableBio: Bool {
@@ -158,6 +158,10 @@ open class CloudVeilSecurityController: NSObject {
     
     public var disableEmojiStatus: Bool {
         return withSettings { $0?.disableEmojiStatus ?? false }
+    }
+
+    public var manageUsers: Bool {
+        return withSettings { $0?.manageUsers ?? false }
     }
 
     public var profilePhotoLimit: Int {
@@ -345,10 +349,10 @@ open class CloudVeilSecurityController: NSObject {
         }
     }
     
-    open func getSettings(groups: inout [TGRow], bots: inout [TGRow], channels: inout [TGRow], stickers: inout [TGRow]) {
+    open func getSettings(groups: inout [TGRow], bots: inout [TGRow], channels: inout [TGRow], stickers: inout [TGRow], users: inout [TGRow]) {
         let request = TGSettingsRequest(
             sessionId: self.nextRequest?.clientSessionId,
-            groups: groups, bots: bots, channels: channels, stickers: stickers)
+            groups: groups, bots: bots, channels: channels, stickers: stickers, users: users)
         
         if let nextReq = self.nextRequest,  nextReq == request {
             let now = Date().timeIntervalSince1970
@@ -364,11 +368,11 @@ open class CloudVeilSecurityController: NSObject {
         }
     }
     
-    public func replayRequestWith(group: TGRow? = nil, channel: TGRow? = nil, bot: TGRow? = nil) {
+    public func replayRequestWith(group: TGRow? = nil, channel: TGRow? = nil, bot: TGRow? = nil, user: TGRow? = nil) {
         self.netQueue.async {
             let nextReq = self.nextRequest ?? TGSettingsRequest(
                 sessionId: self.nextRequest?.clientSessionId,
-                groups: [], bots: [], channels: [], stickers: [])
+                groups: [], bots: [], channels: [], stickers: [], users: [])
             
             var send = false
             if let g = group, !nextReq.groups.contains(g) {
@@ -381,6 +385,10 @@ open class CloudVeilSecurityController: NSObject {
             }
             if let b = bot, !nextReq.bots.contains(b) {
                 nextReq.bots.append(b)
+                send = true
+            }
+            if let u = user, !nextReq.users.contains(u) {
+                nextReq.users.append(u)
                 send = true
             }
             
@@ -401,6 +409,10 @@ open class CloudVeilSecurityController: NSObject {
     
     open func replayRequestWithBot(bot: TGRow) {
         self.replayRequestWith(bot: bot)
+    }
+
+    open func replayRequestWithUser(user: TGRow) {
+        self.replayRequestWith(user: user)
     }
     
     private func saveSettings(_ settings: TGSettingsResponse?, forUserId: Int64 = 0, orgId: NSInteger = 0) {
@@ -513,6 +525,21 @@ open class CloudVeilSecurityController: NSObject {
         return res
     }
     
+    open func isAvailable(userID: NSInteger) -> Bool? {
+        var res: Bool?
+        self.accessQueue.sync {
+            res = settings?.access?.users?["\(userID)"]
+        }
+        if res == false {
+            // manually blocked users are always blocked, despite the manageUsers setting
+            return false
+        }
+        if !self.manageUsers {
+            return true
+        }
+        return res
+    }
+
     open func isAvailable(stickerId: NSInteger) -> Bool? {
         if disableStickers {
             return false
@@ -528,6 +555,10 @@ open class CloudVeilSecurityController: NSObject {
     open func isBotAvailable(botID: NSInteger) -> Bool {
         return isAvailable(botID: botID) ?? false
     }
+
+    open func isUserAvailable(userID: NSInteger) -> Bool {
+        return isAvailable(userID: userID) ?? false
+    }
     
     open func isStickerAvailable(stickerId: NSInteger) -> Bool {
         return isAvailable(stickerId: stickerId) ?? false
@@ -542,6 +573,9 @@ open class CloudVeilSecurityController: NSObject {
             res = (res ?? false) || avail
         }
         if let avail = isAvailable(groupID: -conversationId) {
+            res = (res ?? false) || avail
+        }
+        if let avail = isAvailable(userID: conversationId) {
             res = (res ?? false) || avail
         }
         
@@ -563,8 +597,9 @@ open class CloudVeilSecurityController: NSObject {
             let haveGroup = access.groups?["\(channelId)"] != nil
             let haveChannel = access.channels?["\(channelId)"] != nil
             let haveBot = access.bots?["\(conversationId)"] != nil
-            
-            res = haveGroup || haveChannel || haveBot
+            let haveUser = access.users?["\(conversationId)"] != nil
+
+            res = haveGroup || haveChannel || haveBot || haveUser
         }
         return res
     }

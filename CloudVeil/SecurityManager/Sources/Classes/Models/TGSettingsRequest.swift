@@ -23,12 +23,13 @@ public class TGSettingsRequest: Mappable, Equatable {
     public var channels: [TGRow] = []
     public var bots: [TGRow] = []
     public var stickers: [TGRow] = []
+    public var users: [TGRow] = []
     public private(set) var clientOsType = "iOS"
     public private(set) var clientSessionId: String
     public private(set) var clientVersionCode: String
     public private(set) var clientVersionName: String
     
-    public init(userId: Int64? = nil, sessionId: String? = nil, groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = [], stickers: [TGRow] = []) {
+    public init(userId: Int64? = nil, sessionId: String? = nil, groups: [TGRow] = [], bots: [TGRow] = [], channels: [TGRow] = [], stickers: [TGRow] = [], users: [TGRow] = []) {
         self.id = userId
         if self.id == nil {
             var id = Int64()
@@ -57,6 +58,7 @@ public class TGSettingsRequest: Mappable, Equatable {
         self.channels = channels
         self.bots = bots
         self.stickers = stickers
+        self.users = users
         TGUserController.withLock({
             // Read current org ID to save correct cache later
             orgId = $0.getOrgID()
@@ -86,7 +88,8 @@ public class TGSettingsRequest: Mappable, Equatable {
             lhs.groups == rhs.groups &&
             lhs.channels == rhs.channels &&
             lhs.bots == rhs.bots &&
-            lhs.stickers == rhs.stickers
+            lhs.stickers == rhs.stickers &&
+            lhs.users == rhs.users
     }
 
     // MARK: Mappable
@@ -103,6 +106,7 @@ public class TGSettingsRequest: Mappable, Equatable {
         channels <- map["channels"]
         bots <- map["bots"]
         stickers <- map["stickers"]
+        users <- map["users"]
         clientOsType <- map["client_os_type"]
         clientSessionId <- map["client_session_id"]
         clientVersionCode <- map["client_version_code"]

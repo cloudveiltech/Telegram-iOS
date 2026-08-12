@@ -17,6 +17,9 @@ public class TGRow: Mappable, Equatable {
     public var userNames: [String] = []
     public var isMegagroup: Bool?
     public var isPublic: Bool?
+    public var isRestricted: Bool?
+    public var isForum: Bool?
+    public var isCreatorAdmin: Bool?
     public var migratedFromTelegramId: NSInteger = 0
 
     public init() {}
@@ -33,6 +36,9 @@ public class TGRow: Mappable, Equatable {
         userNames <- map["user_names"]
         isMegagroup <- map["is_megagroup"]
         isPublic <- map["is_public"]
+        isRestricted <- map["is_restricted"]
+        isForum <- map["is_forum"]
+        isCreatorAdmin <- map["is_creator_admin"]
         if (migratedFromTelegramId > 0) {
             migratedFromTelegramId <- map["migrated_from_telegram_id"]
         }
