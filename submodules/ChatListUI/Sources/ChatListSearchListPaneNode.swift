@@ -301,7 +301,9 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                 }
             
                 var buttonAction: ContactsPeerItemButtonAction?
-                if [.chats, .apps].contains(key), case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp) {
+                // CloudVeil start: disable mini apps
+                if [.chats, .apps].contains(key), case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), !CloudVeilSecurityController.shared.disableMiniApps {
+                    // CloudVeil end: disable mini apps
                     buttonAction = ContactsPeerItemButtonAction(
                         title: presentationData.strings.ChatList_Search_Open,
                         action: { peer, _, _ in
@@ -802,7 +804,9 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                     } else {
                         headerType = .recentPeers
                         
-                        if case .chats = key, case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp) {
+                        // CloudVeil start: disable mini apps
+                        if case .chats = key, case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), !CloudVeilSecurityController.shared.disableMiniApps {
+                            // CloudVeil end: disable mini apps
                             buttonAction = ContactsPeerItemButtonAction(
                                 title: presentationData.strings.ChatList_Search_Open,
                                 action: { peer, _, _ in
@@ -978,7 +982,9 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                 }
             
                 var buttonAction: ContactsPeerItemButtonAction?
-                if case .chats = key, case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp) {
+                // CloudVeil start: disable mini apps
+                if case .chats = key, case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), !CloudVeilSecurityController.shared.disableMiniApps {
+                    // CloudVeil end: disable mini apps
                     buttonAction = ContactsPeerItemButtonAction(
                         title: presentationData.strings.ChatList_Search_Open,
                         action: { peer, _, _ in

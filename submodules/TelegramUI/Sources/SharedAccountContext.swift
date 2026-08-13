@@ -4274,6 +4274,9 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         //CloudVeil start
         // Every mini app launch funnels through this method, so gating here covers the chat list
         // "OPEN" button, the search "Apps" results, the attach menu and the in-chat bot buttons.
+        if CloudVeilSecurityController.shared.disableMiniApps {
+            return
+        }
         let presentationData: PresentationData
         if let parentController = parentController as? ChatControllerImpl {
             presentationData = parentController.presentationData

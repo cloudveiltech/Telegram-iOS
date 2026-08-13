@@ -932,7 +932,9 @@ final class AuthorizedApplicationContext {
                         chatLocation = .peer(peer)
                     }
                     
-                    if openAppIfAny, case let .user(user) = peer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), let parentController = self.rootController.viewControllers.last as? ViewController {
+                    // CloudVeil start: disable mini apps
+                    if openAppIfAny, !CloudVeilSecurityController.shared.disableMiniApps, case let .user(user) = peer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), let parentController = self.rootController.viewControllers.last as? ViewController {
+                        // CloudVeil end: disable mini apps
                         self.context.sharedContext.openWebApp(
                             context: self.context,
                             parentController: parentController,
