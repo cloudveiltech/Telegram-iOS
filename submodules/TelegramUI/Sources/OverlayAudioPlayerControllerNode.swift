@@ -18,6 +18,9 @@ import ChatHistoryEntry
 import MultilineTextComponent
 import GlassControls
 import PhotoResources
+// CloudVeil: disable music status
+import CloudVeilSecurityManager
+// CloudVeil end
 
 final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, ASGestureRecognizerDelegate {
     let ready = Promise<Bool>()
@@ -793,6 +796,11 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, ASGestu
     }
     
     private var isSaved: Bool? {
+        // CloudVeil: disable music status
+        if CloudVeilSecurityController.shared.disableMusicStatus {
+            return nil
+        }
+        // CloudVeil end
         if self .copyProtectionEnabled {
             return nil
         }
@@ -913,7 +921,9 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, ASGestu
                 )
             ]
             var rightControlItems: [GlassControlGroupComponent.Item] = []
-            if let playlistLocation = self.playlistLocation as? PeerMessagesPlaylistLocation, case let .savedMusic(savedMusicContext, _, _) = playlistLocation, savedMusicContext.peerId == self.context.account.peerId {
+            // CloudVeil: disable music status
+            if let playlistLocation = self.playlistLocation as? PeerMessagesPlaylistLocation, case let .savedMusic(savedMusicContext, _, _) = playlistLocation, savedMusicContext.peerId == self.context.account.peerId, !CloudVeilSecurityController.shared.disableMusicStatus {
+                // CloudVeil end
                 rightControlItems.append(
                     GlassControlGroupComponent.Item(
                         id: AnyHashable("add"),
@@ -1373,7 +1383,9 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, ASGestu
         let source: ContextContentSource = .extracted(OverlayAudioPlayerContextExtractedContentSource(contentNode: node))
         let fileReference: FileMediaReference = message.id.namespace == Namespaces.Message.Local ? .savedMusic(peer: peer, media: file) : .message(message: MessageReference(message), media: file)
         
-        let canSaveToProfile = !(self.savedIds?.contains(file.fileId.id) == true)
+        // CloudVeil: disable music status
+        let canSaveToProfile = !CloudVeilSecurityController.shared.disableMusicStatus && !(self.savedIds?.contains(file.fileId.id) == true)
+        // CloudVeil end
         let canSaveToSavedMessages = message.id.peerId != self.context.account.peerId || message.id.namespace == Namespaces.Message.Local
         
         let _ = (context.sharedContext.chatAvailableMessageActions(engine: context.engine, accountPeerId: context.account.peerId, messageIds: [message.id], keepUpdated: false)

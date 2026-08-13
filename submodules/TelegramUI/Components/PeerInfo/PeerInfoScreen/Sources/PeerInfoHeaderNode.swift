@@ -601,7 +601,9 @@ final class PeerInfoHeaderNode: ASDisplayNode {
         }
         
         var currentSavedMusic: TelegramMediaFile?
-        if let peer, peer.id != self.context.account.peerId || self.isMyProfile, let screenData {
+        // CloudVeil: disable music status
+        if !CloudVeilSecurityController.shared.disableMusicStatus, let peer, peer.id != self.context.account.peerId || self.isMyProfile, let screenData {
+            // CloudVeil end
             if let savedMusicState = screenData.savedMusicState {
                 currentSavedMusic = savedMusicState.files.first
             } else if let cachedUserData = screenData.cachedData as? CachedUserData {
