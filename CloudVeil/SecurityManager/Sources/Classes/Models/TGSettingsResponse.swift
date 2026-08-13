@@ -32,7 +32,6 @@ class TGSettingsResponse: Mappable {
     public var blockedImageResourceUrl: String?
     public var profilePhotoLimit: String?
     public var organization: Organization?
-    public var updateRequired: Bool?
     public var removeAccountUrl: String?
     public var disableEmojiStatus: Bool?
     public var disableMusicStatus: Bool?
@@ -64,7 +63,6 @@ class TGSettingsResponse: Mappable {
             self.organization!.id = 23945601
             self.organization!.name = "FakeTestingOrg"
             self.organization!.needChange = false
-            self.updateRequired = false
             self.removeAccountUrl = nil
             self.nonblockableBots = [689684671]
         }
@@ -92,7 +90,6 @@ class TGSettingsResponse: Mappable {
 		disableProfileVideo <- map["disable_profile_video"]
 		disableProfileVideoChange <- map["disable_profile_video_change"]
         organization <- map["organization"]
-        updateRequired <- map["update_required"]
         removeAccountUrl <- map["remove_account_url"]
         disableEmojiStatus <- map["disable_emoji_status"]
         disableMusicStatus <- map["disable_music_status"]
