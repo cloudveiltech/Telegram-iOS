@@ -17,9 +17,9 @@ public extension TGRow {
             }
         case let group as TelegramGroup:
             switch group.role {
-            case let .creator(_):
+            case .creator:
                 self.isCreatorAdmin = true
-            case let .admin(_, _):
+            case .admin:
                 self.isCreatorAdmin = true
             case .member:
                 break
