@@ -1964,7 +1964,9 @@ final class StorageUsageScreenComponent: Component {
                     component: AnyComponent(StorageKeepSizeComponent(
                         theme: environment.theme,
                         strings: environment.strings,
-                        value: cacheSettings?.defaultCacheStorageLimitGigabytes ?? 16,
+                        // CloudVeil start: limit default cache storage
+                        value: cacheSettings?.defaultCacheStorageLimitGigabytes ?? 5,
+                        // CloudVeil end
                         updateValue: { [weak self] value in
                             guard let self, let component = self.component else {
                                 return
