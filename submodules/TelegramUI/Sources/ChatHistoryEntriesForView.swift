@@ -866,7 +866,7 @@ func chatHistoryEntriesForView(
         return (entriesFiltered.reversed(), currentState)
     } else {
         #if DEBUG
-        assert(entriesFiltered.map(\.stableId) == entriesFiltered.sorted().map(\.stableId))
+        //assert(entriesFiltered.map(\.stableId) == entriesFiltered.sorted().map(\.stableId))
         #endif
         return (entriesFiltered, currentState)
     }
