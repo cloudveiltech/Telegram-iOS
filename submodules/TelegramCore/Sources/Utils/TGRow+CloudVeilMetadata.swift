@@ -38,6 +38,26 @@ public extension TGRow {
         }
     }
 
+    /// Unix time (seconds) of the most recent trustworthy info about this peer:
+    /// last message date. Drafts are excluded. Returns untrustworthy if the
+    /// client is no longer in the chat.
+    func applyCloudVeilLastUpdated(chatListTimestamp: Int32?, peer: Peer?) {
+        if let channel = peer as? TelegramChannel, channel.participationStatus != .member {
+            self.lastUpdated = TGRow.lastUpdateUntrustworthy
+            return
+        }
+        if let group = peer as? TelegramGroup, group.membership != .Member {
+            self.lastUpdated = TGRow.lastUpdateUntrustworthy
+            return
+        }
+        if let timestamp = chatListTimestamp, timestamp > 0 {
+            let nowSec = Int64(Date().timeIntervalSince1970)
+            self.lastUpdated = min(Int64(timestamp), nowSec)
+        } else {
+            self.lastUpdated = TGRow.lastUpdateUnknown
+        }
+    }
+
     private static func channelHasCloudVeilRestriction(_ channel: TelegramChannel) -> Bool {
         guard let restrictionInfo = channel.restrictionInfo else {
             return false
