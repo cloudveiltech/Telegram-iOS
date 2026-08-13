@@ -1004,6 +1004,11 @@ extension ChatControllerImpl {
                             //CloudVeil end
                         } else if let cachedUserData = peerView.cachedData as? CachedUserData {
                             botMenuButton = cachedUserData.botInfo?.menuButton ?? .commands
+                            // CloudVeil start: disable mini apps
+                            if CloudVeilSecurityController.shared.disableMiniApps, case .webView = botMenuButton {
+                                botMenuButton = .commands
+                            }
+                            // CloudVeil end: disable mini apps
                             if case let .known(value) = cachedUserData.autoremoveTimeout {
                                 autoremoveTimeout = value?.effectiveValue
                             }
