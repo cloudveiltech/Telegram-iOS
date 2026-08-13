@@ -16,6 +16,9 @@ import PeerInfoVisualMediaPaneNode
 import PhotoResources
 import PeerInfoPaneNode
 import WebUI
+// CloudVeil: non-blockable bots
+import CloudVeilSecurityManager
+// CloudVeil end
 
 enum PeerInfoUpdatingAvatar {
     case none
@@ -2472,7 +2475,9 @@ func peerInfoHeaderButtons(peer: EnginePeer?, cachedData: CachedPeerData?, isOpe
             result.append(.search)
         }
         
-        if user.botInfo != nil, let cachedData = cachedData as? CachedUserData, !cachedData.isBlocked {
+        // CloudVeil: non-blockable bots
+        if user.botInfo != nil, let cachedData = cachedData as? CachedUserData, !cachedData.isBlocked, !CloudVeilSecurityController.shared.isNonblockableBot(user.id.id._internalGetInt64Value()) {
+            // CloudVeil end
             result.append(.stop)
         }
         

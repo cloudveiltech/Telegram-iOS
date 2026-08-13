@@ -2926,6 +2926,11 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
     }
     
     private func openBotApp(_ bot: AttachMenuBot) {
+        // CloudVeil start: disable mini apps
+        if CloudVeilSecurityController.shared.disableMiniApps {
+            return
+        }
+        // CloudVeil end: disable mini apps
         guard let controller = self.controller else {
             return
         }
@@ -3495,6 +3500,11 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
             
             let presentationData = strongSelf.presentationData
             if case let .user(peer) = peer, let _ = peer.botInfo {
+                // CloudVeil: non-blockable bots
+                if block && CloudVeilSecurityController.shared.isNonblockableBot(peer.id.id._internalGetInt64Value()) {
+                    return
+                }
+                // CloudVeil end
                 strongSelf.activeActionDisposable.set(strongSelf.context.engine.privacy.requestUpdatePeerIsBlocked(peerId: peer.id, isBlocked: block, sourceMessageId: strongSelf.sourceMessageId).startStrict())
                 if !block {
                     let _ = enqueueMessages(account: strongSelf.context.account, peerId: peer.id, messages: [.message(text: "/start", attributes: [], inlineStickers: [:], mediaReference: nil, threadId: nil, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])]).startStandalone()
