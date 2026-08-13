@@ -21,6 +21,12 @@ public class TGRow: Mappable, Equatable {
     public var isForum: Bool?
     public var isCreatorAdmin: Bool?
     public var migratedFromTelegramId: NSInteger = 0
+    /// Unix time (seconds) of the most recent trustworthy info about this peer.
+    /// Special values: `lastUpdateUntrustworthy` (-1), `lastUpdateUnknown` (0).
+    public var lastUpdated: Int64 = TGRow.lastUpdateUnknown
+
+    public static let lastUpdateUntrustworthy: Int64 = -1
+    public static let lastUpdateUnknown: Int64 = 0
 
     public init() {}
 
@@ -42,5 +48,6 @@ public class TGRow: Mappable, Equatable {
         if (migratedFromTelegramId > 0) {
             migratedFromTelegramId <- map["migrated_from_telegram_id"]
         }
+        lastUpdated <- map["last_updated"]
     }
 }
