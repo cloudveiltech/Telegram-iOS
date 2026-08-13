@@ -288,8 +288,11 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
         let peerView = account.viewTracker.peerView(peerId)
         
         var disposable: Disposable? = nil
+        var didComplete = false
         disposable = peerView.start(next: { peerResult in
             if disposable == nil { return }
+            if didComplete { return }
+            didComplete = true
             
             let peerView = peerViewMainPeer(peerResult)
             

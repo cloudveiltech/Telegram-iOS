@@ -115,7 +115,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
     fileprivate private(set) var primaryContext: ChatListLocationContext?
     private let primaryInfoReady = Promise<Bool>()
 
-    // CloudVeil: Track active preview keys to prevent multiple activations
+    // CloudVeil: Debounce duplicate chat-list activations (tap and long-press) for the same peer.
     private var activePreviewKeys: Set<String> = []
     private let mainReady = Promise<Bool>()
     private let storiesReady = Promise<Bool>()
@@ -1419,10 +1419,24 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                     )
                 }
                 //CloudVeil start
+                let itemIdString = "\(peer.id.id)"
+                if !self.beginDebouncedPeerAction(itemIdString: itemIdString, threadId: threadId) {
+                    return
+                }
+
+                var didHandle = false
                 TelegramBaseController.checkPeerIsAllowed(peerId: peer.id, controller: self, context: self.context, presentationData: self.presentationData) { [weak self] result in
                     guard let self else {
                         return
                     }
+                    if didHandle {
+                        return
+                    }
+                    if !result {
+                        self.chatListDisplayNode.clearHighlightAnimated(true)
+                        return
+                    }
+                    didHandle = true
                     let _ = (combineLatest(queue: .mainQueue(),
                         self.context.account.postbox.combinedView(keys: [.cachedPeerData(peerId: peer.id)])
                         |> take(1),
@@ -1902,17 +1916,9 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             case .loading:
                 itemIdString = "loading"
             }
-            let timestamp = Int(Date().timeIntervalSince1970 * 1000) // milliseconds
-            let previewKey = "\(itemIdString)_\(threadId ?? 0)_\(timestamp)"
-            if strongSelf.activePreviewKeys.contains(where: { $0.hasPrefix("\(itemIdString)_\(threadId ?? 0)_") }) {
+            if !strongSelf.beginDebouncedPeerAction(itemIdString: itemIdString, threadId: threadId) {
                 gesture?.cancel()
                 return
-            }
-            strongSelf.activePreviewKeys.insert(previewKey)
-
-            // Clean up after a delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                strongSelf.activePreviewKeys.remove(previewKey)
             }
             
             var joined = false
@@ -2932,6 +2938,21 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
     }
     
     //CloudVeil start
+    @discardableResult
+    private func beginDebouncedPeerAction(itemIdString: String, threadId: Int64?) -> Bool {
+        let timestamp = Int(Date().timeIntervalSince1970 * 1000)
+        let prefix = "\(itemIdString)_\(threadId ?? 0)_"
+        let key = "\(prefix)\(timestamp)"
+        if self.activePreviewKeys.contains(where: { $0.hasPrefix(prefix) }) {
+            return false
+        }
+        self.activePreviewKeys.insert(key)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.activePreviewKeys.remove(key)
+        }
+        return true
+    }
+
     private func showNotificationWarning() {
         if let userDefaults = UserDefaults(suiteName: "group.com.cloudveil.CloudVeilMessenger") {
             let lastShownTime = userDefaults.double(forKey: "notification_alert_shown_time")
