@@ -160,6 +160,18 @@ open class CloudVeilSecurityController: NSObject {
         return withSettings { $0?.disableEmojiStatus ?? false }
     }
 
+    public var disableMusicStatus: Bool {
+        return withSettings { $0?.disableMusicStatus ?? true }
+    }
+
+    public var disableStars: Bool {
+        return withSettings { $0?.disableStars ?? true }
+    }
+
+    public var disableMiniApps: Bool {
+        return withSettings { $0?.disableMiniApps ?? true }
+    }
+
     public var manageUsers: Bool {
         return withSettings { $0?.manageUsers ?? false }
     }
@@ -183,6 +195,20 @@ open class CloudVeilSecurityController: NSObject {
             res = settings?.organization?.id
         }
         return res
+    }
+
+    public var organizationAboutUrl: String? {
+        return withSettings {
+            let value = $0?.organization?.aboutUrl ?? ""
+            return value.isEmpty ? nil : value
+        }
+    }
+
+    public var organizationPolicyUrl: String? {
+        return withSettings {
+            let value = $0?.organization?.policyUrl ?? ""
+            return value.isEmpty ? nil : value
+        }
     }
     
     public var secretChatMinimumLength: NSInteger {
@@ -481,6 +507,8 @@ open class CloudVeilSecurityController: NSObject {
                         print("[SETTINGS] details: current user \(tg.getUserID()) org \(tg.getOrgID()), settings user \(Int(userId)) org \(targetOrgId)")
                     }
                 }
+
+                self.checkDeprecationAlert(settings.deprecation)
             }
         }
     }
@@ -552,6 +580,16 @@ open class CloudVeilSecurityController: NSObject {
         return res
     }
     
+    open func isNonblockableBot(_ botID: Int64) -> Bool {
+        let bots: [Int64] = withSettings { settings in
+            if let ids = settings?.nonblockableBots {
+                return ids.map { Int64($0) }
+            }
+            return [Int64(self.SUPPORT_BOT_ID)]
+        }
+        return bots.contains(botID)
+    }
+
     open func isBotAvailable(botID: NSInteger) -> Bool {
         return isAvailable(botID: botID) ?? false
     }
@@ -619,5 +657,48 @@ open class CloudVeilSecurityController: NSObject {
         let alert = UIAlertController(title: "CloudVeil!", message: "Blocked", preferredStyle: .alert)
         alert.addAction(.init(title: "OK", style: .default, handler: nil))
         viewController.present(alert, animated: false)
+    }
+
+    private static let kDeprecationAlertShownTime = "deprecationAlertShownTime"
+    private static let appStoreURL = URL(string: "itms-apps://itunes.apple.com/app/id1293233612")
+
+    private func checkDeprecationAlert(_ deprecation: Deprecation?) {
+        guard let deprecation, deprecation.deprecated == true else {
+            return
+        }
+
+        let now = Date().timeIntervalSince1970
+        let lastShownTime = UserDefaults.standard.double(forKey: Self.kDeprecationAlertShownTime)
+        if let reminder = deprecation.reminder, reminder > 0, now - lastShownTime < Double(reminder) {
+            return
+        }
+        UserDefaults.standard.set(now, forKey: Self.kDeprecationAlertShownTime)
+
+        let message = deprecation.message ?? ""
+        DispatchQueue.main.async {
+            guard let viewController = Self.topViewController() else {
+                return
+            }
+            let alert = UIAlertController(title: "Warning", message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: nil))
+            alert.addAction(UIAlertAction(title: "Update", style: .default, handler: { _ in
+                if let url = Self.appStoreURL {
+                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                }
+            }))
+            viewController.present(alert, animated: true)
+        }
+    }
+
+    private static func topViewController() -> UIViewController? {
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }
+        var viewController = window?.rootViewController
+        while let presented = viewController?.presentedViewController {
+            viewController = presented
+        }
+        return viewController
     }
 }
