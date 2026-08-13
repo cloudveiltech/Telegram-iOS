@@ -5627,7 +5627,9 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                         canRemoveGlobally = true
                     }
                 } else if case let .user(user) = chatPeer, user.botInfo != nil {
-                    canStop = !user.flags.contains(.isSupport)
+                    // CloudVeil: non-blockable bots
+                    canStop = !user.flags.contains(.isSupport) && !CloudVeilSecurityController.shared.isNonblockableBot(user.id.id._internalGetInt64Value())
+                    // CloudVeil end
                     deleteTitle = strongSelf.presentationData.strings.ChatList_DeleteChat
                 } else if case .secretChat = chatPeer {
                     canClear = true
