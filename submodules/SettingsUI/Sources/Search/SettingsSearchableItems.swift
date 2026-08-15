@@ -774,6 +774,9 @@ private func premiumSearchableItems(context: AccountContext) -> [SettingsSearcha
         )
     )
     
+    // CloudVeil start: disable stars
+    if !CloudVeilSecurityController.shared.disableStars {
+        // CloudVeil end
     items.append(
         SettingsSearchableItem(
             id: "stars",
@@ -929,6 +932,9 @@ private func premiumSearchableItems(context: AccountContext) -> [SettingsSearcha
             }
         )
     )
+    // CloudVeil start: disable stars
+    }
+    // CloudVeil end
     
     items.append(
         SettingsSearchableItem(

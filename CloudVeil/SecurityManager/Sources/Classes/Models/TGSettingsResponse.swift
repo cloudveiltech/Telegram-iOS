@@ -17,9 +17,6 @@ class TGSettingsResponse: Mappable {
     
     public var secretChat: Bool?
     public var secretChatMinimumLength: String?
-    public var groups: [Int]?
-    public var bots: [Int]?
-    public var channels: [Int]?
     public var disableBio: Bool?
     public var disableBioChange: Bool?
     public var disableProfilePhoto: Bool?
@@ -28,7 +25,6 @@ class TGSettingsResponse: Mappable {
 	public var disableProfileVideoChange: Bool?
     public var access: AccessObject?
     public var disableStories: Bool?
-    public var disableSticker: Bool?
     public var disableStickers: Bool?
     public var disableStickersImage: String?
     public var manageUsers: Bool?
@@ -36,9 +32,13 @@ class TGSettingsResponse: Mappable {
     public var blockedImageResourceUrl: String?
     public var profilePhotoLimit: String?
     public var organization: Organization?
-    public var updateRequired: Bool?
     public var removeAccountUrl: String?
     public var disableEmojiStatus: Bool?
+    public var disableMusicStatus: Bool?
+    public var disableStars: Bool?
+    public var disableMiniApps: Bool?
+    public var nonblockableBots: [Int]?
+    public var deprecation: Deprecation?
 
     // MARK: FakeResponse
 
@@ -52,7 +52,9 @@ class TGSettingsResponse: Mappable {
             self.disableProfileVideo = true
             self.disableProfileVideoChange = true
             self.disableEmojiStatus = false
-            self.disableSticker = true
+            self.disableMusicStatus = true
+            self.disableStars = true
+            self.disableMiniApps = true
             self.disableStickers = true
             self.manageUsers = false
             self.inputToggleVoiceVideo = false
@@ -61,8 +63,8 @@ class TGSettingsResponse: Mappable {
             self.organization!.id = 23945601
             self.organization!.name = "FakeTestingOrg"
             self.organization!.needChange = false
-            self.updateRequired = false
             self.removeAccountUrl = nil
+            self.nonblockableBots = [689684671]
         }
     }
 
@@ -74,16 +76,12 @@ class TGSettingsResponse: Mappable {
         profilePhotoLimit <- map["profile_photo_limit"]
         secretChat <- map["secret_chat"]
         secretChatMinimumLength <- map["secret_chat_minimum_length"]
-        groups <- map["groups"]
-        bots <- map["bots"]
-        channels <- map["channels"]
         disableBio <- map["disable_bio"]
         disableBioChange <- map["disable_bio_change"]
         disableProfilePhoto <- map["disable_profile_photo"]
         disableProfilePhotoChange <- map["disable_profile_photo_change"]
         access <- map["access"]
         disableStories <- map["disable_stories"]
-        disableSticker <- map["disable_sticker"]
         disableStickers <- map["disable_stickers"]
         disableStickersImage <- map["disable_stickers_image"]
         manageUsers <- map["manage_users"]
@@ -92,9 +90,13 @@ class TGSettingsResponse: Mappable {
 		disableProfileVideo <- map["disable_profile_video"]
 		disableProfileVideoChange <- map["disable_profile_video_change"]
         organization <- map["organization"]
-        updateRequired <- map["update_required"]
         removeAccountUrl <- map["remove_account_url"]
         disableEmojiStatus <- map["disable_emoji_status"]
+        disableMusicStatus <- map["disable_music_status"]
+        disableStars <- map["disable_stars"]
+        disableMiniApps <- map["disable_mini_apps"]
+        nonblockableBots <- map["nonblockable_bots"]
+        deprecation <- map["deprecation"]
     }
 }
 
@@ -129,6 +131,8 @@ class Organization: Mappable {
     public var id: Int?
     public var name: String?
     public var needChange: Bool?
+    public var aboutUrl: String?
+    public var policyUrl: String?
     
     public init() { }
     
@@ -138,5 +142,23 @@ class Organization: Mappable {
         id <- map["id"]
         name <- map["name"]
         needChange <- map["need_change"]
+        aboutUrl <- map["about_url"]
+        policyUrl <- map["policy_url"]
+    }
+}
+
+class Deprecation: Mappable {
+    public var deprecated: Bool?
+    public var message: String?
+    public var reminder: Int?
+    
+    public init() { }
+    
+    public required init?(map: Map) { }
+    
+    public func mapping(map: Map) {
+        deprecated <- map["deprecated"]
+        message <- map["message"]
+        reminder <- map["reminder"]
     }
 }

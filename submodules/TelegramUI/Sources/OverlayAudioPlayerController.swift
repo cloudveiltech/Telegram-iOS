@@ -10,6 +10,9 @@ import UndoUI
 import AttachmentFileController
 import LegacyMediaPickerUI
 import ICloudResources
+// CloudVeil: disable music status
+import CloudVeilSecurityManager
+// CloudVeil end
 
 final class OverlayAudioPlayerControllerImpl: ViewController, OverlayAudioPlayerController {
     private let context: AccountContext
@@ -157,6 +160,11 @@ final class OverlayAudioPlayerControllerImpl: ViewController, OverlayAudioPlayer
                 guard let self, let navigationController = self.parentNavigationController else {
                     return
                 }
+                // CloudVeil: disable music status
+                if CloudVeilSecurityController.shared.disableMusicStatus {
+                    return
+                }
+                // CloudVeil end
                 var dismissImpl: (() -> Void)?
                 let controller = makeAttachmentFileControllerImpl(
                     context: self.context,

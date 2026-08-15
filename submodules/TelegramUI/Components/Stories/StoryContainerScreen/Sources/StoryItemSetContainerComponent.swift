@@ -46,6 +46,9 @@ import SliderContextItem
 import SaveProgressScreen
 import DirectMediaImageCache
 import PromptUI
+// CloudVeil: disable music status
+import CloudVeilSecurityManager
+// CloudVeil end
 
 public final class StoryAvailableReactions: Equatable {
     let reactionItems: [ReactionItem]
@@ -7574,8 +7577,11 @@ public final class StoryItemSetContainerComponent: Component {
 //                            )
 //                            subActions.append(.separator)
                             
-                            subActions.append(
-                                .action(ContextMenuActionItem(text: presentationData.strings.MediaPlayer_ContextMenu_SaveTo_Profile, icon: { theme in return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/User"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
+                            // CloudVeil: disable music status
+                            if !CloudVeilSecurityController.shared.disableMusicStatus {
+                                // CloudVeil end
+                                subActions.append(
+                                    .action(ContextMenuActionItem(text: presentationData.strings.MediaPlayer_ContextMenu_SaveTo_Profile, icon: { theme in return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/User"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
                                     f(.default)
                                     
                                     guard let self, let component = self.component else {
@@ -7631,6 +7637,9 @@ public final class StoryItemSetContainerComponent: Component {
                                     controller.present(overlayController, in: .current)
                                 }))
                             )
+                            //CloudVeil: disable music status
+                            }
+                            // CloudVeil end
                             
                             subActions.append(
                                 .action(ContextMenuActionItem(text: presentationData.strings.MediaPlayer_ContextMenu_SaveTo_SavedMessages, icon: { theme in return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Fave"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in

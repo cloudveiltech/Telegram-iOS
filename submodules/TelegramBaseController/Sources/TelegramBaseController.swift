@@ -283,13 +283,16 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
     }
     
     //CloudVeil start
-    public static func checkPeerIsAllowed(peerId: PeerId, controller: ViewController, context: AccountContext, presentationData: PresentationData, attemption: Int = 0, callback: @escaping (Bool) -> ()) {
+    public static func checkPeerIsAllowed(peerId: PeerId, controller: ViewController, context: AccountContext, presentationData: PresentationData, attemption: Int = 0, showPolicyAlerts: Bool = true, callback: @escaping (Bool) -> ()) {
         let account = context.account
         let peerView = account.viewTracker.peerView(peerId)
         
         var disposable: Disposable? = nil
+        var didComplete = false
         disposable = peerView.start(next: { peerResult in
             if disposable == nil { return }
+            if didComplete { return }
+            didComplete = true
             
             let peerView = peerViewMainPeer(peerResult)
             
@@ -297,6 +300,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             var isGroup = false
             var isChannel = false
             var isBot = false
+            var isUser = false
             let row = TGRow()
             
             let (_, objectID) = readPeerTypeAndId(peerView: peerView!)
@@ -313,6 +317,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             if peerId.namespace == Namespaces.Peer.SecretChat && !CloudVeilSecurityController.shared.isSecretChatAvailable {
                 isDialogAllowed = false
             } else if let peer = peerView as? TelegramChannel, case .group = peer.info {
+                // megagroups
                 isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(groupID: objectID)
                 isGroup = true
                 row.isMegagroup = true
@@ -321,17 +326,31 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                    let migratedFromId = cachedChannelData.migrationReference?.maxMessageId.peerId.id._internalGetInt64Value() {
                     row.migratedFromTelegramId = NSInteger(-migratedFromId)
                 }
-                    
+                row.applyCloudVeilChatMetadata(from: peer)
             } else if peerId.namespace == Namespaces.Peer.CloudGroup {
+                // chats (groups which aren't megagroups)
                 isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(groupID: objectID)
                 isGroup = true
+                if let cloudPeer = peerView {
+                    row.applyCloudVeilChatMetadata(from: cloudPeer)
+                }
             } else if let peer = peerView as? TelegramChannel, case .broadcast = peer.info {
+                // channels
                 isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(channelID: objectID)
                 isChannel = true
                 userName = (peer.username ?? "")
+                row.applyCloudVeilChatMetadata(from: peer)
             } else if let user = peerView as? TelegramUser, let _ = user.botInfo {
+                // bots
                 isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(botID: objectID)
                 isBot = true
+                row.applyCloudVeilBotMetadata(from: user)
+                userName = (user.username ?? "")
+            } else if let user = peerView as? TelegramUser {
+                // users
+                isDialogAllowed = CloudVeilSecurityController.shared.isAvailable(userID: objectID)
+                isUser = true
+                row.applyCloudVeilBotMetadata(from: user)
                 userName = (user.username ?? "")
             }
             
@@ -347,10 +366,12 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
                     CloudVeilSecurityController.shared.replayRequestWithChannel(channel: row)
                 } else if isGroup {
                     CloudVeilSecurityController.shared.replayRequestWithGroup(group: row)
+                } else if isUser {
+                    CloudVeilSecurityController.shared.replayRequestWithUser(user: row)
                 }
                 DispatchQueue.main.async {
                     let appState = UIApplication.shared.applicationState
-                    if appState != UIApplication.State.background {
+                    if showPolicyAlerts, appState != UIApplication.State.background {
                         TelegramBaseController.showWaitingPopup(peerView: peerView!, context: context, controller: controller, presentationData: presentationData)
                     }
                     callback(false)
@@ -359,7 +380,7 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             } else if !isDialogAllowed! {
                 DispatchQueue.main.async {
                     let appState = UIApplication.shared.applicationState
-                    if appState != UIApplication.State.background {
+                    if showPolicyAlerts, appState != UIApplication.State.background {
                         TelegramBaseController.showBlockedPopup(peerView: peerView!, context: context, controller: controller, presentationData: presentationData)
                     }
                     callback(false)
@@ -442,6 +463,9 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
             contextId = negativePeerId
         } else if let user = peerView as? TelegramUser, let _ = user.botInfo {
             type = "bot"
+            contextId = peerId
+        } else if peerView is TelegramUser {
+            type = "user"
             contextId = peerId
         } else {
             type = "secret chat"

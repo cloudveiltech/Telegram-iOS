@@ -3168,18 +3168,21 @@ public final class ChatListNode: ListViewImpl {
             peerViewDisplosable = peerViewSignal.start(next: { [weak self] peerView in
                 peerViewDisplosable?.dispose()
                 
-                if let peer  = peerViewMainPeer(peerView) as? TelegramUser {
+                if let peer = peerViewMainPeer(peerView) as? TelegramUser {
+                    let clientLocale = self?.currentState.presentationData.strings.baseLanguageCode ?? ""
                     TGUserController.withLock({
                         $0.set(userID: NSInteger(peer.id.id._internalGetInt64Value()))
                         $0.set(userName: (peer.username ?? "") as NSString)
                         $0.set(userNames: peer.usernames.map({ $0.username }))
                         $0.set(userPhoneNumber: (peer.phone ?? "") as NSString)
+                        $0.set(clientLocale: clientLocale)
                     })
                     //collect peers
                     var bots = [TGRow]()
                     var groups = [TGRow]()
                     var channels = [TGRow]()
                     var stickers = [TGRow]()
+                    var users = [TGRow]()
                     
                     var groupAndChannelsPeerIds: [EnginePeer.Id] = []
                     for item in chatList.items {
@@ -3190,48 +3193,67 @@ public final class ChatListNode: ListViewImpl {
                         row.objectID = NSInteger(peer.peerId.id._internalGetInt64Value())
                         let groupId = -peer.peerId.id._internalGetInt64Value()
                         row.title = title as NSString
-                        var userNames = peer.chatMainPeer?.usernames.map({ $0.username }) ?? []
-                        var userName = ""
                         
                         let isPublic = !(peer.chatMainPeer?.addressName?.isEmpty ?? true)
                         row.isPublic = isPublic
                         
                         var isGroup: Bool = false
-                        var isChannel = false
+                        var isChannel: Bool = false
+                        
                         if case let .channel(peer) = peer.chatMainPeer, case .group = peer.info {
+                            // megagroups
                             isGroup = true
-                            userName = (peer.username ?? "")
                             row.isMegagroup = true
+                            row.applyCloudVeilChatMetadata(from: peer)
+                            row.applyCloudVeilLastUpdated(chatListTimestamp: ChatListNode.cloudVeilChatListTimestamp(item), peer: peer)
                         } else if peer.peerId.namespace == Namespaces.Peer.CloudGroup {
+                            // chats (groups which aren't megagroups)
                             isGroup = true
+                            if case let .legacyGroup(groupPeer) = peer.chatMainPeer {
+                                row.applyCloudVeilChatMetadata(from: groupPeer)
+                                row.applyCloudVeilLastUpdated(chatListTimestamp: ChatListNode.cloudVeilChatListTimestamp(item), peer: groupPeer)
+                            } else {
+                                row.applyCloudVeilLastUpdated(chatListTimestamp: ChatListNode.cloudVeilChatListTimestamp(item), peer: nil)
+                            }
                         }
                         if isGroup {
                             row.objectID = NSInteger(groupId)
                             groups.append(row)
                         } else if case let .channel(peer) = peer.chatMainPeer, case .broadcast = peer.info {
-                            row.objectID = NSInteger(groupId)
-                            userName = (peer.username ?? "")
-                            channels.append(row)
+                            // channels
                             isChannel = true
+                            row.objectID = NSInteger(groupId)
+                            row.applyCloudVeilChatMetadata(from: peer)
+                            row.applyCloudVeilLastUpdated(chatListTimestamp: ChatListNode.cloudVeilChatListTimestamp(item), peer: peer)
+                            channels.append(row)
                         } else if case let .user(user) = peer.chatMainPeer, let _ = user.botInfo {
-                            userName = (user.username ?? "")
+                            row.applyCloudVeilBotMetadata(from: user)
+                            row.applyCloudVeilLastUpdated(chatListTimestamp: ChatListNode.cloudVeilChatListTimestamp(item), peer: nil)
                             bots.append(row)
+                        } else if case let .user(user) = peer.chatMainPeer {
+                            // users
+                            row.title = NSString(string:user.nameOrPhone)
+                            row.applyCloudVeilLastUpdated(chatListTimestamp: ChatListNode.cloudVeilChatListTimestamp(item), peer: nil)
+                            users.append(row)
                         }
-                        
                         if isGroup || isChannel {
                             groupAndChannelsPeerIds.append(peer.peerId)
                         }
                         
-                        // Logic to collect userNames is a bit duplicate in a few places in the code
-                        // But its simple way to not add too much change on the code base
-                        if userName != "" && !userNames.contains(userName) {
-                            userNames.append(userName)
+                        // Usernames: API supplies either usernames or username
+                        let mainPeer = peer.chatMainPeer
+                        let fromUsernames = mainPeer?.usernames.map(\.username).filter { !$0.isEmpty } ?? []
+                        if !fromUsernames.isEmpty {
+                            row.userNames = fromUsernames
+                        } else if let single = mainPeer?.addressName, !single.isEmpty {
+                            row.userNames = [single]
+                        } else {
+                            row.userNames = []
                         }
-                        row.userNames = userNames
                     }
                     
                     if groups.count == 0 && channels.count == 0 {
-                        CloudVeilSecurityController.shared.getSettings(groups: &groups, bots: &bots, channels: &channels, stickers: &stickers)
+                        CloudVeilSecurityController.shared.getSettings(groups: &groups, bots: &bots, channels: &channels, stickers: &stickers, users: &users)
                         Logger.shared.log("CVSettings", "getSettings fired from common block")
                     } else {
                         var processedPeers = groupAndChannelsPeerIds.count
@@ -3253,7 +3275,7 @@ public final class ChatListNode: ListViewImpl {
                                             if !botFound {
                                                 let row = TGRow()
                                                 row.objectID = id
-                                                row.title = NSString(string:user.nameOrPhone)
+                                                row.title = NSString(string: EnginePeer.user(user).compactDisplayTitle)
                                                 let userName = (user.username ?? "")
                                                 var userNames = user.usernames.map({ $0.username })
 
@@ -3299,7 +3321,7 @@ public final class ChatListNode: ListViewImpl {
                                             }
                                             combinedViewDisposable?.dispose()
                                             
-                                            CloudVeilSecurityController.shared.getSettings(groups: &groups, bots: &bots, channels: &channels, stickers: &stickers)
+                                            CloudVeilSecurityController.shared.getSettings(groups: &groups, bots: &bots, channels: &channels, stickers: &stickers, users: &users)
                                             
                                             Logger.shared.log("CVSettings", "getSettings fired from load peer members \(groupAndChannelsPeerIds.count)")
                                             self?.subscribeToCloudVeilSupportChannel(channels: channels)
@@ -3318,6 +3340,16 @@ public final class ChatListNode: ListViewImpl {
             )
         })
         
+    }
+
+    private static func cloudVeilChatListTimestamp(_ item: EngineChatList.Item) -> Int32? {
+        if let message = item.messages.first {
+            return message.timestamp
+        }
+        if case let .chatList(index) = item.index {
+            return index.messageIndex.timestamp
+        }
+        return nil
     }
     
     func loadPeerMembers(peerId: EnginePeer.Id) -> Signal<[EnginePeer], NoError> {

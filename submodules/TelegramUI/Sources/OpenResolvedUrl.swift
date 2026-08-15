@@ -44,6 +44,9 @@ import ProxyServerPreviewScreen
 import AuthConfirmationScreen
 import OpenInExternalAppUI
 import CreateBotScreen
+// CloudVeil start: disable mini apps
+import CloudVeilSecurityManager
+// CloudVeil end: disable mini apps
 
 private func defaultNavigationForPeerId(_ peerId: PeerId?, navigation: ChatControllerInteractionNavigateToPeer) -> ChatControllerInteractionNavigateToPeer {
     if case .default = navigation {
@@ -1280,6 +1283,11 @@ func openResolvedUrlImpl(
                 }
             })
         case let .startAttach(peerId, payload, choose):
+            // CloudVeil start: disable mini apps
+            if CloudVeilSecurityController.shared.disableMiniApps {
+                break
+            }
+            // CloudVeil end: disable mini apps
             let presentError: (String) -> Void = { errorText in
                 present(UndoOverlayController(presentationData: presentationData, content: .info(title: nil, text: errorText, timeout: nil, customUndoText: nil), elevatedLayout: true, animateInAsReplacement: false, action: { _ in
                     return true

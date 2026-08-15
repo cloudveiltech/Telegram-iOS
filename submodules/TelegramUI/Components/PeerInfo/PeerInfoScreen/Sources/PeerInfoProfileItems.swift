@@ -226,7 +226,9 @@ func infoItems(
             }
             
             var hasWebApp = false
-            if let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp) {
+            // CloudVeil start: disable mini apps
+            if let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), !CloudVeilSecurityController.shared.disableMiniApps {
+                // CloudVeil end: disable mini apps
                 hasWebApp = true
             }
             

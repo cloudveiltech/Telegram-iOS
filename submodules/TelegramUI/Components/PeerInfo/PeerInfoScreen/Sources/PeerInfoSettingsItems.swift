@@ -179,7 +179,9 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     }
     
     var appIndex = 1000
-    if let settings = data.globalSettings {
+    // CloudVeil start: disable mini apps
+    if !CloudVeilSecurityController.shared.disableMiniApps, let settings = data.globalSettings {
+        // CloudVeil end: disable mini apps
         for bot in settings.bots {
             let iconSignal: Signal<UIImage?, NoError>
             if let peer = PeerReference(bot.peer), let icon = bot.icons[.iOSSettingsStatic] {
@@ -286,23 +288,46 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     }
     */
     // CloudVeil end "Disable buying premium"
-    if let tonState = data.tonState {
-        if abs(tonState.balance.value) > 0 {
-            let balanceText: NSAttributedString
-            if abs(tonState.balance.value) > 0 {
-                let formattedLabel = formatTonAmountText(tonState.balance.value, dateTimeFormat: presentationData.dateTimeFormat)
-                let smallLabelFont = Font.regular(floor(presentationData.listsFontSize.itemListBaseFontSize / 17.0 * 13.0))
-                let labelFont = Font.regular(presentationData.listsFontSize.itemListBaseFontSize)
-                let labelColor = presentationData.theme.list.itemSecondaryTextColor
-                balanceText = tonAmountAttributedString(formattedLabel, integralFont: labelFont, fractionalFont: smallLabelFont, color: labelColor, decimalSeparator: presentationData.dateTimeFormat.decimalSeparator)
-            } else {
-                balanceText = NSAttributedString()
+    // CloudVeil start: disable stars
+    if !CloudVeilSecurityController.shared.disableStars {
+        let premiumConfiguration = PremiumConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
+        let isPremiumDisabled = premiumConfiguration.isPremiumDisabled
+        if let starsState = data.starsState {
+            if !isPremiumDisabled || abs(starsState.balance.value) > 0 {
+                let balanceText: NSAttributedString
+                if abs(starsState.balance.value) > 0 {
+                    let formattedLabel = formatStarsAmountText(starsState.balance, dateTimeFormat: presentationData.dateTimeFormat)
+                    let smallLabelFont = Font.regular(floor(presentationData.listsFontSize.itemListBaseFontSize / 17.0 * 13.0))
+                    let labelFont = Font.regular(presentationData.listsFontSize.itemListBaseFontSize)
+                    let labelColor = presentationData.theme.list.itemSecondaryTextColor
+                    balanceText = tonAmountAttributedString(formattedLabel, integralFont: labelFont, fractionalFont: smallLabelFont, color: labelColor, decimalSeparator: presentationData.dateTimeFormat.decimalSeparator)
+                } else {
+                    balanceText = NSAttributedString()
+                }
+                items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 102, label: .attributedText(balanceText), text: presentationData.strings.Settings_Stars, icon: PresentationResourcesSettings.stars, action: {
+                    interaction.openSettings(.stars)
+                }))
             }
-            items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 103, label: .attributedText(balanceText), text: presentationData.strings.Settings_MyTon, icon: PresentationResourcesSettings.ton, action: {
-                interaction.openSettings(.ton)
-            }))
+        }
+        if let tonState = data.tonState {
+            if abs(tonState.balance.value) > 0 {
+                let balanceText: NSAttributedString
+                if abs(tonState.balance.value) > 0 {
+                    let formattedLabel = formatTonAmountText(tonState.balance.value, dateTimeFormat: presentationData.dateTimeFormat)
+                    let smallLabelFont = Font.regular(floor(presentationData.listsFontSize.itemListBaseFontSize / 17.0 * 13.0))
+                    let labelFont = Font.regular(presentationData.listsFontSize.itemListBaseFontSize)
+                    let labelColor = presentationData.theme.list.itemSecondaryTextColor
+                    balanceText = tonAmountAttributedString(formattedLabel, integralFont: labelFont, fractionalFont: smallLabelFont, color: labelColor, decimalSeparator: presentationData.dateTimeFormat.decimalSeparator)
+                } else {
+                    balanceText = NSAttributedString()
+                }
+                items[.payment]!.append(PeerInfoScreenDisclosureItem(id: 103, label: .attributedText(balanceText), text: presentationData.strings.Settings_MyTon, icon: PresentationResourcesSettings.ton, action: {
+                    interaction.openSettings(.ton)
+                }))
+            }
         }
     }
+    // CloudVeil end
     // CloudVeil start "Disable buying premium"
     /*
     if !isPremiumDisabled || context.isPremium {
@@ -343,13 +368,17 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
         interaction.openSettings(.tips)
     }))
 
-    // [ ] CloudVeil start
-    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 3, text: presentationData.strings.Settings_Policy, icon: PresentationResourcesSettings.proxy, action: {
-        interaction.openSettings(.policy)
-    }))
-    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 4, text: presentationData.strings.Settings_AboutUs, icon: PresentationResourcesSettings.myProfile, action: {
-        interaction.openSettings(.aboutUs)
-    }))
+    // CloudVeil start: organization policy and about us urls
+    if CloudVeilSecurityController.shared.organizationPolicyUrl != nil {
+        items[.support]!.append(PeerInfoScreenDisclosureItem(id: 3, text: presentationData.strings.Settings_Policy, icon: PresentationResourcesSettings.proxy, action: {
+            interaction.openSettings(.policy)
+        }))
+    }
+    if CloudVeilSecurityController.shared.organizationAboutUrl != nil {
+        items[.support]!.append(PeerInfoScreenDisclosureItem(id: 4, text: presentationData.strings.Settings_AboutUs, icon: PresentationResourcesSettings.myProfile, action: {
+            interaction.openSettings(.aboutUs)
+        }))
+    }
     // CloudVeil end
     
     var result: [(AnyHashable, [PeerInfoScreenItem])] = []

@@ -22,7 +22,9 @@ public struct CacheStorageSettings: Codable, Equatable {
     public static var defaultSettings: CacheStorageSettings {
         return CacheStorageSettings(
             defaultCacheStorageTimeout: Int32.max,
-            defaultCacheStorageLimitGigabytes: Int32.max,
+            // CloudVeil start: limit default cache storage
+            defaultCacheStorageLimitGigabytes: 5,
+            // CloudVeil end
             categoryStorageTimeout: [
                 .privateChats: Int32.max,
                 .groups: Int32(31 * 24 * 60 * 60),
@@ -52,7 +54,9 @@ public struct CacheStorageSettings: Codable, Equatable {
         } else if let value = try container.decodeIfPresent(Int32.self, forKey: "sizeLimit") {
             self.defaultCacheStorageLimitGigabytes = value
         } else {
-            self.defaultCacheStorageLimitGigabytes = Int32.max
+            // CloudVeil start: limit default cache storage
+            self.defaultCacheStorageLimitGigabytes = 5
+            // CloudVeil end
         }
         
         if let data = try container.decodeIfPresent(Data.self, forKey: "categoryStorageTimeoutJson") {

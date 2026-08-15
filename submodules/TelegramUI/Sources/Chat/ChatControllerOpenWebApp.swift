@@ -14,6 +14,9 @@ import UndoUI
 import UrlHandling
 import TelegramPresentationData
 import ChatInterfaceState
+// CloudVeil start: disable mini apps
+import CloudVeilSecurityManager
+// CloudVeil end: disable mini apps
 
 func openWebAppImpl(
     context: AccountContext,
@@ -531,6 +534,12 @@ public extension ChatControllerImpl {
     }
     
     fileprivate static func presentBotApp(context: AccountContext, parentController: ViewController, botApp: BotApp?, botPeer: EnginePeer, payload: String?, mode: ResolvedStartAppMode, concealed: Bool = false, commit: @escaping () -> Void = {}) {
+        // CloudVeil start: disable mini apps
+        if CloudVeilSecurityController.shared.disableMiniApps {
+            commit()
+            return
+        }
+        // CloudVeil end: disable mini apps
         let chatController = parentController as? ChatControllerImpl
         let peerId: EnginePeer.Id
         let threadId = chatController?.chatLocation.threadId
