@@ -344,10 +344,15 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     }))
 
     // [ ] CloudVeil start
-    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 3, text: presentationData.strings.Settings_Policy, icon: PresentationResourcesSettings.proxy, action: {
+    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 3, text: presentationData.strings.Settings_Policy, icon: PresentationResourcesSettings.admins, action: {
         interaction.openSettings(.policy)
     }))
-    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 4, text: presentationData.strings.Settings_AboutUs, icon: PresentationResourcesSettings.myProfile, action: {
+    if CloudVeilSecurityController.shared.needOrganizationChange {
+        items[.support]!.append(PeerInfoScreenDisclosureItem(id: 4, text: presentationData.strings.Settings_ChangeOrganization, icon: PresentationResourcesSettings.proxy, action: {
+            interaction.openSettings(.changeOrganization)
+        }))
+    }
+    items[.support]!.append(PeerInfoScreenDisclosureItem(id: 5, text: presentationData.strings.Settings_AboutUs, icon: PresentationResourcesSettings.myProfile, action: {
         interaction.openSettings(.aboutUs)
     }))
     // CloudVeil end

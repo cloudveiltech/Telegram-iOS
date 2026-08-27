@@ -759,6 +759,11 @@
 "Settings.FAQ_Button" = "FAQ";
 "Settings.Policy" = "Organization policy";
 "Settings.AboutUs" = "About Us";
+"Settings.ChangeOrganization" = "Change Organization";
+"Settings.ChangeOrganization_Message" = "Please select your correct organization. It is important that you select the correct one so that your app works as expected. Unblock requests will NOT work correctly if you select the wrong group.";
+"Settings.ChangeOrganization_Action" = "Continue";
+"ChatList.OrganizationChangeAlert_Message" = "Please Select Your Organization. It is important that you select your correct church organization so that your app works as expected. Unblock requests will NOT work correctly if you select the wrong group. This one-time step is required to allow organizations more flexibility in supporting their own members and is based off of church membership.";
+"ChatList.OrganizationChangeAlert_Action" = "Change";
 "Settings.SaveIncomingPhotos" = "Save Incoming Photos";
 
 // Notifications and Sounds

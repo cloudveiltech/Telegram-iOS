@@ -331,6 +331,23 @@ extension PeerInfoScreenNode {
                     navigationController: navCtrl, dismissInput: {}
                 )
             }
+        case .changeOrganization:
+            let navCtrl = self.controller?.navigationController as? NavigationController
+            self.controller?.present(textAlertController(context: self.context, updatedPresentationData: self.controller?.updatedPresentationData, title: self.presentationData.strings.Settings_ChangeOrganization, text: self.presentationData.strings.Settings_ChangeOrganization_Message, actions: [
+                TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {}),
+                TextAlertAction(type: .defaultAction, title: presentationData.strings.Settings_ChangeOrganization_Action, action: { [weak self] in
+                    guard let self else {
+                        return
+                    }
+                    let userId = TGUserController.userID
+                    self.context.sharedContext.openExternalUrl(
+                        context: self.context, urlContext: .generic,
+                        url: "https://messenger.cloudveil.org/unblock_status/\(userId)",
+                        forceExternal: false, presentationData: self.presentationData,
+                        navigationController: navCtrl, dismissInput: {}
+                    )
+                })
+            ]), in: .window(.root))
         // CloudVeil end
         }
     }
