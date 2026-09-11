@@ -196,6 +196,7 @@ enum PeerInfoSettingsSection {
     // CloudVeil start
     case policy
     case aboutUs
+    case changeOrganization
     // CloudVeil end
 }
 

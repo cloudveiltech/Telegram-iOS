@@ -9613,10 +9613,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     ) {
         //Cloudveil start
         if CloudVeilUriFilter.shouldIgnoreURLString(url) {
-            context.sharedContext.presentGlobalController(textAlertController(context: context, title: "Warning", text: "Content blocked for your protection", actions: [
-                TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
-                }),
-            ], parseMarkdown: true), nil)
+            presentCloudVeilBlockedLinkAlert(context: context, navigationController: self.navigationController as? NavigationController)
             return
         }
         //Cloudveil end

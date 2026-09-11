@@ -392,17 +392,31 @@ open class TelegramBaseController: ViewController, KeyShortcutResponder {
     public static func showBlockedPopup(peerView: Peer, context: AccountContext, controller: ViewController, presentationData: PresentationData) {
         let (type, _) = readPeerTypeAndId(peerView: peerView)
         let message = "This \(type) is blocked by server policy. Please fill out the form to request it be unblocked."
-    
+
+        var actions: [TextAlertAction] = [
+            TextAlertAction(type: .defaultAction, title: "Request Unblock", action: {
+                TelegramBaseController.openUnblockRequest(
+                    peerView: peerView, context: context, controller: controller,
+                    presentationData: presentationData)
+            }),
+        ]
+        if let orgId = CloudVeilSecurityController.shared.organizationId {
+            actions.append(TextAlertAction(type: .genericAction, title: "View Policy", action: {
+                context.sharedContext.openExternalUrl(
+                    context: context, urlContext: .generic,
+                    url: "https://messenger.cloudveil.org/organization/policy/\(orgId)",
+                    forceExternal: false, presentationData: presentationData,
+                    navigationController: controller.navigationController as? NavigationController,
+                    dismissInput: {})
+            }))
+        }
+        actions.append(TextAlertAction(type: .genericAction, title: "Cancel", action: {}))
+
         let alert = standardTextAlertController(
             theme: AlertControllerTheme(presentationData: presentationData),
             title: "CloudVeil", text: message,
-            actions: [
-                TextAlertAction(type: .defaultAction, title: "Cancel", action: {}),
-                TextAlertAction(type: .defaultAction, title: "Continue", action: {
-                    TelegramBaseController.openUnblockRequest(
-                        peerView: peerView, context: context, controller: controller,
-                        presentationData: presentationData)
-                })])
+            actions: actions,
+            actionLayout: actions.count > 2 ? .vertical : .horizontal)
         controller.present(alert, in: .window(.root))
     }
     

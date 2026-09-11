@@ -2160,10 +2160,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     public func openExternalUrl(context: AccountContext, urlContext: OpenURLContext, url: String, forceExternal: Bool, presentationData: PresentationData, navigationController: NavigationController?, dismissInput: @escaping () -> Void) {
         //Cloudveil start
         if CloudVeilUriFilter.shouldIgnoreURLString(url) {
-            presentGlobalController(textAlertController(context: context, title: "Warning", text: "Content blocked for your protection", actions: [
-                TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {
-                }),
-            ], parseMarkdown: true), nil)
+            presentCloudVeilBlockedLinkAlert(context: context, navigationController: navigationController)
             return
         }
         //Cloudveil end

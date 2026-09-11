@@ -84,10 +84,7 @@ func openResolvedUrlImpl(
     // block resolvedUrl for `addemoji`,`addsticker`,`folder`,`addlist` path
     switch resolvedUrl {
     case .stickerPack(_, _), .chatFolder(_):
-        context.sharedContext.presentGlobalController(textAlertController(context: context, title: "Warning", text: "Content blocked for your protection", actions: [
-            TextAlertAction(type: .genericAction, title: "OK", action: {
-            }),
-        ], parseMarkdown: true), nil)
+        presentCloudVeilBlockedLinkAlert(context: context, navigationController: navigationController)
         return
     default:
         break
