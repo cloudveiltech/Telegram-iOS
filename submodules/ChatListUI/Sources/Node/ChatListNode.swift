@@ -3144,7 +3144,28 @@ public final class ChatListNode: ListViewImpl {
             }
         }
         self.blockNotifications()
-        ChatListNode.subscriptionDisposable = (context.engine.messages.chatList(group: .root, count: Int(Int16.max)) |> distinctUntilChanged{ l, r in
+        // Archived chats are stored in a separate group from the main list.
+        let rootChatList = context.engine.messages.chatList(group: .root, count: Int(Int16.max))
+        let archivedChatList = context.engine.messages.chatList(group: .archive, count: Int(Int16.max))
+        ChatListNode.subscriptionDisposable = (combineLatest(rootChatList, archivedChatList)
+        |> map { root, archive -> EngineChatList in
+            var seenPeerIds = Set<EnginePeer.Id>()
+            var items: [EngineChatList.Item] = []
+            for item in root.items + archive.items {
+                if seenPeerIds.insert(item.renderedPeer.peerId).inserted {
+                    items.append(item)
+                }
+            }
+            return EngineChatList(
+                items: items,
+                groupItems: root.groupItems,
+                additionalItems: root.additionalItems,
+                hasEarlier: root.hasEarlier || archive.hasEarlier,
+                hasLater: root.hasLater || archive.hasLater,
+                isLoading: root.isLoading || archive.isLoading
+            )
+        }
+        |> distinctUntilChanged { l, r in
             if l.items.count != r.items.count {
                 return false
             }
