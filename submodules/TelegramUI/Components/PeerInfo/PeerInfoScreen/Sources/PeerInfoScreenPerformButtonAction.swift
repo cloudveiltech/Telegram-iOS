@@ -1299,6 +1299,11 @@ extension PeerInfoScreenNode {
         case .leave:
             self.openLeavePeer(delete: false)
         case .stop:
+            // CloudVeil: non-blockable bots
+            if CloudVeilSecurityController.shared.isNonblockableBot(self.peerId.id._internalGetInt64Value()) {
+                return
+            }
+            // CloudVeil end
             self.controller?.present(UndoOverlayController(presentationData: self.presentationData, content: .universal(animation: "anim_banned", scale: 0.066, colors: [:], title: self.presentationData.strings.PeerInfo_BotBlockedTitle, text: self.presentationData.strings.PeerInfo_BotBlockedText, customUndoText: nil, timeout: nil), elevatedLayout: false, animateInAsReplacement: true, action: { _ in return false }), in: .current)
             self.updateBlocked(block: true)
         case .addContact:

@@ -918,20 +918,20 @@ final class PeerInfoPaneContainerNode: ASDisplayNode, ASGestureRecognizerDelegat
     func update(size: CGSize, sideInset: CGFloat, topInset: CGFloat, bottomInset: CGFloat, deviceMetrics: DeviceMetrics, visibleHeight: CGFloat, expansionFraction: CGFloat, presentationData: PresentationData, data: PeerInfoScreenData?, areTabsHidden: Bool, disableTabSwitching: Bool, navigationHeight: CGFloat, transition: ContainedViewLayoutTransition) {
         let previousAvailablePanes = self.currentAvailablePanes
         var availablePanes = data?.availablePanes ?? []
-        self.currentAvailablePanes = data?.availablePanes
+        
+        //CloudVeil start: remove gifts and stories if disabled
+        availablePanes.removeAll { $0 == .gifts }
+        if CloudVeilSecurityController.shared.disableStories {
+            availablePanes.removeAll { $0 == .stories || $0 == .storyArchive }
+        }
+        //CloudVeil end: remove gifts and stories if disabled
+        
+        self.currentAvailablePanes = availablePanes
         
         let previousPaneKeys = Set<PeerInfoPaneKey>(self.currentPanes.keys)
         
         let previousCurrentPaneKey = self.currentPaneKey
         var updateCurrentPaneStatus = false
-        
-        //CloudVeil start
-        if CloudVeilSecurityController.shared.disableStories {
-            if let index = availablePanes.firstIndex(of: .stories) {
-                availablePanes.remove(at: index)
-            }
-        }
-        //CloudVeil end
         
         if let previousAvailablePanes, !previousAvailablePanes.contains(.stories), availablePanes.contains(.stories) {
             self.pendingSwitchToPaneKey = .stories

@@ -312,21 +312,21 @@ extension PeerInfoScreenNode {
             }
         // CloudVeil start 
         case .policy:
-            if let orgId = CloudVeilSecurityController.shared.organizationId {
+            if let url = CloudVeilSecurityController.shared.organizationPolicyUrl {
                 let navCtrl = self.controller?.navigationController as? NavigationController
                 context.sharedContext.openExternalUrl(
                     context: context, urlContext: .generic,
-                    url: "https://messenger.cloudveil.org/organization/policy/\(orgId)",
+                    url: url,
                     forceExternal: false, presentationData: presentationData,
                     navigationController: navCtrl, dismissInput: {}
                 )
             }
         case .aboutUs:
-            if let orgId = CloudVeilSecurityController.shared.organizationId {
+            if let url = CloudVeilSecurityController.shared.organizationAboutUrl {
                 let navCtrl = self.controller?.navigationController as? NavigationController
                 self.context.sharedContext.openExternalUrl(
                     context: self.context, urlContext: .generic,
-                    url: "https://messenger.cloudveil.org/organization/about/\(orgId)",
+                    url: url,
                     forceExternal: false, presentationData: self.presentationData,
                     navigationController: navCtrl, dismissInput: {}
                 )

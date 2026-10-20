@@ -301,7 +301,9 @@ private enum ChatListRecentEntry: Comparable, Identifiable {
                 }
             
                 var buttonAction: ContactsPeerItemButtonAction?
-                if [.chats, .apps].contains(key), case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp) {
+                // CloudVeil start: disable mini apps
+                if [.chats, .apps].contains(key), case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), !CloudVeilSecurityController.shared.disableMiniApps {
+                    // CloudVeil end: disable mini apps
                     buttonAction = ContactsPeerItemButtonAction(
                         title: presentationData.strings.ChatList_Search_Open,
                         action: { peer, _, _ in
@@ -802,7 +804,9 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                     } else {
                         headerType = .recentPeers
                         
-                        if case .chats = key, case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp) {
+                        // CloudVeil start: disable mini apps
+                        if case .chats = key, case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), !CloudVeilSecurityController.shared.disableMiniApps {
+                            // CloudVeil end: disable mini apps
                             buttonAction = ContactsPeerItemButtonAction(
                                 title: presentationData.strings.ChatList_Search_Open,
                                 action: { peer, _, _ in
@@ -978,7 +982,9 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
                 }
             
                 var buttonAction: ContactsPeerItemButtonAction?
-                if case .chats = key, case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp) {
+                // CloudVeil start: disable mini apps
+                if case .chats = key, case let .user(user) = primaryPeer, let botInfo = user.botInfo, botInfo.flags.contains(.hasWebApp), !CloudVeilSecurityController.shared.disableMiniApps {
+                    // CloudVeil end: disable mini apps
                     buttonAction = ContactsPeerItemButtonAction(
                         title: presentationData.strings.ChatList_Search_Open,
                         action: { peer, _, _ in
@@ -1625,6 +1631,33 @@ public struct ApprovedGlobalPostQueryState: Equatable {
     }
 }
 
+// CloudVeil: Central availability check for a single message's peer.
+// nil means unknown (allowed for now), false means blocked, true means allowed.
+private func cloudVeilIsPeerAllowed(peerId: PeerId, peers: SimpleDictionary<PeerId, Peer>) -> Bool {
+    let peerIdInt = NSInteger(peerId.id._internalGetInt64Value())
+
+    var isPeerAvailable: Bool? = true
+    if peerId.namespace == Namespaces.Peer.CloudGroup {
+        isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(groupID: -peerIdInt)
+    } else if peerId.namespace == Namespaces.Peer.CloudChannel {
+        isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(channelID: -peerIdInt)
+    } else if let user = peers[peerId] as? TelegramUser, user.botInfo != nil {
+        isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(botID: peerIdInt)
+    } else if peers[peerId] is TelegramUser {
+        isPeerAvailable = CloudVeilSecurityController.shared.isAvailable(userID: peerIdInt)
+    }
+
+    return isPeerAvailable == true
+}
+
+private func cloudVeilIsMessageAllowed(_ message: Message) -> Bool {
+    return cloudVeilIsPeerAllowed(peerId: message.id.peerId, peers: message.peers)
+}
+
+private func cloudVeilIsMessageAllowed(_ message: EngineMessage) -> Bool {
+    return cloudVeilIsPeerAllowed(peerId: message.id.peerId, peers: message.peers)
+}
+
 final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     private let context: AccountContext
     private let animationCache: AnimationCache
@@ -2143,6 +2176,11 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         existingMessageIds.insert(item.message.id)
                         
                         let message = item.message
+
+                        // CloudVeil: Filter pending downloads from peers that don't pass security check
+                        if !cloudVeilIsMessageAllowed(message) {
+                            continue
+                        }
                         
                         if !queryTokens.isEmpty {
                             if !messageMatchesTokens(message: message, tokens: queryTokens) {
@@ -2176,6 +2214,11 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                         existingMessageIds.insert(item.message.id)
                         
                         let message = EngineMessage(item.message)
+
+                        // CloudVeil: Filter downloads from peers that don't pass security check
+                        if !cloudVeilIsMessageAllowed(message) {
+                            continue
+                        }
                         
                         if !queryTokens.isEmpty {
                             if !messageMatchesTokens(message: message, tokens: queryTokens) {
@@ -2652,6 +2695,12 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             let foundPublicMessages: Signal<([FoundRemoteMessages], Bool), NoError>
             if key == .chats || key == .publicPosts, let query, query.hasPrefix("#") {
                 let searchSignal = context.engine.messages.searchHashtagPosts(hashtag: finalQuery, state: nil, limit: 10)
+                |> map { result, updatedState -> (SearchMessagesResult, SearchMessagesState) in
+                    // CloudVeil: Filter messages from peers that don't pass security check
+                    let filteredMessages = result.messages.filter { cloudVeilIsMessageAllowed($0) }
+                    let filteredResult = SearchMessagesResult(messages: filteredMessages, readStates: result.readStates, threadInfo: result.threadInfo, totalCount: result.totalCount, completed: result.completed)
+                    return (filteredResult, updatedState)
+                }
                 
                 let loadMore: Signal<([FoundRemoteMessages], Bool), NoError>
                 if key == .publicPosts {
@@ -2662,7 +2711,9 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                             if let _ = searchContext.loadMoreIndex {
                                 return context.engine.messages.searchHashtagPosts(hashtag: finalQuery, state: searchContext.result.state, limit: 80)
                                 |> map { result, updatedState -> ChatListSearchMessagesResult in
-                                    return ChatListSearchMessagesResult(query: finalQuery, messages: result.messages.map({ EngineMessage($0) }).sorted(by: { $0.index > $1.index }), readStates: result.readStates.mapValues { EnginePeerReadCounters(state: $0, isMuted: false) }, threadInfo: result.threadInfo, hasMore: !result.completed, totalCount: result.totalCount, state: updatedState)
+                                    // CloudVeil: Filter messages from peers that don't pass security check
+                                    let filteredMessages = result.messages.map({ EngineMessage($0) }).filter { cloudVeilIsMessageAllowed($0) }.sorted(by: { $0.index > $1.index })
+                                    return ChatListSearchMessagesResult(query: finalQuery, messages: filteredMessages, readStates: result.readStates.mapValues { EnginePeerReadCounters(state: $0, isMuted: false) }, threadInfo: result.threadInfo, hasMore: !result.completed, totalCount: result.totalCount, state: updatedState)
                                 }
                                 |> mapToSignal { foundMessages -> Signal<([FoundRemoteMessages], Bool), NoError> in
                                     updateSearchContexts { previous in
@@ -2746,15 +2797,48 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     }
                 }
                 
-                let searchSignal = combineLatest(searchSignals)
-                |> map { results -> [ChatListSearchMessagesResult] in
+                func mapRawSearchResults(_ results: [(SearchMessagesResult, SearchMessagesState)]) -> [ChatListSearchMessagesResult] {
                     var mappedResults: [ChatListSearchMessagesResult] = []
                     for resultData in results {
                         let (result, updatedState) = resultData
-                        
-                        mappedResults.append(ChatListSearchMessagesResult(query: finalQuery, messages: result.messages.map({ EngineMessage($0) }).sorted(by: { $0.index > $1.index }), readStates: result.readStates.mapValues { EnginePeerReadCounters(state: $0, isMuted: false) }, threadInfo: result.threadInfo, hasMore: !result.completed, totalCount: result.totalCount, state: updatedState))
+
+                        // CloudVeil: Filter messages from peers that don't pass security check
+                        let filteredMessages = result.messages.filter { cloudVeilIsMessageAllowed($0) }
+
+                        mappedResults.append(ChatListSearchMessagesResult(query: finalQuery, messages: filteredMessages.map({ EngineMessage($0) }).sorted(by: { $0.index > $1.index }), readStates: result.readStates.mapValues { EnginePeerReadCounters(state: $0, isMuted: false) }, threadInfo: result.threadInfo, hasMore: !result.completed, totalCount: result.totalCount, state: updatedState))
                     }
                     return mappedResults
+                }
+
+                // CloudVeil: ramp up results if all are filtered out initially
+                let searchSignal: Signal<[ChatListSearchMessagesResult], NoError>
+                if finalQuery.isEmpty {
+                    // Empty-query search: CloudVeil filtering can remove every message from a small first page,
+                    // and load-more never runs when filtered messages are empty (no last index). Re-fetch with a
+                    // larger limit until we surface allowed peers or exhaust the cap.
+                    func searchWithRampUp(limit: Int32) -> Signal<[ChatListSearchMessagesResult], NoError> {
+                        let rampSignals: [Signal<(SearchMessagesResult, SearchMessagesState), NoError>] = searchLocations.map { searchLocation in
+                            return context.engine.messages.searchMessages(location: searchLocation, query: finalQuery, state: nil, limit: limit)
+                        }
+                        return combineLatest(rampSignals)
+                        |> mapToSignal { results -> Signal<[ChatListSearchMessagesResult], NoError> in
+                            let mapped = mapRawSearchResults(results)
+                            let filteredTotal = mapped.reduce(0) { $0 + $1.messages.count }
+                            if filteredTotal != 0 {
+                                return .single(mapped)
+                            }
+                            let rawTotal = results.reduce(0) { $0 + $1.0.messages.count }
+                            if rawTotal == 0 || limit >= 500 {
+                                return .single(mapped)
+                            }
+                            let nextLimit = min(limit + 100, 500)
+                            return searchWithRampUp(limit: nextLimit)
+                        }
+                    }
+                    searchSignal = searchWithRampUp(limit: 50)
+                } else {
+                    searchSignal = combineLatest(searchSignals)
+                    |> map { mapRawSearchResults($0) }
                 }
                 
                 let loadMore = searchContexts.get()
@@ -2770,9 +2854,11 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 }
                             }
                             if let _ = searchContext.loadMoreIndex {
-                                return context.engine.messages.searchMessages(location: searchLocations[i], query: finalQuery, state: searchContext.result.state, limit: 80)
+                                return context.engine.messages.searchMessages(location: searchLocations[i], query: finalQuery, state: searchContext.result.state, limit: 500)
                                 |> map { result, updatedState -> ChatListSearchMessagesResult in
-                                    return ChatListSearchMessagesResult(query: finalQuery, messages: result.messages.map({ EngineMessage($0) }).sorted(by: { $0.index > $1.index }), readStates: result.readStates.mapValues { EnginePeerReadCounters(state: $0, isMuted: false) }, threadInfo: result.threadInfo, hasMore: !result.completed, totalCount: result.totalCount, state: updatedState)
+                                    // CloudVeil: Filter messages from peers that don't pass security check
+                                    let filteredMessages = result.messages.map({ EngineMessage($0) }).filter { cloudVeilIsMessageAllowed($0) }.sorted(by: { $0.index > $1.index })
+                                    return ChatListSearchMessagesResult(query: finalQuery, messages: filteredMessages, readStates: result.readStates.mapValues { EnginePeerReadCounters(state: $0, isMuted: false) }, threadInfo: result.threadInfo, hasMore: !result.completed, totalCount: result.totalCount, state: updatedState)
                                 }
                                 |> mapToSignal { foundMessages -> Signal<([FoundRemoteMessages], Bool), NoError> in
                                     updateSearchContexts { previous in
@@ -3282,6 +3368,11 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 continue
                             }
                             existingPostIds.insert(message.id)
+
+                            // CloudVeil: Filter messages from peers that don't pass security check
+                            if !cloudVeilIsMessageAllowed(message) {
+                                continue
+                            }
                         
                             let headerId = listMessageDateHeaderId(timestamp: message.timestamp)
                             if firstHeaderId == nil {
@@ -3314,6 +3405,12 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 } else if message.id.namespace == Namespaces.Message.Cloud && searchState.deletedGlobalMessageIds.contains(message.id.id) {
                                     continue
                                 }
+
+                                // CloudVeil: Filter messages from peers that don't pass security check
+                                if !cloudVeilIsMessageAllowed(message) {
+                                    continue
+                                }
+
                                 let headerId = listMessageDateHeaderId(timestamp: message.timestamp)
                                 if firstHeaderId == nil {
                                     firstHeaderId = headerId
@@ -3486,7 +3583,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         }, toggleArchivedFolderHiddenByDefault: {
         }, toggleThreadsSelection: { _, _ in
         }, hidePsa: { _ in
-        }, activateChatPreview: { item, _, node, gesture, location in
+        }, activateChatPreview: { [weak self] item, _, node, gesture, location in
             guard let peerContextAction = interaction.peerContextAction else {
                 gesture?.cancel()
                 return
@@ -3497,8 +3594,22 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
             case let .peer(peerData):
                 if let peer = peerData.peer.peer, let message = peerData.messages.first {
                     let _ = context.engine.peers.ensurePeerIsLocallyAvailable(peer: peer).startStandalone()
-                    
-                    peerContextAction(peer, .search(message.id), node, gesture, location)
+
+                    // CloudVeil: Check if peer is allowed before showing context menu
+                    if let self, let parentController = self.parentController {
+                        TelegramBaseController.checkPeerIsAllowed(peerId: peer.id, controller: parentController, context: self.context, presentationData: self.presentationData) { result in
+                            if result {
+                                // Peer is allowed, show context menu
+                                peerContextAction(peer, .search(message.id), node, gesture, location)
+                            } else {
+                                // Peer is blocked, cancel gesture
+                                gesture?.cancel()
+                            }
+                        }
+                    } else {
+                        gesture?.cancel()
+                    }
+                    //CloudVeil end
                 }
             case .groupReference:
                 gesture?.cancel()

@@ -121,7 +121,7 @@ open class CloudVeilSecurityController: NSObject {
     }
     
     public var disableStickers: Bool {
-        return withSettings { $0?.disableSticker ?? false }
+        return withSettings { $0?.disableStickers ?? false }
     }
 
     public var disableBio: Bool {
@@ -160,6 +160,22 @@ open class CloudVeilSecurityController: NSObject {
         return withSettings { $0?.disableEmojiStatus ?? false }
     }
 
+    public var disableMusicStatus: Bool {
+        return withSettings { $0?.disableMusicStatus ?? true }
+    }
+
+    public var disableStars: Bool {
+        return withSettings { $0?.disableStars ?? true }
+    }
+
+    public var disableMiniApps: Bool {
+        return withSettings { $0?.disableMiniApps ?? true }
+    }
+
+    public var manageUsers: Bool {
+        return withSettings { $0?.manageUsers ?? false }
+    }
+
     public var profilePhotoLimit: Int {
         var v = 1
         self.accessQueue.sync {
@@ -179,6 +195,20 @@ open class CloudVeilSecurityController: NSObject {
             res = settings?.organization?.id
         }
         return res
+    }
+
+    public var organizationAboutUrl: String? {
+        return withSettings {
+            let value = $0?.organization?.aboutUrl ?? ""
+            return value.isEmpty ? nil : value
+        }
+    }
+
+    public var organizationPolicyUrl: String? {
+        return withSettings {
+            let value = $0?.organization?.policyUrl ?? ""
+            return value.isEmpty ? nil : value
+        }
     }
     
     public var secretChatMinimumLength: NSInteger {
@@ -345,10 +375,10 @@ open class CloudVeilSecurityController: NSObject {
         }
     }
     
-    open func getSettings(groups: inout [TGRow], bots: inout [TGRow], channels: inout [TGRow], stickers: inout [TGRow]) {
+    open func getSettings(groups: inout [TGRow], bots: inout [TGRow], channels: inout [TGRow], stickers: inout [TGRow], users: inout [TGRow]) {
         let request = TGSettingsRequest(
             sessionId: self.nextRequest?.clientSessionId,
-            groups: groups, bots: bots, channels: channels, stickers: stickers)
+            groups: groups, bots: bots, channels: channels, stickers: stickers, users: users)
         
         if let nextReq = self.nextRequest,  nextReq == request {
             let now = Date().timeIntervalSince1970
@@ -364,11 +394,11 @@ open class CloudVeilSecurityController: NSObject {
         }
     }
     
-    public func replayRequestWith(group: TGRow? = nil, channel: TGRow? = nil, bot: TGRow? = nil) {
+    public func replayRequestWith(group: TGRow? = nil, channel: TGRow? = nil, bot: TGRow? = nil, user: TGRow? = nil) {
         self.netQueue.async {
             let nextReq = self.nextRequest ?? TGSettingsRequest(
                 sessionId: self.nextRequest?.clientSessionId,
-                groups: [], bots: [], channels: [], stickers: [])
+                groups: [], bots: [], channels: [], stickers: [], users: [])
             
             var send = false
             if let g = group, !nextReq.groups.contains(g) {
@@ -381,6 +411,10 @@ open class CloudVeilSecurityController: NSObject {
             }
             if let b = bot, !nextReq.bots.contains(b) {
                 nextReq.bots.append(b)
+                send = true
+            }
+            if let u = user, !nextReq.users.contains(u) {
+                nextReq.users.append(u)
                 send = true
             }
             
@@ -401,6 +435,10 @@ open class CloudVeilSecurityController: NSObject {
     
     open func replayRequestWithBot(bot: TGRow) {
         self.replayRequestWith(bot: bot)
+    }
+
+    open func replayRequestWithUser(user: TGRow) {
+        self.replayRequestWith(user: user)
     }
     
     private func saveSettings(_ settings: TGSettingsResponse?, forUserId: Int64 = 0, orgId: NSInteger = 0) {
@@ -469,6 +507,8 @@ open class CloudVeilSecurityController: NSObject {
                         print("[SETTINGS] details: current user \(tg.getUserID()) org \(tg.getOrgID()), settings user \(Int(userId)) org \(targetOrgId)")
                     }
                 }
+
+                self.checkDeprecationAlert(settings.deprecation)
             }
         }
     }
@@ -513,6 +553,21 @@ open class CloudVeilSecurityController: NSObject {
         return res
     }
     
+    open func isAvailable(userID: NSInteger) -> Bool? {
+        var res: Bool?
+        self.accessQueue.sync {
+            res = settings?.access?.users?["\(userID)"]
+        }
+        if res == false {
+            // manually blocked users are always blocked, despite the manageUsers setting
+            return false
+        }
+        if !self.manageUsers {
+            return true
+        }
+        return res
+    }
+
     open func isAvailable(stickerId: NSInteger) -> Bool? {
         if disableStickers {
             return false
@@ -525,8 +580,22 @@ open class CloudVeilSecurityController: NSObject {
         return res
     }
     
+    open func isNonblockableBot(_ botID: Int64) -> Bool {
+        let bots: [Int64] = withSettings { settings in
+            if let ids = settings?.nonblockableBots {
+                return ids.map { Int64($0) }
+            }
+            return [Int64(self.SUPPORT_BOT_ID)]
+        }
+        return bots.contains(botID)
+    }
+
     open func isBotAvailable(botID: NSInteger) -> Bool {
         return isAvailable(botID: botID) ?? false
+    }
+
+    open func isUserAvailable(userID: NSInteger) -> Bool {
+        return isAvailable(userID: userID) ?? false
     }
     
     open func isStickerAvailable(stickerId: NSInteger) -> Bool {
@@ -542,6 +611,9 @@ open class CloudVeilSecurityController: NSObject {
             res = (res ?? false) || avail
         }
         if let avail = isAvailable(groupID: -conversationId) {
+            res = (res ?? false) || avail
+        }
+        if let avail = isAvailable(userID: conversationId) {
             res = (res ?? false) || avail
         }
         
@@ -563,8 +635,9 @@ open class CloudVeilSecurityController: NSObject {
             let haveGroup = access.groups?["\(channelId)"] != nil
             let haveChannel = access.channels?["\(channelId)"] != nil
             let haveBot = access.bots?["\(conversationId)"] != nil
-            
-            res = haveGroup || haveChannel || haveBot
+            let haveUser = access.users?["\(conversationId)"] != nil
+
+            res = haveGroup || haveChannel || haveBot || haveUser
         }
         return res
     }
@@ -584,5 +657,48 @@ open class CloudVeilSecurityController: NSObject {
         let alert = UIAlertController(title: "CloudVeil!", message: "Blocked", preferredStyle: .alert)
         alert.addAction(.init(title: "OK", style: .default, handler: nil))
         viewController.present(alert, animated: false)
+    }
+
+    private static let kDeprecationAlertShownTime = "deprecationAlertShownTime"
+    private static let appStoreURL = URL(string: "itms-apps://itunes.apple.com/app/id1293233612")
+
+    private func checkDeprecationAlert(_ deprecation: Deprecation?) {
+        guard let deprecation, deprecation.deprecated == true else {
+            return
+        }
+
+        let now = Date().timeIntervalSince1970
+        let lastShownTime = UserDefaults.standard.double(forKey: Self.kDeprecationAlertShownTime)
+        if let reminder = deprecation.reminder, reminder > 0, now - lastShownTime < Double(reminder) {
+            return
+        }
+        UserDefaults.standard.set(now, forKey: Self.kDeprecationAlertShownTime)
+
+        let message = deprecation.message ?? ""
+        DispatchQueue.main.async {
+            guard let viewController = Self.topViewController() else {
+                return
+            }
+            let alert = UIAlertController(title: "Warning", message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: nil))
+            alert.addAction(UIAlertAction(title: "Update", style: .default, handler: { _ in
+                if let url = Self.appStoreURL {
+                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                }
+            }))
+            viewController.present(alert, animated: true)
+        }
+    }
+
+    private static func topViewController() -> UIViewController? {
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }
+        var viewController = window?.rootViewController
+        while let presented = viewController?.presentedViewController {
+            viewController = presented
+        }
+        return viewController
     }
 }

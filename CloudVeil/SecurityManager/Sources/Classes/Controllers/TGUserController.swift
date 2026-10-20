@@ -59,6 +59,10 @@ import Foundation
     @objc open func set(userNames names: [String]) {
         TGUserModel1.set(userNames: names)
     }
+
+    @objc open func set(clientLocale locale: String) {
+        TGUserModel1.set(clientLocale: locale)
+    }
     
     //acknowledge that cache has been updated in CloudVeilSecurityController
     @objc open func setCacheHasBeenUpdated() {
@@ -84,5 +88,9 @@ import Foundation
     
     @objc open func getUserNames() -> [String] {
         return TGUserModel1.userNames
+    }
+
+    @objc open func getClientLocale() -> String {
+        return TGUserModel1.clientLocale
     }
 }

@@ -4737,6 +4737,11 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             guard let self else {
                 return
             }
+            // CloudVeil start: disable mini apps
+            if CloudVeilSecurityController.shared.disableMiniApps {
+                return
+            }
+            // CloudVeil end: disable mini apps
             self.openWebApp(buttonText: buttonText, url: url, simple: simple, source: source)
         }, activateAdAction: { [weak self] messageId, progress, media, fullscreen in
             guard let self else {
@@ -7825,7 +7830,11 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         
         if let attachBotStart = self.attachBotStart {
             self.attachBotStart = nil
-            self.presentAttachmentBot(botId: attachBotStart.botId, payload: attachBotStart.payload, justInstalled: attachBotStart.justInstalled)
+            // CloudVeil start: disable mini apps
+            if !CloudVeilSecurityController.shared.disableMiniApps {
+                self.presentAttachmentBot(botId: attachBotStart.botId, payload: attachBotStart.payload, justInstalled: attachBotStart.justInstalled)
+            }
+            // CloudVeil end: disable mini apps
         }
         
         if self.powerSavingMonitoringDisposable == nil {
@@ -8241,6 +8250,11 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     }
     
     public func presentAttachmentBot(botId: PeerId, payload: String?, justInstalled: Bool) {
+        // CloudVeil start: disable mini apps
+        if CloudVeilSecurityController.shared.disableMiniApps {
+            return
+        }
+        // CloudVeil end: disable mini apps
         self.attachmentController?.dismiss(animated: true, completion: nil)
         self.presentAttachmentMenu(subject: .bot(id: botId, payload: payload, justInstalled: justInstalled))
     }

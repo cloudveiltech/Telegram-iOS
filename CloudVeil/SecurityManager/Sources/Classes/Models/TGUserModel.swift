@@ -17,6 +17,7 @@ class TGUserModel1: NSObject {
     static let kTGUserModelPhoneNumber = "TGUserModelPhoneNumber"
     static let kTGUserModelUserName = "TGUserModelUserName"
     static let kTGUserModelUserNames = "TGUserModelUserNames"
+    static let kTGUserModelClientLocale = "TGUserModelClientLocale"
     
     
     // MARK: - Properties
@@ -50,6 +51,11 @@ class TGUserModel1: NSObject {
         set { UserDefaults.standard.set(newValue, forKey: kTGUserModelUserNames) }
         get { return (UserDefaults.standard.array(forKey: kTGUserModelUserNames) as? [String] ?? []) }
     }
+
+    public static private(set) var clientLocale: String {
+        set { UserDefaults.standard.set(newValue, forKey: kTGUserModelClientLocale) }
+        get { return UserDefaults.standard.string(forKey: kTGUserModelClientLocale) ?? "" }
+    }
     
     
     // MARK: - Actions
@@ -72,5 +78,9 @@ class TGUserModel1: NSObject {
     
     public static func set(userNames names: [String]) {
         userNames = names
+    }
+
+    public static func set(clientLocale locale: String) {
+        clientLocale = locale
     }
 }
